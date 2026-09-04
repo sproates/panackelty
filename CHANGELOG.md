@@ -41,7 +41,8 @@ contract and remaining work.
 
 ### Release verification
 
-- Published from annotated tag `v0.1.0-alpha.1` at source commit `4378ab5`
+- Published from annotated tag `v0.1.0-alpha.1`; each provenance file records
+  the exact tagged source commit
 - Passed complete validation and exact-archive smoke tests on Ubuntu 22.04
   x86-64 and macOS 14 arm64 in the release workflow
 - Published exactly two archives with adjacent SHA-256 checksums and build

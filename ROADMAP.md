@@ -7,7 +7,7 @@ are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 An item is complete only when its implementation, focused tests, end-to-end
 coverage, and affected documentation are complete and `make check` passes.
 
-## Deliver developer preview `0.1.0-alpha.1` — planned
+## Deliver developer preview `0.1.0-alpha.1` — in progress
 
 The immediate product goal is a public developer preview that lets a new user
 download Panackelty, put `panack` on `PATH`, and check, compile, and run a source
@@ -109,13 +109,13 @@ use the transitional Python oracle and test harness described below.
 
 ### 7. Publish and verify
 
-- [ ] Export the reviewed working tree into a new isolated repository without
+- [x] Export the reviewed working tree into a new isolated repository without
       the current `.git` directory, branches, tags, reflogs, remotes, or other
       local history; keep this working repository and its history intact
-- [ ] Configure publication identity and authenticate the separate personal
+- [x] Configure publication identity and authenticate the separate personal
       GitHub account only in that isolated repository, without changing global
       Git configuration, the current GitHub login, or files under `~/.ssh`
-- [ ] Create and inspect one clean initial commit, publish the repository, then
+- [x] Create and inspect one clean initial commit, publish the repository, then
       clone it into a fresh directory and run the documented contributor checks
       plus `make package PYTHON=false`
 - [ ] Publish the annotated `0.1.0-alpha.1` tag and release only after its platform

@@ -67,7 +67,9 @@ runner/architecture pairs, the Python-free package command, checksum and
 provenance uploads, and the absence of tag or release triggers. It separately
 requires the tag workflow to match `VERSION`, depend on complete validation and
 both matrix packages, recheck downloaded assets, and confine write permission
-to the final prerelease publication job.
+to the final prerelease publication job. It also fixes the project website's
+complete static file set and ensures its Pages workflow validates pull requests
+but grants deployment permissions only after a change reaches `main`.
 
 Structurally valid artifacts that forge dynamically unsafe states are defined
 once in `tests/unit/forged_runtime.py`. The bytecode contract tests execute that

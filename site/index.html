@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#15130f">
+    <meta name="description" content="Panackelty is a small, expressive programming language for dependable terminal tools and exact numerical work.">
+    <link rel="canonical" href="https://panackelty.com/">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <title>Panackelty — a new programming language</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="./" aria-label="Panackelty home">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>Panackelty</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#why">Why Panackelty</a>
+        <a href="https://github.com/sproates/panackelty/blob/main/SPEC.md">Language guide</a>
+        <a href="https://github.com/sproates/panackelty">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow"><span></span> A new programming language</p>
+          <h1>Exact values.<br><em>Clear intent.</em></h1>
+          <p class="lede">
+            Panackelty is an experimental compiled language with
+            arbitrary-precision numbers, checked domain types, explicit
+            effects, and a portable bytecode VM.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/sproates/panackelty">Explore the source <span aria-hidden="true">↗</span></a>
+            <a class="button secondary" href="https://github.com/sproates/panackelty/releases">View releases</a>
+          </div>
+          <p class="availability">Preview archives for Linux x86-64 and Apple silicon are being prepared.</p>
+        </div>
+
+        <div class="code-card" aria-label="Panackelty example program">
+          <div class="code-bar">
+            <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>hello.panack</span>
+            <span class="code-status">exact</span>
+          </div>
+          <pre><code><span class="kw">pure</span> greeting(name: <span class="type">Str</span>,
+              answer: <span class="type">Nat</span>): <span class="type">Str</span> {
+  <span class="str">"Hello, ${name}. The answer is ${answer}."</span>
+}
+
+main(): <span class="type">Void</span> {
+  print(greeting(<span class="str">"Ada"</span>, <span class="num">42</span>))
+}</code></pre>
+          <div class="terminal-line"><span>$</span> panack run hello.panack</div>
+          <div class="terminal-output">Hello, Ada. The answer is 42.</div>
+        </div>
+      </section>
+
+      <section class="principles" id="why" aria-labelledby="why-title">
+        <div class="section-heading">
+          <p class="eyebrow">Language design</p>
+          <h2 id="why-title">A compact language with deliberate semantics.</h2>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <span class="feature-number">01</span>
+            <h3>Numbers mean what they say</h3>
+            <p><code>Nat</code> and <code>Int</code> are arbitrary precision. <code>Dec</code> uses exact base-10 arithmetic, not binary floating point.</p>
+          </article>
+          <article>
+            <span class="feature-number">02</span>
+            <h3>Invalid values stay out</h3>
+            <p>Guarded types attach checked rules—such as a valid port range—to ordinary values at the language boundary.</p>
+          </article>
+          <article>
+            <span class="feature-number">03</span>
+            <h3>Effects remain visible</h3>
+            <p><code>pure</code> functions cannot quietly perform I/O or call effectful code. The compiler keeps the boundary honest.</p>
+          </article>
+          <article>
+            <span class="feature-number">04</span>
+            <h3>One dependable runtime</h3>
+            <p>Source compiles to verified bytecode and runs on a portable C11 VM—the same execution path for scripts and saved programs.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="toolchain" aria-labelledby="toolchain-title">
+        <div class="pipeline" aria-label="Panackelty compilation pipeline">
+          <div class="pipeline-step">
+            <span>01 · source</span>
+            <strong>program.panack</strong>
+          </div>
+          <span class="pipeline-arrow" aria-hidden="true">↓</span>
+          <div class="pipeline-step">
+            <span>02 · compile + verify</span>
+            <strong>program.bc</strong>
+          </div>
+          <span class="pipeline-arrow" aria-hidden="true">↓</span>
+          <div class="pipeline-step">
+            <span>03 · execute</span>
+            <strong>portable C11 VM</strong>
+          </div>
+        </div>
+        <div>
+          <p class="eyebrow">Compiler and runtime</p>
+          <h2 id="toolchain-title">One execution model from source to bytecode.</h2>
+          <p>
+            The download contains the <code>panack</code> command, native VM,
+            self-hosted compiler, and standard library. Running programs needs
+            no Python, build system, or source checkout.
+          </p>
+          <ul class="platforms" aria-label="Initial supported platforms">
+            <li>Linux <span>x86-64</span></li>
+            <li>macOS <span>arm64</span></li>
+            <li>Bytecode <span>v7</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="status" aria-labelledby="status-title">
+        <p class="eyebrow">Developer preview</p>
+        <h2 id="status-title">Early, open, and intentionally experimental.</h2>
+        <p>
+          The language, standard library, and bytecode format are being shaped
+          in public. The preview is ready for exploration and useful feedback,
+          not a promise of backwards compatibility. Read the specification,
+          try complete examples, and tell us where the model can be clearer.
+        </p>
+      </section>
+
+      <section class="closing" aria-labelledby="closing-title">
+        <div>
+          <p class="eyebrow">Explore Panackelty</p>
+          <h2 id="closing-title">Start with the language.</h2>
+        </div>
+        <div class="closing-links">
+          <a href="https://github.com/sproates/panackelty/blob/main/README.md">Get started <span aria-hidden="true">→</span></a>
+          <a href="https://github.com/sproates/panackelty/blob/main/SPEC.md">Read the specification <span aria-hidden="true">→</span></a>
+          <a href="https://github.com/sproates/panackelty/issues">Report an issue <span aria-hidden="true">→</span></a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a>
+      <p>An experimental programming language.</p>
+      <p><a href="https://github.com/sproates/panackelty/blob/main/LICENSE">BSD-3-Clause</a> · <a href="https://github.com/sproates/panackelty">Source on GitHub</a></p>
+    </footer>
+  </body>
+</html>

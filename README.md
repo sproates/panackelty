@@ -3,6 +3,9 @@
 **A small, expressive programming language for dependable terminal tools and
 exact numerical work.**
 
+[Website](https://panackelty.com) · [Specification](SPEC.md) ·
+[Releases](../../releases) · [Contributing](CONTRIBUTING.md)
+
 Panackelty combines arbitrary-precision numbers, checked domain types, explicit
 effects, and a portable bytecode VM. Its syntax stays compact enough for a quick
 script while its compiler catches the mistakes that become expensive when a

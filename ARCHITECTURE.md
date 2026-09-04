@@ -62,6 +62,7 @@ The major components are:
 | VM | Executes verified instructions using isolated stack frames | Portable C11 seed in `src/vm`; bootstrap oracle in `src/bootstrap/panackelty.py` |
 | Runtime | Implements built-ins and the effectful host boundary | ABI contract in `src/runtime`; native implementation in `src/vm`; bootstrap oracle in `src/bootstrap/panackelty.py` |
 | Standard library | Defines portable core types and APIs over deterministic primitives and the host ABI | Panackelty sources in `src/stdlib` |
+| Project website | Presents the public language overview and routes readers to source documentation and releases | Dependency-free static files in `site`; deployed from protected `main` by `.github/workflows/pages.yml` |
 
 ## Repository layout
 
@@ -80,6 +81,7 @@ panackelty/
 │   ├── runtime/             built-ins and operating-system boundary
 │   └── stdlib/              portable modules and public core APIs
 ├── examples/                user-facing Panackelty example programs
+├── site/                    static GitHub Pages project website
 ├── tests/
 │   ├── COVERAGE.md         specification-to-test coverage matrix
 │   ├── quick_start.sh      packaged README workflow gate
@@ -89,12 +91,18 @@ panackelty/
 │   │   ├── bytecode/       serialization and verifier tests
 │   │   └── vm/             execution, numeric, collection, and runtime tests
 │   └── functional/         complete Panackelty program and CLI tests
-├── .github/workflows/       continuous validation
+├── .github/workflows/       continuous validation, releases, and Pages deployment
 ├── ARCHITECTURE.md          this implementation description
 ├── ROADMAP.md               language and engineering initiatives
 ├── SPEC.md                  language semantics
 └── SELF_HOSTING.md          bootstrap roadmap
 ```
+
+The project website is a dependency-free static artifact. Pull requests that
+touch `site/` or its workflow build and validate the complete Pages artifact;
+deployment is skipped for pull requests and runs only after protected `main`
+receives the change. The deploy job alone receives the narrow `pages: write`
+and `id-token: write` permissions required by GitHub Pages.
 
 ## Compiler pipeline
 

@@ -136,6 +136,34 @@ class RepositoryLayoutTests(unittest.TestCase):
             quick_start,
         )
 
+    def test_project_website_is_static_and_deploys_only_from_main(self):
+        site = PROJECT / "site"
+        self.assertEqual(
+            {path.name for path in site.iterdir() if path.is_file()},
+            {"index.html", "styles.css", "favicon.svg"},
+        )
+        index = (site / "index.html").read_text(encoding="utf-8")
+        self.assertIn('<meta name="viewport"', index)
+        self.assertIn('<link rel="canonical" href="https://panackelty.com/">', index)
+        self.assertIn('href="styles.css"', index)
+        self.assertIn("https://github.com/sproates/panackelty", index)
+        self.assertNotIn('href="http://', index)
+        self.assertNotIn('src="http://', index)
+
+        workflow = (PROJECT / ".github/workflows/pages.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("push:\n    branches: [main]", workflow)
+        self.assertIn("pull_request:\n    branches: [main]", workflow)
+        self.assertIn("uses: actions/configure-pages@v5", workflow)
+        self.assertIn("uses: actions/upload-pages-artifact@v4", workflow)
+        self.assertIn("path: site", workflow)
+        self.assertIn("if: github.event_name != 'pull_request'", workflow)
+        self.assertIn("needs: build", workflow)
+        self.assertIn("pages: write", workflow)
+        self.assertIn("id-token: write", workflow)
+        self.assertIn("uses: actions/deploy-pages@v4", workflow)
+
     def test_language_tour_links_tested_examples_and_specification_sections(self):
         readme = (PROJECT / "README.md").read_text(encoding="utf-8")
         tour = readme.split("## A quick language tour\n", 1)[1].split(

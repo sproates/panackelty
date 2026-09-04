@@ -18,7 +18,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Build, test, and package the native toolchain
         run: make package PYTHON=false
@@ -38,7 +38,7 @@ jobs:
           } >"${archive}.provenance"
 
       - name: Upload packaged toolchain
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: panackelty-${{ matrix.target }}-${{ github.sha }}
           path: |
@@ -52,10 +52,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -88,7 +88,7 @@ jobs:
 
       - name: Archive validation timings
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: validation-timings-${{ github.run_id }}
           path: validation-timings.tsv

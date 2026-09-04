@@ -23,7 +23,7 @@ HOST_OS ?= macos
 TAR_OWNER_FLAGS := --uid 0 --gid 0 --uname root --gname root
 else ifeq ($(HOST_SYSTEM),Linux)
 HOST_OS ?= linux
-TAR_OWNER_FLAGS := --owner=0 --group=0 --numeric-owner
+TAR_OWNER_FLAGS := --owner=root --group=root
 else
 HOST_OS ?= $(HOST_SYSTEM)
 TAR_OWNER_FLAGS :=

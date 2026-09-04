@@ -41,7 +41,7 @@ class RepositoryLayoutTests(unittest.TestCase):
         )
         self.assertIn("runs-on: ${{ matrix.runner }}", workflow)
         self.assertIn("run: make package PYTHON=false", workflow)
-        self.assertIn("uses: actions/upload-artifact@v4", workflow)
+        self.assertIn("uses: actions/upload-artifact@v6", workflow)
         self.assertIn("build/panackelty-*.tar.gz.sha256", workflow)
         self.assertIn("build/panackelty-*.tar.gz.provenance", workflow)
         self.assertIn('echo "source_commit=$GITHUB_SHA"', workflow)
@@ -69,7 +69,7 @@ class RepositoryLayoutTests(unittest.TestCase):
             "target: macos-arm64\n            runner: macos-14", workflow
         )
         self.assertIn("needs: [validate, package]", workflow)
-        self.assertIn("uses: actions/download-artifact@v4", workflow)
+        self.assertIn("uses: actions/download-artifact@v7", workflow)
         self.assertIn('sha256sum -c "${archive}.sha256"', workflow)
         self.assertIn('grep -Fx "source_commit=$GITHUB_SHA"', workflow)
         self.assertIn('gh release create "$GITHUB_REF_NAME"', workflow)

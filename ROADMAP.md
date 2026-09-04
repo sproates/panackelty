@@ -7,7 +7,7 @@ are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 An item is complete only when its implementation, focused tests, end-to-end
 coverage, and affected documentation are complete and `make check` passes.
 
-## Deliver developer preview `0.1.0-alpha.1` — in progress
+## Deliver developer preview `0.1.0-alpha.1` — delivered
 
 The immediate product goal is a public developer preview that lets a new user
 download Panackelty, put `panack` on `PATH`, and check, compile, and run a source
@@ -118,9 +118,9 @@ use the transitional Python oracle and test harness described below.
 - [x] Create and inspect one clean initial commit, publish the repository, then
       clone it into a fresh directory and run the documented contributor checks
       plus `make package PYTHON=false`
-- [ ] Publish the annotated `0.1.0-alpha.1` tag and release only after its platform
+- [x] Publish the annotated `0.1.0-alpha.1` tag and release only after its platform
       matrix and exact-archive gates pass
-- [ ] Download each public release asset by its published URL, verify its
+- [x] Download each public release asset by its published URL, verify its
       checksum, repeat the quick start, and record the evidence in the release
       notes
 

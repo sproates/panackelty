@@ -1,0 +1,3 @@
+// Paths use the canonical path_parent, path_join, path_suffix,
+// path_with_suffix, path_is_absolute, path_resolve, and file_exists API.
+// Lexical transforms are VM primitives; filesystem queries cross the host ABI.

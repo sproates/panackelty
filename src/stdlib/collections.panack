@@ -1,0 +1,4 @@
+// Persistent collection operations are compiler-known polymorphic APIs until
+// Panackelty gains generic source functions. Arrays provide append, concat,
+// map, and reduce methods; maps and sets provide concise type-directed methods.
+// The legacy prefixed free functions remain bootstrap compatibility spellings.

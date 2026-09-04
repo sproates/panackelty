@@ -1,0 +1,18 @@
+main(): Void {
+  mut answer: Nat = 0
+
+  if true {
+    answer = 42
+  }
+
+  if false {
+    answer = 0
+  }
+
+  // A value produced by the body is discarded in statement position.
+  if true {
+    99
+  }
+
+  print(answer)
+}

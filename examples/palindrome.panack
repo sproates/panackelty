@@ -1,0 +1,33 @@
+// Compare characters from both ends without constructing a reversed string.
+pure previous(value: Nat): Nat {
+  if value == 0 { 0 } else { value - 1 }
+}
+
+pure is_palindrome(text: Str): Bool {
+  mut left: Nat = 0
+  mut right: Nat = len(text)
+  mut matches: Bool = true
+
+  while right > 0 && left < right && matches {
+    right = previous(right)
+    if text[left] != text[right] {
+      matches = false
+    } else {
+      left = left + 1
+    }
+  }
+
+  matches
+}
+
+pure describe(text: Str): Str {
+  result: Bool = is_palindrome(text)
+  "${text}: ${result}"
+}
+
+main(): Void {
+  print(describe("racecar"))
+  print(describe("panackelty"))
+  print(describe("neveroddoreven"))
+  print(describe(""))
+}

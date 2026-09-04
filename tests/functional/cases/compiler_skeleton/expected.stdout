@@ -1,0 +1,1 @@
+usage: panack FILE | panack {check,compile,run,disasm} FILE

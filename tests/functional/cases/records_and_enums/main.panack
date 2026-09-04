@@ -1,0 +1,23 @@
+record Pair[A, B] {
+  first: A,
+  second: B
+}
+
+enum Option[T] {
+  None,
+  Some(T)
+}
+
+pure value_or(value: Option[Nat], fallback: Nat): Nat {
+  match value {
+    Some(found) => found,
+    None() => fallback
+  }
+}
+
+main(): Void {
+  pair: Pair[Str,Nat] = Pair("answer", 42)
+  print(pair.first)
+  print(value_or(Some(pair.second), 0))
+  print(value_or(None(), 7))
+}

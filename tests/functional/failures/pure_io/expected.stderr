@@ -1,0 +1,1 @@
+error: <case>/main.panack:2:3: pure function cannot call impure function print

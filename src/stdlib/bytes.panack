@@ -1,0 +1,27 @@
+pure bytes_empty(): Bytes {
+  bytes()
+}
+
+pure bytes_push(buffer: Bytes, value: Nat): Bytes {
+  byte_append(buffer, value)
+}
+
+pure bytes_join(left: Bytes, right: Bytes): Bytes {
+  bytes_concat(left, right)
+}
+
+pure bytes_length(buffer: Bytes): Nat {
+  byte_len(buffer)
+}
+
+pure bytes_at(buffer: Bytes, index: Nat): Nat {
+  byte_get(buffer, index)
+}
+
+pure text_encode_utf8(value: Str): Bytes {
+  utf8_encode(value)
+}
+
+pure text_decode_utf8(buffer: Bytes): Str {
+  utf8_decode(buffer)
+}

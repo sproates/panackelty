@@ -1,0 +1,11 @@
+pure describe(name: Str, score: Nat, adjustment: Int): Str {
+  first: Str = name[0]
+  "${first}: ${name} scored ${score} (${adjustment})"
+}
+
+main(): Void {
+  print(describe("Ada", 1729, -3))
+  print("Panackelty".slice(0, 3))
+  print("Panackelty".starts_with("Pan"))
+  print("Aλ🙂".reverse())
+}

@@ -1,0 +1,9 @@
+identifier:item_1
+number:42
+decimal:2.5
+string:"text"
+punctuation:=>
+punctuation:+
+
+2:1: unexpected character #
+

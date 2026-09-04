@@ -1,0 +1,22 @@
+// Project Euler 2: sum the even Fibonacci numbers below four million.
+pure sum_even_fibonacci_below(limit: Nat): Nat {
+  mut previous: Nat = 1
+  mut current: Nat = 2
+  mut total: Nat = 0
+
+  while current < limit {
+    if current % 2 == 0 {
+      total = total + current
+    }
+
+    next: Nat = previous + current
+    previous = current
+    current = next
+  }
+
+  total
+}
+
+main(): Void {
+  print(sum_even_fibonacci_below(4000000))
+}

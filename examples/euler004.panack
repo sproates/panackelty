@@ -1,0 +1,35 @@
+// Project Euler 4: find the largest palindrome made from two 3-digit numbers.
+pure reverse_digits(value: Nat): Nat {
+  mut remaining: Nat = value
+  mut reversed: Nat = 0
+
+  while remaining > 0 {
+    reversed = reversed * 10 + remaining % 10
+    remaining = remaining / 10
+  }
+
+  reversed
+}
+
+pure is_numeric_palindrome(value: Nat): Bool {
+  value == reverse_digits(value)
+}
+
+pure largest_three_digit_palindrome_product(): Nat {
+  mut largest: Nat = 0
+
+  for left in 100..1000 {
+    for right in left..1000 {
+      product: Nat = left * right
+      if product > largest && is_numeric_palindrome(product) {
+        largest = product
+      }
+    }
+  }
+
+  largest
+}
+
+main(): Void {
+  print(largest_three_digit_palindrome_product())
+}

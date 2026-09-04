@@ -1,0 +1,203 @@
+import "../bytecode/decoder.panack"
+
+record ProjectLoadState {
+  programs: [Program],
+  visited: Set[Str],
+  diagnostics: [Diagnostic]
+}
+
+record LoadedProject {
+  program: Program,
+  diagnostics: [Diagnostic]
+}
+
+pure path_in_stack(stack: [Str], path: Str): Bool {
+  mut found: Bool = false
+  for item in stack {
+    if item == path { found = true; } else {}
+  }
+  found
+}
+
+pure loader_diagnostic(message: Str): Diagnostic {
+  Diagnostic(message, SourcePos("", 0, 1, 1))
+}
+
+pure is_logical_import(path: Str): Bool {
+  starts_with(path, "stdlib/") || starts_with(path, "project/")
+}
+
+pure logical_import_without_suffix(path: Str): Str {
+  mut output: Str = ""
+  mut index: Nat = 0
+  while index < len(path) {
+    if starts_with_at(path, ".panack", index) && index + len(".panack") == len(path) {
+      index = len(path)
+    } else {
+      output = output + path[index]
+      index = index + 1
+    }
+  }
+  output
+}
+
+pure logical_import_segments_valid(path: Str): Bool {
+  mut valid: Bool = len(path) > 0
+  mut segment_start: Bool = true
+  mut index: Nat = 0
+  while index < len(path) {
+    character: Str = path[index]
+    if character == "/" {
+      if segment_start { valid = false } else {}
+      segment_start = true
+    } else {
+      if segment_start {
+        if !(is_letter(character) || character == "_") { valid = false } else {}
+        segment_start = false
+      } else {
+        if !(is_letter(character) || is_digit(character) || character == "_") { valid = false } else {}
+      }
+    }
+    index = index + 1
+  }
+  valid && !segment_start
+}
+
+pure logical_import_valid(path: Str): Bool {
+  suffix: Str = path_suffix(path)
+  without_suffix: Str = logical_import_without_suffix(path)
+  relative: Str = if starts_with(without_suffix, "stdlib/") {
+    slice(without_suffix, len("stdlib/"), len(without_suffix))
+  } else {
+    if starts_with(without_suffix, "project/") {
+      slice(without_suffix, len("project/"), len(without_suffix))
+    } else {
+      ""
+    }
+  }
+  (suffix == "" || suffix == ".panack") && logical_import_segments_valid(relative)
+}
+
+pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_root: Str): Str {
+  if starts_with(imported, "stdlib/") {
+    without_suffix: Str = logical_import_without_suffix(imported)
+    relative: Str = slice(without_suffix, len("stdlib/"), len(without_suffix))
+    path_join(stdlib_root, "${relative}.panack")
+  } else {
+    if starts_with(imported, "project/") {
+      without_suffix: Str = logical_import_without_suffix(imported)
+      relative: Str = slice(without_suffix, len("project/"), len(without_suffix))
+      path_join(project_root, "${relative}.panack")
+    } else {
+      path_join(parent, imported)
+    }
+  }
+}
+
+load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_root: Str, stdlib_root: Str): ProjectLoadState {
+  if state.visited.has(path) {
+    state
+  } else {
+    if path_in_stack(stack, path) {
+      diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("import cycle includes ${path}"))
+      ProjectLoadState(state.programs, state.visited, diagnostics)
+    } else {
+      if path_suffix(path) != ".panack" {
+        diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("import must reference a .panack file: ${path}"))
+        ProjectLoadState(state.programs, state.visited, diagnostics)
+      } else {
+        if !file_exists(path) {
+          diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("missing source module ${path}"))
+          ProjectLoadState(state.programs, state.visited, diagnostics)
+        } else {
+          source: Str = read_file(path)
+          match lex_file(source, path) {
+            Error(errors) => {
+              mut diagnostics: [Diagnostic] = state.diagnostics
+              for error in errors {
+                diagnostics = append(diagnostics, error)
+              }
+              ProjectLoadState(state.programs, state.visited.add(path), diagnostics)
+            },
+            Ok(tokens) => {
+              match parse_program_complete(tokens) {
+                Error(error) => {
+                  diagnostics: [Diagnostic] = append(state.diagnostics, error)
+                  ProjectLoadState(state.programs, state.visited.add(path), diagnostics)
+                },
+                Ok(program) => {
+                  mut current: ProjectLoadState = state
+                  next_stack: [Str] = append(stack, path)
+                  for declaration in program.declarations {
+                    match declaration {
+                      ImportDeclaration(imported) => {
+                        if is_logical_import(imported) {
+                          if !logical_import_valid(imported) {
+                            diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("invalid logical import path: ${imported}"))
+                            current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                          } else {
+                            if starts_with(imported, "stdlib/") && len(stdlib_root) == 0 {
+                              diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("standard library root is not configured"))
+                              current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                            } else {
+                              parent: Str = path_parent(path)
+                              dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
+                              current = load_project_module(dependency, current, next_stack, project_root, stdlib_root)
+                            }
+                          }
+                        } else {
+                          if path_is_absolute(imported) {
+                            diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("imports must use relative or logical paths: ${imported}"))
+                            current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                          } else {
+                            if path_suffix(imported) != ".panack" {
+                              diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("relative import must reference a .panack file: ${imported}"))
+                              current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                            } else {
+                              parent: Str = path_parent(path)
+                              dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
+                              current = load_project_module(dependency, current, next_stack, project_root, stdlib_root)
+                            }
+                          }
+                        }
+                      },
+                      TypeDeclaration(name, base, guard) => {},
+                      RecordDeclaration(name, parameters, fields) => {},
+                      EnumDeclaration(name, parameters, variants) => {},
+                      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {}
+                    }
+                  }
+                  programs: [Program] = append(current.programs, program)
+                  ProjectLoadState(programs, current.visited.add(path), current.diagnostics)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+load_project(entry: Str): LoadedProject {
+  resolved: Str = path_resolve(entry)
+  project_root: Str = path_parent(resolved)
+  stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
+    path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+  } else {
+    ""
+  }
+  empty: Set[Str] = set()
+  initial: ProjectLoadState = ProjectLoadState([], empty, [])
+  stack: [Str] = []
+  loaded: ProjectLoadState = load_project_module(resolved, initial, stack, project_root, stdlib_root)
+  program: Program = append_program_declarations(loaded.programs)
+  mut diagnostics: [Diagnostic] = loaded.diagnostics
+  if len(diagnostics) == 0 {
+    diagnostics = concat(diagnostics, resolve_program(program))
+  } else {}
+  if len(diagnostics) == 0 {
+    diagnostics = concat(diagnostics, check_program_frontend(program))
+  } else {}
+  LoadedProject(program, diagnostics)
+}

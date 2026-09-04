@@ -1,0 +1,19 @@
+// Project Euler 3: find the largest prime factor of 600851475143.
+pure largest_prime_factor(value: Nat): Nat {
+  mut remaining: Nat = value
+  mut factor: Nat = 2
+
+  while factor * factor <= remaining {
+    if remaining % factor == 0 {
+      remaining = remaining / factor
+    } else {
+      factor = factor + 1
+    }
+  }
+
+  remaining
+}
+
+main(): Void {
+  print(largest_prime_factor(600851475143))
+}

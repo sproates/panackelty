@@ -1,0 +1,15 @@
+pure sum_multiples_below(limit: Nat): Nat {
+  mut total: Nat = 0
+
+  for value in 0..limit {
+    if value % 3 == 0 || value % 5 == 0 {
+      total = total + value
+    }
+  }
+
+  total
+}
+
+main(): Void {
+  print(sum_multiples_below(1000))
+}

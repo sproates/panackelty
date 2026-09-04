@@ -1,0 +1,1 @@
+error: <case>/main.panack:2:16: for requires a Range or array, got Bool

@@ -1,0 +1,11 @@
+type Positive = Int where value > 0
+
+pure triple(n: Positive): Int {
+  n * 3
+}
+
+main(): Void {
+  answer: Positive = 14
+  print(triple(answer))
+}
+

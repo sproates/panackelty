@@ -1,0 +1,5 @@
+enum MaybeNat { None, Some(Nat) }
+
+main(): Void {
+  print(Some())
+}

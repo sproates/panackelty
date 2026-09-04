@@ -1,0 +1,9 @@
+import "option.panack"
+
+environment(name: Str): Option[Str] {
+  if environment_has(name) {
+    Some(environment_get(name))
+  } else {
+    None()
+  }
+}

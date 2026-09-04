@@ -1,0 +1,4 @@
+pure add(left: Nat, right: Nat): Nat {
+  left +
+    right
+}

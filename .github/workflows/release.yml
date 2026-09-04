@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Require the canonical version tag
+        shell: bash
+        run: |
+          expected_tag="v$(cat VERSION)"
+          if [[ "$GITHUB_REF_NAME" != "$expected_tag" ]]; then
+            echo "release tag $GITHUB_REF_NAME does not match $expected_tag" >&2
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the complete project validation
+        run: make check
+
+  package:
+    needs: validate
+    name: Package (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            runner: ubuntu-22.04
+          - target: macos-arm64
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build and verify the native release package
+        run: make package PYTHON=false
+
+      - name: Record build provenance
+        shell: bash
+        run: |
+          archive=$(find build -maxdepth 1 -name 'panackelty-*.tar.gz' -print -quit)
+          checksum=$(awk '{print $1}' "${archive}.sha256")
+          {
+            echo "archive=$(basename "$archive")"
+            echo "sha256=$checksum"
+            echo "source_commit=$GITHUB_SHA"
+            echo "runner=$RUNNER_OS-$RUNNER_ARCH"
+            echo "runner_image=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+          } >"${archive}.provenance"
+
+      - name: Retain validated release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-package-${{ matrix.target }}
+          path: |
+            build/panackelty-*.tar.gz
+            build/panackelty-*.tar.gz.sha256
+            build/panackelty-*.tar.gz.provenance
+          if-no-files-found: error
+
+  publish:
+    needs: [validate, package]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download validated release assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-package-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify the complete release asset set
+        shell: bash
+        run: |
+          version=$(cat VERSION)
+          cd release-assets
+          for target in linux-x86_64 macos-arm64; do
+            archive="panackelty-${version}-${target}.tar.gz"
+            test -f "$archive"
+            test -f "${archive}.sha256"
+            test -f "${archive}.provenance"
+            sha256sum -c "${archive}.sha256"
+            digest=$(sha256sum "$archive" | awk '{print $1}')
+            grep -Fx "archive=$archive" "${archive}.provenance"
+            grep -Fx "sha256=$digest" "${archive}.provenance"
+            grep -Fx "source_commit=$GITHUB_SHA" "${archive}.provenance"
+          done
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 6
+
+      - name: Publish the verified prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --verify-tag \
+            --prerelease \
+            --latest=false \
+            --title "Panackelty ${GITHUB_REF_NAME#v}" \
+            --notes-from-tag

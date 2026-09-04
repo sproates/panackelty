@@ -1,0 +1,35 @@
+pure text_length(value: Str): Nat {
+  len(value)
+}
+
+pure text_slice(value: Str, start: Nat, end: Nat): Str {
+  slice(value, start, end)
+}
+
+pure text_starts_with(value: Str, prefix: Str): Bool {
+  starts_with(value, prefix)
+}
+
+pure text_starts_with_at(value: Str, prefix: Str, offset: Nat): Bool {
+  starts_with_at(value, prefix, offset)
+}
+
+pure text_reverse(value: Str): Str {
+  value.reverse()
+}
+
+pure text_is_digit(value: Str): Bool {
+  is_digit(value)
+}
+
+pure text_is_letter(value: Str): Bool {
+  is_letter(value)
+}
+
+pure text_is_whitespace(value: Str): Bool {
+  is_whitespace(value)
+}
+
+pure text_parse_nat(value: Str): Nat {
+  nat_from_str(value)
+}

@@ -1,0 +1,2 @@
+identity(value: String): String { value }
+main(): Void {}

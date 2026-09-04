@@ -1,0 +1,21 @@
+pure fizzbuzz(value: Nat): Str {
+  if value % 15 == 0 {
+    "FizzBuzz"
+  } else {
+    if value % 3 == 0 {
+      "Fizz"
+    } else {
+      if value % 5 == 0 {
+        "Buzz"
+      } else {
+        "${value}"
+      }
+    }
+  }
+}
+
+main(): Void {
+  for value in 1..101 {
+    print(fizzbuzz(value))
+  }
+}

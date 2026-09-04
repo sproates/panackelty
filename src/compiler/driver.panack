@@ -1,0 +1,157 @@
+import "loader.panack"
+
+record PreparedProject {
+  valid: Bool,
+  program: Program,
+  message: Str
+}
+
+pure diagnostic_messages(diagnostics: [Diagnostic]): Str {
+  mut output: Str = ""
+  mut first: Bool = true
+  for diagnostic in diagnostics {
+    if first { first = false; } else { output = output + "\n"; }
+    output = output + diagnostic_text(diagnostic)
+  }
+  output
+}
+
+prepare_project(path: Str): PreparedProject {
+  loaded: LoadedProject = load_project(path)
+  if len(loaded.diagnostics) == 0 {
+    PreparedProject(true, loaded.program, "")
+  } else {
+    PreparedProject(false, loaded.program, diagnostic_messages(loaded.diagnostics))
+  }
+}
+
+report_driver_error(message: Str): Nat {
+  eprint("error: ${message}")
+  1
+}
+
+pure driver_usage(): Str {
+  "usage: panack FILE | panack {check,compile,run,disasm} FILE"
+}
+
+pure without_final_newline(text: Str): Str {
+  end: Nat = len(text)
+  if end > 0 {
+    last: Nat = end - 1
+    if text[last] == "\n" { slice(text, 0, last) } else { text }
+  } else {
+    text
+  }
+}
+
+run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str]): Nat {
+  prepared: PreparedProject = prepare_project(path)
+  if !prepared.valid {
+    report_driver_error(prepared.message)
+  } else {
+    if command == "check" {
+      print("ok")
+      0
+    } else {
+      bytecode: BytecodeProgram = compile_program(prepared.program)
+      if command == "compile" {
+        destination: Str = if len(output) > 0 { output } else { path_with_suffix(path, ".bc") }
+        if path_resolve(destination) == path_resolve(path) {
+          report_driver_error("bytecode output cannot overwrite the source file")
+        } else {
+          write_bytes(destination, serialize_bytecode(bytecode))
+          print("wrote ${destination}")
+          0
+        }
+      } else {
+        if command == "disasm" {
+          print(without_final_newline(render_bytecode(bytecode)))
+          0
+        } else {
+          run_bytecode_args(serialize_bytecode(bytecode), program_arguments)
+          0
+        }
+      }
+    }
+  }
+}
+
+run_artifact_command(command: Str, path: Str, program_arguments: [Str]): Nat {
+  data: Bytes = read_bytes(path)
+  validation: Str = validate_bytecode(data)
+  if validation != "ok" {
+    report_driver_error(validation)
+  } else {
+    if command == "check" {
+      print("ok")
+      0
+    } else {
+      if command == "disasm" {
+        print(without_final_newline(disassemble_bytecode(data)))
+        0
+      } else {
+        run_bytecode_args(data, program_arguments)
+        0
+      }
+    }
+  }
+}
+
+run_compiler_command(arguments: [Str]): Nat {
+  mut values: [Str] = arguments
+  if len(values) > 0 && values[0] == "--" {
+    mut trimmed: [Str] = []
+    mut cursor: Nat = 1
+    while cursor < len(values) {
+      trimmed = append(trimmed, values[cursor])
+      cursor = cursor + 1
+    }
+    values = trimmed
+  } else {}
+  if len(values) == 0 || values[0] == "--help" {
+    print(driver_usage())
+    0
+  } else {
+    mut command: Str = values[0]
+    mut file_index: Nat = 1
+    if command != "check" && command != "compile" && command != "run" && command != "disasm" {
+      command = "run"
+      file_index = 0
+    } else {}
+    if file_index >= len(values) {
+      report_driver_error("missing input file")
+    } else {
+      path: Str = values[file_index]
+      suffix: Str = path_suffix(path)
+      mut output: Str = ""
+      mut program_arguments: [Str] = []
+      mut argument_index: Nat = file_index + 1
+      while argument_index < len(values) {
+        program_arguments = append(program_arguments, values[argument_index])
+        argument_index = argument_index + 1
+      }
+      if command == "compile" && file_index + 2 < len(values) && values[file_index + 1] == "-o" {
+        output = values[file_index + 2]
+      } else {}
+      if command == "compile" && suffix != ".panack" {
+        report_driver_error("compile expects a .panack source file")
+      } else {
+        if suffix != ".panack" && suffix != ".bc" {
+          report_driver_error("expected a .panack source or .bc bytecode file")
+        } else {
+          if suffix == ".panack" {
+            run_source_command(command, path, output, program_arguments)
+          } else {
+            if command == "compile" { report_driver_error("compile expects a .panack source file") }
+            else { run_artifact_command(command, path, program_arguments) }
+          }
+        }
+      }
+    }
+  }
+}
+
+compiler_main(): Void {
+  status: Nat = run_compiler_command(command_args())
+  if status != 0 { process_exit(status); } else {}
+}

@@ -1,0 +1,60 @@
+#!/bin/sh
+
+launcher="$0"
+while [ -L "$launcher" ]; do
+  directory=$(CDPATH= cd -- "$(dirname -- "$launcher")" && pwd)
+  target=$(readlink "$launcher")
+  case "$target" in
+    /*) launcher="$target" ;;
+    *) launcher="$directory/$target" ;;
+  esac
+done
+
+directory=$(CDPATH= cd -- "$(dirname -- "$launcher")" && pwd)
+
+if [ -x "$directory/panack-vm" ] && [ -f "$directory/bootstrap/compiler-v7.bc" ]; then
+  vm="$directory/panack-vm"
+  compiler="$directory/bootstrap/compiler-v7.bc"
+  stdlib="$directory/src/stdlib"
+  version_file="$directory/VERSION"
+else
+  prefix=$(CDPATH= cd -- "$directory/.." && pwd)
+  vm="$prefix/libexec/panackelty/panack-vm"
+  compiler="$prefix/share/panackelty/compiler-v7.bc"
+  stdlib="$prefix/share/panackelty/stdlib"
+  version_file="$prefix/share/panackelty/VERSION"
+fi
+
+if [ ! -x "$vm" ] || [ ! -f "$compiler" ] || [ ! -d "$stdlib" ] || [ ! -f "$version_file" ]; then
+  echo "panack: native toolchain not found; run 'make' in a source checkout or reinstall Panackelty" >&2
+  exit 127
+fi
+
+if [ "${1-}" = "--version" ]; then
+  IFS= read -r release_version < "$version_file"
+  printf 'panack %s (bytecode 7)\n' "$release_version"
+  exit 0
+fi
+
+PANACKELTY_STDLIB_PATH=$stdlib
+export PANACKELTY_STDLIB_PATH
+
+case "${1-}" in
+  run|check)
+    command=$1
+    artifact=${2-}
+    case "$artifact" in
+      *.bc)
+        shift 2
+        exec "$vm" "$command" "$artifact" "$@"
+        ;;
+    esac
+    ;;
+  *.bc)
+    artifact=$1
+    shift
+    exec "$vm" run "$artifact" "$@"
+    ;;
+esac
+
+exec "$vm" run "$compiler" "$@"

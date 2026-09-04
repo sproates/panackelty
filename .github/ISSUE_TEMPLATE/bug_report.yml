@@ -1,0 +1,97 @@
+name: Bug report
+description: Report a reproducible Panackelty compiler, VM, or toolchain problem
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the developer preview. Please reduce the problem where practical and remove secrets or private data before submitting it.
+
+        Do not use this public form for suspected vulnerabilities. Follow SECURITY.md and use the repository's private **Report a vulnerability** form instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: Panackelty version
+      description: Paste the complete output of `panack --version`.
+      placeholder: panack 0.1.0-alpha.1 (bytecode 7)
+    validations:
+      required: true
+
+  - type: textarea
+    id: platform
+    attributes:
+      label: Host platform
+      description: Include the operating system, operating-system version, and processor architecture.
+      placeholder: |
+        Operating system: macOS 14.6
+        Architecture: arm64
+    validations:
+      required: true
+
+  - type: textarea
+    id: source
+    attributes:
+      label: Minimal source input
+      description: Paste the smallest complete `.panack` program that reproduces the problem. Include imported modules when relevant.
+      render: panackelty
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command and reproduction steps
+      description: Paste the exact command and any setup steps needed to reproduce the problem.
+      placeholder: panack check example.panack
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect Panackelty to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: Paste the complete standard output and standard error, including diagnostics.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: bytecode
+    attributes:
+      label: Saved-bytecode result
+      description: Does the problem also occur after compiling the source and running its `.bc` file?
+      options:
+        - "Yes"
+        - "No"
+        - Not applicable
+        - Not tested
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add relevant logs, screenshots, or other context. Remove secrets and private data first.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched the existing issues for this problem.
+          required: true
+        - label: This report does not contain secrets, private data, or a suspected vulnerability.
+          required: true

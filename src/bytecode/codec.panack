@@ -1,0 +1,296 @@
+import "../compiler/emitter.panack"
+
+pure encode_u8(value: Nat): Bytes {
+  byte_append(bytes(), value)
+}
+
+pure encode_u16(value: Nat): Bytes {
+  mut output: Bytes = bytes()
+  output = byte_append(output, (value / 256) % 256)
+  byte_append(output, value % 256)
+}
+
+pure encode_u32(value: Nat): Bytes {
+  mut output: Bytes = bytes()
+  output = byte_append(output, (value / 16777216) % 256)
+  output = byte_append(output, (value / 65536) % 256)
+  output = byte_append(output, (value / 256) % 256)
+  byte_append(output, value % 256)
+}
+
+pure encode_i16_negative(magnitude: Nat): Bytes {
+  if magnitude <= 32768 {
+    mut encoded: Nat = 65536
+    mut remaining: Nat = magnitude
+    while remaining > 0 {
+      if encoded > 0 { encoded = encoded - 1; } else {}
+      remaining = remaining - 1
+    }
+    encode_u16(encoded)
+  } else {
+    bytes()
+  }
+}
+
+pure encode_name(value: Str): Bytes {
+  encoded: Bytes = utf8_encode(value)
+  bytes_concat(encode_u16(byte_len(encoded)), encoded)
+}
+
+pure encode_text(value: Str): Bytes {
+  encoded: Bytes = utf8_encode(value)
+  bytes_concat(encode_u32(byte_len(encoded)), encoded)
+}
+
+pure encode_nat_body(value: Nat): Bytes {
+  if value < 256 {
+    encode_u8(value)
+  } else {
+    byte_append(encode_nat_body(value / 256), value % 256)
+  }
+}
+
+pure encode_natural(value: Nat): Bytes {
+  if value == 0 {
+    encode_u16(0)
+  } else {
+    body: Bytes = encode_nat_body(value)
+    bytes_concat(encode_u16(byte_len(body)), body)
+  }
+}
+
+pure decimal_digits(text: Str): [Nat] {
+  mut digits: [Nat] = []
+  mut seen_nonzero: Bool = false
+  mut cursor: Nat = 0
+  while cursor < len(text) {
+    character: Str = text[cursor]
+    if character != "." && character != "-" {
+      digit: Nat = nat_from_str(character)
+      if digit != 0 || seen_nonzero {
+        seen_nonzero = true
+        digits = append(digits, digit)
+      } else {
+      }
+    } else {
+    }
+    cursor = cursor + 1
+  }
+  if len(digits) == 0 {
+    [0]
+  } else {
+    digits
+  }
+}
+
+pure decimal_fraction_digits(text: Str): Nat {
+  mut result: Nat = 0
+  mut after_point: Bool = false
+  mut cursor: Nat = 0
+  while cursor < len(text) {
+    character: Str = text[cursor]
+    if character == "." {
+      after_point = true
+    } else {
+      if after_point { result = result + 1; } else {}
+    }
+    cursor = cursor + 1
+  }
+  result
+}
+
+pure encode_decimal(text: Str): Bytes {
+  negative: Bool = len(text) > 0 && text[0] == "-"
+  digits: [Nat] = decimal_digits(text)
+  fraction_digits: Nat = decimal_fraction_digits(text)
+  mut output: Bytes = encode_u8(if negative { 1 } else { 0 })
+  output = bytes_concat(output, encode_i16_negative(fraction_digits))
+  output = bytes_concat(output, encode_u16(len(digits)))
+  mut cursor: Nat = 0
+  while cursor < len(digits) {
+    high: Nat = digits[cursor]
+    low: Nat = if cursor + 1 < len(digits) { digits[cursor + 1] } else { 15 }
+    output = byte_append(output, high * 16 + low)
+    cursor = cursor + 2
+  }
+  output
+}
+
+pure encode_decimal_parts(negative: Bool, digits: [Nat], exponent_negative: Bool, exponent_magnitude: Nat): Bytes {
+  mut output: Bytes = encode_u8(if negative { 1 } else { 0 })
+  if exponent_negative {
+    output = bytes_concat(output, encode_i16_negative(exponent_magnitude))
+  } else {
+    output = bytes_concat(output, encode_u16(exponent_magnitude))
+  }
+  output = bytes_concat(output, encode_u16(len(digits)))
+  mut cursor: Nat = 0
+  while cursor < len(digits) {
+    high: Nat = digits[cursor]
+    low: Nat = if cursor + 1 < len(digits) { digits[cursor + 1] } else { 15 }
+    output = byte_append(output, high * 16 + low)
+    cursor = cursor + 2
+  }
+  output
+}
+
+pure encode_constant(constant: ConstantValue): Bytes {
+  match constant {
+    NatConstant(number) => bytes_concat(encode_u8(0), encode_natural(number)),
+    IntConstant(negative, magnitude) => {
+      mut output: Bytes = encode_u8(1)
+      output = bytes_concat(output, encode_u8(if negative { 1 } else { 0 }))
+      bytes_concat(output, encode_natural(magnitude))
+    },
+    DecimalConstant(text) => bytes_concat(encode_u8(2), encode_decimal(text)),
+    DecimalPartsConstant(negative, digits, exponent_negative, exponent_magnitude) => {
+      body: Bytes = encode_decimal_parts(negative, digits, exponent_negative, exponent_magnitude)
+      bytes_concat(encode_u8(2), body)
+    },
+    StringConstant(text) => bytes_concat(encode_u8(3), encode_text(text)),
+    BoolConstant(flag) => bytes_concat(encode_u8(4), encode_u8(if flag { 1 } else { 0 })),
+    VoidConstant() => encode_u8(5)
+  }
+}
+
+pure unary_code(operator: Str): Nat {
+  if operator == "-" { 0 } else { 1 }
+}
+
+pure binary_code(operator: Str): Nat {
+  if operator == "+" { 0 }
+  else { if operator == "-" { 1 }
+  else { if operator == "*" { 2 }
+  else { if operator == "/" { 3 }
+  else { if operator == "%" { 4 }
+  else { if operator == "==" { 5 }
+  else { if operator == "!=" { 6 }
+  else { if operator == "<" { 7 }
+  else { if operator == "<=" { 8 }
+  else { if operator == ">" { 9 }
+  else { if operator == ">=" { 10 }
+  else { if operator == "&&" { 11 } else { 12 } } } } } } } } } } } }
+}
+
+pure encode_names(values: [Str]): Bytes {
+  mut output: Bytes = bytes()
+  for value in values {
+    output = bytes_concat(output, encode_name(value))
+  }
+  output
+}
+
+pure encode_texts(values: [Str]): Bytes {
+  mut output: Bytes = encode_u16(len(values))
+  for value in values {
+    output = bytes_concat(output, encode_text(value))
+  }
+  output
+}
+
+pure encode_instruction(instruction: Instruction): Bytes {
+  match instruction {
+    ConstInstruction(value) => bytes_concat(encode_u8(0), encode_constant(value)),
+    LoadInstruction(name) => bytes_concat(encode_u8(1), encode_name(name)),
+    StoreInstruction(name) => bytes_concat(encode_u8(2), encode_name(name)),
+    PopInstruction() => encode_u8(3),
+    UnaryInstruction(operator) => bytes_concat(encode_u8(4), encode_u8(unary_code(operator))),
+    BinaryInstruction(operator) => bytes_concat(encode_u8(5), encode_u8(binary_code(operator))),
+    MakeRangeInstruction() => encode_u8(6),
+    MakeArrayInstruction(count) => bytes_concat(encode_u8(7), encode_u16(count)),
+    IndexGetInstruction() => encode_u8(8),
+    InterpolateInstruction(parts) => bytes_concat(encode_u8(9), encode_texts(parts)),
+    IterInitInstruction(name) => bytes_concat(encode_u8(10), encode_name(name)),
+    IterNextInstruction(iterator, name, end) => {
+      mut output: Bytes = bytes_concat(encode_u8(11), encode_name(iterator))
+      output = bytes_concat(output, encode_name(name))
+      bytes_concat(output, encode_u32(end))
+    },
+    MakeRecordInstruction(name, fields) => {
+      mut output: Bytes = bytes_concat(encode_u8(12), encode_name(name))
+      output = bytes_concat(output, encode_u16(len(fields)))
+      bytes_concat(output, encode_names(fields))
+    },
+    FieldGetInstruction(name) => bytes_concat(encode_u8(13), encode_name(name)),
+    MakeVariantInstruction(enum_name, variant, count) => {
+      mut output: Bytes = bytes_concat(encode_u8(14), encode_name(enum_name))
+      output = bytes_concat(output, encode_name(variant))
+      bytes_concat(output, encode_u16(count))
+    },
+    MatchVariantInstruction(variant, failure) => {
+      mut output: Bytes = bytes_concat(encode_u8(15), encode_name(variant))
+      bytes_concat(output, encode_u32(failure))
+    },
+    MatchFailInstruction() => encode_u8(16),
+    CallInstruction(name, arity) => {
+      mut output: Bytes = bytes_concat(encode_u8(17), encode_name(name))
+      bytes_concat(output, encode_u8(arity))
+    },
+    JumpFalseInstruction(target) => bytes_concat(encode_u8(18), encode_u32(target)),
+    JumpInstruction(target) => bytes_concat(encode_u8(19), encode_u32(target)),
+    PendingEndJumpInstruction() => bytes(),
+    ReturnInstruction() => encode_u8(20),
+    CallValueInstruction(arity) => bytes_concat(encode_u8(21), encode_u8(arity))
+  }
+}
+
+pure insert_function(functions: [FunctionCode], function: FunctionCode): [FunctionCode] {
+  mut result: [FunctionCode] = []
+  mut inserted: Bool = false
+  for existing in functions {
+    if !inserted && function.name < existing.name {
+      result = append(result, function)
+      inserted = true
+    } else {}
+    result = append(result, existing)
+  }
+  if !inserted { result = append(result, function); } else {}
+  result
+}
+
+pure sort_functions(functions: [FunctionCode]): [FunctionCode] {
+  mut result: [FunctionCode] = []
+  for function in functions {
+    result = insert_function(result, function)
+  }
+  result
+}
+
+pure encode_function(function: FunctionCode): Bytes {
+  mut output: Bytes = encode_name(function.name)
+  output = bytes_concat(output, encode_u8(if function.is_pure { 1 } else { 0 }))
+  output = bytes_concat(output, encode_u8(len(function.parameters)))
+  output = bytes_concat(output, encode_names(function.parameters))
+  output = bytes_concat(output, encode_u32(len(function.instructions)))
+  for instruction in function.instructions {
+    output = bytes_concat(output, encode_instruction(instruction))
+  }
+  output
+}
+
+pure serialize_bytecode(program: BytecodeProgram): Bytes {
+  mut output: Bytes = utf8_encode("PANACKBC")
+  output = byte_append(output, 0)
+  output = bytes_concat(output, encode_u16(7))
+  functions: [FunctionCode] = sort_functions(program.functions)
+  output = bytes_concat(output, encode_u16(len(functions)))
+  for function in functions {
+    output = bytes_concat(output, encode_function(function))
+  }
+  output
+}
+
+pure compile_source_bytecode(source: Str): Bytes {
+  match lex(source) {
+    Ok(tokens) => {
+      match parse_program_complete(tokens) {
+        Ok(program) => {
+          diagnostics: [Diagnostic] = check_program_frontend(program)
+          if len(diagnostics) == 0 { serialize_bytecode(compile_program(program)) } else { bytes() }
+        },
+        Error(error) => bytes()
+      }
+    },
+    Error(errors) => bytes()
+  }
+}

@@ -1,0 +1,1088 @@
+import "resolver.panack"
+
+record TypeShape {
+  base: Str,
+  arguments: [Str]
+}
+
+record GuardedTypeLookup {
+  found: Bool,
+  base: Str,
+  guard: Expr
+}
+
+record RecordLookup {
+  found: Bool,
+  parameters: [Str],
+  fields: [RecordField]
+}
+
+record EnumLookup {
+  found: Bool,
+  parameters: [Str],
+  variants: [EnumVariant]
+}
+
+record FunctionLookup {
+  found: Bool,
+  parameters: [FunctionParameter],
+  return_type: Str,
+  is_pure: Bool
+}
+
+record VariantLookup {
+  found: Bool,
+  enum_name: Str,
+  parameters: [Str],
+  payload: [Str]
+}
+
+record TypeInfo {
+  name: Str,
+  has_nat: Bool,
+  nat_value: Nat,
+  mutable: Bool
+}
+
+record CheckedExpression {
+  info: TypeInfo,
+  diagnostics: [Diagnostic]
+}
+
+record CheckedBlock {
+  info: TypeInfo,
+  diagnostics: [Diagnostic]
+}
+
+record Bounds {
+  has_lower: Bool,
+  lower: Nat,
+  has_upper: Bool,
+  upper: Nat
+}
+
+pure checker_diagnostic(message: Str): Diagnostic {
+  Diagnostic(message, SourcePos("", 0, 1, 1))
+}
+
+pure checker_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Diagnostic] {
+  mut result: [Diagnostic] = []
+  for diagnostic in diagnostics {
+    selected: SourcePos = if len(diagnostic.position.file) == 0 { position } else { diagnostic.position }
+    result = append(result, Diagnostic(diagnostic.message, selected))
+  }
+  result
+}
+
+pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
+  match expression {
+    LocatedExpr(position, value) => Diagnostic(message, position),
+    NatExpr(value) => checker_diagnostic(message), DecimalExpr(text) => checker_diagnostic(message),
+    StringExpr(text) => checker_diagnostic(message), BoolExpr(value) => checker_diagnostic(message),
+    NameExpr(name) => checker_diagnostic(message), FunctionExpr(name) => checker_diagnostic(message),
+    ArrayExpr(items) => checker_diagnostic(message), UnaryExpr(operator, operand) => checker_diagnostic(message),
+    BinaryExpr(operator, left, right) => checker_diagnostic(message), CallExpr(name, arguments) => checker_diagnostic(message),
+    FieldExpr(target, field) => checker_diagnostic(message), IndexExpr(target, index) => checker_diagnostic(message),
+    IfExpr(condition, yes, no, has_else) => checker_diagnostic(message), BlockExpr(block) => checker_diagnostic(message),
+    MatchExpr(subject, arms) => checker_diagnostic(message)
+  }
+}
+
+pure no_type(): TypeInfo {
+  TypeInfo("Unknown", false, 0, false)
+}
+
+pure plain_type(name: Str): TypeInfo {
+  TypeInfo(name, false, 0, false)
+}
+
+pure type_argument_items(text: Str, start: Nat, closing: Nat): [Str] {
+  mut arguments: [Str] = []
+  mut cursor: Nat = start
+  mut item_start: Nat = start
+  mut depth: Int = 0
+  while cursor < closing {
+    character: Str = text[cursor]
+    if character == "[" {
+      depth = depth + 1
+    } else {
+      if character == "]" && depth > 0 {
+        depth = depth - 1
+      } else {
+        if character == "," && depth == 0 {
+          arguments = append(arguments, slice(text, item_start, cursor))
+          item_start = cursor + 1
+        } else {
+        }
+      }
+    }
+    cursor = cursor + 1
+  }
+  if item_start < closing {
+    arguments = append(arguments, slice(text, item_start, closing))
+  } else {
+  }
+  arguments
+}
+
+pure type_shape(name: Str): TypeShape {
+  if len(name) > 0 && name[0] == "[" {
+    mut closing: Nat = len(name)
+    mut cursor: Nat = 1
+    while cursor < len(name) {
+      if name[cursor] == "]" {
+        closing = cursor
+      } else {
+      }
+      cursor = cursor + 1
+    }
+    arguments: [Str] = [slice(name, 1, closing)]
+    TypeShape("Array", arguments)
+  } else {
+    mut opening: Nat = len(name)
+    mut closing: Nat = len(name)
+    mut cursor: Nat = 0
+    while cursor < len(name) {
+      if name[cursor] == "[" && opening == len(name) {
+        opening = cursor
+      } else {
+      }
+      if name[cursor] == "]" {
+        closing = cursor
+      } else {
+      }
+      cursor = cursor + 1
+    }
+    if opening == len(name) {
+      arguments: [Str] = []
+      TypeShape(name, arguments)
+    } else {
+      TypeShape(slice(name, 0, opening), type_argument_items(name, opening + 1, closing))
+    }
+  }
+}
+
+pure render_type(base: Str, arguments: [Str]): Str {
+  if len(arguments) == 0 {
+    base
+  } else {
+    mut output: Str = "${base}["
+    mut first: Bool = true
+    for argument in arguments {
+      if first {
+        first = false
+      } else {
+        output = output + ","
+      }
+      output = output + argument
+    }
+    output + "]"
+  }
+}
+
+pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
+  mut result: GuardedTypeLookup = GuardedTypeLookup(false, "", NatExpr(0))
+  for declaration in program.declarations {
+    match declaration {
+      TypeDeclaration(declared, base, guard) => {
+        if declared == name {
+          result = GuardedTypeLookup(true, base, guard)
+        } else {
+        }
+      },
+      ImportDeclaration(path) => {},
+      RecordDeclaration(declared, parameters, fields) => {},
+      EnumDeclaration(declared, parameters, variants) => {},
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+    }
+  }
+  result
+}
+
+pure record_type(program: Program, name: Str): RecordLookup {
+  mut result: RecordLookup = RecordLookup(false, [], [])
+  for declaration in program.declarations {
+    match declaration {
+      RecordDeclaration(declared, parameters, fields) => {
+        if declared == name {
+          result = RecordLookup(true, parameters, fields)
+        } else {
+        }
+      },
+      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      EnumDeclaration(declared, parameters, variants) => {},
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+    }
+  }
+  result
+}
+
+pure enum_type(program: Program, name: Str): EnumLookup {
+  mut result: EnumLookup = EnumLookup(false, [], [])
+  for declaration in program.declarations {
+    match declaration {
+      EnumDeclaration(declared, parameters, variants) => {
+        if declared == name {
+          result = EnumLookup(true, parameters, variants)
+        } else {
+        }
+      },
+      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      RecordDeclaration(declared, parameters, fields) => {},
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+    }
+  }
+  result
+}
+
+pure function_type(program: Program, name: Str): FunctionLookup {
+  mut result: FunctionLookup = FunctionLookup(false, [], "", false)
+  for declaration in program.declarations {
+    match declaration {
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {
+        if declared == name {
+          result = FunctionLookup(true, parameters, return_type, is_pure)
+        } else {
+        }
+      },
+      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      RecordDeclaration(declared, parameters, fields) => {},
+      EnumDeclaration(declared, parameters, variants) => {}
+    }
+  }
+  result
+}
+
+pure variant_type(program: Program, name: Str): VariantLookup {
+  mut result: VariantLookup = VariantLookup(false, "", [], [])
+  for declaration in program.declarations {
+    match declaration {
+      EnumDeclaration(enum_name, parameters, variants) => {
+        for variant in variants {
+          if variant.name == name {
+            result = VariantLookup(true, enum_name, parameters, variant.payload)
+          } else {
+          }
+        }
+      },
+      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      RecordDeclaration(declared, parameters, fields) => {},
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+    }
+  }
+  result
+}
+
+pure base_type(program: Program, name: Str): Str {
+  shape: TypeShape = type_shape(name)
+  guarded: GuardedTypeLookup = guarded_type(program, shape.base)
+  if guarded.found { guarded.base } else { shape.base }
+}
+
+pure is_scalar_base(name: Str): Bool {
+  name == "Nat" || name == "Int" || name == "Dec" || name == "Str" || name == "Bool"
+}
+
+pure has_name(names: [Str], name: Str): Bool {
+  mut found: Bool = false
+  for candidate in names {
+    if candidate == name { found = true; } else {}
+  }
+  found
+}
+
+pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bool): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = []
+  if name == "Void" {
+    if !allow_void {
+      diagnostics = append(diagnostics, checker_diagnostic("Void is only valid as a function return type"))
+    } else {
+    }
+  } else {
+    if has_name(parameters, name) {
+    } else {
+      shape: TypeShape = type_shape(name)
+      mut expected: Nat = 0
+      mut known: Bool = is_scalar_base(shape.base) || shape.base == "Bytes"
+      if shape.base == "Array" || shape.base == "Set" {
+        known = true
+        expected = 1
+      } else {
+        if shape.base == "Map" {
+          known = true
+          expected = 2
+        } else {
+          if shape.base == "Fn" || shape.base == "PureFn" {
+            known = true
+            expected = len(shape.arguments)
+            if expected == 0 { callable_name: Str = shape.base; diagnostics = append(diagnostics, checker_diagnostic("${callable_name} expects at least a return type")); } else {}
+          } else {
+          record: RecordLookup = record_type(program, shape.base)
+          enum_value: EnumLookup = enum_type(program, shape.base)
+          guarded: GuardedTypeLookup = guarded_type(program, shape.base)
+          if record.found {
+            known = true
+            expected = len(record.parameters)
+          } else {
+            if enum_value.found {
+              known = true
+              expected = len(enum_value.parameters)
+            } else {
+              if guarded.found { known = true; } else {}
+            }
+          } }
+        }
+      }
+      if !known {
+        diagnostics = append(diagnostics, checker_diagnostic("unknown type ${name}"))
+      } else {
+        if len(shape.arguments) != expected {
+          type_base: Str = shape.base
+          actual_count: Nat = len(shape.arguments)
+          diagnostics = append(diagnostics, checker_diagnostic("${type_base} expects ${expected} type arguments, got ${actual_count}"))
+        } else {
+          mut argument_index: Nat = 0
+          for argument in shape.arguments {
+            callable_result: Bool = (shape.base == "Fn" || shape.base == "PureFn") && argument_index + 1 == len(shape.arguments)
+            diagnostics = concat(diagnostics, require_type(program, argument, parameters, callable_result))
+            argument_index = argument_index + 1
+          }
+        }
+      }
+    }
+  }
+  diagnostics
+}
+
+pure assignable(program: Program, source: Str, target: Str): Bool {
+  if source == target || source == "Unknown" {
+    true
+  } else {
+    source_shape: TypeShape = type_shape(source)
+    target_shape: TypeShape = type_shape(target)
+    if source_shape.base == "Fn" || source_shape.base == "PureFn" || target_shape.base == "Fn" || target_shape.base == "PureFn" {
+      compatible_effect: Bool = source_shape.base == target_shape.base || (source_shape.base == "PureFn" && target_shape.base == "Fn")
+      mut compatible_signature: Bool = len(source_shape.arguments) == len(target_shape.arguments) && len(source_shape.arguments) > 0
+      mut callable_index: Nat = 0
+      while callable_index < len(source_shape.arguments) && compatible_signature {
+        if source_shape.arguments[callable_index] != target_shape.arguments[callable_index] { compatible_signature = false; } else {}
+        callable_index = callable_index + 1
+      }
+      compatible_effect && compatible_signature
+    } else { if source_shape.base == target_shape.base && len(source_shape.arguments) == len(target_shape.arguments) && len(source_shape.arguments) > 0 {
+      mut compatible: Bool = true
+      mut index: Nat = 0
+      while index < len(source_shape.arguments) {
+        left: Str = source_shape.arguments[index]
+        right: Str = target_shape.arguments[index]
+        if !starts_with(left, "$") && !starts_with(right, "$") && !assignable(program, left, right) {
+          compatible = false
+        } else {
+        }
+        index = index + 1
+      }
+      compatible
+    } else {
+      source_base: Str = base_type(program, source)
+      target_base: Str = base_type(program, target)
+      guarded_source: GuardedTypeLookup = guarded_type(program, source)
+      guarded_target: GuardedTypeLookup = guarded_type(program, target)
+      (guarded_source.found && target == source_base) ||
+      (source_base == "Nat" && target_base == "Int" && !guarded_target.found)
+    } }
+  }
+}
+
+pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
+  mut result: Bool = false
+  match expression {
+    LocatedExpr(position, inner) => { result = evaluate_nat_guard(inner, value); },
+    BoolExpr(item) => { result = item; },
+    UnaryExpr(operator, operand) => { if operator == "!" { result = !evaluate_nat_guard(operand, value); } else {} },
+    BinaryExpr(operator, left, right) => {
+      if operator == "&&" { result = evaluate_nat_guard(left, value) && evaluate_nat_guard(right, value); }
+      else {
+        if operator == "||" { result = evaluate_nat_guard(left, value) || evaluate_nat_guard(right, value); }
+        else {
+          match unlocated_expression(left) {
+            NameExpr(name) => {
+              if name == "value" {
+                match unlocated_expression(right) {
+                  NatExpr(bound) => {
+                    if operator == ">" { result = value > bound; } else {}
+                    if operator == ">=" { result = value >= bound; } else {}
+                    if operator == "<" { result = value < bound; } else {}
+                    if operator == "<=" { result = value <= bound; } else {}
+                    if operator == "==" { result = value == bound; } else {}
+                    if operator == "!=" { result = value != bound; } else {}
+                  },
+                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                }
+              } else {}
+            },
+            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+          }
+        }
+      }
+    },
+    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+  }
+  result
+}
+
+pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
+  mut result: Bool = false
+  match expression {
+    LocatedExpr(position, inner) => { result = prove_guard_bounds(inner, bounds); },
+    BinaryExpr(operator, left, right) => {
+      if operator == "&&" { result = prove_guard_bounds(left, bounds) && prove_guard_bounds(right, bounds); }
+      else {
+        if operator == "||" { result = prove_guard_bounds(left, bounds) || prove_guard_bounds(right, bounds); }
+        else {
+          match unlocated_expression(left) {
+            NameExpr(name) => {
+              if name == "value" {
+                match unlocated_expression(right) {
+                  NatExpr(bound) => {
+                    if operator == ">" { result = bounds.has_lower && bounds.lower > bound; } else {}
+                    if operator == ">=" { result = bounds.has_lower && bounds.lower >= bound; } else {}
+                    if operator == "<" { result = bounds.has_upper && bounds.upper < bound; } else {}
+                    if operator == "<=" { result = bounds.has_upper && bounds.upper <= bound; } else {}
+                    if operator == "==" { result = bounds.has_lower && bounds.has_upper && bounds.lower == bound && bounds.upper == bound; } else {}
+                  },
+                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                }
+              } else {}
+            },
+            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+          }
+        }
+      }
+    },
+    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+  }
+  result
+}
+
+pure assignable_checked(program: Program, value: TypeInfo, target: Str, source: Expr, facts: Map[Str,Bounds]): Bool {
+  if assignable(program, value.name, target) {
+    true
+  } else {
+    guarded: GuardedTypeLookup = guarded_type(program, target)
+    value_base: Str = base_type(program, value.name)
+    compatible_base: Bool = value_base == guarded.base || (value_base == "Nat" && guarded.base == "Int")
+    if !guarded.found || !compatible_base {
+      false
+    } else {
+      if value.has_nat {
+        evaluate_nat_guard(guarded.guard, value.nat_value)
+      } else {
+        mut proven: Bool = false
+        match unlocated_expression(source) {
+          LocatedExpr(position, inner) => {},
+          NameExpr(name) => { if map_has(facts, name) { proven = prove_guard_bounds(guarded.guard, map_get(facts, name)); } else {} },
+          NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(flag) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(field_target, field) => {}, IndexExpr(collection, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+        }
+        proven
+      }
+    }
+  }
+}
+
+pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str,Str]): Str {
+  if has_name(parameters, type_name) && map_has(substitutions, type_name) {
+    map_get(substitutions, type_name)
+  } else {
+    shape: TypeShape = type_shape(type_name)
+    if len(shape.arguments) == 0 {
+      type_name
+    } else {
+      mut arguments: [Str] = []
+      for argument in shape.arguments {
+        arguments = append(arguments, substitute_type(argument, parameters, substitutions))
+      }
+      render_type(shape.base, arguments)
+    }
+  }
+}
+
+pure merge_types(program: Program, left: Str, right: Str): Str {
+  if left == right { left }
+  else {
+    if starts_with(left, "$") { right }
+    else {
+      if starts_with(right, "$") { left }
+      else {
+        if assignable(program, left, right) { right }
+        else {
+          if assignable(program, right, left) { left }
+          else {
+            left_base: Str = base_type(program, left)
+            right_base: Str = base_type(program, right)
+            if left_base == right_base { left_base }
+            else { if (left_base == "Nat" && right_base == "Int") || (left_base == "Int" && right_base == "Nat") { "Int" } else { "Unknown" } }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure infer_template(program: Program, template: Str, actual: Str, parameters: [Str], substitutions: Map[Str,Str]): Map[Str,Str] {
+  mut result: Map[Str,Str] = substitutions
+  if has_name(parameters, template) {
+    if map_has(result, template) {
+      result = map_put(result, template, merge_types(program, map_get(result, template), actual))
+    } else {
+      result = map_put(result, template, actual)
+    }
+  } else {
+    template_shape: TypeShape = type_shape(template)
+    actual_shape: TypeShape = type_shape(actual)
+    if template_shape.base == actual_shape.base && len(template_shape.arguments) == len(actual_shape.arguments) {
+      mut index: Nat = 0
+      while index < len(template_shape.arguments) {
+        result = infer_template(program, template_shape.arguments[index], actual_shape.arguments[index], parameters, result)
+        index = index + 1
+      }
+    } else {
+    }
+  }
+  result
+}
+
+pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
+  if map_has(environment, name) { map_get(environment, name) } else { no_type() }
+}
+
+pure builtin_return(name: Str): Str {
+  if name == "print" || name == "write_file" || name == "write_bytes" || name == "eprint" || name == "process_exit" || name == "run_bytecode" || name == "run_bytecode_args" { "Void" }
+  else { if name == "read_line" || name == "read_file" || name == "slice" || name == "reverse" || name == "utf8_decode" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_join" || name == "path_suffix" || name == "path_with_suffix" { "Str" }
+  else { if name == "len" || name == "byte_len" || name == "byte_get" || name == "nat_from_str" { "Nat" }
+  else { if name == "starts_with" || name == "starts_with_at" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "map_has" || name == "set_has" || name == "$method_has" || name == "environment_has" || name == "path_is_absolute" || name == "file_exists" { "Bool" }
+  else { if name == "command_args" { "[Str]" }
+  else { if name == "bytes" || name == "byte_append" || name == "bytes_concat" || name == "utf8_encode" || name == "read_bytes" { "Bytes" } else { "Unknown" } } } } } }
+}
+
+pure builtin_arity(name: Str): Nat {
+  if name == "read_line" || name == "map" || name == "set" || name == "bytes" || name == "command_args" { 0 }
+  else { if name == "print" || name == "read_file" || name == "len" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "byte_len" || name == "utf8_encode" || name == "utf8_decode" || name == "read_bytes" || name == "nat_from_str" || name == "environment_has" || name == "environment_get" || name == "eprint" || name == "process_exit" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" || name == "run_bytecode" { 1 }
+  else { if name == "write_file" || name == "append" || name == "concat" || name == "starts_with" || name == "map_has" || name == "map_get" || name == "$method_has" || name == "$method_get" || name == "$method_add" || name == "$method_map" || name == "set_add" || name == "set_has" || name == "byte_append" || name == "bytes_concat" || name == "byte_get" || name == "write_bytes" || name == "path_join" || name == "path_with_suffix" || name == "run_bytecode_args" { 2 }
+  else { 3 } } }
+}
+
+pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "read_file" || name == "read_bytes" || name == "nat_from_str" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "utf8_encode" || name == "environment_has" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" { "Str" }
+  else { if name == "write_file" { "Str" }
+  else { if name == "slice" { if index == 0 { "Str" } else { "Nat" } }
+  else { if name == "starts_with" { "Str" }
+  else { if name == "starts_with_at" { if index < 2 { "Str" } else { "Nat" } }
+  else { if name == "byte_append" || name == "byte_get" { if index == 0 { "Bytes" } else { "Nat" } }
+  else { if name == "bytes_concat" { "Bytes" }
+  else { if name == "utf8_decode" { "Bytes" }
+  else { if name == "write_bytes" { if index == 0 { "Str" } else { "Bytes" } }
+  else { if name == "path_join" || name == "path_with_suffix" { "Str" }
+  else { if name == "process_exit" { "Nat" }
+  else { if name == "run_bytecode" || name == "run_bytecode_args" { if index == 0 { "Bytes" } else { "[Str]" } }
+  else { "Any" } } } } } } } } } } } }
+}
+
+pure method_operation(name: Str): Str {
+  mut result: Str = name
+  if name == "$method_put" { result = "map_put"; }
+  if name == "$method_get" { result = "map_get"; }
+  if name == "$method_add" { result = "set_add"; }
+  if name == "$method_has" { result = "has"; }
+  if name == "$method_call" { result = "call"; }
+  if name == "$method_map" { result = "array_map"; }
+  if name == "$method_reduce" { result = "array_reduce"; }
+  result
+}
+
+pure method_display_name(name: Str): Str {
+  mut result: Str = name
+  if name == "$method_put" { result = "put"; }
+  if name == "$method_get" { result = "get"; }
+  if name == "$method_add" { result = "add"; }
+  if name == "$method_has" { result = "has"; }
+  if name == "$method_call" { result = "call"; }
+  if name == "$method_map" { result = "map"; }
+  if name == "$method_reduce" { result = "reduce"; }
+  result
+}
+
+pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedExpression {
+  mut diagnostics: [Diagnostic] = []
+  mut info: TypeInfo = no_type()
+  match expression {
+    LocatedExpr(position, value) => {
+      checked: CheckedExpression = check_expression(value, environment, facts, program)
+      info = checked.info
+      diagnostics = checker_diagnostics_at(checked.diagnostics, position)
+    },
+    NatExpr(value) => { info = TypeInfo("Nat", true, value, false); },
+    DecimalExpr(text) => { info = plain_type("Dec"); },
+    StringExpr(text) => { info = plain_type("Str"); },
+    BoolExpr(value) => { info = plain_type("Bool"); },
+    NameExpr(name) => {
+      info = environment_type(environment, name)
+      if info.name == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("unknown name ${name}")); } else {}
+    },
+    FunctionExpr(name) => {
+      function: FunctionLookup = function_type(program, name)
+      if !function.found {
+        diagnostics = append(diagnostics, checker_diagnostic("unknown function ${name}"))
+      } else {
+        mut signature: [Str] = []
+        for parameter in function.parameters { signature = append(signature, parameter.type_name); }
+        signature = append(signature, function.return_type)
+        info = plain_type(render_type(if function.is_pure { "PureFn" } else { "Fn" }, signature))
+      }
+    },
+    ArrayExpr(items) => {
+      mut element: Str = "$T"
+      for item in items {
+        checked: CheckedExpression = check_expression(item, environment, facts, program)
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if checked.info.name == "Void" {
+          diagnostics = append(diagnostics, checker_diagnostic("Void expressions cannot be stored in an array"))
+        } else {
+          merged: Str = merge_types(program, element, checked.info.name)
+          if merged == "Unknown" {
+            item_type: Str = checked.info.name
+            diagnostics = append(diagnostics, checker_diagnostic("array elements have incompatible types ${element} and ${item_type}"))
+          } else { element = merged; }
+        }
+      }
+      info = plain_type("Array[${element}]")
+    },
+    UnaryExpr(operator, operand) => {
+      checked: CheckedExpression = check_expression(operand, environment, facts, program)
+      diagnostics = checked.diagnostics
+      base: Str = base_type(program, checked.info.name)
+      if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
+      else { if operator == "-" && (base == "Nat" || base == "Int" || base == "Dec") { info = plain_type(if base == "Dec" { "Dec" } else { "Int" }); }
+      else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } }
+    },
+    BinaryExpr(operator, left, right) => {
+      checked_left: CheckedExpression = check_expression(left, environment, facts, program)
+      checked_right: CheckedExpression = check_expression(right, environment, facts, program)
+      diagnostics = concat(checked_left.diagnostics, checked_right.diagnostics)
+      left_base: Str = base_type(program, checked_left.info.name)
+      right_base: Str = base_type(program, checked_right.info.name)
+      if operator == ".." {
+        if left_base != "Nat" || right_base != "Nat" { diagnostics = append(diagnostics, checker_diagnostic("range bounds must be Nat")); } else {}
+        info = plain_type("Range")
+      } else {
+        if operator == "&&" || operator == "||" {
+          if left_base != "Bool" || right_base != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} requires Bool operands")); } else {}
+          info = plain_type("Bool")
+        } else {
+          if operator == "==" || operator == "!=" || operator == "<" || operator == "<=" || operator == ">" || operator == ">=" {
+            numeric_pair: Bool = (left_base == "Nat" && right_base == "Int") || (left_base == "Int" && right_base == "Nat")
+            orderable: Bool = left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Str"
+            if (left_base != right_base && !numeric_pair) || ((operator == "<" || operator == "<=" || operator == ">" || operator == ">=") && !orderable) {
+              left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
+              diagnostics = append(diagnostics, checker_diagnostic("cannot compare ${left_name} with ${right_name}"))
+            } else {}
+            info = plain_type("Bool")
+          } else {
+            if operator == "+" && left_base == "Str" && right_base == "Str" { info = plain_type("Str"); }
+            else {
+              numeric: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Dec") && (right_base == "Nat" || right_base == "Int" || right_base == "Dec")
+              if !numeric || ((left_base == "Dec" || right_base == "Dec") && left_base != right_base) {
+                left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
+                diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${left_name} and ${right_name}"))
+              } else {}
+              result: Str = if left_base == "Dec" { "Dec" } else { if left_base == "Int" || right_base == "Int" { "Int" } else { "Nat" } }
+              if result == "Nat" && operator == "-" {
+                mut proven: Bool = checked_left.info.has_nat && checked_right.info.has_nat && checked_left.info.nat_value >= checked_right.info.nat_value
+                match unlocated_expression(left) {
+                  LocatedExpr(position, inner) => {},
+                  NameExpr(name) => {
+                    if checked_right.info.has_nat && map_has(facts, name) {
+                      bound: Bounds = map_get(facts, name)
+                      if bound.has_lower && bound.lower >= checked_right.info.nat_value { proven = true; } else {}
+                    } else {}
+                  },
+                  NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, args) => {}, FieldExpr(value, field) => {}, IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+                }
+                if !proven { diagnostics = append(diagnostics, checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")); } else {}
+              } else {}
+              info = TypeInfo(result, false, 0, false)
+            }
+          }
+        }
+      }
+    },
+    CallExpr(name, arguments) => {
+      operation: Str = method_operation(name)
+      display_name: Str = method_display_name(name)
+      record: RecordLookup = record_type(program, name)
+      variant: VariantLookup = variant_type(program, name)
+      function: FunctionLookup = function_type(program, name)
+      mut expected: [Str] = []
+      mut parameters: [Str] = []
+      mut result: Str = "Unknown"
+      if record.found {
+        parameters = record.parameters
+        for field in record.fields { expected = append(expected, field.type_name); }
+        result = name
+      } else {
+        if variant.found { parameters = variant.parameters; expected = variant.payload; result = variant.enum_name; }
+        else {
+          if function.found { for parameter in function.parameters { expected = append(expected, parameter.type_name); }; result = function.return_type; }
+          else { if is_builtin(name) { result = builtin_return(name); } else { diagnostics = append(diagnostics, checker_diagnostic("unknown function ${display_name}")); } }
+        }
+      }
+      expected_count: Nat = if name == "$method_call" { len(arguments) } else { if is_builtin(name) { builtin_arity(name) } else { len(expected) } }
+      if len(arguments) != expected_count { actual_count: Nat = len(arguments); diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects ${expected_count} arguments, got ${actual_count}")); } else {}
+      substitutions: Map[Str,Str] = map()
+      mut inferred: Map[Str,Str] = substitutions
+      mut argument_infos: [TypeInfo] = []
+      mut index: Nat = 0
+      for argument in arguments {
+        checked: CheckedExpression = check_expression(argument, environment, facts, program)
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        argument_infos = append(argument_infos, checked.info)
+        if index < len(expected) {
+          template: Str = expected[index]
+          inferred = infer_template(program, template, checked.info.name, parameters, inferred)
+          target: Str = substitute_type(template, parameters, inferred)
+          if !has_name(parameters, target) && !assignable_checked(program, checked.info, target, argument, facts) {
+            argument_number: Nat = index + 1; actual_type: Str = checked.info.name
+            diagnostics = append(diagnostics, checker_diagnostic("argument ${argument_number} to ${display_name} is ${actual_type}, expected ${target}"))
+          } else {}
+        } else {}
+        index = index + 1
+      }
+      if is_builtin(name) && len(argument_infos) == expected_count {
+        if operation == "call" {
+          callable: TypeShape = type_shape(argument_infos[0].name)
+          if (callable.base != "Fn" && callable.base != "PureFn") || len(callable.arguments) == 0 {
+            actual_callable: Str = argument_infos[0].name
+            diagnostics = append(diagnostics, checker_diagnostic("call expects a callable, got ${actual_callable}"))
+          } else {
+            callable_arity: Nat = prior_index(len(callable.arguments))
+            actual_arity: Nat = prior_index(len(argument_infos))
+            if callable_arity != actual_arity {
+              diagnostics = append(diagnostics, checker_diagnostic("call expects ${callable_arity} arguments, got ${actual_arity}"))
+            } else {
+              mut call_index: Nat = 0
+              while call_index < callable_arity {
+                actual: Str = argument_infos[call_index + 1].name
+                target: Str = callable.arguments[call_index]
+                if !assignable(program, actual, target) {
+                  number: Nat = call_index + 1
+                  diagnostics = append(diagnostics, checker_diagnostic("argument ${number} to call is ${actual}, expected ${target}"))
+                } else {}
+                call_index = call_index + 1
+              }
+              result = callable.arguments[callable_arity]
+            }
+          }
+        } else { if operation == "array_map" || operation == "array_reduce" {
+          collection: TypeShape = type_shape(argument_infos[0].name)
+          callback: TypeShape = type_shape(argument_infos[prior_index(len(argument_infos))].name)
+          if collection.base != "Array" || len(collection.arguments) != 1 {
+            actual_collection: Str = argument_infos[0].name
+            diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects an array, got ${actual_collection}"))
+          } else { if callback.base != "PureFn" {
+            actual_callback: Str = argument_infos[prior_index(len(argument_infos))].name
+            diagnostics = append(diagnostics, checker_diagnostic("${display_name} requires a pure callable, got ${actual_callback}"))
+          } else { if operation == "array_map" {
+            if len(callback.arguments) != 2 || !assignable(program, collection.arguments[0], callback.arguments[0]) {
+              item_type: Str = collection.arguments[0]
+              diagnostics = append(diagnostics, checker_diagnostic("map callback must accept ${item_type}"))
+            } else { if callback.arguments[1] == "Void" { diagnostics = append(diagnostics, checker_diagnostic("map callback cannot return Void")); } else { result = render_type("Array", [callback.arguments[1]]); } }
+          } else {
+            accumulator: Str = argument_infos[1].name
+            mut valid_reduce: Bool = len(callback.arguments) == 3
+            if valid_reduce { valid_reduce = assignable(program, accumulator, callback.arguments[0]) && assignable(program, collection.arguments[0], callback.arguments[1]) && assignable(program, callback.arguments[2], accumulator); } else {}
+            if !valid_reduce {
+              expected_callback: Str = render_type("PureFn", [accumulator, collection.arguments[0], accumulator])
+              diagnostics = append(diagnostics, checker_diagnostic("reduce callback must have type ${expected_callback}"))
+            } else { result = accumulator; }
+          } } }
+        } else { if operation == "len" {
+          value_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(value_type)
+          if value_type != "Str" && value_type != "Bytes" && shape.base != "Array" { diagnostics = append(diagnostics, checker_diagnostic("len expects Str, Bytes, or array, got ${value_type}")); } else {}
+          result = "Nat"
+        } else {
+          if operation == "append" {
+            collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type); item_type: Str = argument_infos[1].name
+            if shape.base != "Array" || len(shape.arguments) != 1 { diagnostics = append(diagnostics, checker_diagnostic("append expects an array, got ${collection_type}")); }
+            else { merged: Str = merge_types(program, shape.arguments[0], item_type); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("cannot append ${item_type} to ${collection_type}")); } else { result = render_type("Array", [merged]); } }
+          } else {
+            if operation == "concat" {
+              left_type: Str = argument_infos[0].name; right_type: Str = argument_infos[1].name; left_shape: TypeShape = type_shape(left_type); right_shape: TypeShape = type_shape(right_type)
+              if left_shape.base != "Array" || right_shape.base != "Array" { diagnostics = append(diagnostics, checker_diagnostic("concat expects two arrays")); }
+              else { merged: Str = merge_types(program, left_shape.arguments[0], right_shape.arguments[0]); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("cannot concatenate ${left_type} and ${right_type}")); } else { result = render_type("Array", [merged]); } }
+            } else {
+              if operation == "map" { result = "Map[$K,$V]"; }
+              else {
+                if operation == "has" {
+                  collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type)
+                  if shape.base == "Map" && len(shape.arguments) == 2 {
+                    key_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name)
+                    if key_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_key: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid map key type ${invalid_key}")); } else {}
+                    result = "Bool"
+                  } else {
+                    if shape.base == "Set" && len(shape.arguments) == 1 {
+                      item_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name)
+                      if item_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_item: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid set element type ${invalid_item}")); } else {}
+                      result = "Bool"
+                    } else { diagnostics = append(diagnostics, checker_diagnostic("has expects a Map or Set, got ${collection_type}")); }
+                  }
+                } else {
+                if operation == "map_put" || operation == "map_has" || operation == "map_get" {
+                  collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type)
+                  if shape.base != "Map" || len(shape.arguments) != 2 { diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects a Map, got ${collection_type}")); }
+                  else {
+                    key_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name)
+                    if key_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_key: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid map key type ${invalid_key}")); } else {}
+                    if operation == "map_put" { value_type: Str = merge_types(program, shape.arguments[1], argument_infos[2].name); if value_type == "Unknown" { stored_type: Str = argument_infos[2].name; diagnostics = append(diagnostics, checker_diagnostic("cannot store ${stored_type} in ${collection_type}")); } else { result = render_type("Map", [key_type, value_type]); } }
+                    else { if operation == "map_has" { result = "Bool"; } else { result = shape.arguments[1]; } }
+                  }
+                } else {
+                  if operation == "set" { result = "Set[$T]"; }
+                  else {
+                    if operation == "set_add" || operation == "set_has" {
+                      collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type)
+                      if shape.base != "Set" || len(shape.arguments) != 1 { diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects a Set, got ${collection_type}")); }
+                      else { item_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name); if item_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_item: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid set element type ${invalid_item}")); } else { result = if operation == "set_has" { "Bool" } else { render_type("Set", [item_type]) }; } }
+                    } else {
+                      mut fixed_index: Nat = 0
+                      for actual in argument_infos { expected_type: Str = builtin_parameter(name, fixed_index); if expected_type != "Any" && !assignable(program, actual.name, expected_type) { actual_type: Str = actual.name; argument_number: Nat = fixed_index + 1; diagnostics = append(diagnostics, checker_diagnostic("argument ${argument_number} to ${display_name} is ${actual_type}, expected ${expected_type}")); } else {}; fixed_index = fixed_index + 1; }
+                    }
+                  }
+                }
+                }
+              }
+            }
+          }
+        } } }
+      } else {}
+      if len(parameters) > 0 {
+        mut concrete: [Str] = []
+        for parameter in parameters { concrete = append(concrete, if map_has(inferred, parameter) { map_get(inferred, parameter) } else { "$${parameter}" }); }
+        result = render_type(result, concrete)
+      } else {}
+      info = plain_type(result)
+    },
+    FieldExpr(target, field) => {
+      checked: CheckedExpression = check_expression(target, environment, facts, program)
+      diagnostics = checked.diagnostics
+      shape: TypeShape = type_shape(checked.info.name)
+      record: RecordLookup = record_type(program, shape.base)
+      if !record.found { target_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("field access requires a record, got ${target_type}")); }
+      else {
+        substitutions: Map[Str,Str] = map(); mut values: Map[Str,Str] = substitutions; mut index: Nat = 0
+        while index < len(record.parameters) && index < len(shape.arguments) { values = map_put(values, record.parameters[index], shape.arguments[index]); index = index + 1; }
+        mut found: Bool = false
+        for declared in record.fields { if declared.name == field { found = true; info = plain_type(substitute_type(declared.type_name, record.parameters, values)); } else {} }
+        if !found { record_name: Str = shape.base; diagnostics = append(diagnostics, checker_diagnostic("record ${record_name} has no field ${field}")); } else {}
+      }
+    },
+    IndexExpr(target, index) => {
+      collection: CheckedExpression = check_expression(target, environment, facts, program)
+      checked_index: CheckedExpression = check_expression(index, environment, facts, program)
+      diagnostics = concat(collection.diagnostics, checked_index.diagnostics)
+      shape: TypeShape = type_shape(collection.info.name)
+      if base_type(program, checked_index.info.name) != "Nat" { index_type: Str = checked_index.info.name; diagnostics = append(diagnostics, checker_diagnostic("index must be Nat, got ${index_type}")); } else {}
+      if shape.base == "Array" && len(shape.arguments) == 1 { info = plain_type(shape.arguments[0]); }
+      else { if collection.info.name == "Str" { info = plain_type("Str"); } else { if collection.info.name == "Bytes" { info = plain_type("Nat"); } else { collection_type: Str = collection.info.name; diagnostics = append(diagnostics, checker_diagnostic("indexing requires Str, Bytes, or an array, got ${collection_type}")); } } }
+    },
+    IfExpr(condition, yes, no, has_else) => {
+      checked_condition: CheckedExpression = check_expression(condition, environment, facts, program)
+      diagnostics = checked_condition.diagnostics
+      if checked_condition.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("if condition must be Bool")); } else {}
+      yes_facts: Map[Str,Bounds] = condition_facts(condition, facts, true)
+      no_facts: Map[Str,Bounds] = condition_facts(condition, facts, false)
+      checked_yes: CheckedBlock = check_block(yes, environment, yes_facts, program)
+      diagnostics = concat(diagnostics, checked_yes.diagnostics)
+      if has_else {
+        checked_no: CheckedBlock = check_block(no, environment, no_facts, program)
+        diagnostics = concat(diagnostics, checked_no.diagnostics)
+        joined: Str = merge_types(program, checked_yes.info.name, checked_no.info.name)
+        if joined == "Unknown" { yes_type: Str = checked_yes.info.name; no_type_name: Str = checked_no.info.name; diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${yes_type} and ${no_type_name}")); } else {}
+        info = plain_type(joined)
+      } else {
+        info = plain_type("Void")
+      }
+    },
+    BlockExpr(block) => { checked: CheckedBlock = check_block(block, environment, facts, program); info = checked.info; diagnostics = checked.diagnostics; },
+    MatchExpr(subject, arms) => {
+      checked_subject: CheckedExpression = check_expression(subject, environment, facts, program)
+      diagnostics = checked_subject.diagnostics
+      shape: TypeShape = type_shape(checked_subject.info.name)
+      enum_value: EnumLookup = enum_type(program, shape.base)
+      if !enum_value.found { subject_type: Str = checked_subject.info.name; diagnostics = append(diagnostics, checker_diagnostic("match requires an enum, got ${subject_type}")); }
+      else {
+        substitutions: Map[Str,Str] = map(); mut values: Map[Str,Str] = substitutions; mut index: Nat = 0
+        while index < len(enum_value.parameters) && index < len(shape.arguments) { values = map_put(values, enum_value.parameters[index], shape.arguments[index]); index = index + 1; }
+        seen: Set[Str] = set(); mut visited: Set[Str] = seen; mut result: Str = ""
+        for arm in arms {
+          mut payload: [Str] = []; mut found: Bool = false
+          for variant in enum_value.variants { if variant.name == arm.pattern.variant { found = true; payload = variant.payload; } else {} }
+          variant_name: Str = arm.pattern.variant; enum_name: Str = shape.base
+          if !found { diagnostics = append(diagnostics, checker_diagnostic("${variant_name} is not a variant of ${enum_name}")); } else {}
+          if set_has(visited, arm.pattern.variant) { diagnostics = append(diagnostics, checker_diagnostic("duplicate match arm ${variant_name}")); } else {}
+          visited = set_add(visited, arm.pattern.variant)
+          if len(arm.pattern.bindings) != len(payload) { payload_count: Nat = len(payload); diagnostics = append(diagnostics, checker_diagnostic("pattern ${variant_name} expects ${payload_count} bindings")); } else {}
+          mut arm_environment: Map[Str,TypeInfo] = environment; mut binding_index: Nat = 0
+          for binding in arm.pattern.bindings { if binding_index < len(payload) { arm_environment = map_put(arm_environment, binding, plain_type(substitute_type(payload[binding_index], enum_value.parameters, values))); } else {}; binding_index = binding_index + 1; }
+          checked_arm: CheckedExpression = check_expression(arm.body, arm_environment, facts, program); diagnostics = concat(diagnostics, checked_arm.diagnostics)
+          if result == "" { result = checked_arm.info.name; } else { arm_type: Str = checked_arm.info.name; merged: Str = merge_types(program, result, arm_type); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${result} and ${arm_type}")); } else { result = merged; } }
+        }
+        for variant in enum_value.variants { if !set_has(visited, variant.name) { missing: Str = variant.name; diagnostics = append(diagnostics, checker_diagnostic("non-exhaustive match; missing ${missing}")); } else {} }
+        info = plain_type(if result == "" { "Unknown" } else { result })
+      }
+    }
+  }
+  CheckedExpression(info, diagnostics)
+}
+
+pure condition_facts(condition: Expr, facts: Map[Str,Bounds], truth: Bool): Map[Str,Bounds] {
+  mut result: Map[Str,Bounds] = facts
+  match condition {
+    LocatedExpr(position, value) => { result = condition_facts(value, facts, truth); },
+    BinaryExpr(operator, left, right) => {
+      match unlocated_expression(left) {
+        NameExpr(name) => {
+          match unlocated_expression(right) {
+            NatExpr(value) => {
+              bound: Bounds = if map_has(result, name) { map_get(result, name) } else { Bounds(false, 0, false, 0) }
+              mut next: Bounds = bound
+              if (operator == ">" && truth) || (operator == "<=" && !truth) { next = Bounds(true, value + 1, bound.has_upper, bound.upper); } else {}
+              if (operator == ">=" && truth) || (operator == "<" && !truth) { next = Bounds(true, value, bound.has_upper, bound.upper); } else {}
+              if operator == "<=" && truth { next = Bounds(bound.has_lower, bound.lower, true, value); } else {}
+              if operator == ">" && !truth { next = Bounds(bound.has_lower, bound.lower, true, value); } else {}
+              if (operator == "<" && truth) || (operator == ">=" && !truth) {
+                if value > 0 { next = Bounds(bound.has_lower, bound.lower, true, value - 1); } else {}
+              } else {}
+              if operator == "==" && truth { next = Bounds(true, value, true, value); } else {}
+              if operator == "==" && !truth && value == 0 {
+                next = Bounds(true, 1, bound.has_upper, bound.upper)
+              } else {}
+              result = map_put(result, name, next)
+            },
+            LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection,other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+          }
+        },
+        LocatedExpr(other_position, other_value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+      }
+    },
+    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+  }
+  result
+}
+
+pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedBlock {
+  mut environment: Map[Str,TypeInfo] = parent
+  mut diagnostics: [Diagnostic] = []
+  for statement in block.statements {
+    match statement {
+      BindingStatement(name, type_name, mutable, value) => {
+        diagnostics = concat(diagnostics, require_type(program, type_name, [], false))
+        checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+        if !assignable_checked(program, checked.info, type_name, value, facts) { value_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${type_name}; guard is not proven")); } else {}
+        environment = map_put(environment, name, TypeInfo(type_name, checked.info.has_nat && !mutable, checked.info.nat_value, mutable))
+      },
+      AssignmentStatement(name, value) => {
+        target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+        if target.name == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("unknown name ${name}")); }
+        else { if !target.mutable { diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign to immutable local ${name}")); } else { if !assignable_checked(program, checked.info, target.name, value, facts) { value_type: Str = checked.info.name; target_type: Str = target.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${target_type}")); } else {} } }
+      },
+      ExpressionStatement(value) => { checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics); },
+      WhileStatement(condition, body) => {
+        checked: CheckedExpression = check_expression(condition, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+        if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic_for(condition, "while condition must be Bool")); } else {}
+        body_facts: Map[Str,Bounds] = condition_facts(condition, facts, true); checked_body: CheckedBlock = check_block(body, environment, body_facts, program); diagnostics = concat(diagnostics, checked_body.diagnostics)
+      },
+      ForStatement(name, iterable, body) => {
+        checked: CheckedExpression = check_expression(iterable, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics); shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
+        if checked.info.name == "Range" || checked.info.name == "Bytes" { item = "Nat"; } else { if shape.base == "Array" && len(shape.arguments) == 1 { item = shape.arguments[0]; } else { iterable_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(iterable, "for requires a Range or array, got ${iterable_type}")); } }
+        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block(body, loop_environment, facts, program); diagnostics = concat(diagnostics, checked_body.diagnostics)
+      }
+    }
+  }
+  mut info: TypeInfo = plain_type("Void")
+  match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression(value, environment, facts, program); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); } }
+  CheckedBlock(info, diagnostics)
+}
+
+pure check_program_types(program: Program): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = resolve_program(program)
+  if len(diagnostics) == 0 {
+    mut has_main: Bool = false
+    for declaration in program.declarations {
+      match declaration {
+        TypeDeclaration(name, base, guard) => {
+          if !is_scalar_base(base) { diagnostics = append(diagnostics, checker_diagnostic("guarded type base must be a scalar, got ${base}")); } else {}
+          environment: Map[Str,TypeInfo] = map_put(map(), "value", plain_type(base)); facts: Map[Str,Bounds] = map(); checked: CheckedExpression = check_expression(guard, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+          if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("type guard must produce Bool")); } else {}
+        },
+        RecordDeclaration(name, parameters, fields) => {
+          parameter_names: Set[Str] = set(); mut seen_parameters: Set[Str] = parameter_names
+          for parameter in parameters { if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in record ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
+          field_names: Set[Str] = set(); mut seen_fields: Set[Str] = field_names
+          for field in fields { if set_has(seen_fields, field.name) { field_name: Str = field.name; diagnostics = append(diagnostics, checker_diagnostic("duplicate field ${field_name} in record ${name}")); } else {}; seen_fields = set_add(seen_fields, field.name); diagnostics = concat(diagnostics, require_type(program, field.type_name, parameters, false)); }
+        },
+        EnumDeclaration(name, parameters, variants) => {
+          parameter_names: Set[Str] = set(); mut seen_parameters: Set[Str] = parameter_names
+          for parameter in parameters { if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in enum ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
+          if len(variants) == 0 { diagnostics = append(diagnostics, checker_diagnostic("enum ${name} must contain at least one variant")); } else {}
+          for variant in variants { for payload in variant.payload { diagnostics = concat(diagnostics, require_type(program, payload, parameters, false)); } }
+        },
+        FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+          if name == "main" { has_main = true; if len(parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters")); } else {} } else {}
+          environment: Map[Str,TypeInfo] = map(); mut values: Map[Str,TypeInfo] = environment
+          for parameter in parameters { diagnostics = concat(diagnostics, require_type(program, parameter.type_name, [], false)); values = map_put(values, parameter.name, plain_type(parameter.type_name)); }
+          diagnostics = concat(diagnostics, require_type(program, return_type, [], true)); facts: Map[Str,Bounds] = map(); checked: CheckedBlock = check_block(body, values, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+          mut return_ok: Bool = assignable(program, checked.info.name, return_type)
+          guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
+          if !return_ok && guarded_return.found && checked.info.has_nat && base_type(program, checked.info.name) == guarded_return.base {
+            return_ok = evaluate_nat_guard(guarded_return.guard, checked.info.nat_value)
+          } else {}
+          if !return_ok { actual_return: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("function ${name} returns ${actual_return}, expected ${return_type}")); } else {}
+        },
+        ImportDeclaration(path) => {}
+      }
+    }
+    if !has_main { diagnostics = append(diagnostics, checker_diagnostic("program has no main function")); } else {}
+  } else {}
+  diagnostics
+}
+
+pure check_source_types(source: Str): Str {
+  match lex(source) {
+    Ok(tokens) => { match parse_program_complete(tokens) { Ok(program) => render_resolver_diagnostics(check_program_types(program)), Error(error) => error.message } },
+    Error(errors) => "lexing failed"
+  }
+}
+
+pure check_module_graph_types(units: [SourceUnit], entry: Str): [Diagnostic] {
+  empty: Set[Str] = set()
+  initial: ModuleGraphState = ModuleGraphState([], empty, empty, duplicate_module_diagnostics(units))
+  graph: ModuleGraphState = visit_module(units, entry, initial)
+  program: Program = append_program_declarations(graph.programs)
+  concat(graph.diagnostics, check_program_types(program))
+}
+
+pure check_loaded_source_types(sources: [LoadedSource], entry: Str): Str {
+  mut units: [SourceUnit] = []
+  mut diagnostics: [Diagnostic] = []
+  for source in sources {
+    match lex_file(source.source, source.path) {
+      Ok(tokens) => {
+        match parse_program_complete(tokens) {
+          Ok(program) => { units = append(units, SourceUnit(source.path, program)); },
+          Error(error) => { diagnostics = append(diagnostics, error); }
+        }
+      },
+      Error(errors) => { for error in errors { diagnostics = append(diagnostics, error); } }
+    }
+  }
+  if len(diagnostics) > 0 { render_resolver_diagnostics(diagnostics) } else { render_resolver_diagnostics(check_module_graph_types(units, entry)) }
+}

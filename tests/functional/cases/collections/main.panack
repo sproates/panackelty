@@ -1,0 +1,22 @@
+pure numbers(): [Nat] {
+  [2, 3].concat([5, 7])
+}
+
+pure symbols(): Map[Str,Nat] {
+  mut values: Map[Str,Nat] = map()
+  values = values.put("answer", 42)
+  values
+}
+
+pure encoded(): Bytes {
+  utf8_encode("λ").byte_append(33)
+}
+
+main(): Void {
+  mut names: Set[Str] = set()
+  names = names.add("Panackelty")
+  print(numbers())
+  print(symbols().get("answer"))
+  print(names.has("Panackelty"))
+  print(encoded().utf8_decode())
+}

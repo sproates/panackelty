@@ -1,0 +1,29 @@
+// Project Euler 5: find the smallest positive number divisible by 1 through 20.
+pure greatest_common_divisor(left: Nat, right: Nat): Nat {
+  mut a: Nat = left
+  mut b: Nat = right
+
+  while b != 0 {
+    remainder: Nat = a % b
+    a = b
+    b = remainder
+  }
+
+  a
+}
+
+pure least_common_multiple(left: Nat, right: Nat): Nat {
+  left / greatest_common_divisor(left, right) * right
+}
+
+pure smallest_multiple_through(limit: Nat): Nat {
+  mut result: Nat = 1
+  for value in 2..(limit + 1) {
+    result = least_common_multiple(result, value)
+  }
+  result
+}
+
+main(): Void {
+  print(smallest_multiple_through(20))
+}

@@ -1,0 +1,9 @@
+pure answer(flag: Bool): Nat {
+  if flag {
+    42
+  }
+}
+
+main(): Void {
+  print(answer(true))
+}

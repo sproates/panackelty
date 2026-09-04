@@ -1,0 +1,3 @@
+answer(): Nat { 1 }
+answer(): Nat { 2 }
+main(): Void {}

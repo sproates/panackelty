@@ -1,0 +1,672 @@
+import "codec.panack"
+
+record ByteReader {
+  data: Bytes,
+  offset: Nat,
+  valid: Bool,
+  message: Str
+}
+
+record ReadNat {
+  reader: ByteReader,
+  value: Nat
+}
+
+record ReadText {
+  reader: ByteReader,
+  value: Str
+}
+
+record ReadBytes {
+  reader: ByteReader,
+  value: Bytes
+}
+
+record ReadConstant {
+  reader: ByteReader,
+  value: ConstantValue
+}
+
+record ReadInstruction {
+  reader: ByteReader,
+  value: Instruction
+}
+
+record ReadInstructions {
+  reader: ByteReader,
+  values: [Instruction]
+}
+
+record ReadNames {
+  reader: ByteReader,
+  values: [Str]
+}
+
+record ReadFunction {
+  reader: ByteReader,
+  value: FunctionCode
+}
+
+record SignedMagnitude {
+  negative: Bool,
+  magnitude: Nat
+}
+
+record ReadSignedMagnitude {
+  reader: ByteReader,
+  value: SignedMagnitude
+}
+
+enum BytecodeDecodeResult {
+  BytecodeDecoded(BytecodeProgram),
+  BytecodeDecodeError(Str)
+}
+
+pure invalid_reader(reader: ByteReader, message: Str): ByteReader {
+  if reader.valid { ByteReader(reader.data, reader.offset, false, message) } else { reader }
+}
+
+pure reader_has(reader: ByteReader, count: Nat): Bool {
+  reader.valid && reader.offset + count <= byte_len(reader.data)
+}
+
+pure read_u8(reader: ByteReader): ReadNat {
+  if reader_has(reader, 1) {
+    value: Nat = byte_get(reader.data, reader.offset)
+    ReadNat(ByteReader(reader.data, reader.offset + 1, true, ""), value)
+  } else {
+    ReadNat(invalid_reader(reader, "truncated data"), 0)
+  }
+}
+
+pure read_u16(reader: ByteReader): ReadNat {
+  if reader_has(reader, 2) {
+    value: Nat = byte_get(reader.data, reader.offset) * 256 + byte_get(reader.data, reader.offset + 1)
+    ReadNat(ByteReader(reader.data, reader.offset + 2, true, ""), value)
+  } else {
+    ReadNat(invalid_reader(reader, "truncated data"), 0)
+  }
+}
+
+pure read_u32(reader: ByteReader): ReadNat {
+  if reader_has(reader, 4) {
+    value: Nat = byte_get(reader.data, reader.offset) * 16777216 +
+      byte_get(reader.data, reader.offset + 1) * 65536 +
+      byte_get(reader.data, reader.offset + 2) * 256 +
+      byte_get(reader.data, reader.offset + 3)
+    ReadNat(ByteReader(reader.data, reader.offset + 4, true, ""), value)
+  } else {
+    ReadNat(invalid_reader(reader, "truncated data"), 0)
+  }
+}
+
+pure read_raw(reader: ByteReader, count: Nat): ReadBytes {
+  if reader_has(reader, count) {
+    mut output: Bytes = bytes()
+    mut cursor: Nat = 0
+    while cursor < count {
+      output = byte_append(output, byte_get(reader.data, reader.offset + cursor))
+      cursor = cursor + 1
+    }
+    ReadBytes(ByteReader(reader.data, reader.offset + count, true, ""), output)
+  } else {
+    ReadBytes(invalid_reader(reader, "truncated data"), bytes())
+  }
+}
+
+pure utf8_continuation(value: Nat): Bool {
+  value >= 128 && value <= 191
+}
+
+pure valid_utf8(data: Bytes): Bool {
+  mut valid: Bool = true
+  mut cursor: Nat = 0
+  while cursor < byte_len(data) && valid {
+    first: Nat = byte_get(data, cursor)
+    if first <= 127 {
+      cursor = cursor + 1
+    } else {
+      if first >= 194 && first <= 223 {
+        if cursor + 1 < byte_len(data) && utf8_continuation(byte_get(data, cursor + 1)) {
+          cursor = cursor + 2
+        } else { valid = false; }
+      } else {
+        if first >= 224 && first <= 239 {
+          if cursor + 2 < byte_len(data) {
+            second: Nat = byte_get(data, cursor + 1)
+            third: Nat = byte_get(data, cursor + 2)
+            second_valid: Bool = utf8_continuation(second) &&
+              (first != 224 || second >= 160) && (first != 237 || second <= 159)
+            if second_valid && utf8_continuation(third) { cursor = cursor + 3; }
+            else { valid = false; }
+          } else { valid = false; }
+        } else {
+          if first >= 240 && first <= 244 {
+            if cursor + 3 < byte_len(data) {
+              second: Nat = byte_get(data, cursor + 1)
+              third: Nat = byte_get(data, cursor + 2)
+              fourth: Nat = byte_get(data, cursor + 3)
+              second_valid: Bool = utf8_continuation(second) &&
+                (first != 240 || second >= 144) && (first != 244 || second <= 143)
+              if second_valid && utf8_continuation(third) && utf8_continuation(fourth) {
+                cursor = cursor + 4
+              } else { valid = false; }
+            } else { valid = false; }
+          } else { valid = false; }
+        }
+      }
+    }
+  }
+  valid
+}
+
+pure decode_utf8(reader: ByteReader, count: Nat, limit: Nat, label: Str): ReadText {
+  if count > limit {
+    ReadText(invalid_reader(reader, "${label} exceeds limit"), "")
+  } else {
+    raw: ReadBytes = read_raw(reader, count)
+    if raw.reader.valid && valid_utf8(raw.value) {
+      ReadText(raw.reader, utf8_decode(raw.value))
+    } else {
+      if raw.reader.valid {
+        ReadText(invalid_reader(raw.reader, "invalid UTF-8 in ${label}"), "")
+      } else {
+        ReadText(raw.reader, "")
+      }
+    }
+  }
+}
+
+pure read_name(reader: ByteReader): ReadText {
+  size: ReadNat = read_u16(reader)
+  decode_utf8(size.reader, size.value, 1024, "name")
+}
+
+pure read_text(reader: ByteReader): ReadText {
+  size: ReadNat = read_u32(reader)
+  decode_utf8(size.reader, size.value, 1048576, "text")
+}
+
+pure nat_digit_count(value: Nat): Nat {
+  if value == 0 { 1 }
+  else {
+    mut count: Nat = 0
+    mut remaining: Nat = value
+    while remaining > 0 {
+      remaining = remaining / 10
+      count = count + 1
+    }
+    count
+  }
+}
+
+pure read_natural(reader: ByteReader): ReadNat {
+  size: ReadNat = read_u16(reader)
+  if !size.reader.valid { ReadNat(size.reader, 0) }
+  else {
+    if size.value > 1701 {
+      ReadNat(invalid_reader(size.reader, "integer exceeds digit limit"), 0)
+    } else {
+      raw: ReadBytes = read_raw(size.reader, size.value)
+      if !raw.reader.valid { ReadNat(raw.reader, 0) }
+      else {
+        if size.value > 0 && byte_get(raw.value, 0) == 0 {
+          ReadNat(invalid_reader(raw.reader, "non-minimal integer"), 0)
+        } else {
+          mut value: Nat = 0
+          for byte in raw.value { value = value * 256 + byte; }
+          if nat_digit_count(value) > 4096 {
+            ReadNat(invalid_reader(raw.reader, "integer exceeds digit limit"), 0)
+          } else {
+            ReadNat(raw.reader, value)
+          }
+        }
+      }
+    }
+  }
+}
+
+pure subtract_natural(larger: Nat, smaller: Nat): Nat {
+  mut result: Nat = larger
+  mut remaining: Nat = smaller
+  while remaining > 0 {
+    if result > 0 { result = result - 1; } else {}
+    remaining = remaining - 1
+  }
+  result
+}
+
+pure read_i16(reader: ByteReader): ReadSignedMagnitude {
+  encoded: ReadNat = read_u16(reader)
+  if encoded.value >= 32768 {
+    value: SignedMagnitude = SignedMagnitude(true, subtract_natural(65536, encoded.value))
+    ReadSignedMagnitude(encoded.reader, value)
+  } else {
+    ReadSignedMagnitude(encoded.reader, SignedMagnitude(false, encoded.value))
+  }
+}
+
+pure read_decimal(reader: ByteReader): ReadConstant {
+  sign: ReadNat = read_u8(reader)
+  exponent: ReadSignedMagnitude = read_i16(sign.reader)
+  count: ReadNat = read_u16(exponent.reader)
+  mut current: ByteReader = count.reader
+  if sign.value > 1 { current = invalid_reader(current, "invalid decimal sign"); } else {}
+  if exponent.value.magnitude > 4096 { current = invalid_reader(current, "decimal exponent exceeds limit"); } else {}
+  if count.value == 0 || count.value > 4096 { current = invalid_reader(current, "decimal coefficient exceeds digit limit"); } else {}
+  raw: ReadBytes = read_raw(current, (count.value + 1) / 2)
+  mut digits: [Nat] = []
+  mut cursor: Nat = 0
+  while cursor < byte_len(raw.value) && raw.reader.valid {
+    byte: Nat = byte_get(raw.value, cursor)
+    high: Nat = byte / 16
+    low: Nat = byte % 16
+    if high > 9 { current = invalid_reader(raw.reader, "invalid decimal digit"); }
+    else { digits = append(digits, high); }
+    if len(digits) < count.value {
+      if low > 9 { current = invalid_reader(current, "invalid decimal digit"); }
+      else { digits = append(digits, low); }
+    } else {
+      if low != 15 { current = invalid_reader(current, "invalid decimal padding"); } else {}
+    }
+    cursor = cursor + 1
+  }
+  if len(digits) > 1 && digits[0] == 0 {
+    current = invalid_reader(current, "non-minimal decimal coefficient")
+  } else {}
+  value: ConstantValue = DecimalPartsConstant(sign.value == 1, digits, exponent.value.negative, exponent.value.magnitude)
+  ReadConstant(ByteReader(current.data, raw.reader.offset, current.valid && raw.reader.valid, if current.valid { raw.reader.message } else { current.message }), value)
+}
+
+pure read_constant(reader: ByteReader): ReadConstant {
+  tag: ReadNat = read_u8(reader)
+  if tag.value == 0 {
+    natural: ReadNat = read_natural(tag.reader)
+    ReadConstant(natural.reader, NatConstant(natural.value))
+  } else {
+    if tag.value == 1 {
+      sign: ReadNat = read_u8(tag.reader)
+      magnitude: ReadNat = read_natural(sign.reader)
+      mut current: ByteReader = magnitude.reader
+      if sign.value > 1 { current = invalid_reader(current, "invalid integer sign"); } else {}
+      if sign.value == 1 && magnitude.value == 0 { current = invalid_reader(current, "negative zero integer"); } else {}
+      ReadConstant(current, IntConstant(sign.value == 1, magnitude.value))
+    } else {
+      if tag.value == 2 {
+        read_decimal(tag.reader)
+      } else {
+        if tag.value == 3 {
+          text: ReadText = read_text(tag.reader)
+          ReadConstant(text.reader, StringConstant(text.value))
+        } else {
+          if tag.value == 4 {
+            flag: ReadNat = read_u8(tag.reader)
+            if flag.value > 1 {
+              ReadConstant(invalid_reader(flag.reader, "invalid Bool constant"), BoolConstant(false))
+            } else {
+              ReadConstant(flag.reader, BoolConstant(flag.value == 1))
+            }
+          } else {
+            if tag.value == 5 {
+              ReadConstant(tag.reader, VoidConstant())
+            } else {
+              ReadConstant(invalid_reader(tag.reader, "unknown constant tag"), VoidConstant())
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure read_names(reader: ByteReader, count: Nat): ReadNames {
+  mut current: ByteReader = reader
+  mut values: [Str] = []
+  mut cursor: Nat = 0
+  while cursor < count && current.valid {
+    item: ReadText = read_name(current)
+    current = item.reader
+    values = append(values, item.value)
+    cursor = cursor + 1
+  }
+  ReadNames(current, values)
+}
+
+pure read_texts(reader: ByteReader): ReadNames {
+  count: ReadNat = read_u16(reader)
+  if count.value > 65535 {
+    ReadNames(invalid_reader(count.reader, "interpolation exceeds item limit"), [])
+  } else {
+    mut current: ByteReader = count.reader
+    mut values: [Str] = []
+    mut cursor: Nat = 0
+    while cursor < count.value && current.valid {
+      item: ReadText = read_text(current)
+      current = item.reader
+      values = append(values, item.value)
+      cursor = cursor + 1
+    }
+    ReadNames(current, values)
+  }
+}
+
+pure unary_operator(code: Nat): Str {
+  if code == 0 { "-" } else { "!" }
+}
+
+pure binary_operator(code: Nat): Str {
+  if code == 0 { "+" }
+  else { if code == 1 { "-" }
+  else { if code == 2 { "*" }
+  else { if code == 3 { "/" }
+  else { if code == 4 { "%" }
+  else { if code == 5 { "==" }
+  else { if code == 6 { "!=" }
+  else { if code == 7 { "<" }
+  else { if code == 8 { "<=" }
+  else { if code == 9 { ">" }
+  else { if code == 10 { ">=" }
+  else { if code == 11 { "&&" } else { "||" } } } } } } } } } } } }
+}
+
+pure read_instruction(reader: ByteReader): ReadInstruction {
+  opcode: ReadNat = read_u8(reader)
+  if opcode.value == 0 {
+    constant: ReadConstant = read_constant(opcode.reader)
+    ReadInstruction(constant.reader, ConstInstruction(constant.value))
+  } else { if opcode.value == 1 {
+    name: ReadText = read_name(opcode.reader); ReadInstruction(name.reader, LoadInstruction(name.value))
+  } else { if opcode.value == 2 {
+    name: ReadText = read_name(opcode.reader); ReadInstruction(name.reader, StoreInstruction(name.value))
+  } else { if opcode.value == 3 {
+    ReadInstruction(opcode.reader, PopInstruction())
+  } else { if opcode.value == 4 {
+    code: ReadNat = read_u8(opcode.reader)
+    if code.value > 1 { ReadInstruction(invalid_reader(code.reader, "unknown unary operator"), UnaryInstruction("-")) }
+    else { ReadInstruction(code.reader, UnaryInstruction(unary_operator(code.value))) }
+  } else { if opcode.value == 5 {
+    code: ReadNat = read_u8(opcode.reader)
+    if code.value > 12 { ReadInstruction(invalid_reader(code.reader, "unknown binary operator"), BinaryInstruction("+")) }
+    else { ReadInstruction(code.reader, BinaryInstruction(binary_operator(code.value))) }
+  } else { if opcode.value == 6 {
+    ReadInstruction(opcode.reader, MakeRangeInstruction())
+  } else { if opcode.value == 7 {
+    count: ReadNat = read_u16(opcode.reader); ReadInstruction(count.reader, MakeArrayInstruction(count.value))
+  } else { if opcode.value == 8 {
+    ReadInstruction(opcode.reader, IndexGetInstruction())
+  } else { if opcode.value == 9 {
+    parts: ReadNames = read_texts(opcode.reader); ReadInstruction(parts.reader, InterpolateInstruction(parts.values))
+  } else { if opcode.value == 10 {
+    name: ReadText = read_name(opcode.reader); ReadInstruction(name.reader, IterInitInstruction(name.value))
+  } else { if opcode.value == 11 {
+    iterator: ReadText = read_name(opcode.reader)
+    name: ReadText = read_name(iterator.reader)
+    end: ReadNat = read_u32(name.reader)
+    ReadInstruction(end.reader, IterNextInstruction(iterator.value, name.value, end.value))
+  } else { if opcode.value == 12 {
+    name: ReadText = read_name(opcode.reader)
+    count: ReadNat = read_u16(name.reader)
+    fields: ReadNames = read_names(count.reader, count.value)
+    ReadInstruction(fields.reader, MakeRecordInstruction(name.value, fields.values))
+  } else { if opcode.value == 13 {
+    name: ReadText = read_name(opcode.reader); ReadInstruction(name.reader, FieldGetInstruction(name.value))
+  } else { if opcode.value == 14 {
+    enum_name: ReadText = read_name(opcode.reader)
+    variant: ReadText = read_name(enum_name.reader)
+    count: ReadNat = read_u16(variant.reader)
+    ReadInstruction(count.reader, MakeVariantInstruction(enum_name.value, variant.value, count.value))
+  } else { if opcode.value == 15 {
+    variant: ReadText = read_name(opcode.reader)
+    failure: ReadNat = read_u32(variant.reader)
+    ReadInstruction(failure.reader, MatchVariantInstruction(variant.value, failure.value))
+  } else { if opcode.value == 16 {
+    ReadInstruction(opcode.reader, MatchFailInstruction())
+  } else { if opcode.value == 17 {
+    name: ReadText = read_name(opcode.reader)
+    arity: ReadNat = read_u8(name.reader)
+    ReadInstruction(arity.reader, CallInstruction(name.value, arity.value))
+  } else { if opcode.value == 18 {
+    target: ReadNat = read_u32(opcode.reader); ReadInstruction(target.reader, JumpFalseInstruction(target.value))
+  } else { if opcode.value == 19 {
+    target: ReadNat = read_u32(opcode.reader); ReadInstruction(target.reader, JumpInstruction(target.value))
+  } else { if opcode.value == 20 {
+    ReadInstruction(opcode.reader, ReturnInstruction())
+  } else { if opcode.value == 21 {
+    arity: ReadNat = read_u8(opcode.reader); ReadInstruction(arity.reader, CallValueInstruction(arity.value))
+  } else {
+    ReadInstruction(invalid_reader(opcode.reader, "unknown bytecode opcode"), PopInstruction())
+  } } } } } } } } } } } } } } } } } } } } } }
+}
+
+pure read_instructions(reader: ByteReader, count: Nat): ReadInstructions {
+  mut current: ByteReader = reader
+  mut values: [Instruction] = []
+  mut cursor: Nat = 0
+  while cursor < count && current.valid {
+    instruction: ReadInstruction = read_instruction(current)
+    current = instruction.reader
+    values = append(values, instruction.value)
+    cursor = cursor + 1
+  }
+  ReadInstructions(current, values)
+}
+
+pure read_function(reader: ByteReader): ReadFunction {
+  name: ReadText = read_name(reader)
+  flags: ReadNat = read_u8(name.reader)
+  parameter_count: ReadNat = read_u8(flags.reader)
+  parameters: ReadNames = read_names(parameter_count.reader, parameter_count.value)
+  instruction_count: ReadNat = read_u32(parameters.reader)
+  mut current: ByteReader = instruction_count.reader
+  if flags.value > 1 { current = invalid_reader(current, "unknown function flags"); } else {}
+  if instruction_count.value > 1000000 { current = invalid_reader(current, "function exceeds instruction limit"); } else {}
+  instructions: ReadInstructions = read_instructions(current, instruction_count.value)
+  value: FunctionCode = FunctionCode(name.value, parameters.values, flags.value == 1, instructions.values)
+  ReadFunction(instructions.reader, value)
+}
+
+record FunctionCodeLookup {
+  found: Bool,
+  value: FunctionCode
+}
+
+pure builtin_exists(name: Str): Bool {
+  is_builtin(name)
+}
+
+pure builtin_is_pure(name: Str): Bool {
+  name != "print" && name != "read_line" && name != "read_file" &&
+  name != "write_file" && name != "read_bytes" && name != "write_bytes" &&
+  name != "command_args" && name != "environment_has" &&
+  name != "environment_get" && name != "eprint" && name != "process_exit" &&
+  name != "path_resolve" && name != "file_exists" && name != "run_bytecode" &&
+  name != "run_bytecode_args"
+}
+
+pure bytecode_function(program: BytecodeProgram, name: Str): FunctionCodeLookup {
+  mut found: Bool = false
+  mut result: FunctionCode = FunctionCode("", [], false, [])
+  for candidate in program.functions {
+    if candidate.name == name {
+      found = true
+      result = candidate
+    } else {}
+  }
+  FunctionCodeLookup(found, result)
+}
+
+pure duplicate_names(names: [Str]): Bool {
+  mut seen: Set[Str] = set()
+  mut duplicate: Bool = false
+  for name in names {
+    if set_has(seen, name) { duplicate = true; }
+    else { seen = set_add(seen, name); }
+  }
+  duplicate
+}
+
+pure verify_instruction(instruction: Instruction, function: FunctionCode, program: BytecodeProgram): Str {
+  count: Nat = len(function.instructions)
+  match instruction {
+    ConstInstruction(value) => "",
+    LoadInstruction(name) => "",
+    StoreInstruction(name) => "",
+    PopInstruction() => "",
+    UnaryInstruction(operator) => if operator == "-" || operator == "!" { "" } else { "invalid UNARY operand" },
+    BinaryInstruction(operator) => "",
+    MakeRangeInstruction() => "",
+    MakeArrayInstruction(item_count) => "",
+    IndexGetInstruction() => "",
+    InterpolateInstruction(parts) => if len(parts) > 0 { "" } else { "invalid INTERPOLATE operand" },
+    IterInitInstruction(name) => "",
+    IterNextInstruction(iterator, name, end) => if end < count { "" } else { "invalid ITER_NEXT operand" },
+    MakeRecordInstruction(name, fields) => "",
+    FieldGetInstruction(name) => "",
+    MakeVariantInstruction(enum_name, variant, payload_count) => "",
+    MatchVariantInstruction(variant, failure) => if failure < count { "" } else { "invalid MATCH_VARIANT operand" },
+    MatchFailInstruction() => "",
+    CallInstruction(name, arity) => {
+      target: FunctionCodeLookup = bytecode_function(program, name)
+      if !target.found && !builtin_exists(name) {
+        "bytecode calls unknown function ${name}"
+      } else {
+        expected: Nat = if target.found { len(target.value.parameters) } else { builtin_arity(name) }
+        target_pure: Bool = if target.found { target.value.is_pure } else { builtin_is_pure(name) }
+        if arity != expected { "bytecode call to ${name} has invalid arity" }
+        else { if function.is_pure && !target_pure { "pure bytecode function calls impure function ${name}" } else { "" } }
+      }
+    },
+    CallValueInstruction(arity) => "",
+    JumpFalseInstruction(target) => if target < count { "" } else { "invalid jump target" },
+    JumpInstruction(target) => if target < count { "" } else { "invalid jump target" },
+    PendingEndJumpInstruction() => "unresolved bytecode jump",
+    ReturnInstruction() => ""
+  }
+}
+
+pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
+  if len(function.name) == 0 || duplicate_names(function.parameters) {
+    "invalid function signature"
+  } else {
+    if len(function.instructions) == 0 {
+      "bytecode function is empty"
+    } else {
+      mut message: Str = ""
+      mut has_return: Bool = false
+      for instruction in function.instructions {
+        match instruction {
+          ReturnInstruction() => { has_return = true; },
+          ConstInstruction(value) => {}, LoadInstruction(name) => {}, StoreInstruction(name) => {},
+          PopInstruction() => {}, UnaryInstruction(operator) => {}, BinaryInstruction(operator) => {},
+          MakeRangeInstruction() => {}, MakeArrayInstruction(count) => {}, IndexGetInstruction() => {},
+          InterpolateInstruction(parts) => {}, IterInitInstruction(name) => {},
+          IterNextInstruction(iterator, name, end) => {}, MakeRecordInstruction(name, fields) => {},
+          FieldGetInstruction(name) => {}, MakeVariantInstruction(enum_name, variant, count) => {},
+          MatchVariantInstruction(variant, failure) => {}, MatchFailInstruction() => {},
+          CallInstruction(name, arity) => {}, JumpFalseInstruction(target) => {},
+          CallValueInstruction(arity) => {},
+          JumpInstruction(target) => {}, PendingEndJumpInstruction() => {}
+        }
+        if len(message) == 0 { message = verify_instruction(instruction, function, program); } else {}
+      }
+      if len(message) > 0 { message }
+      else { if has_return { "" } else { "bytecode function has no RETURN" } }
+    }
+  }
+}
+
+pure verify_bytecode_program(program: BytecodeProgram): Str {
+  main: FunctionCodeLookup = bytecode_function(program, "main")
+  if !main.found { "bytecode has no main function" }
+  else { if len(main.value.parameters) > 0 { "bytecode main function cannot take parameters" }
+  else {
+    mut message: Str = ""
+    mut total: Nat = 0
+    for function in program.functions {
+      total = total + len(function.instructions)
+      if total > 4000000 && len(message) == 0 { message = "bytecode exceeds total instruction limit"; } else {}
+      if len(message) == 0 { message = verify_function(function, program); } else {}
+    }
+    message
+  } }
+}
+
+pure has_bytecode_magic(data: Bytes): Bool {
+  expected: Bytes = bytes_concat(utf8_encode("PANACKBC"), encode_u8(0))
+  if byte_len(data) < byte_len(expected) { false }
+  else {
+    mut matches: Bool = true
+    mut cursor: Nat = 0
+    while cursor < byte_len(expected) && matches {
+      if byte_get(data, cursor) != byte_get(expected, cursor) { matches = false; } else {}
+      cursor = cursor + 1
+    }
+    matches
+  }
+}
+
+pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
+  if byte_len(data) > 16777216 { BytecodeDecodeError("bytecode artifact exceeds size limit") }
+  else { if !has_bytecode_magic(data) { BytecodeDecodeError("not a Panackelty bytecode file") }
+  else {
+    initial: ByteReader = ByteReader(data, 9, true, "")
+    version: ReadNat = read_u16(initial)
+    if !version.reader.valid { BytecodeDecodeError(version.reader.message) }
+    else { if version.value != 7 {
+      version_number: Nat = version.value
+      BytecodeDecodeError("unsupported bytecode version ${version_number}")
+    }
+    else {
+      function_count: ReadNat = read_u16(version.reader)
+      mut current: ByteReader = function_count.reader
+      if function_count.value > 4096 { current = invalid_reader(current, "function count exceeds limit"); } else {}
+      mut functions: [FunctionCode] = []
+      mut previous_name: Str = ""
+      mut cursor: Nat = 0
+      mut total: Nat = 0
+      while cursor < function_count.value && current.valid {
+        decoded: ReadFunction = read_function(current)
+        current = decoded.reader
+        function: FunctionCode = decoded.value
+        if cursor > 0 && function.name == previous_name {
+          duplicate_name: Str = function.name
+          current = invalid_reader(current, "duplicate function ${duplicate_name}")
+        }
+        else { if cursor > 0 && function.name < previous_name { current = invalid_reader(current, "functions are not canonically ordered"); } else {} }
+        total = total + len(function.instructions)
+        if total > 4000000 { current = invalid_reader(current, "total instruction count exceeds limit"); } else {}
+        functions = append(functions, function)
+        previous_name = function.name
+        cursor = cursor + 1
+      }
+      if current.valid && current.offset != byte_len(data) { current = invalid_reader(current, "trailing data"); } else {}
+      if !current.valid { BytecodeDecodeError(current.message) }
+      else {
+        program: BytecodeProgram = BytecodeProgram(functions)
+        verification: Str = verify_bytecode_program(program)
+        if len(verification) == 0 { BytecodeDecoded(program) } else { BytecodeDecodeError(verification) }
+      }
+    } }
+  } }
+}
+
+pure validate_bytecode(data: Bytes): Str {
+  match decode_bytecode(data) {
+    BytecodeDecoded(program) => "ok",
+    BytecodeDecodeError(message) => message
+  }
+}
+
+pure disassemble_bytecode(data: Bytes): Str {
+  match decode_bytecode(data) {
+    BytecodeDecoded(program) => render_bytecode(program),
+    BytecodeDecodeError(message) => message
+  }
+}
+
+pure round_trip_bytecode(data: Bytes): Bytes {
+  match decode_bytecode(data) {
+    BytecodeDecoded(program) => serialize_bytecode(program),
+    BytecodeDecodeError(message) => bytes()
+  }
+}

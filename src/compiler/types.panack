@@ -1,0 +1,49 @@
+record SourcePos {
+  file: Str,
+  offset: Nat,
+  line: Nat,
+  column: Nat
+}
+
+enum TokenKind {
+  Identifier,
+  Number,
+  DecimalNumber,
+  StringLiteral,
+  Punctuation
+}
+
+record Token {
+  kind: TokenKind,
+  text: Str,
+  start: Nat,
+  end: Nat,
+  position: SourcePos,
+  end_line: Nat,
+  end_column: Nat
+}
+
+record Diagnostic {
+  message: Str,
+  position: SourcePos
+}
+
+pure diagnostic_text(diagnostic: Diagnostic): Str {
+  position: SourcePos = diagnostic.position
+  if len(position.file) > 0 {
+    file: Str = position.file
+    line: Nat = position.line
+    column: Nat = position.column
+    message: Str = diagnostic.message
+    "${file}:${line}:${column}: ${message}"
+  } else {
+    diagnostic.message
+  }
+}
+
+// Kept private to the compiler module graph until imports support namespacing.
+// User programs should import the canonical definition from src/stdlib.
+enum Result[T, E] {
+  Ok(T),
+  Error(E)
+}

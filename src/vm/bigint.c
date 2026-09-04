@@ -215,7 +215,8 @@ bool pn_big_pow10(PnBigInt *value, size_t power) { while (power--) if (!pn_big_m
 bool pn_big_is_zero(const PnBigInt *value) { return value->sign == 0; }
 bool pn_big_is_one(const PnBigInt *value) { return value->sign == 1 && value->len == 1 && value->limbs[0] == 1; }
 bool pn_big_fits_size(const PnBigInt *value, size_t *out) {
-    if (value->sign < 0) return false; size_t result = 0;
+    if (value->sign < 0) return false;
+    size_t result = 0;
     for (size_t i = value->len; i-- > 0;) { if (result > (SIZE_MAX - value->limbs[i]) / BASE) return false; result = result * BASE + value->limbs[i]; }
     *out = result; return true;
 }

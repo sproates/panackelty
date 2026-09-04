@@ -29,10 +29,10 @@ checking, compiling, and running Panackelty programs does not require Python,
 `make`, a C compiler, or a copy of this repository. The download contains the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives are not published yet. The first release will be
-`0.1.0-alpha.1`; until its archives appear on the [Releases page](../../releases),
-use the build-from-source workflow below. The [release policy](RELEASE_POLICY.md)
-defines the preview's support and compatibility boundaries.
+Developer-preview archives for `0.1.0-alpha.1` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.1).
+The [release policy](RELEASE_POLICY.md) defines the preview's support and
+compatibility boundaries.
 
 ### System requirements
 

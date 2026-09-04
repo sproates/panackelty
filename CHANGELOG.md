@@ -4,7 +4,7 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
-## 0.1.0-alpha.1 — unreleased
+## 0.1.0-alpha.1 — 2026-09-04
 
 This will be the first public developer preview.
 
@@ -38,3 +38,16 @@ This will be the first public developer preview.
 
 See `RELEASE_POLICY.md`, `SPEC.md`, and `ROADMAP.md` for the complete preview
 contract and remaining work.
+
+### Release verification
+
+- Published from annotated tag `v0.1.0-alpha.1` at source commit `4378ab5`
+- Passed complete validation and exact-archive smoke tests on Ubuntu 22.04
+  x86-64 and macOS 14 arm64 in the release workflow
+- Published exactly two archives with adjacent SHA-256 checksums and build
+  provenance, all tied to the tagged source commit
+- Downloaded all six public assets from the GitHub release and independently
+  verified both archive checksums
+- Repeated the packaged quick start with the downloaded macOS arm64 archive;
+  the downloaded Linux checksum matched the exact archive exercised by the
+  Ubuntu release job

@@ -1,0 +1,55 @@
+record MemoizedFibonacci {
+  value: Nat,
+  memo: Map[Nat,Nat]
+}
+
+pure previous(value: Nat): Nat {
+  if value == 0 { 0 } else { value - 1 }
+}
+
+// Return the updated persistent map along with the requested Fibonacci value.
+pure fibonacci_memoized(n: Nat, memo: Map[Nat,Nat]): MemoizedFibonacci {
+  if memo.has(n) {
+    MemoizedFibonacci(memo.get(n), memo)
+  } else {
+    if n == 0 {
+      MemoizedFibonacci(0, memo.put(0, 0))
+    } else {
+      if n == 1 {
+        MemoizedFibonacci(1, memo.put(1, 1))
+      } else {
+        previous_index: Nat = previous(n)
+        before_previous_index: Nat = previous(previous_index)
+        previous_result: MemoizedFibonacci = fibonacci_memoized(previous_index, memo)
+        before_previous_result: MemoizedFibonacci = fibonacci_memoized(before_previous_index, previous_result.memo)
+        value: Nat = previous_result.value + before_previous_result.value
+        MemoizedFibonacci(value, before_previous_result.memo.put(n, value))
+      }
+    }
+  }
+}
+
+pure fibonacci_recursive(n: Nat): Nat {
+  result: MemoizedFibonacci = fibonacci_memoized(n, map())
+  result.value
+}
+
+pure fibonacci_iterative(n: Nat): Nat {
+  mut previous: Nat = 0
+  mut current: Nat = 1
+
+  for ignored in 0..n {
+    next: Nat = previous + current
+    previous = current
+    current = next
+  }
+
+  previous
+}
+
+main(): Void {
+  recursive_result: Nat = fibonacci_recursive(40)
+  iterative_result: Nat = fibonacci_iterative(40)
+  print("memoized: ${recursive_result}")
+  print("iterative: ${iterative_result}")
+}

@@ -1,0 +1,32 @@
+import stdlib/prelude
+
+pure describe_option(value: Option[Str]): Str {
+  match value {
+    Some(text) => text,
+    None() => "none"
+  }
+}
+
+pure describe_result(value: Result[Nat,Str]): Str {
+  match value {
+    Ok(number) => "ok ${number}",
+    Error(message) => message
+  }
+}
+
+main(): Void {
+  print(describe_option(Some("ready")))
+  print(describe_result(Ok(42)))
+  print(text_length("Panackelty"))
+  print(text_slice("portable", 0, 4))
+  print(text_reverse("Aλ🙂"))
+  encoded: Bytes = text_encode_utf8("λ")
+  print(bytes_length(encoded))
+  print(text_decode_utf8(bytes_push(encoded, 33)))
+  print(concat([1, 2], [3]))
+  mut names: Set[Str] = set()
+  names = set_add(names, "stdlib")
+  print(set_has(names, "stdlib"))
+  print(path_suffix("archive.tar"))
+  print(describe_option(environment("PANACKELTY_STDLIB_VALUE")))
+}

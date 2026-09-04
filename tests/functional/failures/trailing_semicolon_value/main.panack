@@ -1,0 +1,5 @@
+answer(): Nat {
+  42;
+}
+
+main(): Void {}

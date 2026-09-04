@@ -1,0 +1,1 @@
+error: cannot assign Int to Nat; guard is not proven

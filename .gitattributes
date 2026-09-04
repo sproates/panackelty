@@ -1,0 +1,1 @@
+tests/functional/**/*.stdout whitespace=-blank-at-eof

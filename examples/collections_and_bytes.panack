@@ -1,0 +1,20 @@
+import stdlib/prelude
+
+main(): Void {
+  original: [Nat] = [1, 2]
+  extended: [Nat] = original.append(3)
+  print(original)
+  print(extended)
+
+  mut answers: Map[Str,Nat] = map()
+  answers = answers.put("ultimate", 42)
+  print(answers.get("ultimate"))
+
+  mut names: Set[Str] = set()
+  names = names.add("Panackelty")
+  print(names.has("Panackelty"))
+
+  message: Bytes = bytes_push(text_encode_utf8("Panack"), 33)
+  print(bytes_length(message))
+  print(text_decode_utf8(message))
+}

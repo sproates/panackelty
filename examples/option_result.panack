@@ -1,0 +1,31 @@
+import stdlib/option
+import stdlib/result
+
+pure value_or(option: Option[Nat], fallback: Nat): Nat {
+  match option {
+    Some(value) => value,
+    None() => fallback
+  }
+}
+
+pure safe_divide(numerator: Nat, denominator: Nat): Result[Nat,Str] {
+  if denominator == 0 {
+    Error("division by zero")
+  } else {
+    Ok(numerator / denominator)
+  }
+}
+
+pure describe(result: Result[Nat,Str]): Str {
+  match result {
+    Ok(value) => "value ${value}",
+    Error(message) => message
+  }
+}
+
+main(): Void {
+  print(value_or(Some(42), 0))
+  print(value_or(None(), 7))
+  print(describe(safe_divide(84, 2)))
+  print(describe(safe_divide(1, 0)))
+}

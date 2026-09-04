@@ -1,0 +1,7 @@
+pure compound(principal: Dec, rate: Dec): Dec {
+  principal * (1.0 + rate)
+}
+
+main(): Void {
+  print(compound(1000000000000000000000000.00, 0.00000000000000000001))
+}

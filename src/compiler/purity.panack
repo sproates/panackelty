@@ -1,0 +1,198 @@
+import "checker.panack"
+
+pure is_impure_builtin(name: Str): Bool {
+  name == "print" || name == "read_line" || name == "read_file" ||
+  name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
+  name == "command_args" || name == "environment_has" ||
+  name == "environment_get" || name == "eprint" || name == "process_exit" ||
+  name == "path_resolve" || name == "file_exists" || name == "run_bytecode" ||
+  name == "run_bytecode_args"
+}
+
+pure check_expression_purity(expression: Expr, program: Program, environment: Map[Str,Str]): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = []
+  match expression {
+    LocatedExpr(position, value) => {
+      diagnostics = checker_diagnostics_at(check_expression_purity(value, program, environment), position)
+    },
+    NatExpr(value) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(name) => {},
+    ArrayExpr(items) => {
+      for item in items {
+        diagnostics = concat(diagnostics, check_expression_purity(item, program, environment))
+      }
+    },
+    UnaryExpr(operator, operand) => {
+      diagnostics = check_expression_purity(operand, program, environment)
+    },
+    BinaryExpr(operator, left, right) => {
+      diagnostics = check_expression_purity(left, program, environment)
+      diagnostics = concat(diagnostics, check_expression_purity(right, program, environment))
+    },
+    CallExpr(name, arguments) => {
+      mut impure: Bool = is_impure_builtin(name)
+      function: FunctionLookup = function_type(program, name)
+      if function.found && !function.is_pure {
+        impure = true
+      } else {
+      }
+      if name == "$method_call" {
+        impure = true
+        match unlocated_expression(arguments[0]) {
+          LocatedExpr(position, value) => {},
+          NameExpr(callable_name) => { if map_has(environment, callable_name) { impure = type_shape(map_get(environment, callable_name)).base != "PureFn"; } else {} },
+          FunctionExpr(callable_name) => { callable: FunctionLookup = function_type(program, callable_name); impure = !callable.found || !callable.is_pure; },
+          NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, BinaryExpr(operator, left, right) => {}, CallExpr(other_name, other_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+        }
+      } else {}
+      if impure {
+        display_name: Str = if name == "$method_call" { "call" } else { name }
+        diagnostics = append(diagnostics, checker_diagnostic("pure function cannot call impure function ${display_name}"))
+      } else {
+      }
+      for argument in arguments {
+        diagnostics = concat(diagnostics, check_expression_purity(argument, program, environment))
+      }
+    },
+    FieldExpr(target, field) => {
+      diagnostics = check_expression_purity(target, program, environment)
+    },
+    IndexExpr(target, index) => {
+      diagnostics = check_expression_purity(target, program, environment)
+      diagnostics = concat(diagnostics, check_expression_purity(index, program, environment))
+    },
+    IfExpr(condition, yes, no, has_else) => {
+      diagnostics = check_expression_purity(condition, program, environment)
+      diagnostics = concat(diagnostics, check_block_purity(yes, program, environment))
+      diagnostics = concat(diagnostics, check_block_purity(no, program, environment))
+    },
+    BlockExpr(block) => {
+      diagnostics = check_block_purity(block, program, environment)
+    },
+    MatchExpr(subject, arms) => {
+      diagnostics = check_expression_purity(subject, program, environment)
+      for arm in arms {
+        diagnostics = concat(diagnostics, check_expression_purity(arm.body, program, environment))
+      }
+    }
+  }
+  diagnostics
+}
+
+pure check_block_purity(block: Block, program: Program, parent: Map[Str,Str]): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = []
+  mut environment: Map[Str,Str] = parent
+  for statement in block.statements {
+    match statement {
+      BindingStatement(name, type_name, mutable, value) => {
+        diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+        environment = map_put(environment, name, type_name)
+      },
+      AssignmentStatement(name, value) => {
+        diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+      },
+      ExpressionStatement(value) => {
+        diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+      },
+      WhileStatement(condition, body) => {
+        diagnostics = concat(diagnostics, check_expression_purity(condition, program, environment))
+        diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
+      },
+      ForStatement(name, iterable, body) => {
+        diagnostics = concat(diagnostics, check_expression_purity(iterable, program, environment))
+        diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
+      }
+    }
+  }
+  match block.value {
+    NoBlockValue() => {},
+    TailBlockValue(value) => {
+      diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+    }
+  }
+  diagnostics
+}
+
+pure check_program_purity(program: Program): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = []
+  for declaration in program.declarations {
+    match declaration {
+      TypeDeclaration(name, base, guard) => {
+        diagnostics = concat(diagnostics, check_expression_purity(guard, program, map()))
+      },
+      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+        if is_pure {
+          mut environment: Map[Str,Str] = map()
+          for parameter in parameters { environment = map_put(environment, parameter.name, parameter.type_name); }
+          diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
+        } else {
+        }
+      },
+      ImportDeclaration(path) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {}
+    }
+  }
+  diagnostics
+}
+
+pure check_program_frontend(program: Program): [Diagnostic] {
+  type_diagnostics: [Diagnostic] = check_program_types(program)
+  if len(type_diagnostics) > 0 {
+    type_diagnostics
+  } else {
+    check_program_purity(program)
+  }
+}
+
+pure check_source_frontend(source: Str): Str {
+  match lex(source) {
+    Ok(tokens) => {
+      match parse_program_complete(tokens) {
+        Ok(program) => render_resolver_diagnostics(check_program_frontend(program)),
+        Error(error) => error.message
+      }
+    },
+    Error(errors) => "lexing failed"
+  }
+}
+
+pure check_module_graph_frontend(units: [SourceUnit], entry: Str): [Diagnostic] {
+  empty: Set[Str] = set()
+  initial: ModuleGraphState = ModuleGraphState([], empty, empty, duplicate_module_diagnostics(units))
+  graph: ModuleGraphState = visit_module(units, entry, initial)
+  if len(graph.diagnostics) > 0 {
+    graph.diagnostics
+  } else {
+    check_program_frontend(append_program_declarations(graph.programs))
+  }
+}
+
+pure check_loaded_source_frontend(sources: [LoadedSource], entry: Str): Str {
+  mut units: [SourceUnit] = []
+  mut diagnostics: [Diagnostic] = []
+  for source in sources {
+    match lex_file(source.source, source.path) {
+      Ok(tokens) => {
+        match parse_program_complete(tokens) {
+          Ok(program) => { units = append(units, SourceUnit(source.path, program)); },
+          Error(error) => { diagnostics = append(diagnostics, error); }
+        }
+      },
+      Error(errors) => {
+        for error in errors {
+          diagnostics = append(diagnostics, error)
+        }
+      }
+    }
+  }
+  if len(diagnostics) > 0 {
+    render_resolver_diagnostics(diagnostics)
+  } else {
+    render_resolver_diagnostics(check_module_graph_frontend(units, entry))
+  }
+}

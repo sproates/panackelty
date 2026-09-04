@@ -1,0 +1,107 @@
+record SourcePos {
+  offset: Nat,
+  line: Nat,
+  column: Nat
+}
+
+enum TokenKind {
+  Identifier,
+  Number,
+  Punctuation
+}
+
+record Token {
+  kind: TokenKind,
+  text: Str,
+  start: Nat,
+  end: Nat
+}
+
+record Diagnostic {
+  message: Str,
+  position: SourcePos
+}
+
+enum Result[T, E] {
+  Ok(T),
+  Error(E)
+}
+
+pure scan_number(source: Str, start: Nat): Nat {
+  mut cursor: Nat = start
+  while cursor < len(source) && is_digit(source[cursor]) {
+    cursor = cursor + 1
+  }
+  cursor
+}
+
+pure scan_identifier(source: Str, start: Nat): Nat {
+  mut cursor: Nat = start
+  while cursor < len(source) && (is_letter(source[cursor]) || is_digit(source[cursor]) || source[cursor] == "_") {
+    cursor = cursor + 1
+  }
+  cursor
+}
+
+pure lex(source: Str): Result[[Token],[Diagnostic]] {
+  mut tokens: [Token] = []
+  mut cursor: Nat = 0
+
+  while cursor < len(source) {
+    character: Str = source[cursor]
+
+    if is_whitespace(character) {
+      cursor = cursor + 1
+    } else {
+      if is_digit(character) {
+        end: Nat = scan_number(source, cursor)
+        text: Str = slice(source, cursor, end)
+        tokens = append(tokens, Token(Number(), text, cursor, end))
+        cursor = end
+      } else {
+        if is_letter(character) || character == "_" {
+          end: Nat = scan_identifier(source, cursor)
+          text: Str = slice(source, cursor, end)
+          tokens = append(tokens, Token(Identifier(), text, cursor, end))
+          cursor = end
+        } else {
+          end: Nat = cursor + 1
+          tokens = append(tokens, Token(Punctuation(), character, cursor, end))
+          cursor = end
+        }
+      }
+    }
+  }
+
+  Ok(tokens)
+}
+
+pure kind_name(kind: TokenKind): Str {
+  match kind {
+    Identifier() => "identifier",
+    Number() => "number",
+    Punctuation() => "punctuation"
+  }
+}
+
+pure render_tokens(tokens: [Token]): Str {
+  mut output: Str = ""
+  for token in tokens {
+    name: Str = kind_name(token.kind)
+    text: Str = token.text
+    output = output + "${name}:${text}\n"
+  }
+  output
+}
+
+pure render(result: Result[[Token],[Diagnostic]]): Str {
+  match result {
+    Ok(tokens) => render_tokens(tokens),
+    Error(diagnostics) => "lexing failed"
+  }
+}
+
+main(): Void {
+  print(render(lex("answer_42 + 1729")))
+}
+

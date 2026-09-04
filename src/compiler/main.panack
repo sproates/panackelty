@@ -1,0 +1,5 @@
+import "driver.panack"
+
+main(): Void {
+  compiler_main()
+}

@@ -1,0 +1,21 @@
+pure divisible(n: Nat, d: Nat): Bool {
+  n % d == 0
+}
+
+pure sum_below(n: Nat): Nat {
+  if n == 0 {
+    0
+  } else {
+    previous: Nat = n - 1
+    if divisible(previous, 3) || divisible(previous, 5) {
+      previous + sum_below(previous)
+    } else {
+      sum_below(previous)
+    }
+  }
+}
+
+main(): Void {
+  print(sum_below(1000))
+}
+

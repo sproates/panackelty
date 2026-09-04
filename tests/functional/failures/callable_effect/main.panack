@@ -1,0 +1,12 @@
+output(value: Nat): Nat {
+  print(value)
+  value
+}
+
+pure invalid(callback: Fn[Nat,Nat]): Nat {
+  callback.call(1)
+}
+
+main(): Void {
+  print(invalid(@output))
+}

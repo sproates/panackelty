@@ -1,0 +1,6 @@
+import "../../../../src/compiler/lexer.panack"
+
+main(): Void {
+  print(render(lex("// skipped\nitem_1 42 2.5 \"text\" => +")))
+  print(render(lex("valid\n#")))
+}

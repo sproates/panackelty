@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.bc
+!/bootstrap/compiler-v7.bc
+/panack-vm
+/build/
+/output/
+.obsidian/

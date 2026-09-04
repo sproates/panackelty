@@ -1,0 +1,601 @@
+import "purity.panack"
+
+enum ConstantValue {
+  NatConstant(Nat),
+  IntConstant(Bool, Nat),
+  DecimalConstant(Str),
+  DecimalPartsConstant(Bool, [Nat], Bool, Nat),
+  StringConstant(Str),
+  BoolConstant(Bool),
+  VoidConstant
+}
+
+enum Instruction {
+  ConstInstruction(ConstantValue),
+  LoadInstruction(Str),
+  StoreInstruction(Str),
+  PopInstruction,
+  UnaryInstruction(Str),
+  BinaryInstruction(Str),
+  MakeRangeInstruction,
+  MakeArrayInstruction(Nat),
+  IndexGetInstruction,
+  InterpolateInstruction([Str]),
+  IterInitInstruction(Str),
+  IterNextInstruction(Str, Str, Nat),
+  MakeRecordInstruction(Str, [Str]),
+  FieldGetInstruction(Str),
+  MakeVariantInstruction(Str, Str, Nat),
+  MatchVariantInstruction(Str, Nat),
+  MatchFailInstruction,
+  CallInstruction(Str, Nat),
+  CallValueInstruction(Nat),
+  JumpFalseInstruction(Nat),
+  JumpInstruction(Nat),
+  PendingEndJumpInstruction,
+  ReturnInstruction
+}
+
+record FunctionCode {
+  name: Str,
+  parameters: [Str],
+  is_pure: Bool,
+  instructions: [Instruction]
+}
+
+record BytecodeProgram {
+  functions: [FunctionCode]
+}
+
+record EmittedCode {
+  instructions: [Instruction],
+  next_temporary: Nat
+}
+
+record InterpolatedString {
+  parts: [Str],
+  variables: [Str]
+}
+
+pure decode_string_literal(text: Str): Str {
+  mut output: Str = ""
+  mut cursor: Nat = 1
+  while cursor + 1 < len(text) {
+    character: Str = text[cursor]
+    if character == "\\" && cursor + 2 < len(text) {
+      escape: Str = text[cursor + 1]
+      if escape == "n" { output = output + "\n"; }
+      else { if escape == "r" { output = output + "\r"; }
+      else { if escape == "t" { output = output + "\t"; }
+      else { if escape == "b" { output = output + "\b"; }
+      else { if escape == "f" { output = output + "\f"; }
+      else { output = output + escape; } } } } }
+      cursor = cursor + 2
+    } else {
+      output = output + character
+      cursor = cursor + 1
+    }
+  }
+  output
+}
+
+pure interpolation_name_start(character: Str): Bool {
+  is_letter(character) || character == "_"
+}
+
+pure interpolation_name_part(character: Str): Bool {
+  interpolation_name_start(character) || is_digit(character)
+}
+
+pure split_interpolated_string(text: Str): InterpolatedString {
+  mut parts: [Str] = []
+  mut variables: [Str] = []
+  mut part_start: Nat = 0
+  mut cursor: Nat = 0
+  while cursor + 3 < len(text) {
+    if text[cursor] == "$" && text[cursor + 1] == "{" &&
+       interpolation_name_start(text[cursor + 2]) {
+      mut end: Nat = cursor + 3
+      while end < len(text) && interpolation_name_part(text[end]) {
+        end = end + 1
+      }
+      if end < len(text) && text[end] == "}" {
+        parts = append(parts, slice(text, part_start, cursor))
+        variables = append(variables, slice(text, cursor + 2, end))
+        cursor = end + 1
+        part_start = cursor
+      } else {
+        cursor = cursor + 1
+      }
+    } else {
+      cursor = cursor + 1
+    }
+  }
+  if len(variables) == 0 {
+    InterpolatedString([], [])
+  } else {
+    parts = append(parts, slice(text, part_start, len(text)))
+    InterpolatedString(parts, variables)
+  }
+}
+
+pure parameter_name(parameter: FunctionParameter): Str { parameter.name }
+
+pure parameter_names(parameters: [FunctionParameter]): [Str] {
+  parameters.map(@parameter_name)
+}
+
+pure record_field_name(field: RecordField): Str { field.name }
+
+pure record_field_names(fields: [RecordField]): [Str] {
+  fields.map(@record_field_name)
+}
+
+pure resolve_pending_jumps(instructions: [Instruction], target: Nat): [Instruction] {
+  mut result: [Instruction] = []
+  for instruction in instructions {
+    match instruction {
+      PendingEndJumpInstruction() => {
+        result = append(result, JumpInstruction(target))
+      },
+      ConstInstruction(value) => { result = append(result, instruction); },
+      LoadInstruction(name) => { result = append(result, instruction); },
+      StoreInstruction(name) => { result = append(result, instruction); },
+      PopInstruction() => { result = append(result, instruction); },
+      UnaryInstruction(operator) => { result = append(result, instruction); },
+      BinaryInstruction(operator) => { result = append(result, instruction); },
+      MakeRangeInstruction() => { result = append(result, instruction); },
+      MakeArrayInstruction(count) => { result = append(result, instruction); },
+      IndexGetInstruction() => { result = append(result, instruction); },
+      InterpolateInstruction(parts) => { result = append(result, instruction); },
+      IterInitInstruction(name) => { result = append(result, instruction); },
+      IterNextInstruction(iterator, name, end) => { result = append(result, instruction); },
+      MakeRecordInstruction(name, fields) => { result = append(result, instruction); },
+      FieldGetInstruction(name) => { result = append(result, instruction); },
+      MakeVariantInstruction(enum_name, variant, count) => { result = append(result, instruction); },
+      MatchVariantInstruction(variant, failure) => { result = append(result, instruction); },
+      MatchFailInstruction() => { result = append(result, instruction); },
+      CallInstruction(name, arity) => { result = append(result, instruction); },
+      CallValueInstruction(arity) => { result = append(result, instruction); },
+      JumpFalseInstruction(jump_target) => { result = append(result, instruction); },
+      JumpInstruction(jump_target) => { result = append(result, instruction); },
+      ReturnInstruction() => { result = append(result, instruction); }
+    }
+  }
+  result
+}
+
+pure render_string_items(items: [Str]): Str {
+  mut output: Str = ""
+  mut first: Bool = true
+  for item in items {
+    if first { first = false; } else { output = output + ","; }
+    output = output + item
+  }
+  output
+}
+
+pure render_constant(value: ConstantValue): Str {
+  match value {
+    NatConstant(number) => "Nat:${number}",
+    IntConstant(negative, magnitude) => {
+      if negative { "Int:-${magnitude}" } else { "Int:${magnitude}" }
+    },
+    DecimalConstant(text) => "Dec:${text}",
+    DecimalPartsConstant(negative, digits, exponent_negative, exponent_magnitude) => {
+      sign: Str = if negative { "-" } else { "" }
+      exponent_sign: Str = if exponent_negative { "-" } else { "+" }
+      digits_text: Str = ""
+      mut rendered_digits: Str = digits_text
+      for digit in digits { rendered_digits = rendered_digits + "${digit}"; }
+      "DecParts:${sign}${rendered_digits}e${exponent_sign}${exponent_magnitude}"
+    },
+    StringConstant(text) => "Str:${text}",
+    BoolConstant(flag) => if flag { "Bool:true" } else { "Bool:false" },
+    VoidConstant() => "Void"
+  }
+}
+
+pure render_instruction(instruction: Instruction): Str {
+  match instruction {
+    ConstInstruction(value) => {
+      value_text: Str = render_constant(value)
+      "CONST|${value_text}"
+    },
+    LoadInstruction(name) => "LOAD|${name}",
+    StoreInstruction(name) => "STORE|${name}",
+    PopInstruction() => "POP",
+    UnaryInstruction(operator) => "UNARY|${operator}",
+    BinaryInstruction(operator) => "BINARY|${operator}",
+    MakeRangeInstruction() => "MAKE_RANGE",
+    MakeArrayInstruction(count) => "MAKE_ARRAY|${count}",
+    IndexGetInstruction() => "INDEX_GET",
+    InterpolateInstruction(parts) => {
+      parts_text: Str = render_string_items(parts)
+      "INTERPOLATE|${parts_text}"
+    },
+    IterInitInstruction(name) => "ITER_INIT|${name}",
+    IterNextInstruction(iterator, name, end) => "ITER_NEXT|${iterator}|${name}|${end}",
+    MakeRecordInstruction(name, fields) => {
+      fields_text: Str = render_string_items(fields)
+      "MAKE_RECORD|${name}|${fields_text}"
+    },
+    FieldGetInstruction(name) => "FIELD_GET|${name}",
+    MakeVariantInstruction(enum_name, variant, count) => "MAKE_VARIANT|${enum_name}|${variant}|${count}",
+    MatchVariantInstruction(variant, failure) => "MATCH_VARIANT|${variant}|${failure}",
+    MatchFailInstruction() => "MATCH_FAIL",
+    CallInstruction(name, arity) => "CALL|${name}|${arity}",
+    CallValueInstruction(arity) => "CALL_VALUE|${arity}",
+    JumpFalseInstruction(target) => "JUMP_FALSE|${target}",
+    JumpInstruction(target) => "JUMP|${target}",
+    PendingEndJumpInstruction() => "PENDING_END_JUMP",
+    ReturnInstruction() => "RETURN"
+  }
+}
+
+pure render_bytecode(program: BytecodeProgram): Str {
+  mut output: Str = ""
+  for function in program.functions {
+    purity: Str = if function.is_pure { "pure" } else { "impure" }
+    function_name: Str = function.name
+    parameters_text: Str = render_string_items(function.parameters)
+    output = output + "FUNCTION|${function_name}|${purity}|${parameters_text}\n"
+    mut index: Nat = 0
+    for instruction in function.instructions {
+      instruction_text: Str = render_instruction(instruction)
+      output = output + "${index}|${instruction_text}\n"
+      index = index + 1
+    }
+  }
+  output
+}
+
+pure emit_expression_list(expressions: [Expr], program: Program, next_temporary: Nat, offset: Nat): EmittedCode {
+  mut instructions: [Instruction] = []
+  mut temporary: Nat = next_temporary
+  for expression in expressions {
+    emitted: EmittedCode = emit_expression(expression, program, temporary, offset + len(instructions))
+    instructions = concat(instructions, emitted.instructions)
+    temporary = emitted.next_temporary
+  }
+  EmittedCode(instructions, temporary)
+}
+
+pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat): EmittedCode {
+  mut instructions: [Instruction] = []
+  mut temporary: Nat = next_temporary
+  for statement in block.statements {
+    statement_offset: Nat = offset + len(instructions)
+    match statement {
+      BindingStatement(name, type_name, mutable, value) => {
+        emitted: EmittedCode = emit_expression(value, program, temporary, statement_offset)
+        instructions = concat(instructions, emitted.instructions)
+        instructions = append(instructions, StoreInstruction(name))
+        temporary = emitted.next_temporary
+      },
+      AssignmentStatement(name, value) => {
+        emitted: EmittedCode = emit_expression(value, program, temporary, statement_offset)
+        instructions = concat(instructions, emitted.instructions)
+        instructions = append(instructions, StoreInstruction(name))
+        temporary = emitted.next_temporary
+      },
+      ExpressionStatement(value) => {
+        emitted: EmittedCode = emit_expression(value, program, temporary, statement_offset)
+        instructions = concat(instructions, emitted.instructions)
+        instructions = append(instructions, PopInstruction())
+        temporary = emitted.next_temporary
+      },
+      WhileStatement(condition, body) => {
+        condition_code: EmittedCode = emit_expression(condition, program, temporary, statement_offset)
+        jump_index: Nat = statement_offset + len(condition_code.instructions)
+        body_code: EmittedCode = emit_block(body, program, condition_code.next_temporary, jump_index + 1)
+        end: Nat = jump_index + 1 + len(body_code.instructions) + 2
+        instructions = concat(instructions, condition_code.instructions)
+        instructions = append(instructions, JumpFalseInstruction(end))
+        instructions = concat(instructions, body_code.instructions)
+        instructions = append(instructions, PopInstruction())
+        instructions = append(instructions, JumpInstruction(statement_offset))
+        temporary = body_code.next_temporary
+      },
+      ForStatement(name, iterable, body) => {
+        iterator: Str = "$iter${temporary}"
+        iterable_code: EmittedCode = emit_expression(iterable, program, temporary + 1, statement_offset)
+        iter_init_index: Nat = statement_offset + len(iterable_code.instructions)
+        loop_start: Nat = iter_init_index + 1
+        body_start: Nat = loop_start + 1
+        body_code: EmittedCode = emit_block(body, program, iterable_code.next_temporary, body_start)
+        end: Nat = body_start + len(body_code.instructions) + 2
+        instructions = concat(instructions, iterable_code.instructions)
+        instructions = append(instructions, IterInitInstruction(iterator))
+        instructions = append(instructions, IterNextInstruction(iterator, name, end))
+        instructions = concat(instructions, body_code.instructions)
+        instructions = append(instructions, PopInstruction())
+        instructions = append(instructions, JumpInstruction(loop_start))
+        temporary = body_code.next_temporary
+      }
+    }
+  }
+  match block.value {
+    NoBlockValue() => {
+      instructions = append(instructions, ConstInstruction(VoidConstant()))
+    },
+    TailBlockValue(value) => {
+      emitted: EmittedCode = emit_expression(value, program, temporary, offset + len(instructions))
+      instructions = concat(instructions, emitted.instructions)
+      temporary = emitted.next_temporary
+    }
+  }
+  EmittedCode(instructions, temporary)
+}
+
+pure emit_short_circuit(operator: Str, left: Expr, right: Expr, program: Program, next_temporary: Nat, offset: Nat): EmittedCode {
+  left_code: EmittedCode = emit_expression(left, program, next_temporary, offset)
+  branch: Nat = offset + len(left_code.instructions)
+  if operator == "&&" {
+    right_code: EmittedCode = emit_expression(right, program, left_code.next_temporary, branch + 1)
+    false_target: Nat = branch + 1 + len(right_code.instructions) + 1
+    end: Nat = false_target + 1
+    mut instructions: [Instruction] = left_code.instructions
+    instructions = append(instructions, JumpFalseInstruction(false_target))
+    instructions = concat(instructions, right_code.instructions)
+    instructions = append(instructions, JumpInstruction(end))
+    instructions = append(instructions, ConstInstruction(BoolConstant(false)))
+    EmittedCode(instructions, right_code.next_temporary)
+  } else {
+    true_index: Nat = branch + 1
+    right_target: Nat = true_index + 2
+    right_code: EmittedCode = emit_expression(right, program, left_code.next_temporary, right_target)
+    end: Nat = right_target + len(right_code.instructions)
+    mut instructions: [Instruction] = left_code.instructions
+    instructions = append(instructions, JumpFalseInstruction(right_target))
+    instructions = append(instructions, ConstInstruction(BoolConstant(true)))
+    instructions = append(instructions, JumpInstruction(end))
+    instructions = concat(instructions, right_code.instructions)
+    EmittedCode(instructions, right_code.next_temporary)
+  }
+}
+
+pure emit_string_expression(token_text: Str, next_temporary: Nat): EmittedCode {
+  text: Str = decode_string_literal(token_text)
+  interpolation: InterpolatedString = split_interpolated_string(text)
+  mut instructions: [Instruction] = []
+  if len(interpolation.variables) == 0 {
+    instructions = append(instructions, ConstInstruction(StringConstant(text)))
+  } else {
+    for variable in interpolation.variables {
+      instructions = append(instructions, LoadInstruction(variable))
+    }
+    instructions = append(instructions, InterpolateInstruction(interpolation.parts))
+  }
+  EmittedCode(instructions, next_temporary)
+}
+
+pure emit_call(name: Str, arguments: [Expr], program: Program, next_temporary: Nat, offset: Nat): EmittedCode {
+  if name == "$method_call" {
+    emitted: EmittedCode = emit_expression_list(arguments, program, next_temporary, offset)
+    EmittedCode(append(emitted.instructions, CallValueInstruction(prior_index(len(arguments)))), emitted.next_temporary)
+  } else { if name == "$method_map" || name == "$method_reduce" {
+    collection_name: Str = "$collection${next_temporary}"
+    callback_name: Str = "$callback${next_temporary}"
+    item_name: Str = "$item${next_temporary}"
+    iterator_name: Str = "$iterator${next_temporary}"
+    accumulator_name: Str = "$accumulator${next_temporary}"
+    collection: EmittedCode = emit_expression(arguments[0], program, next_temporary + 1, offset)
+    mut instructions: [Instruction] = append(collection.instructions, StoreInstruction(collection_name))
+    mut temporary: Nat = collection.next_temporary
+    if name == "$method_reduce" {
+      initial: EmittedCode = emit_expression(arguments[1], program, temporary, offset + len(instructions))
+      instructions = concat(instructions, initial.instructions)
+      instructions = append(instructions, StoreInstruction(accumulator_name))
+      temporary = initial.next_temporary
+    } else {
+      instructions = append(instructions, MakeArrayInstruction(0))
+      instructions = append(instructions, StoreInstruction(accumulator_name))
+    }
+    callback: EmittedCode = emit_expression(arguments[prior_index(len(arguments))], program, temporary, offset + len(instructions))
+    instructions = concat(instructions, callback.instructions)
+    instructions = append(instructions, StoreInstruction(callback_name))
+    instructions = append(instructions, LoadInstruction(collection_name))
+    instructions = append(instructions, IterInitInstruction(iterator_name))
+    loop_start: Nat = offset + len(instructions)
+    next_index: Nat = len(instructions)
+    instructions = append(instructions, IterNextInstruction(iterator_name, item_name, 0))
+    if name == "$method_map" {
+      instructions = append(instructions, LoadInstruction(accumulator_name))
+      instructions = append(instructions, LoadInstruction(callback_name))
+      instructions = append(instructions, LoadInstruction(item_name))
+      instructions = append(instructions, CallValueInstruction(1))
+      instructions = append(instructions, CallInstruction("append", 2))
+      instructions = append(instructions, StoreInstruction(accumulator_name))
+    } else {
+      instructions = append(instructions, LoadInstruction(callback_name))
+      instructions = append(instructions, LoadInstruction(accumulator_name))
+      instructions = append(instructions, LoadInstruction(item_name))
+      instructions = append(instructions, CallValueInstruction(2))
+      instructions = append(instructions, StoreInstruction(accumulator_name))
+    }
+    instructions = append(instructions, JumpInstruction(loop_start))
+    end: Nat = offset + len(instructions)
+    mut resolved: [Instruction] = []
+    mut instruction_index: Nat = 0
+    for instruction in instructions {
+      if instruction_index == next_index { resolved = append(resolved, IterNextInstruction(iterator_name, item_name, end)); }
+      else { resolved = append(resolved, instruction); }
+      instruction_index = instruction_index + 1
+    }
+    resolved = append(resolved, LoadInstruction(accumulator_name))
+    EmittedCode(resolved, callback.next_temporary)
+  } else {
+  emitted: EmittedCode = emit_expression_list(arguments, program, next_temporary, offset)
+  mut instructions: [Instruction] = emitted.instructions
+  record: RecordLookup = record_type(program, name)
+  variant: VariantLookup = variant_type(program, name)
+  if record.found {
+    instructions = append(instructions, MakeRecordInstruction(name, record_field_names(record.fields)))
+  } else {
+    if variant.found {
+      instructions = append(instructions, MakeVariantInstruction(variant.enum_name, name, len(arguments)))
+    } else {
+      instructions = append(instructions, CallInstruction(name, len(arguments)))
+    }
+  }
+  EmittedCode(instructions, emitted.next_temporary)
+  } }
+}
+
+pure emit_match(subject: Expr, arms: [MatchArm], program: Program, next_temporary: Nat, offset: Nat): EmittedCode {
+  temporary_name: Str = "$match${next_temporary}"
+  subject_code: EmittedCode = emit_expression(subject, program, next_temporary + 1, offset)
+  mut instructions: [Instruction] = subject_code.instructions
+  instructions = append(instructions, StoreInstruction(temporary_name))
+  mut temporary: Nat = subject_code.next_temporary
+  for arm in arms {
+    arm_offset: Nat = offset + len(instructions)
+    body_offset: Nat = arm_offset + 2 + len(arm.pattern.bindings)
+    body_code: EmittedCode = emit_expression(arm.body, program, temporary, body_offset)
+    failure: Nat = body_offset + len(body_code.instructions) + 1
+    instructions = append(instructions, LoadInstruction(temporary_name))
+    instructions = append(instructions, MatchVariantInstruction(arm.pattern.variant, failure))
+    mut binding_index: Nat = len(arm.pattern.bindings)
+    while binding_index > 0 {
+      binding_index = binding_index - 1
+      instructions = append(instructions, StoreInstruction(arm.pattern.bindings[binding_index]))
+    }
+    instructions = concat(instructions, body_code.instructions)
+    instructions = append(instructions, PendingEndJumpInstruction())
+    temporary = body_code.next_temporary
+  }
+  instructions = append(instructions, MatchFailInstruction())
+  end: Nat = offset + len(instructions)
+  EmittedCode(resolve_pending_jumps(instructions, end), temporary)
+}
+
+pure emit_expression(expression: Expr, program: Program, next_temporary: Nat, offset: Nat): EmittedCode {
+  match expression {
+    LocatedExpr(position, value) => emit_expression(value, program, next_temporary, offset),
+    NatExpr(value) => {
+      instructions: [Instruction] = [ConstInstruction(NatConstant(value))]
+      EmittedCode(instructions, next_temporary)
+    },
+    DecimalExpr(text) => {
+      instructions: [Instruction] = [ConstInstruction(DecimalConstant(text))]
+      EmittedCode(instructions, next_temporary)
+    },
+    StringExpr(text) => emit_string_expression(text, next_temporary),
+    BoolExpr(value) => {
+      instructions: [Instruction] = [ConstInstruction(BoolConstant(value))]
+      EmittedCode(instructions, next_temporary)
+    },
+    NameExpr(name) => {
+      instructions: [Instruction] = [LoadInstruction(name)]
+      EmittedCode(instructions, next_temporary)
+    },
+    FunctionExpr(name) => {
+      instructions: [Instruction] = [ConstInstruction(StringConstant(name))]
+      EmittedCode(instructions, next_temporary)
+    },
+    ArrayExpr(items) => {
+      emitted: EmittedCode = emit_expression_list(items, program, next_temporary, offset)
+      instructions: [Instruction] = append(emitted.instructions, MakeArrayInstruction(len(items)))
+      EmittedCode(instructions, emitted.next_temporary)
+    },
+    UnaryExpr(operator, operand) => {
+      emitted: EmittedCode = emit_expression(operand, program, next_temporary, offset)
+      instructions: [Instruction] = append(emitted.instructions, UnaryInstruction(operator))
+      EmittedCode(instructions, emitted.next_temporary)
+    },
+    BinaryExpr(operator, left, right) => {
+      if operator == "&&" || operator == "||" {
+        emit_short_circuit(operator, left, right, program, next_temporary, offset)
+      } else {
+        left_code: EmittedCode = emit_expression(left, program, next_temporary, offset)
+        right_offset: Nat = offset + len(left_code.instructions)
+        right_code: EmittedCode = emit_expression(right, program, left_code.next_temporary, right_offset)
+        mut instructions: [Instruction] = concat(left_code.instructions, right_code.instructions)
+        if operator == ".." {
+          instructions = append(instructions, MakeRangeInstruction())
+        } else {
+          instructions = append(instructions, BinaryInstruction(operator))
+        }
+        EmittedCode(instructions, right_code.next_temporary)
+      }
+    },
+    CallExpr(name, arguments) => emit_call(name, arguments, program, next_temporary, offset),
+    FieldExpr(target, field) => {
+      emitted: EmittedCode = emit_expression(target, program, next_temporary, offset)
+      instructions: [Instruction] = append(emitted.instructions, FieldGetInstruction(field))
+      EmittedCode(instructions, emitted.next_temporary)
+    },
+    IndexExpr(target, index) => {
+      target_code: EmittedCode = emit_expression(target, program, next_temporary, offset)
+      index_code: EmittedCode = emit_expression(index, program, target_code.next_temporary, offset + len(target_code.instructions))
+      mut instructions: [Instruction] = concat(target_code.instructions, index_code.instructions)
+      instructions = append(instructions, IndexGetInstruction())
+      EmittedCode(instructions, index_code.next_temporary)
+    },
+    IfExpr(condition, yes, no, has_else) => {
+      condition_code: EmittedCode = emit_expression(condition, program, next_temporary, offset)
+      branch: Nat = offset + len(condition_code.instructions)
+      yes_code: EmittedCode = emit_block(yes, program, condition_code.next_temporary, branch + 1)
+      if has_else {
+        jump: Nat = branch + 1 + len(yes_code.instructions)
+        no_start: Nat = jump + 1
+        no_code: EmittedCode = emit_block(no, program, yes_code.next_temporary, no_start)
+        end: Nat = no_start + len(no_code.instructions)
+        mut instructions: [Instruction] = condition_code.instructions
+        instructions = append(instructions, JumpFalseInstruction(no_start))
+        instructions = concat(instructions, yes_code.instructions)
+        instructions = append(instructions, JumpInstruction(end))
+        instructions = concat(instructions, no_code.instructions)
+        EmittedCode(instructions, no_code.next_temporary)
+      } else {
+        void_start: Nat = branch + 2 + len(yes_code.instructions)
+        mut instructions: [Instruction] = condition_code.instructions
+        instructions = append(instructions, JumpFalseInstruction(void_start))
+        instructions = concat(instructions, yes_code.instructions)
+        instructions = append(instructions, PopInstruction())
+        instructions = append(instructions, ConstInstruction(VoidConstant()))
+        EmittedCode(instructions, yes_code.next_temporary)
+      }
+    },
+    BlockExpr(block) => emit_block(block, program, next_temporary, offset),
+    MatchExpr(subject, arms) => emit_match(subject, arms, program, next_temporary, offset)
+  }
+}
+
+pure compile_program(program: Program): BytecodeProgram {
+  mut functions: [FunctionCode] = []
+  for declaration in program.declarations {
+    match declaration {
+      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+        emitted: EmittedCode = emit_block(body, program, 0, 0)
+        instructions: [Instruction] = append(emitted.instructions, ReturnInstruction())
+        functions = append(functions, FunctionCode(name, parameter_names(parameters), is_pure, instructions))
+      },
+      ImportDeclaration(path) => {},
+      TypeDeclaration(name, base, guard) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {}
+    }
+  }
+  BytecodeProgram(functions)
+}
+
+pure compile_source_disassembly(source: Str): Str {
+  match lex(source) {
+    Ok(tokens) => {
+      match parse_program_complete(tokens) {
+        Ok(program) => {
+          diagnostics: [Diagnostic] = check_program_frontend(program)
+          if len(diagnostics) > 0 {
+            render_resolver_diagnostics(diagnostics)
+          } else {
+            render_bytecode(compile_program(program))
+          }
+        },
+        Error(error) => error.message
+      }
+    },
+    Error(errors) => "lexing failed"
+  }
+}

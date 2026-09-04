@@ -1,0 +1,95 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  package:
+    name: Package (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            runner: ubuntu-22.04
+          - target: macos-arm64
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build, test, and package the native toolchain
+        run: make package PYTHON=false
+
+      - name: Record build provenance
+        shell: bash
+        run: |
+          archive=$(find build -maxdepth 1 -name 'panackelty-*.tar.gz' -print -quit)
+          checksum=$(awk '{print $1}' "${archive}.sha256")
+          {
+            echo "archive=$(basename "$archive")"
+            echo "sha256=$checksum"
+            echo "source_commit=$GITHUB_SHA"
+            echo "runner=$RUNNER_OS-$RUNNER_ARCH"
+            echo "runner_image=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+          } >"${archive}.provenance"
+
+      - name: Upload packaged toolchain
+        uses: actions/upload-artifact@v4
+        with:
+          name: panackelty-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            build/panackelty-*.tar.gz
+            build/panackelty-*.tar.gz.sha256
+            build/panackelty-*.tar.gz.provenance
+          if-no-files-found: error
+          retention-days: 14
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run project checks
+        env:
+          VALIDATION_TIMINGS_FILE: validation-timings.tsv
+        run: make check-compiler check-bytecode check-vm check
+
+      - name: Publish validation timing summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ ! -f validation-timings.tsv ]]; then
+            exit 0
+          fi
+          {
+            echo "### Validation timings"
+            echo
+            echo "| Phase | Duration | Budget | Status |"
+            echo "| --- | ---: | ---: | --- |"
+            while IFS=$'\t' read -r phase elapsed budget status; do
+              if [[ "$status" == "0" ]]; then
+                result="passed"
+              else
+                result="failed ($status)"
+              fi
+              echo "| $phase | ${elapsed}s | ${budget}s | $result |"
+            done < validation-timings.tsv
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive validation timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-timings-${{ github.run_id }}
+          path: validation-timings.tsv
+          if-no-files-found: warn

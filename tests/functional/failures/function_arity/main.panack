@@ -1,0 +1,5 @@
+add(left: Nat, right: Nat): Nat { left + right }
+
+main(): Void {
+  print(add(1))
+}

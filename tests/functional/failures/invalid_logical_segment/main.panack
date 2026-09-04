@@ -1,0 +1,3 @@
+import "stdlib/foo.bar/baz"
+
+main(): Void {}

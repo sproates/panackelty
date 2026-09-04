@@ -29,7 +29,7 @@ trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 runtime_bin=$temporary/runtime-bin
 mkdir -p "$runtime_bin"
 
-for utility in awk cmp dirname ln mkdir mv readlink rm tar; do
+for utility in awk cmp dirname gzip ln mkdir mv readlink rm tar; do
   utility_path=$(command -v "$utility")
   ln -s "$utility_path" "$runtime_bin/$utility"
 done

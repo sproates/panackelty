@@ -128,6 +128,13 @@ class RepositoryLayoutTests(unittest.TestCase):
             "check-phases: unit functional bootstrap-check quick-start", makefile
         )
         self.assertIn("package: native-check\n\t$(MAKE) quick-start", makefile)
+        quick_start = (PROJECT / "tests" / "quick_start.sh").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "for utility in awk cmp dirname gzip ln mkdir mv readlink rm tar; do",
+            quick_start,
+        )
 
     def test_language_tour_links_tested_examples_and_specification_sections(self):
         readme = (PROJECT / "README.md").read_text(encoding="utf-8")

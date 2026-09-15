@@ -368,7 +368,12 @@ the canonical owning-module path before parsing. Lexer and parser diagnostics
 therefore use token positions directly; the resolver, type checker, and purity
 checker preserve the nearest positioned expression as diagnostics flow back to
 the driver. The public driver renders primary failures as
-`file:line:column: message`, including failures from imported modules.
+`file:line:column: message`, including failures from imported modules. The loader
+retains a canonical-path-to-source map in `ProjectLoadState` and `LoadedProject`,
+including sources that fail lexing or parsing. The pure `diagnostics.panack`
+renderer uses these snapshots to append numbered lines and carets; it performs
+no file I/O. Missing sources and invalid positions keep the original header.
+The display escaping and tab contract is specified in `SPEC.md`.
 
 ## Bootstrap direction
 

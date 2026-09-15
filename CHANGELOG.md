@@ -4,6 +4,12 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Positioned compiler errors now include numbered source excerpts and carets,
+  including imported modules. Source snapshots, four-column tabs, and visible
+  Unicode/control escapes keep excerpts accurate and aligned.
+
 ## 0.1.0-alpha.1 — 2026-09-04
 
 This will be the first public developer preview.

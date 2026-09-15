@@ -90,6 +90,22 @@ run_clean run hello.bc gamma >bytecode.stdout 2>bytecode.stderr || \
 cmp bytecode.expected bytecode.stdout || fail "bytecode output differs"
 test ! -s bytecode.stderr || fail "bytecode execution wrote unexpected stderr"
 
+cat >broken.panack <<'EOF'
+main(): Void {
+  print(missing)
+}
+EOF
+printf 'error: %s/broken.panack:2:9: unknown name missing\n' "$(pwd -P)" >broken.expected
+cat >>broken.expected <<'EOF'
+  2 |   print(missing)
+    |         ^
+EOF
+if run_clean check broken.panack >broken.stdout 2>broken.stderr; then
+  fail "invalid source was accepted"
+fi
+test ! -s broken.stdout || fail "invalid source wrote unexpected stdout"
+cmp broken.expected broken.stderr || fail "source excerpt differs"
+
 printf 'not Panackelty bytecode' >malformed.bc
 if run_clean check malformed.bc >malformed.stdout 2>malformed.stderr; then
   fail "malformed bytecode was accepted"

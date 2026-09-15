@@ -100,7 +100,7 @@ use the transitional Python oracle and test harness described below.
       example and its relevant specification section
 - [x] Add at least a primary `file:line:column` location to lexer, parser, name,
       and type diagnostics so a new user can find the reported error; richer
-      excerpts, multiple diagnostics, stable codes, and automated fixes may
+      recovery across errors, stable codes, and automated fixes may
       follow the preview
 - [x] Test the published quick start literally in a clean shell and require its
       stated output to match
@@ -148,6 +148,10 @@ failure and act on it quickly. New features should therefore be evaluated on
 both the guarantees they provide and the clarity of the resulting workflow.
 
 ### Type inference and diagnostic experience
+
+- [x] Add source excerpts and carets to existing positioned compiler errors,
+      preserving imported-module ownership and source snapshots; cover tabs,
+      Unicode, CRLF, EOF, and header-only fallback in renderer and CLI tests
 
 - [ ] Design automatic local type inference while retaining explicit annotations
       where they document public APIs, resolve ambiguity, or express a contract

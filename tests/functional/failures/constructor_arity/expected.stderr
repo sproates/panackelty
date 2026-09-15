@@ -1,1 +1,3 @@
 error: <case>/main.panack:4:9: Some expects 1 arguments, got 0
+  4 |   print(Some())
+    |         ^

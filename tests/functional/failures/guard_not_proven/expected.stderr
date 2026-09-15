@@ -1,1 +1,3 @@
 error: <case>/main.panack:4:23: cannot assign Nat to Positive; guard is not proven
+  4 |   invalid: Positive = 0
+    |                       ^

@@ -3,12 +3,14 @@ import "../bytecode/decoder.panack"
 record ProjectLoadState {
   programs: [Program],
   visited: Set[Str],
-  diagnostics: [Diagnostic]
+  diagnostics: [Diagnostic],
+  sources: Map[Str,Str]
 }
 
 record LoadedProject {
   program: Program,
-  diagnostics: [Diagnostic]
+  diagnostics: [Diagnostic],
+  sources: Map[Str,Str]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -100,33 +102,34 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
   } else {
     if path_in_stack(stack, path) {
       diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("import cycle includes ${path}"))
-      ProjectLoadState(state.programs, state.visited, diagnostics)
+      ProjectLoadState(state.programs, state.visited, diagnostics, state.sources)
     } else {
       if path_suffix(path) != ".panack" {
         diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("import must reference a .panack file: ${path}"))
-        ProjectLoadState(state.programs, state.visited, diagnostics)
+        ProjectLoadState(state.programs, state.visited, diagnostics, state.sources)
       } else {
         if !file_exists(path) {
           diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("missing source module ${path}"))
-          ProjectLoadState(state.programs, state.visited, diagnostics)
+          ProjectLoadState(state.programs, state.visited, diagnostics, state.sources)
         } else {
           source: Str = read_file(path)
+          sources: Map[Str,Str] = state.sources.put(path, source)
           match lex_file(source, path) {
             Error(errors) => {
               mut diagnostics: [Diagnostic] = state.diagnostics
               for error in errors {
                 diagnostics = append(diagnostics, error)
               }
-              ProjectLoadState(state.programs, state.visited.add(path), diagnostics)
+              ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources)
             },
             Ok(tokens) => {
               match parse_program_complete(tokens) {
                 Error(error) => {
                   diagnostics: [Diagnostic] = append(state.diagnostics, error)
-                  ProjectLoadState(state.programs, state.visited.add(path), diagnostics)
+                  ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources)
                 },
                 Ok(program) => {
-                  mut current: ProjectLoadState = state
+                  mut current: ProjectLoadState = ProjectLoadState(state.programs, state.visited, state.diagnostics, sources)
                   next_stack: [Str] = append(stack, path)
                   for declaration in program.declarations {
                     match declaration {
@@ -134,11 +137,11 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
                         if is_logical_import(imported) {
                           if !logical_import_valid(imported) {
                             diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("invalid logical import path: ${imported}"))
-                            current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                            current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
                           } else {
                             if starts_with(imported, "stdlib/") && len(stdlib_root) == 0 {
                               diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("standard library root is not configured"))
-                              current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                              current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
                             } else {
                               parent: Str = path_parent(path)
                               dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
@@ -148,11 +151,11 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
                         } else {
                           if path_is_absolute(imported) {
                             diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("imports must use relative or logical paths: ${imported}"))
-                            current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                            current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
                           } else {
                             if path_suffix(imported) != ".panack" {
                               diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("relative import must reference a .panack file: ${imported}"))
-                              current = ProjectLoadState(current.programs, current.visited, diagnostics)
+                              current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
                             } else {
                               parent: Str = path_parent(path)
                               dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
@@ -168,7 +171,7 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
                     }
                   }
                   programs: [Program] = append(current.programs, program)
-                  ProjectLoadState(programs, current.visited.add(path), current.diagnostics)
+                  ProjectLoadState(programs, current.visited.add(path), current.diagnostics, current.sources)
                 }
               }
             }
@@ -188,7 +191,7 @@ load_project(entry: Str): LoadedProject {
     ""
   }
   empty: Set[Str] = set()
-  initial: ProjectLoadState = ProjectLoadState([], empty, [])
+  initial: ProjectLoadState = ProjectLoadState([], empty, [], map())
   stack: [Str] = []
   loaded: ProjectLoadState = load_project_module(resolved, initial, stack, project_root, stdlib_root)
   program: Program = append_program_declarations(loaded.programs)
@@ -199,5 +202,5 @@ load_project(entry: Str): LoadedProject {
   if len(diagnostics) == 0 {
     diagnostics = concat(diagnostics, check_program_frontend(program))
   } else {}
-  LoadedProject(program, diagnostics)
+  LoadedProject(program, diagnostics, loaded.sources)
 }

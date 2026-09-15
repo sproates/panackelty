@@ -62,7 +62,9 @@ Post-bootstrap language and engineering priorities are tracked in
 - [x] Rich path operations and path normalization
 - [x] Diagnostic and source-position data model
 - [ ] Accurate line/column tracking and span-bearing tokens and AST nodes
-- [ ] Multi-diagnostic rendering with source excerpts
+- [x] Render existing positioned diagnostics with source excerpts and carets,
+      including imported modules and deterministic tab/Unicode display
+- [ ] Rich multi-error recovery, secondary spans, and causal diagnostics
 
 ## Milestone 4: Compiler frontend in Panackelty (`src/compiler`)
 

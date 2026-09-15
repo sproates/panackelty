@@ -424,6 +424,31 @@ class PanackeltyProgramTests(unittest.TestCase):
                 result = future.result()
                 self.assert_invalid_result(result, source, expected_stderr)
 
+    def test_source_diagnostics_from_run_and_disasm(self):
+        for name in ("unknown_name", "imported_unknown_name", "unexpected_character",
+                     "same_line_without_separator"):
+            source = FAILURES / name / "main.panack"
+            expected = (source.parent / "expected.stderr").read_text()
+            for command in ("run", "disasm"):
+                with self.subTest(program=name, command=command):
+                    self.assert_invalid_result(run_panack(command, str(source)), source, expected)
+
+    def test_diagnostic_display_for_crlf_unicode_tabs_and_eof(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory).resolve() / "main.panack"
+            cases = (
+                ('main(): Void {\r\n\tprint("λ") #\r\n}\r\n',
+                 'error: <case>/main.panack:2:13: unexpected character #\n'
+                 '  2 |     print("\\u{3bb}") #\n    | ' + ' ' * 21 + '^\n'),
+                ('main(): Void {',
+                 'error: <case>/main.panack:1:15: expected closing brace\n'
+                 '  1 | main(): Void {\n    | ' + ' ' * 14 + '^\n'),
+            )
+            for content, expected in cases:
+                source.write_bytes(content.encode("utf-8"))
+                with self.subTest(source=content):
+                    self.assert_invalid_result(run_panack("check", str(source)), source, expected)
+
     def test_invalid_source_programs_fail_compile_without_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
             output_directory = Path(directory)

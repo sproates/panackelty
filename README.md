@@ -29,8 +29,8 @@ checking, compiling, and running Panackelty programs does not require Python,
 `make`, a C compiler, or a copy of this repository. The download contains the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives for `0.1.0-alpha.2` are available from the
-[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.2).
+Developer-preview archives for `0.1.0-alpha.3` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.3).
 The [release policy](RELEASE_POLICY.md) defines the preview's support and
 compatibility boundaries.
 
@@ -48,8 +48,8 @@ adjacent `.sha256` file from the Releases page:
 
 | System | Archive |
 | --- | --- |
-| Linux x86-64 | `panackelty-0.1.0-alpha.2-linux-x86_64.tar.gz` |
-| macOS arm64 | `panackelty-0.1.0-alpha.2-macos-arm64.tar.gz` |
+| Linux x86-64 | `panackelty-0.1.0-alpha.3-linux-x86_64.tar.gz` |
+| macOS arm64 | `panackelty-0.1.0-alpha.3-macos-arm64.tar.gz` |
 
 Windows and other architectures are not part of the initial preview.
 
@@ -59,24 +59,24 @@ In the directory containing both downloaded files, verify the archive. On
 Linux, run:
 
 ```sh
-sha256sum -c panackelty-0.1.0-alpha.2-linux-x86_64.tar.gz.sha256
+sha256sum -c panackelty-0.1.0-alpha.3-linux-x86_64.tar.gz.sha256
 ```
 
 On macOS, run:
 
 ```sh
-shasum -a 256 -c panackelty-0.1.0-alpha.2-macos-arm64.tar.gz.sha256
+shasum -a 256 -c panackelty-0.1.0-alpha.3-macos-arm64.tar.gz.sha256
 ```
 
 The command must report the archive as `OK`. Then unpack the matching archive;
 the macOS name is shown here:
 
 ```sh
-tar -xzf panackelty-0.1.0-alpha.2-macos-arm64.tar.gz
+tar -xzf panackelty-0.1.0-alpha.3-macos-arm64.tar.gz
 ./panackelty/bin/panack --version
 ```
 
-The version command prints `panack 0.1.0-alpha.2 (bytecode 7)`. The Linux
+The version command prints `panack 0.1.0-alpha.3 (bytecode 7)`. The Linux
 archive follows the same layout and uses `linux-x86_64` in its name. To make
 `panack` available in future terminal sessions, keep the whole extracted
 directory together and link its command into a directory on `PATH`:
@@ -129,7 +129,7 @@ The complete output is:
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.2 (bytecode 7)
+panack 0.1.0-alpha.3 (bytecode 7)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc
@@ -227,8 +227,7 @@ including palindrome detection, memoized Fibonacci, and Project Euler 1–5.
 
 ### Local type inference
 
-Current source builds allow local annotations to be omitted (this feature is
-newer than the `0.1.0-alpha.2` downloads):
+Local annotations can be omitted when the initializer determines the type:
 
 ```panackelty
 main(): Void {

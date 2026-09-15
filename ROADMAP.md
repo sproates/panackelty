@@ -277,6 +277,42 @@ The proposed distinction is approachable explanations for ordinary calculations
 and control flow in the standard language toolchain, not a claim to have invented
 provenance or causal debugging.
 
+### Candidate differentiator: previewable effects — exploration
+
+Explore a VM-enforced preview mode for dependable scripts. A program would
+produce an inspectable plan of supported changes before applying them, including
+content diffs and the inputs on which those changes depend. Proposed commands
+such as `panack plan script.panack -o changes.plan` and
+`panack apply changes.plan` are design sketches, not available CLI features.
+
+- [ ] Specify an opt-in first version for local file reads and writes, with
+      staged writes in a simulated filesystem so subsequent reads observe them
+- [ ] Define the supported host effects and enforce coverage at the VM boundary,
+      including nested execution; stop explicitly on unsupported effects rather
+      than silently executing external commands or remote mutations
+- [ ] Define permitted reads during planning and handling of terminal output,
+      environment values, arguments, path resolution, and filesystem queries
+- [ ] Render file changes and content diffs and save the concrete operations for
+      later application without rerunning the program against new inputs
+- [ ] Record relevant input and destination preconditions; reject stale plans
+      and define race handling between validation and application, including
+      symlinks and concurrent filesystem changes
+- [ ] Specify a versioned, validated plan format, binding plans to their execution
+      assumptions and defining handling of sensitive contents and file permissions
+- [ ] Define partial-failure reporting and recovery during application; do not
+      imply that a sequence of filesystem operations is automatically atomic
+- [ ] Preserve purity and bytecode safety boundaries and assess planning overhead
+- [ ] Add VM and public-CLI coverage proving that preview leaves target files
+      unchanged, staged reads are coherent, diffs match applied changes, stale
+      plans fail, and unsupported effects cannot bypass preview enforcement
+- [ ] Evaluate moves, deletes, external adapters, and links to value explanations
+      separately after the local read/write workflow is proven useful
+
+Related work includes [Terraform saved plans](https://developer.hashicorp.com/terraform/cli/commands/plan)
+and [PowerShell ShouldProcess and WhatIf](https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-shouldprocess).
+The intended distinction is VM-enforced planning for a defined set of effects in
+ordinary imperative scripts, with explicit limits on what can be simulated.
+
 ### Data and target-platform experiments
 
 - [ ] Design JSON literals with unambiguous syntax, exact numeric behavior,

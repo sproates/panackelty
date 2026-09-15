@@ -236,6 +236,47 @@ headline feature.
 - [ ] Evaluate browser automation against a real end-to-end program before
       committing to a large ecosystem surface
 
+### Candidate differentiator: explainable values — exploration
+
+Explore built-in value provenance: an opt-in way to explain a result through the
+inputs, calculations, function calls, and branch decisions that produced it.
+This builds on exact arithmetic, purity, persistent values, and the single VM
+execution model. The intended benefit is practical debugging and inspectable
+numerical results: users can ask where a total came from or which condition
+selected a value.
+
+`explain(value)` is a working design sketch, not accepted syntax or an available
+feature. Tracking must start before the relevant calculation; explanations cannot
+recover execution history that was never recorded. Explanations describe recorded
+execution dependencies, not a proof that the program's business logic is correct.
+
+- [ ] Specify an opt-in first version covering scalar calculations, function
+      arguments and results, and the branch conditions that selected a result
+- [ ] Decide the source and CLI interface for enabling tracking and requesting
+      explanations, including how explanation output respects the purity boundary
+- [ ] Design VM dependency records and compiler source mappings while preserving
+      exact values, ordinary program behavior, and bytecode verification
+- [ ] Render concise explanations with values, operations, decision outcomes, and
+      source locations; validate usefulness against an incorrect invoice total
+      and a value selected by an unexpected branch
+- [ ] Define tracking scope, retention, and memory limits for loops, recursion,
+      and collections; report truncated or unavailable history explicitly
+- [ ] Define treatment of sensitive inputs and redaction before explanations can
+      be saved or shared; avoid exposing input contents by default
+- [ ] Measure execution and memory overhead with tracking enabled and disabled
+      before deciding whether to expand the initial scope
+- [ ] Add compiler, verifier, VM, and public-CLI coverage for explanation accuracy,
+      control dependencies, source locations, limits, and unchanged value semantics
+- [ ] Evaluate later extensions separately: structured input origins such as CSV
+      rows and columns, collection provenance, exported explanations, and comparison
+      of recorded dependencies across runs
+
+Related work includes [language-integrated provenance in Links](https://arxiv.org/abs/1607.04104)
+and [Whyline for Java](https://www.cs.cmu.edu/~NatProg/whyline-java.html).
+The proposed distinction is approachable explanations for ordinary calculations
+and control flow in the standard language toolchain, not a claim to have invented
+provenance or causal debugging.
+
 ### Data and target-platform experiments
 
 - [ ] Design JSON literals with unambiguous syntax, exact numeric behavior,

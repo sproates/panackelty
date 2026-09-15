@@ -354,13 +354,47 @@ and [Temporal durable execution](https://assets.temporal.io/durable-execution.pd
 The intended distinction is a local workflow integrated with the normal language
 runtime and command, with explicit recovery guarantees for supported operations.
 
+### JSON data support — exploration
+
+Explore a standard `Json` tagged value type and a coherent library workflow for
+configuration, data transformations, and future API clients: parse external text,
+validate it into domain types, work with ordinary typed values, and encode results.
+Keep dynamic JSON objects distinct from statically checked records. Prioritise
+parsing, access, encoding, and typed decoding before special literal syntax;
+compiler assistance should serve typed integration where needed. These are design
+priorities, not implemented features or accepted API syntax.
+
+- [ ] Specify JSON null, booleans, exact numbers, strings, arrays, and string-keyed
+      objects; preserve exact numeric values without implicit binary floating-point
+      conversion, including exponent notation and documented resource limits
+- [ ] Design pure parsing and encoding APIs with structured results; distinguish
+      malformed JSON from valid JSON that fails domain validation
+- [ ] Support direct inspection and persistent updates for small transformations,
+      keeping missing fields, explicit null, and wrong value types distinct
+- [ ] Design typed decoding for records, collections, optional fields, and guarded
+      types, with explicit policies for missing, null, and unknown fields; start
+      with strict rejection of unknown record fields as the proposed default
+- [ ] Treat decoding into guarded types as an explicit checked conversion returning
+      success or a structured error; preserve existing proof requirements for
+      ordinary conversions and reject unsupported guards explicitly
+- [ ] Report parse errors with source locations and decoding errors with field/index
+      paths, expected types or guards, and useful descriptions of offending values
+- [ ] Reject duplicate object keys by default; preserve input object order for
+      readable transformations and offer deterministic sorted-key output
+- [ ] Specify escaping, Unicode handling, number formatting, nesting limits, and
+      round-trip value semantics; distinguish these from preserving original
+      whitespace, escapes, and number spelling in a future document-editing model
+- [ ] Validate the workflow with configuration decoding (including an invalid Port)
+      and a small dynamic JSON transformation through the public CLI
+- [ ] Add unit and functional coverage for malformed input, duplicates, exact-number
+      round trips, missing/null distinctions, nested error paths, guarded decoding,
+      unknown-field policy, ordering, and resource-limit failures
+- [ ] Evaluate JSON literals after the core workflow, including syntax ambiguity,
+      interpolation, inferred types, and whether literals construct `Json` values
+      or use an explicitly selected typed representation
+
 ### Data and target-platform experiments
 
-- [ ] Design JSON literals with unambiguous syntax, exact numeric behavior,
-      duplicate-key rules, interpolation, and predictable inferred types
-- [ ] Decide whether JSON literals produce a dynamic `Json` value, inferred
-      structural data, nominal records, or an explicitly selected representation
-- [ ] Prototype JSON parsing, validation, and typed decoding as one coherent API
 - [ ] Investigate an optional browser target, including VM portability, DOM and
       Web API bindings, sandboxing, asynchronous effects, artifact size, and
       source-level debugging

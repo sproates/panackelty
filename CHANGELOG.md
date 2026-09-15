@@ -4,7 +4,9 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
-## Unreleased
+## 0.1.0-alpha.3 — 2026-09-15
+
+### Highlights
 
 - Local bindings may omit type annotations: `name = value` declares an immutable
   local when the name is not visible, and `mut name = value` declares a mutable
@@ -15,6 +17,17 @@ in `RELEASE_POLICY.md`.
   statements. Nested collection and constructor evidence combines consistently;
   unresolved types request an annotation. Numeric defaults, guarded domain types,
   and callable effects are preserved. Function signatures remain explicit.
+
+### Compatibility
+
+- Assigning to an unknown local name now declares an immutable binding instead
+  of reporting an error. A misspelled assignment can therefore introduce a new
+  variable; unused-binding warnings are not yet implemented.
+- Existing explicit local annotations remain supported. Function parameters,
+  return types, and record fields still require annotations. Incomplete local
+  types cannot be resolved from later assignments or uses.
+- Bytecode remains version 7. This is an experimental preview for Linux x86-64
+  and macOS arm64 under the compatibility policy in `RELEASE_POLICY.md`.
 
 ## 0.1.0-alpha.2 — 2026-09-15
 

@@ -354,6 +354,55 @@ and [Temporal durable execution](https://assets.temporal.io/durable-execution.pd
 The intended distinction is a local workflow integrated with the normal language
 runtime and command, with explicit recovery guarantees for supported operations.
 
+### Candidate differentiator: enforceable data-flow restrictions — exploration
+
+Explore data that carries enforceable rules about where its information may go.
+Restricted inputs would retain their confidentiality policies through function
+calls, transformations, collections, and control flow. The compiler and VM host
+boundary would reject disallowed output, such as logging a credential embedded in
+request headers, and explain the source and destination of the prohibited flow.
+This is a proposed capability, not an implemented security guarantee or accepted
+syntax. It complements purity by constraining where effectful code may send data.
+
+- [ ] Define a scoped first version with confidentiality labels, explicit allowed
+      output destinations or trusted operations, and compiler-checked propagation
+      through ordinary values, calls, records, tagged unions, and collections
+- [ ] Specify label inference and policy composition when values with different
+      restrictions are combined; encoding, hashing, interpolation, and container
+      construction must not silently remove restrictions
+- [ ] Track implicit flows through branch conditions and other control dependencies,
+      including output whose occurrence reveals restricted information; define
+      treatment of errors, traps, and program termination explicitly
+- [ ] Define trusted policy declarations and authority for intentional disclosure
+      (declassification); ordinary helpers must not grant themselves permission
+      to weaken a policy, and sanitising a value must not imply automatic release
+- [ ] Specify the relationship between permitted recipients and permitted operations;
+      an authentication-only credential must not become generally printable merely
+      because the destination is trusted
+- [ ] Enforce policies at terminal, file, and other supported host boundaries,
+      including nested execution; specify validation or runtime enforcement for
+      untrusted bytecode so source-level checking cannot be bypassed
+- [ ] Preserve the existing purity boundary and define module and callable contracts
+      so passing restricted data to a helper retains the applicable restrictions
+- [ ] Design diagnostics that identify the restricted source, propagation path, and
+      prohibited destination without including the sensitive value itself
+- [ ] Apply the same policies to future explanations, preview artifacts, checkpoints,
+      and diagnostic exports so tooling does not introduce an alternate output path
+- [ ] State the threat model and limits, including timing and resource side channels,
+      native integrations, and behaviour after an authorised recipient receives data;
+      do not promise unrestricted non-disclosure across all possible observations
+- [ ] Validate a credential-use workflow, accidental header logging, encoded and
+      nested values, secret-dependent output, combined policies, and authorised
+      disclosure with compiler, verifier, VM, and public-CLI tests
+- [ ] Measure annotation burden and runtime overhead before expanding the scope;
+      evaluate dynamic policies, remote-service adapters, and integrity labels
+      separately after the initial confidentiality model is practical
+
+Related work includes [Jif information-flow checking and controlled disclosure](https://www.cs.cornell.edu/jif/doc/jif-3.3.0/label_checking.html).
+The intended distinction is approachable policy-carrying data in ordinary scripts,
+with useful diagnostics and consistent enforcement across language tooling, not
+an invention of information-flow security.
+
 ### JSON data support — exploration
 
 Explore a standard `Json` tagged value type and a coherent library workflow for

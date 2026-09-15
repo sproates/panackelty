@@ -418,6 +418,14 @@ seconds, functional phase in 80 seconds, and complete `make check` in 132
 seconds. The functional and complete phases therefore exceed their 75- and
 120-second budgets; the warnings remain visible until the regression is
 removed.
+A September 2026 macOS checkout baseline after fixing paths containing spaces
+passed 227 unit tests and 17 functional tests, but reported 322 seconds overall:
+12 seconds for unit tests, 71 for the functional phase, and 238 for bootstrap.
+Rebuilding stage 3 immediately afterwards took 37.31 seconds elapsed,
+36.55 seconds of user CPU time, and 0.60 seconds of system CPU time. The
+238-second result was not reproduced; the validation timer measures wall-clock
+time and can include host interruptions.
+
 Component-focused compiler, bytecode, and VM checks retain representative
 public-CLI coverage. CI publishes and archives each timing row.
 
@@ -441,7 +449,8 @@ public-CLI coverage. CI publishes and archives each timing row.
       stage-2 artifact for the compiler program's compiled execution
 - [ ] Recover the clean validation budgets after file-aware token and expression
       positions increased self-hosted compiler build time, without reducing
-      fixed-point, functional, or diagnostic coverage
+      fixed-point, functional, or diagnostic coverage; use repeated elapsed and
+      CPU measurements to distinguish compiler cost from host interruptions
 
 ## Harden and expand test coverage — in progress
 

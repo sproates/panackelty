@@ -95,7 +95,7 @@ functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
 
 functional-impl: $(STAGE2_COMPILER)
-	@PANACK_TEST_COMPILER=$(abspath $(STAGE2_COMPILER)) $(PYTHON) -m unittest discover -s tests/functional -p 'test_*.py' -q
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PYTHON) -m unittest discover -s tests/functional -p 'test_*.py' -q
 
 native: panack-vm
 
@@ -139,35 +139,36 @@ native-check: bootstrap-check
 	sh tests/native_conformance.sh
 
 install: native
-	install -d $(DESTDIR)$(PREFIX)/bin
-	install -d $(DESTDIR)$(PREFIX)/libexec/panackelty
-	install -d $(DESTDIR)$(PREFIX)/share/panackelty
-	install -d $(DESTDIR)$(PREFIX)/share/panackelty/stdlib
-	install -d $(DESTDIR)$(PREFIX)/share/doc/panackelty
-	install -m 755 panack $(DESTDIR)$(PREFIX)/bin/panack
-	install -m 755 panack-vm $(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm
-	install -m 644 VERSION $(DESTDIR)$(PREFIX)/share/panackelty/VERSION
-	install -m 644 $(SEED_COMPILER) $(DESTDIR)$(PREFIX)/share/panackelty/compiler-v7.bc
-	install -m 644 src/stdlib/*.panack $(DESTDIR)$(PREFIX)/share/panackelty/stdlib/
-	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md $(DESTDIR)$(PREFIX)/share/doc/panackelty/
+	install -d "$(DESTDIR)$(PREFIX)/bin"
+	install -d "$(DESTDIR)$(PREFIX)/libexec/panackelty"
+	install -d "$(DESTDIR)$(PREFIX)/share/panackelty"
+	install -d "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib"
+	install -d "$(DESTDIR)$(PREFIX)/share/doc/panackelty"
+	install -m 755 panack "$(DESTDIR)$(PREFIX)/bin/panack"
+	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
+	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
+	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v7.bc"
+	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
+	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 
 package: native-check
 	$(MAKE) quick-start
 
 package-archive: native
-	rm -rf $(PACKAGE_STAGE)
-	$(MAKE) install DESTDIR=$(PACKAGE_STAGE) PREFIX=/$(PACKAGE_ROOT_NAME)
-	install -d $(PACKAGE_ROOT)/examples
-	install -m 644 examples/README.md examples/*.panack $(PACKAGE_ROOT)/examples/
-	install -m 644 README.md LICENSE $(PACKAGE_ROOT)/
-	COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -C $(PACKAGE_STAGE) -czf $(PACKAGE_ARCHIVE) $(PACKAGE_ROOT_NAME)
+	rm -rf "$(PACKAGE_STAGE)"
+	$(MAKE) install DESTDIR="$(PACKAGE_STAGE)" PREFIX="/$(PACKAGE_ROOT_NAME)"
+	install -d "$(PACKAGE_ROOT)/examples"
+	install -m 644 examples/README.md examples/*.panack "$(PACKAGE_ROOT)/examples/"
+	install -m 644 README.md LICENSE "$(PACKAGE_ROOT)/"
+	COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -C "$(PACKAGE_STAGE)" -czf "$(PACKAGE_ARCHIVE)" "$(PACKAGE_ROOT_NAME)"
 
 release-smoke: package-archive
-	@$(TIMED) release-smoke $(INCREMENTAL_BUDGET_SECONDS) sh tests/release_archive_smoke.sh $(PACKAGE_ARCHIVE) $(VERSION)
+	@$(TIMED) release-smoke $(INCREMENTAL_BUDGET_SECONDS) sh tests/release_archive_smoke.sh "$(PACKAGE_ARCHIVE)" "$(VERSION)"
 
 package-checksum: release-smoke
-	@cd $(dir $(PACKAGE_ARCHIVE)) && \
-	archive=$(notdir $(PACKAGE_ARCHIVE)) && \
+	@archive="$(PACKAGE_ARCHIVE)" && \
+	cd "$${archive%/*}" && \
+	archive=$${archive##*/} && \
 	if command -v sha256sum >/dev/null 2>&1; then \
 		sha256sum "$$archive"; \
 	elif command -v shasum >/dev/null 2>&1; then \
@@ -175,10 +176,10 @@ package-checksum: release-smoke
 	else \
 		echo "package: no SHA-256 utility found" >&2; \
 		exit 1; \
-	fi >$(notdir $(PACKAGE_CHECKSUM))
+	fi >"$(PACKAGE_CHECKSUM)"
 
 quick-start: package-checksum
-	@$(TIMED) quick-start $(INCREMENTAL_BUDGET_SECONDS) sh tests/quick_start.sh $(PACKAGE_ARCHIVE) $(VERSION)
+	@$(TIMED) quick-start $(INCREMENTAL_BUDGET_SECONDS) sh tests/quick_start.sh "$(PACKAGE_ARCHIVE)" "$(VERSION)"
 
 regenerate-seed:
 	$(PYTHON) -B src/bootstrap/panackelty.py compile $(COMPILER_SOURCE) -o $(SEED_COMPILER)

@@ -39,15 +39,22 @@ INSTALLED_FILES = {
 class NativeDistributionTests(unittest.TestCase):
     def test_release_checksum_matches_archive(self):
         with tempfile.TemporaryDirectory() as directory:
-            build = Path(directory) / "build"
+            checkout = Path(directory) / "checkout with spaces (test)"
+            checkout.mkdir()
+            for name in (
+                "Makefile", "VERSION", "panack", "panack-vm", "bootstrap",
+                "src", "tests", "examples", "README.md", "LICENSE",
+                "CHANGELOG.md", "RELEASE_POLICY.md", "SECURITY.md", "SPEC.md",
+            ):
+                (checkout / name).symlink_to(PROJECT / name)
+            build = checkout / "build"
             result = subprocess.run(
                 [
                     "make",
-                    "package-checksum",
+                    "quick-start",
                     "PYTHON=false",
-                    f"BUILD_DIR={build}",
                 ],
-                cwd=PROJECT,
+                cwd=checkout,
                 capture_output=True,
                 text=True,
             )
@@ -65,9 +72,37 @@ class NativeDistributionTests(unittest.TestCase):
                 hashlib.sha256(archive.read_bytes()).hexdigest(),
             )
 
+    def test_functional_recipe_passes_compiler_path_from_spaced_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            checkout = Path(directory) / "checkout with spaces (test)"
+            checkout.mkdir()
+            for name in ("Makefile", "VERSION", "src", "bootstrap", "panack-vm"):
+                (checkout / name).symlink_to(PROJECT / name)
+            for stage in ("stage1", "stage2"):
+                target = checkout / "build/bootstrap" / stage / "compiler.bc"
+                target.parent.mkdir(parents=True)
+                shutil.copyfile(PROJECT / "bootstrap/compiler-v7.bc", target)
+            probe = checkout / "probe.sh"
+            probe.write_text(
+                '#!/bin/sh\nset -eu\n'
+                'test "$PANACK_TEST_COMPILER" = "$PWD/build/bootstrap/stage2/compiler.bc"\n'
+                './panack-vm run "$PANACK_TEST_COMPILER" compile hello.panack -o hello.bc\n'
+                './panack-vm run hello.bc\n',
+                encoding="utf-8",
+            )
+            (checkout / "hello.panack").write_text(
+                'main(): Void { print(42) }\n', encoding="utf-8"
+            )
+            result = subprocess.run(
+                ["make", "functional-impl", "PYTHON=sh probe.sh"],
+                cwd=checkout, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.splitlines()[-1], "42")
+
     def test_installed_cli_runs_without_source_tree_layout(self):
         with tempfile.TemporaryDirectory() as directory:
-            destination = Path(directory)
+            destination = Path(directory) / "installation with spaces (test)"
             result = subprocess.run(
                 [
                     "make",

@@ -1,6 +1,7 @@
 .PHONY: all check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
 
 PYTHON ?= python3
+CFLAGS ?= -O2
 export PYTHONDONTWRITEBYTECODE := 1
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
 
@@ -100,7 +101,7 @@ functional-impl: $(STAGE2_COMPILER)
 native: panack-vm
 
 panack-vm: src/vm/native.c src/vm/bigint.c src/vm/bigint.h
-	$(CC) -std=c11 -Wall -Wextra -Werror -pedantic src/vm/native.c src/vm/bigint.c -o panack-vm
+	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c11 -Wall -Wextra -Werror -pedantic $(LDFLAGS) src/vm/native.c src/vm/bigint.c -o panack-vm $(LDLIBS)
 
 $(STAGE1_COMPILER): $(SEED_COMPILER)
 	mkdir -p $(dir $@)

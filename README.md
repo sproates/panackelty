@@ -419,7 +419,11 @@ and `make`. The complete development suite additionally requires Python 3.12;
 Python implements the transitional test oracle and harness, not the toolchain
 shipped to users.
 
-The checkout directory may contain spaces and parentheses.
+The checkout directory may contain spaces and parentheses. The native VM builds
+with `-O2` by default. Standard `CC`, `CPPFLAGS`, `CFLAGS`, `LDFLAGS`, and
+`LDLIBS` overrides are supported; for a debug build, run `make clean` followed
+by `make CFLAGS="-O0 -g"`. Clean before changing flags because existing binaries
+do not automatically rebuild when command-line flags change.
 
 From the repository root:
 
@@ -473,6 +477,10 @@ component checks retain representative public-command evidence while targeting
 the 15-second incremental budget. The Python stage-0 implementation remains
 only as a development oracle and for deliberate seed regeneration; the public
 toolchain runs without it.
+
+Continuous integration runs on pull-request updates and pushes to `main`.
+New commits cancel older runs for the same pull request. The test job runs
+`make check` once; the focused targets above remain available for local work.
 
 Continuous integration builds this package independently on Ubuntu 22.04
 x86-64 and macOS 14 arm64. Each successful matrix job retains the exact archive,

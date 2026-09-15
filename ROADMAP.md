@@ -452,6 +452,22 @@ public-CLI coverage. CI publishes and archives each timing row.
       fixed-point, functional, or diagnostic coverage; use repeated elapsed and
       CPU measurements to distinguish compiler cost from host interruptions
 
+### CI feedback improvements
+
+The Check workflow runs once per pull-request update, with pushes limited to
+`main`, and cancels superseded runs for the same PR. The test job invokes
+`make check` once instead of preceding it with overlapping component checks.
+Both required platform packaging jobs and their complete validation gates remain.
+
+The native VM now defaults to `-O2` with standard overridable build flags. A
+macOS compiler benchmark took 38.77 seconds without optimisation and 13.16
+seconds with `-O2`; the generated compiler artifacts were byte-identical. An
+optimised clean `make check` passed 229 unit tests and 17 functional tests in
+54 seconds, compared with the preceding 140-second local baseline. Full
+validation still includes the stage-2/stage-3 fixed-point proof. Cross-platform
+CI timings remain the measure of PR feedback speed; compiler-only benchmarks
+must not be presented as full-workflow savings.
+
 ## Harden and expand test coverage — in progress
 
 The goal is to make regressions difficult to introduce and failures easy to

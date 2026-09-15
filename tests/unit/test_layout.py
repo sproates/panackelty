@@ -51,6 +51,26 @@ class RepositoryLayoutTests(unittest.TestCase):
         self.assertNotIn("release:", workflow)
         self.assertNotIn("tags:", workflow)
 
+    def test_ci_runs_full_validation_once_per_pr_revision(self):
+        workflow = (PROJECT / ".github/workflows/check.yml").read_text(
+            encoding="utf-8"
+        )
+        events = workflow.split("\non:\n", 1)[1].split("\nconcurrency:", 1)[0]
+        self.assertEqual(events.strip(), "push:\n    branches: [main]\n  pull_request:")
+        self.assertIn(
+            "group: check-${{ github.event.pull_request.number || github.run_id }}",
+            workflow,
+        )
+        self.assertIn(
+            "cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+            workflow,
+        )
+        test_job = workflow.split("\n  test:\n", 1)[1]
+        commands = re.findall(r"^        run: (.+)$", test_job, re.MULTILINE)
+        self.assertEqual(commands, ["make check", "|"])
+        self.assertIn("VALIDATION_TIMINGS_FILE: validation-timings.tsv", test_job)
+        self.assertIn("name: Package (${{ matrix.target }})", workflow)
+
     def test_release_publication_requires_every_gate(self):
         workflow = (PROJECT / ".github/workflows/release.yml").read_text(
             encoding="utf-8"

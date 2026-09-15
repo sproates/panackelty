@@ -236,6 +236,124 @@ headline feature.
 - [ ] Evaluate browser automation against a real end-to-end program before
       committing to a large ecosystem surface
 
+### Candidate differentiator: explainable values — exploration
+
+Explore built-in value provenance: an opt-in way to explain a result through the
+inputs, calculations, function calls, and branch decisions that produced it.
+This builds on exact arithmetic, purity, persistent values, and the single VM
+execution model. The intended benefit is practical debugging and inspectable
+numerical results: users can ask where a total came from or which condition
+selected a value.
+
+`explain(value)` is a working design sketch, not accepted syntax or an available
+feature. Tracking must start before the relevant calculation; explanations cannot
+recover execution history that was never recorded. Explanations describe recorded
+execution dependencies, not a proof that the program's business logic is correct.
+
+- [ ] Specify an opt-in first version covering scalar calculations, function
+      arguments and results, and the branch conditions that selected a result
+- [ ] Decide the source and CLI interface for enabling tracking and requesting
+      explanations, including how explanation output respects the purity boundary
+- [ ] Design VM dependency records and compiler source mappings while preserving
+      exact values, ordinary program behavior, and bytecode verification
+- [ ] Render concise explanations with values, operations, decision outcomes, and
+      source locations; validate usefulness against an incorrect invoice total
+      and a value selected by an unexpected branch
+- [ ] Define tracking scope, retention, and memory limits for loops, recursion,
+      and collections; report truncated or unavailable history explicitly
+- [ ] Define treatment of sensitive inputs and redaction before explanations can
+      be saved or shared; avoid exposing input contents by default
+- [ ] Measure execution and memory overhead with tracking enabled and disabled
+      before deciding whether to expand the initial scope
+- [ ] Add compiler, verifier, VM, and public-CLI coverage for explanation accuracy,
+      control dependencies, source locations, limits, and unchanged value semantics
+- [ ] Evaluate later extensions separately: structured input origins such as CSV
+      rows and columns, collection provenance, exported explanations, and comparison
+      of recorded dependencies across runs
+
+Related work includes [language-integrated provenance in Links](https://arxiv.org/abs/1607.04104)
+and [Whyline for Java](https://www.cs.cmu.edu/~NatProg/whyline-java.html).
+The proposed distinction is approachable explanations for ordinary calculations
+and control flow in the standard language toolchain, not a claim to have invented
+provenance or causal debugging.
+
+### Candidate differentiator: previewable effects — exploration
+
+Explore a VM-enforced preview mode for dependable scripts. A program would
+produce an inspectable plan of supported changes before applying them, including
+content diffs and the inputs on which those changes depend. Proposed commands
+such as `panack plan script.panack -o changes.plan` and
+`panack apply changes.plan` are design sketches, not available CLI features.
+
+- [ ] Specify an opt-in first version for local file reads and writes, with
+      staged writes in a simulated filesystem so subsequent reads observe them
+- [ ] Define the supported host effects and enforce coverage at the VM boundary,
+      including nested execution; stop explicitly on unsupported effects rather
+      than silently executing external commands or remote mutations
+- [ ] Define permitted reads during planning and handling of terminal output,
+      environment values, arguments, path resolution, and filesystem queries
+- [ ] Render file changes and content diffs and save the concrete operations for
+      later application without rerunning the program against new inputs
+- [ ] Record relevant input and destination preconditions; reject stale plans
+      and define race handling between validation and application, including
+      symlinks and concurrent filesystem changes
+- [ ] Specify a versioned, validated plan format, binding plans to their execution
+      assumptions and defining handling of sensitive contents and file permissions
+- [ ] Define partial-failure reporting and recovery during application; do not
+      imply that a sequence of filesystem operations is automatically atomic
+- [ ] Preserve purity and bytecode safety boundaries and assess planning overhead
+- [ ] Add VM and public-CLI coverage proving that preview leaves target files
+      unchanged, staged reads are coherent, diffs match applied changes, stale
+      plans fail, and unsupported effects cannot bypass preview enforcement
+- [ ] Evaluate moves, deletes, external adapters, and links to value explanations
+      separately after the local read/write workflow is proven useful
+
+Related work includes [Terraform saved plans](https://developer.hashicorp.com/terraform/cli/commands/plan)
+and [PowerShell ShouldProcess and WhatIf](https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/everything-about-shouldprocess).
+The intended distinction is VM-enforced planning for a defined set of effects in
+ordinary imperative scripts, with explicit limits on what can be simulated.
+
+### Candidate differentiator: resumable execution — exploration
+
+Explore opt-in durable execution for ordinary local scripts: preserve progress
+across interruptions without requiring users to implement their own progress
+store or operate a separate workflow service. A batch conversion or import
+should recover recorded work and continue from a supported checkpoint.
+Proposed commands such as `panack run import.panack --durable import.run` and
+`panack resume import.run` are design sketches, not available CLI features.
+
+- [ ] Specify a first version with explicit checkpoints, serialisable VM state,
+      and a small, documented set of recoverable local file operations
+- [ ] Define checkpoint placement and state capture, including call frames,
+      local values, persistent collections, and the treatment of unsupported
+      resources and nested VM execution
+- [ ] Bind recovery to the exact bytecode and compatible runtime/checkpoint
+      versions; reject incompatible code rather than silently resuming it
+- [ ] Specify durable, crash-consistent checkpoint and operation records, with
+      validation of untrusted or corrupted state and exclusive ownership of a run
+- [ ] Define how recorded arguments, environment values, read results, and changed
+      external inputs affect recovery while preserving the purity boundary
+- [ ] Reuse durably recorded completed-operation results; distinguish operations
+      safe to repeat from operations requiring explicit reconciliation
+- [ ] Handle the crash window between an external action succeeding and its
+      completion being recorded; stop on an unknown outcome unless a supported
+      recovery protocol can establish it, without claiming universal exactly-once
+      execution or silently repeating an unsafe action
+- [ ] Define cancellation, failed-run inspection, checkpoint retention, sensitive
+      state handling, and clear CLI reports of recovered and pending work
+- [ ] Add VM and public-CLI tests with interruptions around checkpoints and effect
+      recording, including corrupted state, changed bytecode, concurrent resume,
+      repeated recovery, and supported file-operation failure cases
+- [ ] Measure checkpoint size, storage growth, and execution overhead on a
+      representative batch-processing script before broadening the scope
+- [ ] Evaluate automatic checkpoints, durable waits, remote-service adapters,
+      code migration, and integration with preview plans and explanations later
+
+Related work includes [DBOS workflow recovery](https://docs.dbos.dev/production/workflow-recovery)
+and [Temporal durable execution](https://assets.temporal.io/durable-execution.pdf).
+The intended distinction is a local workflow integrated with the normal language
+runtime and command, with explicit recovery guarantees for supported operations.
+
 ### Data and target-platform experiments
 
 - [ ] Design JSON literals with unambiguous syntax, exact numeric behavior,

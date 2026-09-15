@@ -419,6 +419,8 @@ and `make`. The complete development suite additionally requires Python 3.12;
 Python implements the transitional test oracle and harness, not the toolchain
 shipped to users.
 
+The checkout directory may contain spaces and parentheses.
+
 From the repository root:
 
 ```sh

@@ -403,6 +403,54 @@ The intended distinction is approachable policy-carrying data in ordinary script
 with useful diagnostics and consistent enforcement across language tooling, not
 an invention of information-flow security.
 
+### Candidate differentiator: change contracts — exploration
+
+Explore executable contracts describing which behavioural differences are allowed
+between a new implementation and a pinned older version. Users could require an
+optimisation to preserve results, permit a feature change only for selected inputs,
+or broaden accepted input while retaining existing meanings and rejection rules.
+Proposed forms such as `change ... against ...`, `preserve always`, and conditional
+preservation are design sketches, not accepted syntax or available verification.
+
+- [ ] Start with pure functions, explicit old/new bindings, result comparison,
+      generated inputs, and concrete counterexamples for unconditional preservation
+- [ ] Pin the baseline to an immutable artifact with its dependencies and execution
+      semantics; define symbol matching and reject incompatible signatures or
+      unsupported runtime versions explicitly
+- [ ] Specify observable equivalence, including collection order, tagged results,
+      traps, and termination; distinguish value equality from changes in timing or
+      resource use and define how timeouts affect conclusions
+- [ ] Design conditional preservation and required new behaviour using pure
+      predicates; allowing a difference must not by itself establish that the new
+      behaviour is correct, and overlapping or uncovered conditions need clear rules
+- [ ] Support explicit finite input domains for exhaustive bounded checks and
+      reproducible generated tests with seeds, search budgets, and domain constraints
+- [ ] Report proved, exhaustively checked within bounds, counterexample found,
+      no counterexample found by testing, and unresolved as distinct outcomes;
+      never present testing or a timeout as a universal proof
+- [ ] Preserve domain guards and exact numeric semantics in input generation and
+      any future solver encoding; reject unsupported operations rather than silently
+      approximate the language's behaviour
+- [ ] Render counterexamples with inputs, old/new outcomes, and the violated rule;
+      evaluate reduction and regression-test export while respecting data restrictions
+- [ ] Specify contract placement, baseline acquisition, and stable CLI/CI handling,
+      including explicit policy for unresolved checks and trusted baseline execution
+- [ ] Validate representative changes: stable-order duplicate removal, a new member
+      delivery benefit that preserves non-member fees, and a configuration default
+      that accepts missing fields without accepting explicitly invalid values
+- [ ] Add compiler and public-CLI coverage for preservation rules, baseline failures,
+      counterexamples, deterministic search, and honest reporting of bounded or
+      incomplete checks; measure cost before making checks part of routine builds
+- [ ] Evaluate proof support for a carefully defined subset after the testing
+      workflow is useful, with explicit assumptions and sound result reporting
+- [ ] Later compare structured preview plans against the same simulated inputs,
+      including permitted additional deletions and preserved writes or moves;
+      limit claims to effects faithfully modelled by preview mode
+
+Related work includes [SymDiff differential program verification](https://www.microsoft.com/en-us/research/project/symdiff-differential-program-verifier/).
+The intended distinction is approachable change boundaries in normal development
+and release workflows, not a claim that arbitrary program equivalence is decidable.
+
 ### JSON data support — exploration
 
 Explore a standard `Json` tagged value type and a coherent library workflow for

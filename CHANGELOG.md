@@ -4,15 +4,30 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
-## Unreleased
+## 0.1.0-alpha.2 — 2026-09-15
+
+### Highlights
 
 - Positioned compiler errors now include numbered source excerpts and carets,
   including imported modules. Source snapshots, four-column tabs, and visible
   Unicode/control escapes keep excerpts accurate and aligned.
+- Faster native string operations and self-hosted compiler validation, with
+  cached character metadata and direct indexing for ASCII strings.
+- Validation and packaging now support source checkout paths containing spaces.
+- Optimised native builds, reusable unit-test compiler probes, and reduced
+  duplicate CI work keep development feedback within the validation budgets.
+
+### Compatibility
+
+- The accepted language syntax and bytecode format remain unchanged (version 7).
+- Diagnostic output now includes source lines and carets after positioned
+  headers. Tools that consume compiler stderr should allow these extra lines.
+- This remains an experimental preview for Linux x86-64 and macOS arm64,
+  subject to the compatibility policy in `RELEASE_POLICY.md`.
 
 ## 0.1.0-alpha.1 — 2026-09-04
 
-This will be the first public developer preview.
+The first public developer preview.
 
 ### Highlights
 

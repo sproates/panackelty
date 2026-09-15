@@ -447,16 +447,15 @@ public-CLI coverage. CI publishes and archives each timing row.
       program's source and compiled forms in one balanced worker task,
       parallelizing independent invalid cases, and reusing the already-verified
       stage-2 artifact for the compiler program's compiled execution
-- [ ] Recover the clean validation budgets after file-aware token and expression
+- [x] Recover the clean validation budgets after file-aware token and expression
       positions increased self-hosted compiler build time, without reducing
       fixed-point, functional, or diagnostic coverage; use repeated elapsed and
       CPU measurements to distinguish compiler cost from host interruptions
 
-- [ ] Prioritize the remaining Linux CI budget overruns after optimisation:
-      the full check measured 134 seconds against 120 (including 29 seconds
-      for unit tests against 15), and the separate package job's bootstrap
-      measured 75 seconds against 60. Profile those phases while retaining
-      all coverage and cross-platform bootstrap evidence.
+- [x] Recover the remaining Linux CI budgets after optimisation: the full
+      check fell from 134 to 38 seconds (budget 120), unit tests from 29 to 10
+      seconds (budget 15), and package bootstrap from 75 to 19 seconds (budget
+      60), retaining all coverage and cross-platform bootstrap evidence.
 
 ### CI feedback improvements
 
@@ -485,8 +484,13 @@ retained and new regression coverage included.
 The native VM now records string code-point counts and ASCII metadata once,
 avoiding repeated scans for length and ASCII offsets. A paired compiler build
 measured 12.79 seconds before and 5.85 seconds after, producing byte-identical
-compiler artifacts. The required cross-platform CI jobs remain the validation
-of Linux budget recovery; no platform checks or fixed-point evidence are skipped.
+compiler artifacts. Hosted CI passed all three required jobs: tests in 43
+seconds, Linux packaging in 49 seconds, and macOS packaging in 63 seconds.
+The complete workflow finished in 73 seconds. Linux phase timings were 10
+seconds for units, 18 for functional validation, 9 for the remaining bootstrap
+phase, and 38 for the complete check; separate package bootstrap took 19
+seconds. Every measured phase met its budget, with no platform checks or
+fixed-point evidence skipped.
 
 ## Harden and expand test coverage — in progress
 

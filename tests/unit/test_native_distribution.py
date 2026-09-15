@@ -1,5 +1,7 @@
 import hashlib
+import os
 import shutil
+import shlex
 import subprocess
 import tarfile
 import tempfile
@@ -37,6 +39,29 @@ INSTALLED_FILES = {
 
 
 class NativeDistributionTests(unittest.TestCase):
+    def test_native_build_flags_are_configurable(self):
+        # Inspect the actual recipe selected by make without building another VM.
+        environment = os.environ.copy()
+        for name in ("MAKEFLAGS", "MFLAGS", "MAKELEVEL", "CFLAGS", "CPPFLAGS", "LDFLAGS", "LDLIBS"):
+            environment.pop(name, None)
+        for overrides, expected in (
+            ([], ["-O2"]),
+            (["CFLAGS=-O0 -g", "CPPFLAGS=-DPANACK_BUILD_TEST=1",
+              "LDFLAGS=-L/tmp", "LDLIBS=-lm"],
+             ["-O0", "-g", "-DPANACK_BUILD_TEST=1", "-L/tmp", "-lm"]),
+        ):
+            with self.subTest(overrides=overrides):
+                result = subprocess.run(
+                    ["make", "--always-make", "--dry-run", "native", *overrides],
+                    cwd=PROJECT, env=environment, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                command = shlex.split(result.stdout.strip())
+                for flag in expected + ["-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic"]:
+                    self.assertIn(flag, command)
+                if overrides:
+                    self.assertNotIn("-O2", command)
+
     def test_release_checksum_matches_archive(self):
         with tempfile.TemporaryDirectory() as directory:
             checkout = Path(directory) / "checkout with spaces (test)"

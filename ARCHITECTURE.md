@@ -398,6 +398,11 @@ distribution test builds that archive without Python, rejects unexpected paths,
 files, and ownership, moves the extracted directory, and runs a standard-library
 program through its public command.
 
+The Check workflow runs on pull requests and pushes to `main`, avoiding a
+second run on each feature-branch push. Concurrency groups cancel superseded
+runs for the same pull request while preserving runs on `main`. Its test job
+runs `make check` once; focused developer targets are not run again before it.
+
 The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 14 arm64
 matrix. Each job runs the complete Python-free package path—including bootstrap,
 native conformance, exact-archive smoke testing, checksum generation, and the
@@ -426,6 +431,5 @@ During `make check`, the functional compiler-driver checks reuse the
 verified stage-2 compiler before the bootstrap phase produces stage 3 and proves
 the fixed point. This keeps the proof singular without reducing its compiler or
 standard-library comparisons. Focused compiler, bytecode, and VM targets combine
-their internal suites with representative public-CLI checks. Their timings and
-the complete validation phases are published in CI summaries and retained as
-run artifacts. `SELF_HOSTING.md` records the completed stages.
+their internal suites with representative public-CLI checks. The complete validation phase timings are published in CI summaries and
+retained as run artifacts; focused targets report timings when run locally. `SELF_HOSTING.md` records the completed stages.

@@ -2,7 +2,12 @@ name: Check
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   package:
@@ -62,7 +67,7 @@ jobs:
       - name: Run project checks
         env:
           VALIDATION_TIMINGS_FILE: validation-timings.tsv
-        run: make check-compiler check-bytecode check-vm check
+        run: make check
 
       - name: Publish validation timing summary
         if: always()

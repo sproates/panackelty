@@ -452,6 +452,12 @@ public-CLI coverage. CI publishes and archives each timing row.
       fixed-point, functional, or diagnostic coverage; use repeated elapsed and
       CPU measurements to distinguish compiler cost from host interruptions
 
+- [ ] Prioritize the remaining Linux CI budget overruns after optimisation:
+      the full check measured 134 seconds against 120 (including 29 seconds
+      for unit tests against 15), and the separate package job's bootstrap
+      measured 75 seconds against 60. Profile those phases while retaining
+      all coverage and cross-platform bootstrap evidence.
+
 ### CI feedback improvements
 
 The Check workflow runs once per pull-request update, with pushes limited to

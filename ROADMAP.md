@@ -490,6 +490,99 @@ priorities, not implemented features or accepted API syntax.
       interpolation, inferred types, and whether literals construct `Json` values
       or use an explicitly selected typed representation
 
+### Type-driven input handling — exploration
+
+Extend the JSON decoding foundation above into reusable type-driven input handling:
+record fields and guarded types should supply a coherent description for input
+validation, serialisation, and machine-readable schemas. Begin with JSON and
+configuration, then evaluate command-line arguments and other adapters. This is a
+proposed direction, not implemented derivation, field-default syntax, or an API.
+
+- [ ] Share field and domain-rule metadata across decoding, validation, encoding,
+      and schema generation so independently maintained definitions cannot drift
+- [ ] Keep external validation explicit, returning valid domain values or structured
+      errors; preserve proof requirements for ordinary guarded-type conversions
+- [ ] Define defaults, missing versus null values, unknown fields, coercion, and
+      nested error accumulation consistently with the JSON proposal above
+- [ ] Specify which guards can be checked and exported to each schema format;
+      reject or clearly report unrepresentable constraints rather than weakening them
+- [ ] Allow separate input and output models and explicit field mappings; do not
+      expose internal or restricted fields automatically through derived encoders
+- [ ] Evaluate CLI parsing from the same metadata, including option names, defaults,
+      help, and error locations, without making every domain type a CLI interface
+- [ ] Validate a server configuration with guarded name and port fields, including
+      multiple nested errors and schema changes after a field or guard is revised
+- [ ] Add compiler/library and public-CLI coverage for agreement between types,
+      validation, and schemas, including unsupported guards and disclosure policies
+
+Related work includes [Pydantic validation](https://pydantic.dev/docs/validation/latest/concepts/json/)
+and [schema generation](https://pydantic.dev/docs/validation/2.9/concepts/json_schema/).
+The goal is a native connection between Panackelty domain types and external data,
+building on the JSON backlog rather than a second independent validation system.
+
+### Typed edits and patches — exploration
+
+Explore scoped editing of persistent values that produces both a new value and a
+typed description of its changes. This could support concise nested updates,
+configuration previews, undo/redo, and incremental data exchange. An `edit` block
+and operations such as `change.value`, `change.patch`, and `change.inverse` are
+working sketches, not accepted syntax. This concerns data values, independently
+of the more ambitious recovery or correction of external effects.
+
+- [ ] Specify scoped drafts for records and persistent collections; retain the
+      original value, prevent draft references from escaping, and preserve purity
+- [ ] Define typed field paths, update operations, and patch representations so
+      field renames and incompatible value types are checked by the compiler
+- [ ] Define patch preconditions and explicit conflict results when applying edits
+      to a changed base; inverse patches must check their own applicability too
+- [ ] Specify array insertion, removal, and update semantics, distinguishing index
+      positions from stable element identities instead of silently conflating them
+- [ ] Define patch composition and inversion laws, including no-op edits, overlapping
+      updates, and retention of old values needed for inverse operations
+- [ ] Preserve domain guards, information-flow restrictions, and exact value
+      semantics in drafts, patches, conflicts, and rendered change descriptions
+- [ ] Evaluate structural sharing, batched updates, and memory cost without promising
+      minimal patches or universally efficient application
+- [ ] Validate nested task/settings edits, successful undo/redo, stale-base conflicts,
+      and collection edits with compiler, VM, and public-CLI coverage
+- [ ] Evaluate serialisable patches and schema/version compatibility separately
+      before using them for remote updates or persisted change histories
+
+Related work includes [Immer immutable editing](https://immerjs.github.io/immer/)
+and [patches](https://immerjs.github.io/immer/patches/).
+The intended distinction is native typed patches with explicit applicability,
+composition, and conflict semantics across Panackelty data types.
+
+### Useful execution of unfinished code — exploration
+
+Explore typed holes and development execution that keeps completed portions of a
+program inspectable while unfinished expressions remain explicitly unresolved.
+For example, a report's totals could be inspected while its title is still a hole.
+A spelling such as `?report_title` is a design sketch, not accepted source syntax.
+
+- [ ] Define typed holes with expected types and lexical context, retaining useful
+      type checking and diagnostics for the completed portions of a program
+- [ ] Specify partial evaluation and blocked dependencies without substituting
+      guessed values; define holes in conditions, calls, loops, and compound values
+- [ ] Start with pure computations and explicit fixture inputs in an opt-in
+      development workflow; production checks and builds must reject unresolved holes
+- [ ] Keep bytecode and the VM as the execution model; design validated development
+      representations for partial values without weakening production verification
+- [ ] Inspect completed intermediate values and unresolved dependencies through the
+      CLI/editor, observing information-flow restrictions and resource limits
+- [ ] Specify effect handling before allowing effectful development execution;
+      blocked work must not silently trigger real writes or external operations
+- [ ] Validate a partially implemented report and branch-by-branch development,
+      including informative expected types and inspection of independent results
+- [ ] Add compiler, verifier, VM, and public-CLI tests for partial results, blocked
+      control flow, rejection in production mode, and absence of unintended effects
+- [ ] Evaluate watch mode and editor integration after a coherent source-file and
+      CLI workflow, without requiring a browser-only or structured editor
+
+Related work includes [Hazel's live programming with typed holes](https://hazel.org/).
+The goal is useful feedback during ordinary incomplete development in Panackelty's
+source-file workflow, with an explicit boundary between partial and runnable code.
+
 ### Data and target-platform experiments
 
 - [ ] Investigate an optional browser target, including VM portability, DOM and

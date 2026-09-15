@@ -1,4 +1,5 @@
 import "loader.panack"
+import "diagnostics.panack"
 
 record PreparedProject {
   valid: Bool,
@@ -6,12 +7,12 @@ record PreparedProject {
   message: Str
 }
 
-pure diagnostic_messages(diagnostics: [Diagnostic]): Str {
+pure diagnostic_messages(diagnostics: [Diagnostic], sources: Map[Str,Str]): Str {
   mut output: Str = ""
   mut first: Bool = true
   for diagnostic in diagnostics {
     if first { first = false; } else { output = output + "\n"; }
-    output = output + diagnostic_text(diagnostic)
+    output = output + diagnostic_with_source(diagnostic, sources)
   }
   output
 }
@@ -21,7 +22,7 @@ prepare_project(path: Str): PreparedProject {
   if len(loaded.diagnostics) == 0 {
     PreparedProject(true, loaded.program, "")
   } else {
-    PreparedProject(false, loaded.program, diagnostic_messages(loaded.diagnostics))
+    PreparedProject(false, loaded.program, diagnostic_messages(loaded.diagnostics, loaded.sources))
   }
 }
 

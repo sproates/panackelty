@@ -3,7 +3,10 @@
 This directory contains the compiler being implemented in Panackelty:
 
 - `types.panack` defines file-aware source positions, tokens, diagnostics, and
-  their public `file:line:column: message` rendering.
+  their public `file:line:column: message` header rendering.
+- `diagnostics.panack` adds numbered source excerpts and aligned carets from
+  retained source snapshots, with deterministic tab and Unicode display and
+  header-only fallback when no valid excerpt is available.
 - `lexer.panack` tokenizes the complete Panackelty lexical vocabulary,
   normalizes terminating physical line breaks while preserving continued
   expressions, and reports positioned invalid-character and unterminated-string
@@ -49,7 +52,8 @@ This directory contains the compiler being implemented in Panackelty:
   relative to their importer, `project/` paths from the entry directory, and
   `stdlib/` paths from the active toolchain. It canonicalizes and recursively
   reads each module once, detects invalid paths, cycles, and missing modules,
-  and hands one combined program to the pure frontend and emitter.
+  retains each source snapshot for diagnostic rendering, and hands one combined
+  program to the pure frontend and emitter.
 - `driver.panack` implements `check`, `compile`, `run`, and `disasm` for source
   and version-7 bytecode, including default output paths and primary positioned
   lexer, parser, name, and type diagnostics.

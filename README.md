@@ -121,6 +121,10 @@ panack run hello.bc
 
 Primary lexer, parser, name, and type failures identify their owning source as
 `file:line:column`, including when the error is in an imported module.
+Builds from the current source also show the source line and a caret beneath
+positioned errors. Tabs expand to four-column stops; Unicode and control
+characters appear as `\u{hex}` escapes to keep the caret aligned. This addition
+is newer than the published `0.1.0-alpha.1` archive.
 
 The complete output is:
 

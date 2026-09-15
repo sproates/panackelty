@@ -16,5 +16,5 @@ and prove the new fixed point before committing it.
 Current SHA-256:
 
 ```text
-4217eeea781f9a1da5d113f4f7df31c6646cc6d83fb1d7e6bd4b3afa98747b70  compiler-v7.bc
+4eb32a28d670e2f81548b2fab914d462c6e11917716bcb8448ab430a0ef52d9b  compiler-v7.bc
 ```

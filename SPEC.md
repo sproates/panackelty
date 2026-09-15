@@ -476,8 +476,17 @@ the canonical path of the source module that owns the failing token or
 expression. This location is preserved when the failure originates in an
 imported module.
 
-The developer-preview diagnostic contract does not yet include source excerpts,
-secondary labels, stable error codes, or automated fixes. Loader, entry-point,
+For a valid position in a loaded source snapshot, the header is followed by the
+numbered source line and a single caret under the reported character. Columns
+in the header count Unicode codepoints. Excerpts expand tabs to four-column
+stops, double backslashes, and display non-ASCII and control characters as
+lowercase `\u{hex}` escapes, keeping caret alignment independent of terminal
+Unicode width. CR immediately before LF is omitted; a bare CR is escaped.
+A position one character past the line points after its last character,
+including an empty line. Missing source or an invalid line/column retains the
+header alone. Rendering uses the text read by the loader, without rereading files.
+
+Secondary labels, stable error codes, and automated fixes are not yet included. Loader, entry-point,
 and declaration-wide failures may remain message-only when there is no single
 source expression to identify.
 

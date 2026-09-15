@@ -1,0 +1,90 @@
+import "types.panack"
+
+pure diagnostic_spaces(count: Nat): Str {
+  mut output: Str = ""
+  for index in 0..count { output = output + " " }
+  output
+}
+
+pure diagnostic_hex(value: Nat): Str {
+  digits: Str = "0123456789abcdef"
+  if value < 16 { digits[value] }
+  else { diagnostic_hex(value / 16) + digits[value % 16] }
+}
+
+pure diagnostic_character(character: Str): Str {
+  encoded: Bytes = utf8_encode(character)
+  count: Nat = byte_len(encoded)
+  if count == 0 { "" }
+  else {
+    mut value: Nat = byte_get(encoded, 0)
+    if count == 1 && value >= 32 && value < 127 {
+      if character == "\\" { "\\\\" } else { character }
+    } else {
+      if count > 1 {
+        value = value % (if count == 2 { 32 } else { if count == 3 { 16 } else { 8 } })
+        mut index: Nat = 1
+        while index < count {
+          value = value * 64 + byte_get(encoded, index) % 64
+          index = index + 1
+        }
+      }
+      "\\u{" + diagnostic_hex(value) + "}"
+    }
+  }
+}
+
+pure diagnostic_excerpt(diagnostic: Diagnostic, source: Str): Str {
+  position: SourcePos = diagnostic.position
+  if position.line == 0 || position.column == 0 { "" }
+  else {
+    mut line: Nat = 1
+    mut start: Nat = 0
+    mut cursor: Nat = 0
+    while cursor < len(source) && line < position.line {
+      if source[cursor] == "\n" { line = line + 1; start = cursor + 1 }
+      cursor = cursor + 1
+    }
+    if line != position.line { "" }
+    else {
+      mut end: Nat = start
+      while end < len(source) && source[end] != "\n" { end = end + 1 }
+      if end < len(source) && end > start {
+        if end >= 1 {
+          previous: Nat = end - 1
+          if source[previous] == "\r" { end = previous }
+        }
+      }
+      text: Str = slice(source, start, end)
+      if position.column > len(text) + 1 { "" }
+      else {
+        mut displayed: Str = ""
+        mut width: Nat = 0
+        mut caret: Nat = 0
+        mut index: Nat = 0
+        while index < len(text) {
+          if index + 1 == position.column { caret = width }
+          character: Str = text[index]
+          cell: Str = if character == "\t" {
+            diagnostic_spaces([4, 3, 2, 1][width % 4])
+          } else { diagnostic_character(character) }
+          displayed = displayed + cell
+          width = width + len(cell)
+          index = index + 1
+        }
+        if position.column == len(text) + 1 { caret = width }
+        number: Str = "${line}"
+        "\n  " + number + " | " + displayed + "\n  " +
+          diagnostic_spaces(len(number)) + " | " + diagnostic_spaces(caret) + "^"
+      }
+    }
+  }
+}
+
+pure diagnostic_with_source(diagnostic: Diagnostic, sources: Map[Str,Str]): Str {
+  header: Str = diagnostic_text(diagnostic)
+  file: Str = diagnostic.position.file
+  if len(file) > 0 && sources.has(file) {
+    header + diagnostic_excerpt(diagnostic, sources.get(file))
+  } else { header }
+}

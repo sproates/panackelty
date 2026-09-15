@@ -1,1 +1,3 @@
 error: <case>/main.panack:2:9: while condition must be Bool
+  2 |   while 1 {}
+    |         ^

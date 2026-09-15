@@ -1,1 +1,3 @@
 error: <case>/main.panack:2:20: expected line break, semicolon, or closing brace after binding
+  2 |   answer: Nat = 42 print(answer)
+    |                    ^

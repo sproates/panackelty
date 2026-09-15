@@ -313,6 +313,47 @@ and [PowerShell ShouldProcess and WhatIf](https://learn.microsoft.com/en-us/powe
 The intended distinction is VM-enforced planning for a defined set of effects in
 ordinary imperative scripts, with explicit limits on what can be simulated.
 
+### Candidate differentiator: resumable execution — exploration
+
+Explore opt-in durable execution for ordinary local scripts: preserve progress
+across interruptions without requiring users to implement their own progress
+store or operate a separate workflow service. A batch conversion or import
+should recover recorded work and continue from a supported checkpoint.
+Proposed commands such as `panack run import.panack --durable import.run` and
+`panack resume import.run` are design sketches, not available CLI features.
+
+- [ ] Specify a first version with explicit checkpoints, serialisable VM state,
+      and a small, documented set of recoverable local file operations
+- [ ] Define checkpoint placement and state capture, including call frames,
+      local values, persistent collections, and the treatment of unsupported
+      resources and nested VM execution
+- [ ] Bind recovery to the exact bytecode and compatible runtime/checkpoint
+      versions; reject incompatible code rather than silently resuming it
+- [ ] Specify durable, crash-consistent checkpoint and operation records, with
+      validation of untrusted or corrupted state and exclusive ownership of a run
+- [ ] Define how recorded arguments, environment values, read results, and changed
+      external inputs affect recovery while preserving the purity boundary
+- [ ] Reuse durably recorded completed-operation results; distinguish operations
+      safe to repeat from operations requiring explicit reconciliation
+- [ ] Handle the crash window between an external action succeeding and its
+      completion being recorded; stop on an unknown outcome unless a supported
+      recovery protocol can establish it, without claiming universal exactly-once
+      execution or silently repeating an unsafe action
+- [ ] Define cancellation, failed-run inspection, checkpoint retention, sensitive
+      state handling, and clear CLI reports of recovered and pending work
+- [ ] Add VM and public-CLI tests with interruptions around checkpoints and effect
+      recording, including corrupted state, changed bytecode, concurrent resume,
+      repeated recovery, and supported file-operation failure cases
+- [ ] Measure checkpoint size, storage growth, and execution overhead on a
+      representative batch-processing script before broadening the scope
+- [ ] Evaluate automatic checkpoints, durable waits, remote-service adapters,
+      code migration, and integration with preview plans and explanations later
+
+Related work includes [DBOS workflow recovery](https://docs.dbos.dev/production/workflow-recovery)
+and [Temporal durable execution](https://assets.temporal.io/durable-execution.pdf).
+The intended distinction is a local workflow integrated with the normal language
+runtime and command, with explicit recovery guarantees for supported operations.
+
 ### Data and target-platform experiments
 
 - [ ] Design JSON literals with unambiguous syntax, exact numeric behavior,

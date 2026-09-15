@@ -225,6 +225,27 @@ including palindrome detection, memoized Fibonacci, and Project Euler 1–5.
 
 ## Language highlights
 
+### Local type inference
+
+Current source builds allow local annotations to be omitted (this feature is
+newer than the `0.1.0-alpha.2` downloads):
+
+```panackelty
+main(): Void {
+  name = "Ada"
+  mut greeting = "Hello, ${name}"
+  greeting = "Welcome, ${name}"
+  mut balance: Int = 0
+  balance = -1
+  print(greeting)
+}
+```
+
+A new plain name declares an immutable binding; assigning to a visible name
+requires `mut`. Types stay fixed, shadowing is prohibited, and empty values such
+as `[]` need annotations when the initializer cannot determine their element
+type. Function signatures remain explicit. See the [binding rules](SPEC.md#declarations-functions-and-void).
+
 ### Exact decimal arithmetic
 
 Financial and measurement code should not inherit a rounding surprise merely

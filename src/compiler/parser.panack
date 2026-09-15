@@ -70,7 +70,9 @@ record Program {
 }
 
 enum Statement {
+  // Empty type text means an inferred explicit declaration (mut name = value).
   BindingStatement(Str, Str, Bool, Expr),
+  // Plain = is resolved as declaration or assignment using the lexical scope.
   AssignmentStatement(Str, Expr),
   ExpressionStatement(Expr),
   WhileStatement(Expr, Block),
@@ -900,17 +902,21 @@ pure parse_block_items(tokens: [Token], statements: [Statement], index: Nat): Re
         } else {
           name: Str = tokens[name_index].text
           colon_index: Nat = name_index + 1
-          if colon_index >= len(tokens) || tokens[colon_index].text != ":" {
-            Error(parse_error("expected colon after binding name", token_position(tokens, colon_index)))
+          if colon_index >= len(tokens) || (tokens[colon_index].text != ":" && tokens[colon_index].text != "=") {
+            Error(parse_error("expected : or = after binding name", token_position(tokens, colon_index)))
           } else {
-            match parse_type_ref(tokens, colon_index + 1) {
+            annotation: Result[ParsedTypeRef,Diagnostic] = if tokens[colon_index].text == ":" {
+              parse_type_ref(tokens, colon_index + 1)
+            } else { Ok(ParsedTypeRef("", colon_index)) }
+            match annotation {
               Ok(type_ref) => {
                 if type_ref.next >= len(tokens) || tokens[type_ref.next].text != "=" {
                   Error(parse_error("expected = after binding type", token_position(tokens, type_ref.next)))
                 } else {
                   match parse_expression(tokens, type_ref.next + 1) {
                     Ok(value) => {
-                      statement: Statement = BindingStatement(name, type_ref.text, mutable, value.value)
+                      initializer: Expr = if len(type_ref.text) == 0 { located_expression(tokens, type_ref.next + 1, value.value) } else { value.value }
+                      statement: Statement = BindingStatement(name, type_ref.text, mutable, initializer)
                       if value.next < len(tokens) && tokens[value.next].text == ";" {
                         parse_block_items(tokens, append(statements, statement), value.next + 1)
                       } else {
@@ -940,7 +946,7 @@ pure parse_block_items(tokens: [Token], statements: [Statement], index: Nat): Re
               name: Str = tokens[index].text
               match parse_expression(tokens, index + 2) {
                 Ok(value) => {
-                  statement: Statement = AssignmentStatement(name, value.value)
+                  statement: Statement = AssignmentStatement(name, located_expression(tokens, index + 2, value.value))
                   if value.next < len(tokens) && tokens[value.next].text == ";" {
                     parse_block_items(tokens, append(statements, statement), value.next + 1)
                   } else {
@@ -1427,7 +1433,8 @@ pure render_statement(statement: Statement): Str {
     BindingStatement(name, type_name, mutable, value) => {
       prefix: Str = if mutable { "mut " } else { "" }
       value_text: Str = render_expr(value)
-      "${prefix}${name}: ${type_name} = ${value_text};"
+      annotation: Str = if len(type_name) > 0 { ": ${type_name}" } else { "" }
+      "${prefix}${name}${annotation} = ${value_text};"
     },
     AssignmentStatement(name, value) => {
       value_text: Str = render_expr(value)

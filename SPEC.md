@@ -83,9 +83,55 @@ function names: a program may still declare an unrelated function named
 `add`, but `value.add(item)` always selects the collection method. Their
 internal bytecode call names are not source identifiers.
 
-An immutable local declaration has the form `name: Type = value`. A mutable
-local adds the `mut` modifier, as in `mut name: Type = value`. Subsequent
-assignment uses `name = value`. There is no `let` keyword.
+Local type annotations may be omitted. `name = value` declares a new immutable
+local when no local or parameter with that name is visible; otherwise it assigns
+to the existing binding. `mut name = value` declares a mutable inferred local.
+`name: Type = value` and `mut name: Type = value` always declare explicitly typed
+locals. There is no `let` keyword or `:=` operator.
+
+The initializer determines an inferred binding's fixed type: non-negative integer
+literals use `Nat`, negation of an integer uses `Int`, decimal literals use `Dec`,
+and other expressions use their existing checked type. A call uses its declared
+return type; copying a guarded value preserves its domain type, and copying a
+callable preserves its `PureFn` or `Fn` signature. A literal satisfying a guard
+does not automatically acquire that domain type. Mutable locals do not retain
+initializer constants as proof of their future value.
+
+```panackelty
+main(): Void {
+  name = "Ada"
+  mut ready = false
+  ready = true
+  mut balance: Int = 0
+  balance = -1
+  print(name)
+}
+```
+
+Each inferred initializer must determine a complete non-`Void` value type before
+the next statement. `[]`, `None()`, `map()`, `set()`, or nested constructions such
+as `Some([])` need annotations when their type arguments remain unresolved.
+Evidence inside the same expression can resolve these arguments, including
+`[[], ["Ada"]]`, `if ready { None() } else { Some("Ada") }`, and
+`map().put("Ada", true)`. Compatible array elements and branches combine nested
+type evidence independently of their order. Incompatible element or branch
+types remain errors. Expected-type handling already supported for annotated
+bindings, calls, and returns is unchanged. Later assignments, uses, and enclosing
+return types do not supply missing evidence for an inferred local declaration.
+
+Assignments require a mutable binding and a value compatible with its fixed type;
+they never change its type or mutability. Explicit annotations remain necessary
+on function parameters, function returns, and record fields.
+
+Declarations are visible only after their initializer, through the rest of their
+enclosing block and nested blocks. A declaration cannot reuse a visible local or
+parameter name, even in an inner block. This also applies to loop variables and
+pattern bindings. Sibling blocks may reuse names that are not visible in one
+another. Plain `=` inside a nested block assigns to a visible outer binding;
+it does not shadow it. Function parameters, loop variables, and pattern bindings
+remain immutable. Bindings introduced in a branch or loop do not escape it.
+A misspelled assignment to an unknown name declares a new immutable local;
+unused-binding warnings are not implemented yet.
 
 `Void` is valid only as a function return type and is not a first-class source
 value: it cannot be used for parameters, bindings, collection elements, or
@@ -274,6 +320,8 @@ for value in 0..10 {
   // visits 0 through 9
 }
 ```
+
+Range expressions may be bound to inferred locals for later iteration.
 
 Arrays are immutable, homogeneous values. Their type is written `[T]`. Indexes
 are `Nat`, and the VM traps with a useful message if an index is out of bounds.

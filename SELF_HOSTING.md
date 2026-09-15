@@ -74,7 +74,7 @@ Post-bootstrap language and engineering priorities are tracked in
 - [x] Complete the parser and recursive AST for the full language
   - [x] Scalar and array literals, unary expressions, full binary precedence,
         calls, field access, and indexing
-  - [x] Blocks, local type annotations, bindings, assignment, tail values,
+  - [x] Blocks, optional local type annotations, bindings, assignment, tail values,
         newline termination, and explicit same-line separators
   - [x] Conditionals with block branches and optional `else` in `Void` position
   - [x] `while` and `for` loops
@@ -109,7 +109,8 @@ missing, duplicate, and cyclic module graphs, and resolves the reachable
 declarations as one namespace. The self-hosted checker validates declared and
 generic types, expressions, calls, records, enums, collections, control flow,
 function returns, exhaustive matches, mutable assignments, entry points, and
-the currently supported guarded-type and `Nat` subtraction proofs. Differential
+initializer-based local inference with complete types, fixed mutability, and no
+shadowing. It retains the currently supported guarded-type and `Nat` subtraction proofs. Differential
 tests compare the complete frontend's accept/reject decisions with the bootstrap
 checker. The self-hosted purity pass walks guards and every expression and
 statement position in pure functions, rejecting direct or transitive calls to

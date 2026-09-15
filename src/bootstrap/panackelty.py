@@ -425,8 +425,10 @@ class Parser:
                 start = self.take(kind="IDENT")
                 mutable = start.text == "mut"
                 name = self.take(kind="IDENT").text if mutable else start.text
-                self.take(":")
-                type_name = self.type_name()
+                type_name = ""
+                if self.peek(":"):
+                    self.take(":")
+                    type_name = self.type_name()
                 self.take("=")
                 value = self.expr()
                 if self.peek(";"):
@@ -834,6 +836,17 @@ class Checker:
         if arguments or (base not in PRIMITIVES and base not in self.program.types):
             self.error(tok, f"unknown type {name}")
 
+    def inferred_binding_type(self, name: str, value: TypeInfo, expression: Expr) -> str:
+        def complete(type_name: str) -> bool:
+            return bool(type_name) and type_name != "Unknown" and not type_name.startswith("$") and all(
+                complete(argument) for argument in split_type(type_name)[1]
+            )
+        if value.name == "Void":
+            self.error(expression, f"cannot infer local {name} from Void; Void is not a value")
+        if not complete(value.name):
+            self.error(expression, f"cannot infer complete type for local {name}; add a type annotation")
+        return value.name
+
     def block(self, block: Block, env: dict[str, TypeInfo], pure: bool,
               facts: dict[str, tuple[int | None, int | None]]) -> TypeInfo:
         local = dict(env)
@@ -841,19 +854,24 @@ class Checker:
             if isinstance(statement, Let):
                 if statement.name in local:
                     self.error(statement.token, f"local {statement.name} shadows an existing binding")
-                self.require_type(statement.type_name, statement.token)
+                if statement.type_name:
+                    self.require_type(statement.type_name, statement.token)
                 value = self.expr(statement.value, local, pure, facts)
-                if not self.assignable_expr(value, statement.type_name, statement.value, facts):
-                    self.error(statement.value, f"cannot assign {value.name} to {statement.type_name}; guard is not proven")
+                binding_type = statement.type_name or self.inferred_binding_type(statement.name, value, statement.value)
+                if statement.type_name and not self.assignable_expr(value, binding_type, statement.value, facts):
+                    self.error(statement.value, f"cannot assign {value.name} to {binding_type}; guard is not proven")
                 local[statement.name] = TypeInfo(
-                    statement.type_name,
+                    binding_type,
                     value.const if not statement.mutable else None,
                     value.has_const and not statement.mutable,
                     statement.mutable,
                 )
             elif isinstance(statement, Assign):
                 if statement.name not in local:
-                    self.error(statement.token, f"unknown name {statement.name}")
+                    value = self.expr(statement.value, local, pure, facts)
+                    binding_type = self.inferred_binding_type(statement.name, value, statement.value)
+                    local[statement.name] = TypeInfo(binding_type, value.const, value.has_const, False)
+                    continue
                 target = local[statement.name]
                 if not target.mutable:
                     self.error(statement.token, f"cannot assign to immutable local {statement.name}")
@@ -951,9 +969,15 @@ class Checker:
             return left
         left_base, left_args = split_type(left)
         right_base, right_args = split_type(right)
-        if left_base == right_base and left_args and len(left_args) == len(right_args):
+        if left_base == right_base and left_args and len(left_args) == len(right_args) and left_base not in {"Fn", "PureFn"}:
             merged = [self.merge_type_names(a, b) for a, b in zip(left_args, right_args)]
             return format_type(left_base, [item for item in merged if item is not None]) if all(item is not None for item in merged) else None
+        if self.assignable(TypeInfo(left), right):
+            return right
+        if self.assignable(TypeInfo(right), left):
+            return left
+        if self.base(left) == self.base(right) and self.base(left) in GUARD_BASES:
+            return self.base(left)
         if {self.base(left), self.base(right)} == {"Nat", "Int"}:
             return "Int"
         return None
@@ -1049,16 +1073,10 @@ class Checker:
                 self.error(expr, "Void expressions cannot be stored in an array")
             element = items[0].name
             for item in items[1:]:
-                if self.assignable(item, element):
-                    continue
-                if self.assignable(items[0], item.name):
-                    element = item.name
-                    continue
-                left_base, right_base = self.base(element), self.base(item.name)
-                if {left_base, right_base} == {"Nat", "Int"}:
-                    element = "Int"
-                    continue
-                self.error(expr, f"array elements have incompatible types {element} and {item.name}")
+                merged = self.merge_type_names(element, item.name)
+                if merged is None:
+                    self.error(expr, f"array elements have incompatible types {element} and {item.name}")
+                element = merged
             return TypeInfo(f"Array[{element}]")
         if expr.kind == "index":
             collection = self.expr(expr.args[0], env, pure, facts)

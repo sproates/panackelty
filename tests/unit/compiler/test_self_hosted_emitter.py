@@ -62,6 +62,12 @@ class SelfHostedEmitterTests(CompilerHarnessTestCase):
     def assert_differential(self, source):
         self.assertEqual(self.emit(source), render_bootstrap(source))
 
+    def test_inferred_bindings_emit_the_same_code_as_explicit_bindings(self):
+        inferred = 'main(): Void { name = "Ada"; mut n = 1; n = n + 1; print(name); print(n) }'
+        explicit = 'main(): Void { name: Str = "Ada"; mut n: Nat = 1; n = n + 1; print(name); print(n) }'
+        self.assert_differential(inferred)
+        self.assertEqual(self.emit(inferred), self.emit(explicit))
+
     def test_emits_scalars_calls_and_control_flow(self):
         source = """
 pure choose(value: Nat): Nat {

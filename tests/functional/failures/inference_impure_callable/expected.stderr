@@ -1,0 +1,3 @@
+error: <case>/main.panack:4:12: pure function cannot call impure function call
+  4 |   result = action.call(1)
+    |            ^

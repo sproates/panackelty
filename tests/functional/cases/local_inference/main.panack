@@ -1,0 +1,41 @@
+import "helpers.panack"
+
+main(): Void {
+  name = "Ada"
+  message = label(name)
+  print(message)
+  answer = 41
+  print(answer + 1)
+  mut counter = 0
+  while counter < 3 { counter = counter + 1 }
+  print(counter)
+  mut balance: Int = 0
+  balance = -1
+  print(balance)
+  price = 41.0
+  print(price + 1.5)
+  groups = [[], [name]]
+  print(groups[1][0])
+  selected = if true { None() } else { Some(name) }
+  match selected { Some(value) => print(value), None() => print("none") }
+  person = Person(name, true)
+  print(person.name)
+  counts = map().put(name, 2)
+  print(counts.get(name))
+  names = set().add(name)
+  print(names.has(name))
+  configured: Port = 8080
+  copied = configured
+  print(copied)
+  action = @increment
+  print(action.call(answer))
+  mut state = "waiting"
+  if person.active { state = "ready" }
+  print(state)
+  data = utf8_encode(name)
+  print(utf8_decode(data))
+  mut total = 0
+  range = 0..3
+  for index in range { value = index; total = total + value }
+  print(total)
+}

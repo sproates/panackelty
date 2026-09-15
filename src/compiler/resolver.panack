@@ -314,11 +314,8 @@ pure resolve_block(block: Block, parent_scope: Set[Str], symbols: ResolverSymbol
         scope = set_add(scope, name)
       },
       AssignmentStatement(name, value) => {
-        if !set_has(scope, name) {
-          diagnostics = append(diagnostics, resolver_diagnostic("unknown name ${name}"))
-        } else {
-        }
         diagnostics = concat(diagnostics, resolve_expression(value, scope, symbols))
+        scope = set_add(scope, name)
       },
       ExpressionStatement(value) => {
         diagnostics = concat(diagnostics, resolve_expression(value, scope, symbols))

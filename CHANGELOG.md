@@ -4,6 +4,18 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Local bindings may omit type annotations: `name = value` declares an immutable
+  local when the name is not visible, and `mut name = value` declares a mutable
+  local. Assignments retain fixed types and require mutability; shadowing remains
+  prohibited. An unknown assignment target now declares a local instead of
+  reporting an unknown-name error.
+- Inferred initializers must determine complete types without evidence from later
+  statements. Nested collection and constructor evidence combines consistently;
+  unresolved types request an annotation. Numeric defaults, guarded domain types,
+  and callable effects are preserved. Function signatures remain explicit.
+
 ## 0.1.0-alpha.2 — 2026-09-15
 
 ### Highlights

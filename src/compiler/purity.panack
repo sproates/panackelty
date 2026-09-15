@@ -9,7 +9,7 @@ pure is_impure_builtin(name: Str): Bool {
   name == "run_bytecode_args"
 }
 
-pure check_expression_purity(expression: Expr, program: Program, environment: Map[Str,Str]): [Diagnostic] {
+pure check_expression_purity(expression: Expr, program: Program, environment: Map[Str,TypeInfo]): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
   match expression {
     LocatedExpr(position, value) => {
@@ -44,7 +44,7 @@ pure check_expression_purity(expression: Expr, program: Program, environment: Ma
         impure = true
         match unlocated_expression(arguments[0]) {
           LocatedExpr(position, value) => {},
-          NameExpr(callable_name) => { if map_has(environment, callable_name) { impure = type_shape(map_get(environment, callable_name)).base != "PureFn"; } else {} },
+          NameExpr(callable_name) => { if map_has(environment, callable_name) { impure = type_shape(map_get(environment, callable_name).name).base != "PureFn"; } else {} },
           FunctionExpr(callable_name) => { callable: FunctionLookup = function_type(program, callable_name); impure = !callable.found || !callable.is_pure; },
           NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, BinaryExpr(operator, left, right) => {}, CallExpr(other_name, other_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
         }
@@ -75,25 +75,56 @@ pure check_expression_purity(expression: Expr, program: Program, environment: Ma
     },
     MatchExpr(subject, arms) => {
       diagnostics = check_expression_purity(subject, program, environment)
+      checked: CheckedExpression = check_expression(subject, environment, map(), program)
+      shape: TypeShape = type_shape(checked.info.name)
+      enum_value: EnumLookup = enum_type(program, shape.base)
+      mut substitutions: Map[Str,Str] = map()
+      mut index: Nat = 0
+      while index < len(enum_value.parameters) && index < len(shape.arguments) {
+        substitutions = map_put(substitutions, enum_value.parameters[index], shape.arguments[index])
+        index = index + 1
+      }
       for arm in arms {
-        diagnostics = concat(diagnostics, check_expression_purity(arm.body, program, environment))
+        mut arm_environment: Map[Str,TypeInfo] = environment
+        for variant in enum_value.variants {
+          if variant.name == arm.pattern.variant {
+            mut binding_index: Nat = 0
+            for binding in arm.pattern.bindings {
+              if binding_index < len(variant.payload) {
+                binding_type: Str = substitute_type(variant.payload[binding_index], enum_value.parameters, substitutions)
+                arm_environment = map_put(arm_environment, binding, plain_type(binding_type))
+              }
+              binding_index = binding_index + 1
+            }
+          }
+        }
+        diagnostics = concat(diagnostics, check_expression_purity(arm.body, program, arm_environment))
       }
     }
   }
   diagnostics
 }
 
-pure check_block_purity(block: Block, program: Program, parent: Map[Str,Str]): [Diagnostic] {
+pure check_block_purity(block: Block, program: Program, parent: Map[Str,TypeInfo]): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
-  mut environment: Map[Str,Str] = parent
+  mut environment: Map[Str,TypeInfo] = parent
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
         diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
-        environment = map_put(environment, name, type_name)
+        if len(type_name) > 0 {
+          environment = map_put(environment, name, TypeInfo(type_name, false, 0, mutable))
+        } else {
+          checked: CheckedExpression = check_expression(value, environment, map(), program)
+          environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, mutable))
+        }
       },
       AssignmentStatement(name, value) => {
         diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+        if !map_has(environment, name) {
+          checked: CheckedExpression = check_expression(value, environment, map(), program)
+          environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
+        }
       },
       ExpressionStatement(value) => {
         diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
@@ -104,7 +135,11 @@ pure check_block_purity(block: Block, program: Program, parent: Map[Str,Str]): [
       },
       ForStatement(name, iterable, body) => {
         diagnostics = concat(diagnostics, check_expression_purity(iterable, program, environment))
-        diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
+        checked: CheckedExpression = check_expression(iterable, environment, map(), program)
+        shape: TypeShape = type_shape(checked.info.name)
+        item: Str = if len(shape.arguments) > 0 { shape.arguments[0] } else { "Nat" }
+        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item))
+        diagnostics = concat(diagnostics, check_block_purity(body, program, loop_environment))
       }
     }
   }
@@ -126,8 +161,8 @@ pure check_program_purity(program: Program): [Diagnostic] {
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
         if is_pure {
-          mut environment: Map[Str,Str] = map()
-          for parameter in parameters { environment = map_put(environment, parameter.name, parameter.type_name); }
+          mut environment: Map[Str,TypeInfo] = map()
+          for parameter in parameters { environment = map_put(environment, parameter.name, plain_type(parameter.type_name)); }
           diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
         } else {
         }

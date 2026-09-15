@@ -1,0 +1,4 @@
+main(): Void {
+  mut count = 0
+  count = -1
+}

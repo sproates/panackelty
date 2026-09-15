@@ -15,7 +15,7 @@ This directory contains the compiler being implemented in Panackelty:
   operators, calls, explicit named function references, receiver-first
   method-call lowering, field access, indexing,
   blocks, bindings, assignments, and
-  local type annotations, including exhaustive value conditionals, optional
+  optional local type annotations, including exhaustive value conditionals, optional
   `else` for `Void` conditionals, and `while` and `for` statements. Pattern matching supports variant payload bindings plus
   expression and block arms. Program-level parsing accepts quoted file-relative
   and extensionless logical import declarations and guarded type declarations,
@@ -28,9 +28,13 @@ This directory contains the compiler being implemented in Panackelty:
   blocks, loops, conditionals, and pattern arms. Its pure module-graph boundary
   accepts source units already held in memory, walks the units reachable from
   an entry module, detects missing, duplicate, and cyclic graphs, and resolves
-  their combined namespace without performing file I/O.
+  their combined namespace without performing file I/O. Plain `name = value`
+  introduces an immutable local only when no local or parameter is visible;
+  explicit declarations retain the no-shadowing rule.
 - `checker.panack` validates type references and generic arity, checks the full
-  expression and statement AST, infers generic record and enum constructors,
+  expression and statement AST, infers local bindings and generic constructors,
+  rejects unresolved inferred locals at their declaration, merges nested
+  constructor/array type evidence, preserves fixed binding types,
   verifies effect-bearing callable types, indirect invocation, functional array
   operations, collection built-ins, and type-directed Map/Set method aliases,
   exhaustive matches, joins control-flow
@@ -40,8 +44,8 @@ This directory contains the compiler being implemented in Panackelty:
 - `purity.panack` completes the frontend by walking guarded-type predicates and
   pure function bodies, including nested blocks, branches, loops, matches, and
   call arguments. It rejects calls to impure built-ins, user functions, and
-  callable values and
-  exposes complete single-source and already-loaded-module frontend entry
+  callable values and retains inferred callable signatures through local, loop, and pattern scopes.
+  It exposes complete single-source and already-loaded-module frontend entry
   points.
 - `emitter.panack` defines the typed bytecode IR and lowers the complete AST to
   deterministic VM instructions, including indirect calls and the iterator

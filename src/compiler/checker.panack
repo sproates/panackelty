@@ -508,24 +508,39 @@ pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str,S
 
 pure merge_types(program: Program, left: Str, right: Str): Str {
   if left == right { left }
+  else { if starts_with(left, "$") { right }
+  else { if starts_with(right, "$") { left }
   else {
-    if starts_with(left, "$") { right }
-    else {
-      if starts_with(right, "$") { left }
-      else {
-        if assignable(program, left, right) { right }
-        else {
-          if assignable(program, right, left) { left }
-          else {
-            left_base: Str = base_type(program, left)
-            right_base: Str = base_type(program, right)
-            if left_base == right_base { left_base }
-            else { if (left_base == "Nat" && right_base == "Int") || (left_base == "Int" && right_base == "Nat") { "Int" } else { "Unknown" } }
-          }
+    left_shape: TypeShape = type_shape(left)
+    right_shape: TypeShape = type_shape(right)
+    callable: Bool = left_shape.base == "Fn" || left_shape.base == "PureFn" || right_shape.base == "Fn" || right_shape.base == "PureFn"
+    if callable {
+      if assignable(program, left, right) { right }
+      else { if assignable(program, right, left) { left } else { "Unknown" } }
+    } else {
+      if left_shape.base == right_shape.base && len(left_shape.arguments) > 0 && len(left_shape.arguments) == len(right_shape.arguments) {
+        mut arguments: [Str] = []
+        mut compatible: Bool = true
+        mut index: Nat = 0
+        while index < len(left_shape.arguments) {
+          merged: Str = merge_types(program, left_shape.arguments[index], right_shape.arguments[index])
+          if merged == "Unknown" { compatible = false }
+          arguments = append(arguments, merged)
+          index = index + 1
         }
+        if compatible { render_type(left_shape.base, arguments) } else { "Unknown" }
+      } else {
+        if assignable(program, left, right) { right }
+        else { if assignable(program, right, left) { left }
+        else {
+          left_base: Str = base_type(program, left)
+          right_base: Str = base_type(program, right)
+          if left_base == right_base { left_base }
+          else { if (left_base == "Nat" && right_base == "Int") || (left_base == "Int" && right_base == "Nat") { "Int" } else { "Unknown" } }
+        } }
       }
     }
-  }
+  } } }
 }
 
 pure infer_template(program: Program, template: Str, actual: Str, parameters: [Str], substitutions: Map[Str,Str]): Map[Str,Str] {
@@ -978,20 +993,59 @@ pure condition_facts(condition: Expr, facts: Map[Str,Bounds], truth: Bool): Map[
   result
 }
 
+// A local initializer must resolve every type argument now; later uses do not
+// supply evidence. Void is allowed inside a callable signature, but not as a value.
+pure inferred_type_complete(name: Str): Bool {
+  mut complete: Bool = len(name) > 0 && name != "Unknown" && !starts_with(name, "$")
+  shape: TypeShape = type_shape(name)
+  for argument in shape.arguments {
+    if !inferred_type_complete(argument) { complete = false }
+  }
+  complete
+}
+
+pure inferred_binding_diagnostics(name: Str, checked: CheckedExpression, value: Expr): [Diagnostic] {
+  mut diagnostics: [Diagnostic] = []
+  if len(checked.diagnostics) == 0 {
+    if checked.info.name == "Void" {
+      diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot infer local ${name} from Void; Void is not a value"))
+    } else {
+      if !inferred_type_complete(checked.info.name) {
+        diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot infer complete type for local ${name}; add a type annotation"))
+      }
+    }
+  }
+  diagnostics
+}
+
+pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
+  TypeInfo(name, value.has_nat && !mutable, value.nat_value, mutable)
+}
+
 pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedBlock {
   mut environment: Map[Str,TypeInfo] = parent
   mut diagnostics: [Diagnostic] = []
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
-        diagnostics = concat(diagnostics, require_type(program, type_name, [], false))
-        checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
-        if !assignable_checked(program, checked.info, type_name, value, facts) { value_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${type_name}; guard is not proven")); } else {}
-        environment = map_put(environment, name, TypeInfo(type_name, checked.info.has_nat && !mutable, checked.info.nat_value, mutable))
+        checked: CheckedExpression = check_expression(value, environment, facts, program)
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        mut binding_type: Str = type_name
+        if len(type_name) == 0 {
+          binding_type = checked.info.name
+          diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
+        } else {
+          diagnostics = concat(diagnostics, require_type(program, type_name, [], false))
+          if !assignable_checked(program, checked.info, type_name, value, facts) { value_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${type_name}; guard is not proven")); } else {}
+        }
+        environment = map_put(environment, name, local_binding_info(binding_type, checked.info, mutable))
       },
       AssignmentStatement(name, value) => {
         target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
-        if target.name == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("unknown name ${name}")); }
+        if !map_has(environment, name) {
+          diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
+          environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
+        }
         else { if !target.mutable { diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign to immutable local ${name}")); } else { if !assignable_checked(program, checked.info, target.name, value, facts) { value_type: Str = checked.info.name; target_type: Str = target.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${target_type}")); } else {} } }
       },
       ExpressionStatement(value) => { checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics); },

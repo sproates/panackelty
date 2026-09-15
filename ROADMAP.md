@@ -153,12 +153,23 @@ both the guarantees they provide and the clarity of the resulting workflow.
       preserving imported-module ownership and source snapshots; cover tabs,
       Unicode, CRLF, EOF, and header-only fallback in renderer and CLI tests
 
-- [ ] Design automatic local type inference while retaining explicit annotations
-      where they document public APIs, resolve ambiguity, or express a contract
-- [ ] Specify which types, generic arguments, effects, and guarded facts may be
-      inferred without making compilation unpredictable
-- [ ] Preserve principal, deterministic results and provide an explicit escape
-      hatch when inference is ambiguous
+- [x] Implement initializer-based local inference with optional annotations,
+      fixed types, immutable defaults, explicit `mut`, and no shadowing;
+      preserve numeric defaults, guarded types, and callable effects
+- [x] Reject unresolved local types at their declaration with an annotation hint;
+      resolve nested generic evidence consistently within one initializer
+- [ ] Expand inference beyond this first local implementation: specify systematic
+      expected-type propagation through calls, constructors, collections, and
+      future callbacks; avoid unrelated one-off inference exceptions
+- [ ] Evaluate explicit inference variables and constraint solving before allowing
+      later uses or assignments to resolve incomplete local types; decide whether
+      declaration-local resolution remains the default language rule
+- [ ] Evaluate delayed numeric defaulting, generic function inference, and effect
+      inference separately, retaining explicit public API and domain contracts
+- [ ] Specify determinism, principal types where applicable, ambiguity escape
+      hatches, diagnostic quality, and compile-time budgets for each expansion
+- [ ] Add unused-binding diagnostics to help catch misspelled assignments that
+      become new immutable declarations under plain `=` syntax
 - [ ] Define a structured diagnostic model with stable error codes, primary and
       secondary source spans, inferred-versus-expected types, and causal chains
 - [ ] Make type errors explain the mismatch in source terms and suggest a concrete

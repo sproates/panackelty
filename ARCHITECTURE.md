@@ -135,7 +135,7 @@ to ordinary iterator, persistent-array, and indirect-call instructions. The VM
 rechecks dynamic target existence, arity, and purity for untrusted artifacts.
 The
 Panackelty-hosted checker validates types across the combined
-module graph, infers generic constructor results, checks control-flow result
+module graph, infers local bindings and generic constructor results, checks control-flow result
 joins and exhaustive matches, and proves the supported guard predicates and
 safe natural subtraction facts. Both frontends reject calls from pure functions
 to impure functions; the Panackelty-hosted purity pass enforces that boundary
@@ -143,6 +143,19 @@ across guarded-type predicates and all nested expression and statement
 positions. Only a resolved, type-checked, and purity-checked program reaches the
 emitter. The emitter produces a named function table containing stack
 instructions and purity metadata.
+
+`BindingStatement` carries an empty annotation string for `mut name = value`.
+`AssignmentStatement` represents plain `name = value`; the resolver checks its
+initializer before introducing a previously unseen name. The checker uses the
+same lexical environment to distinguish inferred immutable declarations from
+assignments. Inferred types must contain no unresolved constructor/collection
+parameters at that declaration. Nested generic evidence is merged recursively.
+The purity pass retains checked types for inferred locals, loop variables, and
+pattern bindings so callable effects survive aliases and nested scopes.
+Both the transitional Python frontend and the self-hosted frontend implement
+these rules. The emitter still uses the existing `STORE` instruction for both
+forms; the VM and bytecode format do not change. This is local inference, not a
+solver that gathers constraints from later uses.
 
 The Panackelty-hosted emitter in `src/compiler/emitter.panack` now lowers every
 accepted AST form to the stable instruction contract. Its typed intermediate

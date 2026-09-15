@@ -1,0 +1,6 @@
+record Person { name: Str, active: Bool }
+enum Option[T] { None, Some(T) }
+type Port = Nat where value >= 1 && value <= 65535
+
+pure increment(value: Nat): Nat { value + 1 }
+pure label(value: Str): Str { "Hi, ${value}" }

@@ -426,7 +426,7 @@ class PanackeltyProgramTests(unittest.TestCase):
 
     def test_source_diagnostics_from_run_and_disasm(self):
         for name in ("unknown_name", "imported_unknown_name", "unexpected_character",
-                     "same_line_without_separator"):
+                     "same_line_without_separator", "inference_empty_array", "inference_immutable"):
             source = FAILURES / name / "main.panack"
             expected = (source.parent / "expected.stderr").read_text()
             for command in ("run", "disasm"):

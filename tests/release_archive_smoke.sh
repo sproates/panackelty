@@ -90,6 +90,21 @@ run_clean run hello.bc gamma >bytecode.stdout 2>bytecode.stderr || \
 cmp bytecode.expected bytecode.stdout || fail "bytecode output differs"
 test ! -s bytecode.stderr || fail "bytecode execution wrote unexpected stderr"
 
+cat >inferred.panack <<'EOF'
+main(): Void {
+  name = "Ada"
+  mut total = 0
+  for value in [1, 2, 3] { total = total + value }
+  print(name)
+  print(total)
+}
+EOF
+printf 'Ada\n6\n' >inferred.expected
+run_clean run inferred.panack >inferred.stdout 2>inferred.stderr || \
+  fail "inferred source execution failed"
+cmp inferred.expected inferred.stdout || fail "inferred source output differs"
+test ! -s inferred.stderr || fail "inferred source wrote unexpected stderr"
+
 cat >broken.panack <<'EOF'
 main(): Void {
   print(missing)

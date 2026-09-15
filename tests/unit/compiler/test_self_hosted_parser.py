@@ -287,12 +287,18 @@ class SelfHostedParserTests(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertEqual(self.parse_block_source(source), expected)
 
+    def test_parses_inferred_bindings_without_new_operators(self):
+        self.assertEqual(
+            self.parse_block_source('{ name = "Ada"; mut ready = true; ready = false; name }'),
+            '{ name = "Ada"; mut ready = true; ready = false; name }',
+        )
+
     def test_reports_malformed_blocks(self):
         cases = {
             "42": "expected opening brace",
             "{": "expected closing brace",
             "{ mut }": "expected binding name",
-            "{ mut name Nat = 1; }": "expected colon after binding name",
+            "{ mut name Nat = 1; }": "expected : or = after binding name",
             "{ name: = 1; }": "expected type",
             "{ name: Nat 1; }": "expected = after binding type",
             "{ print(1) print(2); }": "expected semicolon or closing brace",

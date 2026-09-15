@@ -167,11 +167,12 @@ class RepositoryLayoutTests(unittest.TestCase):
         self.assertIn('<link rel="canonical" href="https://panackelty.com/">', index)
         self.assertIn('href="styles.css"', index)
         self.assertIn("https://github.com/sproates/panackelty", index)
+        version = (PROJECT / "VERSION").read_text(encoding="utf-8").strip()
         self.assertIn(
-            "https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.1",
+            f"https://github.com/sproates/panackelty/releases/tag/v{version}",
             index,
         )
-        self.assertIn("Developer preview 0.1.0-alpha.1 is available", index)
+        self.assertIn(f"Developer preview {version} is available", index)
         self.assertNotIn("are being prepared", index)
         self.assertNotIn('href="http://', index)
         self.assertNotIn('src="http://', index)

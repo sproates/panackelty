@@ -1,6 +1,6 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.1` is a developer preview. It is intended for learning,
+Panackelty `0.1.0-alpha.2` is a developer preview. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 
@@ -22,6 +22,11 @@ the platform's standard SHA-256 utility for download verification. Python,
 dependencies.
 
 ## Release gate
+
+Merging to `main` runs checks and creates CI artifacts; it does not publish a
+release. Prepare version, changelog, and download-link updates in a release PR.
+After its required checks pass and it is merged, push an annotated version tag
+on that merged commit. The tag message supplies the public release notes.
 
 A release tag must exactly match `v` followed by the version in `VERSION`. The
 tag workflow first runs the complete development suite, then independently

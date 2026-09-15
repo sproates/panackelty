@@ -474,6 +474,20 @@ validation still includes the stage-2/stage-3 fixed-point proof. Cross-platform
 CI timings remain the measure of PR feedback speed; compiler-only benchmarks
 must not be presented as full-workflow savings.
 
+### Linux validation follow-up
+
+A unit-test profile found repeated compilation of self-hosted probes. The lexer,
+resolver, checker, purity, emitter, driver, and codec tests now compile each
+parameterised probe once per class and run every input in a fresh VM. Local unit
+validation fell from 13.50 seconds to 6.65 seconds, with all prior assertions
+retained and new regression coverage included.
+
+The native VM now records string code-point counts and ASCII metadata once,
+avoiding repeated scans for length and ASCII offsets. A paired compiler build
+measured 12.79 seconds before and 5.85 seconds after, producing byte-identical
+compiler artifacts. The required cross-platform CI jobs remain the validation
+of Linux budget recovery; no platform checks or fixed-point evidence are skipped.
+
 ## Harden and expand test coverage — in progress
 
 The goal is to make regressions difficult to introduce and failures easy to

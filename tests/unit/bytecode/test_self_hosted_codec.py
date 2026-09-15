@@ -1,76 +1,41 @@
 import decimal
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from panackelty import Code, VM, build, bytecode_bytes
+from panackelty import Code, build, bytecode_bytes
 from tests.unit.bytecode.test_serialization import raw_artifact, raw_function, u16
 from tests.unit.compiler.test_self_hosted_emitter import render_bootstrap
+from tests.unit.support import CompilerHarnessTestCase
 
 
 PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
-BYTECODE = PROJECT / "src/bytecode"
 
 
-class SelfHostedBytecodeCodecTests(unittest.TestCase):
+class SelfHostedBytecodeCodecTests(CompilerHarnessTestCase):
     def run_decoder_tool(self, artifact, function, *, binary=False):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            compiler = root / "compiler"
-            bytecode = root / "bytecode"
-            compiler.mkdir()
-            bytecode.mkdir()
-            for path in COMPILER.glob("*.panack"):
-                (compiler / path.name).write_text(
-                    path.read_text(encoding="utf-8"), encoding="utf-8"
-                )
-            for path in BYTECODE.glob("*.panack"):
-                (bytecode / path.name).write_text(
-                    path.read_text(encoding="utf-8"), encoding="utf-8"
-                )
-            source = root / "input.bc"
-            destination = root / ("output.bc" if binary else "output.txt")
+            source = Path(directory) / "input.bc"
+            destination = Path(directory) / "output"
             source.write_bytes(artifact)
             writer = "write_bytes" if binary else "write_file"
-            main = bytecode / "test_main.panack"
-            main.write_text(
-                'import "decoder.panack";\n'
-                f"main(): Void {{ {writer}({json.dumps(str(destination))}, "
-                f"{function}(read_bytes({json.dumps(str(source))}))); }}",
-                encoding="utf-8",
+            self.run_harness(
+                "bytecode/decoder.panack",
+                f"main(): Void {{ {writer}(command_args()[1], "
+                f"{function}(read_bytes(command_args()[0]))); }}",
+                [str(source), str(destination)],
             )
-            VM(build(main)).run()
             return destination.read_bytes() if binary else destination.read_text(encoding="utf-8")
 
     def serialize(self, source):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            compiler = root / "compiler"
-            bytecode = root / "bytecode"
-            compiler.mkdir()
-            bytecode.mkdir()
-            for path in COMPILER.glob("*.panack"):
-                (compiler / path.name).write_text(
-                    path.read_text(encoding="utf-8"), encoding="utf-8"
-                )
-            for path in BYTECODE.glob("*.panack"):
-                (bytecode / path.name).write_text(
-                    path.read_text(encoding="utf-8"), encoding="utf-8"
-                )
-            destination = root / "actual.bc"
-            source_expression = ' + "$" + '.join(
-                json.dumps(part) for part in source.split("$")
+            destination = Path(directory) / "actual.bc"
+            self.run_harness(
+                "bytecode/decoder.panack",
+                "main(): Void { write_bytes(command_args()[1], "
+                "compile_source_bytecode(command_args()[0])); }",
+                [source, str(destination)],
             )
-            main = bytecode / "test_main.panack"
-            main.write_text(
-                'import "decoder.panack";\n'
-                f"main(): Void {{ write_bytes({json.dumps(str(destination))}, "
-                f"compile_source_bytecode({source_expression})); }}",
-                encoding="utf-8",
-            )
-            VM(build(main)).run()
             return destination.read_bytes()
 
     def expected(self, source):

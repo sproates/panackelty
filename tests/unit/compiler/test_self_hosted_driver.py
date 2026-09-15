@@ -1,54 +1,29 @@
 import contextlib
 import io
-import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from panackelty import VM, build, bytecode_bytes
+from panackelty import build, bytecode_bytes
+from tests.unit.support import CompilerHarnessTestCase
 
 
 PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
-BYTECODE = PROJECT / "src/bytecode"
 STDLIB = PROJECT / "src/stdlib"
 
 
-class SelfHostedDriverTests(unittest.TestCase):
-    def materialize(self, root):
-        root.mkdir(parents=True)
-        compiler = root / "compiler"
-        bytecode = root / "bytecode"
-        compiler.mkdir()
-        bytecode.mkdir()
-        for path in COMPILER.glob("*.panack"):
-            (compiler / path.name).write_text(
-                path.read_text(encoding="utf-8"), encoding="utf-8"
-            )
-        for path in BYTECODE.glob("*.panack"):
-            (bytecode / path.name).write_text(
-                path.read_text(encoding="utf-8"), encoding="utf-8"
-            )
-        return compiler
-
-    def invoke(self, root, arguments):
-        compiler = self.materialize(root)
-        rendered = ", ".join(json.dumps(argument) for argument in arguments)
-        main = compiler / "test_main.panack"
-        main.write_text(
-            'import "driver.panack";\n'
-            f"main(): Void {{ status: Nat = run_compiler_command([{rendered}]); "
-            'if status != 0 { print("status ${status}"); } else {} }',
-            encoding="utf-8",
-        )
-        stdout = io.StringIO()
+class SelfHostedDriverTests(CompilerHarnessTestCase):
+    def invoke(self, arguments):
         stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            VM(
-                build(main),
+        with contextlib.redirect_stderr(stderr):
+            stdout = self.run_harness(
+                "compiler/driver.panack",
+                "main(): Void { status: Nat = run_compiler_command(command_args()); "
+                'if status != 0 { print("status ${status}"); } else {} }',
+                arguments,
                 environment={"PANACKELTY_STDLIB_PATH": str(STDLIB)},
-            ).run()
-        return stdout.getvalue(), stderr.getvalue()
+            )
+        return stdout, stderr.getvalue()
 
     def test_checks_compiles_disassembles_and_runs_source(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -59,32 +34,32 @@ class SelfHostedDriverTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            self.assertEqual(self.invoke(root / "check", ["check", str(source)]), ("ok\n", ""))
+            self.assertEqual(self.invoke(["check", str(source)]), ("ok\n", ""))
 
             output = root / "program.bc"
             stdout, stderr = self.invoke(
-                root / "compile", ["compile", str(source), "-o", str(output)]
+                ["compile", str(source), "-o", str(output)]
             )
             self.assertEqual((stdout, stderr), (f"wrote {output}\n", ""))
             self.assertEqual(output.read_bytes(), bytecode_bytes(build(source)))
 
-            stdout, stderr = self.invoke(root / "disasm", ["disasm", str(source)])
+            stdout, stderr = self.invoke(["disasm", str(source)])
             self.assertIn("FUNCTION|main|impure|", stdout)
             self.assertIn("CALL|print|1", stdout)
             self.assertEqual(stderr, "")
 
-            self.assertEqual(self.invoke(root / "run", ["run", str(source)]), ("42\n", ""))
+            self.assertEqual(self.invoke(["run", str(source)]), ("42\n", ""))
 
             self.assertEqual(
-                self.invoke(root / "artifact-check", ["check", str(output)]),
+                self.invoke(["check", str(output)]),
                 ("ok\n", ""),
             )
             artifact_disassembly = self.invoke(
-                root / "artifact-disasm", ["disasm", str(output)]
+                ["disasm", str(output)]
             )
             self.assertEqual(artifact_disassembly, (stdout, ""))
             self.assertEqual(
-                self.invoke(root / "artifact-run", [str(output)]),
+                self.invoke([str(output)]),
                 ("42\n", ""),
             )
 
@@ -103,7 +78,7 @@ class SelfHostedDriverTests(unittest.TestCase):
             output = root / "self.bc"
 
             stdout, stderr = self.invoke(
-                root / "tool", ["compile", str(source), "-o", str(output)]
+                ["compile", str(source), "-o", str(output)]
             )
 
             self.assertEqual((stdout, stderr), (f"wrote {output}\n", ""))
@@ -137,7 +112,7 @@ class SelfHostedDriverTests(unittest.TestCase):
             output = root / "logical.bc"
 
             stdout, stderr = self.invoke(
-                root / "logical-tool", ["compile", str(source), "-o", str(output)]
+                ["compile", str(source), "-o", str(output)]
             )
 
             self.assertEqual((stdout, stderr), (f"wrote {output}\n", ""))
@@ -151,7 +126,7 @@ class SelfHostedDriverTests(unittest.TestCase):
                 'import "absent.panack"; main(): Void {}', encoding="utf-8"
             )
             stdout, stderr = self.invoke(
-                root / "missing-tool", ["check", str(missing)]
+                ["check", str(missing)]
             )
             self.assertEqual(stdout, "status 1\n")
             self.assertIn("missing source module", stderr)
@@ -163,7 +138,7 @@ class SelfHostedDriverTests(unittest.TestCase):
             )
             second.write_text('import "first.panack";', encoding="utf-8")
             stdout, stderr = self.invoke(
-                root / "cycle-tool", ["check", str(first)]
+                ["check", str(first)]
             )
             self.assertEqual(stdout, "status 1\n")
             self.assertIn("import cycle includes", stderr)

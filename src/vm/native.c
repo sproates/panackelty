@@ -81,7 +81,8 @@ struct Value {
 		PnBigInt	integer;
 		Decimal		decimal;
 		struct {
-			size_t		length;
+			size_t		length, characters;
+			bool		ascii;
 			uint8_t	       *data;
 		}		bytes;
 		bool		boolean;
@@ -187,6 +188,15 @@ static Value * value_data(ValueKind kind, const uint8_t * data, size_t length){
 		memcpy(v->as.bytes.data, data, length);
 	v->as.bytes.data[length] = 0;
 	v->as.bytes.length = length;
+	if (kind == V_STR) {
+		v->as.bytes.ascii = true;
+		for (size_t i = 0; i < length; i++) {
+			if ((data[i] & 0xc0) != 0x80)
+				v->as.bytes.characters++;
+			if (data[i] >= 0x80)
+				v->as.bytes.ascii = false;
+		}
+	}
 	return v;
 }
 static Value * value_sequence(ValueKind kind, Value * *items, size_t count) {
@@ -1115,16 +1125,18 @@ static void	frame_free(Frame * f) {
 	} free(f->stack);
 	free(f->locals);
 }
-static size_t utf8_count(const uint8_t * s, size_t n){
-	size_t		count = 0;
-	for (size_t i = 0; i < n; i++)
-		if ((s[i] & 0xc0) != 0x80)
-			count++;
-	return count;
-}
 static bool
-utf8_offset(const uint8_t * s, size_t n, size_t index, size_t * start, size_t * end)
+utf8_offset(const Value * value, size_t index, size_t * start, size_t * end)
 {
+	if (index >= value->as.bytes.characters)
+		return false;
+	if (value->as.bytes.ascii) {
+		*start = index;
+		*end = index + 1;
+		return true;
+	}
+	const uint8_t *s = value->as.bytes.data;
+	size_t n = value->as.bytes.length;
 	size_t		cp = 0, i = 0;
 	while (i < n) {
 		size_t		at = i;
@@ -1424,7 +1436,7 @@ static Value * builtin_call(VM * vm, const char *name, Value * *a){
 	if (!strcmp(name, "len")) {
 		REQUIRE(a[0]->kind == V_STR || a[0]->kind == V_BYTES || a[0]->kind == V_ARRAY,
 		        "VM trap: len requires Str, Bytes, or Array");
-		size_t		n = a[0]->kind == V_STR ? utf8_count(a[0]->as.bytes.data, a[0]->as.bytes.length) : a[0]->kind == V_BYTES ? a[0]->as.bytes.length : a[0]->as.sequence.count;
+		size_t		n = a[0]->kind == V_STR ? a[0]->as.bytes.characters : a[0]->kind == V_BYTES ? a[0]->as.bytes.length : a[0]->as.sequence.count;
 		return value_size(n);
 	}
 	if (!strcmp(name, "append")) {
@@ -1459,19 +1471,19 @@ static Value * builtin_call(VM * vm, const char *name, Value * *a){
 		if (!value_index(a[1], &start) || !value_index(a[2], &end) || start > end) {
 			vm->error = "VM trap: invalid string slice";
 			return NULL;
-		} size_t	count = utf8_count(a[0]->as.bytes.data, a[0]->as.bytes.length);
+		} size_t	count = a[0]->as.bytes.characters;
 		if (end > count) {
 			vm->error = "VM trap: invalid string slice";
 			return NULL;
 		} if (start == count)
 			bs = a[0]->as.bytes.length;
-		else if (!utf8_offset(a[0]->as.bytes.data, a[0]->as.bytes.length, start, &bs, &be))
+		else if (!utf8_offset(a[0], start, &bs, &be))
 			return NULL;
 		if (end == count)
 			be = a[0]->as.bytes.length;
 		else {
 			size_t		ignored;
-			if (!utf8_offset(a[0]->as.bytes.data, a[0]->as.bytes.length, end, &be, &ignored))
+			if (!utf8_offset(a[0], end, &be, &ignored))
 				return NULL;
 		} return value_data(V_STR, a[0]->as.bytes.data + bs, be - bs);
 	}
@@ -1484,9 +1496,9 @@ static Value * builtin_call(VM * vm, const char *name, Value * *a){
 		if (!strcmp(name, "starts_with_at")) {
 			if (!value_index(a[2], &offset))
 				return value_bool(false);
-			if (offset == utf8_count(a[0]->as.bytes.data, a[0]->as.bytes.length))
+			if (offset == a[0]->as.bytes.characters)
 				bs = a[0]->as.bytes.length;
-			else if (!utf8_offset(a[0]->as.bytes.data, a[0]->as.bytes.length, offset, &bs, &be))
+			else if (!utf8_offset(a[0], offset, &bs, &be))
 				return value_bool(false);
 		} bool		result = a[1]->as.bytes.length <= a[0]->as.bytes.length - bs && !memcmp(a[0]->as.bytes.data + bs, a[1]->as.bytes.data, a[1]->as.bytes.length);
 		return value_bool(result);
@@ -1953,7 +1965,7 @@ static Value * execute(VM * vm, Fn * fn, Value * *arguments) {
 				else
 					v = value_size(a->as.bytes.data[index]);
 			} else if (a->kind == V_STR) {
-				if (!utf8_offset(a->as.bytes.data, a->as.bytes.length, index, &start, &end))
+				if (!utf8_offset(a, index, &start, &end))
 					vm->error = "VM trap: index is out of bounds";
 				else
 					v = value_data(V_STR, a->as.bytes.data + start, end - start);

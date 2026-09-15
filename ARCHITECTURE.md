@@ -237,6 +237,11 @@ binary layout, control flow, verification boundary, and trap conditions are froz
 dynamically invalid bytecode traps at the VM boundary instead of exposing a
 host-language exception.
 
+Native strings record code-point count and an ASCII flag at construction.
+Length reads that count; ASCII index, slice, and prefix offsets are direct,
+while non-ASCII offsets traverse UTF-8. This removes repeated scanning during
+compiler lexing without changing bytecode or language semantics.
+
 The portable C11 seed VM in `src/vm/native.c` independently decodes, verifies,
 and executes version-7 artifacts. Its reference-counted values and
 arbitrary-precision numerics are implemented without Python or third-party
@@ -433,3 +438,9 @@ the fixed point. This keeps the proof singular without reducing its compiler or
 standard-library comparisons. Focused compiler, bytecode, and VM targets combine
 their internal suites with representative public-CLI checks. The complete validation phase timings are published in CI summaries and
 retained as run artifacts; focused targets report timings when run locally. `SELF_HOSTING.md` records the completed stages.
+
+Self-hosted component unit tests compile parameterised harnesses once per test
+class. Each input executes in a fresh Python VM with fresh arguments, environment,
+and output capture. The harness reuse is limited to the current test class in
+one process; it is not a persistent compiler cache. Source and module inputs,
+bytecode files, and expected success and failure assertions remain per-case.

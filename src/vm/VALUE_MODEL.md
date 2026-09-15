@@ -16,7 +16,11 @@ kind, reference count, and payload.
 - `Dec` stores a signed arbitrary-precision coefficient and a signed base-10
   exponent. Arithmetic preserves exact scale; division succeeds only when the
   reduced denominator contains no prime factors other than two and five.
-- `Str` owns validated UTF-8 bytes and a lazily computed code-point count.
+- `Str` owns UTF-8 bytes plus a code-point count and an ASCII flag computed
+  once at construction. Length reads the count directly; ASCII indexing and
+  slice/prefix offsets use byte offsets directly, while non-ASCII offsets retain
+  UTF-8 traversal. These immutable fields are internal metadata, not serialized
+  bytecode, and do not change code-point semantics or bounds checks.
 - Arrays, maps, sets, records, variants, byte buffers, and ranges are immutable
   heap objects. Persistent operations allocate a new container and retain the
   referenced elements; they never mutate an input container.

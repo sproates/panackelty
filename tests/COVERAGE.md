@@ -138,3 +138,15 @@ language behavior.
 3. Expand the Panackelty-hosted compiler corpus beyond its current skeleton program.
 4. Establish a line/branch coverage baseline for the Python bootstrap while
    keeping this behavioral matrix as the primary completeness measure.
+
+## Validation performance regressions
+
+- `unit/test_support.py` verifies compiled probe reuse across distinct arguments
+  and a failed invocation, while requiring fresh VM execution.
+- `functional/cases/string_boundaries` checks length, indexing, slicing, and
+  prefix offsets on ASCII, mixed-width Unicode, combining characters, empty and
+  NUL-containing strings, plus concatenated, interpolated, reversed, and decoded
+  values. The ordinary functional and native-conformance discovery paths run it.
+- `NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap`
+  retains empty, past-end, huge-index, reversed-slice, and past-end-slice traps
+  across the ASCII fast path and non-ASCII traversal.

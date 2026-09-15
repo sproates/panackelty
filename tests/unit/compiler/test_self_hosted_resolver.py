@@ -1,47 +1,27 @@
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from panackelty import VM, build
-
-
-PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
+from tests.unit.support import CompilerHarnessTestCase
 
 
-class SelfHostedResolverTests(unittest.TestCase):
-    def run_resolver(self, expression: str) -> str:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for name in ("types.panack", "lexer.panack", "parser.panack", "resolver.panack"):
-                (root / name).write_text(
-                    (COMPILER / name).read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            main = root / "main.panack"
-            main.write_text(
-                'import "resolver.panack";\n'
-                f"main(): Void {{ print({expression}); }}",
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                VM(build(main)).run()
-            return output.getvalue().removesuffix("\n")
+class SelfHostedResolverTests(CompilerHarnessTestCase):
+    def run_resolver(self, expression: str, arguments=()) -> str:
+        return self.run_harness(
+            "compiler/resolver.panack",
+            f"main(): Void {{ print({expression}); }}",
+            arguments,
+        ).removesuffix("\n")
 
     def resolve_source(self, source: str) -> str:
-        return self.run_resolver(f"resolve_source({json.dumps(source)})")
+        return self.run_resolver("resolve_source(command_args()[0])", [source])
 
     def resolve_modules(self, sources: list[tuple[str, str]], entry: str) -> str:
         loaded = ", ".join(
-            f"LoadedSource({json.dumps(path)}, {json.dumps(source)})"
-            for path, source in sources
+            f"LoadedSource(command_args()[{2 * index + 1}], command_args()[{2 * index + 2}])"
+            for index in range(len(sources))
         )
+        arguments = [entry] + [value for pair in sources for value in pair]
         return self.run_resolver(
-            f"resolve_loaded_sources([{loaded}], {json.dumps(entry)})"
+            f"resolve_loaded_sources([{loaded}], command_args()[0])", arguments
         )
 
     def test_resolves_top_level_callables_builtins_and_local_names(self):

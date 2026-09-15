@@ -1,53 +1,28 @@
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from panackelty import Checker, PanackeltyError, Parser, VM, build, lex
-
-
-PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
+from panackelty import Checker, PanackeltyError, Parser, lex
+from tests.unit.support import CompilerHarnessTestCase
 
 
-class SelfHostedCheckerTests(unittest.TestCase):
-    def run_checker(self, expression: str) -> str:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for name in (
-                "types.panack",
-                "lexer.panack",
-                "parser.panack",
-                "resolver.panack",
-                "checker.panack",
-            ):
-                (root / name).write_text(
-                    (COMPILER / name).read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            main = root / "main.panack"
-            main.write_text(
-                'import "checker.panack";\n'
-                f"main(): Void {{ print({expression}); }}",
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                VM(build(main)).run()
-            return output.getvalue().removesuffix("\n")
+class SelfHostedCheckerTests(CompilerHarnessTestCase):
+    def run_checker(self, expression: str, arguments=()) -> str:
+        return self.run_harness(
+            "compiler/checker.panack",
+            f"main(): Void {{ print({expression}); }}",
+            arguments,
+        ).removesuffix("\n")
 
     def check_source(self, source: str) -> str:
-        return self.run_checker(f"check_source_types({json.dumps(source)})")
+        return self.run_checker("check_source_types(command_args()[0])", [source])
 
     def check_modules(self, sources: list[tuple[str, str]], entry: str) -> str:
         loaded = ", ".join(
-            f"LoadedSource({json.dumps(path)}, {json.dumps(source)})"
-            for path, source in sources
+            f"LoadedSource(command_args()[{2 * index + 1}], command_args()[{2 * index + 2}])"
+            for index in range(len(sources))
         )
+        arguments = [entry] + [value for pair in sources for value in pair]
         return self.run_checker(
-            f"check_loaded_source_types([{loaded}], {json.dumps(entry)})"
+            f"check_loaded_source_types([{loaded}], command_args()[0])", arguments
         )
 
     @staticmethod

@@ -1,0 +1,34 @@
+describe(text: Str): Void {
+  print(len(text))
+  print(starts_with_at(text, "", len(text)))
+  print(slice(text, 0, len(text)) == text)
+  mut rebuilt: Str = ""
+  for index in 0..len(text) {
+    rebuilt = rebuilt + text[index]
+  }
+  print(rebuilt)
+}
+
+main(): Void {
+  ascii: Str = "abc"
+  unicode: Str = "Aλ中🙂é"
+  describe(ascii)
+  describe(unicode)
+  describe("")
+  print(len(ascii + "λ🙂"))
+  interpolated: Str = "${ascii}${unicode}"
+  print(len(interpolated))
+  print(len(reverse(unicode)))
+  print(len(utf8_decode(utf8_encode(unicode))))
+  print(slice(unicode, 1, 4))
+  print(slice(ascii, 3, 3) == "")
+  print(slice(unicode, 6, 6) == "")
+  print(starts_with_at(unicode, "🙂", 3))
+  print(starts_with_at(unicode, "", 7))
+  print(starts_with_at(ascii, "", 4))
+  print(starts_with_at(ascii, "", 999999999999999999999999999999))
+  nul: Str = utf8_decode(byte_append(bytes(), 0))
+  print(len(nul))
+  print(nul[0] == nul)
+  print(slice("a" + nul, 1, 2) == nul)
+}

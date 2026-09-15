@@ -36,3 +36,10 @@ warning checks. `CC`, `CPPFLAGS`, `CFLAGS`, `LDFLAGS`, and `LDLIBS` are
 configurable. Run `make clean` before changing flags, for example before
 `make native CFLAGS="-O0 -g"` for debugging. Optimisation does not change the
 bytecode contract or disable runtime verification.
+
+String construction records code-point count and whether every byte is ASCII.
+Length is constant time, and ASCII indexing, slicing, and prefix-offset lookup
+avoid rescanning the string. Non-ASCII offsets retain UTF-8 traversal. Every
+string-producing operation uses the same constructor, including concatenation,
+interpolation, slicing, reversal, decoding, and host inputs; bounds and UTF-8
+validation remain in place.

@@ -1,15 +1,7 @@
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from panackelty import Checker, Compiler, Parser, VM, build, lex
-
-
-PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
+from panackelty import Checker, Compiler, Parser, lex
+from tests.unit.support import CompilerHarnessTestCase
 
 
 def render_operand(op, arg):
@@ -57,38 +49,15 @@ def render_bootstrap(source):
     return "\n".join(lines) + "\n"
 
 
-class SelfHostedEmitterTests(unittest.TestCase):
+class SelfHostedEmitterTests(CompilerHarnessTestCase):
     maxDiff = None
 
     def emit(self, source):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for name in (
-                "types.panack",
-                "lexer.panack",
-                "parser.panack",
-                "resolver.panack",
-                "checker.panack",
-                "purity.panack",
-                "emitter.panack",
-            ):
-                (root / name).write_text(
-                    (COMPILER / name).read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            main = root / "main.panack"
-            source_expression = ' + "$" + '.join(
-                json.dumps(part) for part in source.split("$")
-            )
-            main.write_text(
-                'import "emitter.panack";\n'
-                f"main(): Void {{ print(compile_source_disassembly({source_expression})); }}",
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                VM(build(main)).run()
-            return output.getvalue().removesuffix("\n")
+        return self.run_harness(
+            "compiler/emitter.panack",
+            "main(): Void { print(compile_source_disassembly(command_args()[0])); }",
+            [source],
+        ).removesuffix("\n")
 
     def assert_differential(self, source):
         self.assertEqual(self.emit(source), render_bootstrap(source))

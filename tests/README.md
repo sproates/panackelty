@@ -113,3 +113,14 @@ expected output lives under `tests/functional/expected/examples` with the same
 stem and a `.stdout` extension, keeping every documented example executable.
 The release archive includes the complete directory so links in its language
 tour resolve to the same programs validated by this harness.
+
+Self-hosted lexer, resolver, checker, purity, emitter, driver, and bytecode tests
+use `CompilerHarnessTestCase` to compile each parameterised probe once per class.
+Test inputs travel through command arguments or temporary files instead of being
+embedded into a newly compiled probe each time. Every invocation constructs a
+fresh VM; output and environment are isolated even after a failed invocation.
+Harnesses are rebuilt in each test process, with no persistent artifact cache.
+The `string_boundaries` functional case covers ASCII and mixed-width Unicode,
+combining characters, empty strings, NULs, and derived string values through
+source execution, saved bytecode, and native conformance. Native unit tests
+retain out-of-range indexing and invalid slicing failures.

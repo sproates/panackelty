@@ -1,39 +1,19 @@
-import contextlib
-import io
 import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from panackelty import VM, build
-
-
-PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
+from tests.unit.support import CompilerHarnessTestCase
 
 
-class SelfHostedLexerTests(unittest.TestCase):
+class SelfHostedLexerTests(CompilerHarnessTestCase):
     def run_program(self, main_source: str) -> str:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for name in ("types.panack", "lexer.panack"):
-                (root / name).write_text(
-                    (COMPILER / name).read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            main = root / "main.panack"
-            main.write_text(
-                f'import "lexer.panack";\n{main_source}',
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                VM(build(main)).run()
-            return output.getvalue()
+        return self.run_harness("compiler/lexer.panack", main_source)
 
     def render_lex(self, source: str) -> str:
-        literal = json.dumps(source)
-        return self.run_program(f"main(): Void {{ print(render(lex({literal}))); }}")
+        return self.run_harness(
+            "compiler/lexer.panack",
+            "main(): Void { print(render(lex(command_args()[0]))); }",
+            [source],
+        )
 
     def test_tokenizes_every_token_class_and_skips_comments(self):
         source = '// ignored\n_name42 17 3.14 "a\\\\b"'

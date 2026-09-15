@@ -1,54 +1,28 @@
-import contextlib
-import io
-import json
-import tempfile
 import unittest
-from pathlib import Path
 
-from panackelty import Checker, PanackeltyError, Parser, VM, build, lex
-
-
-PROJECT = Path(__file__).resolve().parents[3]
-COMPILER = PROJECT / "src/compiler"
+from panackelty import Checker, PanackeltyError, Parser, lex
+from tests.unit.support import CompilerHarnessTestCase
 
 
-class SelfHostedPurityTests(unittest.TestCase):
-    def run_frontend(self, expression: str) -> str:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            for name in (
-                "types.panack",
-                "lexer.panack",
-                "parser.panack",
-                "resolver.panack",
-                "checker.panack",
-                "purity.panack",
-            ):
-                (root / name).write_text(
-                    (COMPILER / name).read_text(encoding="utf-8"),
-                    encoding="utf-8",
-                )
-            main = root / "main.panack"
-            main.write_text(
-                'import "purity.panack";\n'
-                f"main(): Void {{ print({expression}); }}",
-                encoding="utf-8",
-            )
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                VM(build(main)).run()
-            return output.getvalue().removesuffix("\n")
+class SelfHostedPurityTests(CompilerHarnessTestCase):
+    def run_frontend(self, expression: str, arguments=()) -> str:
+        return self.run_harness(
+            "compiler/purity.panack",
+            f"main(): Void {{ print({expression}); }}",
+            arguments,
+        ).removesuffix("\n")
 
     def check_source(self, source: str) -> str:
-        return self.run_frontend(f"check_source_frontend({json.dumps(source)})")
+        return self.run_frontend("check_source_frontend(command_args()[0])", [source])
 
     def check_modules(self, sources: list[tuple[str, str]], entry: str) -> str:
         loaded = ", ".join(
-            f"LoadedSource({json.dumps(path)}, {json.dumps(source)})"
-            for path, source in sources
+            f"LoadedSource(command_args()[{2 * index + 1}], command_args()[{2 * index + 2}])"
+            for index in range(len(sources))
         )
+        arguments = [entry] + [value for pair in sources for value in pair]
         return self.run_frontend(
-            f"check_loaded_source_frontend([{loaded}], {json.dumps(entry)})"
+            f"check_loaded_source_frontend([{loaded}], command_args()[0])", arguments
         )
 
     @staticmethod

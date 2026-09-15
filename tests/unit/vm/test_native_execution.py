@@ -75,6 +75,21 @@ class NativeExecutionTests(unittest.TestCase):
                 self.assertEqual(result.stdout, expected)
                 self.assertEqual(result.stderr, "")
 
+    def test_string_index_and_slice_boundaries_still_trap(self):
+        for index, expression in enumerate((
+            '""[0]', '"abc"[3]', '"λ中🙂"[3]',
+            '"abc"[999999999999999999999999999999]',
+            'slice("abc", 2, 1)', 'slice("abc", 0, 4)',
+            'slice("λ中🙂", 0, 4)', 'slice("", 0, 1)',
+        )):
+            with self.subTest(expression=expression):
+                result = self.run_source(
+                    f"main(): Void {{ print({expression}); }}", f"string-bound-{index}"
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(result.stdout, "")
+                self.assertIn("VM trap:", result.stderr)
+
     def test_native_vm_matches_numeric_and_trap_semantics(self):
         long_decimal = "1234567890" * 15 + ".0"
         scaled_decimal = str(int("1234567890" * 15) * 9) + ".00"

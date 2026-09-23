@@ -179,6 +179,59 @@ both the guarantees they provide and the clarity of the resulting workflow.
 - [ ] Build a diagnostic conformance suite covering usefulness, source accuracy,
       recovery after an error, and avoidance of misleading follow-on errors
 
+### Core and standard-library types — planned exploration
+
+Keep the primitive type set small while making common terminal-program concepts
+explicit in the standard library. The names below are proposals, not additions
+to the accepted language. Prefer portable records and tagged unions; add compiler
+or VM support only where representation, checking, or the host boundary requires
+it. Coordinate generic-function work with `SELF_HOSTING.md`, JSON work with
+the JSON data support initiative below, and host types with the automation and
+host capabilities initiative.
+
+Prioritize generic source functions, a first-class success value, and typed host
+APIs before adding numerical or convenience types.
+
+- [ ] Specify and implement generic source functions and explicit type arguments,
+      including inference, ambiguity diagnostics, and purity preservation, so
+      reusable `Option[T]` and `Result[T,E]` helpers need fewer compiler special
+      cases
+- [ ] Evaluate a singleton `Unit` value for successful operations without a
+      payload, such as `Result[Unit,IoError]`; define its relationship to the
+      existing return-only `Void` marker and its generic and bytecode semantics
+- [ ] Design a standard-library `Path` type that distinguishes paths from text;
+      specify checked construction, lexical operations, platform representation,
+      and explicit filesystem queries without implying that a path exists or is
+      safe merely because it has this type
+- [ ] Design `Duration` and monotonic `Instant` types alongside host clock APIs;
+      specify units, precision, arithmetic, timeout validation, and which clock
+      readings can be compared, keeping wall-clock timestamps separate
+- [ ] Design structured filesystem and process errors returned through `Result`,
+      retaining useful operation and failure details; distinguish a process's
+      nonzero exit status from failure to launch it
+- [ ] Evaluate a standard-library `Json` tagged union for unvalidated external
+      data, with parsing and checked conversion to application records; settle
+      numeric representation and recursive-type requirements through the JSON
+      initiative rather than introducing an unrestricted dynamic value type
+- [ ] Complete explicit decimal rounding with specified precision or scale and
+      rounding modes, preserving exact existing arithmetic and requiring an
+      explicit choice for non-terminating decimal division
+- [ ] Evaluate a library-first `Rat` type for exact fractions after decimal
+      rounding, using representative numerical programs; specify normalization,
+      zero-denominator failures, arithmetic, and explicit rounded conversion to
+      `Dec` before considering primitive support
+- [ ] Evaluate tuples for temporary pairs and multiple return values only when
+      examples demonstrate a meaningful benefit over named records
+- [ ] Explore calendar dates and wall-clock time as a separate library design,
+      with explicit timezone and calendar semantics rather than reusing
+      monotonic `Instant`
+
+Defer binary floating point, fixed-width integer families, a character primitive,
+and a universal `Any` type until concrete programs justify their semantics and
+maintenance cost. Each accepted addition needs a written semantics proposal,
+representative programs, focused failure tests, public-CLI coverage, and any
+required cross-VM and bootstrap evidence before it becomes a supported feature.
+
 ### Predictable deferred computation
 
 Explore `lazy` as a narrow, explicit form of call-by-need evaluation. The first

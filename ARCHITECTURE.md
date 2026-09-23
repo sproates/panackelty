@@ -367,7 +367,7 @@ sequenceDiagram
     Parser-->>Checker: program AST
     Checker->>Effects: may pure caller invoke callee?
     Effects-->>Checker: no, callee is impure
-    Checker-->>CLI: diagnostic; no bytecode emitted
+    Checker-->>CLI: diagnostic#59; no bytecode emitted
     CLI-->>User: error and non-zero exit status
 ```
 

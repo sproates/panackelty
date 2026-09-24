@@ -22,7 +22,7 @@ program grows.
   </sub>
 </p>
 
-## Exact fractions and Unit (current source build)
+## Exact fractions and Unit
 
 ```panackelty
 main(): Void {
@@ -35,8 +35,7 @@ main(): Void {
 }
 ```
 
-These unreleased features require building the current source; the alpha.4
-archive below uses the previous semantics. Integer `/` now returns `Rat`;
+Integer `/` returns `Rat`;
 `quotient(a, b)` retains truncating natural division. Exact conversions trap if
 the value cannot be represented: `(1/3).nat()` and `(1/3).dec()` fail rather than
 round. `Unit` is a first-class value for APIs such as `Result[Unit,Str]`.
@@ -49,8 +48,8 @@ checking, compiling, and running Panackelty programs does not require Python,
 `make`, a C compiler, or a copy of this repository. The download contains the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives for `0.1.0-alpha.4` are available from the
-[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.4).
+Developer-preview archives for `0.1.0-alpha.5` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.5).
 The [release policy](RELEASE_POLICY.md) defines the preview's support and
 compatibility boundaries.
 
@@ -68,8 +67,8 @@ adjacent `.sha256` file from the Releases page:
 
 | System | Archive |
 | --- | --- |
-| Linux x86-64 | `panackelty-0.1.0-alpha.4-linux-x86_64.tar.gz` |
-| macOS arm64 | `panackelty-0.1.0-alpha.4-macos-arm64.tar.gz` |
+| Linux x86-64 | `panackelty-0.1.0-alpha.5-linux-x86_64.tar.gz` |
+| macOS arm64 | `panackelty-0.1.0-alpha.5-macos-arm64.tar.gz` |
 
 Windows and other architectures are not part of the initial preview.
 
@@ -79,24 +78,24 @@ In the directory containing both downloaded files, verify the archive. On
 Linux, run:
 
 ```sh
-sha256sum -c panackelty-0.1.0-alpha.4-linux-x86_64.tar.gz.sha256
+sha256sum -c panackelty-0.1.0-alpha.5-linux-x86_64.tar.gz.sha256
 ```
 
 On macOS, run:
 
 ```sh
-shasum -a 256 -c panackelty-0.1.0-alpha.4-macos-arm64.tar.gz.sha256
+shasum -a 256 -c panackelty-0.1.0-alpha.5-macos-arm64.tar.gz.sha256
 ```
 
 The command must report the archive as `OK`. Then unpack the matching archive;
 the macOS name is shown here:
 
 ```sh
-tar -xzf panackelty-0.1.0-alpha.4-macos-arm64.tar.gz
+tar -xzf panackelty-0.1.0-alpha.5-macos-arm64.tar.gz
 ./panackelty/bin/panack --version
 ```
 
-The version command prints `panack 0.1.0-alpha.4 (bytecode 7)`. The Linux
+The version command prints `panack 0.1.0-alpha.5 (bytecode 8)`. The Linux
 archive follows the same layout and uses `linux-x86_64` in its name. To make
 `panack` available in future terminal sessions, keep the whole extracted
 directory together and link its command into a directory on `PATH`:
@@ -145,13 +144,11 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The complete output for a current source build is shown below. The published
-alpha.4 archive prints `bytecode 7` on the first line; the remaining output is
-identical.
+The complete output is:
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.4 (bytecode 8)
+panack 0.1.0-alpha.5 (bytecode 8)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc

@@ -1,5 +1,9 @@
 # Tests
 
+[Python-free test architecture and migration inventory](PYTHON_MIGRATION.md)
+maps each existing test area to its replacement and records the parity gates.
+It is a plan; the Python harness below remains active until those gates pass.
+
 Panackelty has five validation paths:
 
 - `unit` tests exercise implementation internals directly through the Python

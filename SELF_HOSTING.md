@@ -219,3 +219,6 @@ signatures; the normal compiler and library fixed-point comparisons still apply.
 explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
 bounded process results and expected host errors. The testing-library
 foundation is complete; migration of the Python oracle and harness remains.
+The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
+their current responsibilities, assigns native and Panackelty-hosted evidence,
+and requires behavior parity before any transitional Python tests are retired.

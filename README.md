@@ -420,6 +420,8 @@ checkout and an installed toolchain without exposing its directory layout. See t
   semantics, and deliberate limitations.
 - [The architecture guide](ARCHITECTURE.md) explains the compiler, bytecode,
   verifier, VM, and repository layout.
+- [The VM execution guide](docs/VM_GUIDE.md) follows arithmetic, function calls,
+  branches, and loops through real disassembly and step-by-step stack traces.
 - [The self-hosting guide](SELF_HOSTING.md) follows the bootstrap chain and its
   reproducibility guarantees.
 - [The roadmap](ROADMAP.md) tracks upcoming language and engineering work.

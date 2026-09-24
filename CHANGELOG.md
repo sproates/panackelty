@@ -4,6 +4,22 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## 0.1.0-alpha.8 — 2026-09-24
+
+- Split the native VM into separately compiled modules, with self-contained
+  headers, clearer formatting and documented ownership contracts.
+- Fix cleanup after allocation failures in decoding, record construction,
+  frame growth, interpolation, arithmetic and nested execution. Failed
+  allocations now trap instead of leaving incomplete runtime values.
+- Correct full-width unsigned integer conversion and make exact decimal
+  comparison independent of allocation success.
+- Exact decimal division removes redundant fractional trailing zeros to match
+  the reference interpreter: `1.00 / 2.0` now prints `0.5` and `0.00 / 2.0`
+  prints `0`. Bytecode remains version 8.
+- Expand VM tests with allocation/syscall fault injection, persistent ownership
+  sequences, rich bytecode mutations and seeded numeric properties. CI runs
+  native sanitizers and publishes line/branch coverage reports.
+
 ## 0.1.0-alpha.7 — 2026-09-24
 
 - Typed filesystem APIs accept `Path` and return structured `HostError` values:

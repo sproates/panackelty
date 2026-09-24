@@ -303,7 +303,9 @@ static Value *host_capability_call(VM *vm, const char *name, Value **a) {
         if (closedir(dir) && !e) e = errno;
         if (count > 1) qsort(items, count, sizeof(Value *), hc_path_compare);
         Value *result = e || problem ? hc_error(name, problem, e) : host_variant("Ok", value_sequence(V_ARRAY, items, count));
-        for (size_t i = 0; i < count; i++) release(items[i]); free(items); return result;
+        for (size_t i = 0; i < count; i++) release(items[i]);
+        free(items);
+        return result;
     }
     if (!strcmp(name, "fs_temp_file") || !strcmp(name, "fs_temp_directory")) {
         Buffer template = {0};

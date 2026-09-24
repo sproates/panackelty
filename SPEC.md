@@ -516,6 +516,15 @@ an atomically created temporary directory. Callers remove its contents and
 explicitly remove the empty directory; nonempty removal fails. This API does
 not establish containment, a filesystem snapshot, or automatic cleanup.
 
+`stdlib/testing_commands` uses the existing bounded `process_run` contract.
+Its `TestCommand` holds the complete invocation, and `test_run_command`
+compares exit code, signal, and both byte streams against a `ProcessOutput`.
+The first mismatch is reported as a `TestResult`; host errors also become
+failed tests. `test_expect_command_error` instead checks a portable host-error
+category. A completed nonzero exit is distinct from a launch or collection
+failure. Pure helpers can check already captured outputs or results without
+running a command. No implicit shell, PATH search, decoding, or sandbox is added.
+
 ## Strings
 
 `Str` values are Unicode text. They concatenate with `+`, and interpolation uses

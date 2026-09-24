@@ -12,6 +12,7 @@ program-wide namespace, so public functions use descriptive prefixes.
 | `option.panack` | `Option[T]`, `None`, `Some`, `option_value_or[T]` | Portable enum and generic helper |
 | `result.panack` | `Result[T,E]`, `Ok`, `Error`, `result_value_or[T,E]` | Portable enum and generic helper |
 | `testing.panack` | `TestOutcome`, `TestResult`, `test_expect`, `test_equal_str`, `test_equal_nat`, `test_report` | Pure assertions and explicit ordered reporting; imported separately from the prelude |
+| `testing_commands.panack` | `TestCommand`, `test_run_command`, `test_expect_command_error`, `test_command_output`, `test_command_result` | Bounded command execution with byte-exact output and structured host-error assertions; imported separately from the prelude |
 | `testing_files.panack` | `TestWorkspace`, `test_workspace_create`, `test_workspace_remove_empty`, `test_discover_fixtures` | Effectful sorted fixture discovery and explicitly owned temporary isolation; imported separately from the prelude |
 | `collections.panack` | `array_first[T]` returning `Option[T]`; array methods `append`/`concat`/`map`/`reduce`, Map methods `put`/`has`/`get`, Set methods `add`/`has`, plus legacy compatibility spellings | Portable generic helper plus compiler-known operations and VM primitives |
 | `text.panack` | `text_length`, `text_slice`, `text_starts_with`, `text_starts_with_at`, `text_reverse`, `text_is_digit`, `text_is_letter`, `text_is_whitespace`, `text_parse_nat` | Portable wrappers over deterministic VM primitives |
@@ -68,7 +69,7 @@ terminate a program. `test_report(results)` prints `PASS name` or
 `FAIL name: reason` for each result in the supplied order, then prints
 `tests: N, failures: M` and returns the failure count. An empty list reports
 zero tests and zero failures. A caller can choose a nonzero exit status from
-the returned count. Command assertions remain a follow-up.
+the returned count.
 
 See the [functional case](../../tests/functional/cases/testing_library/main.panack)
 for a complete program.
@@ -87,3 +88,18 @@ workspace returns `not_empty` and is left intact for inspection. There is no
 automatic or recursive cleanup, and `TestWorkspace` is an ordinary constructible
 record, not a containment or authorization boundary. See the
 [fixture case](../../tests/functional/cases/testing_fixtures/main.panack).
+
+Import `stdlib/testing_commands` for process assertions. `TestCommand` carries
+an exact executable `Path`, arguments, input bytes, working directory,
+environment overrides, timeout, and combined output limit; no PATH search or
+implicit shell is added. `test_run_command(name, command, expected)` returns
+a `TestResult` comparing the completed process's exit code, signal, stdout,
+and stderr. Output comparison is byte-exact; the first mismatch is reported
+without rendering potentially binary streams. A host failure is a failed test
+with its portable error category. `test_expect_command_error` instead asserts
+an expected host-error category such as `launch_failed` or `output_limit`;
+a completed process is not a host error, even when it exits nonzero.
+`test_command_output` and `test_command_result` are pure helpers for already
+captured results. None of these helpers provides process containment or
+automatic fixture cleanup. See the
+[command case](../../tests/functional/cases/testing_commands/main.panack).

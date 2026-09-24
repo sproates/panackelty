@@ -1,0 +1,25 @@
+import stdlib/testing_commands
+
+pure path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+main(): Void {
+  shell = path("/bin/sh")
+  missing = path("/does-not-exist")
+  command = TestCommand(shell, ["-c", "cat; printf err >&2; exit 7"],
+    utf8_encode("input"), path_current(), [], duration_seconds(3), 100)
+  absent = TestCommand(missing, [], bytes(), path_current(), [], duration_seconds(3), 100)
+  limited = TestCommand(shell, ["-c", "printf too-long"], bytes(),
+    path_current(), [], duration_seconds(3), 1)
+  expected = ProcessOutput(7, 0, utf8_encode("input"), utf8_encode("err"))
+  results: [TestResult] = [
+    test_run_command("nonzero exit and streams", command, expected),
+    test_expect_command_error("missing executable", absent, "launch_failed"),
+    test_expect_command_error("output bound", limited, "output_limit"),
+    test_run_command("host error is a failure", absent, expected),
+    test_expect_command_error("unexpected completion", command, "timeout")
+  ]
+  count = test_report(results)
+  print("returned ${count}")
+}

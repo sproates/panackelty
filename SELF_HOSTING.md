@@ -216,5 +216,6 @@ execution, checked UTF-8 decoding, and sleep. The version-8 seed includes their
 signatures; the normal compiler and library fixed-point comparisons still apply.
 `stdlib/testing` provides pure structured assertions and ordered reporting.
 `stdlib/testing_files` provides sorted fixture directory discovery and
-explicitly owned temporary workspaces. Command assertions and migration of
-the Python harness remain unfinished.
+explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
+bounded process results and expected host errors. The testing-library
+foundation is complete; migration of the Python oracle and harness remains.

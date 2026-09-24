@@ -59,6 +59,9 @@ test discovery and execution until its later migration.
 temporary workspaces; `functional/cases/testing_fixtures` exercises their
 creation, enumeration, and explicit cleanup. The Python harness still runs
 the complete suite.
+`stdlib/testing_commands` supplies byte-exact process and host-error
+assertions; `functional/cases/testing_commands` verifies those via the public
+CLI. Python remains the suite orchestrator until the migration phase.
 
 Unit tests are grouped by implementation subsystem under `tests/unit/compiler`,
 `tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output

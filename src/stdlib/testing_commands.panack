@@ -1,0 +1,70 @@
+import "testing.panack"
+import "process.panack"
+
+// Callers select the exact executable and resource bounds; there is no shell
+// or PATH search unless the caller explicitly invokes a shell.
+record TestCommand {
+  executable: Path,
+  arguments: [Str],
+  stdin: Bytes,
+  working_directory: Path,
+  environment: [Str],
+  timeout: Duration,
+  output_limit: Nat
+}
+
+pure test_command_output(name: Str, actual: ProcessOutput,
+                         expected: ProcessOutput): TestResult {
+  if actual.exit_code != expected.exit_code {
+    wanted = expected.exit_code
+    got = actual.exit_code
+    test_expect(name, false, "expected exit ${wanted}, got ${got}")
+  } else {
+    if actual.signal != expected.signal {
+      wanted = expected.signal
+      got = actual.signal
+      test_expect(name, false, "expected signal ${wanted}, got ${got}")
+    } else {
+      if actual.stdout != expected.stdout {
+        test_expect(name, false, "stdout differed")
+      } else {
+        if actual.stderr != expected.stderr {
+          test_expect(name, false, "stderr differed")
+        } else {
+          test_expect(name, true, "")
+        }
+      }
+    }
+  }
+}
+
+pure test_command_result(name: Str, actual: Result[ProcessOutput,HostError],
+                         expected: ProcessOutput): TestResult {
+  match actual {
+    Ok(output) => test_command_output(name, output, expected),
+    Error(error) => {
+      code = error.code
+      test_expect(name, false, "command failed: ${code}")
+    }
+  }
+}
+
+test_run_command(name: Str, command: TestCommand,
+                 expected: ProcessOutput): TestResult {
+  test_command_result(name, process_run(command.executable, command.arguments,
+    command.stdin, command.working_directory, command.environment,
+    command.timeout, command.output_limit), expected)
+}
+
+test_expect_command_error(name: Str, command: TestCommand,
+                          expected_code: Str): TestResult {
+  match process_run(command.executable, command.arguments, command.stdin,
+                    command.working_directory, command.environment,
+                    command.timeout, command.output_limit) {
+    Ok(output) => test_expect(name, false, "expected host error ${expected_code}, command completed"),
+    Error(error) => {
+      code = error.code
+      test_expect(name, code == expected_code, "expected host error ${expected_code}, got ${code}")
+    }
+  }
+}

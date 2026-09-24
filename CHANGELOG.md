@@ -4,7 +4,7 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
-## Unreleased
+## 0.1.0-alpha.5 — 2026-09-24
 
 - Exact `Rat` values: integer `/` produces a normalized fraction; arithmetic with
   integers stays rational. `.nat()` and `.dec()` convert exactly or trap.

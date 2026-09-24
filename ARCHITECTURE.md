@@ -250,6 +250,10 @@ binary layout, control flow, verification boundary, and trap conditions are froz
 dynamically invalid bytecode traps at the VM boundary instead of exposing a
 host-language exception.
 
+The [VM execution guide](docs/VM_GUIDE.md) complements that contract with actual
+disassembly and recorded stack, local, and call-frame transitions for runnable
+arithmetic, conditional-call, and loop examples.
+
 Native strings record code-point count and an ASCII flag at construction.
 Length reads that count; ASCII index, slice, and prefix offsets are direct,
 while non-ASCII offsets traverse UTF-8. This removes repeated scanning during

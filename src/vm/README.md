@@ -5,6 +5,10 @@ variables, and an operand stack. Its instruction set covers constants, local
 access, arithmetic, collection and algebraic-data construction, iteration,
 control flow, calls, and returns.
 
+Start with the [VM execution guide](../../docs/VM_GUIDE.md) for instruction
+listings and worked programs showing the operand stack, locals, call frames,
+and output at each step.
+
 Two independent implementations enforce this contract. The portable C11 seed
 VM in this directory is the bootstrap execution target. The transitional
 Python VM in `src/bootstrap/panackelty.py` remains a development oracle used for

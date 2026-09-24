@@ -15,6 +15,9 @@ The frozen execution contract and exact version-7 byte layout, including every
 instruction's stack effect and encoded operand, are specified in
 [FORMAT.md](FORMAT.md).
 
+The [VM execution guide](../../docs/VM_GUIDE.md) explains how to read public-CLI
+disassembly and follows complete programs through those instructions.
+
 Portable canonical and malformed-artifact vectors live in
 [`tests/fixtures/bytecode`](../../tests/fixtures/bytecode). They are stored as
 plain hexadecimal text so the Python oracle, native VM, and self-hosted tooling

@@ -1,0 +1,11 @@
+pure classify(value: Nat): Str {
+  if value >= 10 {
+    "large"
+  } else {
+    "small"
+  }
+}
+
+main(): Void {
+  print(classify(7))
+}

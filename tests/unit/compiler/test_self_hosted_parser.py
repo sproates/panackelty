@@ -553,11 +553,23 @@ class SelfHostedParserTests(unittest.TestCase):
             "main(): Void { print(value_or(Some(42), 0)); }",
         )
 
+    def test_generic_function_syntax_and_explicit_calls_round_trip(self):
+        source = "pure identity[T](value: T): T { value }"
+        self.assertEqual(self.parse_program_source(source), source)
+        for expression, expected in (
+            ("identity[Str](text)", "identity[Str](text)"),
+            ("identity[[Nat]](values)", "identity[[Nat]](values)"),
+            ("values[0]", "values[0]"),
+            ("value.identity[Nat]()", "identity[Nat](value)"),
+        ):
+            with self.subTest(expression=expression):
+                self.assertEqual(self.parse_source(expression), expected)
+
     def test_reports_malformed_function_declarations(self):
         cases = {
             "pure": "expected function name",
             "main": "expected opening function parenthesis",
-            "main[Value](): Void {}": "expected opening function parenthesis",
+            "main[Value(): Void {}": "expected comma or closing type parameter bracket",
             "main(": "expected function parameter",
             "main(1: Nat): Void {}": "expected function parameter",
             "main(value Nat): Void {}": "expected colon after parameter name",

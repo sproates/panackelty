@@ -189,6 +189,68 @@ main(): Void {
 }
 ```
 
+## Generic source functions
+
+Functions may declare type parameters after their name. The compiler checks the
+body once with those parameters treated as abstract types, including functions
+that are never called. Type parameters are scoped to their function's signature
+and body; duplicate names and names that conflict with existing types are
+rejected. `main` cannot have type parameters.
+
+```panackelty
+pure identity[T](value: T): T { value }
+
+pure choose[T](values: [T], fallback: T): T {
+  if values.len() == 0 { fallback } else { values[0] }
+}
+
+main(): Void {
+  number: Nat = identity(42)
+  text: Str = identity[Str]("hello")
+  fallback: Str = choose([], "empty")
+  empty: [Nat] = identity[[Nat]]([])
+}
+```
+
+A call either supplies every type argument in declaration order or infers them
+from its value arguments. Inference gathers evidence from all arguments,
+including nested arrays, records, enums, and callable signatures, before
+checking each argument against the substituted parameter type. It uses the
+existing type-join rules, including `Nat`/`Int` widening and incomplete empty
+collection or constructor evidence. Incompatible evidence is rejected even if
+later arguments would otherwise hide the conflict. Explicit type arguments are
+fixed and are never widened by argument inference.
+
+Every type parameter must be determined. Return annotations, later assignments,
+and later uses do not provide inference evidence. A return-only parameter, or
+one supported only by an empty array or payload-free constructor, therefore
+requires explicit type arguments. For example, `identity([])` is ambiguous,
+even in a binding annotated `[Nat]`; `identity[[Nat]]([])` is valid. Ordinary
+argument assignability and guarded-type proofs still apply after substitution.
+`Void` is not a valid type argument or value argument.
+
+Receiver-first calls may supply type arguments as `value.identity[Str]()`,
+which means `identity[Str](value)`. Brackets immediately after a call name are
+parsed as a type-argument list when their matching closing bracket is followed
+by `(`; ordinary array indexing remains unchanged. Explicit type arguments
+currently apply only to generic user functions, not built-ins or constructors.
+
+Unconstrained parameters support operations justified by their declared shape:
+a `T` can be returned, stored, compared for equality, or passed to another generic
+function; a `[T]` can be indexed or iterated. Numeric arithmetic, ordering, field
+access, and other operations needing a more specific type reject an abstract
+`T`. A concrete shape such as `Box[T]` permits its declared field access.
+Purity remains part of the function and callable contracts; type arguments do
+not permit an effectful call from a pure body.
+
+Generic functions may recurse and call other generic functions. They compile to
+one ordinary function body with type arguments erased; tagged runtime values
+and the existing version-7 call instructions supply execution. No specialisation,
+new opcode, or bytecode version is required. Taking a generic function reference
+with `@name` is deferred; use a non-generic wrapper when a concrete callback is
+needed. Constraints, traits, higher-rank polymorphism, partial type arguments,
+and inference from the expected return type are also deferred.
+
 ## Guarded types
 
 ```panackelty
@@ -284,9 +346,10 @@ source wrappers provide the `text_*`, `bytes_*`, and checked
 
 Persistent array, map, and set operations and the `path_*` operations retain
 their compiler-known polymorphic signatures. They are part of the standard
-library surface but execute as VM primitives because generic functions cannot
-yet express those APIs in source. Host access remains limited to the ABI calls
-identified above.
+library surface: storage operations still execute as VM primitives, while array
+`map` and `reduce` retain their compiler lowering. Source generics provide
+`option_value_or[T]`, `result_value_or[T,E]`, and `array_first[T]` without new
+primitives. Host access remains limited to the ABI calls identified above.
 
 `len` also accepts arrays and byte buffers.
 
@@ -541,10 +604,9 @@ source expression to identify.
 ## Deliberately postponed
 
 - Mutable array elements and growable collections
-- Generic functions and explicit type arguments
 - Module visibility, selective imports, and package management
 - Explicit checked construction from untrusted data
-- Parametric polymorphism and traits
+- Generic constraints, traits, and higher-rank polymorphism
 - A backwards-compatibility guarantee for bytecode versions
 - Concurrency
 

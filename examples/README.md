@@ -55,6 +55,8 @@ spaces, punctuation, or differences in letter case before comparing.
 
 The other programs focus on individual language features:
 
+- `generic_functions.panack` — generic calls, library helpers, explicit empty-array
+  types, receiver-first syntax, and recursion
 - `decimal.panack` — exact decimal arithmetic
 - `guards.panack` — guarded domain types
 - `callables.panack` — named pure function values and array `map`/`reduce`

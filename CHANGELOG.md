@@ -4,6 +4,16 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Generic source functions with abstract body checking, inference from all value
+  arguments, explicit complete type arguments, receiver-first calls, recursion,
+  and purity preservation. Type arguments erase into ordinary version-7 calls.
+- Portable `option_value_or[T]`, `result_value_or[T,E]`, and `array_first[T]`
+  standard-library helpers, with a runnable generic-functions example.
+- Constraints, generic function references, and return-context inference remain
+  deferred. Published alpha.3 archives do not include these additions.
+
 ## 0.1.0-alpha.3 — 2026-09-15
 
 ### Highlights

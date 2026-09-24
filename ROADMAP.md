@@ -192,10 +192,17 @@ host capabilities initiative.
 Prioritize generic source functions, a first-class success value, and typed host
 APIs before adding numerical or convenience types.
 
-- [ ] Specify and implement generic source functions and explicit type arguments,
+- [x] Specify and implement generic source functions and explicit type arguments,
       including inference, ambiguity diagnostics, and purity preservation, so
       reusable `Option[T]` and `Result[T,E]` helpers need fewer compiler special
       cases
+
+The first generic-function implementation checks abstract bodies once and erases
+type arguments into ordinary version-7 calls. It includes inferred and explicit
+complete type arguments, recursion, and portable Option/Result/array helpers.
+Constraints, generic function references, partial type arguments, and inference
+from expected return types remain deferred.
+
 - [ ] Evaluate a singleton `Unit` value for successful operations without a
       payload, such as `Result[Unit,IoError]`; define its relationship to the
       existing return-only `Void` marker and its generic and bytecode semantics

@@ -1,0 +1,2 @@
+error: operator + does not accept T and T
+function double returns Nat, expected T

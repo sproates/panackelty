@@ -92,7 +92,7 @@ pure collect_variants(program: Program): ResolverSymbols {
           symbols = add_variant_symbol(symbols, variant.name)
         }
       },
-      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {}
+      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {}
     }
   }
   symbols
@@ -131,7 +131,7 @@ pure collect_symbols(program: Program): ResolverSymbols {
       EnumDeclaration(name, parameters, variants) => {
         symbols = add_top_level_symbol(symbols, name, false)
       },
-      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
         symbols = add_top_level_symbol(symbols, name, true)
       }
     }
@@ -183,7 +183,7 @@ pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): Modu
             TypeDeclaration(name, base, guard) => {},
             RecordDeclaration(name, parameters, fields) => {},
             EnumDeclaration(name, parameters, variants) => {},
-            FunctionDeclaration(name, parameters, return_type, is_pure, body) => {}
+            FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {}
           }
         }
         ModuleGraphState(
@@ -253,7 +253,7 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
       diagnostics = resolve_expression(left, scope, symbols)
       diagnostics = concat(diagnostics, resolve_expression(right, scope, symbols))
     },
-    CallExpr(name, arguments) => {
+    CallExpr(name, arguments, type_arguments) => {
       if !is_builtin(name) && !set_has(symbols.callables, name) {
         diagnostics = append(diagnostics, resolver_diagnostic("unknown function ${name}"))
       } else {
@@ -372,7 +372,7 @@ pure resolve_program(program: Program): [Diagnostic] {
       },
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, variants) => {},
-      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
         diagnostics = concat(diagnostics, resolve_function(parameters, body, symbols))
       }
     }

@@ -1,0 +1,2 @@
+pure double[T](value: T): T { value + value }
+main(): Void {}

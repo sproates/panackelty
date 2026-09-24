@@ -47,7 +47,8 @@ Post-bootstrap language and engineering priorities are tracked in
 - [x] Persistent `append` and `concat` operations
 - [x] Persistent maps and sets
 - [x] Byte buffers, UTF-8 conversion, and byte-oriented operations
-- [ ] Generic functions and explicit type arguments
+- [x] Generic functions and explicit type arguments, with argument inference,
+      abstract body checking, purity preservation, and erased version-7 calls
 - [ ] Specify an ownership model for efficient collection construction
 - [ ] Implement uniquely owned mutable collection builders if required by
       compiler performance measurements

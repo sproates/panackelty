@@ -21,7 +21,8 @@ This directory contains the compiler being implemented in Panackelty:
   and extensionless logical import declarations and guarded type declarations,
   with complete nested generic and
   array type references. Generic record fields and enum variant payloads are
-  parsed alongside pure and impure functions. The parser now covers the complete
+  parsed alongside pure and impure functions with scoped type parameters and
+  optional explicit type arguments at direct and receiver-first calls. The parser now covers the complete
   accepted language grammar.
 - `resolver.panack` collects top-level functions and constructors, validates
   conflicts with built-ins, and resolves lexical names across functions,
@@ -33,6 +34,8 @@ This directory contains the compiler being implemented in Panackelty:
   explicit declarations retain the no-shadowing rule.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
+  checks generic function bodies with abstract parameters and resolves complete
+  call substitutions from explicit types or all value arguments,
   rejects unresolved inferred locals at their declaration, merges nested
   constructor/array type evidence, preserves fixed binding types,
   verifies effect-bearing callable types, indirect invocation, functional array
@@ -48,7 +51,8 @@ This directory contains the compiler being implemented in Panackelty:
   It exposes complete single-source and already-loaded-module frontend entry
   points.
 - `emitter.panack` defines the typed bytecode IR and lowers the complete AST to
-  deterministic VM instructions, including indirect calls and the iterator
+  deterministic VM instructions, erasing generic type arguments into one ordinary
+  function body per declaration, including indirect calls and the iterator
   lowering for persistent array `map`/`reduce`. It computes absolute control-flow targets
   while using persistent arrays, allocates compiler temporaries independently
   per function, and exposes a differential disassembly boundary.

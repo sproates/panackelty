@@ -27,7 +27,8 @@ record FunctionLookup {
   found: Bool,
   parameters: [FunctionParameter],
   return_type: Str,
-  is_pure: Bool
+  is_pure: Bool,
+  type_parameters: [Str]
 }
 
 record VariantLookup {
@@ -81,7 +82,7 @@ pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
     StringExpr(text) => checker_diagnostic(message), BoolExpr(value) => checker_diagnostic(message),
     NameExpr(name) => checker_diagnostic(message), FunctionExpr(name) => checker_diagnostic(message),
     ArrayExpr(items) => checker_diagnostic(message), UnaryExpr(operator, operand) => checker_diagnostic(message),
-    BinaryExpr(operator, left, right) => checker_diagnostic(message), CallExpr(name, arguments) => checker_diagnostic(message),
+    BinaryExpr(operator, left, right) => checker_diagnostic(message), CallExpr(name, arguments, type_arguments) => checker_diagnostic(message),
     FieldExpr(target, field) => checker_diagnostic(message), IndexExpr(target, index) => checker_diagnostic(message),
     IfExpr(condition, yes, no, has_else) => checker_diagnostic(message), BlockExpr(block) => checker_diagnostic(message),
     MatchExpr(subject, arms) => checker_diagnostic(message)
@@ -193,7 +194,7 @@ pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
       ImportDeclaration(path) => {},
       RecordDeclaration(declared, parameters, fields) => {},
       EnumDeclaration(declared, parameters, variants) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
     }
   }
   result
@@ -211,7 +212,7 @@ pure record_type(program: Program, name: Str): RecordLookup {
       },
       ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
       EnumDeclaration(declared, parameters, variants) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
     }
   }
   result
@@ -229,19 +230,19 @@ pure enum_type(program: Program, name: Str): EnumLookup {
       },
       ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
     }
   }
   result
 }
 
 pure function_type(program: Program, name: Str): FunctionLookup {
-  mut result: FunctionLookup = FunctionLookup(false, [], "", false)
+  mut result: FunctionLookup = FunctionLookup(false, [], "", false, [])
   for declaration in program.declarations {
     match declaration {
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {
         if declared == name {
-          result = FunctionLookup(true, parameters, return_type, is_pure)
+          result = FunctionLookup(true, parameters, return_type, is_pure, type_parameters)
         } else {
         }
       },
@@ -267,7 +268,7 @@ pure variant_type(program: Program, name: Str): VariantLookup {
       },
       ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
     }
   }
   result
@@ -416,16 +417,16 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
                     if operator == "==" { result = value == bound; } else {}
                     if operator == "!=" { result = value != bound; } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
           }
         }
       }
     },
-    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
 }
@@ -450,16 +451,16 @@ pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
                     if operator == "<=" { result = bounds.has_upper && bounds.upper <= bound; } else {}
                     if operator == "==" { result = bounds.has_lower && bounds.has_upper && bounds.lower == bound && bounds.upper == bound; } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
           }
         }
       }
     },
-    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
 }
@@ -481,7 +482,7 @@ pure assignable_checked(program: Program, value: TypeInfo, target: Str, source: 
         match unlocated_expression(source) {
           LocatedExpr(position, inner) => {},
           NameExpr(name) => { if map_has(facts, name) { proven = prove_guard_bounds(guarded.guard, map_get(facts, name)); } else {} },
-          NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(flag) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(field_target, field) => {}, IndexExpr(collection, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+          NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(flag) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(field_target, field) => {}, IndexExpr(collection, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
         }
         proven
       }
@@ -626,12 +627,83 @@ pure method_display_name(name: Str): Str {
   result
 }
 
+pure infer_function_template(program: Program, template: Str, actual: Str, parameters: [Str], substitutions: Map[Str,Str]): Map[Str,Str] {
+  mut result: Map[Str,Str] = substitutions
+  if has_name(parameters, template) {
+    merged: Str = if result.has(template) { merge_types(program, result.get(template), actual) } else { actual }
+    if merged == "Unknown" { result = result.put("$conflict", "true"); }
+    result = result.put(template, merged)
+  } else {
+    expected: TypeShape = type_shape(template)
+    supplied: TypeShape = type_shape(actual)
+    if (expected.base == supplied.base || (expected.base == "Fn" && supplied.base == "PureFn")) && len(expected.arguments) == len(supplied.arguments) {
+      mut index: Nat = 0
+      while index < len(expected.arguments) {
+        result = infer_function_template(program, expected.arguments[index], supplied.arguments[index], parameters, result)
+        index = index + 1
+      }
+    }
+  }
+  result
+}
+
+pure check_generic_call(name: Str, function: FunctionLookup, type_arguments: [Str], arguments: [Expr], actuals: [TypeInfo], scope_types: [Str], facts: Map[Str,Bounds], program: Program): CheckedExpression {
+  mut diagnostics: [Diagnostic] = []
+  mut substitutions: Map[Str,Str] = map()
+  if len(type_arguments) > 0 {
+    if len(type_arguments) != len(function.type_parameters) {
+      expected_count: Nat = len(function.type_parameters)
+      actual_count: Nat = len(type_arguments)
+      diagnostics = append(diagnostics, checker_diagnostic("${name} expects ${expected_count} type arguments, got ${actual_count}"))
+    }
+    mut index: Nat = 0
+    for argument in type_arguments {
+      diagnostics = concat(diagnostics, require_type(program, argument, scope_types, false))
+      if index < len(function.type_parameters) { substitutions = substitutions.put(function.type_parameters[index], argument); }
+      index = index + 1
+    }
+  } else {
+    mut index: Nat = 0
+    for actual in actuals {
+      if index < len(function.parameters) {
+        substitutions = infer_function_template(program, function.parameters[index].type_name, actual.name, function.type_parameters, substitutions)
+      }
+      index = index + 1
+    }
+  }
+  if substitutions.has("$conflict") {
+    diagnostics = append(diagnostics, checker_diagnostic("incompatible type arguments to ${name}"))
+  }
+  for parameter in function.type_parameters {
+    if !substitutions.has(parameter) || !inferred_type_complete(substitutions.get(parameter)) {
+      diagnostics = append(diagnostics, checker_diagnostic("cannot infer type parameter ${parameter} for ${name}; supply explicit type arguments"))
+    }
+  }
+  mut index: Nat = 0
+  for actual in actuals {
+    if index < len(function.parameters) {
+      target: Str = substitute_type(function.parameters[index].type_name, function.type_parameters, substitutions)
+      if actual.name == "Void" || !assignable_checked(program, actual, target, arguments[index], facts) {
+        number: Nat = index + 1
+        actual_type: Str = actual.name
+        diagnostics = append(diagnostics, checker_diagnostic("argument ${number} to ${name} is ${actual_type}, expected ${target}"))
+      }
+    }
+    index = index + 1
+  }
+  CheckedExpression(plain_type(substitute_type(function.return_type, function.type_parameters, substitutions)), diagnostics)
+}
+
 pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedExpression {
+  check_expression_scoped(expression, environment, facts, program, [])
+}
+
+pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedExpression {
   mut diagnostics: [Diagnostic] = []
   mut info: TypeInfo = no_type()
   match expression {
     LocatedExpr(position, value) => {
-      checked: CheckedExpression = check_expression(value, environment, facts, program)
+      checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types)
       info = checked.info
       diagnostics = checker_diagnostics_at(checked.diagnostics, position)
     },
@@ -648,6 +720,7 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
       if !function.found {
         diagnostics = append(diagnostics, checker_diagnostic("unknown function ${name}"))
       } else {
+        if len(function.type_parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("generic function references require a non-generic wrapper")); }
         mut signature: [Str] = []
         for parameter in function.parameters { signature = append(signature, parameter.type_name); }
         signature = append(signature, function.return_type)
@@ -657,7 +730,7 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
     ArrayExpr(items) => {
       mut element: Str = "$T"
       for item in items {
-        checked: CheckedExpression = check_expression(item, environment, facts, program)
+        checked: CheckedExpression = check_expression_scoped(item, environment, facts, program, scope_types)
         diagnostics = concat(diagnostics, checked.diagnostics)
         if checked.info.name == "Void" {
           diagnostics = append(diagnostics, checker_diagnostic("Void expressions cannot be stored in an array"))
@@ -672,7 +745,7 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
       info = plain_type("Array[${element}]")
     },
     UnaryExpr(operator, operand) => {
-      checked: CheckedExpression = check_expression(operand, environment, facts, program)
+      checked: CheckedExpression = check_expression_scoped(operand, environment, facts, program, scope_types)
       diagnostics = checked.diagnostics
       base: Str = base_type(program, checked.info.name)
       if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
@@ -680,8 +753,8 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
       else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } }
     },
     BinaryExpr(operator, left, right) => {
-      checked_left: CheckedExpression = check_expression(left, environment, facts, program)
-      checked_right: CheckedExpression = check_expression(right, environment, facts, program)
+      checked_left: CheckedExpression = check_expression_scoped(left, environment, facts, program, scope_types)
+      checked_right: CheckedExpression = check_expression_scoped(right, environment, facts, program, scope_types)
       diagnostics = concat(checked_left.diagnostics, checked_right.diagnostics)
       left_base: Str = base_type(program, checked_left.info.name)
       right_base: Str = base_type(program, checked_right.info.name)
@@ -720,7 +793,7 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
                       if bound.has_lower && bound.lower >= checked_right.info.nat_value { proven = true; } else {}
                     } else {}
                   },
-                  NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, args) => {}, FieldExpr(value, field) => {}, IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+                  NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, args, type_arguments) => {}, FieldExpr(value, field) => {}, IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
                 }
                 if !proven { diagnostics = append(diagnostics, checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")); } else {}
               } else {}
@@ -730,12 +803,15 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
         }
       }
     },
-    CallExpr(name, arguments) => {
+    CallExpr(name, arguments, type_arguments) => {
       operation: Str = method_operation(name)
       display_name: Str = method_display_name(name)
       record: RecordLookup = record_type(program, name)
       variant: VariantLookup = variant_type(program, name)
       function: FunctionLookup = function_type(program, name)
+      if len(type_arguments) > 0 && (!function.found || len(function.type_parameters) == 0) {
+        diagnostics = append(diagnostics, checker_diagnostic("explicit type arguments require a generic function"))
+      }
       mut expected: [Str] = []
       mut parameters: [Str] = []
       mut result: Str = "Unknown"
@@ -757,10 +833,10 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
       mut argument_infos: [TypeInfo] = []
       mut index: Nat = 0
       for argument in arguments {
-        checked: CheckedExpression = check_expression(argument, environment, facts, program)
+        checked: CheckedExpression = check_expression_scoped(argument, environment, facts, program, scope_types)
         diagnostics = concat(diagnostics, checked.diagnostics)
         argument_infos = append(argument_infos, checked.info)
-        if index < len(expected) {
+        if index < len(expected) && len(function.type_parameters) == 0 {
           template: Str = expected[index]
           inferred = infer_template(program, template, checked.info.name, parameters, inferred)
           target: Str = substitute_type(template, parameters, inferred)
@@ -883,10 +959,15 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
         for parameter in parameters { concrete = append(concrete, if map_has(inferred, parameter) { map_get(inferred, parameter) } else { "$${parameter}" }); }
         result = render_type(result, concrete)
       } else {}
+      if function.found && len(function.type_parameters) > 0 {
+        generic: CheckedExpression = check_generic_call(name, function, type_arguments, arguments, argument_infos, scope_types, facts, program)
+        diagnostics = concat(diagnostics, generic.diagnostics)
+        result = generic.info.name
+      }
       info = plain_type(result)
     },
     FieldExpr(target, field) => {
-      checked: CheckedExpression = check_expression(target, environment, facts, program)
+      checked: CheckedExpression = check_expression_scoped(target, environment, facts, program, scope_types)
       diagnostics = checked.diagnostics
       shape: TypeShape = type_shape(checked.info.name)
       record: RecordLookup = record_type(program, shape.base)
@@ -900,8 +981,8 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
       }
     },
     IndexExpr(target, index) => {
-      collection: CheckedExpression = check_expression(target, environment, facts, program)
-      checked_index: CheckedExpression = check_expression(index, environment, facts, program)
+      collection: CheckedExpression = check_expression_scoped(target, environment, facts, program, scope_types)
+      checked_index: CheckedExpression = check_expression_scoped(index, environment, facts, program, scope_types)
       diagnostics = concat(collection.diagnostics, checked_index.diagnostics)
       shape: TypeShape = type_shape(collection.info.name)
       if base_type(program, checked_index.info.name) != "Nat" { index_type: Str = checked_index.info.name; diagnostics = append(diagnostics, checker_diagnostic("index must be Nat, got ${index_type}")); } else {}
@@ -909,15 +990,15 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
       else { if collection.info.name == "Str" { info = plain_type("Str"); } else { if collection.info.name == "Bytes" { info = plain_type("Nat"); } else { collection_type: Str = collection.info.name; diagnostics = append(diagnostics, checker_diagnostic("indexing requires Str, Bytes, or an array, got ${collection_type}")); } } }
     },
     IfExpr(condition, yes, no, has_else) => {
-      checked_condition: CheckedExpression = check_expression(condition, environment, facts, program)
+      checked_condition: CheckedExpression = check_expression_scoped(condition, environment, facts, program, scope_types)
       diagnostics = checked_condition.diagnostics
       if checked_condition.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("if condition must be Bool")); } else {}
       yes_facts: Map[Str,Bounds] = condition_facts(condition, facts, true)
       no_facts: Map[Str,Bounds] = condition_facts(condition, facts, false)
-      checked_yes: CheckedBlock = check_block(yes, environment, yes_facts, program)
+      checked_yes: CheckedBlock = check_block(yes, environment, yes_facts, program, scope_types)
       diagnostics = concat(diagnostics, checked_yes.diagnostics)
       if has_else {
-        checked_no: CheckedBlock = check_block(no, environment, no_facts, program)
+        checked_no: CheckedBlock = check_block(no, environment, no_facts, program, scope_types)
         diagnostics = concat(diagnostics, checked_no.diagnostics)
         joined: Str = merge_types(program, checked_yes.info.name, checked_no.info.name)
         if joined == "Unknown" { yes_type: Str = checked_yes.info.name; no_type_name: Str = checked_no.info.name; diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${yes_type} and ${no_type_name}")); } else {}
@@ -926,9 +1007,9 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
         info = plain_type("Void")
       }
     },
-    BlockExpr(block) => { checked: CheckedBlock = check_block(block, environment, facts, program); info = checked.info; diagnostics = checked.diagnostics; },
+    BlockExpr(block) => { checked: CheckedBlock = check_block(block, environment, facts, program, scope_types); info = checked.info; diagnostics = checked.diagnostics; },
     MatchExpr(subject, arms) => {
-      checked_subject: CheckedExpression = check_expression(subject, environment, facts, program)
+      checked_subject: CheckedExpression = check_expression_scoped(subject, environment, facts, program, scope_types)
       diagnostics = checked_subject.diagnostics
       shape: TypeShape = type_shape(checked_subject.info.name)
       enum_value: EnumLookup = enum_type(program, shape.base)
@@ -947,7 +1028,7 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
           if len(arm.pattern.bindings) != len(payload) { payload_count: Nat = len(payload); diagnostics = append(diagnostics, checker_diagnostic("pattern ${variant_name} expects ${payload_count} bindings")); } else {}
           mut arm_environment: Map[Str,TypeInfo] = environment; mut binding_index: Nat = 0
           for binding in arm.pattern.bindings { if binding_index < len(payload) { arm_environment = map_put(arm_environment, binding, plain_type(substitute_type(payload[binding_index], enum_value.parameters, values))); } else {}; binding_index = binding_index + 1; }
-          checked_arm: CheckedExpression = check_expression(arm.body, arm_environment, facts, program); diagnostics = concat(diagnostics, checked_arm.diagnostics)
+          checked_arm: CheckedExpression = check_expression_scoped(arm.body, arm_environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked_arm.diagnostics)
           if result == "" { result = checked_arm.info.name; } else { arm_type: Str = checked_arm.info.name; merged: Str = merge_types(program, result, arm_type); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${result} and ${arm_type}")); } else { result = merged; } }
         }
         for variant in enum_value.variants { if !set_has(visited, variant.name) { missing: Str = variant.name; diagnostics = append(diagnostics, checker_diagnostic("non-exhaustive match; missing ${missing}")); } else {} }
@@ -982,13 +1063,13 @@ pure condition_facts(condition: Expr, facts: Map[Str,Bounds], truth: Bool): Map[
               } else {}
               result = map_put(result, name, next)
             },
-            LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection,other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+            LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection,other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
           }
         },
-        LocatedExpr(other_position, other_value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+        LocatedExpr(other_position, other_value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
       }
     },
-    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
 }
@@ -1022,47 +1103,47 @@ pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
   TypeInfo(name, value.has_nat && !mutable, value.nat_value, mutable)
 }
 
-pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedBlock {
+pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedBlock {
   mut environment: Map[Str,TypeInfo] = parent
   mut diagnostics: [Diagnostic] = []
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
-        checked: CheckedExpression = check_expression(value, environment, facts, program)
+        checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types)
         diagnostics = concat(diagnostics, checked.diagnostics)
         mut binding_type: Str = type_name
         if len(type_name) == 0 {
           binding_type = checked.info.name
           diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
         } else {
-          diagnostics = concat(diagnostics, require_type(program, type_name, [], false))
+          diagnostics = concat(diagnostics, require_type(program, type_name, scope_types, false))
           if !assignable_checked(program, checked.info, type_name, value, facts) { value_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${type_name}; guard is not proven")); } else {}
         }
         environment = map_put(environment, name, local_binding_info(binding_type, checked.info, mutable))
       },
       AssignmentStatement(name, value) => {
-        target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+        target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics)
         if !map_has(environment, name) {
           diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
           environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
         }
         else { if !target.mutable { diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign to immutable local ${name}")); } else { if !assignable_checked(program, checked.info, target.name, value, facts) { value_type: Str = checked.info.name; target_type: Str = target.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${target_type}")); } else {} } }
       },
-      ExpressionStatement(value) => { checked: CheckedExpression = check_expression(value, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics); },
+      ExpressionStatement(value) => { checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics); },
       WhileStatement(condition, body) => {
-        checked: CheckedExpression = check_expression(condition, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+        checked: CheckedExpression = check_expression_scoped(condition, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics)
         if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic_for(condition, "while condition must be Bool")); } else {}
-        body_facts: Map[Str,Bounds] = condition_facts(condition, facts, true); checked_body: CheckedBlock = check_block(body, environment, body_facts, program); diagnostics = concat(diagnostics, checked_body.diagnostics)
+        body_facts: Map[Str,Bounds] = condition_facts(condition, facts, true); checked_body: CheckedBlock = check_block(body, environment, body_facts, program, scope_types); diagnostics = concat(diagnostics, checked_body.diagnostics)
       },
       ForStatement(name, iterable, body) => {
-        checked: CheckedExpression = check_expression(iterable, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics); shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
+        checked: CheckedExpression = check_expression_scoped(iterable, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics); shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
         if checked.info.name == "Range" || checked.info.name == "Bytes" { item = "Nat"; } else { if shape.base == "Array" && len(shape.arguments) == 1 { item = shape.arguments[0]; } else { iterable_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(iterable, "for requires a Range or array, got ${iterable_type}")); } }
-        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block(body, loop_environment, facts, program); diagnostics = concat(diagnostics, checked_body.diagnostics)
+        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block(body, loop_environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked_body.diagnostics)
       }
     }
   }
   mut info: TypeInfo = plain_type("Void")
-  match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression(value, environment, facts, program); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); } }
+  match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); } }
   CheckedBlock(info, diagnostics)
 }
 
@@ -1089,11 +1170,20 @@ pure check_program_types(program: Program): [Diagnostic] {
           if len(variants) == 0 { diagnostics = append(diagnostics, checker_diagnostic("enum ${name} must contain at least one variant")); } else {}
           for variant in variants { for payload in variant.payload { diagnostics = concat(diagnostics, require_type(program, payload, parameters, false)); } }
         },
-        FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+        FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
+          mut seen_type_parameters: Set[Str] = set()
+          for parameter in type_parameters {
+            if seen_type_parameters.has(parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in function ${name}")); }
+            seen_type_parameters = seen_type_parameters.add(parameter)
+            if is_scalar_base(parameter) || parameter == "Void" || parameter == "Bytes" || parameter == "Array" || parameter == "Map" || parameter == "Set" || parameter == "Fn" || parameter == "PureFn" || parameter == "Any" || parameter == "Unknown" || parameter == "Range" || parameter == "Iterator" || record_type(program, parameter).found || enum_type(program, parameter).found || guarded_type(program, parameter).found {
+              diagnostics = append(diagnostics, checker_diagnostic("type parameter ${parameter} conflicts with a type name"))
+            }
+          }
+          if name == "main" && len(type_parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot have type parameters")); }
           if name == "main" { has_main = true; if len(parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters")); } else {} } else {}
           environment: Map[Str,TypeInfo] = map(); mut values: Map[Str,TypeInfo] = environment
-          for parameter in parameters { diagnostics = concat(diagnostics, require_type(program, parameter.type_name, [], false)); values = map_put(values, parameter.name, plain_type(parameter.type_name)); }
-          diagnostics = concat(diagnostics, require_type(program, return_type, [], true)); facts: Map[Str,Bounds] = map(); checked: CheckedBlock = check_block(body, values, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+          for parameter in parameters { diagnostics = concat(diagnostics, require_type(program, parameter.type_name, type_parameters, false)); values = map_put(values, parameter.name, plain_type(parameter.type_name)); }
+          diagnostics = concat(diagnostics, require_type(program, return_type, type_parameters, true)); facts: Map[Str,Bounds] = map(); checked: CheckedBlock = check_block(body, values, facts, program, type_parameters); diagnostics = concat(diagnostics, checked.diagnostics)
           mut return_ok: Bool = assignable(program, checked.info.name, return_type)
           guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
           if !return_ok && guarded_return.found && checked.info.has_nat && base_type(program, checked.info.name) == guarded_return.base {

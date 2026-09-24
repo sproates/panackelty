@@ -1,4 +1,13 @@
-// Persistent collection operations are compiler-known polymorphic APIs until
-// Panackelty gains generic source functions. Arrays provide append, concat,
-// map, and reduce methods; maps and sets provide concise type-directed methods.
-// The legacy prefixed free functions remain bootstrap compatibility spellings.
+import "option.panack"
+
+// Persistent storage operations remain VM primitives. The array map/reduce
+// methods retain compiler lowering; ordinary helpers can use source generics.
+// Legacy prefixed free functions remain bootstrap compatibility spellings.
+
+pure array_first[T](values: [T]): Option[T] {
+  if values.len() == 0 {
+    None()
+  } else {
+    Some(values[0])
+  }
+}

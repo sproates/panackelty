@@ -1,0 +1,6 @@
+error: <case>/main.panack:2:31: cannot infer type parameter T for empty; supply explicit type arguments
+  2 | main(): Void { value: [Nat] = empty() }
+    |                               ^
+<case>/main.panack:2:31: cannot assign Array[T] to [Nat]; guard is not proven
+  2 | main(): Void { value: [Nat] = empty() }
+    |                               ^

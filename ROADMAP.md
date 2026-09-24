@@ -794,8 +794,9 @@ prerequisite so programs can use these APIs without knowing repository paths.
       results, fixture discovery, temporary isolation, command assertions, and
       deterministic reporting as the foundation for Python removal; pure
       Boolean/Str/Nat assertions, structured outcomes, and caller-ordered
-      reporting are implemented, while discovery, isolation, and command
-      assertions remain
+      reporting are implemented, along with sorted immediate fixture-directory
+      discovery and explicitly owned temporary workspaces; command assertions
+      and migration of the harness remain
 
 ## Eliminate Python from the repository — planned after host capabilities
 

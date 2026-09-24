@@ -469,6 +469,8 @@ checkout and an installed toolchain without exposing its directory layout. See t
 [standard-library guide](src/stdlib/README.md) for the available APIs.
 The separately imported `stdlib/testing` module provides pure assertions and
 ordered result reporting for Panackelty test programs.
+`stdlib/testing_files` adds sorted fixture-directory discovery and explicitly
+owned temporary workspaces for test isolation.
 
 ## Explore further
 

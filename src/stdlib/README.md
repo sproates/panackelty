@@ -12,6 +12,7 @@ program-wide namespace, so public functions use descriptive prefixes.
 | `option.panack` | `Option[T]`, `None`, `Some`, `option_value_or[T]` | Portable enum and generic helper |
 | `result.panack` | `Result[T,E]`, `Ok`, `Error`, `result_value_or[T,E]` | Portable enum and generic helper |
 | `testing.panack` | `TestOutcome`, `TestResult`, `test_expect`, `test_equal_str`, `test_equal_nat`, `test_report` | Pure assertions and explicit ordered reporting; imported separately from the prelude |
+| `testing_files.panack` | `TestWorkspace`, `test_workspace_create`, `test_workspace_remove_empty`, `test_discover_fixtures` | Effectful sorted fixture discovery and explicitly owned temporary isolation; imported separately from the prelude |
 | `collections.panack` | `array_first[T]` returning `Option[T]`; array methods `append`/`concat`/`map`/`reduce`, Map methods `put`/`has`/`get`, Set methods `add`/`has`, plus legacy compatibility spellings | Portable generic helper plus compiler-known operations and VM primitives |
 | `text.panack` | `text_length`, `text_slice`, `text_starts_with`, `text_starts_with_at`, `text_reverse`, `text_is_digit`, `text_is_letter`, `text_is_whitespace`, `text_parse_nat` | Portable wrappers over deterministic VM primitives |
 | `bytes.panack` | `bytes_empty`, `bytes_push`, `bytes_join`, `bytes_length`, `bytes_at`, `text_encode_utf8`, `text_decode_utf8` | Portable wrappers over immutable byte-buffer primitives |
@@ -67,7 +68,22 @@ terminate a program. `test_report(results)` prints `PASS name` or
 `FAIL name: reason` for each result in the supplied order, then prints
 `tests: N, failures: M` and returns the failure count. An empty list reports
 zero tests and zero failures. A caller can choose a nonzero exit status from
-the returned count. Fixture discovery and command execution remain follow-ups.
+the returned count. Command assertions remain a follow-up.
 
 See the [functional case](../../tests/functional/cases/testing_library/main.panack)
 for a complete program.
+
+Import `stdlib/testing_files` to discover immediate **directory** children
+of a root with `test_discover_fixtures(root)`. It returns their full `Path` values
+in unsigned native-byte order and excludes regular files and final symlinks.
+If enumeration or metadata fails, it returns a `HostError` without partial
+results. The root is a caller-supplied path; it may itself resolve through a
+symlink. Discovery observes the filesystem as it changes, not a snapshot.
+
+`test_workspace_create(parent)` atomically creates a unique temporary directory
+and returns `TestWorkspace { root }`. The caller owns its contents and must
+remove them, then call `test_workspace_remove_empty(workspace)`. A nonempty
+workspace returns `not_empty` and is left intact for inspection. There is no
+automatic or recursive cleanup, and `TestWorkspace` is an ordinary constructible
+record, not a containment or authorization boundary. See the
+[fixture case](../../tests/functional/cases/testing_fixtures/main.panack).

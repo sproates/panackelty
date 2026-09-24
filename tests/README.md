@@ -55,6 +55,10 @@ evidence changes.
 for new Panackelty-hosted tests. Its initial end-to-end case is
 `functional/cases/testing_library`; the existing Python harness still owns
 test discovery and execution until its later migration.
+`stdlib/testing_files` exposes sorted immediate fixture directories and
+temporary workspaces; `functional/cases/testing_fixtures` exercises their
+creation, enumeration, and explicit cleanup. The Python harness still runs
+the complete suite.
 
 Unit tests are grouped by implementation subsystem under `tests/unit/compiler`,
 `tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output

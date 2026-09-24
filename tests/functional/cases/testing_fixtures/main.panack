@@ -1,0 +1,50 @@
+import stdlib/testing_files
+
+pure path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+pure child(parent: Path, name: Str): Path {
+  result_value_or(path_append(parent, path(name)), parent)
+}
+
+pure outcome(result: Result[Unit,HostError]): Str {
+  match result { Ok(value) => "ok", Error(error) => error.code }
+}
+
+main(): Void {
+  match test_workspace_create(path("/tmp")) {
+    Error(error) => { code = error.code; print("create: ${code}") },
+    Ok(workspace) => {
+      root = workspace.root
+      first = child(root, "a")
+      last = child(root, "z")
+      file = child(root, "readme")
+      print(outcome(fs_create_directory(last)))
+      print(outcome(fs_create_directory(first)))
+      print(outcome(fs_write(file, utf8_encode("fixture data"))))
+      match test_discover_fixtures(root) {
+        Error(error) => { code = error.code; print("discover: ${code}") },
+        Ok(fixtures) => {
+          for fixture in fixtures {
+            name = match path_filename(fixture) {
+              Some(value) => value,
+              None() => fixture
+            }
+            print(path_display(name))
+          }
+          count = len(fixtures)
+          print("found ${count}")
+        }
+      }
+      match test_workspace_remove_empty(workspace) {
+        Error(error) => { code = error.code; print("nonempty: ${code}") },
+        Ok(value) => { print("unexpected empty") }
+      }
+      print(outcome(fs_remove_file(file)))
+      print(outcome(fs_remove_directory(first)))
+      print(outcome(fs_remove_directory(last)))
+      print(outcome(test_workspace_remove_empty(workspace)))
+    }
+  }
+}

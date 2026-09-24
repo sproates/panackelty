@@ -508,6 +508,14 @@ assertions for Boolean conditions and equality of `Str` and `Nat`. Its effectful
 of failures; it does not choose an exit status. Fixture discovery and command
 execution are not part of this initial module.
 
+The separately imported `stdlib/testing_files` module discovers immediate
+directory children in the host's deterministic native-byte order and returns
+full `Path` values; final symlinks and files are excluded. It propagates host
+failures rather than returning a partial list. Its `TestWorkspace` record owns
+an atomically created temporary directory. Callers remove its contents and
+explicitly remove the empty directory; nonempty removal fails. This API does
+not establish containment, a filesystem snapshot, or automatic cleanup.
+
 ## Strings
 
 `Str` values are Unicode text. They concatenate with `+`, and interpolation uses

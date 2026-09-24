@@ -406,6 +406,10 @@ bool decode(const uint8_t *data, size_t length, Program *p, const char **error)
         f->pure = flags == 1;
         f->param_count = params;
         f->params = calloc(params, sizeof(char *));
+        if (params && !f->params) {
+            fail(&r, "out of memory");
+            break;
+        }
         for (size_t j = 0; j < params && !r.error; j++) {
             f->params[j] = text(&r, true);
         }

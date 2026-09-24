@@ -521,5 +521,9 @@ calls back into the VM after decoding and verifying its child program.
 
 The Makefile compiles each component once, tracks generated header dependencies,
 and reuses those objects for direct C contract tests. Native process tests reuse
-the production runner; the optional sanitizer target uses a separate build tree.
+the production runner. Sanitizer and LLVM branch-coverage targets use separate
+build trees and also run in CI. A separately compiled fault-injection harness
+redirects VM allocations and selected host syscalls, sweeps each allocation
+failure position, and asserts memory, descriptor and child-process cleanup.
+Production builds contain no fault controls.
 See `src/vm/README.md` for the complete file map and ownership conventions.

@@ -268,6 +268,13 @@ Value *host_call(VM *vm, const char *name, Value **a)
         }
         for (int i = 0; i < vm->argc; i++) {
             items[i] = value_data(V_STR, (uint8_t *)vm->argv[i], strlen(vm->argv[i]));
+            if (!items[i]) {
+                for (int j = 0; j < i; j++) {
+                    release(items[j]);
+                }
+                free(items);
+                return NULL;
+            }
         }
         Value *v = value_sequence(V_ARRAY, items, (size_t)vm->argc);
         for (int i = 0; i < vm->argc; i++) {

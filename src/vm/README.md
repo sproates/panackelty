@@ -105,3 +105,14 @@ runs the native loader and execution suites against the instrumented runner.
 It requires a compiler/runtime supporting those sanitizers and does not replace
 `panack-vm`. Leak detection depends on host sanitizer support; reference-count
 assertions check the tested ownership paths on every host.
+
+`make native-fault` sweeps allocation failures and selected host syscall failures
+in a separate test-only build. The normal VM suite additionally sweeps richer
+compiled programs, including nested execution and traps with live caller values.
+`make native-coverage` requires Clang and matching `llvm-cov`/`llvm-profdata`
+(on macOS, Xcode command-line tools work) and writes `build/coverage/summary.txt`
+and `build/coverage/html/`. CI runs sanitizers and uploads the coverage report.
+These targets include seeded arithmetic properties, persistent-value lifetimes,
+and deterministic mutation of every operand and constant form. They supplement,
+but do not prove, memory safety; exhaustive host failures and coverage-guided
+fuzzing remain follow-up work.

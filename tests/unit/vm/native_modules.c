@@ -42,6 +42,32 @@ static void values_own_copies_and_retain_children(void)
     release(child);
 }
 
+static void persistent_versions_keep_shared_children_alive(void)
+{
+    VM vm = {0};
+    Value *child = value_data(V_STR, (const uint8_t *)"shared", 6);
+    Value *versions[33] = {value_sequence(V_ARRAY, NULL, 0)};
+    assert(child && versions[0]);
+    for (size_t i = 1; i < 33; i++) {
+        Value *arguments[] = {versions[i - 1], child};
+        versions[i] = builtin_call(&vm, "append", arguments);
+        assert(versions[i] && !vm.error);
+        assert(versions[i]->as.sequence.count == i);
+        assert(versions[i - 1]->as.sequence.count == i - 1);
+        assert(versions[i]->as.sequence.items[i - 1] == child);
+    }
+    assert(child->refs == 1 + 32 * 33 / 2);
+    /* Release in a different order from construction to expose aliasing mistakes. */
+    for (size_t i = 0; i < 33; i += 2) {
+        release(versions[i]);
+    }
+    for (size_t i = 1; i < 33; i += 2) {
+        release(versions[i]);
+    }
+    assert(child->refs == 1 && !memcmp(child->as.bytes.data, "shared", 6));
+    release(child);
+}
+
 static void exact_arithmetic_borrows_operands(void)
 {
     Value *left = value_size(7), *right = value_size(3);
@@ -93,8 +119,11 @@ static void frames_release_arguments_on_return_and_trap(void)
         {.op = OP_LOAD, .name = "argument"},
         {.op = OP_RETURN},
     };
-    Function function = {.name = "main", .param_count = 1, .params = parameters,
-                         .ins_count = 2, .ins = instructions};
+    Function function = {.name = "main",
+                         .param_count = 1,
+                         .params = parameters,
+                         .ins_count = 2,
+                         .ins = instructions};
     Program program = {.count = 1, .functions = &function};
     VM vm = {.program = &program};
     Value *argument = value_size(42);
@@ -120,8 +149,12 @@ static void frames_release_arguments_on_return_and_trap(void)
     const uint8_t constructors[] = {OP_MAKE_ARRAY, OP_MAKE_RECORD, OP_MAKE_VARIANT, OP_CALL};
     for (size_t i = 0; i < sizeof(constructors); i++) {
         vm.error = NULL;
-        instructions[1] = (Instruction){.op = constructors[i], .count = 2, .arity = 2,
-                                        .name = "missing", .name2 = "Missing", .items = fields};
+        instructions[1] = (Instruction){.op = constructors[i],
+                                        .count = 2,
+                                        .arity = 2,
+                                        .name = "missing",
+                                        .name2 = "Missing",
+                                        .items = fields};
         assert(!execute(&vm, &function, &argument));
         assert(strcmp(vm.error, "VM trap: operand stack underflow") == 0);
         assert(argument->refs == 1);
@@ -156,9 +189,9 @@ static void nested_calls_preserve_caller_ownership(void)
 static void decode_mutations_release_partial_programs(void)
 {
     /* Version 8: main() { CONST Void; RETURN }. Mutations never execute. */
-    const uint8_t valid[] = {0x50, 0x41, 0x4e, 0x41, 0x43, 0x4b, 0x42, 0x43, 0,
-                            0, 8, 0, 1, 0, 4, 'm', 'a', 'i', 'n', 0, 0,
-                            0, 0, 0, 2, OP_CONST, 5, OP_RETURN};
+    const uint8_t valid[] = {0x50, 0x41, 0x4e, 0x41, 0x43, 0x4b,     0x42, 0x43,     0,   0,
+                             8,    0,    1,    0,    4,    'm',      'a',  'i',      'n', 0,
+                             0,    0,    0,    0,    2,    OP_CONST, 5,    OP_RETURN};
     for (size_t length = 0; length < sizeof(valid); length++) {
         Program program;
         const char *error = NULL;
@@ -188,9 +221,9 @@ static void decode_mutations_release_partial_programs(void)
 static void nested_bytecode_releases_rejected_programs(void)
 {
     /* Structurally valid, but the function is named fail rather than main. */
-    const uint8_t invalid[] = {0x50, 0x41, 0x4e, 0x41, 0x43, 0x4b, 0x42, 0x43, 0,
-                              0, 8, 0, 1, 0, 4, 'f', 'a', 'i', 'l', 0, 0,
-                              0, 0, 0, 2, OP_CONST, 5, OP_RETURN};
+    const uint8_t invalid[] = {0x50, 0x41, 0x4e, 0x41, 0x43, 0x4b,     0x42, 0x43,     0,   0,
+                               8,    0,    1,    0,    4,    'f',      'a',  'i',      'l', 0,
+                               0,    0,    0,    0,    2,    OP_CONST, 5,    OP_RETURN};
     Value *bytes = value_data(V_BYTES, invalid, sizeof(invalid));
     Value *arguments = value_sequence(V_ARRAY, NULL, 0);
     Value *inputs[] = {bytes, arguments};
@@ -217,8 +250,9 @@ static void builtin_domains_preserve_errors_and_results(void)
 
     Value *wrong = value_size(7);
     Value *arguments[] = {wrong, wrong, wrong};
-    const char *invalid[] = {"utf8_decode", "$method_has", "path_from_text", "host_sleep",
-                             "fs_metadata", "run_bytecode", "nat"};
+    const char *invalid[] = {"utf8_decode", "$method_has", "path_from_text",
+                             "host_sleep",  "fs_metadata", "run_bytecode",
+                             "nat"};
     for (size_t i = 0; i < sizeof(invalid) / sizeof(*invalid); i++) {
         vm.error = NULL;
         assert(!builtin_call(&vm, invalid[i], arguments));
@@ -231,8 +265,121 @@ static void builtin_domains_preserve_errors_and_results(void)
     release(wrong);
 }
 
+static void bigint_boundaries(void)
+{
+    const uint64_t values[] = {
+        0, 1, 999999999, 1000000000, 999999999999999999ULL, 1000000000000000000ULL, UINT64_MAX};
+    for (size_t i = 0; i < sizeof(values) / sizeof(*values); i++) {
+        PnBigInt number = {0};
+        assert(pn_big_from_u64(&number, values[i]));
+        char expected[32];
+        snprintf(expected, sizeof(expected), "%llu", (unsigned long long)values[i]);
+        char *actual = pn_big_string(&number);
+        assert(actual && !strcmp(actual, expected));
+        free(actual);
+        pn_big_free(&number);
+    }
+}
+
+/* Batched probe: the Python tests compute independent arbitrary-precision oracles. */
+static void arithmetic_probe(void)
+{
+    char mode[16], a_text[512], b_text[512];
+    int operation, a_exponent, b_exponent;
+    while (scanf("%15s %d %511s %d %511s %d", mode, &operation, a_text, &a_exponent, b_text,
+                 &b_exponent) == 6) {
+        PnBigInt a = {0}, b = {0}, result = {0}, remainder = {0};
+        bool negative_a = a_text[0] == '-', negative_b = b_text[0] == '-';
+        assert(pn_big_from_digits(&a, a_text + negative_a, strlen(a_text) - negative_a,
+                                  negative_a ? -1 : 1));
+        assert(pn_big_from_digits(&b, b_text + negative_b, strlen(b_text) - negative_b,
+                                  negative_b ? -1 : 1));
+        if (!strcmp(mode, "integer")) {
+            bool ok = operation == 0   ? pn_big_add(&result, &a, &b)
+                      : operation == 1 ? pn_big_sub(&result, &a, &b)
+                      : operation == 2 ? pn_big_mul(&result, &a, &b)
+                                       : pn_big_divmod(&result, &remainder, &a, &b);
+            assert(ok);
+            char *text = pn_big_string(&result), *rest = pn_big_string(&remainder);
+            assert(text && rest);
+            printf("%s %s\n", text, rest);
+            free(text);
+            free(rest);
+        } else {
+            Decimal left = {.coefficient = a, .exponent = a_exponent};
+            Decimal right = {.coefficient = b, .exponent = b_exponent};
+            if (operation == 5) {
+                printf("%d\n", decimal_compare(&left, &right));
+            } else {
+                const char *error = NULL;
+                Value *value = decimal_binary((uint8_t)operation, &left, &right, &error);
+                assert(value && !error);
+                Buffer text = {0};
+                assert(render(&text, value, false));
+                puts(text.data);
+                free(text.data);
+                release(value);
+            }
+        }
+        pn_big_free(&a);
+        pn_big_free(&b);
+        pn_big_free(&result);
+        pn_big_free(&remainder);
+    }
+    assert(feof(stdin));
+}
+
+static void mutate_artifact(const char *path)
+{
+    FILE *file = fopen(path, "rb");
+    assert(file && !fseek(file, 0, SEEK_END));
+    long size = ftell(file);
+    assert(size > 0 && size < 65536 && !fseek(file, 0, SEEK_SET));
+    size_t length = (size_t)size;
+    uint8_t *bytes = malloc(length);
+    assert(bytes && fread(bytes, 1, length, file) == length && !fclose(file));
+    Program program;
+    const char *error = NULL;
+    assert(decode(bytes, length, &program, &error) && verify(&program, &error));
+    free_program(&program);
+    size_t mutations = 0;
+    for (size_t truncated = 0; truncated < length; truncated++) {
+        error = NULL;
+        assert(!decode(bytes, truncated, &program, &error) && error);
+        free_program(&program);
+    }
+    /* Exercise bit flips plus length/sign boundary values at every byte. */
+    const uint8_t replacements[] = {0, 1, 0x7f, 0x80, 0xfe, 0xff};
+    for (size_t position = 0; position < length; position++) {
+        uint8_t original = bytes[position];
+        for (size_t change = 0; change < 14; change++) {
+            bytes[position] =
+                change < 8 ? original ^ (uint8_t)(1u << change) : replacements[change - 8];
+            error = NULL;
+            if (decode(bytes, length, &program, &error)) {
+                (void)verify(&program, &error);
+            } else {
+                assert(error);
+            }
+            free_program(&program);
+            mutations++;
+        }
+        bytes[position] = original;
+    }
+    free(bytes);
+    printf("decoder corpus: %zu mutations, %zu truncations\n", mutations, length);
+}
+
 int main(int argc, char **argv)
 {
+    if (argc == 3 && strcmp(argv[1], "mutate") == 0) {
+        mutate_artifact(argv[2]);
+        return 0;
+    }
+    if (argc > 1 && strcmp(argv[1], "arithmetic") == 0) {
+        arithmetic_probe();
+        return 0;
+    }
     if (argc > 1 && strcmp(argv[1], "registry") == 0) {
         for (int i = 2; i < argc; i++) {
             const Builtin *entry = builtin(argv[i]);
@@ -241,7 +388,9 @@ int main(int argc, char **argv)
         }
         return 0;
     }
+    bigint_boundaries();
     values_own_copies_and_retain_children();
+    persistent_versions_keep_shared_children_alive();
     exact_arithmetic_borrows_operands();
     utf8_offsets_preserve_code_points();
     frames_release_arguments_on_return_and_trap();

@@ -204,9 +204,8 @@ text conversion, lexical append and parent operations, exact equality, signed
 and very large durations, fractional nanosecond rejection, zero division,
 monotonic reads, and deadline arithmetic through source and compiled public-CLI
 execution and native/oracle conformance. The prelude and fixed-point bootstrap
-gates include the new module. Native clock failure injection, system suspension,
-non-POSIX hosts, typed filesystem I/O, and timeout APIs remain uncovered or
-unimplemented; a nanosecond representation is not a clock-accuracy claim.
+gates include the new module. Native clock failure injection is covered by the fault harness. System
+suspension and non-POSIX hosts remain uncovered; a nanosecond representation is not a clock-accuracy claim.
 
 ## Typed host capabilities
 
@@ -219,8 +218,9 @@ operands across both VMs. The `host_capabilities` and `host_process` functional
 cases run source and bytecode through the public CLI and native conformance.
 They include combined output exhaustion, absent executables, invalid environment
 entries, negative/oversized/zero timeouts, and descendants retaining output pipes.
-Host allocation failure, syscall fault injection, all errno mappings, and real
-system suspension remain intentionally outside this focused coverage.
+The native fault harness adds allocation failures and selected process, clock,
+sleep and filesystem syscall failures. All errno mappings and real system
+suspension remain outside this focused coverage.
 
 ## Native VM module and memory contracts
 
@@ -239,6 +239,33 @@ artifact corpus and native end-to-end tests. Regression assertions cover release
 operands on range/index stack underflow and rejected nested bytecode cleanup. `make native-sanitize` runs the C harness
 and native loader/execution suites with address and undefined-behaviour checks.
 
-Systematic allocation-failure injection, coverage-guided fuzzing of richer valid
-artifacts, and exhaustive host syscall failures remain follow-up work. Passing
-sanitizers is evidence for exercised paths, not proof of all memory safety.
+`test_native_faults.py` and its separate C harness fail every allocation position
+in representative decoder, constructor, frame-growth, numeric, nested-execution,
+process and file-I/O operations. They assert that tracked allocations, descriptors
+and child processes return to baseline. Rich compiled programs exercise callable
+values, interpolation, loops, persistent collections, variants and traps with
+live caller values. Selected clock/pipe/fork/poll/read/write/open/fstat/ftruncate
+failures and retryable interruptions exercise host cleanup and result contracts.
+Wrappers track VM allocations and selected descriptors, not libc internals.
+
+A valid artifact containing all 22 opcodes and all six constant forms supplies
+every truncation, eight bit flips and six boundary substitutions per byte;
+mutated code is decoded/verified/released, never executed. Seeded arithmetic
+properties compare signed limb boundaries and 100-digit operands with Python
+integers, and decimal scales through +/-4096 with exact fractions. Persistent
+array versions share children across nonsequential release. Exact-output checks
+and `functional/cases/vm_numeric_boundaries` cover quotient formatting and large
+numeric boundaries through both runtimes and the public CLI.
+
+Regressions found by these tests include partial-program/record cleanup, failed
+frame-growth ownership, ignored expression-allocation failures, incomplete nested
+argument construction, bigint temporaries and full-width unsigned conversion,
+allocation-dependent decimal comparison, and decimal division trailing zeros.
+
+CI runs `make native-sanitize` and `make native-coverage`, publishing native
+line/branch summaries and HTML. The initial local baseline is approximately 85%
+lines and 79% branches; this measures the native corpus, not every full-suite
+execution. Host error paths, rendering and nested execution retain gaps.
+Coverage-guided fuzzing, exhaustive syscall/errno combinations and unbounded
+ownership sequences remain follow-up work. Passing sanitizers is evidence for
+exercised paths, not proof of all memory safety.

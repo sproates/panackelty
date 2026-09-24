@@ -52,7 +52,9 @@ bool pn_big_copy(PnBigInt *out, const PnBigInt *value)
     if (!resize(out, value->len)) {
         return false;
     }
-    memcpy(out->limbs, value->limbs, value->len * sizeof(uint32_t));
+    if (value->len) {
+        memcpy(out->limbs, value->limbs, value->len * sizeof(uint32_t));
+    }
     out->sign = value->sign;
     return true;
 }
@@ -63,12 +65,16 @@ bool pn_big_from_u64(PnBigInt *out, uint64_t value)
     if (!value) {
         return true;
     }
-    if (!resize(out, value >= BASE ? 2 : 1)) {
+    size_t count = 0;
+    for (uint64_t rest = value; rest; rest /= BASE) {
+        count++;
+    }
+    if (!resize(out, count)) {
         return false;
     }
-    out->limbs[0] = (uint32_t)(value % BASE);
-    if (out->len == 2) {
-        out->limbs[1] = (uint32_t)(value / BASE);
+    for (size_t i = 0; i < count; i++) {
+        out->limbs[i] = (uint32_t)(value % BASE);
+        value /= BASE;
     }
     out->sign = 1;
     return true;
@@ -337,9 +343,9 @@ bool pn_big_divmod(PnBigInt *q, PnBigInt *r, const PnBigInt *a, const PnBigInt *
     if (!b->sign) {
         return false;
     }
-    PnBigInt aa, bb;
+    PnBigInt aa = {0}, bb = {0};
     if (!pn_big_copy(&aa, a) || !pn_big_copy(&bb, b)) {
-        return false;
+        goto fail;
     }
     aa.sign = aa.len ? 1 : 0;
     bb.sign = bb.len ? 1 : 0;
@@ -360,8 +366,9 @@ bool pn_big_divmod(PnBigInt *q, PnBigInt *r, const PnBigInt *a, const PnBigInt *
         uint32_t lo = 0, hi = BASE - 1, best = 0;
         while (lo <= hi) {
             uint32_t mid = lo + (hi - lo) / 2;
-            PnBigInt probe;
+            PnBigInt probe = {0};
             if (!pn_big_copy(&probe, &bb) || !pn_big_mul_small(&probe, mid)) {
+                pn_big_free(&probe);
                 goto fail;
             }
             int cmp = abs_compare(&probe, r);
@@ -381,9 +388,11 @@ bool pn_big_divmod(PnBigInt *q, PnBigInt *r, const PnBigInt *a, const PnBigInt *
         }
         q->limbs[pos] = best;
         if (best) {
-            PnBigInt product, next;
+            PnBigInt product = {0}, next = {0};
             if (!pn_big_copy(&product, &bb) || !pn_big_mul_small(&product, best) ||
                 !abs_sub(&next, r, &product)) {
+                pn_big_free(&product);
+                pn_big_free(&next);
                 goto fail;
             }
             pn_big_free(&product);

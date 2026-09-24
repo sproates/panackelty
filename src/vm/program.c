@@ -10,14 +10,14 @@ void free_program(Program *p)
     if (!p) {
         return;
     }
-    for (size_t i = 0; i < p->count; i++) {
+    for (size_t i = 0; p->functions && i < p->count; i++) {
         Function *f = &p->functions[i];
         free(f->name);
-        for (size_t j = 0; j < f->param_count; j++) {
+        for (size_t j = 0; f->params && j < f->param_count; j++) {
             free(f->params[j]);
         }
         free(f->params);
-        for (size_t j = 0; j < f->ins_count; j++) {
+        for (size_t j = 0; f->ins && j < f->ins_count; j++) {
             Instruction *in = &f->ins[j];
             free(in->name);
             free(in->name2);
@@ -36,7 +36,7 @@ void free_program(Program *p)
 
 Function *program_function(Program *p, const char *name)
 {
-    for (size_t i = 0; i < p->count; i++) {
+    for (size_t i = 0; p->functions && i < p->count; i++) {
         if (!strcmp(name, p->functions[i].name)) {
             return &p->functions[i];
         }

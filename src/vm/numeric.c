@@ -20,8 +20,10 @@ static bool big_abs_copy(PnBigInt *out, const PnBigInt *in)
 
 static bool big_gcd(PnBigInt *out, const PnBigInt *left, const PnBigInt *right)
 {
-    PnBigInt a, b;
+    PnBigInt a = {0}, b = {0};
     if (!big_abs_copy(&a, left) || !big_abs_copy(&b, right)) {
+        pn_big_free(&a);
+        pn_big_free(&b);
         return false;
     }
     while (!pn_big_is_zero(&b)) {
@@ -48,7 +50,11 @@ static bool decimal_align(const Decimal *a, const Decimal *b, PnBigInt *left, Pn
                           int *exponent)
 {
     *exponent = a->exponent < b->exponent ? a->exponent : b->exponent;
+    pn_big_init(left);
+    pn_big_init(right);
     if (!pn_big_copy(left, &a->coefficient) || !pn_big_copy(right, &b->coefficient)) {
+        pn_big_free(left);
+        pn_big_free(right);
         return false;
     }
     if (!pn_big_pow10(left, (size_t)(a->exponent - *exponent)) ||
@@ -70,6 +76,13 @@ Value *value_decimal(PnBigInt *coefficient, int exponent)
     v->as.decimal.exponent = exponent;
     pn_big_init(coefficient);
     return v;
+}
+
+static Value *decimal_result(PnBigInt *coefficient, int exponent)
+{
+    Value *result = value_decimal(coefficient, exponent);
+    pn_big_free(coefficient);
+    return result;
 }
 
 Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char **error)
@@ -101,26 +114,28 @@ Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char
         }
         pn_big_free(&left);
         pn_big_free(&right);
-        return value_decimal(&result, exponent);
+        return decimal_result(&result, exponent);
     }
     if (op == 2) {
         if (!pn_big_mul(&result, &a->coefficient, &b->coefficient)) {
             return NULL;
         }
-        return value_decimal(&result, a->exponent + b->exponent);
+        return decimal_result(&result, a->exponent + b->exponent);
     }
     if (op == 3) {
         if (pn_big_is_zero(&b->coefficient)) {
             *error = "VM trap: division by zero";
             return NULL;
         }
-        PnBigInt gcd, den, num;
+        PnBigInt gcd = {0}, den = {0}, num = {0};
         if (!big_gcd(&gcd, &a->coefficient, &b->coefficient) ||
             !pn_big_divmod(&num, &r, &a->coefficient, &gcd)) {
+            pn_big_free(&gcd);
             return NULL;
         }
         pn_big_free(&r);
         if (!pn_big_divmod(&den, &r, &b->coefficient, &gcd)) {
+            pn_big_free(&gcd);
             pn_big_free(&num);
             return NULL;
         }
@@ -181,7 +196,19 @@ Value *decimal_binary(uint8_t op, const Decimal *a, const Decimal *b, const char
                 return NULL;
             }
         }
-        return value_decimal(&num, a->exponent - b->exponent - (int)places);
+        int exponent = a->exponent - b->exponent - (int)places;
+        /* Division returns the shortest exact fractional scale, matching the
+         * reference VM. Other arithmetic retains the operands' scale.
+         */
+        if (pn_big_is_zero(&num)) {
+            exponent = 0;
+        } else {
+            while (exponent < 0 && num.limbs[0] % 10 == 0) {
+                pn_big_div_small(&num, 10);
+                exponent++;
+            }
+        }
+        return decimal_result(&num, exponent);
     }
     return NULL;
 fail_align:
@@ -190,18 +217,58 @@ fail_align:
     return NULL;
 }
 
-int decimal_compare(const Decimal *a, const Decimal *b)
+static size_t coefficient_digits(const PnBigInt *number)
 {
-    PnBigInt left, right;
-    int exponent;
-    if (!decimal_align(a, b, &left, &right, &exponent)) {
+    if (!number->len) {
+        return 1;
+    }
+    size_t digits = (number->len - 1) * 9 + 1;
+    for (uint32_t top = number->limbs[number->len - 1]; top >= 10; top /= 10) {
+        digits++;
+    }
+    return digits;
+}
+
+static uint32_t coefficient_digit(const PnBigInt *number, size_t digits, size_t position)
+{
+    static const uint32_t powers[] = {1,      10,      100,      1000,     10000,
+                                      100000, 1000000, 10000000, 100000000};
+    if (position >= digits) {
         return 0;
     }
-    (void)exponent;
-    int result = pn_big_compare(&left, &right);
-    pn_big_free(&left);
-    pn_big_free(&right);
-    return result;
+    size_t offset = digits - position - 1;
+    return number->limbs[offset / 9] / powers[offset % 9] % 10;
+}
+
+int decimal_compare(const Decimal *a, const Decimal *b)
+{
+    const PnBigInt *left = &a->coefficient, *right = &b->coefficient;
+    if (left->sign != right->sign) {
+        return left->sign < right->sign ? -1 : 1;
+    }
+    if (!left->sign) {
+        return 0;
+    }
+
+    /* Compare decimal magnitudes and then significant digits, padding with zero.
+     * Unlike scale alignment, comparison needs no allocation and cannot silently
+     * report equality when memory is exhausted. Negative zero compares as zero.
+     */
+    size_t left_digits = coefficient_digits(left), right_digits = coefficient_digits(right);
+    int64_t left_magnitude = (int64_t)left_digits + a->exponent;
+    int64_t right_magnitude = (int64_t)right_digits + b->exponent;
+    if (left_magnitude != right_magnitude) {
+        return (left_magnitude < right_magnitude ? -1 : 1) * left->sign;
+    }
+    size_t count = left_digits > right_digits ? left_digits : right_digits;
+    for (size_t i = 0; i < count; i++) {
+        uint32_t ld = coefficient_digit(left, left_digits, i);
+        uint32_t rd = coefficient_digit(right, right_digits, i);
+        if (ld != rd) {
+            return (ld < rd ? -1 : 1) * left->sign;
+        }
+    }
+    return 0;
 }
 
 Value *value_rat(const PnBigInt *n, const PnBigInt *d, const char **error)

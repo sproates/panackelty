@@ -18,8 +18,10 @@ sentinel.
   their greatest common divisor, makes the denominator positive, and normalizes
   zero to `0/1`. Destruction frees both integers.
 - `Dec` stores a signed arbitrary-precision coefficient and a signed base-10
-  exponent. Arithmetic preserves exact scale; division succeeds only when the
-  reduced denominator contains no prime factors other than two and five.
+  exponent. Addition, subtraction and multiplication preserve exact scale; division
+  succeeds only when the reduced denominator contains no prime factors other than
+  two and five, and removes redundant fractional trailing zeros. Comparison reads
+  coefficient digits without allocating aligned temporary values.
 - `Str` owns UTF-8 bytes plus a code-point count and an ASCII flag computed
   once at construction. Length reads the count directly; ASCII indexing and
   slice/prefix offsets use byte offsets directly, while non-ASCII offsets retain
@@ -78,3 +80,9 @@ these values. Existing reference counting releases their byte/integer storage.
 Equality compares values within the same tag. Only explicit path conversion
 exposes bytes; instants have no tick accessor and render as `<Instant>`.
 These tags are runtime-only and are never accepted as serialized constants.
+
+Allocation-failure tests exercise partial construction and frame cleanup. Stack
+push and local assignment consume their input reference on both success and
+failure; callers must not release it again. Failed constructors release retained
+children and partially copied fields. Test-only allocation/syscall wrappers are
+compiled into a separate executable and are absent from the production runner.

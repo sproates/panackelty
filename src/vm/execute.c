@@ -24,13 +24,14 @@ typedef struct {
     Local *locals;
 } Frame;
 
-/* Takes the reference on success; the caller still owns it on failure. */
+/* Consumes the reference, including on allocation failure. */
 static bool stack_push(Frame *frame, Value *v)
 {
     if (frame->stack_count == frame->stack_capacity) {
         size_t cap = frame->stack_capacity ? frame->stack_capacity * 2 : 16;
         Value **next = realloc(frame->stack, cap * sizeof(Value *));
         if (!next) {
+            release(v);
             return false;
         }
         frame->stack = next;
@@ -61,7 +62,7 @@ static Value *local_get(Frame *frame, const char *name)
     return NULL;
 }
 
-/* Replacing a local releases its old reference. Takes value only on success. */
+/* Replacing a local releases its old reference. Consumes value even on failure. */
 static bool local_put(Frame *frame, const char *name, Value *value)
 {
     for (size_t i = 0; i < frame->local_count; i++) {
@@ -75,6 +76,7 @@ static bool local_put(Frame *frame, const char *name, Value *value)
         size_t cap = frame->local_capacity ? frame->local_capacity * 2 : 16;
         Local *next = realloc(frame->locals, cap * sizeof(Local));
         if (!next) {
+            release(value);
             return false;
         }
         frame->locals = next;
@@ -82,6 +84,7 @@ static bool local_put(Frame *frame, const char *name, Value *value)
     }
     frame->locals[frame->local_count].name = copy_text(name);
     if (!frame->locals[frame->local_count].name) {
+        release(value);
         return false;
     }
     frame->locals[frame->local_count++].value = value;
@@ -115,6 +118,7 @@ static Value *constant_value(const Constant *c)
             return NULL;
         }
         Value *v = value_decimal(&n, c->exponent);
+        pn_big_free(&n);
         if (v && c->boolean && pn_big_is_zero(&v->as.decimal.coefficient)) {
             v->as.decimal.negative_zero = true;
         }
@@ -187,6 +191,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 if (pn_big_copy(&n, &a->as.decimal.coefficient)) {
                     n.sign = -n.sign;
                     v = value_decimal(&n, a->as.decimal.exponent);
+                    pn_big_free(&n);
                 }
             } else if (a->kind == V_RAT) {
                 PnBigInt n = a->as.rational.numerator;
@@ -203,7 +208,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm->error = "VM trap: unary - requires numeric value";
             }
             release(a);
-            if (v && !stack_push(&frame, v)) {
+            if ((!v && !vm->error) || (v && !stack_push(&frame, v))) {
                 goto oom;
             }
             break;
@@ -218,7 +223,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             v = binary_value(instruction->code, a, b, &vm->error);
             release(a);
             release(b);
-            if (v && !stack_push(&frame, v)) {
+            if ((!v && !vm->error) || (v && !stack_push(&frame, v))) {
                 goto oom;
             }
             break;
@@ -308,7 +313,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             }
             release(a);
             release(b);
-            if (v && !stack_push(&frame, v)) {
+            if ((!v && !vm->error) || (v && !stack_push(&frame, v))) {
                 goto oom;
             }
             break;
@@ -322,18 +327,25 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 values[i] = stack_pop(&frame, vm);
             }
             Buffer out = {0};
+            bool rendered = true;
             for (size_t i = 0; i < instruction->count && !vm->error; i++) {
                 if (!buffer_text(&out, instruction->items[i])) {
-                    goto oom;
+                    rendered = false;
+                    break;
                 }
                 if (i < count && !render(&out, values[i], false)) {
-                    goto oom;
+                    rendered = false;
+                    break;
                 }
             }
             for (size_t i = 0; i < count; i++) {
                 release(values[i]);
             }
             free(values);
+            if (!rendered) {
+                free(out.data);
+                goto oom;
+            }
             v = value_data(V_STR, (uint8_t *)(out.data ? out.data : ""), out.length);
             free(out.data);
             if (!v || !stack_push(&frame, v)) {
@@ -436,7 +448,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm->error = "VM trap: record has no field";
             }
             release(a);
-            if (v && !stack_push(&frame, v)) {
+            if ((!v && !vm->error) || (v && !stack_push(&frame, v))) {
                 goto oom;
             }
             break;
@@ -502,7 +514,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 release(args[i]);
             }
             free(args);
-            if (v && !stack_push(&frame, v)) {
+            if ((!v && !vm->error) || (v && !stack_push(&frame, v))) {
                 goto oom;
             }
             break;
@@ -579,7 +591,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             }
             free(args);
             release(callable);
-            if (v && !stack_push(&frame, v)) {
+            if ((!v && !vm->error) || (v && !stack_push(&frame, v))) {
                 goto oom;
             }
             break;

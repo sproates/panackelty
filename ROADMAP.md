@@ -978,5 +978,11 @@ function return types, and distinguishes no-return functions with `Void`.
       types, name wire opcodes, and document ownership and formatting conventions.
 - [x] Add direct module ownership, cleanup, builtin registry and header checks,
       deterministic decoder mutations, and an isolated sanitizer target.
-- [ ] Extend allocation-failure injection and coverage-guided decoder fuzzing;
+- [x] Sweep allocation failures across representative decoding, values, frames,
+      exact arithmetic, nested execution and host operations; assert cleanup.
+- [x] Add rich deterministic bytecode mutations, persistent ownership sequences,
+      numeric boundary properties and selected host syscall failures.
+- [x] Run native sanitizers in CI and publish LLVM line/branch coverage reports.
+- [ ] Extend coverage-guided decoder fuzzing, host syscall/errno combinations,
+      rendering and nested-execution branch coverage, and longer ownership runs;
       retain exact arithmetic, purity and runtime trap conformance throughout.

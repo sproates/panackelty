@@ -65,7 +65,7 @@ void release(Value *v)
     case V_VARIANT:
         for (size_t i = 0; i < v->as.named.count; i++) {
             free(v->as.named.names ? v->as.named.names[i] : NULL);
-            release(v->as.named.values[i]);
+            release(v->as.named.values ? v->as.named.values[i] : NULL);
         }
         free(v->as.named.name);
         free(v->as.named.names);
@@ -254,6 +254,10 @@ Value *named_value(ValueKind kind, const char *name, char **names, Value **value
     for (size_t i = 0; i < count; i++) {
         if (kind == V_RECORD) {
             v->as.named.names[i] = copy_text(names[i]);
+            if (!v->as.named.names[i]) {
+                release(v);
+                return NULL;
+            }
         }
         v->as.named.values[i] = retain(values[i]);
     }

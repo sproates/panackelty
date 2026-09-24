@@ -34,7 +34,8 @@ backlog items, not implicit losses.
 ## Runner and fixture contracts
 
 The first parallel runner is `tests/runner/main.panack`. `make functional` runs
-it after the unchanged Python harness. It discovers and selects `hello_world`,
+it after the unchanged Python harness. It discovers and selects `callables`,
+`collections`, `hello_world`, `local_inference`, `records_and_enums`,
 `string_boundaries`, and `testing_library`, checking exact stdout, empty stderr,
 and zero status for source execution, compilation, and saved-bytecode execution.
 It reports failures through its process status and removes each artifact before

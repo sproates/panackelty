@@ -8,7 +8,10 @@ import unittest
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-CASES = ("hello_world", "string_boundaries", "testing_library")
+CASES = (
+    "callables", "collections", "hello_world", "local_inference",
+    "records_and_enums", "string_boundaries", "testing_library",
+)
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
@@ -21,7 +24,7 @@ class PanackeltyRunnerTests(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 1, completed.stderr)
             self.assertIn(b"FAIL workspace cleanup", completed.stdout)
-            self.assertIn(b"tests: 11, failures: 1", completed.stdout)
+            self.assertIn(b"tests: 23, failures: 1", completed.stdout)
             self.assertNotIn(b"FAIL cleanup recovery", completed.stdout)
             self.assertNotIn(b"FAIL workspace recovery", completed.stdout)
             self.assertEqual(list(pathlib.Path(temporary).iterdir()), [])

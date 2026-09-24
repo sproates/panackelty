@@ -5,7 +5,13 @@ pure runner_path(text: Str): Path {
 }
 
 main(): Void {
-  expected = utf8_encode("PASS case/hello_world/source\nPASS case/hello_world/compile\nPASS case/hello_world/bytecode\nPASS case/string_boundaries/source\nPASS case/string_boundaries/compile\nPASS case/string_boundaries/bytecode\nPASS case/testing_library/source\nPASS case/testing_library/compile\nPASS case/testing_library/bytecode\nPASS selected fixture count\ntests: 10, failures: 0\n")
+  names = ["callables", "collections", "hello_world", "local_inference",
+    "records_and_enums", "string_boundaries", "testing_library"]
+  mut expected_text: Str = ""
+  for name in names {
+    expected_text = "${expected_text}PASS case/${name}/source\nPASS case/${name}/compile\nPASS case/${name}/bytecode\n"
+  }
+  expected = utf8_encode("${expected_text}PASS selected fixture count\ntests: 22, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(), [],
     duration_seconds(30), 1048576)

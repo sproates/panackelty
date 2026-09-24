@@ -35,7 +35,8 @@ backlog items, not implicit losses.
 
 The first parallel runner is `tests/runner/main.panack`. `make functional` runs
 it after the unchanged Python harness. It discovers and selects `callables`,
-`collections`, `compiler_lexer`, `hello_world`, `local_inference`, `modules`, `optional_else`,
+`collections`, `compiler_lexer`, `hello_world`, `host_capabilities`, `host_process`,
+`host_types`, `local_inference`, `modules`, `optional_else`,
 `rational_unit`, `records_and_enums`, `semicolonless`, `string_boundaries`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
 `vm_numeric_boundaries`, checking exact stdout, empty stderr,

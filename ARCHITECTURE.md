@@ -523,7 +523,7 @@ transitional development oracle and harness to Panackelty-hosted behavioral
 tests, direct native C tests, and portable golden fixtures. It retains the
 existing checks during migration and treats the fixed-point bootstrap and
 exact-artifact release gates as independent required evidence.
-The initial `tests/runner/main.panack` selects fifteen discovered fixtures and
+The initial `tests/runner/main.panack` selects eighteen discovered fixtures and
 checks source, compilation, and bytecode through the public CLI. `make functional`
 runs it after the complete Python harness; it owns an isolated temporary
 workspace and reports cleanup failure as a test failure. No old coverage is

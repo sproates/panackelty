@@ -18,6 +18,17 @@ Every `.panack` file here is exercised by the functional suite from both source
 and compiled bytecode. Expected output is kept separately under
 `tests/functional/expected/examples` as test data rather than example code.
 
+## VM walkthroughs
+
+The [VM execution guide](../docs/VM_GUIDE.md) includes disassembly and recorded
+execution states for these small programs:
+
+| Program | Demonstrates |
+| --- | --- |
+| `vm_arithmetic.panack` | Operand order, intermediate stack values, and local storage |
+| `vm_branch_call.panack` | An isolated call frame, comparison, conditional jump, and return |
+| `vm_loop.panack` | A half-open range, iterator state, accumulator, and backward jump |
+
 ## Algorithms
 
 | Program | Demonstrates |

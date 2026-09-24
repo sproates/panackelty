@@ -4,6 +4,13 @@ This matrix maps the behavior promised by `SPEC.md` to the automated evidence
 in the unit and functional suites. It tracks behavioral protection, not merely
 line coverage. Update it whenever a language promise or its tests change.
 
+The VM guide's `vm_arithmetic`, `vm_branch_call`, and `vm_loop` examples are
+discovered by the functional suite and checked from source and compiled bytecode
+against their expected stdout fixtures. They add readable success-path evidence
+for stack arithmetic, local storage, calls, conditional jumps, and iteration.
+The guide's recorded instruction-state tables are documentation, not automated
+trace assertions; they do not close the failure-coverage gaps below.
+
 Status meanings:
 
 - **Covered** — representative success and important failure behavior are tested.

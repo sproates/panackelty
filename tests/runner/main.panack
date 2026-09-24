@@ -26,6 +26,7 @@ pure runner_selected(name: Str): Bool {
     name == "local_inference" || name == "modules" || name == "optional_else" ||
     name == "rational_unit" || name == "records_and_enums" ||
     name == "semicolonless" || name == "string_boundaries" ||
+    name == "testing_commands" || name == "testing_fixtures" ||
     name == "testing_library" || name == "vm_numeric_boundaries"
 }
 
@@ -111,7 +112,7 @@ main(): Void {
             }
           }
         }
-        results = results.append(test_equal_nat("selected fixture count", found, 13))
+        results = results.append(test_equal_nat("selected fixture count", found, 15))
         sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
         if inject_cleanup_failure {
           match fs_write(sentinel, utf8_encode("deliberate cleanup obstacle")) {

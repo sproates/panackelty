@@ -1,0 +1,16 @@
+import stdlib/testing_commands
+
+pure runner_path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+main(): Void {
+  expected = utf8_encode("PASS case/hello_world/source\nPASS case/hello_world/compile\nPASS case/hello_world/bytecode\nPASS case/string_boundaries/source\nPASS case/string_boundaries/compile\nPASS case/string_boundaries/bytecode\nPASS case/testing_library/source\nPASS case/testing_library/compile\nPASS case/testing_library/bytecode\nPASS selected fixture count\ntests: 10, failures: 0\n")
+  command = TestCommand(runner_path("./panack"),
+    ["run", "tests/runner/main.panack"], bytes(), path_current(), [],
+    duration_seconds(30), 1048576)
+  result = test_run_command("Panackelty fixture runner", command,
+    ProcessOutput(0, 0, expected, bytes()))
+  failures = test_report([result])
+  if failures > 0 { process_exit(1) }
+}

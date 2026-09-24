@@ -33,6 +33,17 @@ backlog items, not implicit losses.
 
 ## Runner and fixture contracts
 
+The first parallel runner is `tests/runner/main.panack`. `make functional` runs
+it after the unchanged Python harness. It discovers and selects `hello_world`,
+`string_boundaries`, and `testing_library`, checking exact stdout, empty stderr,
+and zero status for source execution, compilation, and saved-bytecode execution.
+It reports failures through its process status and removes each artifact before
+requiring an empty workspace. `functional/cases/runner_smoke` checks its exact
+success report through the public CLI; `unit/compiler/test_panackelty_runner.py`
+injects wrong expected output and checks both source and bytecode failures.
+No Python assertion has been retired. Other cases, source.path, invalid inputs,
+and environment isolation remain owned by the old harness.
+
 The future Panackelty runner discovers immediate case directories in sorted
 native-byte order. A case keeps the existing `main.panack` *or* `source.path`
 and its expected output; examples and failures retain their current fixture
@@ -74,7 +85,9 @@ specific case can migrate:
 
 1. Establish a Panackelty runner on a representative fixed fixture subset.
    Run old and new paths together; compare the per-case observation matrix,
-   including deliberate failures and cleanup errors.
+   including deliberate failures and cleanup errors. The selected subset and
+   output-mismatch failure are now covered; cleanup-error parity still needs
+   an injected failure before the runner expands.
 2. Port the full functional corpus and orchestration, resolving the contracts
    above. Retire a Python assertion only with equivalent new evidence in
    `tests/COVERAGE.md` and a green `make check` on both supported platforms.

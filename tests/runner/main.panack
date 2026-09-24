@@ -1,0 +1,121 @@
+import stdlib/testing
+import stdlib/testing_files
+import stdlib/testing_commands
+
+// Run from the repository root. This intentionally covers only local-source
+// success fixtures; source.path and failure cases stay with the Python runner.
+pure runner_path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+pure runner_child(parent: Path, name: Str): Path {
+  result_value_or(path_append(parent, runner_path(name)), parent)
+}
+
+pure runner_name(directory: Path): Str {
+  component = match path_filename(directory) {
+    Some(value) => value,
+    None() => directory
+  }
+  result_value_or(path_to_text(component), "invalid-name")
+}
+
+pure runner_selected(name: Str): Bool {
+  name == "hello_world" || name == "string_boundaries" || name == "testing_library"
+}
+
+pure runner_command(arguments: [Str]): TestCommand {
+  TestCommand(runner_path("./panack"), arguments, bytes(), path_current(), [],
+    duration_seconds(20), 1048576)
+}
+
+runner_case(directory: Path, workspace: TestWorkspace): [TestResult] {
+  name = runner_name(directory)
+  source = runner_child(directory, "main.panack")
+  expected_file = runner_child(directory, "expected.stdout")
+  artifact = runner_child(workspace.root, "${name}.bc")
+  expected_path = result_value_or(path_to_text(artifact), "invalid-artifact")
+  source_path = result_value_or(path_to_text(source), "invalid-source")
+  match fs_read(expected_file, 1048576) {
+    Error(error) => {
+      code = error.code
+      [test_expect("case/${name}/fixture", false, "fixture read failed: ${code}")]
+    },
+    Ok(expected) => {
+      mut results: [TestResult] = []
+      source_result = test_run_command("case/${name}/source",
+        runner_command(["run", source_path]),
+        ProcessOutput(0, 0, expected, bytes()))
+      results = results.append(source_result)
+
+      compile_result = test_run_command("case/${name}/compile",
+        runner_command(["compile", source_path, "-o", expected_path]),
+        ProcessOutput(0, 0, utf8_encode("wrote ${expected_path}\n"), bytes()))
+      results = results.append(compile_result)
+      match compile_result.outcome {
+        TestPassed() => {
+          results = results.append(test_run_command("case/${name}/bytecode",
+            runner_command(["run", expected_path]),
+            ProcessOutput(0, 0, expected, bytes())))
+        },
+        TestFailed(reason) => {}
+      }
+      match fs_remove_file(artifact) {
+        Ok(value) => {},
+        Error(error) => {
+          code = error.code
+          results = results.append(test_expect("case/${name}/artifact cleanup",
+            false, "cleanup failed: ${code}"))
+        }
+      }
+      results
+    }
+  }
+}
+
+main(): Void {
+  arguments = command_args()
+  if len(arguments) > 0 && arguments[0] == "--self-test" {
+    count = test_report([test_expect("deliberate mismatch", false, "expected failure")])
+    if count > 0 { process_exit(1) }
+  } else {
+    match test_workspace_create(runner_path("/tmp")) {
+      Error(error) => {
+        code = error.code
+        print("workspace creation failed: ${code}")
+        process_exit(1)
+      },
+      Ok(workspace) => {
+        mut results: [TestResult] = []
+        mut found: Nat = 0
+        match test_discover_fixtures(runner_path("tests/functional/cases")) {
+          Error(error) => {
+            code = error.code
+            results = results.append(test_expect("fixture discovery", false,
+              "discovery failed: ${code}"))
+          },
+          Ok(directories) => {
+            for directory in directories {
+              name = runner_name(directory)
+              if runner_selected(name) {
+                found = found + 1
+                results = results.concat(runner_case(directory, workspace))
+              }
+            }
+          }
+        }
+        results = results.append(test_equal_nat("selected fixture count", found, 3))
+        match test_workspace_remove_empty(workspace) {
+          Ok(value) => {},
+          Error(error) => {
+            code = error.code
+            results = results.append(test_expect("workspace cleanup", false,
+              "cleanup failed: ${code}"))
+          }
+        }
+        failures = test_report(results)
+        if failures > 0 { process_exit(1) }
+      }
+    }
+  }
+}

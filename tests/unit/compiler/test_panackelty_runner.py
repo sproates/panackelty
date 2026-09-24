@@ -12,6 +12,20 @@ CASES = ("hello_world", "string_boundaries", "testing_library")
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_nonempty_workspace_fails_and_is_recovered(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            completed = subprocess.run(
+                [str(ROOT / "panack"), "run", "tests/runner/main.panack",
+                 "--test-cleanup-failure", temporary],
+                cwd=ROOT, capture_output=True, timeout=45, check=False,
+            )
+            self.assertEqual(completed.returncode, 1, completed.stderr)
+            self.assertIn(b"FAIL workspace cleanup", completed.stdout)
+            self.assertIn(b"tests: 11, failures: 1", completed.stdout)
+            self.assertNotIn(b"FAIL cleanup recovery", completed.stdout)
+            self.assertNotIn(b"FAIL workspace recovery", completed.stdout)
+            self.assertEqual(list(pathlib.Path(temporary).iterdir()), [])
+
     def test_expected_output_mismatch_fails_the_runner(self):
         with tempfile.TemporaryDirectory() as temporary:
             checkout = pathlib.Path(temporary)

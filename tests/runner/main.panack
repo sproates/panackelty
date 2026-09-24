@@ -79,7 +79,9 @@ main(): Void {
     count = test_report([test_expect("deliberate mismatch", false, "expected failure")])
     if count > 0 { process_exit(1) }
   } else {
-    match test_workspace_create(runner_path("/tmp")) {
+    inject_cleanup_failure = len(arguments) == 2 && arguments[0] == "--test-cleanup-failure"
+    parent = if inject_cleanup_failure { runner_path(arguments[1]) } else { runner_path("/tmp") }
+    match test_workspace_create(parent) {
       Error(error) => {
         code = error.code
         print("workspace creation failed: ${code}")
@@ -105,12 +107,41 @@ main(): Void {
           }
         }
         results = results.append(test_equal_nat("selected fixture count", found, 3))
+        sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
+        if inject_cleanup_failure {
+          match fs_write(sentinel, utf8_encode("deliberate cleanup obstacle")) {
+            Ok(value) => {},
+            Error(error) => {
+              code = error.code
+              results = results.append(test_expect("cleanup injection", false,
+                "sentinel creation failed: ${code}"))
+            }
+          }
+        }
         match test_workspace_remove_empty(workspace) {
           Ok(value) => {},
           Error(error) => {
             code = error.code
             results = results.append(test_expect("workspace cleanup", false,
               "cleanup failed: ${code}"))
+          }
+        }
+        if inject_cleanup_failure {
+          match fs_remove_file(sentinel) {
+            Ok(value) => {},
+            Error(error) => {
+              code = error.code
+              results = results.append(test_expect("cleanup recovery", false,
+                "sentinel removal failed: ${code}"))
+            }
+          }
+          match test_workspace_remove_empty(workspace) {
+            Ok(value) => {},
+            Error(error) => {
+              code = error.code
+              results = results.append(test_expect("workspace recovery", false,
+                "workspace removal failed: ${code}"))
+            }
           }
         }
         failures = test_report(results)

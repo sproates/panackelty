@@ -821,7 +821,8 @@ installed.
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
       Panackelty runner now checks three existing fixtures in parallel with the
-      Python harness; inject cleanup failure, then extend to the full corpus
+      Python harness; nonempty-workspace cleanup failure and recovery are now
+      tested. Next extend toward the full corpus, preserving host-error parity
 - [ ] Replace differential reliance on the Python compiler and VM with portable
       golden artifacts, contract tests, native/self-hosted cross-checks, and
       fixed-point bootstrap evidence

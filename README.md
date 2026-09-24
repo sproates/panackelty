@@ -473,10 +473,10 @@ ordered result reporting for Panackelty test programs.
 owned temporary workspaces for test isolation.
 `stdlib/testing_commands` compares bounded child-process results and expected
 host failures without requiring a shell or decoding binary output.
-During development, `make functional` also runs a first Panackelty-hosted
-fixture runner over twenty-three success cases, twenty examples, and forty-one
-expected failure cases; the full Python harness stays active
-while its remaining coverage is migrated.
+During development, `make functional` uses the Panackelty-hosted runner for
+twenty-five selected success cases, twenty examples, and forty-one failure
+cases, plus a self-hosted compiler check and the runner smoke case from source
+and bytecode. Python remains in the unit tests and transitional oracle.
 
 ## Explore further
 

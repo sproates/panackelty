@@ -19,6 +19,15 @@ pure contains(value: Str, fragment: Str): Bool {
   found
 }
 
+pure ends_with(value: Str, suffix: Str): Bool {
+  mut found = false
+  for index in 0..text_length(value) {
+    if index + text_length(suffix) == text_length(value) &&
+        text_starts_with_at(value, suffix, index) { found = true }
+  }
+  found
+}
+
 pure command(arguments: [Str], environment: [Str]): TestCommand {
   TestCommand(path("./panack"), arguments, bytes(), path_current(), environment,
     duration_seconds(10), 1048576)
@@ -75,7 +84,7 @@ main(): Void {
           "process failed")) },
         Ok(output) => { results = results.append(test_expect("environment override",
           output.exit_code == 0 && output.signal == 0 && output.stderr == bytes() &&
-            contains(utf8_decode(output.stdout), ".tar\nconfigured\n"),
+            ends_with(utf8_decode(output.stdout), ".tar\nconfigured\n"),
           "unexpected environment output")) }
       }
 

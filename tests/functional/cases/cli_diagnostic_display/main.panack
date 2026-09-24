@@ -1,0 +1,57 @@
+import stdlib/testing
+import stdlib/testing_files
+import stdlib/testing_commands
+
+pure path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+pure child(root: Path, name: Str): Path {
+  result_value_or(path_append(root, path(name)), root)
+}
+
+check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResult {
+  match fs_write(source, utf8_encode(content)) {
+    Error(error) => test_expect(name, false, "fixture write failed"),
+    Ok(written) => {
+      source_text = result_value_or(path_to_text(source), "invalid-source")
+      match process_run(path("./panack"), ["check", source_text], bytes(), path_current(), [],
+          duration_seconds(10), 1048576) {
+        Error(error) => test_expect(name, false, "process failed"),
+        Ok(output) => test_command_output(name, output,
+          ProcessOutput(1, 0, bytes(), utf8_encode(expected)))
+      }
+    }
+  }
+}
+
+main(): Void {
+  match test_workspace_create(path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Ok(workspace) => {
+      source = child(workspace.root, "main.panack")
+      source_text = result_value_or(path_to_text(source), "invalid-source")
+      mut results: [TestResult] = []
+      unicode_expected = "error: ${source_text}:2:13: unexpected character #\n" +
+        "  2 |     print(\"\\u{3bb}\") #\n    |                      ^\n"
+      results = results.append(check_diagnostic("CRLF Unicode and tab", source,
+        "main(): Void {\r\n\tprint(\"λ\") #\r\n}\r\n", unicode_expected))
+      eof_expected = "error: ${source_text}:1:15: expected closing brace\n" +
+        "  1 | main(): Void {\n    |               ^\n"
+      results = results.append(check_diagnostic("EOF closing brace", source,
+        "main(): Void {", eof_expected))
+      match fs_remove_file(source) {
+        Ok(removed) => {},
+        Error(error) => { results = results.append(test_expect("source cleanup", false,
+          "file removal failed")) }
+      }
+      match test_workspace_remove_empty(workspace) {
+        Ok(removed2) => {},
+        Error(error) => { results = results.append(test_expect("workspace cleanup", false,
+          "directory removal failed")) }
+      }
+      failures = test_report(results)
+      if failures > 0 { process_exit(1) }
+    }
+  }
+}

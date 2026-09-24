@@ -2,16 +2,16 @@
 
 This is the migration contract for removing Python from the *repository*.
 The downloadable compiler, native VM, package, and release smoke path already
-run without it. Until equivalent evidence is present, the Python oracle and
-test harness remain required by `make check`; no test is removed merely because
-a new runner exists.
+run without it. The functional suite now uses Panackelty; the Python unit
+oracle and unit harness remain required by `make check` until their separate
+parity gates pass.
 
 ## Baseline and ownership (September 2026)
 
 The baseline suite had 294 discovered unit test methods (160 compiler, 43
-bytecode, 72 VM, 19 other) and 20 functional test methods. Ten fully duplicated
-functional methods have now been retired; ten remain. The functional
-runner additionally discovers 20 case directories, 20 example output files,
+bytecode, 72 VM, 19 other) and 20 functional test methods. All twenty
+functional methods have been replaced; the Panackelty runner now discovers
+25 selected case directories, 20 example output files,
 and 41 failure directories. The bytecode fixture directory has 26 `.hex`
 artifacts spanning supported and deliberately rejected historical versions.
 Methods are not a coverage metric: parameterized subtests, generated cases,
@@ -19,7 +19,7 @@ and the discovered programs exercise substantially more observations.
 
 | Current owner | Required replacement | Evidence not to lose |
 | --- | --- | --- |
-| `tests/functional/test_programs.py` | Panackelty-hosted fixture runner using `stdlib/testing`, `testing_files`, and `testing_commands` | Exact stdout/stderr and status for source and saved bytecode; `check`, `compile`, `run`, `disasm`, shorthand, arguments, imports, examples, invalid source, malformed artifacts, environment and file I/O. Preserve `source.path` validation, failure diagnostic normalization, isolated outputs, and the stage-2 compiler reuse. |
+| Former `tests/functional/test_programs.py` | `tests/runner/main.panack`, `tests/runner/compiler_driver.panack`, and `functional/cases/*` | Exact stdout/stderr and status for source and saved bytecode; `check`, `compile`, `run`, `disasm`, shorthand, arguments, imports, examples, invalid source, malformed artifacts, environment and file I/O. Preserve `source.path` validation, failure diagnostic normalization, isolated outputs, and the stage-2 compiler reuse. |
 | `tests/unit/compiler/` | Focused Panackelty compiler probes and public-CLI contract fixtures | Lexer, parser, resolver, checker, purity, emitter, loader, driver, diagnostics, generics, type and host boundary failures; deterministic artifacts and bootstrap-stage parity. Do not replace precise negative assertions with only success programs. |
 | `tests/unit/bytecode/` and `tests/fixtures/bytecode/` | Portable golden bytecode and malformed vectors, native verifier/decoder tests, and Panackelty-hosted codec assertions | Versioned encoding, canonical round trips, verifier rejection, resource bounds, forged unsafe states, exact error categories, and repeated-compilation identity. |
 | `tests/unit/vm/` and `tests/unit/vm/*.c` | Direct C module/fault/sanitizer tests plus black-box Panackelty programs on the native VM | Stack/frame/value ownership, exact numeric semantics, collection and host operations, allocation/syscall injection and cleanup, runtime traps, and native coverage. Keep the C tests; replace their Python launch/assert wrappers. |
@@ -34,9 +34,11 @@ backlog items, not implicit losses.
 
 ## Runner and fixture contracts
 
-The first parallel runner is `tests/runner/main.panack`. `make functional` runs
-it after the unchanged Python harness. It discovers and selects `callables`,
-`cli_check_disasm`, `cli_commands`, `cli_environment_files`, `collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
+The functional runner is `tests/runner/main.panack`. `make functional` runs it,
+the compiler-driver check, and the runner smoke case from source and saved
+bytecode without Python. It discovers and selects `callables`,
+`cli_check_disasm`, `cli_commands`, `cli_diagnostic_display`,
+`cli_environment_files`, `cli_rational_failures`, `collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
 `host_types`, `local_inference`, `modules`, `optional_else`,
 `rational_unit`, `records_and_enums`, `semicolonless`, `stdlib`, `string_boundaries`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
@@ -46,7 +48,8 @@ It also discovers all twenty example sources and expected outputs, rejects
 missing or stale pairs, and checks each program through the same three paths.
 All forty-one failure fixtures also run through `check` and `compile`, requiring
 exit status one, empty stdout, exact normalized stderr, and no bytecode artifact
-after failed compilation. The runner resolves each case directory to a physical
+after failed compilation. Six targeted failures also require the same exact
+normalized diagnostics for `run` and `disasm`. The runner resolves each case directory to a physical
 path for `<case>` normalization, including checkouts with spaces and symlinks.
 The `cli_check_disasm` case compares source and bytecode disassembly and checks
 malformed bytecode and legacy extension rejection through the public CLI.
@@ -54,7 +57,9 @@ The `cli_commands` case checks bare source and bytecode paths, default compiler
 output, argument forwarding, controlled stderr and exit status, help, and version.
 The `cli_environment_files` case checks environment overrides, text and binary file
 round trips from source and saved bytecode, missing paths, invalid UTF-8,
-and denied access on unprivileged POSIX hosts. The compiler fixture uses `source.path`; its target is physically resolved within
+and denied access on unprivileged POSIX hosts. `cli_rational_failures` checks
+six source and bytecode runtime traps; `cli_diagnostic_display` checks exact
+CRLF/Unicode/tab and EOF formatting. The compiler fixture uses `source.path`; its target is physically resolved within
 the checkout before execution, including checks against symlink escapes. When
 the bootstrap recipe supplies `PANACK_TEST_COMPILER`, the runner copies that
 verified compiler artifact for its compiled-output check instead of compiling
@@ -82,16 +87,23 @@ process status, stdout, stderr, and fixture cleanup:
 | `test_legacy_source_extension_is_rejected`, `test_disasm_rejects_malformed_bytecode` | `cli_check_disasm`: exact failure status and diagnostic, empty stdout |
 | `test_check_accepts_source_and_bytecode`, `test_disasm_matches_for_source_and_bytecode` | `cli_check_disasm`: source and saved-bytecode check, exact disassembly parity and key instructions |
 
-The runner invokes these fixtures from source and compiled bytecode. The
-incremental `check-compiler`, `check-bytecode`, and `check-vm` recipes now invoke
-the corresponding runner cases in place of the removed method names. The ten
-remaining Python functional methods still own the complete discovered case
-corpus (including recursive `runner_smoke`), rational failures, direct
-self-hosted compiler parity, all invalid-source diagnostics in the incremental
-compiler check, source diagnostics under `run`/`disasm`, CRLF/Unicode/tab/EOF
-diagnostic display, and explicit environment and file-I/O assertions. The
-environment and I/O runner fixture provides parallel coverage but is kept
-beside those Python methods while the complete ownership matrix is audited.
+The final ten Python functional methods were retired after the following
+replacement evidence was added. The `check-compiler`, `check-bytecode`, and
+`check-vm` incremental recipes use the same Panackelty cases;
+`--failures-only` selects all forty-one negative fixtures for the compiler
+check without rerunning successes.
+
+| Retired method | Replacement evidence |
+| --- | --- |
+| `test_source_and_compiled_program_outputs` | 25 selected cases and 20 discovered examples run from source and bytecode with exact output; `runner_smoke` runs separately from both paths under `make functional` |
+| `test_rational_failures_in_source_and_bytecode` | `cli_rational_failures` compiles each of six generated inputs and checks the source and saved-bytecode trap messages and empty stdout |
+| `test_standard_library_reads_the_process_environment` | `cli_environment_files` overrides the environment and checks the exact stdout suffix and empty stderr |
+| `test_public_cli_file_io_round_trips_and_failures` | `cli_environment_files` checks source/bytecode text and binary round trips, disk bytes, five failing services, and explicit cleanup |
+| `test_public_cli_reports_denied_file_io` | `cli_environment_files` checks four permission-denied services on unprivileged POSIX hosts; root hosts skip that portion, as the former Python method did |
+| `test_self_hosted_compiler_driver_matches_bootstrap_artifacts` | `runner/compiler_driver.panack` reuses the checked stage-two artifact, asserts check/run/compile/disassembly and byte-identical outputs, and cleans its workspace |
+| `test_invalid_source_programs_fail_check`, `test_invalid_source_programs_fail_compile_without_artifacts` | All 41 discovered failures compare exact normalized diagnostics and statuses under check/compile, with no artifact; the focused compiler recipe uses `--failures-only` |
+| `test_source_diagnostics_from_run_and_disasm` | Six selected failure fixtures compare normalized stderr byte-for-byte for both additional commands |
+| `test_diagnostic_display_for_crlf_unicode_tabs_and_eof` | `cli_diagnostic_display` checks both generated byte-exact diagnostics, including Unicode escaping and caret positions |
 
 The Panackelty runner discovers immediate case and failure directories and
 example files in sorted native-byte order. A success case keeps the existing
@@ -115,15 +127,15 @@ specific case can migrate:
 
 - `source.path` targets must resolve inside the repository, including when
   they traverse symlinks. The compiler fixture now has that validation in
-  both runners; keep it for any later references.
+  the new runner; keep it for any later references.
 - The harness removes `PANACKELTY_STDLIB_VALUE` from inherited child environments.
   `process_run` can override but not delete variables. The new runner uses
   `/bin/sh` to unset it for `stdlib` source, compile, and bytecode commands;
-  its smoke test injects an ambient value. Other environment-sensitive CLI
-  assertions still need equivalent isolation before retiring Python coverage.
-- The Python harness parallelizes independent programs (up to four workers).
-  Preserve the functional and full-check time budgets without skipping cases;
-  measure a sequential candidate and add safe parallel orchestration if needed.
+  its smoke test injects an ambient value. The explicit environment-override
+  contract runs in `cli_environment_files`.
+- The former Python harness parallelized independent programs (up to four
+  workers). The runner is sequential; profile and improve its timing without
+  dropping cases, while retaining the warning budgets.
 - Failure fixtures now normalize checkout-dependent diagnostic paths and have
   a focused path-with-spaces regression. Preserve that exact comparison as new
   negative cases are added.

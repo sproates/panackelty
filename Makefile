@@ -61,9 +61,7 @@ check-compiler: native
 check-compiler-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
 	@./panack run tests/runner/main.panack --case cli_commands
-	@$(PYTHON) -m unittest -q \
-		tests.functional.test_programs.PanackeltyProgramTests.test_invalid_source_programs_fail_check \
-		tests.functional.test_programs.PanackeltyProgramTests.test_invalid_source_programs_fail_compile_without_artifacts
+	@./panack run tests/runner/main.panack --failures-only
 
 check-bytecode: native
 	@$(TIMED) check-bytecode $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-bytecode-impl
@@ -78,11 +76,8 @@ check-vm: native native-module-build native-fault-build
 
 check-vm-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/vm -t . -p 'test_*.py' -q
-	@$(PYTHON) -m unittest -q \
-		tests.functional.test_programs.PanackeltyProgramTests.test_public_cli_file_io_round_trips_and_failures \
-		tests.functional.test_programs.PanackeltyProgramTests.test_public_cli_reports_denied_file_io \
-		tests.functional.test_programs.PanackeltyProgramTests.test_standard_library_reads_the_process_environment
 	@./panack run tests/runner/main.panack --case cli_commands
+	@./panack run tests/runner/main.panack --case cli_environment_files
 
 unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
@@ -91,8 +86,13 @@ functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
 
 functional-impl: $(STAGE2_COMPILER)
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PYTHON) -m unittest discover -s tests/functional -p 'test_*.py' -q
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/runner/main.panack
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/runner/compiler_driver.panack
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/functional/cases/runner_smoke/main.panack
+	@mkdir -p "$(BUILD_DIR)"
+	@artifact="$(abspath $(BUILD_DIR))/runner-smoke.bc"; trap 'rm -f "$$artifact"' 0; \
+		./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
+		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run "$$artifact"
 
 native: panack-vm
 

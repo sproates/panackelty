@@ -1,0 +1,3 @@
+PASS CRLF Unicode and tab
+PASS EOF closing brace
+tests: 2, failures: 0

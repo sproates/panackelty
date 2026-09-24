@@ -1,6 +1,6 @@
 # Bootstrap seed
 
-`compiler-v7.bc` is the audited stage-1 compiler seed for bytecode format 7.
+`compiler-v8.bc` is the audited stage-1 compiler seed for bytecode format 8.
 It was produced from `src/compiler/main.panack` by the transitional stage-0
 compiler. The portable C11 VM verifies the seed before execution, then uses it
 to produce stage 2; stage 2 produces stage 3. `make bootstrap-check` requires
@@ -16,5 +16,5 @@ and prove the new fixed point before committing it.
 Current SHA-256:
 
 ```text
-5758b79aebc695aa0315c12cab2fe48d5ad6a2c7a8e147828466cb62ab5bbc0f  compiler-v7.bc
+6f0ff6ec010b3ef216d4eaa3ee9ff1bf625e465913631ab988ab2b8b3db3b295  compiler-v8.bc
 ```

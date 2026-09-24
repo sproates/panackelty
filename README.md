@@ -22,6 +22,26 @@ program grows.
   </sub>
 </p>
 
+## Exact fractions and Unit (current source build)
+
+```panackelty
+main(): Void {
+  third = 1/3
+  ten = third * 30
+  print(ten.nat())  // 10
+  print((1/8).dec()) // 0.125
+  success: Unit = ()
+  print(success)   // ()
+}
+```
+
+These unreleased features require building the current source; the alpha.4
+archive below uses the previous semantics. Integer `/` now returns `Rat`;
+`quotient(a, b)` retains truncating natural division. Exact conversions trap if
+the value cannot be represented: `(1/3).nat()` and `(1/3).dec()` fail rather than
+round. `Unit` is a first-class value for APIs such as `Result[Unit,Str]`.
+See [the specification](SPEC.md#rational-arithmetic-and-exact-conversions).
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. Writing,
@@ -125,11 +145,13 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The complete output is:
+The complete output for a current source build is shown below. The published
+alpha.4 archive prints `bytecode 7` on the first line; the remaining output is
+identical.
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.4 (bytecode 7)
+panack 0.1.0-alpha.4 (bytecode 8)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc

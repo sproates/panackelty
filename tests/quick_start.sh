@@ -108,7 +108,7 @@ test ! -e "$HOME/.local/opt/panackelty.old" || \
 mv panackelty "$HOME/.local/opt/panackelty.new"
 mv "$HOME/.local/opt/panackelty" "$HOME/.local/opt/panackelty.old"
 mv "$HOME/.local/opt/panackelty.new" "$HOME/.local/opt/panackelty"
-expected_version="panack $release_version (bytecode 7)"
+expected_version="panack $release_version (bytecode 8)"
 test "$(panack --version)" = "$expected_version" || \
   { echo "quick start: upgraded command has the wrong version" >&2; exit 1; }
 rm -rf "$HOME/.local/opt/panackelty.old"

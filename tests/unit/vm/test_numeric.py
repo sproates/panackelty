@@ -7,6 +7,7 @@ from pathlib import Path
 
 from panackelty import Code, PanackeltyError, VM, build, load_bytecode, verify_bytecode
 from tests.unit.support import PanackeltyTestCase
+from tests.unit.rational_cases import RATIONAL_FAILURES, rational_failure_source
 
 
 class NumericTests(PanackeltyTestCase):
@@ -20,12 +21,24 @@ main(): Void { print(huge()); }
             VM(code).run()
         self.assertEqual(output.getvalue(), "8999999999999999999999999999991\n")
 
-    def test_integer_division_stays_integral(self):
+    def test_integer_division_produces_rational(self):
         code = self.compile("main(): Void { print(7 / 2); }")
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             VM(code).run()
-        self.assertEqual(output.getvalue(), "3\n")
+        self.assertEqual(output.getvalue(), "7/2\n")
+
+    def test_rational_conversion_and_zero_failures(self):
+        for expression, message in RATIONAL_FAILURES:
+            with self.subTest(expression=expression):
+                code = self.compile(rational_failure_source(expression))
+                with self.assertRaisesRegex(PanackeltyError, message):
+                    VM(code).run()
+
+    def test_rational_unit_program_matches_contract(self):
+        root = Path(__file__).resolve().parents[2] / "functional/cases/rational_unit"
+        self.assertEqual(self.run_code(build(root / "main.panack")),
+                         (root / "expected.stdout").read_text())
 
     def test_dec_is_exact(self):
         code = self.compile("pure add(a: Dec, b: Dec): Dec { a + b } main(): Void { print(add(0.1, 0.2)); }")

@@ -281,7 +281,7 @@ pure base_type(program: Program, name: Str): Str {
 }
 
 pure is_scalar_base(name: Str): Bool {
-  name == "Nat" || name == "Int" || name == "Dec" || name == "Str" || name == "Bool"
+  name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" || name == "Unit" || name == "Str" || name == "Bool"
 }
 
 pure has_name(names: [Str], name: Str): Bool {
@@ -537,7 +537,7 @@ pure merge_types(program: Program, left: Str, right: Str): Str {
           left_base: Str = base_type(program, left)
           right_base: Str = base_type(program, right)
           if left_base == right_base { left_base }
-          else { if (left_base == "Nat" && right_base == "Int") || (left_base == "Int" && right_base == "Nat") { "Int" } else { "Unknown" } }
+          else { if (left_base == "Nat" || left_base == "Int" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Rat") { "Int" } else { "Unknown" } }
         } }
       }
     }
@@ -572,22 +572,25 @@ pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
+  if name == "$unit" { "Unit" } else { if name == "nat" || name == "quotient" { "Nat" } else { if name == "dec" { "Dec" } else {
   if name == "print" || name == "write_file" || name == "write_bytes" || name == "eprint" || name == "process_exit" || name == "run_bytecode" || name == "run_bytecode_args" { "Void" }
   else { if name == "read_line" || name == "read_file" || name == "slice" || name == "reverse" || name == "utf8_decode" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_join" || name == "path_suffix" || name == "path_with_suffix" { "Str" }
   else { if name == "len" || name == "byte_len" || name == "byte_get" || name == "nat_from_str" { "Nat" }
   else { if name == "starts_with" || name == "starts_with_at" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "map_has" || name == "set_has" || name == "$method_has" || name == "environment_has" || name == "path_is_absolute" || name == "file_exists" { "Bool" }
   else { if name == "command_args" { "[Str]" }
   else { if name == "bytes" || name == "byte_append" || name == "bytes_concat" || name == "utf8_encode" || name == "read_bytes" { "Bytes" } else { "Unknown" } } } } } }
-}
+} } } }
 
 pure builtin_arity(name: Str): Nat {
+  if name == "$unit" { 0 } else { if name == "nat" || name == "dec" { 1 } else { if name == "quotient" { 2 } else {
   if name == "read_line" || name == "map" || name == "set" || name == "bytes" || name == "command_args" { 0 }
   else { if name == "print" || name == "read_file" || name == "len" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "byte_len" || name == "utf8_encode" || name == "utf8_decode" || name == "read_bytes" || name == "nat_from_str" || name == "environment_has" || name == "environment_get" || name == "eprint" || name == "process_exit" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" || name == "run_bytecode" { 1 }
   else { if name == "write_file" || name == "append" || name == "concat" || name == "starts_with" || name == "map_has" || name == "map_get" || name == "$method_has" || name == "$method_get" || name == "$method_add" || name == "$method_map" || name == "set_add" || name == "set_has" || name == "byte_append" || name == "bytes_concat" || name == "byte_get" || name == "write_bytes" || name == "path_join" || name == "path_with_suffix" || name == "run_bytecode_args" { 2 }
   else { 3 } } }
-}
+} } } }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "nat" || name == "dec" { "Rat" } else { if name == "quotient" { "Nat" } else {
   if name == "read_file" || name == "read_bytes" || name == "nat_from_str" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "utf8_encode" || name == "environment_has" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" { "Str" }
   else { if name == "write_file" { "Str" }
   else { if name == "slice" { if index == 0 { "Str" } else { "Nat" } }
@@ -601,7 +604,7 @@ pure builtin_parameter(name: Str, index: Nat): Str {
   else { if name == "process_exit" { "Nat" }
   else { if name == "run_bytecode" || name == "run_bytecode_args" { if index == 0 { "Bytes" } else { "[Str]" } }
   else { "Any" } } } } } } } } } } } }
-}
+} } }
 
 pure method_operation(name: Str): Str {
   mut result: Str = name
@@ -749,7 +752,7 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
       diagnostics = checked.diagnostics
       base: Str = base_type(program, checked.info.name)
       if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
-      else { if operator == "-" && (base == "Nat" || base == "Int" || base == "Dec") { info = plain_type(if base == "Dec" { "Dec" } else { "Int" }); }
+      else { if operator == "-" && (base == "Nat" || base == "Int" || base == "Dec" || base == "Rat") { info = plain_type(if base == "Dec" || base == "Rat" { base } else { "Int" }); }
       else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } }
     },
     BinaryExpr(operator, left, right) => {
@@ -767,8 +770,8 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
           info = plain_type("Bool")
         } else {
           if operator == "==" || operator == "!=" || operator == "<" || operator == "<=" || operator == ">" || operator == ">=" {
-            numeric_pair: Bool = (left_base == "Nat" && right_base == "Int") || (left_base == "Int" && right_base == "Nat")
-            orderable: Bool = left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Str"
+            numeric_pair: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Rat")
+            orderable: Bool = left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Rat" || left_base == "Str"
             if (left_base != right_base && !numeric_pair) || ((operator == "<" || operator == "<=" || operator == ">" || operator == ">=") && !orderable) {
               left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
               diagnostics = append(diagnostics, checker_diagnostic("cannot compare ${left_name} with ${right_name}"))
@@ -777,12 +780,12 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
           } else {
             if operator == "+" && left_base == "Str" && right_base == "Str" { info = plain_type("Str"); }
             else {
-              numeric: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Dec") && (right_base == "Nat" || right_base == "Int" || right_base == "Dec")
-              if !numeric || ((left_base == "Dec" || right_base == "Dec") && left_base != right_base) {
+              numeric: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Dec" || right_base == "Rat")
+              if (operator == "%" && (left_base == "Rat" || right_base == "Rat")) || !numeric || ((left_base == "Dec" || right_base == "Dec") && left_base != right_base) {
                 left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
                 diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${left_name} and ${right_name}"))
               } else {}
-              result: Str = if left_base == "Dec" { "Dec" } else { if left_base == "Int" || right_base == "Int" { "Int" } else { "Nat" } }
+              result: Str = if left_base == "Dec" { "Dec" } else { if operator == "/" || left_base == "Rat" || right_base == "Rat" { "Rat" } else { if left_base == "Int" || right_base == "Int" { "Int" } else { "Nat" } } }
               if result == "Nat" && operator == "-" {
                 mut proven: Bool = checked_left.info.has_nat && checked_right.info.has_nat && checked_left.info.nat_value >= checked_right.info.nat_value
                 match unlocated_expression(left) {
@@ -1154,7 +1157,7 @@ pure check_program_types(program: Program): [Diagnostic] {
     for declaration in program.declarations {
       match declaration {
         TypeDeclaration(name, base, guard) => {
-          if !is_scalar_base(base) { diagnostics = append(diagnostics, checker_diagnostic("guarded type base must be a scalar, got ${base}")); } else {}
+          if !is_scalar_base(base) || base == "Rat" || base == "Unit" { diagnostics = append(diagnostics, checker_diagnostic("guarded type base must be a scalar, got ${base}")); } else {}
           environment: Map[Str,TypeInfo] = map_put(map(), "value", plain_type(base)); facts: Map[Str,Bounds] = map(); checked: CheckedExpression = check_expression(guard, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
           if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("type guard must produce Bool")); } else {}
         },

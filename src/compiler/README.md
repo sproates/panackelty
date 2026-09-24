@@ -63,7 +63,7 @@ This directory contains the compiler being implemented in Panackelty:
   retains each source snapshot for diagnostic rendering, and hands one combined
   program to the pure frontend and emitter.
 - `driver.panack` implements `check`, `compile`, `run`, and `disasm` for source
-  and version-7 bytecode, including default output paths and primary positioned
+  and version-8 bytecode, including default output paths and primary positioned
   lexer, parser, name, and type diagnostics.
 - `main.panack` is the executable self-hosted compiler entry point.
 
@@ -77,3 +77,8 @@ The pure backend boundary is:
 ```panackelty
 pure compile_program(program: Program): BytecodeProgram
 ```
+
+Both frontends infer `Rat` from integer division and `Unit` from `()`. Empty
+parentheses lower to the pure internal `$unit` call, so no new AST variant or
+constant tag is needed. Rational conversions use ordinary receiver-first calls.
+Compiler byte packing uses `quotient` explicitly under bytecode 8.

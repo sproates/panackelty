@@ -1,7 +1,7 @@
 # Panackelty VM-to-host ABI
 
 This document freezes the host-service contract implemented by every
-Panackelty VM. Bytecode version 7 identifies a host service by the UTF-8 name in
+Panackelty VM. Bytecode version 8 identifies a host service by the UTF-8 name in
 a `CALL` instruction. The verifier rejects unknown names, wrong arities, and
 calls from pure functions to effectful services.
 
@@ -27,8 +27,8 @@ become a Panackelty `I/O error` or `VM trap`, never a host-language exception.
 | `process_exit` | `(Nat) -> Void` | Stop the complete invocation with the supplied process status. A host may reject statuses outside its supported range. |
 | `path_resolve` | `(Str) -> Str` | Resolve a path against the process working directory and normalize it. |
 | `file_exists` | `(Str) -> Bool` | Report whether the resolved path names a regular file. |
-| `run_bytecode` | `(Bytes) -> Void` | Decode, bound, and verify version-7 bytecode, then run it with the same argument and environment snapshots. |
-| `run_bytecode_args` | `(Bytes, [Str]) -> Void` | Decode, bound, and verify version-7 bytecode, then run it with the supplied argument snapshot and the current environment snapshot. |
+| `run_bytecode` | `(Bytes) -> Void` | Decode, bound, and verify version-8 bytecode, then run it with the same argument and environment snapshots. |
+| `run_bytecode_args` | `(Bytes, [Str]) -> Void` | Decode, bound, and verify version-8 bytecode, then run it with the supplied argument snapshot and the current environment snapshot. |
 
 All services in this table are effectful. The environment and argument arrays
 are snapshots so nested VMs and repeated reads see stable input. File writes
@@ -61,3 +61,16 @@ output, snapshot rule, or failure behavior is an ABI change. Additive services
 may be introduced without changing the bytecode container version, but all
 compiler stages and VM implementations must adopt them together. Incompatible
 changes require a new bytecode version or an explicit ABI-version mechanism.
+
+## Rational and Unit operations (bytecode 8)
+
+| Name | Contract | Failure |
+| --- | --- | --- |
+| `$unit` | `() -> Unit`, pure; source `()` lowers to this internal name | None |
+| `nat` | `(Rat) -> Nat`, pure, exact non-negative integer conversion | Wrong runtime type, fractional or negative value |
+| `dec` | `(Rat) -> Dec`, pure, exact finite decimal conversion | Wrong runtime type or non-terminating decimal |
+| `quotient` | `(Nat, Nat) -> Nat`, pure, truncating quotient | Wrong runtime types or zero divisor |
+
+The native verifier checks arities and purity; runtime checks remain mandatory
+for forged bytecode. `Rat` arithmetic is implemented by the existing `BINARY`
+instruction with normalized arbitrary-precision values.

@@ -630,7 +630,9 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
                   parse_named_expression(tokens, index)
                 } else {
                   if token.text == "(" {
-                    match parse_expression(tokens, index + 1) {
+                    if index + 1 < len(tokens) && tokens[index + 1].text == ")" {
+                      Ok(ParsedExpr(located_expression(tokens, index, CallExpr("$unit", [], [])), index + 2))
+                    } else { match parse_expression(tokens, index + 1) {
                       Ok(inner) => {
                         if inner.next < len(tokens) && tokens[inner.next].text == ")" {
                           Ok(ParsedExpr(inner.value, inner.next + 1))
@@ -640,7 +642,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
                       },
                       Error(error) => Error(error)
                     }
-                  } else {
+                  } } else {
                     if token.text == "[" {
                       match parse_expression_list(tokens, index + 1, "]") {
                         Ok(items) => Ok(ParsedExpr(ArrayExpr(items.values), items.next)),

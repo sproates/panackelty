@@ -41,7 +41,7 @@ workspace=$temporary/workspace
 mkdir -p "$workspace"
 cd "$workspace"
 
-printf 'panack %s (bytecode 7)\n' "$release_version" >version.expected
+printf 'panack %s (bytecode 8)\n' "$release_version" >version.expected
 run_clean --version >version.stdout 2>version.stderr || \
   fail "--version failed"
 cmp version.expected version.stdout || fail "--version output differs"

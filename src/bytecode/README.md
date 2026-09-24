@@ -1,6 +1,6 @@
 # Panackelty bytecode
 
-Panackelty bytecode is the contract between the compiler and VM. Version 7 begins
+Panackelty bytecode is the contract between the compiler and VM. Version 8 begins
 with the `PANACKBC` magic header and a two-byte version, followed by a compact,
 typed binary payload containing the function table, purity metadata, and
 instruction streams. `main` is the implicit entry point.
@@ -11,7 +11,7 @@ limits in [FORMAT.md](FORMAT.md). The loader rejects legacy versions, truncation
 trailing bytes, invalid UTF-8, unknown codes, non-canonical numeric encodings,
 and reserved flags before semantic verification.
 
-The frozen execution contract and exact version-7 byte layout, including every
+The frozen execution contract and exact version-8 byte layout, including every
 instruction's stack effect and encoded operand, are specified in
 [FORMAT.md](FORMAT.md).
 
@@ -25,7 +25,7 @@ can all validate the exact same artifact bytes.
 
 ## Canonical ordering and deterministic artifacts
 
-Within bytecode version 7, serialization is canonical:
+Within bytecode version 8, serialization is canonical:
 
 - functions are ordered by ascending Unicode function name, independent of the
   insertion order of the in-memory function table;
@@ -44,13 +44,13 @@ bytecode version produces byte-identical artifacts. Loading and reserializing a
 canonical artifact also preserves every byte. Unit tests enforce repeated-build,
 function-order, and load/reserialize identity.
 
-The loader currently accepts version 7 only; backwards compatibility remains
+The loader currently accepts version 8 only; backwards compatibility remains
 deliberately postponed. Any semantic or encoding change requires a bytecode
 version increment.
 
 ## Self-hosted implementation
 
-[`codec.panack`](codec.panack) contains the Panackelty-hosted version-7
+[`codec.panack`](codec.panack) contains the Panackelty-hosted version-8
 serializer. It consumes the typed IR from `src/compiler/emitter.panack`, sorts
 functions canonically, and emits the same bytes as the bootstrap serializer.
 [`decoder.panack`](decoder.panack) performs bounded binary reads, strict UTF-8
@@ -61,3 +61,7 @@ byte.
 
 This directory contains only the portable format contract and Panackelty-hosted
 implementation. Temporary Python tooling is confined to `src/bootstrap`.
+
+Version 8 preserves the version-7 instruction layout while changing integer
+division semantics. Rational values are constructed at runtime; Unit uses the
+pure `$unit` call. Old artifacts must be recompiled.

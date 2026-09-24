@@ -13,7 +13,7 @@ pure greatest_common_divisor(left: Nat, right: Nat): Nat {
 }
 
 pure least_common_multiple(left: Nat, right: Nat): Nat {
-  left / greatest_common_divisor(left, right) * right
+  quotient(left, greatest_common_divisor(left, right)) * right
 }
 
 pure smallest_multiple_through(limit: Nat): Nat {

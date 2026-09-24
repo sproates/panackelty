@@ -6,15 +6,15 @@ pure encode_u8(value: Nat): Bytes {
 
 pure encode_u16(value: Nat): Bytes {
   mut output: Bytes = bytes()
-  output = byte_append(output, (value / 256) % 256)
+  output = byte_append(output, (quotient(value, 256)) % 256)
   byte_append(output, value % 256)
 }
 
 pure encode_u32(value: Nat): Bytes {
   mut output: Bytes = bytes()
-  output = byte_append(output, (value / 16777216) % 256)
-  output = byte_append(output, (value / 65536) % 256)
-  output = byte_append(output, (value / 256) % 256)
+  output = byte_append(output, (quotient(value, 16777216)) % 256)
+  output = byte_append(output, (quotient(value, 65536)) % 256)
+  output = byte_append(output, (quotient(value, 256)) % 256)
   byte_append(output, value % 256)
 }
 
@@ -46,7 +46,7 @@ pure encode_nat_body(value: Nat): Bytes {
   if value < 256 {
     encode_u8(value)
   } else {
-    byte_append(encode_nat_body(value / 256), value % 256)
+    byte_append(encode_nat_body(quotient(value, 256)), value % 256)
   }
 }
 
@@ -271,7 +271,7 @@ pure encode_function(function: FunctionCode): Bytes {
 pure serialize_bytecode(program: BytecodeProgram): Bytes {
   mut output: Bytes = utf8_encode("PANACKBC")
   output = byte_append(output, 0)
-  output = bytes_concat(output, encode_u16(7))
+  output = bytes_concat(output, encode_u16(8))
   functions: [FunctionCode] = sort_functions(program.functions)
   output = bytes_concat(output, encode_u16(len(functions)))
   for function in functions {

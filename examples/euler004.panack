@@ -5,7 +5,7 @@ pure reverse_digits(value: Nat): Nat {
 
   while remaining > 0 {
     reversed = reversed * 10 + remaining % 10
-    remaining = remaining / 10
+    remaining = quotient(remaining, 10)
   }
 
   reversed

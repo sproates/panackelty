@@ -51,7 +51,7 @@ typedef struct {
 } Program;
 
 typedef enum {
-	V_NAT, V_INT, V_DEC, V_STR, V_BOOL, V_VOID, V_RANGE, V_ARRAY, V_RECORD, V_VARIANT, V_MAP, V_SET, V_BYTES, V_ITER
+	V_RAT, V_UNIT, V_NAT, V_INT, V_DEC, V_STR, V_BOOL, V_VOID, V_RANGE, V_ARRAY, V_RECORD, V_VARIANT, V_MAP, V_SET, V_BYTES, V_ITER
 } ValueKind;
 typedef struct Value Value;
 typedef struct {
@@ -80,6 +80,7 @@ struct Value {
 	union {
 		PnBigInt	integer;
 		Decimal		decimal;
+        struct { PnBigInt numerator, denominator; } rational;
 		struct {
 			size_t		length, characters;
 			bool		ascii;
@@ -115,6 +116,10 @@ static void	release(Value * v) {
 	case V_INT:
 		pn_big_free(&v->as.integer);
 		break;
+    case V_RAT:
+        pn_big_free(&v->as.rational.numerator);
+        pn_big_free(&v->as.rational.denominator);
+        break;
 	case V_DEC:
 		pn_big_free(&v->as.decimal.coefficient);
 		break;
@@ -220,6 +225,8 @@ static bool	value_equal(const Value * a, const Value * b){
 	case V_NAT:
 	case V_INT:
 		return pn_big_compare(&a->as.integer, &b->as.integer) == 0;
+    case V_RAT:
+        return pn_big_compare(&a->as.rational.numerator, &b->as.rational.numerator) == 0 && pn_big_compare(&a->as.rational.denominator, &b->as.rational.denominator) == 0;
 	case V_DEC:
 		return decimal_compare(&a->as.decimal, &b->as.decimal) == 0;
 	case V_STR:
@@ -227,6 +234,7 @@ static bool	value_equal(const Value * a, const Value * b){
 		return a->as.bytes.length == b->as.bytes.length && !memcmp(a->as.bytes.data, b->as.bytes.data, a->as.bytes.length);
 	case V_BOOL:
 		return a->as.boolean == b->as.boolean;
+    case V_UNIT:
 	case V_VOID:
 		return true;
 	case V_ARRAY:
@@ -322,6 +330,14 @@ static bool	render(Buffer * b, const Value * v, bool display){
 			free(number);
 			return ok;
 		}
+    case V_UNIT:
+        return buffer_text(b, "()");
+    case V_RAT: {
+        char *n = pn_big_string(&v->as.rational.numerator);
+        char *d = pn_big_string(&v->as.rational.denominator);
+        bool ok = n && d && buffer_text(b, n) && buffer_text(b, "/") && buffer_text(b, d);
+        free(n); free(d); return ok;
+    }
 	case V_DEC:
 		return render_decimal(b, &v->as.decimal);
 	case V_STR:
@@ -547,6 +563,7 @@ typedef struct {
 	bool		pure;
 } Builtin;
 static const	Builtin BUILTINS[] = {
+    {"$unit", 0, true}, {"nat", 1, true}, {"dec", 1, true}, {"quotient", 2, true},
 	{"print", 1, false}, {"read_line", 0, false}, {"read_file", 1, false}, {"write_file", 2, false},
 	{"len", 1, true}, {"append", 2, true}, {"concat", 2, true}, {"slice", 3, true},
 	{"starts_with", 2, true}, {"starts_with_at", 3, true}, {"reverse", 1, true}, {"is_digit", 1, true},
@@ -920,7 +937,7 @@ decode(const uint8_t * data, size_t length, Program * p, const char **error)
 	if (!u16(&r, &version)) {
 		*error = r.error;
 		return false;
-	} if (version != 7) {
+	} if (version != 8) {
 		*error = "unsupported bytecode version";
 		return false;
 	} if (!u16(&r, &count)) {
@@ -1150,6 +1167,51 @@ utf8_offset(const Value * value, size_t index, size_t * start, size_t * end)
 		}
 	} return false;
 }
+
+/* Rational helpers own their outputs and leave their inputs untouched. */
+static Value *value_rat(const PnBigInt *n, const PnBigInt *d, const char **error) {
+    PnBigInt gcd = {0}, r = {0}, nn = {0}, dd = {0};
+    Value *out = NULL;
+    if (pn_big_is_zero(d)) { *error = "VM trap: division by zero"; return NULL; }
+    if (!big_gcd(&gcd, n, d)) goto done;
+    if (!pn_big_divmod(&nn, &r, n, &gcd)) goto done;
+    pn_big_free(&r);
+    if (!pn_big_divmod(&dd, &r, d, &gcd)) goto done;
+    if (dd.sign < 0) { dd.sign = 1; nn.sign = -nn.sign; }
+    out = value_new(V_RAT);
+    if (out) { out->as.rational.numerator = nn; out->as.rational.denominator = dd; pn_big_init(&nn); pn_big_init(&dd); }
+done:
+    pn_big_free(&gcd); pn_big_free(&r); pn_big_free(&nn); pn_big_free(&dd);
+    return out;
+}
+static bool rational_operand(const Value *v) {
+    return v->kind == V_RAT || v->kind == V_NAT || v->kind == V_INT;
+}
+static Value *rational_binary(uint8_t op, const Value *a, const Value *b, const char **error) {
+    PnBigInt one = {0}, left = {0}, right = {0}, n = {0}, d = {0};
+    Value *out = NULL;
+    if (!pn_big_from_u64(&one, 1)) return NULL;
+    const PnBigInt *an = a->kind == V_RAT ? &a->as.rational.numerator : &a->as.integer;
+    const PnBigInt *ad = a->kind == V_RAT ? &a->as.rational.denominator : &one;
+    const PnBigInt *bn = b->kind == V_RAT ? &b->as.rational.numerator : &b->as.integer;
+    const PnBigInt *bd = b->kind == V_RAT ? &b->as.rational.denominator : &one;
+    if (op >= 5 || op == 0 || op == 1) {
+        if (!pn_big_mul(&left, an, bd) || !pn_big_mul(&right, bn, ad)) goto done;
+        if (op >= 5) {
+            int c = pn_big_compare(&left, &right);
+            out = value_bool(op == 5 ? c == 0 : op == 6 ? c != 0 : op == 7 ? c < 0 : op == 8 ? c <= 0 : op == 9 ? c > 0 : c >= 0);
+            goto done;
+        }
+        if (!(op == 0 ? pn_big_add(&n, &left, &right) : pn_big_sub(&n, &left, &right)) || !pn_big_mul(&d, ad, bd)) goto done;
+    } else if (op == 2 || op == 3) {
+        if (!pn_big_mul(&n, an, op == 2 ? bn : bd) || !pn_big_mul(&d, ad, op == 2 ? bd : bn)) goto done;
+    } else { *error = "VM trap: Rat does not support remainder"; goto done; }
+    out = value_rat(&n, &d, error);
+done:
+    pn_big_free(&one); pn_big_free(&left); pn_big_free(&right); pn_big_free(&n); pn_big_free(&d);
+    return out;
+}
+
 static bool	comparable(const Value * a, const Value * b){
 	return (a->kind == V_DEC && b->kind == V_DEC) || ((a->kind == V_NAT || a->kind == V_INT) && (b->kind == V_NAT || b->kind == V_INT)) || (a->kind == V_STR && b->kind == V_STR);
 }
@@ -1165,6 +1227,10 @@ static int	compare_values(const Value * a, const Value * b){
 	} return 0;
 }
 static Value * binary_value(uint8_t op, Value * a, Value * b, VM * vm) {
+    if (op <= 10 && rational_operand(a) && rational_operand(b) && (a->kind == V_RAT || b->kind == V_RAT || op == 3)) {
+        return rational_binary(op, a, b, &vm->error);
+    }
+
 	if (op == 11 || op == 12) {
 		if (a->kind != V_BOOL || b->kind != V_BOOL) {
 			vm->error = "VM trap: Boolean operator requires Bool";
@@ -1210,10 +1276,8 @@ static Value * binary_value(uint8_t op, Value * a, Value * b, VM * vm) {
 				return NULL;
 			} if (!pn_big_divmod(&q, &r, &a->as.integer, &b->as.integer))
 				return NULL;
-			if (op == 3) {
-				result = q;
-				pn_big_free(&r);
-			} else {
+            /* Integer / already returned a Rat above; only remainder reaches here. */
+            {
 				if (!pn_big_is_zero(&r) && a->as.integer.sign != b->as.integer.sign) {
 					PnBigInt	adjusted;
 					if (!pn_big_add(&adjusted, &r, &b->as.integer)) {
@@ -1372,6 +1436,25 @@ static const char *environment_value(VM * vm, const char *name){
 	        "VM trap: path contains NUL byte"); \
 } while(0)
 static Value * builtin_call(VM * vm, const char *name, Value * *a){
+    if (!strcmp(name, "$unit")) return value_new(V_UNIT);
+    if (!strcmp(name, "quotient")) {
+        REQUIRE(a[0]->kind == V_NAT && a[1]->kind == V_NAT, "VM trap: quotient requires Nat operands");
+        REQUIRE(!pn_big_is_zero(&a[1]->as.integer), "VM trap: division by zero");
+        PnBigInt q = {0}, r = {0};
+        if (!pn_big_divmod(&q, &r, &a[0]->as.integer, &a[1]->as.integer)) return NULL;
+        Value *out = value_big(V_NAT, &q); pn_big_free(&q); pn_big_free(&r); return out;
+    }
+    if (!strcmp(name, "nat") || !strcmp(name, "dec")) {
+        REQUIRE(a[0]->kind == V_RAT, "VM trap: rational conversion requires Rat");
+        const PnBigInt *n = &a[0]->as.rational.numerator, *d = &a[0]->as.rational.denominator;
+        if (!strcmp(name, "nat")) {
+            REQUIRE(n->sign >= 0 && pn_big_is_one(d), "VM trap: Rat is not an exact Nat");
+            return value_big(V_NAT, n);
+        }
+        Decimal numerator = {.coefficient = *n}, denominator = {.coefficient = *d};
+        return decimal_binary(3, &numerator, &denominator, &vm->error);
+    }
+
 	if (!strcmp(name, "print") || !strcmp(name, "eprint")) {
 		Buffer		b = {0};
 		if (!render(&b, a[0], false))
@@ -1880,7 +1963,11 @@ static Value * execute(VM * vm, Fn * fn, Value * *arguments) {
 					n.sign = -n.sign;
 					v = value_decimal(&n, a->as.decimal.exponent);
 				}
-			} else if (a->kind == V_NAT || a->kind == V_INT) {
+			} else if (a->kind == V_RAT) {
+                PnBigInt n = a->as.rational.numerator;
+                n.sign = -n.sign;
+                v = value_rat(&n, &a->as.rational.denominator, &vm->error);
+            } else if (a->kind == V_NAT || a->kind == V_INT) {
 				PnBigInt	n;
 				if (pn_big_copy(&n, &a->as.integer)) {
 					n.sign = -n.sign;

@@ -9,7 +9,7 @@ pure diagnostic_spaces(count: Nat): Str {
 pure diagnostic_hex(value: Nat): Str {
   digits: Str = "0123456789abcdef"
   if value < 16 { digits[value] }
-  else { diagnostic_hex(value / 16) + digits[value % 16] }
+  else { diagnostic_hex(quotient(value, 16)) + digits[value % 16] }
 }
 
 pure diagnostic_character(character: Str): Str {

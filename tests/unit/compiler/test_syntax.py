@@ -205,11 +205,11 @@ main(): Void {
                 with self.assertRaises(PanackeltyError):
                     self.compile(source)
 
-    def test_legacy_let_unit_and_empty_parentheses_are_rejected(self):
+    def test_legacy_let_and_missing_unit_return_are_rejected(self):
         invalid_sources = (
             "main(): Void { let answer: Nat = 42; print(answer); }",
             "main(): Unit {}",
-            "main(): Void { (); }",
+            "main(): Unit { 1 }",
         )
         for source in invalid_sources:
             with self.subTest(source=source):

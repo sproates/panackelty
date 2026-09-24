@@ -2,6 +2,8 @@ import subprocess
 import tempfile
 import unittest
 import os
+import random
+from fractions import Fraction
 from pathlib import Path
 
 from panackelty import Code, build, bytecode_bytes
@@ -12,6 +14,7 @@ from tests.unit.file_io_cases import (
     write_source,
 )
 from tests.unit.forged_runtime import FORGED_DYNAMIC_FAILURES
+from tests.unit.rational_cases import RATIONAL_FAILURES, rational_failure_source
 
 
 PROJECT = Path(__file__).resolve().parents[3]
@@ -110,7 +113,7 @@ class NativeExecutionTests(unittest.TestCase):
             (
                 "main(): Void { print(-7 / 3); print(-7 % 3); print(7 % -3); "
                 "print(1.0 == 1.00); print(is_letter(\"λ\")); }",
-                "-2\n2\n-2\ntrue\nfalse\n",
+                "-7/3\n2\n-2\ntrue\nfalse\n",
             ),
             (
                 f"main(): Void {{ print({long_decimal} * 9.0); }}",
@@ -131,6 +134,29 @@ class NativeExecutionTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(result.stdout, expected)
+
+    def test_rational_arithmetic_matches_fraction_oracle(self):
+        randomizer = random.Random(812)
+        statements, expected = [], []
+        for _ in range(24):
+            a, b = randomizer.randint(-10**25, 10**25), randomizer.randint(1, 10**12)
+            c, d = randomizer.randint(1, 10**25), randomizer.randint(1, 10**12)
+            left, right = Fraction(a, b), Fraction(c, d)
+            for op, value in (("+", left + right), ("-", left - right),
+                              ("*", left * right), ("/", left / right)):
+                statements.append(f"print(({a}/{b}) {op} ({c}/{d}))")
+                expected.append(f"{value.numerator}/{value.denominator}")
+        result = self.run_source("main(): Void { " + "; ".join(statements) + " }", "rat-oracle")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "\n".join(expected) + "\n")
+
+    def test_rational_conversion_and_zero_failures(self):
+        for index, (expression, message) in enumerate(RATIONAL_FAILURES):
+            with self.subTest(expression=expression):
+                result = self.run_source(rational_failure_source(expression), f"rat-failure-{index}")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+                self.assertEqual(result.stdout, "")
 
     def test_native_vm_runs_the_self_hosted_compiler(self):
         root = Path(self.temporary.name)

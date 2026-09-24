@@ -5,18 +5,20 @@ verifiers, and VMs. Version 4 introduced the semantics below with a transitional
 JSON payload. Version 5 retained those semantics and replaced only the artifact
 encoding with the compact binary layout specified here. Version 6 retained that
 layout and added internal collection-method call targets plus Unicode
-code-point string reversal. Version 7 adds indirect callable invocation.
+code-point string reversal. Version 7 added indirect callable invocation.
+Version 8 changes integer `/` to exact rational division and adds first-class
+`Unit`, rational conversions, and explicit natural quotient division.
 Changing executable behavior or encoding requires another bytecode version
 increment.
 
-## Version 7 binary layout
+## Version 8 binary layout
 
 Every artifact starts with the nine bytes `PANACKBC\0`, followed by an unsigned
-16-bit big-endian version. Version 7 then contains one payload with no padding
+16-bit big-endian version. Version 8 then contains one payload with no padding
 or trailing bytes:
 
 ```text
-u16 version = 7
+u16 version = 8
 u16 function_count
 function[function_count]
 
@@ -117,6 +119,8 @@ The VM uses tagged values:
 | `Nat` | Arbitrary-precision integer greater than or equal to zero |
 | `Int` | Arbitrary-precision signed integer |
 | `Dec` | Finite arbitrary-precision base-10 decimal; division must terminate exactly |
+| `Rat` | Reduced arbitrary-precision numerator and positive denominator |
+| `Unit` | Singleton distinct from `Void` |
 | `Str` | Unicode text indexed and measured by code point |
 | `Bool` | `true` or `false` |
 | `Void` | Internal no-result sentinel; not a source-storable value |
@@ -130,10 +134,16 @@ The VM uses tagged values:
 | `Iterator` | Frame-local iteration state; never serialized |
 
 Only `Nat`, `Int`, `Dec`, `Str`, `Bool`, and `Void` occur in `CONST` records.
-Composite values are constructed by instructions or built-ins.
+Composite values are constructed by instructions or built-ins. `Rat` values are
+constructed by `BINARY /`, not constants. `Unit` is constructed by the pure
+zero-argument `$unit` builtin; `()` lowers to its ordinary `CALL`. The constant
+tags and instruction encoding are unchanged. Version 7 artifacts are rejected
+rather than silently acquiring different division behavior.
 
-Integer division truncates toward zero. Integer remainder follows the divisor's
-sign. Decimal addition, subtraction, multiplication, and remainder are exact;
+Integer `/` constructs `Rat`; rational arithmetic and ordering accept integer
+operands and preserve exactness. Every rational is normalized; zero is `0/1`.
+Rational `%` traps. `quotient(Nat, Nat)` explicitly truncates integer division.
+Integer remainder follows the divisor's sign. Decimal addition, subtraction, multiplication, and remainder are exact;
 decimal division traps when its exact result has a non-terminating base-10
 expansion. `Nat` arithmetic traps if it would produce a negative result.
 
@@ -178,7 +188,7 @@ built-in, which reverses Unicode code points while preserving each code point's
 UTF-8 byte sequence. Source checking establishes the collection families and
 argument types; the VM retains dynamic checks for forged artifacts.
 
-Version 7 adds `CALL_VALUE`. Source-level `@name` references are represented as
+Version 7 added `CALL_VALUE`. Source-level `@name` references are represented as
 opaque callable values by the language even though the current bytecode lowering
 uses a private string target. Source checking supplies the `Fn[...]` or
 `PureFn[...]` signature. Because the verifier does not perform stack-shape type
@@ -201,11 +211,11 @@ and missing map keys. I/O failures are reported as Panackelty errors. Resource
 exhaustion and process termination are outside the language-level trap model.
 
 Trap wording may gain context without a version change, but the condition that
-causes a trap is part of the version-7 contract.
+causes a trap is part of the version-8 contract.
 
 ## Resource limits
 
-Version-7 loaders and verifiers enforce these limits before execution. They
+Version-8 loaders and verifiers enforce these limits before execution. They
 apply equally to serialized artifacts and in-memory function tables produced by
 a compiler.
 

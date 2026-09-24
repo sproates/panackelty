@@ -47,6 +47,13 @@ class SelfHostedBytecodeCodecTests(CompilerHarnessTestCase):
     def assert_differential(self, source):
         self.assertEqual(self.serialize(source), self.expected(source))
 
+    def test_rational_and_unit_bytecode_round_trip(self):
+        source = "main(): Void { third = 1/3; print((third * 30).nat()); print((1/8).dec()); print(()) }"
+        artifact = self.serialize(source)
+        self.assertEqual(artifact, self.expected(source))
+        self.assertEqual(self.serialize(source), artifact)
+        self.assertEqual(self.run_decoder_tool(artifact, "round_trip_bytecode", binary=True), artifact)
+
     def test_serializes_minimal_program_exactly(self):
         self.assert_differential("main(): Void {}")
 
@@ -120,11 +127,11 @@ main(): Void { print(values()); }
             ("minimal-v4.hex", "unsupported bytecode version 4"),
             ("minimal-v5.hex", "unsupported bytecode version 5"),
             ("minimal-v6.hex", "unsupported bytecode version 6"),
-            ("unknown-opcode-v7.hex", "unknown bytecode opcode"),
-            ("invalid-jump-v7.hex", "invalid jump target"),
-            ("nonminimal-integer-v7.hex", "non-minimal integer"),
-            ("truncated-v7.hex", "truncated data"),
-            ("trailing-v7.hex", "trailing data"),
+            ("unknown-opcode-v8.hex", "unknown bytecode opcode"),
+            ("invalid-jump-v8.hex", "invalid jump target"),
+            ("nonminimal-integer-v8.hex", "non-minimal integer"),
+            ("truncated-v8.hex", "truncated data"),
+            ("trailing-v8.hex", "trailing data"),
         )
         for name, expected in cases:
             with self.subTest(vector=name):

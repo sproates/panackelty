@@ -1,0 +1,39 @@
+import stdlib/result
+pure identity[T](value: T): T { value }
+pure done(): Result[Unit,Str] { Ok(()) }
+pure ignore(value: Rat): Unit { () }
+main(): Void {
+  third = 1/3
+  ten = third * 30
+  print(third)
+  print(ten)
+  print(ten.nat())
+  print((1/8).dec())
+  print(((-1)/8).dec())
+  print(1/3 + 1/6)
+  print(1/3 - 1)
+  print(2 / (1/3))
+  print((1/2) / (3/4))
+  print(-(1/3))
+  print(1 / -3)
+  print(0 / -3)
+  print(6/3 == 2)
+  print(2 == 6/3)
+  print(1/2 == 2/4)
+  print(-1/3 < 0)
+  print(1/3 < 1/2)
+  print(1 > 1/3)
+  print(quotient(7, 2))
+  print(identity(()))
+  print(done())
+  print([1/3, 1/2].map(@ignore))
+  print([()].len())
+  print(() == ())
+  print(set().add(1/2).add(2/4))
+  print(map().put(1/2, ()).get(2/4))
+  print(999999999999999999999999999999/3 * 3)
+  print((0/3).nat())
+  print((10/4).dec())
+  unit = ()
+  print("${third} ${unit}")
+}

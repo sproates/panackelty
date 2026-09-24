@@ -12,15 +12,15 @@ done
 
 directory=$(CDPATH= cd -- "$(dirname -- "$launcher")" && pwd)
 
-if [ -x "$directory/panack-vm" ] && [ -f "$directory/bootstrap/compiler-v7.bc" ]; then
+if [ -x "$directory/panack-vm" ] && [ -f "$directory/bootstrap/compiler-v8.bc" ]; then
   vm="$directory/panack-vm"
-  compiler="$directory/bootstrap/compiler-v7.bc"
+  compiler="$directory/bootstrap/compiler-v8.bc"
   stdlib="$directory/src/stdlib"
   version_file="$directory/VERSION"
 else
   prefix=$(CDPATH= cd -- "$directory/.." && pwd)
   vm="$prefix/libexec/panackelty/panack-vm"
-  compiler="$prefix/share/panackelty/compiler-v7.bc"
+  compiler="$prefix/share/panackelty/compiler-v8.bc"
   stdlib="$prefix/share/panackelty/stdlib"
   version_file="$prefix/share/panackelty/VERSION"
 fi
@@ -32,7 +32,7 @@ fi
 
 if [ "${1-}" = "--version" ]; then
   IFS= read -r release_version < "$version_file"
-  printf 'panack %s (bytecode 7)\n' "$release_version"
+  printf 'panack %s (bytecode 8)\n' "$release_version"
   exit 0
 fi
 

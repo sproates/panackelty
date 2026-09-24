@@ -26,7 +26,7 @@ INSTALLED_FILES = {
     "share/doc/panackelty/SECURITY.md",
     "share/doc/panackelty/SPEC.md",
     "share/panackelty/VERSION",
-    "share/panackelty/compiler-v7.bc",
+    "share/panackelty/compiler-v8.bc",
     "share/panackelty/stdlib/bytes.panack",
     "share/panackelty/stdlib/collections.panack",
     "share/panackelty/stdlib/environment.panack",
@@ -106,7 +106,7 @@ class NativeDistributionTests(unittest.TestCase):
             for stage in ("stage1", "stage2"):
                 target = checkout / "build/bootstrap" / stage / "compiler.bc"
                 target.parent.mkdir(parents=True)
-                shutil.copyfile(PROJECT / "bootstrap/compiler-v7.bc", target)
+                shutil.copyfile(PROJECT / "bootstrap/compiler-v8.bc", target)
             probe = checkout / "probe.sh"
             probe.write_text(
                 '#!/bin/sh\nset -eu\n'
@@ -157,7 +157,7 @@ class NativeDistributionTests(unittest.TestCase):
             self.assertEqual(command.returncode, 0, command.stderr)
             self.assertEqual(
                 command.stdout,
-                f"panack {RELEASE_VERSION} (bytecode 7)\n",
+                f"panack {RELEASE_VERSION} (bytecode 8)\n",
             )
             self.assertEqual(command.stderr, "")
 
@@ -257,7 +257,7 @@ class NativeDistributionTests(unittest.TestCase):
             self.assertEqual(version.returncode, 0, version.stderr)
             self.assertEqual(
                 version.stdout,
-                f"panack {RELEASE_VERSION} (bytecode 7)\n",
+                f"panack {RELEASE_VERSION} (bytecode 8)\n",
             )
 
             source = temporary / "relocated-import.panack"

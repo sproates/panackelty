@@ -5,6 +5,7 @@ import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from tests.unit.rational_cases import RATIONAL_FAILURES, rational_failure_source
 from tests.unit.file_io_cases import read_source, round_trip_source, write_source
 
 
@@ -123,7 +124,7 @@ class PanackeltyProgramTests(unittest.TestCase):
         result = self.invoke("--version")
         self.assertEqual(
             result.stdout,
-            f"panack {RELEASE_VERSION} (bytecode 7)\n",
+            f"panack {RELEASE_VERSION} (bytecode 8)\n",
         )
         self.assertEqual(result.stderr, "")
 
@@ -157,6 +158,20 @@ class PanackeltyProgramTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertEqual(result.stdout, expected)
                     self.assertEqual(result.stderr, "")
+
+    def test_rational_failures_in_source_and_bytecode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "failure.panack"
+            bytecode = Path(directory) / "failure.bc"
+            for expression, message in RATIONAL_FAILURES:
+                with self.subTest(expression=expression):
+                    source.write_text(rational_failure_source(expression))
+                    self.invoke("compile", str(source), "-o", str(bytecode))
+                    for input_path in (source, bytecode):
+                        result = run_panack("run", str(input_path))
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertIn(message, result.stderr)
+                        self.assertEqual(result.stdout, "")
 
     def test_bare_source_path_runs_program(self):
         source = CASES / "hello_world/main.panack"

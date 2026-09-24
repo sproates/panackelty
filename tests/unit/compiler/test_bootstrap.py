@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 PROJECT = Path(__file__).resolve().parents[3]
-SEED = PROJECT / "bootstrap/compiler-v7.bc"
+SEED = PROJECT / "bootstrap/compiler-v8.bc"
 
 
 class ReproducibleBootstrapTests(unittest.TestCase):

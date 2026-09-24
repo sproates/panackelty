@@ -38,9 +38,9 @@ class NativeLoaderTests(unittest.TestCase):
         path.write_bytes(bytes.fromhex((VECTORS / name).read_text(encoding="ascii")))
         return path
 
-    def test_accepts_minimal_version_seven_artifact(self):
+    def test_accepts_minimal_version_eight_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
-            artifact = self.artifact("minimal-v7.hex", Path(directory))
+            artifact = self.artifact("minimal-v8.hex", Path(directory))
             result = subprocess.run(
                 [str(self.executable), "check", str(artifact)],
                 capture_output=True,
@@ -70,11 +70,11 @@ class NativeLoaderTests(unittest.TestCase):
     def test_rejects_shared_malformed_artifacts(self):
         cases = {
             "bad-magic.hex": "not a Panackelty bytecode file",
-            "unknown-opcode-v7.hex": "unknown bytecode opcode",
-            "invalid-jump-v7.hex": "invalid jump target",
-            "nonminimal-integer-v7.hex": "non-minimal integer",
-            "truncated-v7.hex": "truncated data",
-            "trailing-v7.hex": "trailing data",
+            "unknown-opcode-v8.hex": "unknown bytecode opcode",
+            "invalid-jump-v8.hex": "invalid jump target",
+            "nonminimal-integer-v8.hex": "non-minimal integer",
+            "truncated-v8.hex": "truncated data",
+            "trailing-v8.hex": "trailing data",
         }
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

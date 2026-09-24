@@ -3,6 +3,23 @@ VOID_RETURN = [("CONST", ("Void", None)), ("RETURN", None)]
 
 FORGED_DYNAMIC_FAILURES = (
     (
+        "rational conversion type",
+        [("CONST", ("Nat", 1)), ("CALL", ("nat", 1)), ("RETURN", None)],
+        ("rational conversion requires Rat",),
+    ),
+    (
+        "quotient operand type",
+        [("CONST", ("Str", "1")), ("CONST", ("Nat", 2)),
+         ("CALL", ("quotient", 2)), ("RETURN", None)],
+        ("quotient requires Nat operands",),
+    ),
+    (
+        "rational remainder",
+        [("CONST", ("Nat", 1)), ("CONST", ("Nat", 3)), ("BINARY", "/"),
+         ("CONST", ("Nat", 2)), ("BINARY", "%"), ("RETURN", None)],
+        ("Rat does not support remainder",),
+    ),
+    (
         "Nat underflow",
         [
             ("CONST", ("Nat", 0)),

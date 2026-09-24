@@ -214,4 +214,6 @@ remain necessary for existing compiler loading and bootstrap compatibility.
 Both frontends and runtimes support typed filesystem calls, bounded process
 execution, checked UTF-8 decoding, and sleep. The version-8 seed includes their
 signatures; the normal compiler and library fixed-point comparisons still apply.
-A Panackelty testing library and migration of the Python harness remain unfinished.
+The first `stdlib/testing` module now provides pure structured assertions and
+ordered reporting. Fixture discovery, temporary isolation, command assertions,
+and migration of the Python harness remain unfinished.

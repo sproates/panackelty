@@ -467,6 +467,8 @@ surface, or logical imports such as `import stdlib/option`,
 `import stdlib/result`, and `import stdlib/text`. These names work from a source
 checkout and an installed toolchain without exposing its directory layout. See the
 [standard-library guide](src/stdlib/README.md) for the available APIs.
+The separately imported `stdlib/testing` module provides pure assertions and
+ordered result reporting for Panackelty test programs.
 
 ## Explore further
 

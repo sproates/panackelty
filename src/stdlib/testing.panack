@@ -1,0 +1,37 @@
+// Assertions are pure; reporting is an explicit effect at the test boundary.
+enum TestOutcome { TestPassed, TestFailed(Str) }
+record TestResult { name: Str, outcome: TestOutcome }
+
+pure test_expect(name: Str, condition: Bool, reason: Str): TestResult {
+  if condition {
+    TestResult(name, TestPassed())
+  } else {
+    TestResult(name, TestFailed(reason))
+  }
+}
+
+pure test_equal_str(name: Str, actual: Str, expected: Str): TestResult {
+  test_expect(name, actual == expected, "expected ${expected}, got ${actual}")
+}
+
+pure test_equal_nat(name: Str, actual: Nat, expected: Nat): TestResult {
+  test_expect(name, actual == expected, "expected ${expected}, got ${actual}")
+}
+
+// Caller order is retained. The caller can use the returned count as its exit policy.
+test_report(results: [TestResult]): Nat {
+  mut failures: Nat = 0
+  for result in results {
+    name = result.name
+    match result.outcome {
+      TestPassed() => { print("PASS ${name}") },
+      TestFailed(reason) => {
+        print("FAIL ${name}: ${reason}")
+        failures = failures + 1
+      }
+    }
+  }
+  total = len(results)
+  print("tests: ${total}, failures: ${failures}")
+  failures
+}

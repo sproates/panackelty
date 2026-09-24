@@ -11,6 +11,7 @@ program-wide namespace, so public functions use descriptive prefixes.
 | --- | --- | --- |
 | `option.panack` | `Option[T]`, `None`, `Some`, `option_value_or[T]` | Portable enum and generic helper |
 | `result.panack` | `Result[T,E]`, `Ok`, `Error`, `result_value_or[T,E]` | Portable enum and generic helper |
+| `testing.panack` | `TestOutcome`, `TestResult`, `test_expect`, `test_equal_str`, `test_equal_nat`, `test_report` | Pure assertions and explicit ordered reporting; imported separately from the prelude |
 | `collections.panack` | `array_first[T]` returning `Option[T]`; array methods `append`/`concat`/`map`/`reduce`, Map methods `put`/`has`/`get`, Set methods `add`/`has`, plus legacy compatibility spellings | Portable generic helper plus compiler-known operations and VM primitives |
 | `text.panack` | `text_length`, `text_slice`, `text_starts_with`, `text_starts_with_at`, `text_reverse`, `text_is_digit`, `text_is_letter`, `text_is_whitespace`, `text_parse_nat` | Portable wrappers over deterministic VM primitives |
 | `bytes.panack` | `bytes_empty`, `bytes_push`, `bytes_join`, `bytes_length`, `bytes_at`, `text_encode_utf8`, `text_decode_utf8` | Portable wrappers over immutable byte-buffer primitives |
@@ -55,3 +56,18 @@ prelude imports all three. Their VM services support typed byte I/O, sorted
 directory enumeration, explicit temporary-resource ownership, bounded process
 execution, checked decoding, and sleep; see
 [the complete API contract](../../SPEC.md#typed-filesystem-process-and-sleep-apis).
+
+## Testing assertions and reports
+
+Import `stdlib/testing` explicitly. `test_expect(name, condition, reason)`,
+`test_equal_str(name, actual, expected)`, and
+`test_equal_nat(name, actual, expected)` return a `TestResult` containing a
+`TestPassed` or `TestFailed(reason)` outcome. Assertions are pure and do not
+terminate a program. `test_report(results)` prints `PASS name` or
+`FAIL name: reason` for each result in the supplied order, then prints
+`tests: N, failures: M` and returns the failure count. An empty list reports
+zero tests and zero failures. A caller can choose a nonzero exit status from
+the returned count. Fixture discovery and command execution remain follow-ups.
+
+See the [functional case](../../tests/functional/cases/testing_library/main.panack)
+for a complete program.

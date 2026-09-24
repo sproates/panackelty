@@ -34,3 +34,7 @@ operation, and internal `$unit` construction are specified in [ABI.md](ABI.md).
 The monotonic clock service returns an opaque `Instant` or structured
 `ClockUnavailable` error. Reading it is effectful; arithmetic on existing
 instants and durations and all typed lexical path operations remain pure.
+
+Typed `fs_*`, `process_run`, and `host_sleep` services return `Result` values
+with `HostError` records and enforce explicit limits. `host_decode_utf8` is pure
+and returns a checked result. Their contracts are linked from `ABI.md`.

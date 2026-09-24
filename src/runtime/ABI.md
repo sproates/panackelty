@@ -89,3 +89,13 @@ host services. Their full signatures and checked errors are specified in
 [SPEC.md](../../SPEC.md#paths-and-monotonic-time). Native path bytes are POSIX
 bytes on the current target matrix. Existing string-based host path APIs retain
 their contracts; typed filesystem access is not introduced by these types.
+
+## Typed filesystem and process services
+
+The signatures, error record, POSIX semantics, ownership, and resource bounds for
+`fs_*`, `process_run`, `host_sleep`, and `host_decode_utf8` are specified in
+[the language contract](../../SPEC.md#typed-filesystem-process-and-sleep-apis).
+All are effectful except checked UTF-8 decoding. They use ordinary version-8
+named CALL instructions and record/variant values; old runtimes reject unknown
+services. No new value tags or opcode layouts are introduced. Legacy string
+file calls retain their trapping behavior for bootstrap compatibility.

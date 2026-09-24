@@ -1,0 +1,5 @@
+import "host.panack"
+import "path.panack"
+
+enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
+record FileMetadata { kind: FileKind, size: Nat }

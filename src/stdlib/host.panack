@@ -1,0 +1,4 @@
+import "result.panack"
+
+// code is a stable portable category; native_code is the POSIX errno, or zero.
+record HostError { operation: Str, code: Str, native_code: Nat }

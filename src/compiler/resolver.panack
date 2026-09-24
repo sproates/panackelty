@@ -38,6 +38,7 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
 }
 
 pure is_builtin(name: Str): Bool {
+  name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" || name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" || name == "host_decode_utf8" || name == "host_sleep" || name == "process_run" ||
   name == "path_from_text" || name == "path_from_native" || name == "path_to_text" ||
   name == "path_native_bytes" || name == "path_display" || name == "path_absolute" ||
   name == "path_append" || name == "path_directory" || name == "path_filename" ||

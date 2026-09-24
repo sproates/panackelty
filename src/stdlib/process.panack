@@ -1,0 +1,6 @@
+import "host.panack"
+import "path.panack"
+import "time.panack"
+
+// Exactly one of exit_code or signal describes termination; signal zero means exit.
+record ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }

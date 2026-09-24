@@ -48,3 +48,10 @@ fields. `duration_seconds(5)` creates an exact duration,
 `instant_difference(end, start)` measures elapsed time. Only `instant_now()`
 reads the clock and is effectful. See the executable
 [conformance program](../../tests/functional/cases/host_types/main.panack).
+
+`host.panack` defines the shared `HostError` record. `filesystem.panack` defines
+`FileKind` and `FileMetadata`; `process.panack` defines `ProcessOutput`. The
+prelude imports all three. Their VM services support typed byte I/O, sorted
+directory enumeration, explicit temporary-resource ownership, bounded process
+execution, checked decoding, and sleep; see
+[the complete API contract](../../SPEC.md#typed-filesystem-process-and-sleep-apis).

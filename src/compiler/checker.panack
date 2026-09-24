@@ -572,6 +572,18 @@ pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
+  if name == "fs_read" { "Result[Bytes,HostError]" } else {
+  if name == "fs_write" { "Result[Unit,HostError]" } else {
+  if name == "fs_metadata" { "Result[FileMetadata,HostError]" } else {
+  if name == "fs_list" { "Result[[Path],HostError]" } else {
+  if name == "fs_create_directory" { "Result[Unit,HostError]" } else {
+  if name == "fs_remove_file" { "Result[Unit,HostError]" } else {
+  if name == "fs_remove_directory" { "Result[Unit,HostError]" } else {
+  if name == "fs_temp_file" { "Result[Path,HostError]" } else {
+  if name == "fs_temp_directory" { "Result[Path,HostError]" } else {
+  if name == "host_decode_utf8" { "Result[Str,HostError]" } else {
+  if name == "host_sleep" { "Result[Unit,HostError]" } else {
+  if name == "process_run" { "Result[ProcessOutput,HostError]" } else {
   if name == "path_from_text" || name == "path_from_native" || name == "path_append" { "Result[Path,PathError]" } else {
   if name == "path_to_text" { "Result[Str,PathError]" } else {
   if name == "path_native_bytes" { "Bytes" } else {
@@ -592,9 +604,22 @@ pure builtin_return(name: Str): Str {
   else { if name == "command_args" { "[Str]" }
   else { if name == "bytes" || name == "byte_append" || name == "bytes_concat" || name == "utf8_encode" || name == "read_bytes" { "Bytes" } else { "Unknown" } } } } } }
 } } }
+} } } } } } } } } } } }
 } } } } } } } } } } } } }
 
 pure builtin_arity(name: Str): Nat {
+  if name == "fs_read" { 2 } else {
+  if name == "fs_write" { 2 } else {
+  if name == "fs_metadata" { 1 } else {
+  if name == "fs_list" { 1 } else {
+  if name == "fs_create_directory" { 1 } else {
+  if name == "fs_remove_file" { 1 } else {
+  if name == "fs_remove_directory" { 1 } else {
+  if name == "fs_temp_file" { 1 } else {
+  if name == "fs_temp_directory" { 1 } else {
+  if name == "host_decode_utf8" { 1 } else {
+  if name == "host_sleep" { 1 } else {
+  if name == "process_run" { 7 } else {
   if name == "path_from_text" || name == "path_from_native" || name == "path_to_text" || name == "path_native_bytes" || name == "path_display" || name == "path_absolute" || name == "path_directory" || name == "path_filename" || name == "duration_nanoseconds" || name == "duration_ticks" || name == "duration_from_seconds" { 1 } else {
   if name == "path_append" || name == "instant_add" || name == "instant_difference" || name == "instant_before" { 2 } else {
   if name == "path_current" || name == "instant_now" { 0 } else {
@@ -604,9 +629,22 @@ pure builtin_arity(name: Str): Nat {
   else { if name == "write_file" || name == "append" || name == "concat" || name == "starts_with" || name == "map_has" || name == "map_get" || name == "$method_has" || name == "$method_get" || name == "$method_add" || name == "$method_map" || name == "set_add" || name == "set_has" || name == "byte_append" || name == "bytes_concat" || name == "byte_get" || name == "write_bytes" || name == "path_join" || name == "path_with_suffix" || name == "run_bytecode_args" { 2 }
   else { 3 } } }
 } } }
-} } } }
+} } }
+} } } } } } } } } } } } }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "fs_read" { if index == 0 { "Path" } else { if index == 1 { "Nat" } else { "Any" }} } else {
+  if name == "fs_write" { if index == 0 { "Path" } else { if index == 1 { "Bytes" } else { "Any" }} } else {
+  if name == "fs_metadata" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "fs_list" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "fs_create_directory" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "fs_remove_file" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "fs_remove_directory" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "fs_temp_file" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "fs_temp_directory" { if index == 0 { "Path" } else { "Any" } } else {
+  if name == "host_decode_utf8" { if index == 0 { "Bytes" } else { "Any" } } else {
+  if name == "host_sleep" { if index == 0 { "Duration" } else { "Any" } } else {
+  if name == "process_run" { if index == 0 { "Path" } else { if index == 1 { "[Str]" } else { if index == 2 { "Bytes" } else { if index == 3 { "Path" } else { if index == 4 { "[Str]" } else { if index == 5 { "Duration" } else { if index == 6 { "Nat" } else { "Any" }}}}}}} } else {
   if name == "path_from_text" { "Str" } else {
   if name == "path_from_native" { "Bytes" } else {
   if name == "path_to_text" || name == "path_native_bytes" || name == "path_display" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_filename" { "Path" } else {
@@ -631,7 +669,8 @@ pure builtin_parameter(name: Str, index: Nat): Str {
   else { if name == "run_bytecode" || name == "run_bytecode_args" { if index == 0 { "Bytes" } else { "[Str]" } }
   else { "Any" } } } } } } } } } } } }
 } }
-} } } } } } } } } }
+} } } } } } } } }
+} } } } } } } } } } } } }
 
 pure method_operation(name: Str): Str {
   mut result: Str = name

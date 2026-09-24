@@ -10,6 +10,10 @@ enum Option[T] { Some(T), None }
 enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
 enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
 enum ClockError { ClockUnavailable }
+record HostError { operation: Str, code: Str, native_code: Nat }
+enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
+record FileMetadata { kind: FileKind, size: Nat }
+record ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }
 '''
 
 
@@ -47,6 +51,19 @@ main(): Void {
   }
 }
 ''', True)
+
+    def test_host_capability_types_and_effects(self):
+        self.check_both('\nmain(): Void {\n  contents: Result[Bytes,HostError] = fs_read(path_current(), 100)\n  entries: Result[[Path],HostError] = fs_list(path_current())\n  output: Result[ProcessOutput,HostError] = process_run(path_current(), [], bytes(), path_current(), [], duration_nanoseconds(1), 100)\n}\n', True)
+        for source in (
+            'main(): Void { x = fs_read("file", 10) }',
+            'main(): Void { x = fs_write(path_current(), "text") }',
+            'main(): Void { x = host_sleep(1) }',
+            'pure bad(): Result[[Path],HostError] { fs_list(path_current()) } main(): Void {}',
+            'pure bad(): Result[Unit,HostError] { host_sleep(duration_nanoseconds(0)) } main(): Void {}',
+            'main(): Void { x = process_run(path_current(), [1], bytes(), path_current(), [], duration_nanoseconds(0), 10) }',
+        ):
+            with self.subTest(source=source):
+                self.check_both(source, False)
 
     def test_invalid_types_forged_construction_and_impure_clock_are_rejected(self):
         for source in (

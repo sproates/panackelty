@@ -53,6 +53,7 @@ pairs. `Unit` has its own runtime tag; `.nat()` and `.dec()` perform exact check
 conversions and trap rather than discard precision.
 
 Opaque paths and time values are implemented in `host_types.h`. Lexical paths
-preserve native bytes; durations and instants use exact integer storage. The
-monotonic clock is the only new effectful operation. See `VALUE_MODEL.md` and
+preserve native bytes; durations and instants use exact integer storage. Typed filesystem, process, and sleep operations are implemented separately
+in `host_capabilities.h`, including descriptor ownership, concurrent stream
+collection, resource limits, and structured host failures. See `VALUE_MODEL.md` and
 `../../SPEC.md` for ownership, signatures, error behavior, and clock scope.

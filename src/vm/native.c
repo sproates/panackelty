@@ -1,6 +1,13 @@
+#define _DARWIN_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #include "bigint.h"
 #include <time.h>
+#include <errno.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/wait.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -580,6 +587,18 @@ typedef struct {
 	bool		pure;
 } Builtin;
 static const	Builtin BUILTINS[] = {
+    {"fs_read", 2, false},
+    {"fs_write", 2, false},
+    {"fs_metadata", 1, false},
+    {"fs_list", 1, false},
+    {"fs_create_directory", 1, false},
+    {"fs_remove_file", 1, false},
+    {"fs_remove_directory", 1, false},
+    {"fs_temp_file", 1, false},
+    {"fs_temp_directory", 1, false},
+    {"host_decode_utf8", 1, true},
+    {"host_sleep", 1, false},
+    {"process_run", 7, false},
     {"path_from_text", 1, true},
     {"path_from_native", 1, true},
     {"path_to_text", 1, true},
@@ -1472,8 +1491,10 @@ static const char *environment_value(VM * vm, const char *name){
 } while(0)
 static Value * named_value(ValueKind kind, const char *name, char **names, Value **values, size_t count);
 #include "host_types.h"
+#include "host_capabilities.h"
 
 static Value * builtin_call(VM * vm, const char *name, Value * *a){
+    if (host_capability_builtin(name)) return host_capability_call(vm, name, a);
     if (host_type_builtin(name)) return host_type_call(vm, name, a);
     if (!strcmp(name, "$unit")) return value_new(V_UNIT);
     if (!strcmp(name, "quotient")) {

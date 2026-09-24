@@ -494,3 +494,13 @@ Python VM uses distinct opaque payload objects and the same contracts.
 Only `instant_now` crosses the host boundary. Both verifiers enforce its effect
 and builtin arity; runtime tags prevent forged records from acting as opaque
 values. No constant tags or instructions are added to bytecode version 8.
+
+## Typed host capabilities
+
+`src/vm/host_capabilities.h` owns typed POSIX file operations, process orchestration,
+checked UTF-8 decoding, and sleep. The compiler and verifier register their exact
+arities and effects. Processes use fork/exec with a launch-error pipe, a dedicated
+process group, nonblocking pipe polling, bounded buffers, and monotonic deadlines.
+The transitional oracle implements the same contract with subprocess and selectors.
+`stdlib/host`, `stdlib/filesystem`, and `stdlib/process` define structured results.
+The existing string-based file ABI remains necessary for the compiler bootstrap.

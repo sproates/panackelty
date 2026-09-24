@@ -36,6 +36,7 @@ INSTALLED_FILES = {
     "share/panackelty/stdlib/result.panack",
     "share/panackelty/stdlib/text.panack",
     "share/panackelty/stdlib/testing.panack",
+    "share/panackelty/stdlib/testing_files.panack",
     "share/panackelty/stdlib/time.panack",
     "share/panackelty/stdlib/host.panack",
     "share/panackelty/stdlib/filesystem.panack",

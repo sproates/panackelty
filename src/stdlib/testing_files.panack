@@ -1,0 +1,57 @@
+import "filesystem.panack"
+import "option.panack"
+import "result.panack"
+
+// The caller owns this unique temporary directory and all files created in it.
+record TestWorkspace { root: Path }
+
+test_workspace_create(parent: Path): Result[TestWorkspace,HostError] {
+  match fs_temp_directory(parent) {
+    Ok(root) => Ok(TestWorkspace(root)),
+    Error(error) => Error(error)
+  }
+}
+
+// Refuse to discard a workspace that still contains fixtures or output.
+test_workspace_remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
+  fs_remove_directory(workspace.root)
+}
+
+// Discover immediate directory children in fs_list's native-byte sorted order.
+// Symlinks are not followed. A filesystem error aborts discovery without a
+// partial result; fs_list guarantees child names are relative.
+test_discover_fixtures(root: Path): Result[[Path],HostError] {
+  match fs_list(root) {
+    Error(error) => Error(error),
+    Ok(names) => {
+      mut fixtures: [Path] = []
+      mut failure: Option[HostError] = None()
+      for name in names {
+        match failure {
+          Some(problem) => {},
+          None() => {
+            match path_append(root, name) {
+              Error(path_error) => {
+                failure = Some(HostError("test_discover_fixtures", "invalid_argument", 0))
+              },
+              Ok(child) => {
+                match fs_metadata(child) {
+                  Error(error) => { failure = Some(error) },
+                  Ok(metadata) => {
+                    if metadata.kind == Directory() {
+                      fixtures = fixtures.append(child)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      match failure {
+        Some(error) => Error(error),
+        None() => Ok(fixtures)
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+import stdlib/testing
+
+main(): Void {
+  results: [TestResult] = [
+    test_expect("condition", true, "unexpected false"),
+    test_equal_nat("number", 2, 3),
+    test_equal_str("text", "hello", "hello")
+  ]
+  failures = test_report(results)
+  print("returned ${failures}")
+}

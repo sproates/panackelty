@@ -502,6 +502,12 @@ primitives. Host access remains limited to the ABI calls identified above.
 
 `len` also accepts arrays and byte buffers.
 
+The separately imported `stdlib/testing` module supplies pure `TestResult`
+assertions for Boolean conditions and equality of `Str` and `Nat`. Its effectful
+`test_report` prints outcomes in caller-supplied order and returns the number
+of failures; it does not choose an exit status. Fixture discovery and command
+execution are not part of this initial module.
+
 ## Strings
 
 `Str` values are Unicode text. They concatenate with `+`, and interpolation uses

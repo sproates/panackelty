@@ -51,6 +51,11 @@ The specification-to-test map and prioritized coverage backlog live in
 [`COVERAGE.md`](COVERAGE.md). Update it when a language promise or its automated
 evidence changes.
 
+`stdlib/testing` supplies pure structured assertions and an explicit reporter
+for new Panackelty-hosted tests. Its initial end-to-end case is
+`functional/cases/testing_library`; the existing Python harness still owns
+test discovery and execution until its later migration.
+
 Unit tests are grouped by implementation subsystem under `tests/unit/compiler`,
 `tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output
 helpers live in `tests/unit/support.py`. Add a focused module to the owning

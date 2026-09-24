@@ -792,7 +792,10 @@ prerequisite so programs can use these APIs without knowing repository paths.
       exhaustive injected host failures and traversal coverage remain pending
 - [ ] Build a small Panackelty testing library with assertions, structured test
       results, fixture discovery, temporary isolation, command assertions, and
-      deterministic reporting as the foundation for Python removal
+      deterministic reporting as the foundation for Python removal; pure
+      Boolean/Str/Nat assertions, structured outcomes, and caller-ordered
+      reporting are implemented, while discovery, isolation, and command
+      assertions remain
 
 ## Eliminate Python from the repository — planned after host capabilities
 
@@ -831,6 +834,12 @@ installed.
       and release smoke tests from a clean environment without Python
 
 ## Keep validation within development budgets — in progress
+
+Current environment follow-up: the September 2026 testing-library branch
+reported a 21-second unit phase against its 15-second warning threshold, also
+observed on the unmodified checkout in this environment. Profile the unit
+phase here and address its dominant cost without reducing coverage. The full
+`make check` remains within its 120-second budget (36 seconds on this branch).
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

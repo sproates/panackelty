@@ -1,0 +1,5 @@
+PASS condition
+FAIL number: expected 3, got 2
+PASS text
+tests: 3, failures: 1
+returned 1

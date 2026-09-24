@@ -820,9 +820,10 @@ installed.
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks nineteen existing fixtures in parallel with the
-      Python harness; nonempty-workspace cleanup failure and recovery are now
-      tested. Next extend toward the full corpus, preserving host-error parity
+      Panackelty runner now checks twenty existing fixtures in parallel with the
+      Python harness, including a safely resolved compiler `source.path`;
+      nonempty-workspace cleanup failure and recovery are tested. Next extend
+      toward the full corpus, preserving host-error parity
 - [ ] Replace differential reliance on the Python compiler and VM with portable
       golden artifacts, contract tests, native/self-hosted cross-checks, and
       fixed-point bootstrap evidence
@@ -847,7 +848,12 @@ reported a 21-second unit phase against its 15-second warning threshold, also
 observed on the unmodified checkout in this environment. With the expanded
 fixture runner, clean checks observed 32–36 seconds for units and 79–84 seconds
 overall. Profile the unit phase here and address its dominant cost without
-reducing coverage; the full check remains within its 120-second budget.
+reducing coverage; the earlier full check remained within its 120-second budget.
+The compiler `source.path` fixture raised one clean check to 177 seconds (unit
+97 seconds, functional 63 seconds). The cleanup failure unit test now selects
+one fixture, reducing the next clean unit phase to 68 seconds. Next, reuse the
+compiler result across the remaining integration checks
+without dropping the source, bytecode, or path containment assertions.
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

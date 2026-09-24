@@ -108,8 +108,9 @@ class NativeDistributionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             checkout = Path(directory) / "checkout with spaces (test)"
             checkout.mkdir()
-            for name in ("Makefile", "VERSION", "src", "bootstrap", "panack-vm", "panack", "tests"):
+            for name in ("Makefile", "VERSION", "bootstrap", "panack-vm", "panack", "tests"):
                 (checkout / name).symlink_to(PROJECT / name)
+            shutil.copytree(PROJECT / "src", checkout / "src")
             for stage in ("stage1", "stage2"):
                 target = checkout / "build/bootstrap" / stage / "compiler.bc"
                 target.parent.mkdir(parents=True)
@@ -131,7 +132,7 @@ class NativeDistributionTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("42", result.stdout.splitlines())
-            self.assertEqual(result.stdout.splitlines()[-1], "tests: 58, failures: 0")
+            self.assertEqual(result.stdout.splitlines()[-1], "tests: 61, failures: 0")
 
     def test_installed_cli_runs_without_source_tree_layout(self):
         with tempfile.TemporaryDirectory() as directory:

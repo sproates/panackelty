@@ -219,7 +219,7 @@ signatures; the normal compiler and library fixed-point comparisons still apply.
 explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
 bounded process results and expected host errors. The testing-library
 foundation is complete; migration of the Python oracle and harness remains.
-An initial Panackelty-hosted runner now checks twenty-two success fixtures, all
+An initial Panackelty-hosted runner now checks twenty-three success fixtures, all
 twenty examples, and forty-one expected failure fixtures alongside the Python
 harness, including checked compiler `source.path` resolution and normalized
 failure diagnostics. Source/bytecode checking and disassembly contracts now run

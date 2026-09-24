@@ -5,7 +5,7 @@ pure runner_path(text: Str): Path {
 }
 
 main(): Void {
-  names = ["callables", "cli_check_disasm", "cli_commands", "collections", "compiler_lexer", "compiler_skeleton", "hello_world",
+  names = ["callables", "cli_check_disasm", "cli_commands", "cli_environment_files", "collections", "compiler_lexer", "compiler_skeleton", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",
     "semicolonless", "stdlib", "string_boundaries", "testing_commands",
@@ -40,7 +40,7 @@ main(): Void {
   for name in failure_names {
     expected_text = "${expected_text}PASS failure/${name}/check\nPASS failure/${name}/compile\nPASS failure/${name}/no artifact\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 252, failures: 0\n")
+  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 255, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],

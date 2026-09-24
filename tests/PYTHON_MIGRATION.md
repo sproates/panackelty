@@ -35,7 +35,7 @@ backlog items, not implicit losses.
 
 The first parallel runner is `tests/runner/main.panack`. `make functional` runs
 it after the unchanged Python harness. It discovers and selects `callables`,
-`cli_check_disasm`, `cli_commands`, `collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
+`cli_check_disasm`, `cli_commands`, `cli_environment_files`, `collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
 `host_types`, `local_inference`, `modules`, `optional_else`,
 `rational_unit`, `records_and_enums`, `semicolonless`, `stdlib`, `string_boundaries`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
@@ -51,7 +51,9 @@ The `cli_check_disasm` case compares source and bytecode disassembly and checks
 malformed bytecode and legacy extension rejection through the public CLI.
 The `cli_commands` case checks bare source and bytecode paths, default compiler
 output, argument forwarding, controlled stderr and exit status, help, and version.
-The compiler fixture uses `source.path`; its target is physically resolved within
+The `cli_environment_files` case checks environment overrides, text and binary file
+round trips from source and saved bytecode, missing paths, invalid UTF-8,
+and denied access on unprivileged POSIX hosts. The compiler fixture uses `source.path`; its target is physically resolved within
 the checkout before execution, including checks against symlink escapes. When
 the bootstrap recipe supplies `PANACK_TEST_COMPILER`, the runner copies that
 verified compiler artifact for its compiled-output check instead of compiling

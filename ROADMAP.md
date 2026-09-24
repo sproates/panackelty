@@ -820,7 +820,7 @@ installed.
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks twenty-two success fixtures, twenty examples,
+      Panackelty runner now checks twenty-three success fixtures, twenty examples,
       and forty-one expected failure fixtures in parallel with the Python
       harness, including source/bytecode check and disassembly, safe compiler
       `source.path`, bare-path invocation, arguments, process status,

@@ -1,0 +1,217 @@
+import stdlib/testing
+import stdlib/testing_files
+import stdlib/testing_commands
+import stdlib/text
+
+pure path(value: Str): Path {
+  result_value_or(path_from_text(value), path_current())
+}
+
+pure child(root: Path, name: Str): Path {
+  result_value_or(path_append(root, path(name)), root)
+}
+
+pure contains(value: Str, fragment: Str): Bool {
+  mut found = false
+  for index in 0..text_length(value) {
+    if text_starts_with_at(value, fragment, index) { found = true }
+  }
+  found
+}
+
+pure command(arguments: [Str], environment: [Str]): TestCommand {
+  TestCommand(path("./panack"), arguments, bytes(), path_current(), environment,
+    duration_seconds(10), 1048576)
+}
+
+io_failure(name: Str, source: Str, file: Path): TestResult {
+  match fs_write(file, utf8_encode(source)) {
+    Error(error) => test_expect(name, false, "source write failed"),
+    Ok(value0) => {
+      file_text = result_value_or(path_to_text(file), "invalid-file")
+      match process_run(path("./panack"), ["run", file_text], bytes(), path_current(), [],
+          duration_seconds(10), 1048576) {
+        Error(error) => test_expect(name, false, "process failed"),
+        Ok(output) => test_expect(name,
+          output.exit_code == 1 && output.signal == 0 && output.stdout == bytes() &&
+            contains(utf8_decode(output.stderr), "I/O error:"),
+          "unexpected I/O failure result")
+      }
+    }
+  }
+}
+
+main(): Void {
+  match test_workspace_create(path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Ok(workspace) => {
+      source = child(workspace.root, "round trip.panack")
+      artifact = child(workspace.root, "round trip.bc")
+      text_file = child(workspace.root, "text.txt")
+      binary_file = child(workspace.root, "binary.bin")
+      invalid_file = child(workspace.root, "invalid.txt")
+      denied_file = child(workspace.root, "denied.txt")
+      missing_directory = child(workspace.root, "missing")
+      missing_text = child(workspace.root, "absent.txt")
+      missing_binary = child(workspace.root, "absent.bin")
+      bad_text = child(missing_directory, "text.txt")
+      bad_binary = child(missing_directory, "binary.bin")
+      source_text = result_value_or(path_to_text(source), "invalid-source")
+      artifact_text = result_value_or(path_to_text(artifact), "invalid-artifact")
+      text_name = result_value_or(path_to_text(text_file), "invalid-text")
+      binary_name = result_value_or(path_to_text(binary_file), "invalid-binary")
+      missing_text_name = result_value_or(path_to_text(missing_text), "invalid-missing-text")
+      missing_binary_name = result_value_or(path_to_text(missing_binary), "invalid-missing-binary")
+      bad_text_name = result_value_or(path_to_text(bad_text), "invalid-bad-text")
+      bad_binary_name = result_value_or(path_to_text(bad_binary), "invalid-bad-binary")
+      invalid_name = result_value_or(path_to_text(invalid_file), "invalid-invalid")
+      denied_name = result_value_or(path_to_text(denied_file), "invalid-denied")
+      mut results: [TestResult] = []
+
+      match process_run(path("./panack"), ["run", "tests/functional/cases/stdlib/main.panack"],
+          bytes(), path_current(), ["PANACKELTY_STDLIB_VALUE=configured"],
+          duration_seconds(10), 1048576) {
+        Error(error) => { results = results.append(test_expect("environment override", false,
+          "process failed")) },
+        Ok(output) => { results = results.append(test_expect("environment override",
+          output.exit_code == 0 && output.signal == 0 && output.stderr == bytes() &&
+            contains(utf8_decode(output.stdout), ".tar\nconfigured\n"),
+          "unexpected environment output")) }
+      }
+
+      program = "main(): Void { write_file(\"${text_name}\", \"λ-data\"); " +
+        "print(read_file(\"${text_name}\")); mut data: Bytes = bytes(); " +
+        "data = byte_append(data, 0); data = byte_append(data, 255); " +
+        "data = byte_append(data, 65); write_bytes(\"${binary_name}\", data); " +
+        "print(read_bytes(\"${binary_name}\")); }"
+      match fs_write(source, utf8_encode(program)) {
+        Error(error) => { results = results.append(test_expect("round trip source", false,
+          "source write failed")) },
+        Ok(value1) => {
+          expected = ProcessOutput(0, 0, utf8_encode("λ-data\nbytes(00ff41)\n"), bytes())
+          results = results.append(test_run_command("round trip source",
+            command(["run", source_text], []), expected))
+          results = results.append(test_run_command("compile round trip",
+            command(["compile", source_text, "-o", artifact_text], []),
+            ProcessOutput(0, 0, utf8_encode("wrote ${artifact_text}\n"), bytes())))
+          results = results.append(test_run_command("round trip bytecode",
+            command(["run", artifact_text], []), expected))
+          match fs_read(text_file, 100) {
+            Error(error) => { results = results.append(test_expect("text on disk", false, "read failed")) },
+            Ok(value2) => { results = results.append(test_expect("text on disk",
+              value2 == utf8_encode("λ-data"), "text bytes differed")) }
+          }
+          match fs_read(binary_file, 100) {
+            Error(error) => { results = results.append(test_expect("bytes on disk", false, "read failed")) },
+            Ok(value3) => {
+              mut expected_bytes = bytes()
+              expected_bytes = byte_append(expected_bytes, 0)
+              expected_bytes = byte_append(expected_bytes, 255)
+              expected_bytes = byte_append(expected_bytes, 65)
+              results = results.append(test_expect("bytes on disk", value3 == expected_bytes,
+                "binary bytes differed"))
+            }
+          }
+        }
+      }
+      match fs_write(invalid_file, byte_append(bytes(), 255)) {
+        Error(error) => { results = results.append(test_expect("invalid UTF-8 setup", false,
+          "write failed")) },
+        Ok(value4) => {}
+      }
+      failures = [
+        "main(): Void { print(read_file(\"${missing_text_name}\")); }",
+        "main(): Void { print(read_bytes(\"${missing_binary_name}\")); }",
+        "main(): Void { write_file(\"${bad_text_name}\", \"data\"); }",
+        "main(): Void { write_bytes(\"${bad_binary_name}\", utf8_encode(\"data\")); }",
+        "main(): Void { print(read_file(\"${invalid_name}\")); }"
+      ]
+      for index in 0..len(failures) {
+        name = "failure-${index}"
+        results = results.append(io_failure(name, failures[index],
+          child(workspace.root, "${name}.panack")))
+      }
+      match process_run(path("/bin/sh"), ["-c", "id -u"], bytes(), path_current(), [],
+          duration_seconds(5), 100) {
+        Error(error) => { results = results.append(test_expect("permission probe", false,
+          "id failed")) },
+        Ok(identity) => {
+          if identity.exit_code == 0 && identity.stdout == utf8_encode("0\n") {
+            results = results.append(test_expect("permission setup", true, ""))
+            for service in ["read_file", "read_bytes", "write_file", "write_bytes"] {
+              results = results.append(test_expect("denied-${service}", true,
+                "root cannot demonstrate permission denial"))
+            }
+            results = results.append(test_expect("permission restore", true, ""))
+          } else {
+            match fs_write(denied_file, utf8_encode("secret")) {
+              Error(error) => { results = results.append(test_expect("permission setup", false,
+                "write failed")) },
+              Ok(written) => {
+                locked = process_run(path("/bin/sh"),
+                  ["-c", "chmod 000 \"$1\"", "permission", denied_name], bytes(),
+                  path_current(), [], duration_seconds(5), 100)
+                match locked {
+                  Error(error) => { results = results.append(test_expect("permission setup", false,
+                    "chmod failed")) },
+                  Ok(output) => {
+                    results = results.append(test_expect("permission setup",
+                      output.exit_code == 0 && output.signal == 0, "chmod failed"))
+                    denied_services = ["read_file", "read_bytes", "write_file", "write_bytes"]
+                    for index in 0..len(denied_services) {
+                      service = denied_services[index]
+                      statement = if index < 2 { "print(${service}(\"${denied_name}\"));" }
+                        else { if index == 2 { "${service}(\"${denied_name}\", \"data\");" }
+                          else { "${service}(\"${denied_name}\", utf8_encode(\"data\"));" } }
+                      results = results.append(io_failure("denied-${service}",
+                        "main(): Void { ${statement} }",
+                        child(workspace.root, "denied-${service}.panack")))
+                    }
+                  }
+                }
+                unlocked = process_run(path("/bin/sh"),
+                  ["-c", "chmod 600 \"$1\"", "permission", denied_name], bytes(),
+                  path_current(), [], duration_seconds(5), 100)
+                match unlocked {
+                  Error(error) => { results = results.append(test_expect("permission restore", false,
+                    "chmod failed")) },
+                  Ok(output2) => { results = results.append(test_expect("permission restore",
+                    output2.exit_code == 0 && output2.signal == 0, "chmod failed")) }
+                }
+                for service in ["read_file", "read_bytes", "write_file", "write_bytes"] {
+                  match fs_remove_file(child(workspace.root, "denied-${service}.panack")) {
+                    Error(error) => { results = results.append(test_expect("denied cleanup", false,
+                      "file removal failed")) },
+                    Ok(removed) => {}
+                  }
+                }
+                match fs_remove_file(denied_file) {
+                  Error(error) => { results = results.append(test_expect("denied cleanup", false,
+                    "file removal failed")) },
+                  Ok(removed2) => {}
+                }
+              }
+            }
+          }
+        }
+      }
+      for file in [source, artifact, text_file, binary_file, invalid_file,
+          child(workspace.root, "failure-0.panack"), child(workspace.root, "failure-1.panack"),
+          child(workspace.root, "failure-2.panack"), child(workspace.root, "failure-3.panack"),
+          child(workspace.root, "failure-4.panack")] {
+        match fs_remove_file(file) {
+          Ok(value5) => {},
+          Error(error) => { results = results.append(test_expect("artifact cleanup", false,
+            "file removal failed")) }
+        }
+      }
+      match test_workspace_remove_empty(workspace) {
+        Ok(value6) => {},
+        Error(error) => { results = results.append(test_expect("workspace cleanup", false,
+          "workspace removal failed")) }
+      }
+      count = test_report(results)
+      if count > 0 { process_exit(1) }
+    }
+  }
+}

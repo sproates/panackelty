@@ -22,6 +22,7 @@ pure runner_name(directory: Path): Str {
 
 pure runner_selected(name: Str): Bool {
   name == "callables" || name == "cli_check_disasm" || name == "cli_commands" ||
+    name == "cli_environment_files" ||
     name == "collections" || name == "compiler_lexer" ||
     name == "compiler_skeleton" ||
     name == "hello_world" || name == "host_capabilities" ||
@@ -400,7 +401,7 @@ main(): Void {
           }
         }
         expected_count: Nat = if selected_example != "" || selected_failure != "" { 0 }
-          else { if selected_case == "" { 22 } else { 1 } }
+          else { if selected_case == "" { 23 } else { 1 } }
         results = results.append(test_equal_nat("selected fixture count", found, expected_count))
         if selected_case == "" && selected_failure == "" {
           results = results.concat(runner_examples(workspace, selected_example))

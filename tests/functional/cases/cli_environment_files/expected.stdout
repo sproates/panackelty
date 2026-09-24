@@ -1,0 +1,18 @@
+PASS environment override
+PASS round trip source
+PASS compile round trip
+PASS round trip bytecode
+PASS text on disk
+PASS bytes on disk
+PASS failure-0
+PASS failure-1
+PASS failure-2
+PASS failure-3
+PASS failure-4
+PASS permission setup
+PASS denied-read_file
+PASS denied-read_bytes
+PASS denied-write_file
+PASS denied-write_bytes
+PASS permission restore
+tests: 17, failures: 0

@@ -4,6 +4,23 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## 0.1.0-alpha.7 — 2026-09-24
+
+- Typed filesystem APIs accept `Path` and return structured `HostError` values:
+  bounded byte I/O, sorted directory enumeration, symlink-aware metadata,
+  directory creation/removal, and explicitly owned temporary files/directories.
+- Process execution supports exact executable paths, arguments, working
+  directories, environment overrides, concurrent byte streams, output limits,
+  and monotonic timeouts. Nonzero exits remain completed process results;
+  launch failures, timeouts, and limit failures are separate errors.
+- Checked UTF-8 decoding and exact-duration sleep complete the initial host API.
+  Negative or oversized sleep/timeout durations are rejected before execution.
+- Bytecode remains version 8; these APIs require the updated compiler and VM.
+  The prelude exports new host, filesystem, and process types, so conflicting
+  user declarations must be renamed or imports narrowed.
+- This POSIX preview does not promise atomic writes, recursive filesystem
+  operations, secure path/process containment, or portable suspension timing.
+
 ## 0.1.0-alpha.6 — 2026-09-24
 
 - Opaque `Path` values preserve POSIX native filenames, with checked text/byte

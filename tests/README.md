@@ -131,4 +131,6 @@ Native hardening also includes `make native-fault` (test-only allocation and
 syscall injection) and `make native-coverage` (Clang/LLVM line and branch reports
 under `build/coverage`). Both fault sweeps and arithmetic/mutation properties are
 included in ordinary VM tests. CI additionally runs the sanitizer corpus and
-uploads the HTML coverage report. No fault-injection controls enter production.
+uploads the HTML coverage report. CI explicitly installs matching Clang and LLVM
+packages; local tool overrides are `LLVM_CC`, `LLVM_COV` and `LLVM_PROFDATA`.
+No fault-injection controls enter production.

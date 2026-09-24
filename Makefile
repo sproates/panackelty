@@ -155,6 +155,7 @@ native-instrumented-check: native-unit native-fault $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(PYTHON) -B -m unittest -q tests.unit.vm.test_native_loader tests.unit.vm.test_native_execution tests.unit.vm.test_native_modules tests.unit.vm.test_native_faults
 
 # LLVM branch coverage uses the same native corpus in a separate build tree.
+LLVM_CC ?= clang
 LLVM_COV ?= $(shell command -v llvm-cov 2>/dev/null || xcrun --find llvm-cov 2>/dev/null)
 LLVM_PROFDATA ?= $(shell command -v llvm-profdata 2>/dev/null || xcrun --find llvm-profdata 2>/dev/null)
 .PHONY: native-coverage
@@ -162,7 +163,7 @@ native-coverage:
 	@test -n "$(LLVM_COV)" -a -n "$(LLVM_PROFDATA)" || { echo "LLVM coverage tools are required" >&2; exit 1; }
 	@mkdir -p build/coverage
 	@rm -f build/coverage/*.profraw
-	LLVM_PROFILE_FILE="$(abspath build/coverage)/%p.profraw" $(MAKE) CC=clang BUILD_DIR=build/coverage CFLAGS="-O1 -g -fprofile-instr-generate -fcoverage-mapping" LDFLAGS="-fprofile-instr-generate" native-instrumented-check
+	LLVM_PROFILE_FILE="$(abspath build/coverage)/%p.profraw" $(MAKE) CC="$(LLVM_CC)" BUILD_DIR=build/coverage CFLAGS="-O1 -g -fprofile-instr-generate -fcoverage-mapping" LDFLAGS="-fprofile-instr-generate" native-instrumented-check
 	"$(LLVM_PROFDATA)" merge -sparse build/coverage/*.profraw -o build/coverage/coverage.profdata
 	"$(LLVM_COV)" report build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -instr-profile=build/coverage/coverage.profdata src/vm > build/coverage/summary.txt
 	@cat build/coverage/summary.txt

@@ -68,7 +68,8 @@ class RepositoryLayoutTests(unittest.TestCase):
         test_job = workflow.split("\n  test:\n", 1)[1]
         commands = re.findall(r"^        run: (.+)$", test_job, re.MULTILINE)
         self.assertEqual(commands, ["make check", "make native-sanitize CC=clang",
-                                    "make native-coverage", "|"])
+                                    "sudo apt-get update && sudo apt-get install -y clang llvm",
+                                    "make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROFDATA=/usr/bin/llvm-profdata", "|"])
         self.assertIn("build/coverage/summary.txt", test_job)
         self.assertIn("build/coverage/html/", test_job)
         self.assertIn("VALIDATION_TIMINGS_FILE: validation-timings.tsv", test_job)

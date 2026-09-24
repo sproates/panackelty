@@ -3,8 +3,8 @@ import stdlib/testing_files
 import stdlib/testing_commands
 import stdlib/text
 
-// Run from the repository root. This intentionally covers only local-source
-// success fixtures; failure cases stay with the Python runner.
+// Run from the repository root. This covers success fixtures and examples;
+// failure cases stay with the Python runner.
 pure runner_path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
 }
@@ -95,41 +95,41 @@ runner_case(directory: Path, workspace: TestWorkspace): [TestResult] {
   expected_path = result_value_or(path_to_text(artifact), "invalid-artifact")
   match source_result {
     Error(reason) => [test_expect("case/${name}/fixture", false, reason)],
-    Ok(source) => runner_case_source(name, source, expected_file, artifact, expected_path)
+    Ok(source) => runner_program("case/${name}", source, expected_file, artifact, expected_path)
   }
 }
 
-runner_case_source(name: Str, source: Path, expected_file: Path,
-                   artifact: Path, expected_path: Str): [TestResult] {
+runner_program(label: Str, source: Path, expected_file: Path,
+               artifact: Path, expected_path: Str): [TestResult] {
   source_path = result_value_or(path_to_text(source), "invalid-source")
   match fs_read(expected_file, 1048576) {
     Error(error) => {
       code = error.code
-      [test_expect("case/${name}/fixture", false, "fixture read failed: ${code}")]
+      [test_expect("${label}/fixture", false, "fixture read failed: ${code}")]
     },
     Ok(expected) => {
       mut results: [TestResult] = []
-      source_result = test_run_command("case/${name}/source",
-        runner_command(["run", source_path], name == "stdlib"),
+      source_result = test_run_command("${label}/source",
+        runner_command(["run", source_path], label == "case/stdlib"),
         ProcessOutput(0, 0, expected, bytes()))
       results = results.append(source_result)
 
-      compile_command = if name == "compiler_skeleton" {
+      compile_command = if label == "case/compiler_skeleton" {
         // The bootstrap recipe has already built and verified this artifact.
         TestCommand(runner_path("/bin/sh"),
           ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec ./panack compile \"$2\" -o \"$1\"; fi",
             "runner-compiler", expected_path, source_path], bytes(), path_current(), [],
           duration_seconds(20), 1048576)
       } else {
-        runner_command(["compile", source_path, "-o", expected_path], name == "stdlib")
+        runner_command(["compile", source_path, "-o", expected_path], label == "case/stdlib")
       }
-      compile_result = test_run_command("case/${name}/compile", compile_command,
+      compile_result = test_run_command("${label}/compile", compile_command,
         ProcessOutput(0, 0, utf8_encode("wrote ${expected_path}\n"), bytes()))
       results = results.append(compile_result)
       match compile_result.outcome {
         TestPassed() => {
-          results = results.append(test_run_command("case/${name}/bytecode",
-            runner_command(["run", expected_path], name == "stdlib"),
+          results = results.append(test_run_command("${label}/bytecode",
+            runner_command(["run", expected_path], label == "case/stdlib"),
             ProcessOutput(0, 0, expected, bytes())))
         },
         TestFailed(reason) => {}
@@ -138,11 +138,87 @@ runner_case_source(name: Str, source: Path, expected_file: Path,
         Ok(value) => {},
         Error(error) => {
           code = error.code
-          results = results.append(test_expect("case/${name}/artifact cleanup",
+          results = results.append(test_expect("${label}/artifact cleanup",
             false, "cleanup failed: ${code}"))
         }
       }
       results
+    }
+  }
+}
+
+pure runner_stem(name: Str, extension: Str): Option[Str] {
+  size = text_length(name)
+  // Both supported suffixes have seven code points.
+  if size > 7 {
+    if text_starts_with_at(name, extension, size - 7) {
+      Some(text_slice(name, 0, size - 7))
+    } else { None() }
+  } else { None() }
+}
+
+pure runner_contains_file(names: [Path], filename: Str): Bool {
+  mut found = false
+  for name in names {
+    if runner_name(name) == filename { found = true }
+  }
+  found
+}
+
+runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
+  source_root = runner_path("examples")
+  output_root = runner_path("tests/functional/expected/examples")
+  match fs_list(source_root) {
+    Error(error) => {
+      code = error.code
+      [test_expect("example discovery", false, "source discovery failed: ${code}")]
+    },
+    Ok(sources) => {
+      match fs_list(output_root) {
+        Error(error) => {
+          code = error.code
+          [test_expect("example discovery", false, "output discovery failed: ${code}")]
+        },
+        Ok(outputs) => {
+          mut results: [TestResult] = []
+          mut count: Nat = 0
+          for source_name in sources {
+            match runner_stem(runner_name(source_name), ".panack") {
+              None() => {},
+              Some(name) => {
+                if selected == "" || selected == name {
+                  count = count + 1
+                  source = runner_child(source_root, "${name}.panack")
+                  expected_file = runner_child(output_root, "${name}.stdout")
+                  artifact = runner_child(workspace.root, "example-${name}.bc")
+                  artifact_text = result_value_or(path_to_text(artifact), "invalid-artifact")
+                  if runner_contains_file(outputs, "${name}.stdout") {
+                    results = results.concat(runner_program("example/${name}", source,
+                      expected_file, artifact, artifact_text))
+                  } else {
+                    results = results.append(test_expect("example/${name}/fixture", false,
+                      "missing expected stdout"))
+                  }
+                }
+              }
+            }
+          }
+          for output_name in outputs {
+            match runner_stem(runner_name(output_name), ".stdout") {
+              None() => {},
+              Some(name) => {
+                if (selected == "" || selected == name) &&
+                    !runner_contains_file(sources, "${name}.panack") {
+                  results = results.append(test_expect("example/${name}/fixture", false,
+                    "missing example source"))
+                }
+              }
+            }
+          }
+          expected_count: Nat = if selected == "" { 20 } else { 1 }
+          results.append(test_equal_nat("selected example count", count, expected_count))
+        }
+      }
     }
   }
 }
@@ -158,6 +234,9 @@ main(): Void {
       else { if inject_cleanup_failure && len(arguments) == 4 && arguments[2] == "--case" {
         arguments[3]
       } else { "" } }
+    selected_example = if len(arguments) == 2 && arguments[0] == "--example" {
+      arguments[1]
+    } else { "" }
     parent = if inject_cleanup_failure { runner_path(arguments[1]) } else { runner_path("/tmp") }
     match test_workspace_create(parent) {
       Error(error) => {
@@ -177,15 +256,20 @@ main(): Void {
           Ok(directories) => {
             for directory in directories {
               name = runner_name(directory)
-              if runner_selected(name) && (selected_case == "" || selected_case == name) {
+              if runner_selected(name) && selected_example == "" &&
+                  (selected_case == "" || selected_case == name) {
                 found = found + 1
                 results = results.concat(runner_case(directory, workspace))
               }
             }
           }
         }
-        expected_count: Nat = if selected_case == "" { 20 } else { 1 }
+        expected_count: Nat = if selected_example != "" { 0 }
+          else { if selected_case == "" { 20 } else { 1 } }
         results = results.append(test_equal_nat("selected fixture count", found, expected_count))
+        if selected_case == "" {
+          results = results.concat(runner_examples(workspace, selected_example))
+        }
         sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
         if inject_cleanup_failure {
           match fs_write(sentinel, utf8_encode("deliberate cleanup obstacle")) {

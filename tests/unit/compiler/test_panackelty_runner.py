@@ -20,6 +20,44 @@ CASES = (
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_example_output_mismatch_and_missing_pair_fail(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = pathlib.Path(temporary)
+            (checkout / "panack").symlink_to(ROOT / "panack")
+            (checkout / "src").symlink_to(ROOT / "src")
+            (checkout / "tests/functional/cases").mkdir(parents=True)
+            sources = checkout / "examples"
+            sources.mkdir()
+            outputs = checkout / "tests/functional/expected/examples"
+            outputs.mkdir(parents=True)
+            shutil.copyfile(ROOT / "examples/vm_loop.panack", sources / "vm_loop.panack")
+            expected = outputs / "vm_loop.stdout"
+            expected.write_bytes(b"wrong output\n")
+
+            def run(name):
+                return subprocess.run(
+                    [str(checkout / "panack"), "run", str(ROOT / "tests/runner/main.panack"),
+                     "--example", name], cwd=checkout, capture_output=True,
+                    timeout=30, check=False,
+                )
+
+            mismatch = run("vm_loop")
+            self.assertEqual(mismatch.returncode, 1, mismatch.stderr)
+            self.assertIn(b"FAIL example/vm_loop/source", mismatch.stdout)
+            self.assertIn(b"FAIL example/vm_loop/bytecode", mismatch.stdout)
+            self.assertIn(b"PASS selected example count", mismatch.stdout)
+            self.assertNotIn(b"FAIL workspace cleanup", mismatch.stdout)
+
+            expected.unlink()
+            missing_output = run("vm_loop")
+            self.assertEqual(missing_output.returncode, 1, missing_output.stderr)
+            self.assertIn(b"FAIL example/vm_loop/fixture: missing expected stdout", missing_output.stdout)
+
+            (outputs / "orphan.stdout").write_bytes(b"stale\n")
+            missing_source = run("orphan")
+            self.assertEqual(missing_source.returncode, 1, missing_source.stderr)
+            self.assertIn(b"FAIL example/orphan/fixture: missing example source", missing_source.stdout)
+
     def test_nonempty_workspace_fails_and_is_recovered(self):
         with tempfile.TemporaryDirectory() as temporary:
             completed = subprocess.run(

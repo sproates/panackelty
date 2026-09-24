@@ -14,7 +14,7 @@ The same directory is included in release archives. From the extracted
 ./bin/panack run examples/fizzbuzz.panack
 ```
 
-Every `.panack` file here is exercised by the functional suite from both source
+Every `.panack` file here is exercised by both functional runners from source
 and compiled bytecode. Expected output is kept separately under
 `tests/functional/expected/examples` as test data rather than example code.
 

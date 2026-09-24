@@ -1,0 +1,8 @@
+PASS check source
+PASS compile source
+PASS check bytecode
+PASS source disassembly
+PASS matching bytecode disassembly
+PASS malformed bytecode
+PASS legacy source extension
+tests: 7, failures: 0

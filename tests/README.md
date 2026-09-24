@@ -2,7 +2,8 @@
 
 [Python-free test architecture and migration inventory](PYTHON_MIGRATION.md)
 maps each existing test area to its replacement and records the parity gates.
-It is a plan; the Python harness below remains active until those gates pass.
+Ten duplicate Python CLI assertions have been retired after parity checks; the
+remaining Python harness stays active until its ownership gates pass.
 The Panackelty-hosted fixture runner (`runner/main.panack`) checks twenty-three
 success cases, twenty examples, and forty-one expected failures alongside the
 Python harness during `make functional`.

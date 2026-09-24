@@ -60,8 +60,8 @@ check-compiler: native
 
 check-compiler-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
+	@./panack run tests/runner/main.panack --case cli_commands
 	@$(PYTHON) -m unittest -q \
-		tests.functional.test_programs.PanackeltyProgramTests.test_bare_source_path_runs_program \
 		tests.functional.test_programs.PanackeltyProgramTests.test_invalid_source_programs_fail_check \
 		tests.functional.test_programs.PanackeltyProgramTests.test_invalid_source_programs_fail_compile_without_artifacts
 
@@ -70,11 +70,8 @@ check-bytecode: native
 
 check-bytecode-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/bytecode -t . -p 'test_*.py' -q
-	@$(PYTHON) -m unittest -q \
-		tests.functional.test_programs.PanackeltyProgramTests.test_check_accepts_source_and_bytecode \
-		tests.functional.test_programs.PanackeltyProgramTests.test_compile_default_output_and_bare_bytecode_path \
-		tests.functional.test_programs.PanackeltyProgramTests.test_disasm_matches_for_source_and_bytecode \
-		tests.functional.test_programs.PanackeltyProgramTests.test_disasm_rejects_malformed_bytecode
+	@./panack run tests/runner/main.panack --case cli_check_disasm
+	@./panack run tests/runner/main.panack --case cli_commands
 
 check-vm: native native-module-build native-fault-build
 	@$(TIMED) check-vm $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-vm-impl
@@ -82,12 +79,10 @@ check-vm: native native-module-build native-fault-build
 check-vm-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/vm -t . -p 'test_*.py' -q
 	@$(PYTHON) -m unittest -q \
-		tests.functional.test_programs.PanackeltyProgramTests.test_compile_default_output_and_bare_bytecode_path \
-		tests.functional.test_programs.PanackeltyProgramTests.test_program_controls_stderr_and_exit_status \
 		tests.functional.test_programs.PanackeltyProgramTests.test_public_cli_file_io_round_trips_and_failures \
 		tests.functional.test_programs.PanackeltyProgramTests.test_public_cli_reports_denied_file_io \
-		tests.functional.test_programs.PanackeltyProgramTests.test_run_passes_program_arguments \
 		tests.functional.test_programs.PanackeltyProgramTests.test_standard_library_reads_the_process_environment
+	@./panack run tests/runner/main.panack --case cli_commands
 
 unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q

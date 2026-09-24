@@ -11,7 +11,6 @@ from tests.unit.file_io_cases import read_source, round_trip_source, write_sourc
 
 PROJECT = Path(__file__).resolve().parents[2]
 PANACK = PROJECT / "panack"
-RELEASE_VERSION = (PROJECT / "VERSION").read_text(encoding="utf-8").strip()
 COMPILER_SOURCE = PROJECT / "src/compiler/main.panack"
 CASES = PROJECT / "tests/functional/cases"
 FAILURES = PROJECT / "tests/functional/failures"
@@ -115,19 +114,6 @@ class PanackeltyProgramTests(unittest.TestCase):
         )
         return result
 
-    def test_help_uses_panack_command_name(self):
-        result = self.invoke("--help")
-        self.assertIn("usage: panack ", result.stdout)
-        self.assertEqual(result.stderr, "")
-
-    def test_version_identifies_release_and_bytecode_format(self):
-        result = self.invoke("--version")
-        self.assertEqual(
-            result.stdout,
-            f"panack {RELEASE_VERSION} (bytecode 8)\n",
-        )
-        self.assertEqual(result.stderr, "")
-
     def test_source_and_compiled_program_outputs(self):
         with tempfile.TemporaryDirectory() as directory:
             output_directory = Path(directory)
@@ -172,45 +158,6 @@ class PanackeltyProgramTests(unittest.TestCase):
                         self.assertNotEqual(result.returncode, 0)
                         self.assertIn(message, result.stderr)
                         self.assertEqual(result.stdout, "")
-
-    def test_bare_source_path_runs_program(self):
-        source = CASES / "hello_world/main.panack"
-        result = self.invoke(str(source))
-        self.assertEqual(result.stdout, "hello world\n")
-        self.assertEqual(result.stderr, "")
-
-    def test_run_passes_program_arguments(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "arguments.panack"
-            source.write_text(
-                "main(): Void { arguments: [Str] = command_args(); "
-                "print(len(arguments)); print(arguments[0]); }",
-                encoding="utf-8",
-            )
-            result = subprocess.run(
-                [str(PANACK), "run", str(source), "alpha", "beta"],
-                capture_output=True,
-                text=True,
-            )
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(result.stdout, "2\nalpha\n")
-        self.assertEqual(result.stderr, "")
-
-    def test_program_controls_stderr_and_exit_status(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "failure.panack"
-            source.write_text(
-                'main(): Void { eprint("failure"); process_exit(7); }',
-                encoding="utf-8",
-            )
-            result = subprocess.run(
-                [str(PANACK), "run", str(source)],
-                capture_output=True,
-                text=True,
-            )
-        self.assertEqual(result.returncode, 7)
-        self.assertEqual(result.stdout, "")
-        self.assertEqual(result.stderr, "failure\n")
 
     def test_standard_library_reads_the_process_environment(self):
         environment = dict(os.environ)
@@ -333,85 +280,6 @@ class PanackeltyProgramTests(unittest.TestCase):
                 "run", str(compiler_artifact), "disasm", str(self_hosted)
             )
             self.assertEqual(bytecode_disassembly.stdout, source_disassembly.stdout)
-
-    def test_legacy_source_extension_is_rejected(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "legacy.nu"
-            source.write_text("main(): Void {}", encoding="utf-8")
-
-            result = subprocess.run(
-                [str(PANACK), "run", str(source)],
-                capture_output=True,
-                text=True,
-            )
-
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout, "")
-        self.assertEqual(
-            result.stderr,
-            "error: expected a .panack source or .bc bytecode file\n",
-        )
-
-    def test_compile_default_output_and_bare_bytecode_path(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "hello.panack"
-            source.write_text(
-                (CASES / "hello_world/main.panack").read_text(encoding="utf-8"),
-                encoding="utf-8",
-            )
-
-            result = self.invoke("compile", str(source))
-            bytecode = source.with_suffix(".bc")
-            self.assertEqual(result.stdout, f"wrote {bytecode}\n")
-            self.assertEqual(result.stderr, "")
-            self.assertTrue(bytecode.is_file())
-
-            result = self.invoke(str(bytecode))
-            self.assertEqual(result.stdout, "hello world\n")
-            self.assertEqual(result.stderr, "")
-
-    def test_check_accepts_source_and_bytecode(self):
-        source = CASES / "hello_world/main.panack"
-        result = self.invoke("check", str(source))
-        self.assertEqual(result.stdout, "ok\n")
-        self.assertEqual(result.stderr, "")
-
-        with tempfile.TemporaryDirectory() as directory:
-            bytecode = Path(directory) / "hello.bc"
-            self.invoke("compile", str(source), "-o", str(bytecode))
-            result = self.invoke("check", str(bytecode))
-            self.assertEqual(result.stdout, "ok\n")
-            self.assertEqual(result.stderr, "")
-
-    def test_disasm_matches_for_source_and_bytecode(self):
-        source = CASES / "hello_world/main.panack"
-        source_disassembly = self.invoke("disasm", str(source))
-        self.assertIn("FUNCTION|main|impure|\n", source_disassembly.stdout)
-        self.assertIn("CALL|print|1\n", source_disassembly.stdout)
-        self.assertEqual(source_disassembly.stderr, "")
-
-        with tempfile.TemporaryDirectory() as directory:
-            bytecode = Path(directory) / "hello.bc"
-            self.invoke("compile", str(source), "-o", str(bytecode))
-            bytecode_disassembly = self.invoke("disasm", str(bytecode))
-            self.assertEqual(bytecode_disassembly.stdout, source_disassembly.stdout)
-            self.assertEqual(bytecode_disassembly.stderr, "")
-
-    def test_disasm_rejects_malformed_bytecode(self):
-        with tempfile.TemporaryDirectory() as directory:
-            bytecode = Path(directory) / "malformed.bc"
-            bytecode.write_bytes(b"not panack bytecode")
-            result = subprocess.run(
-                [str(PANACK), "disasm", str(bytecode)],
-                capture_output=True,
-                text=True,
-            )
-            self.assertEqual(result.returncode, 1)
-            self.assertEqual(result.stdout, "")
-            self.assertEqual(
-                result.stderr,
-                "error: not a Panackelty bytecode file\n",
-            )
 
     def assert_invalid_result(
         self,

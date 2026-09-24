@@ -224,7 +224,8 @@ twenty examples, and forty-one expected failure fixtures alongside the Python
 harness, including checked compiler `source.path` resolution and normalized
 failure diagnostics. Source/bytecode checking and disassembly contracts now run
 through the new runner, along with bare paths, arguments, process streams,
-help, and version; remaining environment/file coverage and oracle migration remain.
+help, and version; ten duplicate Python CLI methods have been retired, while
+remaining environment/file assertions and oracle migration continue.
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
 and requires behavior parity before any transitional Python tests are retired.

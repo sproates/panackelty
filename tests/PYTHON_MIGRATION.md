@@ -35,12 +35,17 @@ backlog items, not implicit losses.
 
 The first parallel runner is `tests/runner/main.panack`. `make functional` runs
 it after the unchanged Python harness. It discovers and selects `callables`,
-`collections`, `compiler_lexer`, `hello_world`, `host_capabilities`, `host_process`,
+`collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
 `host_types`, `local_inference`, `modules`, `optional_else`,
 `rational_unit`, `records_and_enums`, `semicolonless`, `stdlib`, `string_boundaries`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
 `vm_numeric_boundaries`, checking exact stdout, empty stderr,
 and zero status for source execution, compilation, and saved-bytecode execution.
+The compiler fixture uses `source.path`; its target is physically resolved within
+the checkout before execution, including checks against symlink escapes. When
+the bootstrap recipe supplies `PANACK_TEST_COMPILER`, the runner copies that
+verified compiler artifact for its compiled-output check instead of compiling
+the compiler again. Without it, the runner compiles the source normally.
 It reports failures through its process status and removes each artifact before
 requiring an empty workspace. `functional/cases/runner_smoke` checks its exact
 success report through the public CLI; `unit/compiler/test_panackelty_runner.py`
@@ -49,7 +54,7 @@ injects wrong expected output and checks both source and bytecode failures. Its
 workspace, verifies that empty-directory removal fails, reports a nonzero exit,
 then removes the sentinel and workspace. The focused test requires the supplied
 parent directory to be empty afterward.
-No Python assertion has been retired. Other cases, source.path, invalid inputs,
+No Python assertion has been retired. Other cases, invalid inputs,
 and other environment-sensitive assertions remain owned by the old harness.
 
 The future Panackelty runner discovers immediate case directories in sorted

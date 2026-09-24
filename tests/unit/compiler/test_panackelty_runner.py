@@ -24,12 +24,12 @@ class PanackeltyRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             completed = subprocess.run(
                 [str(ROOT / "panack"), "run", "tests/runner/main.panack",
-                 "--test-cleanup-failure", temporary],
+                 "--test-cleanup-failure", temporary, "--case", "hello_world"],
                 cwd=ROOT, capture_output=True, timeout=45, check=False,
             )
             self.assertEqual(completed.returncode, 1, completed.stderr)
             self.assertIn(b"FAIL workspace cleanup", completed.stdout)
-            self.assertIn(b"tests: 59, failures: 1", completed.stdout)
+            self.assertIn(b"tests: 5, failures: 1", completed.stdout)
             self.assertNotIn(b"FAIL cleanup recovery", completed.stdout)
             self.assertNotIn(b"FAIL workspace recovery", completed.stdout)
             self.assertEqual(list(pathlib.Path(temporary).iterdir()), [])
@@ -48,7 +48,8 @@ class PanackeltyRunnerTests(unittest.TestCase):
                 shutil.copyfile(original / "expected.stdout", destination / "expected.stdout")
             (fixtures / "hello_world" / "expected.stdout").write_bytes(b"wrong output\n")
             completed = subprocess.run(
-                [str(checkout / "panack"), "run", str(ROOT / "tests/runner/main.panack")],
+                [str(checkout / "panack"), "run", str(ROOT / "tests/runner/main.panack"),
+                 "--case", "hello_world"],
                 cwd=checkout, capture_output=True, timeout=45, check=False,
             )
             self.assertEqual(completed.returncode, 1, completed.stderr)
@@ -60,14 +61,37 @@ class PanackeltyRunnerTests(unittest.TestCase):
     def test_stdlib_fixture_discards_inherited_value(self):
         environment = dict(os.environ, PANACKELTY_STDLIB_VALUE="ambient-test")
         completed = subprocess.run(
-            [str(ROOT / "panack"), "run", "tests/runner/main.panack"],
+            [str(ROOT / "panack"), "run", "tests/runner/main.panack", "--case", "stdlib"],
             cwd=ROOT, env=environment, capture_output=True, timeout=45,
             check=False,
         )
         self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
         self.assertIn(b"PASS case/stdlib/source", completed.stdout)
         self.assertIn(b"PASS case/stdlib/bytecode", completed.stdout)
-        self.assertIn(b"tests: 58, failures: 0", completed.stdout)
+        self.assertIn(b"tests: 4, failures: 0", completed.stdout)
+
+    def test_source_path_rejects_escape_and_symlink(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = pathlib.Path(temporary) / "checkout"
+            checkout.mkdir()
+            (checkout / "panack").symlink_to(ROOT / "panack")
+            fixture = checkout / "tests/functional/cases/compiler_skeleton"
+            fixture.mkdir(parents=True)
+            reference = fixture / "source.path"
+            outside = pathlib.Path(temporary) / "outside.panack"
+            outside.write_text("main(): Void { print(42) }\n", encoding="utf-8")
+            (fixture / "outside.panack").symlink_to(outside)
+            for target in ("../outside.panack", str(outside),
+                           "tests/functional/cases/compiler_skeleton/outside.panack"):
+                reference.write_text(target + "\n", encoding="utf-8")
+                completed = subprocess.run(
+                    [str(checkout / "panack"), "run", str(ROOT / "tests/runner/main.panack"),
+                     "--case", "compiler_skeleton"],
+                    cwd=checkout, capture_output=True, timeout=20, check=False,
+                )
+                self.assertEqual(completed.returncode, 1, completed.stderr)
+                self.assertIn(b"FAIL case/compiler_skeleton/fixture", completed.stdout)
+                self.assertNotIn(b"PASS case/compiler_skeleton/source", completed.stdout)
 
 
 if __name__ == "__main__":

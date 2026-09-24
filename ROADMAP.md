@@ -820,8 +820,8 @@ installed.
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks twenty existing fixtures in parallel with the
-      Python harness, including a safely resolved compiler `source.path`;
+      Panackelty runner now checks twenty existing fixtures and twenty examples
+      in parallel with the Python harness, including a safely resolved compiler `source.path`;
       nonempty-workspace cleanup failure and recovery are tested. Next extend
       toward the full corpus, preserving host-error parity
 - [ ] Replace differential reliance on the Python compiler and VM with portable
@@ -854,6 +854,8 @@ The compiler `source.path` fixture raised one clean check to 177 seconds (unit
 one fixture, reducing the next clean unit phase to 68 seconds. Next, reuse the
 compiler result across the remaining integration checks
 without dropping the source, bytecode, or path containment assertions.
+The example migration adds twenty source and bytecode checks to each full runner
+invocation. Profile that added work as part of the same prioritized timing fix.
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

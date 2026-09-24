@@ -15,11 +15,19 @@ main(): Void {
   for name in names {
     expected_text = "${expected_text}PASS case/${name}/source\nPASS case/${name}/compile\nPASS case/${name}/bytecode\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected fixture count\ntests: 61, failures: 0\n")
+  expected_text = "${expected_text}PASS selected fixture count\n"
+  examples = ["callables", "collections_and_bytes", "decimal", "euler001",
+    "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
+    "fibonacci", "fizzbuzz", "generic_functions", "guards", "lexer_foundation",
+    "option_result", "palindrome", "strings", "vm_arithmetic", "vm_branch_call", "vm_loop"]
+  for name in examples {
+    expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
+  }
+  expected = utf8_encode("${expected_text}PASS selected example count\ntests: 122, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],
-    duration_seconds(45), 1048576)
+    duration_seconds(60), 1048576)
   result = test_run_command("Panackelty fixture runner", command,
     ProcessOutput(0, 0, expected, bytes()))
   failures = test_report([result])

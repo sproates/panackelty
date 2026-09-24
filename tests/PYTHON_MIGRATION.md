@@ -41,6 +41,8 @@ it after the unchanged Python harness. It discovers and selects `callables`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
 `vm_numeric_boundaries`, checking exact stdout, empty stderr,
 and zero status for source execution, compilation, and saved-bytecode execution.
+It also discovers all twenty example sources and expected outputs, rejects
+missing or stale pairs, and checks each program through the same three paths.
 The compiler fixture uses `source.path`; its target is physically resolved within
 the checkout before execution, including checks against symlink escapes. When
 the bootstrap recipe supplies `PANACK_TEST_COMPILER`, the runner copies that
@@ -54,11 +56,11 @@ injects wrong expected output and checks both source and bytecode failures. Its
 workspace, verifies that empty-directory removal fails, reports a nonzero exit,
 then removes the sentinel and workspace. The focused test requires the supplied
 parent directory to be empty afterward.
-No Python assertion has been retired. Other cases, invalid inputs,
+No Python assertion has been retired. Failure cases, invalid inputs,
 and other environment-sensitive assertions remain owned by the old harness.
 
-The future Panackelty runner discovers immediate case directories in sorted
-native-byte order. A case keeps the existing `main.panack` *or* `source.path`
+The Panackelty runner discovers immediate case directories and example files in
+sorted native-byte order. A case keeps the existing `main.panack` *or* `source.path`
 and its expected output; examples and failures retain their current fixture
 layout. It checks source and compiled-bytecode execution separately, compares
 raw byte streams and exit status, checks empty stderr on success, and reports
@@ -77,10 +79,9 @@ representative source and bytecode public-CLI paths. Keep `make unit` and
 Some current harness guarantees need design or host-capability work before a
 specific case can migrate:
 
-- `source.path` currently resolves symlinks and rejects targets outside the
-  repository. Typed `Path` operations are lexical, not a containment check.
-  Preserve equivalent resolution/validation or keep those cases on the old
-  runner until a safe mechanism is available.
+- `source.path` targets must resolve inside the repository, including when
+  they traverse symlinks. The compiler fixture now has that validation in
+  both runners; keep it for any later references.
 - The harness removes `PANACKELTY_STDLIB_VALUE` from inherited child environments.
   `process_run` can override but not delete variables. The new runner uses
   `/bin/sh` to unset it for `stdlib` source, compile, and bytecode commands;

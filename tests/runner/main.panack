@@ -22,7 +22,8 @@ pure runner_name(directory: Path): Str {
 
 pure runner_selected(name: Str): Bool {
   name == "callables" || name == "collections" || name == "compiler_lexer" ||
-    name == "hello_world" ||
+    name == "hello_world" || name == "host_capabilities" ||
+    name == "host_process" || name == "host_types" ||
     name == "local_inference" || name == "modules" || name == "optional_else" ||
     name == "rational_unit" || name == "records_and_enums" ||
     name == "semicolonless" || name == "string_boundaries" ||
@@ -112,7 +113,7 @@ main(): Void {
             }
           }
         }
-        results = results.append(test_equal_nat("selected fixture count", found, 15))
+        results = results.append(test_equal_nat("selected fixture count", found, 18))
         sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
         if inject_cleanup_failure {
           match fs_write(sentinel, utf8_encode("deliberate cleanup obstacle")) {

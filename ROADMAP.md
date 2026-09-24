@@ -820,7 +820,7 @@ installed.
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks fifteen existing fixtures in parallel with the
+      Panackelty runner now checks eighteen existing fixtures in parallel with the
       Python harness; nonempty-workspace cleanup failure and recovery are now
       tested. Next extend toward the full corpus, preserving host-error parity
 - [ ] Replace differential reliance on the Python compiler and VM with portable
@@ -844,9 +844,10 @@ installed.
 
 Current environment follow-up: the September 2026 testing-library branch
 reported a 21-second unit phase against its 15-second warning threshold, also
-observed on the unmodified checkout in this environment. Profile the unit
-phase here and address its dominant cost without reducing coverage. The full
-`make check` remains within its 120-second budget (36 seconds on this branch).
+observed on the unmodified checkout in this environment. With the expanded
+fixture runner, a clean check observed 32 seconds for units and 79 seconds
+overall. Profile the unit phase here and address its dominant cost without
+reducing coverage; the full check remains within its 120-second budget.
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

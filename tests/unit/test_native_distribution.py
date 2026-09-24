@@ -131,7 +131,7 @@ class NativeDistributionTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("42", result.stdout.splitlines())
-            self.assertEqual(result.stdout.splitlines()[-1], "tests: 46, failures: 0")
+            self.assertEqual(result.stdout.splitlines()[-1], "tests: 55, failures: 0")
 
     def test_installed_cli_runs_without_source_tree_layout(self):
         with tempfile.TemporaryDirectory() as directory:

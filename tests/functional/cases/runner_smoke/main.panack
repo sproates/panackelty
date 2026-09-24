@@ -5,7 +5,8 @@ pure runner_path(text: Str): Path {
 }
 
 main(): Void {
-  names = ["callables", "collections", "compiler_lexer", "hello_world", "local_inference",
+  names = ["callables", "collections", "compiler_lexer", "hello_world",
+    "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",
     "semicolonless", "string_boundaries", "testing_commands",
     "testing_fixtures", "testing_library",
@@ -14,7 +15,7 @@ main(): Void {
   for name in names {
     expected_text = "${expected_text}PASS case/${name}/source\nPASS case/${name}/compile\nPASS case/${name}/bytecode\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected fixture count\ntests: 46, failures: 0\n")
+  expected = utf8_encode("${expected_text}PASS selected fixture count\ntests: 55, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(), [],
     duration_seconds(30), 1048576)

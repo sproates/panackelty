@@ -26,7 +26,9 @@ negative. A literal containing a decimal point is `Dec`. `Dec` stores an
 arbitrarily large base-10 coefficient and scale. Addition, subtraction,
 multiplication, and remainder are exact. Division is exact when it has a finite
 decimal expansion and otherwise reports that an explicit rounding operation is
-needed; rounding modes are not yet part of the language.
+needed; rounding modes are not yet part of the language. Exact division removes
+redundant fractional trailing zeros from its result (for example, `1.00 / 2.0`
+prints `0.5`, and `0.00 / 2.0` prints `0`).
 
 `Nat` subtraction is accepted only when the checker can prove that the result
 is non-negative. This first implementation recognizes constants and simple

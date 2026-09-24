@@ -264,7 +264,7 @@ Length reads that count; ASCII index, slice, and prefix offsets are direct,
 while non-ASCII offsets traverse UTF-8. This removes repeated scanning during
 compiler lexing without changing bytecode or language semantics.
 
-The portable C11 seed VM in `src/vm/native.c` independently decodes, verifies,
+The portable C11 seed VM under `src/vm/` independently decodes, verifies,
 and executes version-8 artifacts. Its reference-counted values and
 arbitrary-precision numerics are implemented without Python or third-party
 libraries. Differential tests run the complete program corpus on both VMs and
@@ -489,7 +489,7 @@ The checker recognizes `Path`, `Duration`, and `Instant` as opaque types.
 `src/stdlib/path.panack` owns path error declarations; `src/stdlib/time.panack`
 owns clock/duration errors and portable duration arithmetic. The native VM
 implements checked construction, lexical path operations, exact tick storage,
-and clock reads in `src/vm/host_types.h`, included by `native.c`. The transitional
+and clock reads in `src/vm/host_types.c`, declared by `host_types.h`. The transitional
 Python VM uses distinct opaque payload objects and the same contracts.
 Only `instant_now` crosses the host boundary. Both verifiers enforce its effect
 and builtin arity; runtime tags prevent forged records from acting as opaque
@@ -497,10 +497,33 @@ values. No constant tags or instructions are added to bytecode version 8.
 
 ## Typed host capabilities
 
-`src/vm/host_capabilities.h` owns typed POSIX file operations, process orchestration,
+`src/vm/host_capabilities.c` owns typed POSIX file operations, process orchestration,
 checked UTF-8 decoding, and sleep. The compiler and verifier register their exact
 arities and effects. Processes use fork/exec with a launch-error pipe, a dedicated
 process group, nonblocking pipe polling, bounded buffers, and monotonic deadlines.
 The transitional oracle implements the same contract with subprocess and selectors.
 `stdlib/host`, `stdlib/filesystem`, and `stdlib/process` define structured results.
 The existing string-based file ABI remains necessary for the compiler bootstrap.
+
+## Native VM module boundaries
+
+The runner in `src/vm/main.c` delegates decoding to `decode.c`, semantic checking
+to `verify.c`, and stack-machine execution to `execute.c`. `program.h` owns the
+decoded representation and fixed opcode numbers. `value.h` owns runtime value
+layout, while `vm.h` describes the invocation context. Reader and frame internals
+stay private. Headers are self-contained declarations, not included implementations.
+
+Value lifetime, exact arithmetic, rendering, UTF-8 traversal, and host services
+are separate translation units. Builtins are grouped into text, collections,
+numerics, nested execution, and host services. One registry supplies arity, purity,
+and handler selection to verification and execution. Nested execution intentionally
+calls back into the VM after decoding and verifying its child program.
+
+The Makefile compiles each component once, tracks generated header dependencies,
+and reuses those objects for direct C contract tests. Native process tests reuse
+the production runner. Sanitizer and LLVM branch-coverage targets use separate
+build trees and also run in CI. A separately compiled fault-injection harness
+redirects VM allocations and selected host syscalls, sweeps each allocation
+failure position, and asserts memory, descriptor and child-process cleanup.
+Production builds contain no fault controls.
+See `src/vm/README.md` for the complete file map and ownership conventions.

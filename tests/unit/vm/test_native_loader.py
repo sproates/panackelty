@@ -1,4 +1,6 @@
+import os
 import subprocess
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +10,6 @@ from tests.unit.bytecode.test_serialization import raw_artifact, raw_function, u
 
 
 PROJECT = Path(__file__).resolve().parents[3]
-VM = PROJECT / "src/vm"
 VECTORS = PROJECT / "tests/fixtures/bytecode"
 
 
@@ -17,17 +18,15 @@ class NativeLoaderTests(unittest.TestCase):
     def setUpClass(cls):
         cls.temporary = tempfile.TemporaryDirectory()
         cls.executable = Path(cls.temporary.name) / "panack-vm"
-        result = subprocess.run(
-            [
-                "cc", "-std=c11", "-Wall", "-Wextra", "-Werror", "-pedantic",
-                str(VM / "native.c"), str(VM / "bigint.c"),
-                "-o", str(cls.executable),
-            ],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode:
-            raise AssertionError(result.stderr)
+        override = os.environ.get("PANACK_NATIVE_BINARY")
+        if not override:
+            result = subprocess.run(
+                ["make", "--no-print-directory", "native"], cwd=PROJECT,
+                capture_output=True, text=True,
+            )
+            if result.returncode:
+                raise AssertionError(result.stdout + result.stderr)
+        shutil.copy2(Path(override) if override else PROJECT / "panack-vm", cls.executable)
 
     @classmethod
     def tearDownClass(cls):

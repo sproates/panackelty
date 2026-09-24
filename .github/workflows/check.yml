@@ -69,6 +69,24 @@ jobs:
           VALIDATION_TIMINGS_FILE: validation-timings.tsv
         run: make check
 
+      - name: Check native memory and undefined behaviour
+        run: make native-sanitize CC=clang
+
+      - name: Install matching LLVM coverage tools
+        run: sudo apt-get update && sudo apt-get install -y clang llvm
+
+      - name: Measure native branch coverage
+        run: make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROFDATA=/usr/bin/llvm-profdata
+
+      - name: Archive native coverage
+        uses: actions/upload-artifact@v6
+        with:
+          name: native-coverage-${{ github.run_id }}
+          path: |
+            build/coverage/summary.txt
+            build/coverage/html/
+          if-no-files-found: error
+
       - name: Publish validation timing summary
         if: always()
         shell: bash

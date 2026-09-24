@@ -76,7 +76,7 @@ check-bytecode-impl:
 		tests.functional.test_programs.PanackeltyProgramTests.test_disasm_matches_for_source_and_bytecode \
 		tests.functional.test_programs.PanackeltyProgramTests.test_disasm_rejects_malformed_bytecode
 
-check-vm: native
+check-vm: native native-module-build native-fault-build
 	@$(TIMED) check-vm $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-vm-impl
 
 check-vm-impl:
@@ -89,7 +89,7 @@ check-vm-impl:
 		tests.functional.test_programs.PanackeltyProgramTests.test_run_passes_program_arguments \
 		tests.functional.test_programs.PanackeltyProgramTests.test_standard_library_reads_the_process_environment
 
-unit: native
+unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
 
 functional: native
@@ -100,8 +100,76 @@ functional-impl: $(STAGE2_COMPILER)
 
 native: panack-vm
 
-panack-vm: src/vm/host_types.h src/vm/host_capabilities.h src/vm/native.c src/vm/bigint.c src/vm/bigint.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c11 -Wall -Wextra -Werror -pedantic $(LDFLAGS) src/vm/native.c src/vm/bigint.c -o panack-vm $(LDLIBS)
+# Compile each VM component separately. Dependency files track header edits.
+VM_SOURCES := $(sort $(wildcard src/vm/*.c))
+VM_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/vm/%.o,$(VM_SOURCES))
+VM_LIBRARY_OBJECTS := $(filter-out $(BUILD_DIR)/vm/main.o,$(VM_OBJECTS))
+export PANACK_NATIVE_MODULE_TEST := $(abspath $(BUILD_DIR)/vm/test_modules)
+VM_WARNINGS := -std=c11 -Wall -Wextra -Werror -pedantic
+
+panack-vm: $(VM_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/vm/%.o: src/vm/%.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
+
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c $(VM_LIBRARY_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+
+FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
+export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)
+
+$(BUILD_DIR)/fault/%.o: src/vm/%.c tests/unit/vm/fault_injection.h
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h -MMD -MP -c $< -o $@
+
+$(BUILD_DIR)/fault/injection.o: tests/unit/vm/fault_injection.c tests/unit/vm/fault_injection.h
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -c $< -o $@
+
+$(BUILD_DIR)/fault/test_faults: tests/unit/vm/native_faults.c $(BUILD_DIR)/fault/injection.o $(FAULT_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
+
+.PHONY: native-fault-build native-fault
+native-fault-build: $(BUILD_DIR)/fault/test_faults
+native-fault: native-fault-build
+	UBSAN_OPTIONS=halt_on_error=1 "$(abspath $(BUILD_DIR)/fault/test_faults)"
+
+-include $(FAULT_OBJECTS:.o=.d)
+
+.PHONY: native-unit native-module-build native-sanitize native-instrumented-check
+native-module-build: $(BUILD_DIR)/vm/test_modules
+
+$(BUILD_DIR)/vm/panack-vm: $(VM_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
+
+native-unit: $(BUILD_DIR)/vm/test_modules
+	UBSAN_OPTIONS=halt_on_error=1 "$(abspath $(BUILD_DIR)/vm/test_modules)"
+
+# Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
+native-sanitize:
+	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-check
+
+native-instrumented-check: native-unit native-fault $(BUILD_DIR)/vm/panack-vm
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(PYTHON) -B -m unittest -q tests.unit.vm.test_native_loader tests.unit.vm.test_native_execution tests.unit.vm.test_native_modules tests.unit.vm.test_native_faults
+
+# LLVM branch coverage uses the same native corpus in a separate build tree.
+LLVM_CC ?= clang
+LLVM_COV ?= $(shell command -v llvm-cov 2>/dev/null || xcrun --find llvm-cov 2>/dev/null)
+LLVM_PROFDATA ?= $(shell command -v llvm-profdata 2>/dev/null || xcrun --find llvm-profdata 2>/dev/null)
+.PHONY: native-coverage
+native-coverage:
+	@test -n "$(LLVM_COV)" -a -n "$(LLVM_PROFDATA)" || { echo "LLVM coverage tools are required" >&2; exit 1; }
+	@mkdir -p build/coverage
+	@rm -f build/coverage/*.profraw
+	LLVM_PROFILE_FILE="$(abspath build/coverage)/%p.profraw" $(MAKE) CC="$(LLVM_CC)" BUILD_DIR=build/coverage CFLAGS="-O1 -g -fprofile-instr-generate -fcoverage-mapping" LDFLAGS="-fprofile-instr-generate" native-instrumented-check
+	"$(LLVM_PROFDATA)" merge -sparse build/coverage/*.profraw -o build/coverage/coverage.profdata
+	"$(LLVM_COV)" report build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -instr-profile=build/coverage/coverage.profdata src/vm > build/coverage/summary.txt
+	@cat build/coverage/summary.txt
+	"$(LLVM_COV)" show build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -instr-profile=build/coverage/coverage.profdata -show-branches=count -format=html -output-dir=build/coverage/html src/vm
+
+-include $(VM_OBJECTS:.o=.d)
 
 $(STAGE1_COMPILER): $(SEED_COMPILER)
 	mkdir -p $(dir $@)

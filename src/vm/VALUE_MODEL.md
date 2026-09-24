@@ -18,8 +18,10 @@ sentinel.
   their greatest common divisor, makes the denominator positive, and normalizes
   zero to `0/1`. Destruction frees both integers.
 - `Dec` stores a signed arbitrary-precision coefficient and a signed base-10
-  exponent. Arithmetic preserves exact scale; division succeeds only when the
-  reduced denominator contains no prime factors other than two and five.
+  exponent. Addition, subtraction and multiplication preserve exact scale; division
+  succeeds only when the reduced denominator contains no prime factors other than
+  two and five, and removes redundant fractional trailing zeros. Comparison reads
+  coefficient digits without allocating aligned temporary values.
 - `Str` owns UTF-8 bytes plus a code-point count and an ASCII flag computed
   once at construction. Length reads the count directly; ASCII indexing and
   slice/prefix offsets use byte offsets directly, while non-ASCII offsets retain
@@ -37,7 +39,7 @@ values. Instructions refer to those immutable decoded names and operands.
 ## Ownership and reclamation
 
 Heap objects use non-atomic reference counts because one VM invocation is
-single-threaded. Creating or copying an owning `PnValue` retains its object;
+single-threaded. Copying an owning `Value *` requires retaining its object;
 discarding an owning value releases it. Releasing the final reference walks and
 releases child values before freeing the object. Operand stacks, locals, call
 arguments, returned values, containers, iterators, and decoded constants each
@@ -46,8 +48,9 @@ have explicit ownership.
 The value graph cannot contain cycles: source values have no mutable references,
 and every composite constructor receives already-complete children. Reference
 counting therefore reclaims all reachable runtime allocations without a tracing
-collector. Decoded programs are arena-owned and freed as one program after all
-frames and values are released.
+collector. Decoded programs own their individually allocated names, constants, and
+instruction arrays; `free_program()` releases them after frames and values.
+See the module headers for borrowing and ownership-transfer contracts.
 
 Allocation overflow and host memory exhaustion are fatal native-runner errors,
 which the bytecode contract deliberately places outside language-level traps.
@@ -77,3 +80,9 @@ these values. Existing reference counting releases their byte/integer storage.
 Equality compares values within the same tag. Only explicit path conversion
 exposes bytes; instants have no tick accessor and render as `<Instant>`.
 These tags are runtime-only and are never accepted as serialized constants.
+
+Allocation-failure tests exercise partial construction and frame cleanup. Stack
+push and local assignment consume their input reference on both success and
+failure; callers must not release it again. Failed constructors release retained
+children and partially copied fields. Test-only allocation/syscall wrappers are
+compiled into a separate executable and are absent from the production runner.

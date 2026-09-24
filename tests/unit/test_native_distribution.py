@@ -131,9 +131,9 @@ class NativeDistributionTests(unittest.TestCase):
                 ["make", "functional-impl", "PYTHON=sh probe.sh"],
                 cwd=checkout, capture_output=True, text=True,
             )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
             self.assertIn("42", result.stdout.splitlines())
-            self.assertEqual(result.stdout.splitlines()[-1], "tests: 122, failures: 0")
+            self.assertEqual(result.stdout.splitlines()[-1], "tests: 246, failures: 0")
 
     def test_installed_cli_runs_without_source_tree_layout(self):
         with tempfile.TemporaryDirectory() as directory:

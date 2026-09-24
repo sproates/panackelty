@@ -820,10 +820,11 @@ installed.
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks twenty existing fixtures and twenty examples
-      in parallel with the Python harness, including a safely resolved compiler `source.path`;
-      nonempty-workspace cleanup failure and recovery are tested. Next extend
-      toward the full corpus, preserving host-error parity
+      Panackelty runner now checks twenty success fixtures, twenty examples,
+      and forty-one expected failure fixtures in parallel with the Python
+      harness, including safe compiler `source.path`, normalized diagnostics,
+      and nonempty-workspace cleanup failure and recovery. Next extend the
+      remaining CLI and environment assertions, preserving host-error parity
 - [ ] Replace differential reliance on the Python compiler and VM with portable
       golden artifacts, contract tests, native/self-hosted cross-checks, and
       fixed-point bootstrap evidence
@@ -856,6 +857,9 @@ compiler result across the remaining integration checks
 without dropping the source, bytecode, or path containment assertions.
 The example migration adds twenty source and bytecode checks to each full runner
 invocation. Profile that added work as part of the same prioritized timing fix.
+The failure migration adds forty-one check and compile diagnostic pairs plus
+artifact assertions; measure the full runner and remove redundant invocations
+without weakening the new negative coverage.
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

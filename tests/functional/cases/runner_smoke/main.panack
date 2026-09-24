@@ -23,11 +23,28 @@ main(): Void {
   for name in examples {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected example count\ntests: 122, failures: 0\n")
+  expected_text = "${expected_text}PASS selected example count\n"
+  failure_names = ["callable_effect", "constructor_arity", "duplicate_function",
+    "for_iterable_type", "function_arity", "generic_ambiguous", "generic_body",
+    "generic_conflict", "generic_main", "generic_purity", "generic_type_arity",
+    "guard_not_proven", "if_without_else_value", "immutable_assignment",
+    "import_cycle", "imported_unknown_name", "inference_empty_array",
+    "inference_immutable", "inference_impure_callable", "inference_shadowing",
+    "inference_type_change", "inference_void", "invalid_import_suffix",
+    "invalid_logical_import", "invalid_logical_segment", "legacy_function_keyword",
+    "main_parameters", "method_collection_receiver", "missing_import",
+    "missing_main", "negative_natural", "non_exhaustive_match", "opaque_path",
+    "pure_clock", "pure_io", "same_line_without_separator",
+    "trailing_semicolon_value", "unexpected_character", "unknown_name",
+    "unknown_type", "while_condition_type"]
+  for name in failure_names {
+    expected_text = "${expected_text}PASS failure/${name}/check\nPASS failure/${name}/compile\nPASS failure/${name}/no artifact\n"
+  }
+  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 246, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],
-    duration_seconds(60), 1048576)
+    duration_seconds(90), 1048576)
   result = test_run_command("Panackelty fixture runner", command,
     ProcessOutput(0, 0, expected, bytes()))
   failures = test_report([result])

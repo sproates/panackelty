@@ -474,7 +474,8 @@ owned temporary workspaces for test isolation.
 `stdlib/testing_commands` compares bounded child-process results and expected
 host failures without requiring a shell or decoding binary output.
 During development, `make functional` also runs a first Panackelty-hosted
-fixture runner over twenty existing cases and twenty examples; the full Python harness stays active
+fixture runner over twenty success cases, twenty examples, and forty-one
+expected failure cases; the full Python harness stays active
 while its remaining coverage is migrated.
 
 ## Explore further

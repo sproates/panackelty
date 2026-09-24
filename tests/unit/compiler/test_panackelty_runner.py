@@ -20,6 +20,53 @@ CASES = (
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_failure_diagnostics_and_artifact_cleanup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            checkout = pathlib.Path(temporary) / "checkout with spaces (test)"
+            checkout.mkdir()
+            (checkout / "panack").symlink_to(ROOT / "panack")
+            (checkout / "src").symlink_to(ROOT / "src")
+            (checkout / "tests/functional/cases").mkdir(parents=True)
+            fixture = checkout / "tests/functional/failures/imported_unknown_name"
+            fixture.mkdir(parents=True)
+            original = ROOT / "tests/functional/failures/imported_unknown_name"
+            for filename in ("main.panack", "dependency.panack", "expected.stderr"):
+                shutil.copyfile(original / filename, fixture / filename)
+
+            def run():
+                return subprocess.run(
+                    [str(checkout / "panack"), "run", str(ROOT / "tests/runner/main.panack"),
+                     "--failure", "imported_unknown_name"], cwd=checkout,
+                    capture_output=True, timeout=30, check=False,
+                )
+
+            valid = run()
+            self.assertEqual(valid.returncode, 0, valid.stderr + valid.stdout)
+            self.assertIn(b"PASS failure/imported_unknown_name/check", valid.stdout)
+            self.assertIn(b"PASS failure/imported_unknown_name/compile", valid.stdout)
+            self.assertIn(b"PASS failure/imported_unknown_name/no artifact", valid.stdout)
+
+            (fixture / "expected.stderr").write_bytes(b"wrong diagnostic\n")
+            mismatch = run()
+            self.assertEqual(mismatch.returncode, 1, mismatch.stderr)
+            self.assertIn(b"FAIL failure/imported_unknown_name/check", mismatch.stdout)
+            self.assertIn(b"FAIL failure/imported_unknown_name/compile", mismatch.stdout)
+            self.assertIn(b"PASS failure/imported_unknown_name/no artifact", mismatch.stdout)
+            self.assertNotIn(b"FAIL workspace cleanup", mismatch.stdout)
+
+            (fixture / "main.panack").write_text(
+                "main(): Void { print(42) }\n", encoding="utf-8"
+            )
+            compiled = run()
+            self.assertEqual(compiled.returncode, 1, compiled.stderr)
+            self.assertIn(b"FAIL failure/imported_unknown_name/no artifact", compiled.stdout)
+            self.assertNotIn(b"FAIL workspace cleanup", compiled.stdout)
+
+            (fixture / "expected.stderr").unlink()
+            missing = run()
+            self.assertEqual(missing.returncode, 1, missing.stderr)
+            self.assertIn(b"FAIL failure/imported_unknown_name/fixture", missing.stdout)
+
     def test_example_output_mismatch_and_missing_pair_fail(self):
         with tempfile.TemporaryDirectory() as temporary:
             checkout = pathlib.Path(temporary)

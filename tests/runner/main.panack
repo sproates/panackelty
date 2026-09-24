@@ -3,8 +3,7 @@ import stdlib/testing_files
 import stdlib/testing_commands
 import stdlib/text
 
-// Run from the repository root. This covers success fixtures and examples;
-// failure cases stay with the Python runner.
+// Run from the repository root. The Python harness remains active during migration.
 pure runner_path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
 }
@@ -223,6 +222,138 @@ runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
   }
 }
 
+pure runner_normalize_diagnostic(value: Str, prefix: Str): Str {
+  mut normalized: Str = ""
+  mut start: Nat = 0
+  for index in 0..text_length(value) {
+    if index >= start && text_starts_with_at(value, prefix, index) {
+      segment = text_slice(value, start, index)
+      normalized = "${normalized}${segment}<case>"
+      start = index + text_length(prefix)
+    }
+  }
+  remainder = text_slice(value, start, text_length(value))
+  "${normalized}${remainder}"
+}
+
+runner_failure_prefix(directory: Path): Result[Str,Str] {
+  directory_text = result_value_or(path_to_text(directory), "")
+  match process_run(runner_path("/bin/sh"),
+      ["-c", "exec realpath \"$1\"", "runner-failure", directory_text],
+      bytes(), path_current(), [], duration_seconds(5), 4096) {
+    Error(error) => Error("path resolution failed: ${error.code}"),
+    Ok(output) => {
+      if output.exit_code != 0 || output.signal != 0 {
+        Error("path resolution failed")
+      } else {
+        value = utf8_decode(output.stdout)
+        size = text_length(value)
+        if size == 0 { Error("path resolution returned no path") }
+        else { Ok(text_slice(value, 0, size - 1)) }
+      }
+    }
+  }
+}
+
+runner_failure_command(label: Str, command: TestCommand,
+                       expected: Bytes, prefix: Str): TestResult {
+  match process_run(command.executable, command.arguments, command.stdin,
+      command.working_directory, command.environment, command.timeout,
+      command.output_limit) {
+    Error(error) => {
+      code = error.code
+      test_expect(label, false, "command failed: ${code}")
+    },
+    Ok(output) => {
+      normalized = utf8_encode(runner_normalize_diagnostic(
+        utf8_decode(output.stderr), prefix))
+      test_command_output(label,
+        ProcessOutput(output.exit_code, output.signal, output.stdout, normalized),
+        ProcessOutput(1, 0, bytes(), expected))
+    }
+  }
+}
+
+runner_failure(directory: Path, workspace: TestWorkspace): [TestResult] {
+  name = runner_name(directory)
+  label = "failure/${name}"
+  source = runner_child(directory, "main.panack")
+  expected_file = runner_child(directory, "expected.stderr")
+  artifact = runner_child(workspace.root, "failure-${name}.bc")
+  match fs_read(source, 1048576) {
+    Error(error) => {
+      code = error.code
+      [test_expect("${label}/fixture", false, "source read failed: ${code}")]
+    },
+    Ok(source_contents) => {
+      match fs_read(expected_file, 1048576) {
+        Error(error) => {
+          code = error.code
+          [test_expect("${label}/fixture", false, "expected stderr read failed: ${code}")]
+        },
+        Ok(expected) => {
+          match runner_failure_prefix(directory) {
+            Error(reason) => [test_expect("${label}/fixture", false, reason)],
+            Ok(prefix) => {
+              // Use the same physical path for invocation and normalization.
+              // A checkout may reach tests through a symlink.
+              source_text = "${prefix}/main.panack"
+              artifact_text = result_value_or(path_to_text(artifact), "invalid-artifact")
+              mut results: [TestResult] = []
+              results = results.append(runner_failure_command("${label}/check",
+                runner_command(["check", source_text], false), expected, prefix))
+              results = results.append(runner_failure_command("${label}/compile",
+                runner_command(["compile", source_text, "-o", artifact_text], false),
+                expected, prefix))
+              match fs_metadata(artifact) {
+                Ok(metadata) => {
+                  results = results.append(test_expect("${label}/no artifact", false,
+                    "failed compilation left bytecode"))
+                  match fs_remove_file(artifact) {
+                    Ok(value) => {},
+                    Error(error) => {
+                      code = error.code
+                      results = results.append(test_expect("${label}/artifact cleanup", false,
+                        "cleanup failed: ${code}"))
+                    }
+                  }
+                },
+                Error(error) => {
+                  code = error.code
+                  results = results.append(test_expect("${label}/no artifact",
+                    code == "not_found", "artifact inspection failed: ${code}"))
+                }
+              }
+              results
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+runner_failures(workspace: TestWorkspace, selected: Str): [TestResult] {
+  match test_discover_fixtures(runner_path("tests/functional/failures")) {
+    Error(error) => {
+      code = error.code
+      [test_expect("failure discovery", false, "discovery failed: ${code}")]
+    },
+    Ok(directories) => {
+      mut results: [TestResult] = []
+      mut count: Nat = 0
+      for directory in directories {
+        if selected == "" || runner_name(directory) == selected {
+          count = count + 1
+          results = results.concat(runner_failure(directory, workspace))
+        }
+      }
+      expected_count: Nat = if selected == "" { 41 } else { 1 }
+      results.append(test_equal_nat("selected failure count", count, expected_count))
+    }
+  }
+}
+
 main(): Void {
   arguments = command_args()
   if len(arguments) > 0 && arguments[0] == "--self-test" {
@@ -235,6 +366,9 @@ main(): Void {
         arguments[3]
       } else { "" } }
     selected_example = if len(arguments) == 2 && arguments[0] == "--example" {
+      arguments[1]
+    } else { "" }
+    selected_failure = if len(arguments) == 2 && arguments[0] == "--failure" {
       arguments[1]
     } else { "" }
     parent = if inject_cleanup_failure { runner_path(arguments[1]) } else { runner_path("/tmp") }
@@ -256,7 +390,7 @@ main(): Void {
           Ok(directories) => {
             for directory in directories {
               name = runner_name(directory)
-              if runner_selected(name) && selected_example == "" &&
+              if runner_selected(name) && selected_example == "" && selected_failure == "" &&
                   (selected_case == "" || selected_case == name) {
                 found = found + 1
                 results = results.concat(runner_case(directory, workspace))
@@ -264,11 +398,14 @@ main(): Void {
             }
           }
         }
-        expected_count: Nat = if selected_example != "" { 0 }
+        expected_count: Nat = if selected_example != "" || selected_failure != "" { 0 }
           else { if selected_case == "" { 20 } else { 1 } }
         results = results.append(test_equal_nat("selected fixture count", found, expected_count))
-        if selected_case == "" {
+        if selected_case == "" && selected_failure == "" {
           results = results.concat(runner_examples(workspace, selected_example))
+        }
+        if selected_case == "" && selected_example == "" {
+          results = results.concat(runner_failures(workspace, selected_failure))
         }
         sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
         if inject_cleanup_failure {

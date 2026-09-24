@@ -1,6 +1,6 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.5` is a developer preview. It is intended for learning,
+Panackelty `0.1.0-alpha.6` is a developer preview. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 

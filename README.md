@@ -43,7 +43,7 @@ See [the specification](SPEC.md#rational-arithmetic-and-exact-conversions).
 
 ## Typed paths and elapsed time
 
-The development toolchain includes opaque `Path`, exact signed nanosecond
+Panackelty includes opaque `Path`, exact signed nanosecond
 `Duration`, and monotonic `Instant` values. Import `stdlib/path` and
 `stdlib/time`. Path construction checks text or native bytes; lexical operations
 preserve spelling and do not access the filesystem. Durations support exact
@@ -52,8 +52,7 @@ and returns a `Result`; arithmetic on existing clock readings is pure.
 
 The [API specification](SPEC.md#paths-and-monotonic-time) and
 [executable example](tests/functional/cases/host_types/main.panack) show their
-contracts and use. These additions require a build from this checkout until
-a subsequent release publishes them.
+contracts and use.
 
 ## Start writing Panackelty
 
@@ -62,8 +61,8 @@ checking, compiling, and running Panackelty programs does not require Python,
 `make`, a C compiler, or a copy of this repository. The download contains the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives for `0.1.0-alpha.5` are available from the
-[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.5).
+Developer-preview archives for `0.1.0-alpha.6` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.6).
 The [release policy](RELEASE_POLICY.md) defines the preview's support and
 compatibility boundaries.
 
@@ -81,8 +80,8 @@ adjacent `.sha256` file from the Releases page:
 
 | System | Archive |
 | --- | --- |
-| Linux x86-64 | `panackelty-0.1.0-alpha.5-linux-x86_64.tar.gz` |
-| macOS arm64 | `panackelty-0.1.0-alpha.5-macos-arm64.tar.gz` |
+| Linux x86-64 | `panackelty-0.1.0-alpha.6-linux-x86_64.tar.gz` |
+| macOS arm64 | `panackelty-0.1.0-alpha.6-macos-arm64.tar.gz` |
 
 Windows and other architectures are not part of the initial preview.
 
@@ -92,24 +91,24 @@ In the directory containing both downloaded files, verify the archive. On
 Linux, run:
 
 ```sh
-sha256sum -c panackelty-0.1.0-alpha.5-linux-x86_64.tar.gz.sha256
+sha256sum -c panackelty-0.1.0-alpha.6-linux-x86_64.tar.gz.sha256
 ```
 
 On macOS, run:
 
 ```sh
-shasum -a 256 -c panackelty-0.1.0-alpha.5-macos-arm64.tar.gz.sha256
+shasum -a 256 -c panackelty-0.1.0-alpha.6-macos-arm64.tar.gz.sha256
 ```
 
 The command must report the archive as `OK`. Then unpack the matching archive;
 the macOS name is shown here:
 
 ```sh
-tar -xzf panackelty-0.1.0-alpha.5-macos-arm64.tar.gz
+tar -xzf panackelty-0.1.0-alpha.6-macos-arm64.tar.gz
 ./panackelty/bin/panack --version
 ```
 
-The version command prints `panack 0.1.0-alpha.5 (bytecode 8)`. The Linux
+The version command prints `panack 0.1.0-alpha.6 (bytecode 8)`. The Linux
 archive follows the same layout and uses `linux-x86_64` in its name. To make
 `panack` available in future terminal sessions, keep the whole extracted
 directory together and link its command into a directory on `PATH`:
@@ -162,7 +161,7 @@ The complete output is:
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.5 (bytecode 8)
+panack 0.1.0-alpha.6 (bytecode 8)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc

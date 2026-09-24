@@ -97,6 +97,7 @@ functional: native
 
 functional-impl: $(STAGE2_COMPILER)
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PYTHON) -m unittest discover -s tests/functional -p 'test_*.py' -q
+	@./panack run tests/runner/main.panack
 
 native: panack-vm
 

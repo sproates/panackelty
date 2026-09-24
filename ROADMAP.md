@@ -819,7 +819,9 @@ installed.
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
-      file fixtures, output comparisons, and exit-status assertions
+      file fixtures, output comparisons, and exit-status assertions. A first
+      Panackelty runner now checks three existing fixtures in parallel with the
+      Python harness; inject cleanup failure, then extend to the full corpus
 - [ ] Replace differential reliance on the Python compiler and VM with portable
       golden artifacts, contract tests, native/self-hosted cross-checks, and
       fixed-point bootstrap evidence

@@ -192,8 +192,9 @@ host capabilities initiative.
 Generic source functions, a first-class success value, and exact rational
 arithmetic are implemented. Opaque paths, exact durations, and monotonic instants
 are now implemented, together with typed filesystem and bounded process APIs,
-checked decoding, and sleep. The testing-library foundation is the next host
-capability priority; recursive filesystem operations remain a follow-up.
+checked decoding, and sleep. The testing-library foundation is complete;
+repository-wide Python removal is the next migration initiative. Recursive
+filesystem operations remain a separate follow-up.
 
 - [x] Specify and implement generic source functions and explicit type arguments,
       including inference, ambiguity diagnostics, and purity preservation, so
@@ -809,10 +810,12 @@ invocation and its full development, bootstrap, conformance, packaging, and
 release validation succeeds on a machine where no Python interpreter is
 installed.
 
-- [ ] Complete and document the replacement test architecture: use the
+- [x] Complete and document the replacement test architecture: use the
       Panackelty-hosted library for compiler, language, standard-library, and
       functional behavior; focused C tests for native VM internals; and portable
-      declarative fixtures shared between them
+      declarative fixtures shared between them. The ownership inventory,
+      parity gates, migration sequence, and unresolved runner prerequisites are
+      recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and

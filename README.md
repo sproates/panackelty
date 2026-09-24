@@ -489,6 +489,8 @@ host failures without requiring a shell or decoding binary output.
   branches, and loops through real disassembly and step-by-step stack traces.
 - [The self-hosting guide](SELF_HOSTING.md) follows the bootstrap chain and its
   reproducibility guarantees.
+- [The Python-free test migration plan](tests/PYTHON_MIGRATION.md) inventories
+  development coverage and the gates for replacing the transitional harness.
 - [The roadmap](ROADMAP.md) tracks upcoming language and engineering work.
 - [The release policy](RELEASE_POLICY.md) defines preview stability, supported
   systems, compatibility, and support lifetime.

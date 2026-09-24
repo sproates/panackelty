@@ -518,6 +518,12 @@ boundary. Pure result comparators preserve byte-exact output and the
 completed-process/host-error distinction; effectful wrappers return ordinary
 `TestResult` values for deterministic reporting. It adds no new host ABI.
 
+The [Python-free test architecture](tests/PYTHON_MIGRATION.md) maps the
+transitional development oracle and harness to Panackelty-hosted behavioral
+tests, direct native C tests, and portable golden fixtures. It retains the
+existing checks during migration and treats the fixed-point bootstrap and
+exact-artifact release gates as independent required evidence.
+
 ## Native VM module boundaries
 
 The runner in `src/vm/main.c` delegates decoding to `decode.c`, semantic checking

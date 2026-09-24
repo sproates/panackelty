@@ -9,7 +9,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 CASES = (
-    "callables", "collections", "hello_world", "local_inference",
+    "callables", "collections", "compiler_lexer", "hello_world", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",
     "semicolonless", "string_boundaries", "testing_library",
     "vm_numeric_boundaries",
@@ -26,7 +26,7 @@ class PanackeltyRunnerTests(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 1, completed.stderr)
             self.assertIn(b"FAIL workspace cleanup", completed.stdout)
-            self.assertIn(b"tests: 38, failures: 1", completed.stdout)
+            self.assertIn(b"tests: 41, failures: 1", completed.stdout)
             self.assertNotIn(b"FAIL cleanup recovery", completed.stdout)
             self.assertNotIn(b"FAIL workspace recovery", completed.stdout)
             self.assertEqual(list(pathlib.Path(temporary).iterdir()), [])
@@ -35,6 +35,7 @@ class PanackeltyRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             checkout = pathlib.Path(temporary)
             (checkout / "panack").symlink_to(ROOT / "panack")
+            (checkout / "src").symlink_to(ROOT / "src")
             fixtures = checkout / "tests" / "functional" / "cases"
             for name in CASES:
                 destination = fixtures / name

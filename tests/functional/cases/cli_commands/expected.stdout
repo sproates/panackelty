@@ -1,0 +1,8 @@
+PASS bare source path
+PASS default compile output
+PASS bare bytecode path
+PASS program arguments
+PASS program stderr and exit
+PASS help command name
+PASS version
+tests: 7, failures: 0

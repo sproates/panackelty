@@ -1,3 +1,7 @@
-// Paths use the canonical path_parent, path_join, path_suffix,
-// path_with_suffix, path_is_absolute, path_resolve, and file_exists API.
-// Lexical transforms are VM primitives; filesystem queries cross the host ABI.
+import "result.panack"
+import "option.panack"
+
+enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
+
+// Opaque Path primitives preserve native POSIX bytes and do not access the host.
+// Existing Str-based path_* helpers remain for compiler bootstrap compatibility.

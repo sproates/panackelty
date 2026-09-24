@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+import time
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -656,7 +657,7 @@ class Parser:
         return result
 
 
-PRIMITIVES = {"Unit", "Rat", "Nat", "Int", "Dec", "Str", "Bool", "Void", "Range", "Bytes"}
+PRIMITIVES = {"Path", "Duration", "Instant", "Unit", "Rat", "Nat", "Int", "Dec", "Str", "Bool", "Void", "Range", "Bytes"}
 GUARD_BASES = {"Nat", "Int", "Dec", "Str", "Bool"}
 INTRINSIC_GENERICS = {"Array": 1, "Map": 2, "Set": 1}
 
@@ -705,6 +706,24 @@ class TypeInfo:
 
 
 BUILTINS: dict[str, tuple[list[str], str, bool, bool]] = {
+    'path_from_text': (['Str'], 'Result[Path,PathError]', True, False),
+    'path_from_native': (['Bytes'], 'Result[Path,PathError]', True, False),
+    'path_to_text': (['Path'], 'Result[Str,PathError]', True, False),
+    'path_native_bytes': (['Path'], 'Bytes', True, False),
+    'path_display': (['Path'], 'Str', True, False),
+    'path_absolute': (['Path'], 'Bool', True, False),
+    'path_append': (['Path', 'Path'], 'Result[Path,PathError]', True, False),
+    'path_directory': (['Path'], 'Path', True, False),
+    'path_filename': (['Path'], 'Option[Path]', True, False),
+    'path_current': ([], 'Path', True, False),
+    'duration_nanoseconds': (['Int'], 'Duration', True, False),
+    'duration_ticks': (['Duration'], 'Int', True, False),
+    'duration_from_seconds': (['Rat'], 'Result[Duration,DurationError]', True, False),
+    'instant_now': ([], 'Result[Instant,ClockError]', False, False),
+    'instant_add': (['Instant', 'Duration'], 'Instant', True, False),
+    'instant_difference': (['Instant', 'Instant'], 'Duration', True, False),
+    'instant_before': (['Instant', 'Instant'], 'Bool', True, False),
+
     "$unit": ([], "Unit", True, False),
     "nat": (["Rat"], "Nat", True, False),
     "dec": (["Rat"], "Dec", True, False),
@@ -790,7 +809,7 @@ class Checker:
             for name, item in collection.items():
                 if name in declared:
                     self.error(item.token, f"top-level name {name} is already declared")
-                if name in BUILTINS or name in self.variants:
+                if name in BUILTINS or name in self.variants or name in {"Path", "Duration", "Instant"}:
                     self.error(item.token, f"top-level name {name} conflicts with a constructor or built-in")
                 declared[name] = item.token
         for typedef in self.program.types.values():
@@ -801,6 +820,8 @@ class Checker:
             if guard.name != "Bool":
                 self.error(typedef.guard, "type guard must produce Bool")
         for record in self.program.records.values():
+            if any(p in {"Path", "Duration", "Instant"} for p in record.type_params):
+                self.error(record.token, "type parameter conflicts with an opaque type name")
             if len(set(record.type_params)) != len(record.type_params):
                 self.error(record.token, f"duplicate type parameter in record {record.name}")
             seen: set[str] = set()
@@ -810,6 +831,8 @@ class Checker:
                 seen.add(field)
                 self.require_type(type_name, record.token, set(record.type_params))
         for enum in self.program.enums.values():
+            if any(p in {"Path", "Duration", "Instant"} for p in enum.type_params):
+                self.error(enum.token, "type parameter conflicts with an opaque type name")
             if len(set(enum.type_params)) != len(enum.type_params):
                 self.error(enum.token, f"duplicate type parameter in enum {enum.name}")
             if not enum.variants:
@@ -2279,6 +2302,113 @@ class Frame:
     pc: int = 0
 
 
+HOST_TYPE_BUILTINS = frozenset((
+    'path_from_text',
+    'path_from_native',
+    'path_to_text',
+    'path_native_bytes',
+    'path_display',
+    'path_absolute',
+    'path_append',
+    'path_directory',
+    'path_filename',
+    'path_current',
+    'duration_nanoseconds',
+    'duration_ticks',
+    'duration_from_seconds',
+    'instant_now',
+    'instant_add',
+    'instant_difference',
+    'instant_before',
+))
+
+
+@dataclass(frozen=True)
+class OpaqueHostValue:
+    kind: str
+    value: bytes | int
+
+
+def host_type_call(name: str, args: list[Value]) -> Value:
+    def variant(enum, tag, payload=()):
+        return Value(enum, (tag, list(payload)))
+
+    def success(value):
+        return variant('Result', 'Ok', [value])
+
+    def error(enum, tag):
+        return variant('Result', 'Error', [variant(enum, tag)])
+
+    def opaque(kind, data):
+        return Value(kind, OpaqueHostValue(kind, data))
+
+    def require(index, kind, message):
+        value = args[index]
+        if (value.type_name != kind or not isinstance(value.data, OpaqueHostValue)
+                or value.data.kind != kind):
+            raise PanackeltyError(message)
+        return value.data.value
+
+    if name == 'path_current':
+        return opaque('Path', b'.')
+    if name in {'path_from_text', 'path_from_native'}:
+        expected = 'Str' if name == 'path_from_text' else 'Bytes'
+        if args[0].type_name != expected:
+            raise PanackeltyError('VM trap: invalid path constructor operand')
+        data = args[0].data.encode('utf-8') if expected == 'Str' else args[0].data
+        if not data:
+            return error('PathError', 'EmptyPath')
+        if b'\0' in data:
+            return error('PathError', 'PathContainsNul')
+        return success(opaque('Path', data))
+    if name.startswith('path_'):
+        data = require(0, 'Path', 'VM trap: operation requires Path')
+        if name == 'path_to_text':
+            try:
+                return success(Value('Str', data.decode('utf-8')))
+            except UnicodeDecodeError:
+                return error('PathError', 'PathNotUtf8')
+        if name == 'path_native_bytes':
+            return Value('Bytes', data)
+        if name == 'path_absolute':
+            return Value('Bool', data.startswith(b'/'))
+        if name == 'path_display':
+            return Value('Str', ''.join(chr(b) if 32 <= b <= 126 and b != 92 else f'\\x{b:02x}' for b in data))
+        if name == 'path_append':
+            right = require(1, 'Path', 'VM trap: operation requires Path')
+            if right.startswith(b'/'):
+                return error('PathError', 'AbsolutePathAppend')
+            return success(opaque('Path', data + (b'' if data.endswith(b'/') else b'/') + right))
+        root = len(data) - len(data.lstrip(b'/'))
+        end = len(data.rstrip(b'/')) if root < len(data) else root
+        start = data.rfind(b'/', root, end) + 1
+        start = max(start, root)
+        if name == 'path_filename':
+            return variant('Option', 'None') if end == root else variant('Option', 'Some', [opaque('Path', data[start:end])])
+        return opaque('Path', (data[:root] if root else b'.') if start <= root else data[:start - 1])
+    if name == 'duration_nanoseconds':
+        if args[0].type_name not in {'Int', 'Nat'} or type(args[0].data) is not int:
+            raise PanackeltyError('VM trap: duration requires Int')
+        return opaque('Duration', args[0].data)
+    if name == 'duration_ticks':
+        return Value('Int', require(0, 'Duration', 'VM trap: operation requires Duration'))
+    if name == 'duration_from_seconds':
+        if args[0].type_name != 'Rat' or not isinstance(args[0].data, Fraction):
+            raise PanackeltyError('VM trap: duration seconds requires Rat')
+        scaled = args[0].data * 1000000000
+        return error('DurationError', 'FractionalNanosecond') if scaled.denominator != 1 else success(opaque('Duration', scaled.numerator))
+    if name == 'instant_now':
+        try:
+            return success(opaque('Instant', time.clock_gettime_ns(time.CLOCK_MONOTONIC)))
+        except OSError:
+            return error('ClockError', 'ClockUnavailable')
+    left = require(0, 'Instant', 'VM trap: operation requires Instant')
+    right = require(1, 'Duration' if name == 'instant_add' else 'Instant', 'VM trap: invalid instant operand')
+    if name == 'instant_before':
+        return Value('Bool', left < right)
+    return opaque('Instant' if name == 'instant_add' else 'Duration', left + right if name == 'instant_add' else left - right)
+
+
 class VM:
     def __init__(self, functions: dict[str, Code], arguments: list[str] | None = None,
                  environment: dict[str, str] | None = None):
@@ -2486,6 +2616,8 @@ class VM:
         raise AssertionError("unreachable")
 
     def builtin(self, name: str, args: list[Value]) -> Value:
+        if name in HOST_TYPE_BUILTINS:
+            return host_type_call(name, args)
         if name == "$unit":
             return Value("Unit", None)
         if name == "quotient":
@@ -2507,7 +2639,7 @@ class VM:
             value = args[0]
             if value.type_name == "Bool":
                 print("true" if value.data else "false")
-            elif value.type_name in {"Unit", "Rat"}:
+            elif value.type_name in {"Unit", "Rat", "Path", "Duration", "Instant"}:
                 print(VM.display(value))
             elif value.type_name == "Void":
                 print("void")
@@ -2681,6 +2813,10 @@ class VM:
 
     @staticmethod
     def display(value: Value) -> str:
+        if value.type_name in {"Path", "Instant"}:
+            return f"<{value.type_name}>"
+        if value.type_name == "Duration":
+            return f"{value.data.value}ns"
         if value.type_name == "Unit":
             return "()"
         if value.type_name == "Rat":
@@ -2710,7 +2846,7 @@ class VM:
 
     @staticmethod
     def stringify(value: Value) -> str:
-        if value.type_name in {"Unit", "Rat"}:
+        if value.type_name in {"Unit", "Rat", "Path", "Duration", "Instant"}:
             return VM.display(value)
         if value.type_name == "Str":
             return value.data

@@ -1,0 +1,34 @@
+import "result.panack"
+
+enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
+enum ClockError { ClockUnavailable }
+
+pure duration_seconds(value: Int): Duration {
+  duration_nanoseconds(value * 1000000000)
+}
+pure duration_milliseconds(value: Int): Duration {
+  duration_nanoseconds(value * 1000000)
+}
+pure duration_add(left: Duration, right: Duration): Duration {
+  duration_nanoseconds(duration_ticks(left) + duration_ticks(right))
+}
+pure duration_subtract(left: Duration, right: Duration): Duration {
+  duration_nanoseconds(duration_ticks(left) - duration_ticks(right))
+}
+pure duration_scale(value: Duration, factor: Int): Duration {
+  duration_nanoseconds(duration_ticks(value) * factor)
+}
+pure duration_before(left: Duration, right: Duration): Bool {
+  duration_ticks(left) < duration_ticks(right)
+}
+pure duration_as_seconds(value: Duration): Rat {
+  duration_ticks(value) / 1000000000
+}
+pure duration_divide(value: Duration, divisor: Int): Result[Duration,DurationError] {
+  if divisor == 0 { Error(ZeroDurationDivisor()) }
+  else { duration_from_seconds(duration_ticks(value) / (divisor * 1000000000)) }
+}
+pure duration_ratio(left: Duration, right: Duration): Result[Rat,DurationError] {
+  if duration_ticks(right) == 0 { Error(ZeroDurationDivisor()) }
+  else { Ok(duration_ticks(left) / duration_ticks(right)) }
+}

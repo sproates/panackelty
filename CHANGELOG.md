@@ -4,6 +4,18 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Opaque `Path` values preserve POSIX native filenames, with checked text/byte
+  construction, escaped display, and pure lexical operations.
+- Exact signed nanosecond `Duration` values support arithmetic, rational seconds,
+  and checked division without rounding.
+- Opaque monotonic `Instant` readings support deadlines and elapsed time. Clock
+  reads are effectful and return structured errors; arithmetic remains pure.
+- Bytecode remains version 8. New APIs require the updated compiler and VM;
+  older runtimes reject their new builtin calls. Existing string path helpers
+  remain for bootstrap compatibility.
+
 ## 0.1.0-alpha.5 — 2026-09-24
 
 - Exact `Rat` values: integer `/` produces a normalized fraction; arithmetic with

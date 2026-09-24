@@ -1,0 +1,3 @@
+error: <case>/main.panack:3:3: pure function cannot call impure function instant_now
+  3 |   instant_now()
+    |   ^

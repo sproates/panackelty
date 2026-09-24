@@ -38,6 +38,12 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
 }
 
 pure is_builtin(name: Str): Bool {
+  name == "path_from_text" || name == "path_from_native" || name == "path_to_text" ||
+  name == "path_native_bytes" || name == "path_display" || name == "path_absolute" ||
+  name == "path_append" || name == "path_directory" || name == "path_filename" ||
+  name == "path_current" || name == "duration_nanoseconds" || name == "duration_ticks" ||
+  name == "duration_from_seconds" || name == "instant_now" || name == "instant_add" ||
+  name == "instant_difference" || name == "instant_before" ||
   name == "$unit" || name == "nat" || name == "dec" || name == "quotient" ||
   name == "print" || name == "read_line" || name == "read_file" ||
   name == "write_file" || name == "len" || name == "append" ||
@@ -61,7 +67,7 @@ pure is_builtin(name: Str): Bool {
 
 pure add_variant_symbol(symbols: ResolverSymbols, name: Str): ResolverSymbols {
   mut diagnostics: [Diagnostic] = symbols.diagnostics
-  if is_builtin(name) {
+  if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) {
     diagnostics = append(diagnostics, resolver_diagnostic("variant constructor ${name} conflicts with a built-in"))
   } else {
   }
@@ -105,7 +111,7 @@ pure add_top_level_symbol(symbols: ResolverSymbols, name: Str, callable: Bool): 
     diagnostics = append(diagnostics, resolver_diagnostic("top-level name ${name} is already declared"))
   } else {
   }
-  if is_builtin(name) || set_has(symbols.variants, name) {
+  if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) || set_has(symbols.variants, name) {
     diagnostics = append(diagnostics, resolver_diagnostic("top-level name ${name} conflicts with a constructor or built-in"))
   } else {
   }

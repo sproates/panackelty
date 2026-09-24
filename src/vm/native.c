@@ -1,4 +1,6 @@
+#define _POSIX_C_SOURCE 200809L
 #include "bigint.h"
+#include <time.h>
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -51,7 +53,7 @@ typedef struct {
 } Program;
 
 typedef enum {
-	V_RAT, V_UNIT, V_NAT, V_INT, V_DEC, V_STR, V_BOOL, V_VOID, V_RANGE, V_ARRAY, V_RECORD, V_VARIANT, V_MAP, V_SET, V_BYTES, V_ITER
+	V_PATH, V_DURATION, V_INSTANT, V_RAT, V_UNIT, V_NAT, V_INT, V_DEC, V_STR, V_BOOL, V_VOID, V_RANGE, V_ARRAY, V_RECORD, V_VARIANT, V_MAP, V_SET, V_BYTES, V_ITER
 } ValueKind;
 typedef struct Value Value;
 typedef struct {
@@ -114,6 +116,8 @@ static void	release(Value * v) {
 	switch (v->kind) {
 	case V_NAT:
 	case V_INT:
+	case V_DURATION:
+	case V_INSTANT:
 		pn_big_free(&v->as.integer);
 		break;
     case V_RAT:
@@ -125,6 +129,7 @@ static void	release(Value * v) {
 		break;
 	case V_STR:
 	case V_BYTES:
+	case V_PATH:
 		free(v->as.bytes.data);
 		break;
 	case V_RANGE:
@@ -224,6 +229,8 @@ static bool	value_equal(const Value * a, const Value * b){
 	switch (a->kind) {
 	case V_NAT:
 	case V_INT:
+	case V_DURATION:
+	case V_INSTANT:
 		return pn_big_compare(&a->as.integer, &b->as.integer) == 0;
     case V_RAT:
         return pn_big_compare(&a->as.rational.numerator, &b->as.rational.numerator) == 0 && pn_big_compare(&a->as.rational.denominator, &b->as.rational.denominator) == 0;
@@ -231,6 +238,7 @@ static bool	value_equal(const Value * a, const Value * b){
 		return decimal_compare(&a->as.decimal, &b->as.decimal) == 0;
 	case V_STR:
 	case V_BYTES:
+	case V_PATH:
 		return a->as.bytes.length == b->as.bytes.length && !memcmp(a->as.bytes.data, b->as.bytes.data, a->as.bytes.length);
 	case V_BOOL:
 		return a->as.boolean == b->as.boolean;
@@ -320,6 +328,15 @@ static bool	render_decimal(Buffer * b, const Decimal * d){
 static bool	render(Buffer * b, const Value * v, bool display){
 	char	       *number = NULL;
 	switch (v->kind) {
+    case V_PATH: return buffer_text(b, "<Path>");
+    case V_INSTANT: return buffer_text(b, "<Instant>");
+    case V_DURATION: {
+        char *text = pn_big_string(&v->as.integer);
+        if (!text) return false;
+        bool ok = buffer_text(b, text) && buffer_text(b, "ns");
+        free(text); return ok;
+    }
+
 	case V_NAT:
 	case V_INT:
 		number = pn_big_string(&v->as.integer);
@@ -563,6 +580,24 @@ typedef struct {
 	bool		pure;
 } Builtin;
 static const	Builtin BUILTINS[] = {
+    {"path_from_text", 1, true},
+    {"path_from_native", 1, true},
+    {"path_to_text", 1, true},
+    {"path_native_bytes", 1, true},
+    {"path_display", 1, true},
+    {"path_absolute", 1, true},
+    {"path_append", 2, true},
+    {"path_directory", 1, true},
+    {"path_filename", 1, true},
+    {"path_current", 0, true},
+    {"duration_nanoseconds", 1, true},
+    {"duration_ticks", 1, true},
+    {"duration_from_seconds", 1, true},
+    {"instant_now", 0, false},
+    {"instant_add", 2, true},
+    {"instant_difference", 2, true},
+    {"instant_before", 2, true},
+
     {"$unit", 0, true}, {"nat", 1, true}, {"dec", 1, true}, {"quotient", 2, true},
 	{"print", 1, false}, {"read_line", 0, false}, {"read_file", 1, false}, {"write_file", 2, false},
 	{"len", 1, true}, {"append", 2, true}, {"concat", 2, true}, {"slice", 3, true},
@@ -1435,7 +1470,11 @@ static const char *environment_value(VM * vm, const char *name){
 	REQUIRE(!memchr((value)->as.bytes.data, 0, (value)->as.bytes.length), \
 	        "VM trap: path contains NUL byte"); \
 } while(0)
+static Value * named_value(ValueKind kind, const char *name, char **names, Value **values, size_t count);
+#include "host_types.h"
+
 static Value * builtin_call(VM * vm, const char *name, Value * *a){
+    if (host_type_builtin(name)) return host_type_call(vm, name, a);
     if (!strcmp(name, "$unit")) return value_new(V_UNIT);
     if (!strcmp(name, "quotient")) {
         REQUIRE(a[0]->kind == V_NAT && a[1]->kind == V_NAT, "VM trap: quotient requires Nat operands");

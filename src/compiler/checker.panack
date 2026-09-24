@@ -304,7 +304,7 @@ pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bo
     } else {
       shape: TypeShape = type_shape(name)
       mut expected: Nat = 0
-      mut known: Bool = is_scalar_base(shape.base) || shape.base == "Bytes"
+      mut known: Bool = is_scalar_base(shape.base) || (shape.base == "Bytes" || shape.base == "Path" || shape.base == "Duration" || shape.base == "Instant")
       if shape.base == "Array" || shape.base == "Set" {
         known = true
         expected = 1
@@ -572,6 +572,18 @@ pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
+  if name == "path_from_text" || name == "path_from_native" || name == "path_append" { "Result[Path,PathError]" } else {
+  if name == "path_to_text" { "Result[Str,PathError]" } else {
+  if name == "path_native_bytes" { "Bytes" } else {
+  if name == "path_display" { "Str" } else {
+  if name == "path_absolute" || name == "instant_before" { "Bool" } else {
+  if name == "path_directory" || name == "path_current" { "Path" } else {
+  if name == "path_filename" { "Option[Path]" } else {
+  if name == "duration_nanoseconds" || name == "instant_difference" { "Duration" } else {
+  if name == "duration_ticks" { "Int" } else {
+  if name == "duration_from_seconds" { "Result[Duration,DurationError]" } else {
+  if name == "instant_now" { "Result[Instant,ClockError]" } else {
+  if name == "instant_add" { "Instant" } else {
   if name == "$unit" { "Unit" } else { if name == "nat" || name == "quotient" { "Nat" } else { if name == "dec" { "Dec" } else {
   if name == "print" || name == "write_file" || name == "write_bytes" || name == "eprint" || name == "process_exit" || name == "run_bytecode" || name == "run_bytecode_args" { "Void" }
   else { if name == "read_line" || name == "read_file" || name == "slice" || name == "reverse" || name == "utf8_decode" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_join" || name == "path_suffix" || name == "path_with_suffix" { "Str" }
@@ -579,17 +591,31 @@ pure builtin_return(name: Str): Str {
   else { if name == "starts_with" || name == "starts_with_at" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "map_has" || name == "set_has" || name == "$method_has" || name == "environment_has" || name == "path_is_absolute" || name == "file_exists" { "Bool" }
   else { if name == "command_args" { "[Str]" }
   else { if name == "bytes" || name == "byte_append" || name == "bytes_concat" || name == "utf8_encode" || name == "read_bytes" { "Bytes" } else { "Unknown" } } } } } }
-} } } }
+} } }
+} } } } } } } } } } } } }
 
 pure builtin_arity(name: Str): Nat {
+  if name == "path_from_text" || name == "path_from_native" || name == "path_to_text" || name == "path_native_bytes" || name == "path_display" || name == "path_absolute" || name == "path_directory" || name == "path_filename" || name == "duration_nanoseconds" || name == "duration_ticks" || name == "duration_from_seconds" { 1 } else {
+  if name == "path_append" || name == "instant_add" || name == "instant_difference" || name == "instant_before" { 2 } else {
+  if name == "path_current" || name == "instant_now" { 0 } else {
   if name == "$unit" { 0 } else { if name == "nat" || name == "dec" { 1 } else { if name == "quotient" { 2 } else {
   if name == "read_line" || name == "map" || name == "set" || name == "bytes" || name == "command_args" { 0 }
   else { if name == "print" || name == "read_file" || name == "len" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "byte_len" || name == "utf8_encode" || name == "utf8_decode" || name == "read_bytes" || name == "nat_from_str" || name == "environment_has" || name == "environment_get" || name == "eprint" || name == "process_exit" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" || name == "run_bytecode" { 1 }
   else { if name == "write_file" || name == "append" || name == "concat" || name == "starts_with" || name == "map_has" || name == "map_get" || name == "$method_has" || name == "$method_get" || name == "$method_add" || name == "$method_map" || name == "set_add" || name == "set_has" || name == "byte_append" || name == "bytes_concat" || name == "byte_get" || name == "write_bytes" || name == "path_join" || name == "path_with_suffix" || name == "run_bytecode_args" { 2 }
   else { 3 } } }
+} } }
 } } } }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "path_from_text" { "Str" } else {
+  if name == "path_from_native" { "Bytes" } else {
+  if name == "path_to_text" || name == "path_native_bytes" || name == "path_display" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_filename" { "Path" } else {
+  if name == "path_current" || name == "instant_now" { "Any" } else {
+  if name == "duration_nanoseconds" { "Int" } else {
+  if name == "duration_ticks" { "Duration" } else {
+  if name == "duration_from_seconds" { "Rat" } else {
+  if name == "instant_add" { if index == 0 { "Instant" } else { "Duration" } } else {
+  if name == "instant_difference" || name == "instant_before" { "Instant" } else {
   if name == "nat" || name == "dec" { "Rat" } else { if name == "quotient" { "Nat" } else {
   if name == "read_file" || name == "read_bytes" || name == "nat_from_str" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "utf8_encode" || name == "environment_has" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" { "Str" }
   else { if name == "write_file" { "Str" }
@@ -604,7 +630,8 @@ pure builtin_parameter(name: Str, index: Nat): Str {
   else { if name == "process_exit" { "Nat" }
   else { if name == "run_bytecode" || name == "run_bytecode_args" { if index == 0 { "Bytes" } else { "[Str]" } }
   else { "Any" } } } } } } } } } } } }
-} } }
+} }
+} } } } } } } } } }
 
 pure method_operation(name: Str): Str {
   mut result: Str = name
@@ -1163,13 +1190,13 @@ pure check_program_types(program: Program): [Diagnostic] {
         },
         RecordDeclaration(name, parameters, fields) => {
           parameter_names: Set[Str] = set(); mut seen_parameters: Set[Str] = parameter_names
-          for parameter in parameters { if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in record ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
+          for parameter in parameters { if parameter == "Path" || parameter == "Duration" || parameter == "Instant" { diagnostics = append(diagnostics, checker_diagnostic("type parameter conflicts with an opaque type name")); }; if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in record ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
           field_names: Set[Str] = set(); mut seen_fields: Set[Str] = field_names
           for field in fields { if set_has(seen_fields, field.name) { field_name: Str = field.name; diagnostics = append(diagnostics, checker_diagnostic("duplicate field ${field_name} in record ${name}")); } else {}; seen_fields = set_add(seen_fields, field.name); diagnostics = concat(diagnostics, require_type(program, field.type_name, parameters, false)); }
         },
         EnumDeclaration(name, parameters, variants) => {
           parameter_names: Set[Str] = set(); mut seen_parameters: Set[Str] = parameter_names
-          for parameter in parameters { if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in enum ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
+          for parameter in parameters { if parameter == "Path" || parameter == "Duration" || parameter == "Instant" { diagnostics = append(diagnostics, checker_diagnostic("type parameter conflicts with an opaque type name")); }; if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in enum ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
           if len(variants) == 0 { diagnostics = append(diagnostics, checker_diagnostic("enum ${name} must contain at least one variant")); } else {}
           for variant in variants { for payload in variant.payload { diagnostics = concat(diagnostics, require_type(program, payload, parameters, false)); } }
         },
@@ -1178,7 +1205,7 @@ pure check_program_types(program: Program): [Diagnostic] {
           for parameter in type_parameters {
             if seen_type_parameters.has(parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in function ${name}")); }
             seen_type_parameters = seen_type_parameters.add(parameter)
-            if is_scalar_base(parameter) || parameter == "Void" || parameter == "Bytes" || parameter == "Array" || parameter == "Map" || parameter == "Set" || parameter == "Fn" || parameter == "PureFn" || parameter == "Any" || parameter == "Unknown" || parameter == "Range" || parameter == "Iterator" || record_type(program, parameter).found || enum_type(program, parameter).found || guarded_type(program, parameter).found {
+            if is_scalar_base(parameter) || parameter == "Void" || parameter == "Bytes" || parameter == "Path" || parameter == "Duration" || parameter == "Instant" || parameter == "Array" || parameter == "Map" || parameter == "Set" || parameter == "Fn" || parameter == "PureFn" || parameter == "Any" || parameter == "Unknown" || parameter == "Range" || parameter == "Iterator" || record_type(program, parameter).found || enum_type(program, parameter).found || guarded_type(program, parameter).found {
               diagnostics = append(diagnostics, checker_diagnostic("type parameter ${parameter} conflicts with a type name"))
             }
           }

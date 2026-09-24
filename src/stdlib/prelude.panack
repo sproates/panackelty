@@ -5,3 +5,5 @@ import "text.panack"
 import "bytes.panack"
 import "path.panack"
 import "environment.panack"
+
+import "time.panack"

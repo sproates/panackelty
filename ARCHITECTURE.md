@@ -482,3 +482,15 @@ Conversions and natural quotient division are pure runtime services. The native
 VM owns arbitrary-precision numerator/denominator storage; the transitional
 Python VM uses `Fraction`. Bytecode 8 rejects earlier artifacts because `/`
 changed semantics. The compiler itself now uses explicit `quotient` calls.
+
+## Opaque paths and time
+
+The checker recognizes `Path`, `Duration`, and `Instant` as opaque types.
+`src/stdlib/path.panack` owns path error declarations; `src/stdlib/time.panack`
+owns clock/duration errors and portable duration arithmetic. The native VM
+implements checked construction, lexical path operations, exact tick storage,
+and clock reads in `src/vm/host_types.h`, included by `native.c`. The transitional
+Python VM uses distinct opaque payload objects and the same contracts.
+Only `instant_now` crosses the host boundary. Both verifiers enforce its effect
+and builtin arity; runtime tags prevent forged records from acting as opaque
+values. No constant tags or instructions are added to bytecode version 8.

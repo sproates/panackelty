@@ -82,3 +82,8 @@ Both frontends infer `Rat` from integer division and `Unit` from `()`. Empty
 parentheses lower to the pure internal `$unit` call, so no new AST variant or
 constant tag is needed. Rational conversions use ordinary receiver-first calls.
 Compiler byte packing uses `quotient` explicitly under bytecode 8.
+
+The checker reserves opaque `Path`, `Duration`, and `Instant` types and checks
+their builtin signatures. The purity checker rejects `instant_now` inside pure
+functions. These operations lower to ordinary verified calls; they do not add
+bytecode constants or expose record constructors.

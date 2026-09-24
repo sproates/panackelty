@@ -66,3 +66,14 @@ The seed VM is portable C11 and uses only the C standard library plus the small
 operating-system adaptation in the host-service implementation. No compiler,
 Python runtime, third-party numeric library, or platform-specific value layout
 is part of the native executable.
+
+## Opaque host-domain values
+
+`V_PATH` owns length-delimited native bytes, with a trailing C NUL outside the
+length. Its constructors reject empty data and interior NULs. `V_DURATION` and
+`V_INSTANT` own arbitrary-precision signed integers, measured in nanoseconds.
+Distinct tags enforce opacity; record or variant construction cannot create
+these values. Existing reference counting releases their byte/integer storage.
+Equality compares values within the same tag. Only explicit path conversion
+exposes bytes; instants have no tick accessor and render as `<Instant>`.
+These tags are runtime-only and are never accepted as serialized constants.

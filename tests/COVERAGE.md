@@ -189,3 +189,21 @@ failure cases exercise both paths. Forged runtime fixtures check operand types
 and rational remainder rejection. Codec tests check canonical, deterministic
 serialization and round trips; version-8 vectors preserve legacy rejection.
 Rounded decimal conversion and Rat/Unit guarded-type bases remain unsupported.
+
+## Path, Duration, and Instant evidence
+
+`unit/compiler/test_host_types.py` compares both frontends for opaque value
+use, generic storage, forbidden constructors/fields, wrong arguments, reserved
+names, and pure-clock rejection. `unit/vm/test_host_types.py` exercises native
+path spellings, structured clock failure in the oracle, and verifier purity.
+The shared forged-runtime corpus rejects wrong operand tags and records forged
+under opaque type names in both VMs.
+
+`functional/cases/host_types` covers empty/NUL paths, non-UTF-8 bytes, checked
+text conversion, lexical append and parent operations, exact equality, signed
+and very large durations, fractional nanosecond rejection, zero division,
+monotonic reads, and deadline arithmetic through source and compiled public-CLI
+execution and native/oracle conformance. The prelude and fixed-point bootstrap
+gates include the new module. Native clock failure injection, system suspension,
+non-POSIX hosts, typed filesystem I/O, and timeout APIs remain uncovered or
+unimplemented; a nanosecond representation is not a clock-accuracy claim.

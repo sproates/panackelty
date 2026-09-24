@@ -190,7 +190,8 @@ the JSON data support initiative below, and host types with the automation and
 host capabilities initiative.
 
 Generic source functions, a first-class success value, and exact rational
-arithmetic are implemented. Typed host APIs are the next priority.
+arithmetic are implemented. Opaque paths, exact durations, and monotonic instants
+are now implemented. Typed filesystem and process APIs are the next priority.
 
 - [x] Specify and implement generic source functions and explicit type arguments,
       including inference, ambiguity diagnostics, and purity preservation, so
@@ -206,13 +207,16 @@ from expected return types remain deferred.
 - [x] Implement first-class singleton `Unit`, written `()`, including generic
       success payloads, collections, and callbacks; keep return-only `Void`
       distinct and lower Unit construction through a pure bytecode-8 builtin
-- [ ] Design a standard-library `Path` type that distinguishes paths from text;
-      specify checked construction, lexical operations, platform representation,
-      and explicit filesystem queries without implying that a path exists or is
-      safe merely because it has this type
-- [ ] Design `Duration` and monotonic `Instant` types alongside host clock APIs;
-      specify units, precision, arithmetic, timeout validation, and which clock
-      readings can be compared, keeping wall-clock timestamps separate
+- [x] Implement opaque `Path` with checked text/native-byte construction, lexical
+      operations, checked UTF-8 conversion, and escaped display on supported POSIX
+      hosts, without implying existence or safe containment
+- [x] Implement exact signed nanosecond `Duration` and opaque monotonic `Instant`,
+      pure arithmetic, checked fractional conversion, and effectful clock reads
+- [ ] Add typed filesystem queries and I/O accepting `Path`, returning structured
+      errors; preserve arbitrary native filenames through enumeration and access
+- [ ] Add sleep and timeout APIs with negative-duration and host-range validation;
+      evaluate a portable system-suspension policy before promising deadline
+      behavior across suspended hosts
 - [ ] Design structured filesystem and process errors returned through `Result`,
       retaining useful operation and failure details; distinguish a process's
       nonzero exit status from failure to launch it

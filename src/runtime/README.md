@@ -30,3 +30,7 @@ implementation is the native VM.
 
 Pure rational conversion services `nat` and `dec`, the natural `quotient`
 operation, and internal `$unit` construction are specified in [ABI.md](ABI.md).
+
+The monotonic clock service returns an opaque `Instant` or structured
+`ClockUnavailable` error. Reading it is effectful; arithmetic on existing
+instants and durations and all typed lexical path operations remain pure.

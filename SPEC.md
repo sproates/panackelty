@@ -75,6 +75,110 @@ arrays, maps, sets, and callbacks. For example, `Result[Unit,Str]` can contain
 A function returning `Unit` must explicitly produce a Unit value; an empty body
 still produces `Void`. Neither `Rat` nor `Unit` is currently a guarded-type base.
 
+## Paths and monotonic time
+
+`Path`, `Duration`, and `Instant` are opaque, immutable, non-generic value types.
+They have no source constructors, public fields, numeric casts, or bytecode
+constant tags. The names cannot be redeclared. Values can be stored in records,
+arrays, and generic types, passed to callbacks, and compared with `==`/`!=`.
+They are not scalar Map keys or Set elements. Arithmetic and ordering use the
+named functions below; infix arithmetic and ordering are not overloaded.
+
+### Native paths
+
+Import `stdlib/path` for `PathError`, `Result`, and `Option`. The initial native
+representation is POSIX bytes on the supported Linux and macOS targets. Text
+construction encodes UTF-8; native construction preserves arbitrary bytes.
+Both reject empty input (`EmptyPath`) and embedded NUL (`PathContainsNul`).
+Neither construction nor any lexical operation below accesses the filesystem.
+A `Path` does not establish existence, access permissions, canonical identity,
+or containment within a directory.
+
+| Function | Result and behavior |
+| --- | --- |
+| `path_from_text(Str)` | `Result[Path,PathError]`; checked UTF-8 construction |
+| `path_from_native(Bytes)` | `Result[Path,PathError]`; checked native-byte construction |
+| `path_current()` | `Path` containing `.`; does not capture the working directory |
+| `path_native_bytes(Path)` | Exact native `Bytes` |
+| `path_to_text(Path)` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
+| `path_display(Path)` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
+| `path_absolute(Path)` | `Bool`; whether the first byte is `/` |
+| `path_append(Path, Path)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
+| `path_directory(Path)` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
+| `path_filename(Path)` | `Option[Path]`; last nonempty component, or `None` for a root |
+
+Appending inserts `/` only when the left operand does not already end with it.
+No operation collapses `.` or `..`, resolves symbolic links, changes case, or
+silently makes a relative path absolute. Parent and filename extraction ignore
+trailing separators and retain leading root separators (including `//`). Dot
+components remain literal components. Equality compares native bytes exactly:
+`a` and `./a` are unequal even when they refer to the same file. Display is for
+humans, not a serialization or shell-escaping format; printing an unconverted
+Path produces `<Path>`.
+
+The existing Str-based `path_parent`, `path_join`, `path_suffix`,
+`path_with_suffix`, `path_is_absolute`, `path_resolve`, and `file_exists` retain
+their bootstrap-compatible contracts. In particular, the old `path_join`
+normalizes its result; the typed `path_append` never does. Typed filesystem
+queries and I/O, structured filesystem errors, and non-POSIX representations
+remain follow-up work.
+
+### Exact durations
+
+Import `stdlib/time`. A `Duration` stores a signed arbitrary-precision integer
+number of nanoseconds. Negative durations are valid, including differences
+between an expired deadline and the current instant. Future timeout and sleep
+APIs must validate nonnegative values and host limits at their boundaries;
+there is no sleep or timeout API in this initial implementation.
+
+| Function | Result and behavior |
+| --- | --- |
+| `duration_nanoseconds(Int)` | Exact `Duration` |
+| `duration_milliseconds(Int)` / `duration_seconds(Int)` | Exact scaled `Duration` |
+| `duration_ticks(Duration)` | Signed `Int` nanoseconds |
+| `duration_from_seconds(Rat)` | `Result[Duration,DurationError]`; rejects fractional nanoseconds |
+| `duration_as_seconds(Duration)` | Exact `Rat`, without rounding |
+| `duration_add(Duration, Duration)` / `duration_subtract(Duration, Duration)` | Exact `Duration` |
+| `duration_scale(Duration, Int)` | Exact `Duration` |
+| `duration_divide(Duration, Int)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
+| `duration_ratio(Duration, Duration)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
+| `duration_before(Duration, Duration)` | `Bool`; signed less-than comparison |
+
+`DurationError` is `FractionalNanosecond` or `ZeroDurationDivisor`.
+Construction from seconds accepts an explicitly rational expression such as
+`3/2`; decimals do not implicitly convert to rationals. The type has no fixed
+integer overflow boundary, subject to available memory. Printing a duration
+produces its signed nanosecond count followed by `ns`. Nanosecond representation
+does not promise nanosecond clock resolution or accuracy. Rounded conversions
+are not provided; use exact rational seconds or explicitly calculate integer
+nanoseconds.
+
+### Monotonic instants
+
+`instant_now(): Result[Instant,ClockError]` reads the host's `CLOCK_MONOTONIC`.
+It is effectful, including when used through other functions. Host read failure
+returns `Error(ClockUnavailable())`. All other operations here are pure:
+
+| Function | Result and behavior |
+| --- | --- |
+| `instant_add(Instant, Duration)` | A shifted `Instant`, including for negative durations |
+| `instant_difference(Instant, Instant)` | Signed `Duration`: first operand minus second |
+| `instant_before(Instant, Instant)` | `Bool`; strict less-than comparison |
+
+All instants obtainable within one program execution share one monotonic clock
+domain. Repeated reads may be equal; later reads do not precede earlier reads.
+Clock readings are independent of calendar-clock corrections. Whether time
+spent in system suspension is counted follows the host's monotonic-clock
+contract and is not a portable guarantee. Deadlines shifted before the clock's
+origin remain valid arithmetic values; they do not change that origin.
+
+There is no public epoch, tick accessor, wall-clock conversion, integer
+constructor, serialization, or cross-execution comparison. Printing an instant
+produces `<Instant>`. The bytecode container remains version 8: new calls use
+existing verified `CALL` instructions, and older VMs reject unknown calls.
+Runtime operand checks reject forged records and wrong types even when bytecode
+bypasses source checking.
+
 ## Declarations, functions, and `Void`
 
 A function declaration starts with its name. There is no `fn` keyword. An
@@ -326,7 +430,7 @@ ask(): Str { read_line() }
 ```
 
 The effect is part of the checked function signature. A pure function may call
-only pure functions and cannot invoke terminal or file I/O built-ins.
+only pure functions and cannot invoke terminal I/O, file I/O, or clock-reading built-ins.
 Arguments are values, so a pure function may receive text previously read by an
 effectful caller and compute with it; it cannot itself perform or conceal I/O.
 

@@ -40,7 +40,11 @@ and zero status for source execution, compilation, and saved-bytecode execution.
 It reports failures through its process status and removes each artifact before
 requiring an empty workspace. `functional/cases/runner_smoke` checks its exact
 success report through the public CLI; `unit/compiler/test_panackelty_runner.py`
-injects wrong expected output and checks both source and bytecode failures.
+injects wrong expected output and checks both source and bytecode failures. Its
+`--test-cleanup-failure <parent>` mode leaves a sentinel in a uniquely created
+workspace, verifies that empty-directory removal fails, reports a nonzero exit,
+then removes the sentinel and workspace. The focused test requires the supplied
+parent directory to be empty afterward.
 No Python assertion has been retired. Other cases, source.path, invalid inputs,
 and environment isolation remain owned by the old harness.
 
@@ -86,8 +90,8 @@ specific case can migrate:
 1. Establish a Panackelty runner on a representative fixed fixture subset.
    Run old and new paths together; compare the per-case observation matrix,
    including deliberate failures and cleanup errors. The selected subset and
-   output-mismatch failure are now covered; cleanup-error parity still needs
-   an injected failure before the runner expands.
+   output-mismatch and injected nonempty-workspace failures are now covered;
+   broader host-error injection still belongs to the full-corpus migration.
 2. Port the full functional corpus and orchestration, resolving the contracts
    above. Retire a Python assertion only with equivalent new evidence in
    `tests/COVERAGE.md` and a green `make check` on both supported platforms.

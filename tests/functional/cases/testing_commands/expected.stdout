@@ -1,0 +1,7 @@
+PASS nonzero exit and streams
+PASS missing executable
+PASS output bound
+FAIL host error is a failure: command failed: launch_failed
+FAIL unexpected completion: expected host error timeout, command completed
+tests: 5, failures: 2
+returned 2

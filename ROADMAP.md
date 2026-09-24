@@ -790,13 +790,13 @@ prerequisite so programs can use these APIs without knowing repository paths.
       traversal, resource limits, and monotonic timing; the initial suite covers
       streams, isolation, temporary cleanup, bounds, and failure categories;
       exhaustive injected host failures and traversal coverage remain pending
-- [ ] Build a small Panackelty testing library with assertions, structured test
+- [x] Build a small Panackelty testing library with assertions, structured test
       results, fixture discovery, temporary isolation, command assertions, and
-      deterministic reporting as the foundation for Python removal; pure
-      Boolean/Str/Nat assertions, structured outcomes, and caller-ordered
-      reporting are implemented, along with sorted immediate fixture-directory
-      discovery and explicitly owned temporary workspaces; command assertions
-      and migration of the harness remain
+      deterministic reporting as the foundation for Python removal; the three
+      explicitly imported modules now cover pure assertions and ordered reports,
+      sorted immediate fixture directories and explicitly owned workspaces,
+      plus bounded byte-exact command assertions and expected host errors.
+      Migration of the Python oracle and harness is a separate initiative below
 
 ## Eliminate Python from the repository — planned after host capabilities
 

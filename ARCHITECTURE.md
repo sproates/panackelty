@@ -508,11 +508,15 @@ The existing string-based file ABI remains necessary for the compiler bootstrap.
 `stdlib/testing` is an explicitly imported Panackelty source module. Pure
 assertions construct structured outcomes; effectful reporting prints them in
 caller order. It adds no VM primitive or bytecode format change. Process checks
-are a later layer over the existing host APIs.
+use the existing host APIs without introducing a second execution engine.
 `stdlib/testing_files` now uses the existing typed filesystem boundary for
 sorted immediate directory discovery and atomic temporary workspace creation.
 Callers explicitly remove workspace contents before releasing the empty
 directory; no new VM primitive or recursive removal operation is introduced.
+`stdlib/testing_commands` routes through the existing typed `process_run`
+boundary. Pure result comparators preserve byte-exact output and the
+completed-process/host-error distinction; effectful wrappers return ordinary
+`TestResult` values for deterministic reporting. It adds no new host ABI.
 
 ## Native VM module boundaries
 

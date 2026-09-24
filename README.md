@@ -471,6 +471,8 @@ The separately imported `stdlib/testing` module provides pure assertions and
 ordered result reporting for Panackelty test programs.
 `stdlib/testing_files` adds sorted fixture-directory discovery and explicitly
 owned temporary workspaces for test isolation.
+`stdlib/testing_commands` compares bounded child-process results and expected
+host failures without requiring a shell or decoding binary output.
 
 ## Explore further
 

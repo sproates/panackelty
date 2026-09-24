@@ -43,6 +43,10 @@ it after the unchanged Python harness. It discovers and selects `callables`,
 and zero status for source execution, compilation, and saved-bytecode execution.
 It also discovers all twenty example sources and expected outputs, rejects
 missing or stale pairs, and checks each program through the same three paths.
+All forty-one failure fixtures also run through `check` and `compile`, requiring
+exit status one, empty stdout, exact normalized stderr, and no bytecode artifact
+after failed compilation. The runner resolves each case directory to a physical
+path for `<case>` normalization, including checkouts with spaces and symlinks.
 The compiler fixture uses `source.path`; its target is physically resolved within
 the checkout before execution, including checks against symlink escapes. When
 the bootstrap recipe supplies `PANACK_TEST_COMPILER`, the runner copies that
@@ -56,12 +60,12 @@ injects wrong expected output and checks both source and bytecode failures. Its
 workspace, verifies that empty-directory removal fails, reports a nonzero exit,
 then removes the sentinel and workspace. The focused test requires the supplied
 parent directory to be empty afterward.
-No Python assertion has been retired. Failure cases, invalid inputs,
+No Python assertion has been retired. Other invalid inputs,
 and other environment-sensitive assertions remain owned by the old harness.
 
-The Panackelty runner discovers immediate case directories and example files in
-sorted native-byte order. A case keeps the existing `main.panack` *or* `source.path`
-and its expected output; examples and failures retain their current fixture
+The Panackelty runner discovers immediate case and failure directories and
+example files in sorted native-byte order. A success case keeps the existing
+`main.panack` *or* `source.path` and its expected output; examples and failures retain their current fixture
 layout. It checks source and compiled-bytecode execution separately, compares
 raw byte streams and exit status, checks empty stderr on success, and reports
 case names in a deterministic order. Invalid source must fail the intended
@@ -90,9 +94,9 @@ specific case can migrate:
 - The Python harness parallelizes independent programs (up to four workers).
   Preserve the functional and full-check time budgets without skipping cases;
   measure a sequential candidate and add safe parallel orchestration if needed.
-- Failure fixtures normalize checkout-dependent diagnostic paths. Preserve
-  exact expected diagnostics and the path-with-spaces tests without relying on
-  an accidental checkout location.
+- Failure fixtures now normalize checkout-dependent diagnostic paths and have
+  a focused path-with-spaces regression. Preserve that exact comparison as new
+  negative cases are added.
 - Some tests construct malformed bytecode and source probes dynamically. Move
   those to shared declarative fixtures or independently validated generators
   before retiring their Python builders.

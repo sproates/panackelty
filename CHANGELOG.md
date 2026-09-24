@@ -4,15 +4,30 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
-## Unreleased
+## 0.1.0-alpha.4 — 2026-09-24
+
+### Highlights
 
 - Generic source functions with abstract body checking, inference from all value
   arguments, explicit complete type arguments, receiver-first calls, recursion,
   and purity preservation. Type arguments erase into ordinary version-7 calls.
 - Portable `option_value_or[T]`, `result_value_or[T,E]`, and `array_first[T]`
   standard-library helpers, with a runnable generic-functions example.
-- Constraints, generic function references, and return-context inference remain
-  deferred. Published alpha.3 archives do not include these additions.
+- A VM execution guide with actual instruction listings, recorded execution
+  traces, and tested arithmetic, branch/call, and loop examples.
+
+### Compatibility
+
+- Bytecode remains version 7. Generic calls erase type arguments and retain one
+  ordinary function body; the native VM instruction set is unchanged.
+- Constraints, generic function references, partial type arguments, and
+  return-context inference remain deferred. Generic callbacks require a
+  non-generic wrapper.
+- The standard library exports three new helper names. Imports still share a
+  program-wide namespace, so programs declaring the same names must rename
+  them or narrow their imports.
+- This remains an experimental preview for Linux x86-64 and macOS arm64 under
+  the existing release policy.
 
 ## 0.1.0-alpha.3 — 2026-09-15
 

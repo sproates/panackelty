@@ -820,7 +820,7 @@ installed.
       coverage without losing focused assertions or important failure cases
 - [ ] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks eighteen existing fixtures in parallel with the
+      Panackelty runner now checks nineteen existing fixtures in parallel with the
       Python harness; nonempty-workspace cleanup failure and recovery are now
       tested. Next extend toward the full corpus, preserving host-error parity
 - [ ] Replace differential reliance on the Python compiler and VM with portable
@@ -845,7 +845,7 @@ installed.
 Current environment follow-up: the September 2026 testing-library branch
 reported a 21-second unit phase against its 15-second warning threshold, also
 observed on the unmodified checkout in this environment. With the expanded
-fixture runner, a clean check observed 32 seconds for units and 79 seconds
+fixture runner, clean checks observed 32–36 seconds for units and 79–84 seconds
 overall. Profile the unit phase here and address its dominant cost without
 reducing coverage; the full check remains within its 120-second budget.
 

@@ -28,12 +28,22 @@ pure runner_selected(name: Str): Bool {
     name == "rational_unit" || name == "records_and_enums" ||
     name == "semicolonless" || name == "string_boundaries" ||
     name == "testing_commands" || name == "testing_fixtures" ||
-    name == "testing_library" || name == "vm_numeric_boundaries"
+    name == "testing_library" || name == "stdlib" ||
+    name == "vm_numeric_boundaries"
 }
 
-pure runner_command(arguments: [Str]): TestCommand {
-  TestCommand(runner_path("./panack"), arguments, bytes(), path_current(), [],
-    duration_seconds(20), 1048576)
+pure runner_command(arguments: [Str], clear_stdlib_value: Bool): TestCommand {
+  // process_run can override inherited variables, but cannot remove them.
+  // The stdlib fixture expects this variable to be absent, as in the Python harness.
+  if clear_stdlib_value {
+    TestCommand(runner_path("/bin/sh"),
+      ["-c", "unset PANACKELTY_STDLIB_VALUE; exec \"$@\"", "runner-stdlib",
+        "./panack"].concat(arguments), bytes(), path_current(), [],
+      duration_seconds(20), 1048576)
+  } else {
+    TestCommand(runner_path("./panack"), arguments, bytes(), path_current(), [],
+      duration_seconds(20), 1048576)
+  }
 }
 
 runner_case(directory: Path, workspace: TestWorkspace): [TestResult] {
@@ -51,18 +61,18 @@ runner_case(directory: Path, workspace: TestWorkspace): [TestResult] {
     Ok(expected) => {
       mut results: [TestResult] = []
       source_result = test_run_command("case/${name}/source",
-        runner_command(["run", source_path]),
+        runner_command(["run", source_path], name == "stdlib"),
         ProcessOutput(0, 0, expected, bytes()))
       results = results.append(source_result)
 
       compile_result = test_run_command("case/${name}/compile",
-        runner_command(["compile", source_path, "-o", expected_path]),
+        runner_command(["compile", source_path, "-o", expected_path], name == "stdlib"),
         ProcessOutput(0, 0, utf8_encode("wrote ${expected_path}\n"), bytes()))
       results = results.append(compile_result)
       match compile_result.outcome {
         TestPassed() => {
           results = results.append(test_run_command("case/${name}/bytecode",
-            runner_command(["run", expected_path]),
+            runner_command(["run", expected_path], name == "stdlib"),
             ProcessOutput(0, 0, expected, bytes())))
         },
         TestFailed(reason) => {}
@@ -113,7 +123,7 @@ main(): Void {
             }
           }
         }
-        results = results.append(test_equal_nat("selected fixture count", found, 18))
+        results = results.append(test_equal_nat("selected fixture count", found, 19))
         sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
         if inject_cleanup_failure {
           match fs_write(sentinel, utf8_encode("deliberate cleanup obstacle")) {

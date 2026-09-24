@@ -37,7 +37,7 @@ The first parallel runner is `tests/runner/main.panack`. `make functional` runs
 it after the unchanged Python harness. It discovers and selects `callables`,
 `collections`, `compiler_lexer`, `hello_world`, `host_capabilities`, `host_process`,
 `host_types`, `local_inference`, `modules`, `optional_else`,
-`rational_unit`, `records_and_enums`, `semicolonless`, `string_boundaries`,
+`rational_unit`, `records_and_enums`, `semicolonless`, `stdlib`, `string_boundaries`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
 `vm_numeric_boundaries`, checking exact stdout, empty stderr,
 and zero status for source execution, compilation, and saved-bytecode execution.
@@ -50,7 +50,7 @@ workspace, verifies that empty-directory removal fails, reports a nonzero exit,
 then removes the sentinel and workspace. The focused test requires the supplied
 parent directory to be empty afterward.
 No Python assertion has been retired. Other cases, source.path, invalid inputs,
-and environment isolation remain owned by the old harness.
+and other environment-sensitive assertions remain owned by the old harness.
 
 The future Panackelty runner discovers immediate case directories in sorted
 native-byte order. A case keeps the existing `main.panack` *or* `source.path`
@@ -77,8 +77,10 @@ specific case can migrate:
   Preserve equivalent resolution/validation or keep those cases on the old
   runner until a safe mechanism is available.
 - The harness removes `PANACKELTY_STDLIB_VALUE` from inherited child environments.
-  `process_run` can override but not delete variables. Provide equivalent
-  isolation before replacing those cases; do not silently accept ambient state.
+  `process_run` can override but not delete variables. The new runner uses
+  `/bin/sh` to unset it for `stdlib` source, compile, and bytecode commands;
+  its smoke test injects an ambient value. Other environment-sensitive CLI
+  assertions still need equivalent isolation before retiring Python coverage.
 - The Python harness parallelizes independent programs (up to four workers).
   Preserve the functional and full-check time budgets without skipping cases;
   measure a sequential candidate and add safe parallel orchestration if needed.

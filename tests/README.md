@@ -3,9 +3,9 @@
 [Python-free test architecture and migration inventory](PYTHON_MIGRATION.md)
 maps each existing test area to its replacement and records the parity gates.
 It is a plan; the Python harness below remains active until those gates pass.
-The Panackelty-hosted fixture runner (`runner/main.panack`) checks twenty
-success cases, twenty examples, and forty-one expected failures alongside the Python harness during
-`make functional`.
+The Panackelty-hosted fixture runner (`runner/main.panack`) checks twenty-one
+success cases, twenty examples, and forty-one expected failures alongside the
+Python harness during `make functional`.
 
 Panackelty has five validation paths:
 

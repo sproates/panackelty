@@ -35,7 +35,7 @@ backlog items, not implicit losses.
 
 The first parallel runner is `tests/runner/main.panack`. `make functional` runs
 it after the unchanged Python harness. It discovers and selects `callables`,
-`collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
+`cli_check_disasm`, `collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
 `host_types`, `local_inference`, `modules`, `optional_else`,
 `rational_unit`, `records_and_enums`, `semicolonless`, `stdlib`, `string_boundaries`,
 `testing_commands`, `testing_fixtures`, `testing_library`, and
@@ -47,6 +47,8 @@ All forty-one failure fixtures also run through `check` and `compile`, requiring
 exit status one, empty stdout, exact normalized stderr, and no bytecode artifact
 after failed compilation. The runner resolves each case directory to a physical
 path for `<case>` normalization, including checkouts with spaces and symlinks.
+The `cli_check_disasm` case compares source and bytecode disassembly and checks
+malformed bytecode and legacy extension rejection through the public CLI.
 The compiler fixture uses `source.path`; its target is physically resolved within
 the checkout before execution, including checks against symlink escapes. When
 the bootstrap recipe supplies `PANACK_TEST_COMPILER`, the runner copies that

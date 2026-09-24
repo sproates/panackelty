@@ -20,6 +20,17 @@ CASES = (
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_cli_check_disasm_case_runs_through_public_runner(self):
+        completed = subprocess.run(
+            [str(ROOT / "panack"), "run", "tests/runner/main.panack",
+             "--case", "cli_check_disasm"], cwd=ROOT, capture_output=True,
+            timeout=30, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
+        self.assertIn(b"PASS case/cli_check_disasm/source", completed.stdout)
+        self.assertIn(b"PASS case/cli_check_disasm/bytecode", completed.stdout)
+        self.assertIn(b"tests: 4, failures: 0", completed.stdout)
+
     def test_failure_diagnostics_and_artifact_cleanup(self):
         with tempfile.TemporaryDirectory() as temporary:
             checkout = pathlib.Path(temporary) / "checkout with spaces (test)"

@@ -520,7 +520,7 @@ pure emit_expression(expression: Expr, program: Program, next_temporary: Nat, of
         EmittedCode(instructions, right_code.next_temporary)
       }
     },
-    CallExpr(name, arguments) => emit_call(name, arguments, program, next_temporary, offset),
+    CallExpr(name, arguments, type_arguments) => emit_call(name, arguments, program, next_temporary, offset),
     FieldExpr(target, field) => {
       emitted: EmittedCode = emit_expression(target, program, next_temporary, offset)
       instructions: [Instruction] = append(emitted.instructions, FieldGetInstruction(field))
@@ -567,7 +567,7 @@ pure compile_program(program: Program): BytecodeProgram {
   mut functions: [FunctionCode] = []
   for declaration in program.declarations {
     match declaration {
-      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
         emitted: EmittedCode = emit_block(body, program, 0, 0)
         instructions: [Instruction] = append(emitted.instructions, ReturnInstruction())
         functions = append(functions, FunctionCode(name, parameter_names(parameters), is_pure, instructions))

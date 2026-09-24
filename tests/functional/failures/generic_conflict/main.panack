@@ -1,0 +1,2 @@
+pure choose[T](a: T, b: T): T { a }
+main(): Void { choose(1, "text") }

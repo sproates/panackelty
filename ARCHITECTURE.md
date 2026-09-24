@@ -207,8 +207,12 @@ rejection before host APIs can silently truncate a path.
 The standard library under `src/stdlib` is an explicit module graph with a
 convenience `prelude.panack`. Canonical `Option` and `Result` are portable enum
 definitions; text, byte, and checked-environment helpers are Panackelty source.
-Collection polymorphism and lexical path transforms remain deterministic VM
-primitives until generic functions can express their signatures. Stage tests
+Generic source functions are checked with abstract type parameters. Calls infer
+or explicitly supply a complete substitution, then validate their arguments and
+result. Emission erases type arguments and retains one body per function, using
+the existing tagged values and version-7 calls. Collection storage and lexical
+path transforms remain deterministic VM primitives; array map/reduce retain
+compiler lowering. Generic library helpers build on those operations. Stage tests
 compile the complete prelude graph with both the bootstrap and self-hosted
 compilers and require byte-identical artifacts.
 

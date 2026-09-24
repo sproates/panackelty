@@ -1,0 +1,22 @@
+import stdlib/prelude
+
+pure identity[T](value: T): T { value }
+
+pure repeat[T](value: T, count: Nat): T {
+  if count >= 1 {
+    repeat[T](value, count - 1)
+  } else {
+    value
+  }
+}
+
+main(): Void {
+  print(identity(42))
+  print("hello".identity[Str]())
+  print(option_value_or(array_first([10, 20]), 0))
+  print(option_value_or(array_first[Str]([]), "empty"))
+  value: Result[Nat,Str] = Error("unavailable")
+  print(result_value_or(value, 99))
+  print(result_value_or[Nat,Str](Ok(5), 99))
+  print(repeat(true, 2))
+}

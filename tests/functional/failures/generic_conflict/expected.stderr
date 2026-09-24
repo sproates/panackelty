@@ -1,0 +1,12 @@
+error: <case>/main.panack:2:16: incompatible type arguments to choose
+  2 | main(): Void { choose(1, "text") }
+    |                ^
+<case>/main.panack:2:16: cannot infer type parameter T for choose; supply explicit type arguments
+  2 | main(): Void { choose(1, "text") }
+    |                ^
+<case>/main.panack:2:16: argument 1 to choose is Nat, expected Unknown
+  2 | main(): Void { choose(1, "text") }
+    |                ^
+<case>/main.panack:2:16: argument 2 to choose is Str, expected Unknown
+  2 | main(): Void { choose(1, "text") }
+    |                ^

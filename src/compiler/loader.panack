@@ -167,7 +167,7 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
                       TypeDeclaration(name, base, guard) => {},
                       RecordDeclaration(name, parameters, fields) => {},
                       EnumDeclaration(name, parameters, variants) => {},
-                      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {}
+                      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {}
                     }
                   }
                   programs: [Program] = append(current.programs, program)

@@ -1,0 +1,3 @@
+effect[T](value: T): T { print(value); value }
+pure leak(): Nat { effect(1) }
+main(): Void {}

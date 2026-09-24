@@ -33,7 +33,7 @@ pure check_expression_purity(expression: Expr, program: Program, environment: Ma
       diagnostics = check_expression_purity(left, program, environment)
       diagnostics = concat(diagnostics, check_expression_purity(right, program, environment))
     },
-    CallExpr(name, arguments) => {
+    CallExpr(name, arguments, type_arguments) => {
       mut impure: Bool = is_impure_builtin(name)
       function: FunctionLookup = function_type(program, name)
       if function.found && !function.is_pure {
@@ -46,7 +46,7 @@ pure check_expression_purity(expression: Expr, program: Program, environment: Ma
           LocatedExpr(position, value) => {},
           NameExpr(callable_name) => { if map_has(environment, callable_name) { impure = type_shape(map_get(environment, callable_name).name).base != "PureFn"; } else {} },
           FunctionExpr(callable_name) => { callable: FunctionLookup = function_type(program, callable_name); impure = !callable.found || !callable.is_pure; },
-          NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, BinaryExpr(operator, left, right) => {}, CallExpr(other_name, other_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+          NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, BinaryExpr(operator, left, right) => {}, CallExpr(other_name, other_arguments, other_type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
         }
       } else {}
       if impure {
@@ -159,7 +159,7 @@ pure check_program_purity(program: Program): [Diagnostic] {
       TypeDeclaration(name, base, guard) => {
         diagnostics = concat(diagnostics, check_expression_purity(guard, program, map()))
       },
-      FunctionDeclaration(name, parameters, return_type, is_pure, body) => {
+      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
         if is_pure {
           mut environment: Map[Str,TypeInfo] = map()
           for parameter in parameters { environment = map_put(environment, parameter.name, plain_type(parameter.type_name)); }

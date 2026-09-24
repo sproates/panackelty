@@ -106,9 +106,25 @@ Status meanings:
 | `check` and `disasm` commands | invalid source cases; `test_check_accepts_source_and_bytecode`; source/bytecode parity and malformed-artifact disassembly tests | **Covered** for successful source and bytecode input, exact source diagnostics, equivalent disassembly, and malformed bytecode rejection. |
 | Default and explicit compile output | discovered-program compilation; `test_compile_default_output_and_bare_bytecode_path` | **Covered** for `-o`, the beside-source `.bc` default, and suppression of artifacts after invalid input. |
 
+## Generic source functions
+
+`unit/compiler/test_generic_functions.py` checks both frontends for inference,
+explicit type arguments, lexical type scope, nested and guarded types, empty
+collection evidence, argument-order independence, recursion, callable parameters,
+invalid declarations, conflicting evidence, unresolved types, unused invalid
+bodies, and purity. Parser round trips preserve type lists and indexing. Emitter
+checks compare both compilers' disassembly and require one erased function body.
+
+The `generic_functions` example exercises imported Option/Result/array helpers
+through source and bytecode execution, and the native VM suite compares it with
+the Python oracle. Functional failure fixtures cover ambiguous inference,
+conflicting types, explicit type arity, abstract arithmetic, purity, and generic
+main rejection. Bootstrap validation includes the generic standard-library
+helpers in its stage-2/stage-3 compiler and library identity checks.
+
 ## Deliberately postponed behavior
 
-Mutable collection elements, generic functions, explicit checked construction,
+Mutable collection elements, generic constraints and function references, explicit checked construction,
 traits, package management, bytecode compatibility guarantees, and concurrency
 remain deferred. Tests should be added when any of these become accepted
 language behavior.

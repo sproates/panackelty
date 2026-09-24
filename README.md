@@ -245,6 +245,27 @@ requires `mut`. Types stay fixed, shadowing is prohibited, and empty values such
 as `[]` need annotations when the initializer cannot determine their element
 type. Function signatures remain explicit. See the [binding rules](SPEC.md#declarations-functions-and-void).
 
+### Generic functions
+
+In the development checkout, functions can work with different types while
+retaining compile-time checks:
+
+```panackelty
+pure identity[T](value: T): T { value }
+
+main(): Void {
+  print(identity(42))
+  print(identity[Str]("hello"))
+}
+```
+
+Calls infer type arguments from their inputs, or accept an explicit complete
+list. Generic bodies are checked even when unused; unconstrained `T` does not
+permit arithmetic. See the [generic function rules](SPEC.md#generic-source-functions)
+and [runnable example](examples/generic_functions.panack) for library helpers,
+empty collections, and recursion. This feature is not in the published
+`0.1.0-alpha.3` archives.
+
 ### Exact decimal arithmetic
 
 Financial and measurement code should not inherit a rounding surprise merely

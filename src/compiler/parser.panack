@@ -11,7 +11,8 @@ enum Expr {
   ArrayExpr([Expr]),
   UnaryExpr(Str, Expr),
   BinaryExpr(Str, Expr, Expr),
-  CallExpr(Str, [Expr]),
+  // Callee, value arguments, and optional complete explicit type arguments.
+  CallExpr(Str, [Expr], [Str]),
   FieldExpr(Expr, Str),
   IndexExpr(Expr, Expr),
   IfExpr(Expr, Block, Block, Bool),
@@ -26,7 +27,7 @@ pure unlocated_expression(expression: Expr): Expr {
     NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {},
     NameExpr(name) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {}, BinaryExpr(operator, left, right) => {},
-    CallExpr(name, arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
+    CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
     IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
@@ -47,7 +48,8 @@ enum TopLevel {
   TypeDeclaration(Str, Str, Expr),
   RecordDeclaration(Str, [Str], [RecordField]),
   EnumDeclaration(Str, [Str], [EnumVariant]),
-  FunctionDeclaration(Str, [FunctionParameter], Str, Bool, Block)
+  // Name, value parameters, return type, purity, body, and scoped type parameters.
+  FunctionDeclaration(Str, [FunctionParameter], Str, Bool, Block, [Str])
 }
 
 record RecordField {
@@ -563,6 +565,38 @@ pure parse_if_expression(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnos
   }
 }
 
+pure parse_call_type_arguments(tokens: [Token], index: Nat): Result[ParsedTypeRefList,Diagnostic] {
+  mut closing: Nat = index
+  mut depth: Int = 0
+  mut scanning: Bool = index < len(tokens) && tokens[index].text == "["
+  while scanning && closing < len(tokens) {
+    if tokens[closing].text == "[" { depth = depth + 1; }
+    if tokens[closing].text == "]" { depth = depth - 1; if depth == 0 { scanning = false; } }
+    if scanning { closing = closing + 1; }
+  }
+  if closing > index && closing + 1 < len(tokens) && tokens[closing + 1].text == "(" {
+    parse_type_ref_list(tokens, index + 1)
+  } else {
+    Ok(ParsedTypeRefList([], index))
+  }
+}
+
+pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
+  match parse_call_type_arguments(tokens, index + 1) {
+    Error(error) => Error(error),
+    Ok(types) => {
+      if types.next < len(tokens) && tokens[types.next].text == "(" {
+        match parse_expression_list(tokens, types.next + 1, ")") {
+          Ok(arguments) => Ok(ParsedExpr(located_expression(tokens, index, CallExpr(tokens[index].text, arguments.values, types.values)), arguments.next)),
+          Error(error) => Error(error)
+        }
+      } else {
+        Ok(ParsedExpr(located_expression(tokens, index, NameExpr(tokens[index].text)), index + 1))
+      }
+    }
+  }
+}
+
 pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
   if index >= len(tokens) {
     Error(parse_error("expected expression", token_position(tokens, index)))
@@ -593,14 +627,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
                 Ok(ParsedExpr(located_expression(tokens, index, BoolExpr(token.text == "true")), index + 1))
               } else {
                 if token.kind == Identifier() {
-                  if index + 1 < len(tokens) && tokens[index + 1].text == "(" {
-                    match parse_expression_list(tokens, index + 2, ")") {
-                      Ok(arguments) => Ok(ParsedExpr(located_expression(tokens, index, CallExpr(token.text, arguments.values)), arguments.next)),
-                      Error(error) => Error(error)
-                    }
-                  } else {
-                    Ok(ParsedExpr(located_expression(tokens, index, NameExpr(token.text)), index + 1))
-                  }
+                  parse_named_expression(tokens, index)
                 } else {
                   if token.text == "(" {
                     match parse_expression(tokens, index + 1) {
@@ -661,17 +688,21 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
     if index < len(tokens) && tokens[index].text == "." {
       if index + 1 < len(tokens) && tokens[index + 1].kind == Identifier() {
         name: Str = tokens[index + 1].text
-        if index + 2 < len(tokens) && tokens[index + 2].text == "(" {
-          match parse_expression_list(tokens, index + 3, ")") {
-            Ok(arguments) => {
-              values: [Expr] = concat([left], arguments.values)
-              call_name: Str = lowered_method_name(name)
-              parse_postfix_tail(tokens, CallExpr(call_name, values), arguments.next)
-            },
-            Error(error) => Error(error)
+        match parse_call_type_arguments(tokens, index + 2) {
+          Error(error) => Error(error),
+          Ok(types) => {
+            if types.next < len(tokens) && tokens[types.next].text == "(" {
+              match parse_expression_list(tokens, types.next + 1, ")") {
+                Ok(arguments) => {
+                  values: [Expr] = concat([left], arguments.values)
+                  parse_postfix_tail(tokens, CallExpr(lowered_method_name(name), values, types.values), arguments.next)
+                },
+                Error(error) => Error(error)
+              }
+            } else {
+              parse_postfix_tail(tokens, FieldExpr(left, name), index + 2)
+            }
           }
-        } else {
-          parse_postfix_tail(tokens, FieldExpr(left, name), index + 2)
         }
       } else {
         Error(parse_error("expected field name", token_position(tokens, index + 1)))
@@ -1226,31 +1257,36 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
     Error(parse_error("expected function name", token_position(tokens, name_index)))
   } else {
     name: Str = tokens[name_index].text
-    opening_index: Nat = name_index + 1
-    if opening_index >= len(tokens) || tokens[opening_index].text != "(" {
-      Error(parse_error("expected opening function parenthesis", token_position(tokens, opening_index)))
-    } else {
-      match parse_function_parameters(tokens, opening_index + 1) {
-        Ok(parameters) => {
-          colon_index: Nat = parameters.next
-          if colon_index >= len(tokens) || tokens[colon_index].text != ":" {
-            Error(parse_error("expected colon after function parameters", token_position(tokens, colon_index)))
-          } else {
-            match parse_type_ref(tokens, colon_index + 1) {
-              Ok(return_type) => {
-                match parse_block(tokens, return_type.next) {
-                  Ok(body) => {
-                    declaration: TopLevel = FunctionDeclaration(name, parameters.values, return_type.text, is_pure, body.value)
-                    Ok(ParsedTopLevel(declaration, body.next))
+    match parse_generic_parameters(tokens, name_index + 1) {
+      Error(error) => Error(error),
+      Ok(generics) => {
+        opening_index: Nat = generics.next
+        if opening_index >= len(tokens) || tokens[opening_index].text != "(" {
+          Error(parse_error("expected opening function parenthesis", token_position(tokens, opening_index)))
+        } else {
+          match parse_function_parameters(tokens, opening_index + 1) {
+            Ok(parameters) => {
+              colon_index: Nat = parameters.next
+              if colon_index >= len(tokens) || tokens[colon_index].text != ":" {
+                Error(parse_error("expected colon after function parameters", token_position(tokens, colon_index)))
+              } else {
+                match parse_type_ref(tokens, colon_index + 1) {
+                  Ok(return_type) => {
+                    match parse_block(tokens, return_type.next) {
+                      Ok(body) => {
+                        declaration: TopLevel = FunctionDeclaration(name, parameters.values, return_type.text, is_pure, body.value, generics.values)
+                        Ok(ParsedTopLevel(declaration, body.next))
+                      },
+                      Error(error) => Error(error)
+                    }
                   },
                   Error(error) => Error(error)
                 }
-              },
-              Error(error) => Error(error)
-            }
+              }
+            },
+            Error(error) => Error(error)
           }
-        },
-        Error(error) => Error(error)
+        }
       }
     }
   }
@@ -1392,9 +1428,10 @@ pure render_expr(expression: Expr): Str {
       right_text: Str = render_expr(right)
       "(${left_text} ${operator} ${right_text})"
     },
-    CallExpr(name, arguments) => {
+    CallExpr(name, arguments, type_arguments) => {
       arguments_text: Str = render_expr_list(arguments)
-      "${name}(${arguments_text})"
+      types_text: Str = render_type_parameters(type_arguments)
+      "${name}${types_text}(${arguments_text})"
     },
     FieldExpr(target, field) => {
       target_text: Str = render_expr(target)
@@ -1576,7 +1613,10 @@ pure render_top_level(declaration: TopLevel): Str {
     },
     RecordDeclaration(name, parameters, fields) => render_record_declaration(name, parameters, fields),
     EnumDeclaration(name, parameters, variants) => render_enum_declaration(name, parameters, variants),
-    FunctionDeclaration(name, parameters, return_type, is_pure, body) => render_function_declaration(name, parameters, return_type, is_pure, body)
+    FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
+      types_text: Str = render_type_parameters(type_parameters)
+      render_function_declaration("${name}${types_text}", parameters, return_type, is_pure, body)
+    }
   }
 }
 

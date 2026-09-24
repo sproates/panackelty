@@ -1,0 +1,4 @@
+error: <case>/main.panack:2:16: identity expects 1 type arguments, got 2
+  2 | main(): Void { identity[Nat,Str](1) }
+    |                ^
+function main returns Nat, expected Void

@@ -130,6 +130,7 @@ class Expr:
     value: Any = None
     args: tuple[Expr, ...] = ()
     token: Token | None = None
+    type_args: tuple[str, ...] = ()
 
 
 @dataclass
@@ -184,6 +185,7 @@ class Function:
     pure: bool
     body: Block
     token: Token
+    type_params: tuple[str, ...] = ()
 
 
 @dataclass
@@ -377,6 +379,7 @@ class Parser:
             pure = True
         start = self.take(kind="IDENT")
         name = start.text
+        type_params = tuple(self.generic_params())
         self.take("(")
         params: list[tuple[str, str]] = []
         if not self.peek(")"):
@@ -391,7 +394,7 @@ class Parser:
         self.take(")")
         self.take(":")
         return_type = self.type_name()
-        return Function(name, params, return_type, pure, self.block(), start)
+        return Function(name, params, return_type, pure, self.block(), start, type_params)
 
     def type_name(self) -> str:
         if self.peek("["):
@@ -487,6 +490,28 @@ class Parser:
             left = Expr("binary", tok.text, (left, right), tok)
         return left
 
+    def call_type_arguments(self) -> tuple[str, ...]:
+        if not self.peek("["):
+            return ()
+        depth = 0
+        end = self.i
+        while end < len(self.tokens):
+            text = self.tokens[end].text
+            if text == "[": depth += 1
+            if text == "]":
+                depth -= 1
+                if depth == 0: break
+            end += 1
+        if end + 1 >= len(self.tokens) or self.tokens[end + 1].text != "(":
+            return ()
+        self.take("[")
+        arguments = [self.type_name()]
+        while self.peek(","):
+            self.take()
+            arguments.append(self.type_name())
+        self.take("]")
+        return tuple(arguments)
+
     def prefix(self) -> Expr:
         tok = self.tokens[self.i]
         if tok.text == "@":
@@ -578,6 +603,7 @@ class Parser:
             result = Expr("literal", ("Bool", tok.text == "true"), token=tok)
         elif tok.kind == "IDENT":
             self.i += 1
+            type_args = self.call_type_arguments()
             if self.peek("("):
                 self.take()
                 args: list[Expr] = []
@@ -588,7 +614,7 @@ class Parser:
                             break
                         self.take()
                 self.take(")")
-                result = Expr("call", tok.text, tuple(args), tok)
+                result = Expr("call", tok.text, tuple(args), tok, type_args)
             else:
                 result = Expr("var", tok.text, token=tok)
         else:
@@ -603,6 +629,7 @@ class Parser:
             else:
                 dot = self.take()
                 field = self.take(kind="IDENT")
+                type_args = self.call_type_arguments()
                 if self.peek("("):
                     self.take()
                     args: list[Expr] = [result]
@@ -622,7 +649,7 @@ class Parser:
                         "map": "$method_map",
                         "reduce": "$method_reduce",
                     }
-                    result = Expr("call", method_names.get(field.text, field.text), tuple(args), field)
+                    result = Expr("call", method_names.get(field.text, field.text), tuple(args), field, type_args)
                 else:
                     result = Expr("field", field.text, (result,), dot)
         return result
@@ -732,6 +759,7 @@ BUILTINS: dict[str, tuple[list[str], str, bool, bool]] = {
 class Checker:
     def __init__(self, program: Program):
         self.program = program
+        self.type_parameters: set[str] = set()
         self.variants: dict[str, tuple[str, list[str], list[str]]] = {}
         for enum in program.enums.values():
             for variant, payload in enum.variants.items():
@@ -750,6 +778,7 @@ class Checker:
         return self.program.types[name].base if name in self.program.types else name
 
     def check(self) -> None:
+        self.type_parameters = set()
         declared: dict[str, Token] = {}
         for collection in (self.program.types, self.program.records, self.program.enums,
                            self.program.functions):
@@ -784,14 +813,25 @@ class Checker:
                 for type_name in payload:
                     self.require_type(type_name, enum.token, set(enum.type_params))
         for fn in self.program.functions.values():
+            if len(set(fn.type_params)) != len(fn.type_params):
+                self.error(fn.token, f"duplicate type parameter in function {fn.name}")
+            for parameter in fn.type_params:
+                if (parameter in PRIMITIVES or
+                        parameter in {"Array", "Map", "Set", "Fn", "PureFn", "Any", "Unknown", "Iterator"} or
+                        parameter in self.program.types or parameter in self.program.records or
+                        parameter in self.program.enums):
+                    self.error(fn.token, f"type parameter {parameter} conflicts with a type name")
             for _, type_name in fn.params:
-                self.require_type(type_name, fn.token)
-            self.require_type(fn.return_type, fn.token, allow_void=True)
+                self.require_type(type_name, fn.token, set(fn.type_params))
+            self.require_type(fn.return_type, fn.token, set(fn.type_params), allow_void=True)
+            if fn.name == "main" and fn.type_params:
+                self.error(fn.token, "main cannot have type parameters")
         if "main" not in self.program.functions:
             raise PanackeltyError("program has no main function")
         if self.program.functions["main"].params:
             self.error(self.program.functions["main"].token, "main cannot take parameters")
         for fn in self.program.functions.values():
+            self.type_parameters = set(fn.type_params)
             env = {name: TypeInfo(type_name) for name, type_name in fn.params}
             actual = self.block(fn.body, env, fn.pure, {})
             if not self.assignable(actual, fn.return_type):
@@ -855,7 +895,7 @@ class Checker:
                 if statement.name in local:
                     self.error(statement.token, f"local {statement.name} shadows an existing binding")
                 if statement.type_name:
-                    self.require_type(statement.type_name, statement.token)
+                    self.require_type(statement.type_name, statement.token, self.type_parameters)
                 value = self.expr(statement.value, local, pure, facts)
                 binding_type = statement.type_name or self.inferred_binding_type(statement.name, value, statement.value)
                 if statement.type_name and not self.assignable_expr(value, binding_type, statement.value, facts):
@@ -939,6 +979,53 @@ class Checker:
         if target in self.program.types and compatible_bases and value.has_const:
             return bool(self.eval_guard(self.program.types[target].guard, value.const))
         return False
+
+    def generic_call(self, expr: Expr, fn: Function, env: dict[str, TypeInfo],
+                     pure: bool, facts: dict[str, tuple[int | None, int | None]]) -> TypeInfo:
+        if pure and not fn.pure:
+            self.error(expr, f"pure function cannot call impure function {fn.name}")
+        if len(expr.args) != len(fn.params):
+            self.error(expr, f"{fn.name} expects {len(fn.params)} arguments, got {len(expr.args)}")
+        substitutions: dict[str, str] = {}
+        if expr.type_args:
+            if len(expr.type_args) != len(fn.type_params):
+                self.error(expr, f"{fn.name} expects {len(fn.type_params)} type arguments, got {len(expr.type_args)}")
+            for argument in expr.type_args:
+                self.require_type(argument, expr.token, self.type_parameters)
+            substitutions = dict(zip(fn.type_params, expr.type_args))
+        actuals = [self.expr(argument, env, pure, facts) for argument in expr.args]
+        if not expr.type_args:
+            for (_, template), actual in zip(fn.params, actuals):
+                if not self.infer_function_arguments(template, actual.name, set(fn.type_params), substitutions):
+                    self.error(expr, f"incompatible type arguments to {fn.name}")
+        for parameter in fn.type_params:
+            concrete = substitutions.get(parameter, "")
+            if not concrete or self.incomplete_type(concrete):
+                self.error(expr, f"cannot infer type parameter {parameter} for {fn.name}; supply explicit type arguments")
+        for index, ((_, template), actual, argument) in enumerate(zip(fn.params, actuals, expr.args), 1):
+            target = substitute_type(template, substitutions, set(fn.type_params))
+            if actual.name == "Void" or not self.assignable_expr(actual, target, argument, facts):
+                self.error(argument, f"argument {index} to {fn.name} is {actual.name}, expected {target}")
+        return TypeInfo(substitute_type(fn.return_type, substitutions, set(fn.type_params)))
+
+    def infer_function_arguments(self, template: str, actual: str, parameters: set[str],
+                                 substitutions: dict[str, str]) -> bool:
+        if template in parameters:
+            merged = self.merge_type_names(substitutions.get(template, actual), actual)
+            if merged is None:
+                return False
+            substitutions[template] = merged
+            return True
+        base, args = split_type(template)
+        actual_base, actual_args = split_type(actual)
+        if (base == actual_base or (base == "Fn" and actual_base == "PureFn")) and len(args) == len(actual_args):
+            return all(self.infer_function_arguments(t, a, parameters, substitutions)
+                       for t, a in zip(args, actual_args))
+        return True
+
+    @staticmethod
+    def incomplete_type(name: str) -> bool:
+        return name == "Unknown" or name.startswith("$") or any(Checker.incomplete_type(a) for a in split_type(name)[1])
 
     def infer_type_arguments(self, template: str, actual: str, parameters: set[str],
                              substitutions: dict[str, str]) -> bool:
@@ -1036,6 +1123,8 @@ class Checker:
         if expr.kind == "function":
             if expr.value in self.program.functions:
                 function = self.program.functions[expr.value]
+                if function.type_params:
+                    self.error(expr, "generic function references require a non-generic wrapper")
                 arguments = [type_name for _, type_name in function.params] + [function.return_type]
                 return TypeInfo(format_type("PureFn" if function.pure else "Fn", arguments))
             self.error(expr, f"unknown function {expr.value}")
@@ -1132,6 +1221,11 @@ class Checker:
                     self.error(expr, "Nat subtraction may underflow; prove the left side is large enough or use Int")
                 return folded
         if expr.kind == "call":
+            function = self.program.functions.get(expr.value)
+            if expr.type_args and (function is None or not function.type_params):
+                self.error(expr, "explicit type arguments require a generic function")
+            if function is not None and function.type_params:
+                return self.generic_call(expr, function, env, pure, facts)
             display_name = {
                 "$method_put": "put",
                 "$method_has": "has",

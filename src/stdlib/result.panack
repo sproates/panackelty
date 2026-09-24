@@ -2,3 +2,10 @@ enum Result[T, E] {
   Ok(T),
   Error(E)
 }
+
+pure result_value_or[T,E](value: Result[T,E], fallback: T): T {
+  match value {
+    Ok(item) => item,
+    Error(error) => fallback
+  }
+}

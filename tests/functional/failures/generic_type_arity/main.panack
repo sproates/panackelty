@@ -1,0 +1,2 @@
+pure identity[T](value: T): T { value }
+main(): Void { identity[Nat,Str](1) }

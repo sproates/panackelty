@@ -51,3 +51,8 @@ validation remain in place.
 Rational arithmetic uses normalized arbitrary-precision numerator/denominator
 pairs. `Unit` has its own runtime tag; `.nat()` and `.dec()` perform exact checked
 conversions and trap rather than discard precision.
+
+Opaque paths and time values are implemented in `host_types.h`. Lexical paths
+preserve native bytes; durations and instants use exact integer storage. The
+monotonic clock is the only new effectful operation. See `VALUE_MODEL.md` and
+`../../SPEC.md` for ownership, signatures, error behavior, and clock scope.

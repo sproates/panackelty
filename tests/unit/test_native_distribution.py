@@ -35,6 +35,7 @@ INSTALLED_FILES = {
     "share/panackelty/stdlib/prelude.panack",
     "share/panackelty/stdlib/result.panack",
     "share/panackelty/stdlib/text.panack",
+    "share/panackelty/stdlib/time.panack",
 }
 
 
@@ -164,8 +165,12 @@ class NativeDistributionTests(unittest.TestCase):
             source = destination / "logical-import.panack"
             source.write_text(
                 "import stdlib/option\n"
+                "import stdlib/time\n"
+                "import stdlib/path\n"
                 "main(): Void {\n"
                 "  match Some(42) { Some(value) => print(value), None() => print(0) }\n"
+                "  print(duration_ticks(duration_seconds(1)))\n"
+                "  print(path_display(path_current()))\n"
                 "}\n",
                 encoding="utf-8",
             )
@@ -175,7 +180,7 @@ class NativeDistributionTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(command.returncode, 0, command.stderr)
-            self.assertEqual(command.stdout, "42\n")
+            self.assertEqual(command.stdout, "42\n1000000000\n.\n")
             self.assertEqual(command.stderr, "")
 
             installed_files = {
@@ -263,8 +268,12 @@ class NativeDistributionTests(unittest.TestCase):
             source = temporary / "relocated-import.panack"
             source.write_text(
                 "import stdlib/option\n"
+                "import stdlib/time\n"
+                "import stdlib/path\n"
                 "main(): Void {\n"
                 "  match Some(42) { Some(value) => print(value), None() => print(0) }\n"
+                "  print(duration_ticks(duration_seconds(1)))\n"
+                "  print(path_display(path_current()))\n"
                 "}\n",
                 encoding="utf-8",
             )
@@ -275,7 +284,7 @@ class NativeDistributionTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(run.returncode, 0, run.stderr)
-            self.assertEqual(run.stdout, "42\n")
+            self.assertEqual(run.stdout, "42\n1000000000\n.\n")
 
             tour_example = relocated / "examples/collections_and_bytes.panack"
             run = subprocess.run(

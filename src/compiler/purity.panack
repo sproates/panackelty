@@ -1,7 +1,7 @@
 import "checker.panack"
 
 pure is_impure_builtin(name: Str): Bool {
-  name == "print" || name == "read_line" || name == "read_file" ||
+  name == "instant_now" || name == "print" || name == "read_line" || name == "read_file" ||
   name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
   name == "command_args" || name == "environment_has" ||
   name == "environment_get" || name == "eprint" || name == "process_exit" ||

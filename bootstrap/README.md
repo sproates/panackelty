@@ -16,5 +16,9 @@ and prove the new fixed point before committing it.
 Current SHA-256:
 
 ```text
-6f0ff6ec010b3ef216d4eaa3ee9ff1bf625e465913631ab988ab2b8b3db3b295  compiler-v8.bc
+23b829e74555180a7a166c79620f87d53c4fed0db43f3b0795f62977568e12e4  compiler-v8.bc
 ```
+
+The current seed includes the Path, Duration, and Instant builtin signatures.
+It is refreshed because the complete prelude imports the new time module; the
+previous seed cannot check that module. The bytecode format remains version 8.

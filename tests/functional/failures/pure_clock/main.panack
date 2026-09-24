@@ -1,0 +1,5 @@
+import stdlib/time
+pure now(): Result[Instant,ClockError] {
+  instant_now()
+}
+main(): Void {}

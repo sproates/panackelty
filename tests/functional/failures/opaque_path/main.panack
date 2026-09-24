@@ -1,0 +1,4 @@
+import stdlib/path
+main(): Void {
+  value: Path = "unsafe"
+}

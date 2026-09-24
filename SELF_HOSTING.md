@@ -200,3 +200,11 @@ The compiler and bytecode tools now use explicit natural quotient division where
 integer results are required. Both frontends and VMs support exact `Rat` and
 first-class `Unit`. The version-8 seed replaces version 7; normal stage-2/stage-3
 fixed-point and standard-library conformance gates continue to apply.
+
+## Path and time follow-up
+
+Both frontends and runtimes support opaque `Path`, `Duration`, and `Instant`.
+The version-8 seed has been refreshed for their builtin signatures, allowing
+every stage to compile the expanded prelude. Normal stage-2/stage-3 fixed-point
+and standard-library artifact comparisons remain required. String path helpers
+remain necessary for existing compiler loading and bootstrap compatibility.

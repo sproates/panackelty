@@ -8,7 +8,8 @@ calls from pure functions to effectful services.
 All arguments and results use the tagged values defined in
 [`../bytecode/FORMAT.md`](../bytecode/FORMAT.md). Every call produces one result;
 operations declared `Void` produce the internal `Void` sentinel. Host failures
-become a Panackelty `I/O error` or `VM trap`, never a host-language exception.
+become structured results where specified, otherwise a Panackelty `I/O error`
+or `VM trap`, never a host-language exception.
 
 ## Stable services
 
@@ -74,3 +75,17 @@ changes require a new bytecode version or an explicit ABI-version mechanism.
 The native verifier checks arities and purity; runtime checks remain mandatory
 for forged bytecode. `Rat` arithmetic is implemented by the existing `BINARY`
 instruction with normalized arbitrary-precision values.
+
+## Monotonic clock service
+
+`instant_now(): Result[Instant,ClockError]` is effectful and reads
+`CLOCK_MONOTONIC`. Host read failure returns `Error(ClockUnavailable())`, rather
+than trapping. Clock suspension behavior follows the host; there is no portable
+suspend-time guarantee. Instants share one domain per execution and cannot be
+serialized or constructed from source integers. Arithmetic is pure.
+
+All new typed path operations and duration operations are VM primitives, not
+host services. Their full signatures and checked errors are specified in
+[SPEC.md](../../SPEC.md#paths-and-monotonic-time). Native path bytes are POSIX
+bytes on the current target matrix. Existing string-based host path APIs retain
+their contracts; typed filesystem access is not introduced by these types.

@@ -41,6 +41,20 @@ the value cannot be represented: `(1/3).nat()` and `(1/3).dec()` fail rather tha
 round. `Unit` is a first-class value for APIs such as `Result[Unit,Str]`.
 See [the specification](SPEC.md#rational-arithmetic-and-exact-conversions).
 
+## Typed paths and elapsed time
+
+The development toolchain includes opaque `Path`, exact signed nanosecond
+`Duration`, and monotonic `Instant` values. Import `stdlib/path` and
+`stdlib/time`. Path construction checks text or native bytes; lexical operations
+preserve spelling and do not access the filesystem. Durations support exact
+arithmetic and checked fractional conversions. `instant_now()` is effectful
+and returns a `Result`; arithmetic on existing clock readings is pure.
+
+The [API specification](SPEC.md#paths-and-monotonic-time) and
+[executable example](tests/functional/cases/host_types/main.panack) show their
+contracts and use. These additions require a build from this checkout until
+a subsequent release publishes them.
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. Writing,

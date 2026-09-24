@@ -1,0 +1,71 @@
+import stdlib/path
+import stdlib/time
+
+pure path(value: Str): Path { result_value_or(path_from_text(value), path_current()) }
+pure path_result(value: Result[Path,PathError]): Str {
+  match value {
+    Ok(p) => path_display(p),
+    Error(e) => match e {
+      EmptyPath() => "empty", PathContainsNul() => "nul",
+      PathNotUtf8() => "utf8", AbsolutePathAppend() => "absolute"
+    }
+  }
+}
+pure duration_result(value: Result[Duration,DurationError]): Str {
+  match value {
+    Ok(d) => { ticks = duration_ticks(d); "${ticks}ns" },
+    Error(e) => match e {
+      FractionalNanosecond() => "fractional", ZeroDurationDivisor() => "zero"
+    }
+  }
+}
+main(): Void {
+  print(path_result(path_from_text("")))
+  print(path_result(path_from_native(byte_append(bytes(), 0))))
+  print(path_result(path_append(path("a/../b"), path("./c"))))
+  print(path_result(path_append(path("a"), path("/b"))))
+  print(path_display(path_directory(path("a/b/"))))
+  print(path_display(path_directory(path("//host"))))
+  print(path_absolute(path("/a")))
+  print(path("a") == path("./a"))
+  print(path("a") == path("a"))
+  print(path_native_bytes(path("hello")) == utf8_encode("hello"))
+  print(match path_filename(path("/a/b/")) { Some(p) => path_display(p), None() => "none" })
+  print(match path_filename(path("/")) { Some(p) => path_display(p), None() => "none" })
+  raw = result_value_or(path_from_native(byte_append(bytes(), 255)), path_current())
+  print(path_display(raw))
+  print(match path_to_text(raw) { Ok(text) => text, Error(e) => "invalid UTF-8" })
+  print(match path_to_text(path("λ")) { Ok(text) => text, Error(e) => "invalid" })
+  print(path_display(path("line\nend")))
+  print(duration_ticks(duration_seconds(-2)))
+  print(duration_ticks(duration_milliseconds(250)))
+  print(duration_ticks(duration_add(duration_seconds(1), duration_milliseconds(500))))
+  print(duration_ticks(duration_subtract(duration_nanoseconds(1), duration_nanoseconds(2))))
+  print(duration_ticks(duration_scale(duration_seconds(1), -3)))
+  print(duration_before(duration_seconds(-1), duration_seconds(0)))
+  print(duration_as_seconds(duration_milliseconds(250)))
+  print(duration_result(duration_from_seconds(3/2)))
+  print(duration_result(duration_from_seconds(-3/2)))
+  print(duration_result(duration_from_seconds(1/3)))
+  print(duration_result(duration_divide(duration_nanoseconds(3), 2)))
+  print(duration_result(duration_divide(duration_nanoseconds(4), -2)))
+  print(duration_result(duration_divide(duration_seconds(1), 0)))
+  print(result_value_or(duration_ratio(duration_seconds(3), duration_seconds(2)), 0/1))
+  print(duration_ticks(duration_seconds(999999999999999999999999999999)))
+  print(duration_seconds(2) == duration_milliseconds(2000))
+  match instant_now() {
+    Error(e) => print("clock unavailable"),
+    Ok(start) => {
+      deadline = instant_add(start, duration_seconds(5))
+      print(instant_before(start, deadline))
+      print(duration_ticks(instant_difference(deadline, start)))
+      print(duration_ticks(instant_difference(start, deadline)))
+      print(instant_add(deadline, duration_seconds(-5)) == start)
+      print(start)
+      match instant_now() {
+        Error(e) => print("clock unavailable"),
+        Ok(end) => print(!instant_before(end, start))
+      }
+    }
+  }
+}

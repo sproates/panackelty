@@ -530,8 +530,9 @@ and `compile` diagnostics and require no bytecode artifact. Diagnostics are
 normalized to `<case>` for exact comparison across checkout locations. It
 verifies that every example source has a corresponding expected output and vice
 versa. `make functional` runs it after the complete Python harness; it owns an isolated temporary
-workspace and reports cleanup failure as a test failure. No old coverage is
-removed during this parallel phase.
+workspace and reports cleanup failure as a test failure. Ten fully duplicated
+Python CLI methods have been retired after runner parity on both CI platforms;
+the remaining harness checks are retained.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default

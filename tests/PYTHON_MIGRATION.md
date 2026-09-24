@@ -8,8 +8,9 @@ a new runner exists.
 
 ## Baseline and ownership (September 2026)
 
-The current suite has 294 discovered unit test methods (160 compiler, 43
-bytecode, 72 VM, 19 other) and 20 functional test methods. The functional
+The baseline suite had 294 discovered unit test methods (160 compiler, 43
+bytecode, 72 VM, 19 other) and 20 functional test methods. Ten fully duplicated
+functional methods have now been retired; ten remain. The functional
 runner additionally discovers 20 case directories, 20 example output files,
 and 41 failure directories. The bytecode fixture directory has 26 `.hex`
 artifacts spanning supported and deliberately rejected historical versions.
@@ -66,8 +67,31 @@ injects wrong expected output and checks both source and bytecode failures. Its
 workspace, verifies that empty-directory removal fails, reports a nonzero exit,
 then removes the sentinel and workspace. The focused test requires the supplied
 parent directory to be empty afterward.
-No Python assertion has been retired. Other invalid inputs,
-and other environment-sensitive assertions remain owned by the old harness.
+### Retired Python functional assertions
+
+The parallel runner passed `make check` locally and the required test, Linux
+package, and macOS package jobs in PRs #46–#48 before this retirement. The
+following observations have exact or stronger equivalents, including child
+process status, stdout, stderr, and fixture cleanup:
+
+| Retired `PanackeltyProgramTests` method | New evidence |
+| --- | --- |
+| `test_help_uses_panack_command_name`, `test_version_identifies_release_and_bytecode_format` | `cli_commands`: help command identity; exact version and bytecode format from `VERSION` |
+| `test_bare_source_path_runs_program`, `test_compile_default_output_and_bare_bytecode_path` | `cli_commands`: bare source and saved bytecode, exact default output path and compile transcript |
+| `test_run_passes_program_arguments`, `test_program_controls_stderr_and_exit_status` | `cli_commands`: arguments, exact stdout/stderr and exit seven |
+| `test_legacy_source_extension_is_rejected`, `test_disasm_rejects_malformed_bytecode` | `cli_check_disasm`: exact failure status and diagnostic, empty stdout |
+| `test_check_accepts_source_and_bytecode`, `test_disasm_matches_for_source_and_bytecode` | `cli_check_disasm`: source and saved-bytecode check, exact disassembly parity and key instructions |
+
+The runner invokes these fixtures from source and compiled bytecode. The
+incremental `check-compiler`, `check-bytecode`, and `check-vm` recipes now invoke
+the corresponding runner cases in place of the removed method names. The ten
+remaining Python functional methods still own the complete discovered case
+corpus (including recursive `runner_smoke`), rational failures, direct
+self-hosted compiler parity, all invalid-source diagnostics in the incremental
+compiler check, source diagnostics under `run`/`disasm`, CRLF/Unicode/tab/EOF
+diagnostic display, and explicit environment and file-I/O assertions. The
+environment and I/O runner fixture provides parallel coverage but is kept
+beside those Python methods while the complete ownership matrix is audited.
 
 The Panackelty runner discovers immediate case and failure directories and
 example files in sorted native-byte order. A success case keeps the existing

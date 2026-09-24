@@ -1,0 +1,144 @@
+import stdlib/testing_files
+import stdlib/testing_commands
+import stdlib/text
+
+pure path(value: Str): Path {
+  result_value_or(path_from_text(value), path_current())
+}
+
+pure child(root: Path, name: Str): Path {
+  result_value_or(path_append(root, path(name)), root)
+}
+
+pure contains(value: Str, fragment: Str): Bool {
+  mut found = false
+  for index in 0..text_length(value) {
+    if text_starts_with_at(value, fragment, index) { found = true }
+  }
+  found
+}
+
+pure command(arguments: [Str]): TestCommand {
+  TestCommand(path("./panack"), arguments, bytes(), path_current(), [],
+    duration_seconds(10), 1048576)
+}
+
+main(): Void {
+  match test_workspace_create(path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Ok(workspace) => {
+      original = "tests/functional/cases/hello_world/main.panack"
+      source = child(workspace.root, "hello.panack")
+      bytecode = child(workspace.root, "hello.bc")
+      arguments_source = child(workspace.root, "arguments.panack")
+      failing_source = child(workspace.root, "failure.panack")
+      source_text = result_value_or(path_to_text(source), "invalid-source")
+      bytecode_text = result_value_or(path_to_text(bytecode), "invalid-bytecode")
+      arguments_text = result_value_or(path_to_text(arguments_source), "invalid-arguments")
+      failing_text = result_value_or(path_to_text(failing_source), "invalid-failure")
+      mut results: [TestResult] = []
+
+      results = results.append(test_run_command("bare source path", command([original]),
+        ProcessOutput(0, 0, utf8_encode("hello world\n"), bytes())))
+      match fs_read(path(original), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("default compile output", false,
+            "fixture read failed"))
+        },
+        Ok(content) => {
+          match fs_write(source, content) {
+            Error(error) => {
+              results = results.append(test_expect("default compile output", false,
+                "fixture write failed"))
+            },
+            Ok(value) => {
+              results = results.append(test_run_command("default compile output",
+                command(["compile", source_text]),
+                ProcessOutput(0, 0, utf8_encode("wrote ${bytecode_text}\n"), bytes())))
+              results = results.append(test_run_command("bare bytecode path",
+                command([bytecode_text]),
+                ProcessOutput(0, 0, utf8_encode("hello world\n"), bytes())))
+            }
+          }
+        }
+      }
+
+      match fs_write(arguments_source, utf8_encode(
+          "main(): Void { arguments: [Str] = command_args(); " +
+          "print(len(arguments)); print(arguments[0]); }")) {
+        Error(error) => {
+          results = results.append(test_expect("program arguments", false,
+            "fixture write failed"))
+        },
+        Ok(value) => {
+          results = results.append(test_run_command("program arguments",
+            command(["run", arguments_text, "alpha", "beta"]),
+            ProcessOutput(0, 0, utf8_encode("2\nalpha\n"), bytes())))
+        }
+      }
+      match fs_write(failing_source,
+          utf8_encode("main(): Void { eprint(\"failure\"); process_exit(7); }")) {
+        Error(error) => {
+          results = results.append(test_expect("program stderr and exit", false,
+            "fixture write failed"))
+        },
+        Ok(value) => {
+          results = results.append(test_run_command("program stderr and exit",
+            command(["run", failing_text]),
+            ProcessOutput(7, 0, bytes(), utf8_encode("failure\n"))))
+        }
+      }
+
+      match process_run(path("./panack"), ["--help"], bytes(), path_current(), [],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("help command name", false,
+            "process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("help command name",
+            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes() &&
+              contains(utf8_decode(output.stdout), "usage: panack "),
+            "unexpected help output"))
+        }
+      }
+      match fs_read(path("VERSION"), 100) {
+        Error(error) => {
+          results = results.append(test_expect("version", false, "version read failed"))
+        },
+        Ok(content) => {
+          value = utf8_decode(content)
+          size = text_length(value)
+          if size > 0 {
+            release = text_slice(value, 0, size - 1)
+            results = results.append(test_run_command("version", command(["--version"]),
+              ProcessOutput(0, 0, utf8_encode("panack ${release} (bytecode 8)\n"), bytes())))
+          } else {
+            results = results.append(test_expect("version", false, "empty version"))
+          }
+        }
+      }
+
+      for file in [source, bytecode, arguments_source, failing_source] {
+        match fs_remove_file(file) {
+          Ok(value) => {},
+          Error(error) => {
+            code = error.code
+            results = results.append(test_expect("artifact cleanup", false,
+              "file removal failed: ${code}"))
+          }
+        }
+      }
+      match test_workspace_remove_empty(workspace) {
+        Ok(value) => {},
+        Error(error) => {
+          code = error.code
+          results = results.append(test_expect("workspace cleanup", false,
+            "workspace removal failed: ${code}"))
+        }
+      }
+      failures = test_report(results)
+      if failures > 0 { process_exit(1) }
+    }
+  }
+}

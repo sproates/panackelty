@@ -20,6 +20,17 @@ CASES = (
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_cli_commands_case_runs_through_public_runner(self):
+        completed = subprocess.run(
+            [str(ROOT / "panack"), "run", "tests/runner/main.panack",
+             "--case", "cli_commands"], cwd=ROOT, capture_output=True,
+            timeout=30, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
+        self.assertIn(b"PASS case/cli_commands/source", completed.stdout)
+        self.assertIn(b"PASS case/cli_commands/bytecode", completed.stdout)
+        self.assertIn(b"tests: 4, failures: 0", completed.stdout)
+
     def test_cli_check_disasm_case_runs_through_public_runner(self):
         completed = subprocess.run(
             [str(ROOT / "panack"), "run", "tests/runner/main.panack",

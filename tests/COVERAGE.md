@@ -221,3 +221,24 @@ They include combined output exhaustion, absent executables, invalid environment
 entries, negative/oversized/zero timeouts, and descendants retaining output pipes.
 Host allocation failure, syscall fault injection, all errno mappings, and real
 system suspension remain intentionally outside this focused coverage.
+
+## Native VM module and memory contracts
+
+`tests/unit/vm/test_native_modules.py` compiles every native header independently
+and twice to check self-containment and guards, and compares every oracle builtin's
+arity and purity with the native registry while requiring a non-null handler.
+Its direct C harness, `native_modules.c`, exercises copied byte/name ownership,
+retained collection children, exact arithmetic without operand mutation, Unicode
+offsets and invalid encodings, frame cleanup on return and trap, partial operand
+underflow, nested calls, and builtin routing/error propagation.
+
+The harness checks all truncations and 7,168 single-byte mutations of a minimal
+version-8 artifact, decoding/verifying and releasing partial programs without
+executing mutated code. This complements the existing structural/semantic forged
+artifact corpus and native end-to-end tests. Regression assertions cover released
+operands on range/index stack underflow and rejected nested bytecode cleanup. `make native-sanitize` runs the C harness
+and native loader/execution suites with address and undefined-behaviour checks.
+
+Systematic allocation-failure injection, coverage-guided fuzzing of richer valid
+artifacts, and exhaustive host syscall failures remain follow-up work. Passing
+sanitizers is evidence for exercised paths, not proof of all memory safety.

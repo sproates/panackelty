@@ -100,8 +100,40 @@ functional-impl: $(STAGE2_COMPILER)
 
 native: panack-vm
 
-panack-vm: src/vm/host_types.h src/vm/host_capabilities.h src/vm/native.c src/vm/bigint.c src/vm/bigint.h
-	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c11 -Wall -Wextra -Werror -pedantic $(LDFLAGS) src/vm/native.c src/vm/bigint.c -o panack-vm $(LDLIBS)
+# Compile each VM component separately. Dependency files track header edits.
+VM_SOURCES := $(sort $(wildcard src/vm/*.c))
+VM_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/vm/%.o,$(VM_SOURCES))
+VM_LIBRARY_OBJECTS := $(filter-out $(BUILD_DIR)/vm/main.o,$(VM_OBJECTS))
+export PANACK_NATIVE_MODULE_TEST := $(abspath $(BUILD_DIR)/vm/test_modules)
+VM_WARNINGS := -std=c11 -Wall -Wextra -Werror -pedantic
+
+panack-vm: $(VM_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
+
+$(BUILD_DIR)/vm/%.o: src/vm/%.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
+
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c $(VM_LIBRARY_OBJECTS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+
+.PHONY: native-unit native-module-build native-sanitize native-sanitize-impl
+native-module-build: $(BUILD_DIR)/vm/test_modules
+
+$(BUILD_DIR)/vm/panack-vm: $(VM_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
+
+native-unit: $(BUILD_DIR)/vm/test_modules
+	UBSAN_OPTIONS=halt_on_error=1 "$(abspath $(BUILD_DIR)/vm/test_modules)"
+
+# Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
+native-sanitize:
+	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-sanitize-impl
+
+native-sanitize-impl: native-unit $(BUILD_DIR)/vm/panack-vm
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(PYTHON) -B -m unittest -q tests.unit.vm.test_native_loader tests.unit.vm.test_native_execution
+
+-include $(VM_OBJECTS:.o=.d)
 
 $(STAGE1_COMPILER): $(SEED_COMPILER)
 	mkdir -p $(dir $@)

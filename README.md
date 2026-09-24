@@ -518,6 +518,7 @@ make check            # run all tests and the reproducible-bootstrap proof
 make check-compiler   # focused compiler checks with public-CLI coverage
 make check-bytecode   # focused bytecode and artifact checks
 make check-vm         # focused VM and host-boundary checks
+make native-sanitize  # optional address/undefined-behaviour checks (Clang/GCC)
 ```
 
 The public compiler is written in Panackelty. To run it from source as an

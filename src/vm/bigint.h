@@ -22,8 +22,8 @@ int pn_big_compare(const PnBigInt *left, const PnBigInt *right);
 bool pn_big_add(PnBigInt *out, const PnBigInt *left, const PnBigInt *right);
 bool pn_big_sub(PnBigInt *out, const PnBigInt *left, const PnBigInt *right);
 bool pn_big_mul(PnBigInt *out, const PnBigInt *left, const PnBigInt *right);
-bool pn_big_divmod(PnBigInt *quotient, PnBigInt *remainder,
-                   const PnBigInt *left, const PnBigInt *right);
+bool pn_big_divmod(PnBigInt *quotient, PnBigInt *remainder, const PnBigInt *left,
+                   const PnBigInt *right);
 bool pn_big_mul_small(PnBigInt *value, uint32_t factor);
 bool pn_big_add_small(PnBigInt *value, uint32_t addend);
 uint32_t pn_big_div_small(PnBigInt *value, uint32_t divisor);

@@ -38,8 +38,10 @@ CI runs `make check` once per pull-request revision and again after a merge to
 `main`. It does not repeat the focused developer targets before the full suite.
 Superseded PR runs are cancelled. Both platform package jobs still run bootstrap,
 native conformance, and exact-archive gates. The default native build uses `-O2`;
-functional tests therefore exercise the optimised VM, while focused native unit
-tests also retain independent unoptimised builds.
+functional and native process tests exercise the same optimised VM. Native tests
+use the production build graph rather than maintaining separate source lists.
+`make native-sanitize` additionally runs native module, loader, and execution
+coverage against an isolated instrumented build.
 
 Set `VALIDATION_TIMINGS_FILE` to append tab-separated phase, duration, budget,
 and exit-status records. CI publishes those records in the workflow summary and

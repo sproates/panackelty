@@ -37,7 +37,7 @@ values. Instructions refer to those immutable decoded names and operands.
 ## Ownership and reclamation
 
 Heap objects use non-atomic reference counts because one VM invocation is
-single-threaded. Creating or copying an owning `PnValue` retains its object;
+single-threaded. Copying an owning `Value *` requires retaining its object;
 discarding an owning value releases it. Releasing the final reference walks and
 releases child values before freeing the object. Operand stacks, locals, call
 arguments, returned values, containers, iterators, and decoded constants each
@@ -46,8 +46,9 @@ have explicit ownership.
 The value graph cannot contain cycles: source values have no mutable references,
 and every composite constructor receives already-complete children. Reference
 counting therefore reclaims all reachable runtime allocations without a tracing
-collector. Decoded programs are arena-owned and freed as one program after all
-frames and values are released.
+collector. Decoded programs own their individually allocated names, constants, and
+instruction arrays; `free_program()` releases them after frames and values.
+See the module headers for borrowing and ownership-transfer contracts.
 
 Allocation overflow and host memory exhaustion are fatal native-runner errors,
 which the bytecode contract deliberately places outside language-level traps.

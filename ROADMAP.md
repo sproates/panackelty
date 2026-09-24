@@ -969,3 +969,14 @@ function return types, and distinguishes no-return functions with `Void`.
 - [x] Apply the same syntax to the Panackelty-hosted compiler sources
 - [x] Update every example and user-facing command snippet
 - [x] Advance the bytecode version for the `Void` value-tag change
+
+## Native VM readability and test hardening
+
+- [x] Decompose native decoding, verification, values, arithmetic, execution,
+      builtins and host services into separately compiled modules.
+- [x] Put shared declarations in self-contained headers, retain private local
+      types, name wire opcodes, and document ownership and formatting conventions.
+- [x] Add direct module ownership, cleanup, builtin registry and header checks,
+      deterministic decoder mutations, and an isolated sanitizer target.
+- [ ] Extend allocation-failure injection and coverage-guided decoder fuzzing;
+      retain exact arithmetic, purity and runtime trap conformance throughout.

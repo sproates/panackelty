@@ -706,6 +706,18 @@ class TypeInfo:
 
 
 BUILTINS: dict[str, tuple[list[str], str, bool, bool]] = {
+    'fs_read': (['Path', 'Nat'], 'Result[Bytes,HostError]', False, False),
+    'fs_write': (['Path', 'Bytes'], 'Result[Unit,HostError]', False, False),
+    'fs_metadata': (['Path'], 'Result[FileMetadata,HostError]', False, False),
+    'fs_list': (['Path'], 'Result[Array[Path],HostError]', False, False),
+    'fs_create_directory': (['Path'], 'Result[Unit,HostError]', False, False),
+    'fs_remove_file': (['Path'], 'Result[Unit,HostError]', False, False),
+    'fs_remove_directory': (['Path'], 'Result[Unit,HostError]', False, False),
+    'fs_temp_file': (['Path'], 'Result[Path,HostError]', False, False),
+    'fs_temp_directory': (['Path'], 'Result[Path,HostError]', False, False),
+    'host_decode_utf8': (['Bytes'], 'Result[Str,HostError]', True, False),
+    'host_sleep': (['Duration'], 'Result[Unit,HostError]', False, False),
+    'process_run': (['Path', 'Array[Str]', 'Bytes', 'Path', 'Array[Str]', 'Duration', 'Nat'], 'Result[ProcessOutput,HostError]', False, False),
     'path_from_text': (['Str'], 'Result[Path,PathError]', True, False),
     'path_from_native': (['Bytes'], 'Result[Path,PathError]', True, False),
     'path_to_text': (['Path'], 'Result[Str,PathError]', True, False),
@@ -2409,6 +2421,240 @@ def host_type_call(name: str, args: list[Value]) -> Value:
     return opaque('Instant' if name == 'instant_add' else 'Duration', left + right if name == 'instant_add' else left - right)
 
 
+HOST_CAPABILITY_BUILTINS = frozenset(n for n in BUILTINS if n.startswith('fs_') or n in {'host_decode_utf8', 'host_sleep', 'process_run'})
+
+
+def host_capability_call(name, args, environment):
+    import errno
+    import selectors
+    import signal
+    import stat
+    import subprocess
+    import tempfile
+
+    max_bytes = 16 * 1024 * 1024
+    max_ns = 31536000000000000
+
+    def ok(value):
+        return Value('Result', ('Ok', [value]))
+
+    def error(code=None, native=0):
+        categories = {errno.ENOENT: 'not_found', errno.EACCES: 'permission_denied',
+                      errno.EPERM: 'permission_denied', errno.EEXIST: 'already_exists',
+                      errno.ENOTDIR: 'not_directory', errno.EISDIR: 'is_directory',
+                      errno.ENOTEMPTY: 'not_empty', errno.ELOOP: 'symlink_loop'}
+        return Value('Result', ('Error', [Value('HostError', {
+            'operation': Value('Str', name), 'code': Value('Str', code or categories.get(native, 'io_error')),
+            'native_code': Value('Nat', native)})]))
+
+    def operand(index, kind):
+        value = args[index]
+        if kind in {'Path', 'Duration'}:
+            if value.type_name != kind or not isinstance(value.data, OpaqueHostValue) or value.data.kind != kind:
+                raise PanackeltyError('VM trap: invalid host operand')
+            return value.data.value
+        if kind == 'Array':
+            if not isinstance(value.data, list) or not value.type_name.startswith(('[', 'Array')):
+                raise PanackeltyError('VM trap: invalid host array')
+        elif value.type_name != kind:
+            raise PanackeltyError('VM trap: invalid host operand')
+        return value.data
+
+    def duration(index):
+        ns = operand(index, 'Duration')
+        return ns, 'negative_duration' if ns < 0 else 'out_of_range' if ns > max_ns else None
+
+    def path_value(raw):
+        return Value('Path', OpaqueHostValue('Path', raw))
+
+    def unit():
+        return ok(Value('Unit', None))
+
+    if name == 'host_decode_utf8':
+        try:
+            return ok(Value('Str', operand(0, 'Bytes').decode('utf-8')))
+        except UnicodeDecodeError:
+            return error('invalid_utf8')
+    if name == 'host_sleep':
+        ns, problem = duration(0)
+        if problem:
+            return error(problem)
+        try:
+            # Integer deadline avoids rounding down very large nanosecond counts.
+            deadline = time.clock_gettime_ns(time.CLOCK_MONOTONIC) + ns
+            while ns > 0:
+                time.sleep(min(ns / 1000000000, 86400))
+                ns = deadline - time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+            return unit()
+        except OSError as exc:
+            return error(native=exc.errno or 0)
+    if name == 'process_run':
+        executable = operand(0, 'Path')
+        arguments = operand(1, 'Array')
+        data = operand(2, 'Bytes')
+        cwd = operand(3, 'Path')
+        overrides = operand(4, 'Array')
+        ns, problem = duration(5)
+        limit = operand(6, 'Nat')
+        if problem:
+            return error(problem)
+        if limit > max_bytes or len(data) > max_bytes or len(arguments) > 4096 or len(overrides) > 4096:
+            return error('out_of_range')
+        for arg in arguments + overrides:
+            if arg.type_name != 'Str':
+                raise PanackeltyError('VM trap: process argument requires Str')
+        if any('\0' in arg.data for arg in arguments):
+            return error('invalid_argument')
+        env = dict(environment)
+        keys = set()
+        for entry in overrides:
+            key, sep, value = entry.data.partition('=')
+            if '\0' in entry.data or not key or not sep or key in keys:
+                return error('invalid_environment')
+            keys.add(key)
+            env[key] = value
+        if ns == 0:
+            return error('timeout')
+        try:
+            start = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        except OSError as exc:
+            return error('clock_unavailable', exc.errno or 0)
+        # Force exact executable selection even when it contains no slash.
+        selected = executable if b'/' in executable else b'./' + executable
+        try:
+            proc = subprocess.Popen([selected] + [a.data.encode('utf-8') for a in arguments],
+                                    executable=selected, cwd=cwd, env=env, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True,
+                                    restore_signals=False)
+        except OSError as exc:
+            return error('launch_failed', exc.errno or 0)
+        output = [bytearray(), bytearray()]
+        try:
+            with selectors.DefaultSelector() as selector:
+                for stream, event, tag in ((proc.stdin, selectors.EVENT_WRITE, -1),
+                                           (proc.stdout, selectors.EVENT_READ, 0),
+                                           (proc.stderr, selectors.EVENT_READ, 1)):
+                    os.set_blocking(stream.fileno(), False)
+                    if tag == -1 and not data:
+                        stream.close()
+                    else:
+                        selector.register(stream, event, tag)
+                sent = 0
+                while selector.get_map() or proc.poll() is None:
+                    remaining = ns - (time.clock_gettime_ns(time.CLOCK_MONOTONIC) - start)
+                    if remaining <= 0:
+                        return error('timeout')
+                    for key, _ in selector.select(min(remaining / 1000000000, 0.01)):
+                        try:
+                            if key.data == -1:
+                                try:
+                                    sent += os.write(key.fd, data[sent:sent + 4096])
+                                    done = sent == len(data)
+                                except BrokenPipeError:
+                                    done = True
+                            else:
+                                chunk = os.read(key.fd, 8192)
+                                done = not chunk
+                                if len(output[0]) + len(output[1]) + len(chunk) > limit:
+                                    return error('output_limit')
+                                output[key.data].extend(chunk)
+                            if done:
+                                selector.unregister(key.fileobj)
+                                key.fileobj.close()
+                        except (BlockingIOError, InterruptedError):
+                            continue
+            status = proc.wait()
+            return ok(Value('ProcessOutput', {'exit_code': Value('Nat', max(status, 0)),
+                       'signal': Value('Nat', max(-status, 0)), 'stdout': Value('Bytes', bytes(output[0])),
+                       'stderr': Value('Bytes', bytes(output[1]))}))
+        except OSError as exc:
+            return error(native=exc.errno or 0)
+        finally:
+            # Close inherited descendant streams on failures and reap the direct child.
+            if proc.poll() is None or any(not s.closed for s in (proc.stdout, proc.stderr)):
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                except PermissionError:
+                    # Sandboxed hosts may forbid process-group signalling.
+                    if proc.poll() is None:
+                        proc.kill()
+            proc.wait()
+            for stream in (proc.stdin, proc.stdout, proc.stderr):
+                stream.close()
+    path = operand(0, 'Path')
+    try:
+        if name == 'fs_read':
+            limit = operand(1, 'Nat')
+            if limit > max_bytes:
+                return error('out_of_range')
+            fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
+                    return error('not_regular_file')
+                chunks = bytearray()
+                while True:
+                    chunk = os.read(fd, min(8192, limit + 1 - len(chunks)))
+                    if not chunk:
+                        return ok(Value('Bytes', bytes(chunks)))
+                    chunks.extend(chunk)
+                    if len(chunks) > limit:
+                        return error('output_limit')
+            finally:
+                os.close(fd)
+        if name == 'fs_write':
+            data = operand(1, 'Bytes')
+            if len(data) > max_bytes:
+                return error('out_of_range')
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_NONBLOCK, 0o666)
+            try:
+                if not stat.S_ISREG(os.fstat(fd).st_mode):
+                    return error('not_regular_file')
+                os.ftruncate(fd, 0)
+                at = 0
+                while at < len(data):
+                    n = os.write(fd, data[at:])
+                    if not n:
+                        return error(native=errno.EIO)
+                    at += n
+            finally:
+                os.close(fd)
+            return unit()
+        if name == 'fs_metadata':
+            info = os.lstat(path)
+            kind = ('RegularFile' if stat.S_ISREG(info.st_mode) else 'Directory' if stat.S_ISDIR(info.st_mode)
+                    else 'SymbolicLink' if stat.S_ISLNK(info.st_mode) else 'OtherFile')
+            return ok(Value('FileMetadata', {'kind': Value('FileKind', (kind, [])),
+                                            'size': Value('Nat', max(info.st_size, 0))}))
+        if name == 'fs_list':
+            items = []
+            size = 0
+            with os.scandir(path) as entries:
+                for entry in entries:
+                    items.append(entry.name)
+                    size += len(entry.name)
+                    if len(items) > 65536 or size > max_bytes:
+                        return error('output_limit')
+            return ok(Value('Array[Path]', [path_value(p) for p in sorted(items)]))
+        if name == 'fs_temp_file':
+            fd, raw = tempfile.mkstemp(prefix=b'panack-', dir=path)
+            try:
+                os.close(fd)
+            except OSError:
+                os.unlink(raw)
+                raise
+            return ok(path_value(raw))
+        if name == 'fs_temp_directory':
+            return ok(path_value(tempfile.mkdtemp(prefix=b'panack-', dir=path)))
+        operations = {'fs_create_directory': os.mkdir, 'fs_remove_file': os.unlink,
+                      'fs_remove_directory': os.rmdir}
+        operations[name](path)
+        return unit()
+    except OSError as exc:
+        return error(native=exc.errno or 0)
+
+
 class VM:
     def __init__(self, functions: dict[str, Code], arguments: list[str] | None = None,
                  environment: dict[str, str] | None = None):
@@ -2616,6 +2862,8 @@ class VM:
         raise AssertionError("unreachable")
 
     def builtin(self, name: str, args: list[Value]) -> Value:
+        if name in HOST_CAPABILITY_BUILTINS:
+            return host_capability_call(name, args, self.environment)
         if name in HOST_TYPE_BUILTINS:
             return host_type_call(name, args)
         if name == "$unit":

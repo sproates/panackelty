@@ -1,3 +1,4 @@
+import "host.panack"
 import "result.panack"
 
 enum DurationError { FractionalNanosecond, ZeroDurationDivisor }

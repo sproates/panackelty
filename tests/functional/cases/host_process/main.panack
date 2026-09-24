@@ -1,0 +1,29 @@
+import stdlib/prelude
+pure path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+pure code(value: Result[ProcessOutput,HostError]): Str {
+  match value { Ok(output) => "ok", Error(error) => error.code }
+}
+main(): Void {
+  mut input = utf8_encode("x")
+  mut count: Nat = 0
+  while count < 17 { input = bytes_concat(input, input); count = count + 1 }
+  match process_run(path("/bin/sh"), ["-c", "dd if=/dev/zero bs=1024 count=128 2>/dev/null; dd if=/dev/zero bs=1024 count=128 >&2 2>/dev/null; cat"], input, path_current(), [], duration_seconds(5), 400000) {
+    Error(error) => { print(error.code) },
+    Ok(output) => { print(byte_len(output.stdout)); print(byte_len(output.stderr)); print(output.exit_code) }
+  }
+  print(code(process_run(path("/bin/sh"), ["-c", "exit 0"], input, path_current(), [], duration_seconds(3), 0)))
+  match process_run(path("/bin/sh"), ["-c", "printf \"$PANACK_HOST_TEST\"; printf '\\377' >&2; kill -TERM $$"], bytes(), path_current(), ["PANACK_HOST_TEST=value"], duration_seconds(3), 100) {
+    Error(error) => { print(error.code) },
+    Ok(output) => {
+      print(result_value_or(host_decode_utf8(output.stdout), "bad"))
+      print(byte_get(output.stderr, 0))
+      print(output.signal)
+    }
+  }
+  print(code(process_run(path("/bin/sh"), [], bytes(), path_current(), ["A=1", "A=2"], duration_seconds(1), 10)))
+  print(code(process_run(path("/bin/sh"), [], bytes(), path_current(), [], duration_seconds(-1), 10)))
+  print(code(process_run(path("/bin/sh"), [], bytes(), path_current(), [], duration_seconds(31536001), 10)))
+  print(code(process_run(path("/bin/sh"), [], bytes(), path_current(), [], duration_seconds(0), 10)))
+  print(code(process_run(path("/bin/sh"), [], bytes(), path("/does-not-exist"), [], duration_seconds(1), 10)))
+  print(code(process_run(path("/bin/sh"), ["-c", "sleep 5 & exit 0"], bytes(), path_current(), [], duration_milliseconds(30), 10)))
+}

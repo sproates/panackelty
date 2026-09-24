@@ -2,6 +2,13 @@ VOID_RETURN = [("CONST", ("Void", None)), ("RETURN", None)]
 
 
 FORGED_DYNAMIC_FAILURES = (
+    ('invalid fs_read operand', [('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CALL', ('fs_read', 2)), ('RETURN', None)], ("VM trap",)),
+    ('invalid fs_write operand', [('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CALL', ('fs_write', 2)), ('RETURN', None)], ("VM trap",)),
+    ('invalid fs_metadata operand', [('CONST', ('Nat', 0)), ('CALL', ('fs_metadata', 1)), ('RETURN', None)], ("VM trap",)),
+    ('invalid fs_list operand', [('CONST', ('Nat', 0)), ('CALL', ('fs_list', 1)), ('RETURN', None)], ("VM trap",)),
+    ('invalid host_sleep operand', [('CONST', ('Nat', 0)), ('CALL', ('host_sleep', 1)), ('RETURN', None)], ("VM trap",)),
+    ('invalid host_decode_utf8 operand', [('CONST', ('Nat', 0)), ('CALL', ('host_decode_utf8', 1)), ('RETURN', None)], ("VM trap",)),
+    ('invalid process_run operand', [('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CONST', ('Nat', 0)), ('CALL', ('process_run', 7)), ('RETURN', None)], ("VM trap",)),
     (
         'forged Path record',
         [

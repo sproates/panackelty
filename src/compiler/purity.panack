@@ -1,6 +1,7 @@
 import "checker.panack"
 
 pure is_impure_builtin(name: Str): Bool {
+  name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" || name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" || name == "host_sleep" || name == "process_run" ||
   name == "instant_now" || name == "print" || name == "read_line" || name == "read_file" ||
   name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
   name == "command_args" || name == "environment_has" ||

@@ -191,7 +191,9 @@ host capabilities initiative.
 
 Generic source functions, a first-class success value, and exact rational
 arithmetic are implemented. Opaque paths, exact durations, and monotonic instants
-are now implemented. Typed filesystem and process APIs are the next priority.
+are now implemented, together with typed filesystem and bounded process APIs,
+checked decoding, and sleep. The testing-library foundation is the next host
+capability priority; recursive filesystem operations remain a follow-up.
 
 - [x] Specify and implement generic source functions and explicit type arguments,
       including inference, ambiguity diagnostics, and purity preservation, so
@@ -212,12 +214,12 @@ from expected return types remain deferred.
       hosts, without implying existence or safe containment
 - [x] Implement exact signed nanosecond `Duration` and opaque monotonic `Instant`,
       pure arithmetic, checked fractional conversion, and effectful clock reads
-- [ ] Add typed filesystem queries and I/O accepting `Path`, returning structured
+- [x] Add typed filesystem queries and I/O accepting `Path`, returning structured
       errors; preserve arbitrary native filenames through enumeration and access
-- [ ] Add sleep and timeout APIs with negative-duration and host-range validation;
+- [x] Add sleep and timeout APIs with negative-duration and host-range validation;
       evaluate a portable system-suspension policy before promising deadline
       behavior across suspended hosts
-- [ ] Design structured filesystem and process errors returned through `Result`,
+- [x] Design structured filesystem and process errors returned through `Result`,
       retaining useful operation and failure details; distinguish a process's
       nonzero exit status from failure to launch it
 - [ ] Evaluate a standard-library `Json` tagged union for unvalidated external
@@ -751,7 +753,7 @@ project root is the entry source file's directory.
       project-local imports, installed layouts, ambiguity and shadowing, missing
       modules, invalid paths, cycles, and source/bytecode execution
 
-## Expand automation and host capabilities — planned
+## Expand automation and host capabilities — in progress
 
 Panackelty should gain the general host capabilities needed by dependable
 automation programs before its test suite is moved away from Python. These APIs
@@ -760,30 +762,34 @@ predictably across supported platforms, and expose structured failures rather
 than test-specific shortcuts. Logical standard-library imports are a
 prerequisite so programs can use these APIs without knowing repository paths.
 
-- [ ] Specify a coherent process API for executable selection, arguments,
+- [x] Specify a coherent process API for executable selection, arguments,
       standard input, working directory, environment overrides, exit status,
       and captured standard output and error
-- [ ] Make process streams byte-oriented with explicit checked UTF-8 decoding,
+- [x] Make process streams byte-oriented with explicit checked UTF-8 decoding,
       define resource and output limits, and prevent deadlocks when both output
       streams are active
 - [ ] Specify portable directory enumeration, directory creation, file metadata,
       removal, and recursive operations with deterministic ordering and clear
-      symbolic-link and failure behavior
-- [ ] Add collision-safe temporary-file and temporary-directory creation with
+      symbolic-link and failure behavior; immediate enumeration, one-level
+      creation, metadata, and nonrecursive removal are implemented, while
+      recursive operations remain deferred
+- [x] Add collision-safe temporary-file and temporary-directory creation with
       explicit ownership, cleanup, and failure semantics
-- [ ] Separate wall-clock time from a monotonic elapsed-time API suitable for
+- [x] Separate wall-clock time from a monotonic elapsed-time API suitable for
       validation budgets and performance measurements
 - [ ] Define the supported-platform and capability policy for behavior such as
       permissions that cannot be represented consistently on every host; do not
       add a universal operation solely for a platform-specific test
-- [ ] Implement the accepted host boundary in the native VM and every
+- [x] Implement the accepted host boundary in the native VM and every
       transitional runtime still required for differential validation
-- [ ] Add typed standard-library wrappers that keep all process, filesystem,
+- [x] Add typed standard-library wrappers that keep all process, filesystem,
       temporary-resource, and clock operations effectful
 - [ ] Add focused, cross-runtime, and public-CLI conformance coverage, including
       large simultaneous process streams, invalid UTF-8, missing executables,
       environment and working-directory isolation, cleanup failures, path
-      traversal, resource limits, and monotonic timing
+      traversal, resource limits, and monotonic timing; the initial suite covers
+      streams, isolation, temporary cleanup, bounds, and failure categories;
+      exhaustive injected host failures and traversal coverage remain pending
 - [ ] Build a small Panackelty testing library with assertions, structured test
       results, fixture discovery, temporary isolation, command assertions, and
       deterministic reporting as the foundation for Python removal

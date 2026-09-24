@@ -119,17 +119,15 @@ Path produces `<Path>`.
 The existing Str-based `path_parent`, `path_join`, `path_suffix`,
 `path_with_suffix`, `path_is_absolute`, `path_resolve`, and `file_exists` retain
 their bootstrap-compatible contracts. In particular, the old `path_join`
-normalizes its result; the typed `path_append` never does. Typed filesystem
-queries and I/O, structured filesystem errors, and non-POSIX representations
-remain follow-up work.
+normalizes its result; the typed `path_append` never does. Typed filesystem queries and I/O are specified below. Non-POSIX
+representations remain follow-up work.
 
 ### Exact durations
 
 Import `stdlib/time`. A `Duration` stores a signed arbitrary-precision integer
 number of nanoseconds. Negative durations are valid, including differences
-between an expired deadline and the current instant. Future timeout and sleep
-APIs must validate nonnegative values and host limits at their boundaries;
-there is no sleep or timeout API in this initial implementation.
+between an expired deadline and the current instant. Sleep and process timeout APIs validate nonnegative values and host limits
+at their boundaries, as specified below.
 
 | Function | Result and behavior |
 | --- | --- |
@@ -761,3 +759,119 @@ source expression to identify.
 
 The immediate proving ground is a sequence of Project Euler solutions. Features
 should be added when those programs demonstrate a concrete need.
+
+## Typed filesystem, process, and sleep APIs
+
+Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; `stdlib/prelude`
+includes all three. These APIs use the existing opaque `Path` and `Duration`
+values. Host calls are effectful, including metadata, enumeration, and sleep.
+Only `host_decode_utf8` is pure.
+
+Failures return `Result[T,HostError]`, where
+`HostError { operation: Str, code: Str, native_code: Nat }` identifies the service,
+a portable category, and POSIX errno (zero for language-defined failures).
+Categories are `not_found`, `permission_denied`, `already_exists`, `not_directory`,
+`is_directory`, `not_empty`, `symlink_loop`, and fallback `io_error`; validation
+and resource failures additionally use `out_of_range`, `negative_duration`,
+`invalid_utf8`, `invalid_argument`, `invalid_environment`, `not_regular_file`,
+`output_limit`, `timeout`, `launch_failed`, `clock_unavailable`, or `out_of_memory`.
+Native error numbers are diagnostic details, not portable branching contracts.
+Malformed bytecode operands still trap; allocation failure may trap rather than
+allocate an error value.
+
+### Filesystem operations
+
+| Function | Result |
+| --- | --- |
+| `fs_read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
+| `fs_write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
+| `fs_metadata(path: Path)` | `Result[FileMetadata,HostError]` |
+| `fs_list(path: Path)` | `Result[[Path],HostError]` |
+| `fs_create_directory(path: Path)` | `Result[Unit,HostError]` |
+| `fs_remove_file(path: Path)` | `Result[Unit,HostError]` |
+| `fs_remove_directory(path: Path)` | `Result[Unit,HostError]` |
+| `fs_temp_file(parent: Path)` | `Result[Path,HostError]` |
+| `fs_temp_directory(parent: Path)` | `Result[Path,HostError]` |
+| `host_decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
+
+Reads and writes accept regular files, follow symlinks, and preserve bytes.
+Reads fail without partial data when their explicit byte limit is exceeded.
+Writes create or truncate a file and may leave partial contents on failure;
+they promise neither atomic replacement nor durable storage. New ordinary file
+and directory permissions are 0666 and 0777 filtered by the caller's umask.
+File data and read limits are capped at 16 MiB. Special files are rejected after
+opening with nonblocking flags; these calls are not a general stream API.
+
+`FileMetadata { kind: FileKind, size: Nat }` describes the final directory entry
+without following a final symlink. `FileKind` is `RegularFile`, `Directory`,
+`SymbolicLink`, or `OtherFile`. Size is the host's nonnegative byte-size field,
+not a recursive directory total. As with POSIX `lstat`, trailing separators and
+intermediate symlinks follow host path-resolution rules.
+
+Enumeration returns immediate relative child names, excluding `.` and `..`, in
+unsigned native-byte lexicographic order. Join a returned name with its parent
+using `path_append`. Names are never decoded implicitly; arbitrary native bytes
+round-trip where the host filesystem permits them. Enumeration is capped at
+65,536 entries and 16 MiB of names and fails without a partial list. Concurrent
+filesystem changes can affect results; enumeration is not a snapshot.
+
+Directory creation creates one level and fails if the entry exists. File removal
+unlinks a file or symlink; directory removal requires an empty directory. Neither
+recursively deletes entries. Temporary creation atomically chooses a unique name
+under the explicit parent, with permissions 0600 for files and 0700 for
+directories, subject to umask. The caller owns the returned path and must remove
+it explicitly. There is no automatic cleanup or lifetime tracking.
+
+Paths do not establish containment. Relative paths use the invocation's working
+directory; `..`, symlink traversal, and races remain POSIX host behavior. Recursive
+operations and secure descriptor-relative traversal remain separate follow-ups.
+
+### Process execution
+
+```panack
+process_run(
+  executable: Path, arguments: [Str], stdin: Bytes, working_directory: Path,
+  environment: [Str], timeout: Duration, output_limit: Nat
+): Result[ProcessOutput,HostError]
+```
+
+`ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }`
+represents completed execution. A normal exit has `signal == 0`, including a
+nonzero exit code. Signal termination has a nonzero signal number and
+`exit_code == 0`. Failure before execution returns `launch_failed`, with errno;
+timeout and output exhaustion return their own error categories, without partial
+output. There is no implicit UTF-8 decoding: use `host_decode_utf8` explicitly.
+
+The executable is an exact path, resolved relative to the requested child
+working directory when relative. There is no PATH search or implicit shell.
+Arguments exclude argv[0], are UTF-8 encoded, and reject NUL. Explicitly invoking
+`/bin/sh` opts into that shell's parsing. Environment entries use `NAME=value`
+and override the invocation's captured environment only in the child; empty
+names, missing `=`, duplicate names, and NUL are rejected. Empty values are
+allowed. Environment deletion and native-byte argument construction are deferred.
+
+The parent concurrently writes stdin and drains stdout and stderr, closing stdin
+when exhausted or when the child closes it. The output limit applies to the sum
+of both streams; no ordering between streams is promised. Input and combined
+output limits are capped at 16 MiB; argument and environment lists at 4096 entries
+each. OS argument-size limits can still cause `launch_failed`.
+
+Timeout covers launch and stream collection using `CLOCK_MONOTONIC`. A zero
+timeout fails before launching. At timeout or another collection failure, the VM
+closes its streams, requests SIGKILL for the child's process group and direct
+child, and reaps the direct child. The oracle falls back to direct-child killing
+where a sandbox forbids group signalling. Descendants that escape the process
+group are not contained; this is not a process sandbox. Descendants holding
+output streams open remain subject to the timeout. Deadlines are scheduling
+bounds, not hard real-time guarantees; host launch, termination, and cleanup can
+add latency.
+
+### Sleep and timing bounds
+
+`host_sleep(duration: Duration): Result[Unit,HostError]` waits for a nonnegative
+duration, retries interrupted sleeps, and accepts zero. Sleep and process timeout
+accept at most 31,536,000 seconds (365 days), expressed as exact nanoseconds;
+negative or larger values return `negative_duration` or `out_of_range` before any
+sleep or process launch. Duration arithmetic itself remains arbitrary precision.
+System-suspension accounting follows the host clock and sleep implementations;
+no portable across-suspension deadline promise is made.

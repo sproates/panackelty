@@ -63,6 +63,15 @@ class NativeExecutionTests(unittest.TestCase):
             text=True,
         )
 
+    def test_process_handles_inherited_ignored_sigpipe(self):
+        artifact = Path(self.temporary.name) / 'ignored-sigpipe.bc'
+        artifact.write_bytes(bytecode_bytes(build(CASES / 'host_process/main.panack')))
+        # Python ignores SIGPIPE. Preserve that disposition in the native VM.
+        result = subprocess.run([str(self.executable), 'run', str(artifact)],
+                                capture_output=True, text=True, restore_signals=False, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, (CASES / 'host_process/expected.stdout').read_text())
+
     def test_native_vm_matches_program_outputs(self):
         root = Path(self.temporary.name)
         for index, (name, source, expected) in enumerate(self.programs()):

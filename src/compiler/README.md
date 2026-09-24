@@ -87,3 +87,7 @@ The checker reserves opaque `Path`, `Duration`, and `Instant` types and checks
 their builtin signatures. The purity checker rejects `instant_now` inside pure
 functions. These operations lower to ordinary verified calls; they do not add
 bytecode constants or expose record constructors.
+
+Both frontends register the typed filesystem, process, sleep, and checked-decoding
+services with identical signatures and effects. These calls lower through the
+existing named-call ABI; their record and enum definitions live in the stdlib.

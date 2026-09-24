@@ -208,3 +208,10 @@ The version-8 seed has been refreshed for their builtin signatures, allowing
 every stage to compile the expanded prelude. Normal stage-2/stage-3 fixed-point
 and standard-library artifact comparisons remain required. String path helpers
 remain necessary for existing compiler loading and bootstrap compatibility.
+
+## Typed host capability follow-up
+
+Both frontends and runtimes support typed filesystem calls, bounded process
+execution, checked UTF-8 decoding, and sleep. The version-8 seed includes their
+signatures; the normal compiler and library fixed-point comparisons still apply.
+A Panackelty testing library and migration of the Python harness remain unfinished.

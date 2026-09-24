@@ -100,7 +100,7 @@ functional-impl: $(STAGE2_COMPILER)
 
 native: panack-vm
 
-panack-vm: src/vm/host_types.h src/vm/native.c src/vm/bigint.c src/vm/bigint.h
+panack-vm: src/vm/host_types.h src/vm/host_capabilities.h src/vm/native.c src/vm/bigint.c src/vm/bigint.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -std=c11 -Wall -Wextra -Werror -pedantic $(LDFLAGS) src/vm/native.c src/vm/bigint.c -o panack-vm $(LDLIBS)
 
 $(STAGE1_COMPILER): $(SEED_COMPILER)

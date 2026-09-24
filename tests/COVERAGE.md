@@ -207,3 +207,17 @@ execution and native/oracle conformance. The prelude and fixed-point bootstrap
 gates include the new module. Native clock failure injection, system suspension,
 non-POSIX hosts, typed filesystem I/O, and timeout APIs remain uncovered or
 unimplemented; a nanosecond representation is not a clock-accuracy claim.
+
+## Typed host capabilities
+
+`tests/unit/vm/test_host_capabilities.py` covers structured filesystem failures,
+symlinks, temporary permissions and uniqueness, raw filenames where supported,
+process environment/cwd isolation, simultaneous streams, early stdin closure,
+exit/signal outcomes, timing bounds, and checked decoding. Compiler host-type
+tests cover operand types and purity; forged-runtime fixtures cover invalid
+operands across both VMs. The `host_capabilities` and `host_process` functional
+cases run source and bytecode through the public CLI and native conformance.
+They include combined output exhaustion, absent executables, invalid environment
+entries, negative/oversized/zero timeouts, and descendants retaining output pipes.
+Host allocation failure, syscall fault injection, all errno mappings, and real
+system suspension remain intentionally outside this focused coverage.

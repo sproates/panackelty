@@ -1,0 +1,70 @@
+import stdlib/prelude
+
+pure path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+pure outcome[T](result: Result[T,HostError]): Str {
+  match result { Ok(value) => "ok", Error(error) => error.code }
+}
+main(): Void {
+  print(outcome(host_sleep(duration_nanoseconds(-1))))
+  print(outcome(host_sleep(duration_seconds(31536001))))
+  print(outcome(host_sleep(duration_nanoseconds(0))))
+  print(outcome(host_decode_utf8(byte_append(bytes(), 255))))
+  print(result_value_or(host_decode_utf8(utf8_encode("hello λ")), "bad"))
+  match fs_temp_directory(path("/tmp")) {
+    Error(error) => { print(error.code) },
+    Ok(directory) => {
+      file = result_value_or(path_append(directory, path("data")), directory)
+      print(outcome(fs_write(file, utf8_encode("hello"))))
+      print(result_value_or(fs_read(file, 5), bytes()) == utf8_encode("hello"))
+      print(outcome(fs_read(file, 4)))
+      match fs_metadata(file) { Error(error) => { print(error.code) }, Ok(info) => {
+        print(info.kind == RegularFile())
+        print(info.size)
+      } }
+      print(outcome(fs_create_directory(file)))
+      print(outcome(fs_remove_directory(directory)))
+      raw = result_value_or(path_from_native(byte_append(bytes(), 122)), path("bad"))
+      native_file = result_value_or(path_append(directory, raw), directory)
+      print(outcome(fs_write(native_file, bytes())))
+      entries = result_value_or(fs_list(directory), [path("bad")])
+      print(len(entries))
+      print(path_display(entries[0]))
+      print(path_native_bytes(entries[1]) == path_native_bytes(raw))
+      print(outcome(fs_remove_file(native_file)))
+      print(outcome(fs_remove_file(file)))
+      print(outcome(fs_read(file, 1)))
+      match fs_temp_file(directory) {
+        Error(error) => { print(error.code) },
+        Ok(temporary) => { print(outcome(fs_remove_file(temporary))) }
+      }
+      match process_run(path("/bin/sh"), ["-c", "printf child > child-output; ln -s child-output child-link"], bytes(), directory, [], duration_seconds(3), 10) {
+        Error(error) => { print(error.code) }, Ok(output) => { print(output.exit_code) }
+      }
+      child_output = result_value_or(path_append(directory, path("child-output")), directory)
+      child_link = result_value_or(path_append(directory, path("child-link")), directory)
+      print(result_value_or(fs_read(child_link, 5), bytes()) == utf8_encode("child"))
+      match fs_metadata(child_link) {
+        Error(error) => { print(error.code) }, Ok(info) => { print(info.kind == SymbolicLink()) }
+      }
+      print(outcome(fs_remove_file(child_link)))
+      print(outcome(fs_remove_file(child_output)))
+      child = result_value_or(path_append(directory, path("child")), directory)
+      print(outcome(fs_create_directory(child)))
+      print(outcome(fs_remove_directory(child)))
+      print(outcome(fs_remove_directory(directory)))
+    }
+  }
+  match process_run(path("/bin/sh"), ["-c", "cat; printf err >&2; exit 7"], utf8_encode("in"), path_current(), [], duration_seconds(3), 100) {
+    Error(error) => { print(error.code) },
+    Ok(output) => {
+      print(output.exit_code)
+      print(output.signal)
+      print(result_value_or(host_decode_utf8(output.stdout), "bad"))
+      print(result_value_or(host_decode_utf8(output.stderr), "bad"))
+    }
+  }
+  print(outcome(process_run(path("/does-not-exist"), [], bytes(), path_current(), [], duration_seconds(1), 10)))
+  print(outcome(process_run(path("/bin/sh"), ["-c", "sleep 5"], bytes(), path_current(), [], duration_milliseconds(20), 10)))
+  print(outcome(process_run(path("/bin/sh"), ["-c", "printf too-long"], bytes(), path_current(), [], duration_seconds(1), 1)))
+  print(outcome(process_run(path("/bin/sh"), [], bytes(), path_current(), ["INVALID"], duration_seconds(1), 10)))
+}

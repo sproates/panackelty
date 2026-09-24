@@ -50,6 +50,13 @@ preserve spelling and do not access the filesystem. Durations support exact
 arithmetic and checked fractional conversions. `instant_now()` is effectful
 and returns a `Result`; arithmetic on existing clock readings is pure.
 
+Typed filesystem and process APIs are available through `stdlib/filesystem`
+and `stdlib/process`. They accept `Path` values and return structured errors.
+Process execution supports byte streams, working directories, environment
+overrides, output limits, and exact-duration timeouts; `host_sleep` provides
+checked sleep. See the [host API contract](SPEC.md#typed-filesystem-process-and-sleep-apis)
+and [runnable example](tests/functional/cases/host_capabilities/main.panack).
+
 The [API specification](SPEC.md#paths-and-monotonic-time) and
 [executable example](tests/functional/cases/host_types/main.panack) show their
 contracts and use.

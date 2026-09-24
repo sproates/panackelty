@@ -217,15 +217,14 @@ signatures; the normal compiler and library fixed-point comparisons still apply.
 `stdlib/testing` provides pure structured assertions and ordered reporting.
 `stdlib/testing_files` provides sorted fixture directory discovery and
 explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
-bounded process results and expected host errors. The testing-library
-foundation is complete; migration of the Python oracle and harness remains.
-An initial Panackelty-hosted runner now checks twenty-three success fixtures, all
-twenty examples, and forty-one expected failure fixtures alongside the Python
-harness, including checked compiler `source.path` resolution and normalized
-failure diagnostics. Source/bytecode checking and disassembly contracts now run
-through the new runner, along with bare paths, arguments, process streams,
-help, and version; ten duplicate Python CLI methods have been retired, while
-remaining environment/file assertions and oracle migration continue.
+bounded process results and expected host errors. The testing-library foundation is complete; migration of the Python unit
+oracle and harness remains.
+The Panackelty-hosted functional runner now checks twenty-five selected
+success fixtures, all twenty examples, and forty-one failure fixtures. It
+also checks six `run`/`disasm` failure pairs, rational traps, exact displayed
+diagnostics, environment and file I/O, and a stage-two compiler driver
+comparison. `runner_smoke` runs from both source and saved bytecode. The
+Python functional methods have been retired; unit and oracle migration remains.
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
 and requires behavior parity before any transitional Python tests are retired.

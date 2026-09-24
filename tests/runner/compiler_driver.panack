@@ -1,0 +1,113 @@
+import stdlib/testing
+import stdlib/testing_files
+import stdlib/testing_commands
+import stdlib/environment
+
+pure path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+pure child(root: Path, name: Str): Path {
+  result_value_or(path_append(root, path(name)), root)
+}
+
+pure command(arguments: [Str], timeout: Nat): TestCommand {
+  TestCommand(path("./panack"), arguments, bytes(), path_current(), [],
+    duration_seconds(timeout), 1048576)
+}
+
+pure compiler_command(compiler: Str, arguments: [Str]): TestCommand {
+  command(["run", compiler].concat(arguments), 30)
+}
+
+main(): Void {
+  match test_workspace_create(path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Ok(workspace) => {
+      own_compiler = child(workspace.root, "compiler.bc")
+      own_compiler_text = result_value_or(path_to_text(own_compiler), "invalid-compiler")
+      compiler = match environment("PANACK_TEST_COMPILER") {
+        Some(value) => value,
+        None() => own_compiler_text
+      }
+      source = "tests/functional/cases/hello_world/main.panack"
+      self_hosted = child(workspace.root, "self-hosted.bc")
+      bootstrap = child(workspace.root, "bootstrap.bc")
+      self_hosted_text = result_value_or(path_to_text(self_hosted), "invalid-self-hosted")
+      bootstrap_text = result_value_or(path_to_text(bootstrap), "invalid-bootstrap")
+      mut results: [TestResult] = []
+      match environment("PANACK_TEST_COMPILER") {
+        Some(cached) => {},
+        None() => {
+          results = results.append(test_run_command("compile compiler",
+            command(["compile", "src/compiler/main.panack", "-o", compiler], 90),
+            ProcessOutput(0, 0, utf8_encode("wrote ${compiler}\n"), bytes())))
+        }
+      }
+      results = results.append(test_run_command("verify compiler artifact",
+        command(["check", compiler], 30), ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+      results = results.append(test_run_command("self-hosted check",
+        compiler_command(compiler, ["check", source]),
+        ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+      results = results.append(test_run_command("self-hosted run",
+        compiler_command(compiler, ["run", source]),
+        ProcessOutput(0, 0, utf8_encode("hello world\n"), bytes())))
+      results = results.append(test_run_command("self-hosted compile",
+        compiler_command(compiler, ["--", "compile", source, "-o", self_hosted_text]),
+        ProcessOutput(0, 0, utf8_encode("wrote ${self_hosted_text}\n"), bytes())))
+      results = results.append(test_run_command("bootstrap compile",
+        command(["compile", source, "-o", bootstrap_text], 30),
+        ProcessOutput(0, 0, utf8_encode("wrote ${bootstrap_text}\n"), bytes())))
+      match fs_read(self_hosted, 1048576) {
+        Error(error) => { results = results.append(test_expect("byte-identical compiler output",
+          false, "self-hosted artifact read failed")) },
+        Ok(hosted_bytes) => {
+          match fs_read(bootstrap, 1048576) {
+            Error(error) => { results = results.append(test_expect("byte-identical compiler output",
+              false, "bootstrap artifact read failed")) },
+            Ok(bootstrap_bytes) => { results = results.append(test_expect(
+              "byte-identical compiler output", hosted_bytes == bootstrap_bytes,
+              "compiler artifacts differed")) }
+          }
+        }
+      }
+      match process_run(path("./panack"), ["run", compiler, "disasm", source],
+          bytes(), path_current(), [], duration_seconds(30), 1048576) {
+        Error(error) => { results = results.append(test_expect("self-hosted disassembly",
+          false, "source command failed")) },
+        Ok(source_disasm) => {
+          results = results.append(test_expect("self-hosted disassembly",
+            source_disasm.exit_code == 0 && source_disasm.signal == 0 &&
+              source_disasm.stderr == bytes(), "source disassembly failed"))
+          results = results.append(test_run_command("self-hosted bytecode disassembly",
+            compiler_command(compiler, ["disasm", self_hosted_text]),
+            ProcessOutput(0, 0, source_disasm.stdout, bytes())))
+        }
+      }
+      for file in [self_hosted, bootstrap] {
+        match fs_remove_file(file) {
+          Ok(removed) => {},
+          Error(error) => { results = results.append(test_expect("artifact cleanup", false,
+            "file removal failed")) }
+        }
+      }
+      match environment("PANACK_TEST_COMPILER") {
+        Some(cached) => {},
+        None() => {
+          match fs_remove_file(own_compiler) {
+            Ok(removed2) => {},
+            Error(error) => { results = results.append(test_expect("compiler cleanup", false,
+              "file removal failed")) }
+          }
+        }
+      }
+      match test_workspace_remove_empty(workspace) {
+        Ok(removed3) => {},
+        Error(error) => { results = results.append(test_expect("workspace cleanup", false,
+          "directory removal failed")) }
+      }
+      failures = test_report(results)
+      if failures > 0 { process_exit(1) }
+    }
+  }
+}

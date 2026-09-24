@@ -818,15 +818,13 @@ installed.
       recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
-- [ ] Port functional-test discovery, subprocess orchestration, environment and
-      file fixtures, output comparisons, and exit-status assertions. A first
-      Panackelty runner now checks twenty-three success fixtures, twenty examples,
-      and forty-one expected failure fixtures in parallel with the Python
-      harness, including source/bytecode check and disassembly, safe compiler
-      `source.path`, bare-path invocation, arguments, process status,
-      normalized diagnostics,
-      and nonempty-workspace cleanup failure and recovery. Next extend the
-      remaining CLI and environment assertions, preserving host-error parity
+- [x] Port functional-test discovery, subprocess orchestration, environment and
+      file fixtures, output comparisons, and exit-status assertions. The
+      Panackelty runner checks twenty-five selected cases, twenty examples,
+      forty-one failure fixtures, and the complete CLI/environment/file
+      contracts. `make functional` also validates the stage-two compiler
+      driver and runs its smoke case from source and bytecode; no Python
+      functional methods remain.
 - [ ] Replace differential reliance on the Python compiler and VM with portable
       golden artifacts, contract tests, native/self-hosted cross-checks, and
       fixed-point bootstrap evidence
@@ -862,6 +860,12 @@ invocation. Profile that added work as part of the same prioritized timing fix.
 The failure migration adds forty-one check and compile diagnostic pairs plus
 artifact assertions; measure the full runner and remove redundant invocations
 without weakening the new negative coverage.
+The final functional migration's first clean run took 251 seconds (unit 147,
+functional 86), with warnings at all three budgets. Its checkout-with-spaces
+unit regression redundantly reran the complete functional suite; that test now
+checks the stage-two compiler path and byte-identical output directly. Continue
+profiling the remaining sequential runner work and reuse verified artifacts
+to recover the 15/75/120-second budgets without removing assertions.
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

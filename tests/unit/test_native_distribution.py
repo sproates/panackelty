@@ -104,7 +104,7 @@ class NativeDistributionTests(unittest.TestCase):
                 hashlib.sha256(archive.read_bytes()).hexdigest(),
             )
 
-    def test_functional_recipe_passes_compiler_path_from_spaced_checkout(self):
+    def test_compiler_artifact_path_from_spaced_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
             checkout = Path(directory) / "checkout with spaces (test)"
             checkout.mkdir()
@@ -116,24 +116,15 @@ class NativeDistributionTests(unittest.TestCase):
                 target = checkout / "build/bootstrap" / stage / "compiler.bc"
                 target.parent.mkdir(parents=True)
                 shutil.copyfile(PROJECT / "bootstrap/compiler-v8.bc", target)
-            probe = checkout / "probe.sh"
-            probe.write_text(
-                '#!/bin/sh\nset -eu\n'
-                'test "$PANACK_TEST_COMPILER" = "$PWD/build/bootstrap/stage2/compiler.bc"\n'
-                './panack-vm run "$PANACK_TEST_COMPILER" compile hello.panack -o hello.bc\n'
-                './panack-vm run hello.bc\n',
-                encoding="utf-8",
-            )
-            (checkout / "hello.panack").write_text(
-                'main(): Void { print(42) }\n', encoding="utf-8"
-            )
             result = subprocess.run(
-                ["make", "functional-impl", "PYTHON=sh probe.sh"],
+                [str(checkout / "panack"), "run", "tests/runner/compiler_driver.panack"],
                 cwd=checkout, capture_output=True, text=True,
+                env=dict(os.environ, PANACK_TEST_COMPILER=str(
+                    checkout / "build/bootstrap/stage2/compiler.bc")),
             )
             self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-            self.assertIn("42", result.stdout.splitlines())
-            self.assertEqual(result.stdout.splitlines()[-1], "tests: 255, failures: 0")
+            self.assertIn("PASS byte-identical compiler output", result.stdout)
+            self.assertEqual(result.stdout.splitlines()[-1], "tests: 8, failures: 0")
 
     def test_installed_cli_runs_without_source_tree_layout(self):
         with tempfile.TemporaryDirectory() as directory:

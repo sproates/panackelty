@@ -520,19 +520,18 @@ completed-process/host-error distinction; effectful wrappers return ordinary
 
 The [Python-free test architecture](tests/PYTHON_MIGRATION.md) maps the
 transitional development oracle and harness to Panackelty-hosted behavioral
-tests, direct native C tests, and portable golden fixtures. It retains the
-existing checks during migration and treats the fixed-point bootstrap and
+tests, direct native C tests, and portable golden fixtures. It preserves their behavior during migration and treats the fixed-point bootstrap and
 exact-artifact release gates as independent required evidence.
-The `tests/runner/main.panack` selects twenty-three discovered success fixtures,
+The `tests/runner/main.panack` selects twenty-five discovered success fixtures,
 twenty example programs, and forty-one expected failure fixtures. It checks
 source, compilation, and bytecode for successes; the failures check `check`
-and `compile` diagnostics and require no bytecode artifact. Diagnostics are
+and `compile` diagnostics and require no bytecode artifact. Six selected
+failures also assert exact diagnostics for `run` and `disasm`. Diagnostics are
 normalized to `<case>` for exact comparison across checkout locations. It
 verifies that every example source has a corresponding expected output and vice
-versa. `make functional` runs it after the complete Python harness; it owns an isolated temporary
-workspace and reports cleanup failure as a test failure. Ten fully duplicated
-Python CLI methods have been retired after runner parity on both CI platforms;
-the remaining harness checks are retained.
+versa. `make functional` runs it with the self-hosted compiler driver check
+and checks `runner_smoke` from source and bytecode. Each owns an isolated
+workspace and reports cleanup failure. Python unit tests remain active.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default
@@ -540,12 +539,14 @@ compile output, argument forwarding, process exit and stderr, help, and version.
 The `cli_environment_files` fixture checks explicit environment overrides,
 text and binary file round trips, missing paths, invalid UTF-8, and
 permission denial on unprivileged POSIX hosts.
+`cli_rational_failures` checks six source and bytecode runtime traps;
+`cli_diagnostic_display` compares two exact diagnostic displays.
 For `compiler_skeleton`, it resolves the `source.path` target physically within
 the checkout and uses the verified stage-two compiler artifact for the bytecode
 check when supplied by the bootstrap recipe.
 For the `stdlib` case, a POSIX shell child unsets `PANACKELTY_STDLIB_VALUE`
-before invoking the public CLI, preserving the Python harness's environment
-isolation without changing the typed process API.
+before invoking the public CLI, preserving the functional suite's environment isolation without changing
+the typed process API.
 
 ## Native VM module boundaries
 

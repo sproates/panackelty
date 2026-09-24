@@ -2,11 +2,11 @@
 
 [Python-free test architecture and migration inventory](PYTHON_MIGRATION.md)
 maps each existing test area to its replacement and records the parity gates.
-Ten duplicate Python CLI assertions have been retired after parity checks; the
-remaining Python harness stays active until its ownership gates pass.
-The Panackelty-hosted fixture runner (`runner/main.panack`) checks twenty-three
-success cases, twenty examples, and forty-one expected failures alongside the
-Python harness during `make functional`.
+All twenty former Python functional methods now have Panackelty-hosted
+replacement evidence. The runner (`runner/main.panack`) checks twenty-five
+selected success cases, twenty examples, and forty-one expected failures.
+`make functional` also checks the self-hosted compiler driver and exercises
+`runner_smoke` from source and saved bytecode. The Python unit tests remain.
 
 Panackelty has five validation paths:
 
@@ -61,11 +61,11 @@ evidence changes.
 
 `stdlib/testing` supplies pure structured assertions and an explicit reporter
 for new Panackelty-hosted tests. Its initial end-to-end case is
-`functional/cases/testing_library`; the existing Python harness still owns
+`functional/cases/testing_library`; the Python unit harness still owns
 test discovery and execution until its later migration.
 `stdlib/testing_files` exposes sorted immediate fixture directories and
 temporary workspaces; `functional/cases/testing_fixtures` exercises their
-creation, enumeration, and explicit cleanup. The Python harness still runs
+creation, enumeration, and explicit cleanup. Python unit tests still run
 the complete suite.
 `stdlib/testing_commands` supplies byte-exact process and host-error
 assertions; `functional/cases/testing_commands` verifies those via the public

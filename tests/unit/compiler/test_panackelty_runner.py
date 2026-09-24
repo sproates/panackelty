@@ -20,6 +20,28 @@ CASES = (
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_failure_commands_cover_run_and_disassembly(self):
+        completed = subprocess.run(
+            [str(ROOT / "panack"), "run", "tests/runner/main.panack",
+             "--failure", "unknown_name"], cwd=ROOT, capture_output=True,
+            timeout=30, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
+        for command in (b"check", b"compile", b"run", b"disasm"):
+            self.assertIn(b"PASS failure/unknown_name/" + command, completed.stdout)
+        self.assertIn(b"PASS failure/unknown_name/no artifact", completed.stdout)
+        self.assertIn(b"tests: 7, failures: 0", completed.stdout)
+
+    def test_failed_compilation_corpus_is_available_to_incremental_check(self):
+        completed = subprocess.run(
+            [str(ROOT / "panack"), "run", "tests/runner/main.panack",
+             "--failures-only"], cwd=ROOT, capture_output=True,
+            timeout=45, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr + completed.stdout)
+        self.assertIn(b"PASS failure/while_condition_type/no artifact", completed.stdout)
+        self.assertIn(b"tests: 137, failures: 0", completed.stdout)
+
     def test_cli_environment_files_case_runs_through_public_runner(self):
         completed = subprocess.run(
             [str(ROOT / "panack"), "run", "tests/runner/main.panack",

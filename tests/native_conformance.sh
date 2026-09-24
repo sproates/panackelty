@@ -66,7 +66,7 @@ grep 'usage: panack ' "$temporary/help.stdout" >/dev/null || fail "help output i
 test ! -s "$temporary/help.stderr" || fail "help wrote unexpected stderr"
 
 IFS= read -r release_version <"$project/VERSION"
-printf 'panack %s (bytecode 7)\n' "$release_version" >"$temporary/version.expected"
+printf 'panack %s (bytecode 8)\n' "$release_version" >"$temporary/version.expected"
 "$panack" --version >"$temporary/version.stdout" 2>"$temporary/version.stderr"
 cmp "$temporary/version.expected" "$temporary/version.stdout" || fail "version output differs"
 test ! -s "$temporary/version.stderr" || fail "version wrote unexpected stderr"

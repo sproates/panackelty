@@ -14,7 +14,7 @@ body:
     attributes:
       label: Panackelty version
       description: Paste the complete output of `panack --version`.
-      placeholder: panack 0.1.0-alpha.1 (bytecode 7)
+      placeholder: panack 0.1.0-alpha.1 (bytecode 8)
     validations:
       required: true
 

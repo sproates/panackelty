@@ -182,15 +182,15 @@ both the guarantees they provide and the clarity of the resulting workflow.
 ### Core and standard-library types — planned exploration
 
 Keep the primitive type set small while making common terminal-program concepts
-explicit in the standard library. The names below are proposals, not additions
-to the accepted language. Prefer portable records and tagged unions; add compiler
+explicit in the standard library. Unfinished entries below are proposals;
+completed entries describe accepted features. Prefer portable records and tagged unions; add compiler
 or VM support only where representation, checking, or the host boundary requires
 it. Coordinate generic-function work with `SELF_HOSTING.md`, JSON work with
 the JSON data support initiative below, and host types with the automation and
 host capabilities initiative.
 
-Prioritize generic source functions, a first-class success value, and typed host
-APIs before adding numerical or convenience types.
+Generic source functions, a first-class success value, and exact rational
+arithmetic are implemented. Typed host APIs are the next priority.
 
 - [x] Specify and implement generic source functions and explicit type arguments,
       including inference, ambiguity diagnostics, and purity preservation, so
@@ -198,14 +198,14 @@ APIs before adding numerical or convenience types.
       cases
 
 The first generic-function implementation checks abstract bodies once and erases
-type arguments into ordinary version-7 calls. It includes inferred and explicit
+type arguments into ordinary version-8 calls. It includes inferred and explicit
 complete type arguments, recursion, and portable Option/Result/array helpers.
 Constraints, generic function references, partial type arguments, and inference
 from expected return types remain deferred.
 
-- [ ] Evaluate a singleton `Unit` value for successful operations without a
-      payload, such as `Result[Unit,IoError]`; define its relationship to the
-      existing return-only `Void` marker and its generic and bytecode semantics
+- [x] Implement first-class singleton `Unit`, written `()`, including generic
+      success payloads, collections, and callbacks; keep return-only `Void`
+      distinct and lower Unit construction through a pure bytecode-8 builtin
 - [ ] Design a standard-library `Path` type that distinguishes paths from text;
       specify checked construction, lexical operations, platform representation,
       and explicit filesystem queries without implying that a path exists or is
@@ -223,10 +223,11 @@ from expected return types remain deferred.
 - [ ] Complete explicit decimal rounding with specified precision or scale and
       rounding modes, preserving exact existing arithmetic and requiring an
       explicit choice for non-terminating decimal division
-- [ ] Evaluate a library-first `Rat` type for exact fractions after decimal
-      rounding, using representative numerical programs; specify normalization,
-      zero-denominator failures, arithmetic, and explicit rounded conversion to
-      `Dec` before considering primitive support
+- [x] Implement exact `Rat` with integer `/`, normalized arbitrary-precision
+      fractions, arithmetic and comparisons, zero-divisor traps, exact `.nat()`
+      and `.dec()` conversions, and explicit natural `quotient` division
+- [ ] Extend rational-to-decimal conversion with explicit scale or precision and
+      rounding modes alongside decimal rounding; add checked conversion helpers
 - [ ] Evaluate tuples for temporary pairs and multiple return values only when
       examples demonstrate a meaningful benefit over named records
 - [ ] Explore calendar dates and wall-clock time as a separate library design,

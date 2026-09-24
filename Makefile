@@ -36,7 +36,7 @@ PACKAGE_ROOT := $(PACKAGE_STAGE)/$(PACKAGE_ROOT_NAME)
 PACKAGE_ARCHIVE := $(abspath $(BUILD_DIR))/$(PACKAGE_NAME).tar.gz
 PACKAGE_CHECKSUM := $(PACKAGE_ARCHIVE).sha256
 BOOTSTRAP_DIR := $(BUILD_DIR)/bootstrap
-SEED_COMPILER ?= bootstrap/compiler-v7.bc
+SEED_COMPILER ?= bootstrap/compiler-v8.bc
 COMPILER_SOURCE := src/compiler/main.panack
 STDLIB_CONFORMANCE := tests/functional/cases/stdlib/main.panack
 STAGE1_COMPILER := $(BOOTSTRAP_DIR)/stage1/compiler.bc
@@ -148,7 +148,7 @@ install: native
 	install -m 755 panack "$(DESTDIR)$(PREFIX)/bin/panack"
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
-	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v7.bc"
+	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v8.bc"
 	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
 	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 

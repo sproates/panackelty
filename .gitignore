@@ -1,7 +1,7 @@
 __pycache__/
 *.py[cod]
 *.bc
-!/bootstrap/compiler-v7.bc
+!/bootstrap/compiler-v8.bc
 /panack-vm
 /build/
 /output/

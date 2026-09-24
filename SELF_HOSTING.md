@@ -48,7 +48,7 @@ Post-bootstrap language and engineering priorities are tracked in
 - [x] Persistent maps and sets
 - [x] Byte buffers, UTF-8 conversion, and byte-oriented operations
 - [x] Generic functions and explicit type arguments, with argument inference,
-      abstract body checking, purity preservation, and erased version-7 calls
+      abstract body checking, purity preservation, and erased version-8 calls
 - [ ] Specify an ownership model for efficient collection construction
 - [ ] Implement uniquely owned mutable collection builders if required by
       compiler performance measurements
@@ -166,7 +166,7 @@ Portable Panackelty definitions are separated from deterministic VM primitives
 and from the effectful named-call ABI in `src/runtime/ABI.md`. Environment and
 argument inputs are snapshotted per VM and inherited by nested execution. The
 standard-library conformance graph compiles with both currently available
-compiler stages, and their version-7 artifacts must be byte-identical.
+compiler stages, and their version-8 artifacts must be byte-identical.
 
 ## Milestone 8: Native seed VM — complete
 
@@ -193,3 +193,10 @@ Python. The checked seed and its digest are documented in `bootstrap/README.md`.
 The compiler source itself exercises the typed Map and Set method aliases in
 its lexer and project loader, so every bootstrap stage proves those calls as
 part of the fixed point.
+
+## Rational and Unit follow-up
+
+The compiler and bytecode tools now use explicit natural quotient division where
+integer results are required. Both frontends and VMs support exact `Rat` and
+first-class `Unit`. The version-8 seed replaces version 7; normal stage-2/stage-3
+fixed-point and standard-library conformance gates continue to apply.

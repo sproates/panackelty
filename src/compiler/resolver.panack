@@ -38,6 +38,7 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
 }
 
 pure is_builtin(name: Str): Bool {
+  name == "$unit" || name == "nat" || name == "dec" || name == "quotient" ||
   name == "print" || name == "read_line" || name == "read_file" ||
   name == "write_file" || name == "len" || name == "append" ||
   name == "concat" || name == "slice" || name == "starts_with" ||

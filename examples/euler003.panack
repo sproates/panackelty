@@ -5,7 +5,7 @@ pure largest_prime_factor(value: Nat): Nat {
 
   while factor * factor <= remaining {
     if remaining % factor == 0 {
-      remaining = remaining / factor
+      remaining = quotient(remaining, factor)
     } else {
       factor = factor + 1
     }

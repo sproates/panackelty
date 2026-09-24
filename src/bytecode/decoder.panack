@@ -193,7 +193,7 @@ pure nat_digit_count(value: Nat): Nat {
     mut count: Nat = 0
     mut remaining: Nat = value
     while remaining > 0 {
-      remaining = remaining / 10
+      remaining = quotient(remaining, 10)
       count = count + 1
     }
     count
@@ -254,12 +254,12 @@ pure read_decimal(reader: ByteReader): ReadConstant {
   if sign.value > 1 { current = invalid_reader(current, "invalid decimal sign"); } else {}
   if exponent.value.magnitude > 4096 { current = invalid_reader(current, "decimal exponent exceeds limit"); } else {}
   if count.value == 0 || count.value > 4096 { current = invalid_reader(current, "decimal coefficient exceeds digit limit"); } else {}
-  raw: ReadBytes = read_raw(current, (count.value + 1) / 2)
+  raw: ReadBytes = read_raw(current, quotient(count.value + 1, 2))
   mut digits: [Nat] = []
   mut cursor: Nat = 0
   while cursor < byte_len(raw.value) && raw.reader.valid {
     byte: Nat = byte_get(raw.value, cursor)
-    high: Nat = byte / 16
+    high: Nat = quotient(byte, 16)
     low: Nat = byte % 16
     if high > 9 { current = invalid_reader(raw.reader, "invalid decimal digit"); }
     else { digits = append(digits, high); }
@@ -612,7 +612,7 @@ pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
     initial: ByteReader = ByteReader(data, 9, true, "")
     version: ReadNat = read_u16(initial)
     if !version.reader.valid { BytecodeDecodeError(version.reader.message) }
-    else { if version.value != 7 {
+    else { if version.value != 8 {
       version_number: Nat = version.value
       BytecodeDecodeError("unsupported bytecode version ${version_number}")
     }

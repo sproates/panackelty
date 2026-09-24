@@ -2,17 +2,21 @@
 
 This document freezes the representation used by the portable C11 seed VM. It
 is an implementation contract beneath the language-level value semantics in
-`src/bytecode/FORMAT.md`; it does not change bytecode version 7.
+`src/bytecode/FORMAT.md`; it does not change bytecode version 8.
 
 ## Values
 
 Every operand-stack slot, local, collection element, record field, variant
-payload, and map entry is a `PnValue`: a small tagged union. `Bool` and `Void`
-are immediate. All other values point to an immutable heap object carrying its
-kind, reference count, and payload.
+payload, and map entry points to a reference-counted `Value` with a tagged
+union payload. `Bool` stores its flag inline; `Unit` and `Void` need no payload.
+Their distinct tags prevent a successful Unit value from becoming a no-result
+sentinel.
 
 - `Nat` and `Int` use a sign plus little-endian base-1,000,000,000 limbs. Zero
   has no limbs and is never negative.
+- `Rat` owns two arbitrary-precision integers. Construction reduces them by
+  their greatest common divisor, makes the denominator positive, and normalizes
+  zero to `0/1`. Destruction frees both integers.
 - `Dec` stores a signed arbitrary-precision coefficient and a signed base-10
   exponent. Arithmetic preserves exact scale; division succeeds only when the
   reduced denominator contains no prime factors other than two and five.
@@ -51,7 +55,7 @@ All size additions and multiplications are checked before allocation.
 
 ## Limits and safety
 
-The native loader applies every version-7 limit before allocating or iterating
+The native loader applies every version-8 limit before allocating or iterating
 the corresponding input. It validates UTF-8, minimal integers, decimal BCD,
 canonical function ordering, flags, opcodes, jump targets, calls, arities, and
 purity before execution. Runtime operations retain independent type, bounds,

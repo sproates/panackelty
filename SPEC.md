@@ -15,6 +15,8 @@ the language, rather than an incidental implementation detail.
 | `Nat` | Arbitrary-precision integer greater than or equal to zero |
 | `Int` | Arbitrary-precision signed integer |
 | `Dec` | Arbitrary-precision base-10 decimal; never binary floating point |
+| `Rat` | Exact rational with a signed arbitrary-precision numerator and positive denominator |
+| `Unit` | Singleton value written `()` |
 | `Str` | Unicode text |
 | `Bool` | `true` or `false` |
 | `Void` | A function return marker indicating that no value is returned |
@@ -29,6 +31,49 @@ needed; rounding modes are not yet part of the language.
 `Nat` subtraction is accepted only when the checker can prove that the result
 is non-negative. This first implementation recognizes constants and simple
 guard facts. Use `Int` when subtraction may legitimately cross zero.
+
+### Rational arithmetic and exact conversions
+
+Division `/` of `Nat` and/or `Int` operands produces `Rat`, including when the
+result is integral. Rational `+`, `-`, `*`, `/`, unary negation, equality, and
+ordering are exact. Binary operations accept `Rat` mixed with `Nat` or `Int`;
+arithmetic results remain `Rat`. `Rat` does not mix implicitly with `Dec` and
+does not support `%`. Other integer arithmetic retains its existing types.
+There is no implicit assignment conversion from an integer to `Rat`; use `n/1`.
+
+Every rational is reduced by the greatest common divisor, with a positive
+denominator; zero is `0/1`. Display always uses `numerator/denominator`, including
+`10/1`. Division by zero traps. Intermediate integers may grow without a fixed
+precision limit, so rational arithmetic is not a constant-cost operation.
+
+```panackelty
+third = 1/3
+ten = third * 30  // Rat, normalized to 10/1
+x = ten.nat()     // Nat, exactly 10
+half = (1/2).dec() // Dec, exactly 0.5
+```
+
+`value.nat()` (also `nat(value)`) accepts `Rat` and returns `Nat` only when the
+value is integral and non-negative; otherwise it traps without truncating.
+`value.dec()` (also `dec(value)`) accepts `Rat` and returns its exact finite
+`Dec` representation, or traps when the reduced denominator contains factors
+other than two and five. Rounded decimal conversion and checked `Result`
+conversion APIs remain deferred. These operations are pure despite being partial.
+
+`quotient(a, b)` accepts two `Nat` values and returns their truncated natural
+quotient; it traps for a zero divisor. This explicit operation replaces former
+uses of integer `/` for byte packing and integer algorithms. `%` remains the
+integer remainder operation (with the divisor's sign for signed operands).
+`Dec / Dec` retains its existing exact-decimal semantics.
+
+### First-class `Unit`
+
+`Unit` has one value, `()`, distinct from the internal no-result `Void` sentinel.
+It may be stored, passed, returned, used in generic arguments, records, enums,
+arrays, maps, sets, and callbacks. For example, `Result[Unit,Str]` can contain
+`Ok(())`. Equality of two Unit values is true; ordering and arithmetic are invalid.
+A function returning `Unit` must explicitly produce a Unit value; an empty body
+still produces `Void`. Neither `Rat` nor `Unit` is currently a guarded-type base.
 
 ## Declarations, functions, and `Void`
 
@@ -137,7 +182,7 @@ unused-binding warnings are not implemented yet.
 value: it cannot be used for parameters, bindings, collection elements, or
 arguments. A `Void` function may fall through its closing brace without a final
 expression. Every non-`Void` function must end with a value compatible with its
-declared return type. Empty parentheses are not a value.
+declared return type. Empty parentheses produce the first-class `Unit` value.
 
 Within a block, a physical line break terminates a complete declaration,
 assignment, or standalone expression. A semicolon remains an explicit separator
@@ -245,7 +290,7 @@ not permit an effectful call from a pure body.
 
 Generic functions may recurse and call other generic functions. They compile to
 one ordinary function body with type arguments erased; tagged runtime values
-and the existing version-7 call instructions supply execution. No specialisation,
+and the existing version-8 call instructions supply execution. No specialisation,
 new opcode, or bytecode version is required. Taking a generic function reference
 with `@name` is deferred; use a non-generic wrapper when a concrete callback is
 needed. Constraints, traits, higher-rank polymorphism, partial type arguments,
@@ -364,7 +409,7 @@ pure greeting(name: Str, attempts: Nat): Str {
 }
 ```
 
-Interpolation accepts `Nat`, `Int`, `Dec`, `Str`, `Bool`, and guarded scalar
+Interpolation accepts `Nat`, `Int`, `Dec`, `Rat`, `Unit`, `Str`, `Bool`, and guarded scalar
 types. It is pure string construction, not I/O. Indexing uses a `Nat` and returns
 a one-character `Str`. Currently, “character” means a Unicode code point,
 not a user-perceived grapheme cluster; both indexing and `len` use that same
@@ -463,7 +508,7 @@ tokens = tokens.append(token)
 modified. `Map[K,V]` provides `map.put(key, value)`, `map.has(key)`, and
 `map.get(key)`. `Set[T]` provides `set.add(value)` and `set.has(value)`. Updates
 return new collections rather than mutating their receivers. Map keys and set
-elements are currently restricted to scalar types. `get` traps when a key is
+elements are currently restricted to scalar types, including `Rat` and `Unit`. `get` traps when a key is
 missing, so callers should use `has` until generic optional lookup is added.
 
 The original `map_put`, `map_has`, `map_get`, `set_add`, and `set_has`
@@ -541,7 +586,7 @@ Values retain runtime tags, and VM arithmetic checks `Nat` underflow even after
 static checking as a bytecode-safety measure.
 
 The serialized format begins with the `PANACKBC` magic header and a numeric format
-version. Version 7 uses the compact typed binary payload introduced by version
+version. Version 8 uses the compact typed binary payload introduced by version
 5, containing function
 signatures, purity flags, and instruction streams; `main` is the implicit entry
 point. The VM uses
@@ -551,7 +596,7 @@ unknown opcodes, malformed constants and operands, invalid control-flow targets,
 calls with incorrect arity, missing functions, and pure functions that call
 impure functions.
 
-Version 7 retains the instruction, tagged-value, isolated-call-frame,
+Version 8 retains the instruction, tagged-value, isolated-call-frame,
 control-flow, and trap semantics introduced by version 4, the binary encoding
 introduced by version 5 and the method/string additions from version 6. It adds
 verified indirect callable invocation for explicit named references, as

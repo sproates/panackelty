@@ -42,7 +42,7 @@ pure choose(flag: Bool): Option[Nat] {
 }
 
 pure divide(a: Nat, b: Nat): Result[Nat,Str] {
-  if b == 0 { Error("zero") } else { Ok(a / b) }
+  if b == 0 { Error("zero") } else { Ok(quotient(a, b)) }
 }
 
 pure unwrap(value: Option[Nat]): Nat {

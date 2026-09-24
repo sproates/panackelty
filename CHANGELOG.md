@@ -4,6 +4,16 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Exact `Rat` values: integer `/` produces a normalized fraction; arithmetic with
+  integers stays rational. `.nat()` and `.dec()` convert exactly or trap.
+- First-class `Unit`, written `()`, supports generic success payloads such as
+  `Result[Unit,Str]`, collections, and callbacks while remaining distinct from Void.
+- Breaking change: bytecode 8 replaces version 7. Recompile existing artifacts.
+  Replace truncating natural division with `quotient(a, b)`; existing `Dec`
+  division keeps its exact-decimal behavior. Rounded conversions remain deferred.
+
 ## 0.1.0-alpha.4 — 2026-09-24
 
 ### Highlights

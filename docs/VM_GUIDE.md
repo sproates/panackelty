@@ -5,7 +5,7 @@ an arithmetic expression, then follow a function call and a loop. Each example
 is a runnable program in `examples/`, with expected output checked by the
 functional suite from both source and compiled bytecode.
 
-The guide describes bytecode version 7. [FORMAT.md](../src/bytecode/FORMAT.md)
+The guide describes bytecode version 8. [FORMAT.md](../src/bytecode/FORMAT.md)
 is the authoritative instruction and binary-format contract;
 [VALUE_MODEL.md](../src/vm/VALUE_MODEL.md) describes native memory ownership.
 
@@ -19,7 +19,7 @@ no parameters. Source execution takes the same compilation route as a saved
 ```mermaid
 flowchart LR
     S[Panackelty source] --> C[Compiler and type checker]
-    C --> B[Version 7 bytecode]
+    C --> B[Version 8 bytecode]
     B --> V[Verifier]
     V --> M[VM begins at main]
     M --> H[Runtime and host services]
@@ -59,7 +59,7 @@ these numbers within the same function. They aren't byte offsets: instructions
 have different encoded lengths.
 
 The binary representation starts with `PANACKBC` followed by a zero byte, the
-big-endian version `00 07`, and the function table. Each instruction has a
+big-endian version `00 08`, and the function table. Each instruction has a
 one-byte opcode followed by its encoded operands. For example:
 
 | Display | Instruction bytes (hex) | Meaning |
@@ -371,8 +371,9 @@ can use the host services available to their process.
 
 ## How values live in memory
 
-The native VM uses tagged values. `Bool` and `Void` fit directly in their value
-slots; other values refer to heap objects. The heap uses reference counting.
+The native VM uses reference-counted tagged values. `Bool` stores a flag in
+its value object; `Unit` and `Void` have distinct tags and no payload. `Rat` owns
+a normalized pair of arbitrary-precision integers.
 Loading a value doesn't require a deep copy of its contents. Persistent updates
 create a new container and retain its elements, leaving the original intact.
 

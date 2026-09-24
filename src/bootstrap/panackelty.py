@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from fractions import Fraction
 import decimal
 import json
 import os
@@ -559,8 +560,8 @@ class Parser:
         elif tok.text == "(":
             self.i += 1
             if self.peek(")"):
-                self.fail(tok, "empty parentheses are not a value; Void functions may end without one")
-                raise AssertionError
+                self.take(")")
+                result = Expr("call", "$unit", (), tok)
             else:
                 result = self.expr()
                 self.take(")")
@@ -655,7 +656,7 @@ class Parser:
         return result
 
 
-PRIMITIVES = {"Nat", "Int", "Dec", "Str", "Bool", "Void", "Range", "Bytes"}
+PRIMITIVES = {"Unit", "Rat", "Nat", "Int", "Dec", "Str", "Bool", "Void", "Range", "Bytes"}
 GUARD_BASES = {"Nat", "Int", "Dec", "Str", "Bool"}
 INTRINSIC_GENERICS = {"Array": 1, "Map": 2, "Set": 1}
 
@@ -704,6 +705,10 @@ class TypeInfo:
 
 
 BUILTINS: dict[str, tuple[list[str], str, bool, bool]] = {
+    "$unit": ([], "Unit", True, False),
+    "nat": (["Rat"], "Nat", True, False),
+    "dec": (["Rat"], "Dec", True, False),
+    "quotient": (["Nat", "Nat"], "Nat", True, False),
     "print": (["Any"], "Void", False, True),
     "read_line": ([], "Str", False, False),
     "read_file": (["Str"], "Str", False, False),
@@ -1137,7 +1142,7 @@ class Checker:
         if expr.kind == "interpolate":
             for variable in expr.args:
                 value = self.expr(variable, env, pure, facts)
-                if self.base(value.name) not in GUARD_BASES:
+                if self.base(value.name) not in GUARD_BASES | {"Rat", "Unit"}:
                     self.error(variable, f"cannot interpolate value of type {value.name}")
             return TypeInfo("Str")
         if expr.kind == "field":
@@ -1183,8 +1188,8 @@ class Checker:
             item = self.expr(expr.args[0], env, pure, facts)
             if expr.value == "!" and self.base(item.name) == "Bool":
                 return TypeInfo("Bool", not item.const, True) if item.has_const else TypeInfo("Bool")
-            if expr.value == "-" and self.base(item.name) in {"Nat", "Int", "Dec"}:
-                result_type = "Dec" if self.base(item.name) == "Dec" else "Int"
+            if expr.value == "-" and self.base(item.name) in {"Nat", "Int", "Dec", "Rat"}:
+                result_type = self.base(item.name) if self.base(item.name) in {"Dec", "Rat"} else "Int"
                 return TypeInfo(result_type, -item.const, True) if item.has_const else TypeInfo(result_type)
             self.error(expr, f"operator {expr.value} does not accept {item.name}")
         if expr.kind == "binary":
@@ -1201,21 +1206,23 @@ class Checker:
                     self.error(expr, f"operator {op} requires Bool operands")
                 return self.fold("Bool", op, left, right)
             if op in {"==", "!="}:
-                if lb != rb and {lb, rb} != {"Nat", "Int"}:
+                if lb != rb and not {lb, rb} <= {"Nat", "Int", "Rat"}:
                     self.error(expr, f"cannot compare {left.name} with {right.name}")
                 return self.fold("Bool", op, left, right)
             if op in {"<", "<=", ">", ">="}:
-                if lb not in {"Nat", "Int", "Dec", "Str"} or (lb != rb and {lb, rb} != {"Nat", "Int"}):
+                if lb not in {"Nat", "Int", "Dec", "Rat", "Str"} or (lb != rb and not {lb, rb} <= {"Nat", "Int", "Rat"}):
                     self.error(expr, f"cannot order {left.name} and {right.name}")
                 return self.fold("Bool", op, left, right)
             if op in {"+", "-", "*", "/", "%"}:
                 if op == "+" and lb == rb == "Str":
                     return self.fold("Str", op, left, right)
-                if lb not in {"Nat", "Int", "Dec"} or (lb != rb and {lb, rb} != {"Nat", "Int"}):
+                if lb not in {"Nat", "Int", "Dec", "Rat"} or (lb != rb and not {lb, rb} <= {"Nat", "Int", "Rat"}):
                     self.error(expr, f"operator {op} does not accept {left.name} and {right.name}")
                 if "Dec" in {lb, rb} and lb != rb:
                     self.error(expr, "Dec arithmetic requires two Dec operands")
-                result = "Dec" if lb == "Dec" else ("Int" if "Int" in {lb, rb} else "Nat")
+                if op == "%" and "Rat" in {lb, rb}:
+                    self.error(expr, "Rat does not support remainder; use quotient for integer division")
+                result = "Dec" if lb == "Dec" else ("Rat" if op == "/" or "Rat" in {lb, rb} else ("Int" if "Int" in {lb, rb} else "Nat"))
                 folded = self.fold(result, op, left, right)
                 if result == "Nat" and op == "-" and not self.nonnegative_sub(expr.args[0], right, left, facts):
                     self.error(expr, "Nat subtraction may underflow; prove the left side is large enough or use Int")
@@ -1334,11 +1341,11 @@ class Checker:
                 item = self.expr(expr.args[1], env, pure, facts)
                 if base == "Map" and len(arguments) == 2:
                     item_type = self.merge_type_names(arguments[0], item.name)
-                    if item_type is None or self.base(item.name) not in GUARD_BASES:
+                    if item_type is None or self.base(item.name) not in GUARD_BASES | {"Rat", "Unit"}:
                         self.error(expr.args[1], f"invalid map key type {item.name}")
                 elif base == "Set" and len(arguments) == 1:
                     item_type = self.merge_type_names(arguments[0], item.name)
-                    if item_type is None or self.base(item.name) not in GUARD_BASES:
+                    if item_type is None or self.base(item.name) not in GUARD_BASES | {"Rat", "Unit"}:
                         self.error(expr.args[1], f"invalid set element type {item.name}")
                 else:
                     self.error(expr.args[0], f"has expects a Map or Set, got {collection.name}")
@@ -1350,7 +1357,7 @@ class Checker:
                     self.error(expr.args[0], f"{display_name} expects a Map, got {collection.name}")
                 key = self.expr(expr.args[1], env, pure, facts)
                 key_type = self.merge_type_names(arguments[0], key.name)
-                if key_type is None or self.base(key.name) not in GUARD_BASES:
+                if key_type is None or self.base(key.name) not in GUARD_BASES | {"Rat", "Unit"}:
                     self.error(expr.args[1], f"invalid map key type {key.name}")
                 if expr.value in {"map_put", "$method_put"}:
                     value = self.expr(expr.args[2], env, pure, facts)
@@ -1370,7 +1377,7 @@ class Checker:
                     self.error(expr.args[0], f"{display_name} expects a Set, got {collection.name}")
                 item = self.expr(expr.args[1], env, pure, facts)
                 item_type = self.merge_type_names(arguments[0], item.name)
-                if item_type is None or self.base(item.name) not in GUARD_BASES:
+                if item_type is None or self.base(item.name) not in GUARD_BASES | {"Rat", "Unit"}:
                     self.error(expr.args[1], f"invalid set element type {item.name}")
                 return TypeInfo("Bool" if expr.value == "set_has" else f"Set[{item_type}]")
             substitutions: dict[str, str] = {}
@@ -1492,8 +1499,7 @@ class Checker:
 def apply_binary(op: str, a: Any, b: Any) -> Any:
     def divide() -> Any:
         if isinstance(a, int) and isinstance(b, int):
-            quotient = abs(a) // abs(b)
-            return -quotient if (a < 0) != (b < 0) else quotient
+            return Fraction(a, b)
         if isinstance(a, decimal.Decimal) and isinstance(b, decimal.Decimal):
             return exact_decimal_divide(a, b)
         return a / b
@@ -1749,7 +1755,7 @@ class Compiler:
 
 
 BYTECODE_MAGIC = b"PANACKBC\x00"
-BYTECODE_VERSION = 7
+BYTECODE_VERSION = 8
 MAX_BYTECODE_BYTES = 16 * 1024 * 1024
 MAX_BYTECODE_FUNCTIONS = 4096
 MAX_BYTECODE_PARAMETERS = 255
@@ -2334,15 +2340,20 @@ class VM:
                 self.pop(frame)
             elif op == "UNARY":
                 item = self.pop(frame)
-                frame.stack.append(Value("Bool", not item.data) if arg == "!" else Value("Int" if item.type_name != "Dec" else "Dec", -item.data))
+                frame.stack.append(Value("Bool", not item.data) if arg == "!" else Value(item.type_name if item.type_name in {"Dec", "Rat"} else "Int", -item.data))
             elif op == "BINARY":
                 b, a = self.pop(frame), self.pop(frame)
-                integer_types = {"Nat", "Int"}
+                integer_types = {"Nat", "Int", "Rat"}
                 numeric_pair = (
                     a.type_name in integer_types and b.type_name in integer_types
                 ) or a.type_name == b.type_name == "Dec"
                 if arg in {"/", "%"} and numeric_pair and b.data == 0:
                     raise PanackeltyError("VM trap: division by zero")
+                if "Rat" in {a.type_name, b.type_name}:
+                    if arg == "%":
+                        raise PanackeltyError("VM trap: Rat does not support remainder")
+                    if not (a.type_name in integer_types and b.type_name in integer_types):
+                        raise PanackeltyError("VM trap: incompatible rational operands")
                 data = apply_binary(arg, a.data, b.data)
                 if arg in {"==", "!=", "<", "<=", ">", ">=", "&&", "||"}:
                     out_type = "Bool"
@@ -2350,6 +2361,8 @@ class VM:
                     out_type = "Str"
                 elif "Dec" in {a.type_name, b.type_name}:
                     out_type = "Dec"
+                elif arg == "/" or "Rat" in {a.type_name, b.type_name}:
+                    out_type = "Rat"
                 elif "Int" in {a.type_name, b.type_name}:
                     out_type = "Int"
                 else:
@@ -2473,10 +2486,29 @@ class VM:
         raise AssertionError("unreachable")
 
     def builtin(self, name: str, args: list[Value]) -> Value:
+        if name == "$unit":
+            return Value("Unit", None)
+        if name == "quotient":
+            if any(v.type_name != "Nat" for v in args):
+                raise PanackeltyError("VM trap: quotient requires Nat operands")
+            if args[1].data == 0:
+                raise PanackeltyError("VM trap: division by zero")
+            return Value("Nat", args[0].data // args[1].data)
+        if name in {"nat", "dec"}:
+            value = args[0]
+            if value.type_name != "Rat":
+                raise PanackeltyError("VM trap: rational conversion requires Rat")
+            if name == "nat":
+                if value.data.denominator != 1 or value.data.numerator < 0:
+                    raise PanackeltyError("VM trap: Rat is not an exact Nat")
+                return Value("Nat", value.data.numerator)
+            return Value("Dec", exact_decimal_divide(decimal.Decimal(value.data.numerator), decimal.Decimal(value.data.denominator)))
         if name == "print":
             value = args[0]
             if value.type_name == "Bool":
                 print("true" if value.data else "false")
+            elif value.type_name in {"Unit", "Rat"}:
+                print(VM.display(value))
             elif value.type_name == "Void":
                 print("void")
             elif value.type_name.startswith("Array["):
@@ -2649,6 +2681,10 @@ class VM:
 
     @staticmethod
     def display(value: Value) -> str:
+        if value.type_name == "Unit":
+            return "()"
+        if value.type_name == "Rat":
+            return f"{value.data.numerator}/{value.data.denominator}"
         if value.type_name == "Str":
             return repr(value.data)
         if value.type_name == "Bool":
@@ -2674,6 +2710,8 @@ class VM:
 
     @staticmethod
     def stringify(value: Value) -> str:
+        if value.type_name in {"Unit", "Rat"}:
+            return VM.display(value)
         if value.type_name == "Str":
             return value.data
         if value.type_name == "Bool":

@@ -212,7 +212,7 @@ class SelfHostedParserTests(unittest.TestCase):
     def test_reports_malformed_expressions(self):
         cases = {
             "": "expected expression",
-            "()": "expected expression",
+            "()": "$unit()",
             "[1,]": "expected expression",
             "call(1 2)": "expected comma or )",
             "(1": "expected closing parenthesis",

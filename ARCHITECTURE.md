@@ -9,7 +9,7 @@ files. There is no separate AST interpreter.
 
 The public implementation is self-hosted. The `panack` launcher runs the
 audited compiler seed on the portable C11 VM; that compiler is implemented by
-the `.panack` sources under `src/compiler`. Version-7 artifacts execute on the
+the `.panack` sources under `src/compiler`. Version-8 artifacts execute on the
 same VM. Stable component boundaries live under `src/compiler`,
 `src/bytecode`, `src/vm`, and `src/runtime`.
 
@@ -164,7 +164,7 @@ its instruction streams and absolute jump targets to match the bootstrap
 emitter.
 
 The Panackelty-hosted serializer in `src/bytecode/codec.panack` consumes that
-typed IR and writes canonical version-7 artifacts using only portable byte
+typed IR and writes canonical version-8 artifacts using only portable byte
 buffer operations. Complete artifacts are compared byte-for-byte with the
 bootstrap serializer.
 
@@ -185,7 +185,7 @@ root `VERSION` file in a checkout or the installed copy and handles
 checked program then crosses back into the pure emitter and serializer.
 
 `src/compiler/driver.panack` implements all four public compiler operations.
-Source `run` compiles to version-7 bytes and invokes the runtime's verified
+Source `run` compiles to version-8 bytes and invokes the runtime's verified
 nested-bytecode boundary; saved bytecode follows the same decoder and verifier.
 The executable `src/compiler/main.panack` obtains program arguments and forwards
 nonzero status through the runtime boundary.
@@ -210,7 +210,7 @@ definitions; text, byte, and checked-environment helpers are Panackelty source.
 Generic source functions are checked with abstract type parameters. Calls infer
 or explicitly supply a complete substitution, then validate their arguments and
 result. Emission erases type arguments and retains one body per function, using
-the existing tagged values and version-7 calls. Collection storage and lexical
+the existing tagged values and version-8 calls. Collection storage and lexical
 path transforms remain deterministic VM primitives; array map/reduce retain
 compiler lowering. Generic library helpers build on those operations. Stage tests
 compile the complete prelude graph with both the bootstrap and self-hosted
@@ -238,8 +238,9 @@ failure impossible. These include collection bounds, `Nat` underflow, invalid
 matches, and missing returns. This keeps execution safe when bytecode did not
 originate from the current compiler.
 
-Bytecode version 7 uses the compact typed binary payload introduced by version
-5, retains the version-6 method and string semantics, and adds indirect calls.
+Bytecode version 8 uses the compact typed binary payload introduced by version
+5, retains version-6 method/string semantics and version-7 indirect calls, and
+adds exact rational division, conversions, and first-class Unit values.
 Functions are serialized
 in ascending Unicode name order; opcodes, constant tags, count widths, and
 operand layouts are fixed; strings are length-prefixed UTF-8; and numeric
@@ -248,7 +249,7 @@ identical inputs and load/reserialize round trips must therefore be
 byte-identical. Semantic or encoding changes still require a bytecode version
 increment.
 
-The complete value model, frame rules, instruction stack effects, version-7
+The complete value model, frame rules, instruction stack effects, version-8
 binary layout, control flow, verification boundary, and trap conditions are frozen in
 [`src/bytecode/FORMAT.md`](src/bytecode/FORMAT.md). Structurally valid but
 dynamically invalid bytecode traps at the VM boundary instead of exposing a
@@ -264,7 +265,7 @@ while non-ASCII offsets traverse UTF-8. This removes repeated scanning during
 compiler lexing without changing bytecode or language semantics.
 
 The portable C11 seed VM in `src/vm/native.c` independently decodes, verifies,
-and executes version-7 artifacts. Its reference-counted values and
+and executes version-8 artifacts. Its reference-counted values and
 arbitrary-precision numerics are implemented without Python or third-party
 libraries. Differential tests run the complete program corpus on both VMs and
 execute the Panackelty-hosted compiler on the native VM. A shared adversarial
@@ -470,3 +471,14 @@ class. Each input executes in a fresh Python VM with fresh arguments, environmen
 and output capture. The harness reuse is limited to the current test class in
 one process; it is not a persistent compiler cache. Source and module inputs,
 bytecode files, and expected success and failure assertions remain per-case.
+
+## Rational and Unit values
+
+Both compilers recognize `Rat` and `Unit` as first-class types. Integer division
+emits the existing `BINARY /` instruction; the VM constructs a normalized exact
+rational. Integer operands may participate in rational arithmetic. `()` lowers
+to a pure `$unit` call and remains distinct from the internal Void sentinel.
+Conversions and natural quotient division are pure runtime services. The native
+VM owns arbitrary-precision numerator/denominator storage; the transitional
+Python VM uses `Fraction`. Bytecode 8 rejects earlier artifacts because `/`
+changed semantics. The compiler itself now uses explicit `quotient` calls.

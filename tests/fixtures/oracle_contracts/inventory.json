@@ -1,0 +1,32 @@
+{
+  "origin_commit": "8337aac062cb1940fcc3a9c2ae93af73eee7763a",
+  "counts": {
+    "integer": 1800,
+    "decimal": 422,
+    "rational": 96,
+    "builtins": 82
+  },
+  "artifact_sources": {
+    "driver-basic": "tests/fixtures/compiler_contracts/driver/basic.panack",
+    "driver-relative": "tests/fixtures/compiler_contracts/driver/relative/main.panack",
+    "driver-logical": "tests/fixtures/compiler_contracts/driver/logical/main.panack",
+    "stdlib": "tests/functional/cases/stdlib/main.panack",
+    "euler001": "examples/euler001.panack"
+  },
+  "sha256": {
+    "builtin.names": "e838b5ea0b2a96a56dcf5afeeb782623dbdaf4a4e37c0219dc49785419ac0329",
+    "builtin.stdout": "9536a263b4cafb377d93da259ddafc41c213f743ae9393dbcd1d888337061bab",
+    "codec-disassembly.stdout": "466f9fe4a52c2f3243c9d23dab529bd56f9060c59b815be385c699466288bdb0",
+    "decimal.stdin": "b164725e8adf0b672a62aa771ccbead5a76329942a1d98db97e91901242f4f44",
+    "decimal.stdout": "923ba5819be9f1083803c448d044901ccc8ee4eee422fd4019cdff545e98b8af",
+    "driver-basic.hex": "4ef1c4c29b22991b59e0b8dfca84289a53c32226fe78ba290b03511dc5d0dc93",
+    "driver-logical.hex": "43a9ed8e63f85116e4b6608834326db8bd3cea35585192d942d209c9816a83f5",
+    "driver-relative.hex": "4ef1c4c29b22991b59e0b8dfca84289a53c32226fe78ba290b03511dc5d0dc93",
+    "euler001.hex": "173ccc8935621a72a9a6e9bc70a51f7307f1a0ea2c6c88e05881f8a4abcda1ad",
+    "integer.stdin": "eea20683cf0740b780d617d4276f056ea7d9e7a12163a90a23d6b6d1514e316f",
+    "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
+    "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
+    "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
+    "stdlib.hex": "62daca4bcc1be77fcde38789040bdf3dc7ee88b15ed40addbf08a3f46777fb9d"
+  }
+}

@@ -1,0 +1,28 @@
+import stdlib/testing_commands
+
+pure oracle_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+
+// Preserve the former registry/arithmetic subprocess timeouts while using only
+// native host capabilities. Arguments: seconds, stdin file, stdout file, command...
+main(): Void {
+  args = command_args()
+  if len(args) < 4 { eprint("oracle command requires timeout, input, output and executable"); process_exit(1) }
+  mut command: [Str] = []
+  for index in 4..len(args) { command = command.append(args[index]) }
+  mut environment: [Str] = []
+  for name in ["ASAN_OPTIONS", "UBSAN_OPTIONS", "LLVM_PROFILE_FILE"] {
+    if environment_has(name) { environment = environment.append("${name}=" + environment_get(name)) }
+  }
+  match process_run(oracle_path(args[3]), command, read_bytes(args[1]), path_current(),
+      environment, duration_seconds(nat_from_str(args[0])), 16777216) {
+    Error(problem) => { eprint("oracle command failed: ${problem.code}"); process_exit(1) },
+    Ok(output) => {
+      if output.exit_code != 0 || output.signal != 0 || output.stderr != bytes() {
+        eprint("oracle command failed status, signal or stderr contract")
+        if output.stderr != bytes() { eprint(utf8_decode(output.stderr)) }
+        process_exit(1)
+      }
+      write_bytes(args[2], output.stdout)
+    }
+  }
+}

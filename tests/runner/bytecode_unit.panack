@@ -181,5 +181,7 @@ main(): Void {
     round_trip_bytecode(signed_zero) == signed_zero, "decimal bytes changed"))
   results = results.append(test_equal_str("signed zero decimal/operand",
     disassemble_bytecode(signed_zero), read_file("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.disasm")))
+  results = results.append(test_equal_str("codec/disassembly/independent listing",
+    disassemble_bytecode(golden_disassembly), read_file("tests/fixtures/oracle_contracts/codec-disassembly.stdout")))
   if test_report(results) > 0 { process_exit(1) }
 }

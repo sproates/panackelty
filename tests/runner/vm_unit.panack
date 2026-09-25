@@ -46,8 +46,9 @@ vm_case(name: Str, mode: Str, status: Nat, target: Path): TestResult {
   match fs_write(target, vm_hex(read_file("${prefix}.hex"))) {
     Error(problem) => test_expect(name, false, "fixture write failed"),
     Ok(done) => {
-      result = test_run_command(name, TestCommand(
-        vm_executable("PANACK_NATIVE_BINARY", "./panack-vm"), [mode, vm_text(target)],
+      result = test_run_command(if mode == "return-void" { "${name}/return kind" } else { name }, TestCommand(
+        if mode == "return-void" { vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules") }
+        else { vm_executable("PANACK_NATIVE_BINARY", "./panack-vm") }, [mode, vm_text(target)],
         bytes(), path_current(), vm_environment(), duration_seconds(30), 1048576),
         ProcessOutput(status, 0, read_bytes("${prefix}.stdout"), read_bytes("${prefix}.stderr")))
       match fs_remove_file(target) {
@@ -263,6 +264,27 @@ main(): Void {
       results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-28", "run", 1, target))
       results = results.append(vm_case("NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-29", "run", 1, target))
       results = results.append(vm_case("NativeExecutionTests-native_vm_rechecks_indirect_call_purity-1", "run", 1, target))
+      results = results.append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "return-void", 0, target))
+      results = results.append(vm_case("ExecutionTests-boolean_operators_short_circuit-1", "return-void", 0, target))
+      results = results.append(vm_case("ExecutionTests-pure_for_loop_with_mutable_accumulator-1", "return-void", 0, target))
+      results = results.append(vm_case("ExecutionTests-pure_while_loop_with_mutable_locals-1", "return-void", 0, target))
+      results = results.append(vm_case("ExecutionTests-str_interpolation_concatenation_and_numeric_values-1", "return-void", 0, target))
+      results = results.append(vm_case("ExecutionTests-str_unicode_indexing_and_length-1", "return-void", 0, target))
+      results = results.append(vm_case("ExecutionTests-string_methods_reverse_unicode_code_points-1", "return-void", 0, target))
+      results = results.append(vm_case("NumericTests-big_natural_arithmetic-1", "return-void", 0, target))
+      results = results.append(vm_case("NumericTests-dec_arithmetic_exceeds_host_context_without_rounding-1", "return-void", 0, target))
+      results = results.append(vm_case("NumericTests-dec_finite_division_is_exact-1", "return-void", 0, target))
+      results = results.append(vm_case("NumericTests-dec_is_exact-1", "return-void", 0, target))
+      results = results.append(vm_case("NumericTests-integer_division_produces_rational-1", "return-void", 0, target))
+      results = results.append(vm_case("NumericTests-rational_unit_program_matches_contract-1", "return-void", 0, target))
+      results = results.append(vm_case("CollectionTests-byte_buffers_and_utf8-1", "return-void", 0, target))
+      results = results.append(vm_case("CollectionTests-empty_array_append_and_concat_are_pure-1", "return-void", 0, target))
+      results = results.append(vm_case("CollectionTests-persistent_maps_and_sets_are_pure-1", "return-void", 0, target))
+      results = results.append(vm_case("CollectionTests-short_collection_aliases_dispatch_by_receiver_type-1", "return-void", 0, target))
+      results = results.append(vm_case("BytecodeContractTests-binary_operands_preserve_push_order-1", "return-void", 0, target))
+      results = results.append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "return-void", 0, target))
+      results = results.append(vm_case("BytecodeContractTests-conditional_jump_consumes_its_condition-1", "return-void", 0, target))
+      results = results.append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "return-void", 0, target))
       results = results.append(vm_fault("all operand decode failures", "fault_operands", "decode", false, target))
       results = results.append(vm_fault("all operand mutations", "fault_operands", "mutate", true, target))
       results = results.append(vm_fault("ownership allocation failures", "ownership_execute", "execute", false, target))

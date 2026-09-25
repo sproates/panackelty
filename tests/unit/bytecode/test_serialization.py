@@ -1,4 +1,4 @@
-"""Retained bootstrap-specific limits, verification hook and VM/CLI oracles."""
+"""Stage-0 limits, verification hook and VM/CLI safeguards until bootstrap retirement."""
 
 import os
 import subprocess

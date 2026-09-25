@@ -25,7 +25,7 @@ names, signatures, snapshot behavior, and failure rules are frozen in
 [`ABI.md`](ABI.md).
 
 This directory contains contracts rather than a Python re-export layer. The
-development oracle remains isolated under `src/bootstrap`; the public host
+stage-0 seed tool remains isolated under `src/bootstrap`; the public host
 implementation is the native VM.
 
 Pure rational conversion services `nat` and `dec`, the natural `quotient`

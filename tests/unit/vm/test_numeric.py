@@ -1,4 +1,4 @@
-"""Retained Python compile-time numeric oracle; VM contracts use shared fixtures."""
+"""Stage-0 compile-time decimal safeguard; native runtime traps use fixed fixtures."""
 from panackelty import PanackeltyError
 from tests.unit.support import PanackeltyTestCase
 

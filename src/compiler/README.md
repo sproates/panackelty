@@ -69,20 +69,17 @@ This directory contains the compiler being implemented in Panackelty:
 
 The public frontend, backend, project loader, and driver live here and execute
 from the audited compiler seed on the native VM. The stage-0 implementation in
-`src/bootstrap/panackelty.py` remains only as a development oracle and explicit
-seed-regeneration tool. This directory contains only Panackelty implementation
+`src/bootstrap/panackelty.py` remains only as an explicit seed-regeneration tool with bootstrap-specific tests. This directory contains only Panackelty implementation
 sources and documentation.
 Direct lexer, parser, resolver, type-checker, and purity contracts live in
 `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`. These import the implementation
 modules and use `stdlib/testing`; `make unit` and `make check-compiler` run
 them on the native VM. The parser probe preserves all 192 expanded expectations
 from the retired Python parser harness; the resolver preserves 26 source and
-module-graph assertions, including exact positioned diagnostics. Remaining compiler differential tests
-still use the development oracle. The checker probe has 34 direct assertions;
-31 source fixtures are shared with its retained Python differential acceptance
-comparisons. The three cross-module contracts now run natively. The purity
-probe likewise preserves ten shared source cases and one module graph; its ten
-Python differential comparisons remain until the oracle migration.
+module-graph assertions, including exact positioned diagnostics. The checker
+and purity probes keep all 31/10 source expectations and 3/1 module contracts.
+Their Python comparison tests are retired; the fixed-expectation audit is in
+`tests/ORACLE_REPLACEMENT.md`.
 
 The pure backend boundary is:
 
@@ -109,8 +106,6 @@ The remaining direct compiler contracts now run in
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. The shared fixture inventory and retained
-Python oracle responsibilities are documented in `tests/PYTHON_MIGRATION.md` and
-`tests/fixtures/compiler_contracts/README.md`. Native compiler assertions are
-complete; this does not imply removal of the differential oracle or the remaining
-bytecode, VM, host/stdlib and test-runner wrappers.
+inference, types and host boundaries. Fixed expectations now replace the Python
+differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
+Python remains for seed regeneration and bootstrap/build/test-harness safeguards.

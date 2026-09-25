@@ -1,0 +1,9 @@
+FUNCTION|answer|pure|
+0|CONST|Nat:42
+1|RETURN
+FUNCTION|main|impure|
+0|CALL|answer|0
+1|CALL|print|1
+2|POP
+3|CONST|Void
+4|RETURN

@@ -1,0 +1,7 @@
+import stdlib/testing
+main(): Void {
+  empty: [TestResult] = []
+  print(test_report(empty))
+  print(test_report([test_expect("first", false, "reason"),
+                     test_expect("second", true, "unused")]))
+}

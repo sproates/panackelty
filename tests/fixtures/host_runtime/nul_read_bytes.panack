@@ -1,0 +1,1 @@
+main(): Void { print(read_bytes(("invalid" + utf8_decode(byte_append(bytes(), 0)) + "path"))) }

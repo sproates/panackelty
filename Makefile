@@ -87,6 +87,7 @@ check-vm: native native-module-build native-fault-build
 check-vm-impl:
 	@$(MAKE) --no-print-directory native-vm-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit/vm -t . -p 'test_*.py' -q
+	@./panack run tests/runner/host_runtime_unit.panack
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --case cli_environment_files
 
@@ -96,6 +97,7 @@ unit: native native-module-build native-fault-build
 unit-impl:
 	@$(MAKE) --no-print-directory native-vm-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
+	@./panack run tests/runner/host_runtime_unit.panack
 	@./panack run tests/runner/bytecode_unit.panack
 	@./panack run tests/runner/bytecode_native_unit.panack
 	@./panack run tests/runner/compiler_lexer_unit.panack

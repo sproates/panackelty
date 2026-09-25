@@ -43,7 +43,9 @@ io_failure(name: Str, source: Str, file: Path): TestResult {
         Error(error) => test_expect(name, false, "process failed"),
         Ok(output) => test_expect(name,
           output.exit_code == 1 && output.signal == 0 && output.stdout == bytes() &&
-            contains(utf8_decode(output.stderr), "I/O error:"),
+            contains(utf8_decode(output.stderr), if name == "failure-4" {
+              "I/O error: file is not valid UTF-8"
+            } else { "I/O error:" }),
           "unexpected I/O failure result")
       }
     }

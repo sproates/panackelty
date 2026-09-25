@@ -112,6 +112,53 @@ static void utf8_offsets_preserve_code_points(void)
     release(value);
 }
 
+static void opaque_host_values_keep_distinct_kinds(void)
+{
+    Value *duration = value_size(0), *another = value_size(0), *instant = value_size(0);
+    assert(duration && another && instant);
+    duration->kind = V_DURATION;
+    another->kind = V_DURATION;
+    instant->kind = V_INSTANT;
+    assert(value_equal(duration, another) && !value_equal(duration, instant));
+    const char *error = NULL;
+    Value *same = binary_value(5, duration, instant, &error);
+    assert(same && same->kind == V_BOOL && !same->as.boolean && !error);
+    release(same);
+    release(duration);
+    release(another);
+    release(instant);
+}
+
+static void host_builtins_reject_wrong_operand_types(void)
+{
+    struct HostCall {
+        const char *name;
+        size_t arity;
+    } calls[] = {{"fs_read", 2},
+                 {"fs_write", 2},
+                 {"fs_metadata", 1},
+                 {"fs_list", 1},
+                 {"fs_create_directory", 1},
+                 {"fs_remove_file", 1},
+                 {"fs_remove_directory", 1},
+                 {"fs_temp_file", 1},
+                 {"fs_temp_directory", 1},
+                 {"host_sleep", 1},
+                 {"process_run", 7}};
+    Value *wrong = value_size(0);
+    assert(wrong);
+    Value *args[] = {wrong, wrong, wrong, wrong, wrong, wrong, wrong};
+    for (size_t i = 0; i < sizeof(calls) / sizeof(*calls); i++) {
+        const Builtin *entry = builtin(calls[i].name);
+        assert(entry && entry->arity == calls[i].arity);
+        VM vm = {0};
+        Value *result = builtin_call(&vm, calls[i].name, args);
+        assert(!result && vm.error && strstr(vm.error, "VM trap:"));
+        assert(wrong->refs == 1);
+    }
+    release(wrong);
+}
+
 static void void_return_preserves_value_kind(void)
 {
     Instruction instructions[] = {{.op = OP_CONST, .constant = {.tag = 5}},
@@ -466,6 +513,8 @@ int main(int argc, char **argv)
     persistent_versions_keep_shared_children_alive();
     exact_arithmetic_borrows_operands();
     utf8_offsets_preserve_code_points();
+    opaque_host_values_keep_distinct_kinds();
+    host_builtins_reject_wrong_operand_types();
     void_return_preserves_value_kind();
     frames_release_arguments_on_return_and_trap();
     nested_calls_preserve_caller_ownership();

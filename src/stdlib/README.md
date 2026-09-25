@@ -103,3 +103,13 @@ a completed process is not a host error, even when it exits nonzero.
 captured results. None of these helpers provides process containment or
 automatic fixture cleanup. See the
 [command case](../../tests/functional/cases/testing_commands/main.panack).
+
+Direct host, runtime and standard-library assertions run in
+`tests/runner/host_runtime_unit.panack` with reviewed source and malformed
+bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
+process, file, path, environment and timing contracts and exact testing-library
+reports. Direct C host checks and forced failures run under instrumentation.
+The [migration inventory](../../tests/fixtures/host_runtime/README.md) maps all 37
+former methods: 31 retired with native evidence and six retained as independent
+Python differential oracles. Functional source and bytecode cases still verify
+public behaviour on both supported platforms.

@@ -23,7 +23,7 @@ and the discovered programs exercise substantially more observations.
 | `tests/unit/compiler/` | Focused Panackelty compiler probes and public-CLI contract fixtures | Lexer, parser, resolver, checker, purity, emitter, loader, driver, diagnostics, generics, type and host boundary failures; deterministic artifacts and bootstrap-stage parity. Do not replace precise negative assertions with only success programs. |
 | `tests/unit/bytecode/` and `tests/fixtures/bytecode/` | Portable golden bytecode and malformed vectors, native verifier/decoder tests, and Panackelty-hosted codec assertions | Versioned encoding, canonical round trips, verifier rejection, resource bounds, forged unsafe states, exact error categories, and repeated-compilation identity. |
 | `tests/unit/vm/` and `tests/unit/vm/*.c` | Direct C module/fault/sanitizer tests plus black-box Panackelty programs on the native VM | Stack/frame/value ownership, exact numeric semantics, collection and host operations, allocation/syscall injection and cleanup, runtime traps, and native coverage. Keep the C tests; replace their Python launch/assert wrappers. |
-| `tests/unit/{support,file_io_cases,rational_cases}.py` | Portable declarative inputs and expected results, shared by the relevant native and Panackelty tests | Generated source and forged bytecode cases must be inventoried individually before replacing them; preserve boundary values, failure categories, and binary data rather than counting files. |
+| `tests/unit/{support,rational_cases}.py` | Portable declarative inputs and expected results, shared by the relevant native and Panackelty tests | Generated source and forged bytecode cases must be inventoried individually before replacing them; preserve boundary values, failure categories, and binary data rather than counting files. |
 | `tests/unit/test_{layout,native_distribution,validation}.py` | POSIX packaging/CI contract checks and Panackelty-hosted assertions where appropriate | Exact archive contents and checksums, relocation and paths with spaces, CI safety triggers, clean build flags, timing warnings, and quick-start output. Keep exact-artifact shell gates independent of the source tree. |
 | `panackelty.py`, `src/bootstrap/panackelty.py`, `make regenerate-seed` | Checked native/self-hosted cross-checks, portable golden artifacts, fixed-point bootstrap, and a documented staged seed refresh | Python compiler/VM differential accept/reject and trap evidence, seed integrity, stage-2/stage-3 byte identity, and a reviewable seed digest. |
 
@@ -349,7 +349,6 @@ compile failure and absence of a failed artifact.
 
 The directory still contains tests owned by later milestones: bootstrap seed
 corruption (`test_bootstrap`); runner failure injection (`test_panackelty_runner`);
-testing-library/files/commands and environment wrappers (host/stdlib); and
 standard-library byte identity (oracle). Their location does not make them
 unfinished direct compiler coverage, and none is silently retired or moved.
 
@@ -383,7 +382,7 @@ include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
 The shared Python VM observations and seeded arithmetic properties remain oracle
-evidence until the oracle-replacement milestone; host/runtime migration is next.
+evidence until the oracle-replacement milestone; host/runtime migration is complete.
 
 The [case inventory](fixtures/vm_contracts/README.md) maps all 36 retired direct
 methods to 145 expanded native cases and seven native wrapper methods to their
@@ -393,6 +392,24 @@ module/fault tests remain intact; native BigInt source is now a tracked C test.
 Source compilation is still covered by the functional corpus. Retained registry,
 seeded numeric and bootstrap-artifact comparisons belong to the oracle milestone;
 remaining host/runtime/stdlib tests belong to the next milestone.
+
+## Direct host, runtime and standard-library migration — complete
+
+Direct host, runtime and standard-library assertions run in
+`tests/runner/host_runtime_unit.panack` with reviewed source and malformed
+bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
+process, file, path, environment and timing contracts and exact testing-library
+reports. Direct C host checks and forced failures run under instrumentation.
+The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
+former methods: 31 retired with native evidence and six retained as independent
+Python differential oracles. Functional source and bytecode cases still verify
+public behaviour on both supported platforms.
+
+Retained Python observations include the full program-output differential,
+seeded Fraction comparisons, Python-VM host conformance and byte-identical
+bootstrap/stage-one standard-library artifacts. The injected Python clock
+failure has direct native fault-injection evidence and is retired; no root-only
+permission scenario was counted as observed when the host runs as root.
 
 ## Migration order and removal gates
 

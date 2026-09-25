@@ -76,3 +76,9 @@ CLI probes. Standard-library byte identity, compiler artifacts, seeded Fraction
 properties and Python VM differential conformance remain in active oracle tests.
 The remaining Python tests are independent compiler and VM oracles tracked in
 `../../PYTHON_MIGRATION.md`.
+
+The direct process environment/cwd/binary-stderr case compares the child's
+working directory by filesystem identity. Shells may resolve symlinks when
+printing `pwd` (for example `/tmp` to `/private/tmp` on macOS), so path spelling
+is not the cwd contract. A mismatched directory exits with status 8; the
+expected status remains 9, with exact environment output and binary stderr.

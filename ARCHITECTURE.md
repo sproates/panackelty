@@ -530,8 +530,10 @@ failures also assert exact diagnostics for `run` and `disasm`. Diagnostics are
 normalized to `<case>` for exact comparison across checkout locations. It
 verifies that every example source has a corresponding expected output and vice
 versa. `make functional` runs it with the self-hosted compiler driver check
-and checks `runner_smoke` from source and bytecode. Each owns an isolated
-workspace and reports cleanup failure. Python unit tests remain active.
+and captures its successful report once. `runner_smoke` compares that exact
+report from source and bytecode; outside the recipe it runs the full runner
+itself. Each owns an isolated workspace and reports cleanup failure. Python
+unit tests remain active.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default

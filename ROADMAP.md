@@ -866,6 +866,11 @@ unit regression redundantly reran the complete functional suite; that test now
 checks the stage-two compiler path and byte-identical output directly. Continue
 profiling the remaining sequential runner work and reuse verified artifacts
 to recover the 15/75/120-second budgets without removing assertions.
+The functional runner took 24.6 seconds and each smoke invocation repeated its
+full work (23.8 seconds for source). The functional recipe now captures one
+successful report and checks it byte-for-byte from the smoke source and saved
+bytecode; a focused run fell from about 73 to 25 seconds. Keep the standalone
+smoke path and the remaining unit/full-check timing follow-up.
 
 Validation speed is an internal nonfunctional requirement because slow feedback
 discourages frequent checking and compounds the cost of every implementation

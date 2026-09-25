@@ -20,6 +20,31 @@ CASES = (
 
 
 class PanackeltyRunnerTests(unittest.TestCase):
+    def test_smoke_rejects_mismatched_or_missing_captured_report(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report = pathlib.Path(temporary) / "runner-report.txt"
+            environment = dict(os.environ, PANACK_TEST_RUNNER_REPORT=str(report))
+
+            def run():
+                return subprocess.run(
+                    [str(ROOT / "panack"), "run",
+                     "tests/functional/cases/runner_smoke/main.panack"],
+                    cwd=ROOT, env=environment, capture_output=True,
+                    timeout=30, check=False,
+                )
+
+            report.write_bytes(b"wrong runner output\n")
+            mismatch = run()
+            self.assertEqual(mismatch.returncode, 1, mismatch.stderr)
+            self.assertIn(b"FAIL Panackelty fixture runner: runner report differed",
+                          mismatch.stdout)
+
+            report.unlink()
+            missing = run()
+            self.assertEqual(missing.returncode, 1, missing.stderr)
+            self.assertIn(b"FAIL Panackelty fixture runner: runner report read failed",
+                          missing.stdout)
+
     def test_failure_commands_cover_run_and_disassembly(self):
         completed = subprocess.run(
             [str(ROOT / "panack"), "run", "tests/runner/main.panack",

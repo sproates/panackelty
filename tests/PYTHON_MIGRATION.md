@@ -36,7 +36,9 @@ backlog items, not implicit losses.
 
 The functional runner is `tests/runner/main.panack`. `make functional` runs it,
 the compiler-driver check, and the runner smoke case from source and saved
-bytecode without Python. It discovers and selects `callables`,
+bytecode without Python. It captures the full runner's successful output once;
+both smoke modes compare those exact bytes, and a standalone smoke run invokes
+the full runner itself. It discovers and selects `callables`,
 `cli_check_disasm`, `cli_commands`, `cli_diagnostic_display`,
 `cli_environment_files`, `cli_rational_failures`, `collections`, `compiler_lexer`, `compiler_skeleton`, `hello_world`, `host_capabilities`, `host_process`,
 `host_types`, `local_inference`, `modules`, `optional_else`,

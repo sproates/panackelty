@@ -41,6 +41,10 @@ that verified artifact, and the later bootstrap phase extends it to stage 3 for
 the byte-identical fixed-point proof. Other programs are still compiled through
 the public CLI before their bytecode output is checked. The proof runs only in
 the bootstrap phase, not again as a unit test.
+`make functional` captures one successful full runner report and passes its
+temporary file to `runner_smoke` in both source and bytecode mode. Each mode
+compares the exact report; a missing or changed report fails. Standalone runs
+of `runner_smoke` still invoke the complete runner themselves.
 
 CI runs `make check` once per pull-request revision and again after a merge to
 `main`. It does not repeat the focused developer targets before the full suite.

@@ -1,4 +1,6 @@
 import stdlib/testing_commands
+import stdlib/filesystem
+import stdlib/environment
 
 pure runner_path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
@@ -51,8 +53,18 @@ main(): Void {
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],
     duration_seconds(90), 1048576)
-  result = test_run_command("Panackelty fixture runner", command,
-    ProcessOutput(0, 0, expected, bytes()))
+  result = match environment("PANACK_TEST_RUNNER_REPORT") {
+    Some(report_path) => {
+      match fs_read(runner_path(report_path), 1048576) {
+        Error(error) => test_expect("Panackelty fixture runner", false,
+          "runner report read failed"),
+        Ok(actual) => test_expect("Panackelty fixture runner", actual == expected,
+          "runner report differed")
+      }
+    },
+    None() => test_run_command("Panackelty fixture runner", command,
+      ProcessOutput(0, 0, expected, bytes()))
+  }
   failures = test_report([result])
   if failures > 0 { process_exit(1) }
 }

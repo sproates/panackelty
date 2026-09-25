@@ -86,13 +86,19 @@ functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
 
 functional-impl: $(STAGE2_COMPILER)
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/runner/main.panack
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/runner/compiler_driver.panack
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/functional/cases/runner_smoke/main.panack
 	@mkdir -p "$(BUILD_DIR)"
-	@artifact="$(abspath $(BUILD_DIR))/runner-smoke.bc"; trap 'rm -f "$$artifact"' 0; \
+	@report=$$(mktemp); artifact="$(abspath $(BUILD_DIR))/runner-smoke.bc"; \
+		trap 'rm -f "$$report" "$$artifact"' 0; \
+		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
+			./panack run tests/runner/main.panack > "$$report" && \
+		cat "$$report" && \
+		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
+			PANACK_TEST_RUNNER_REPORT="$$report" \
+			./panack run tests/functional/cases/runner_smoke/main.panack && \
 		./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
-		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run "$$artifact"
+		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
+			PANACK_TEST_RUNNER_REPORT="$$report" ./panack run "$$artifact"
 
 native: panack-vm
 

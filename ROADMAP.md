@@ -140,6 +140,28 @@ package-manager installation, repository-wide Python removal, generic functions,
 new automation APIs, complete diagnostic rendering, or a backwards-compatibility
 guarantee. Those remain independent follow-up initiatives.
 
+## Interactive REPL — planned
+
+Add a read-evaluate-print loop for exploring Panackelty expressions, trying
+standard-library APIs and learning the language without creating a source file
+for every experiment. Schedule this after Python removal and the immediate
+validation-speed work; it must not introduce a Python dependency.
+
+- [ ] Specify the entry command (for example `panack repl`), expression result
+      display, multiline input and incomplete-input detection
+- [ ] Define session semantics for bindings, functions, imports, mutation and
+      redefinition, including what state survives compilation or runtime errors
+- [ ] Compile interactive input to bytecode and execute it through the existing
+      native VM, preserving exact numerics, static checks and purity/effect
+      boundaries; do not introduce a separate evaluation engine
+- [ ] Provide useful diagnostics and session commands for help, reset and exit;
+      define interrupt, EOF, history and noninteractive-input behavior
+- [ ] Add transcript and failure-recovery tests covering state across inputs,
+      multiline definitions, imports, type/purity errors, runtime traps and
+      interruption on both supported platforms
+- [ ] Document the workflow and ship the REPL in the standalone toolchain,
+      with packaging and release smoke coverage
+
 ## Language direction and differentiation — exploration
 
 Panackelty should combine strong static guarantees with a low-friction programming
@@ -880,6 +902,19 @@ will fix validation time.
 
 - [ ] Profile clean and incremental validation on Linux and macOS, separating
       native builds, probe compilation, subprocess overhead and bootstrap stages
+- [ ] Make CI validation proportional to the change. Roadmap and other purely
+      informational documentation edits should run lightweight document/link
+      checks without rebuilding the compiler or running the full test,
+      packaging, sanitizer and coverage suites. Classify changes conservatively:
+      documents used as executable fixtures or packaged inputs (including the
+      README quick start), specification changes, mixed code/document changes,
+      and validation/workflow changes must retain the relevant behavioral and
+      release gates; unknown impact must fall back to full validation
+- [ ] Keep a stable required CI result for both lightweight and full validation,
+      so documentation-only PRs can merge promptly without bypassing protection
+      or waiting for checks that do not apply. Test change classification,
+      including additions, deletions, renames and mixed changes, and document
+      which gates each class requires; retain full release validation
 - [ ] Reduce duplicated work, safely reuse verified artifacts and optimize the
       measured bottlenecks while preserving all existing validation evidence
 - [ ] Demonstrate clean `make check` within 120 seconds and focused incremental

@@ -1,0 +1,47 @@
+[
+  {
+    "name": "codec_structure-1",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "invalid UTF-8"
+  },
+  {
+    "name": "codec_structure-2",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "unknown function flags"
+  },
+  {
+    "name": "codec_structure-3",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "duplicate function main"
+  },
+  {
+    "name": "codec_structure-4",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "not canonically ordered"
+  },
+  {
+    "name": "codec_structure-5",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "invalid Bool constant"
+  },
+  {
+    "name": "codec_structure-6",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "invalid decimal padding"
+  },
+  {
+    "name": "codec_structure-7",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "calls unknown function missing"
+  },
+  {
+    "name": "codec_structure-8",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "invalid arity"
+  },
+  {
+    "name": "codec_structure-9",
+    "method": "test_rejects_structural_call_and_purity_violations",
+    "expected": "pure bytecode function calls impure function print"
+  }
+]

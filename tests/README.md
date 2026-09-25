@@ -80,6 +80,15 @@ creation, enumeration, and explicit cleanup.
 assertions; `functional/cases/testing_commands` verifies those via the public
 CLI. Make orchestrates the Python and Panackelty checks during migration.
 
+
+Direct bytecode/verification coverage runs in
+`tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
+and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
+These share fixed version-8 and malformed artifact vectors and compare exact
+canonical artifacts and disassemblies. The retained Python tests cover oracle,
+VM and bootstrap-only object/limit cases, recorded in
+`tests/fixtures/bytecode/contract_cases/README.md`.
+
 Remaining Python unit tests are grouped by subsystem under `tests/unit/compiler`,
 `tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output
 helpers live in `tests/unit/support.py`. Add a focused module to the owning

@@ -533,7 +533,17 @@ versa. `make functional` runs it with the self-hosted compiler driver check
 and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
 itself. Each owns an isolated workspace and reports cleanup failure. Python
-unit tests remain active. The direct lexer, parser, resolver, type-checker, and purity contracts run in
+unit tests remain active.
+
+Direct bytecode/verification coverage runs in
+`tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
+and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
+These share fixed version-8 and malformed artifact vectors and compare exact
+canonical artifacts and disassemblies. The retained Python tests cover oracle,
+VM and bootstrap-only object/limit cases, recorded in
+`tests/fixtures/bytecode/contract_cases/README.md`.
+
+The direct lexer, parser, resolver, type-checker, and purity contracts run in
 `runner/compiler_lexer_unit.panack`, `runner/compiler_parser_unit.panack`,
 `runner/compiler_resolver_unit.panack`, `runner/compiler_checker_unit.panack`,
 and `runner/compiler_purity_unit.panack`

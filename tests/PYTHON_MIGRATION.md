@@ -34,7 +34,7 @@ backlog items, not implicit losses.
 
 ## Runner and fixture contracts
 
-### Compiler unit migration in progress
+### Compiler unit migration complete
 
 `tests/runner/compiler_lexer_unit.panack` directly imports the compiler lexer
 and runs in `make unit` and `make check-compiler`. It replaces all seven methods
@@ -352,6 +352,27 @@ corruption (`test_bootstrap`); runner failure injection (`test_panackelty_runner
 testing-library/files/commands and environment wrappers (host/stdlib); and
 standard-library byte identity (oracle). Their location does not make them
 unfinished direct compiler coverage, and none is silently retired or moved.
+
+## Direct bytecode and verifier migration — complete
+
+`tests/runner/bytecode_unit.panack` checks the real self-hosted decoder,
+serializer and verifier against shared malformed and canonical bytecode vectors.
+`tests/runner/bytecode_native_unit.panack` checks the same rejected bytes against
+the native VM's public `check` command, with exact exit status and stderr, and
+checks reviewed successful disassemblies. `tests/unit/vm/native_modules.c`
+checks forged in-memory native verifier structures and the pre-decode artifact
+size bound; this runs under `make unit`, `make check-bytecode`, native sanitizers
+and LLVM coverage. The shared original-method/fixture inventory and dialect
+mapping is [here](fixtures/bytecode/contract_cases/README.md).
+
+The direct Python serialization and vector rejection methods are retired. The
+self-hosted-on-Python-VM versus bootstrap byte-identity and accept/reject oracle
+now reads the same fixtures. The remaining Python verifier's impossible-to-encode
+object shapes and adjustable Python implementation limits, VM execution/traps,
+build-hook instrumentation and CLI hash-seed launch check are mapped to the
+later oracle, VM and harness milestones. These retained methods stay active;
+none is credited as removed Python. The bytecode format and language semantics
+are unchanged, and the version-8 seed was not refreshed in this step.
 
 ## Migration order and removal gates
 

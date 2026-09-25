@@ -186,6 +186,67 @@ static void nested_calls_preserve_caller_ownership(void)
     release(argument);
 }
 
+/* Direct semantic verification of decoded objects; wire-level vectors also run
+ * through the public native decoder and the Panackelty codec. */
+static void verifier_rejects_forged_structures(void)
+{
+    Instruction instructions[] = {{.op = OP_CONST, .constant = {.tag = 5}},
+                                  {.op = OP_RETURN}};
+    Function functions[] = {{.name = "main", .ins_count = 2, .ins = instructions},
+                            {.name = "helper", .ins_count = 2, .ins = instructions}};
+    Program program = {.count = 1, .functions = functions};
+    const char *error = NULL;
+    assert(verify(&program, &error));
+    program.count = 0;
+    assert(!verify(&program, &error) && strstr(error, "no main"));
+    program.count = 1;
+    functions[0].param_count = 1;
+    assert(!verify(&program, &error) && strstr(error, "parameters"));
+    functions[0].param_count = 0;
+    functions[0].name = "";
+    assert(!verify(&program, &error) && strstr(error, "no main"));
+    functions[0].name = "main";
+    functions[0].ins_count = 0;
+    assert(!verify(&program, &error) && strstr(error, "empty"));
+    functions[0].ins_count = 1;
+    assert(!verify(&program, &error) && strstr(error, "no RETURN"));
+    functions[0].ins_count = 2;
+    instructions[0].op = OP_JUMP;
+    instructions[0].target = 2;
+    assert(!verify(&program, &error) && strstr(error, "jump target"));
+    instructions[0].op = OP_INTERPOLATE;
+    instructions[0].count = 0;
+    assert(!verify(&program, &error) && strstr(error, "INTERPOLATE"));
+    instructions[0].op = OP_CALL;
+    instructions[0].name = "missing";
+    assert(!verify(&program, &error) && strstr(error, "unknown function"));
+    instructions[0].name = "print";
+    instructions[0].arity = 0;
+    assert(!verify(&program, &error) && strstr(error, "arity"));
+    instructions[0].arity = 1;
+    functions[0].pure = true;
+    assert(!verify(&program, &error) && strstr(error, "pure function"));
+    functions[0].pure = false;
+    instructions[0].op = OP_CONST;
+    program.count = 2;
+    functions[1].name = "main";
+    assert(!verify(&program, &error) && strstr(error, "canonical"));
+    functions[1].name = "helper";
+    assert(!verify(&program, &error) && strstr(error, "canonical"));
+    functions[1].name = "zebra";
+    assert(verify(&program, &error));
+    char *duplicate_params[] = {"value", "value"};
+    functions[1].params = duplicate_params;
+    functions[1].param_count = 2;
+    assert(!verify(&program, &error) && strstr(error, "signature"));
+    functions[1].param_count = 0;
+    const uint8_t tiny[] = {0};
+    Program oversized;
+    assert(!decode(tiny, MAX_ARTIFACT + 1u, &oversized, &error) &&
+           strstr(error, "size limit"));
+    free_program(&oversized);
+}
+
 static void decode_mutations_release_partial_programs(void)
 {
     /* Version 8: main() { CONST Void; RETURN }. Mutations never execute. */
@@ -395,6 +456,7 @@ int main(int argc, char **argv)
     utf8_offsets_preserve_code_points();
     frames_release_arguments_on_return_and_trap();
     nested_calls_preserve_caller_ownership();
+    verifier_rejects_forged_structures();
     decode_mutations_release_partial_programs();
     nested_bytecode_releases_rejected_programs();
     builtin_domains_preserve_errors_and_results();

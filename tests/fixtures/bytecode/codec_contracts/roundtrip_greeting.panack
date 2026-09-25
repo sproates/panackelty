@@ -1,0 +1,1 @@
+pure greeting(name: Str): Str { "Hello, ${name}" } main(): Void { print(greeting("Panackelty")); }

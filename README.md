@@ -535,6 +535,15 @@ make native-sanitize  # address/undefined-behaviour checks (also run in CI)
 make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
+
+Direct bytecode/verification coverage runs in
+`tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
+and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
+These share fixed version-8 and malformed artifact vectors and compare exact
+canonical artifacts and disassemblies. The retained Python tests cover oracle,
+VM and bootstrap-only object/limit cases, recorded in
+`tests/fixtures/bytecode/contract_cases/README.md`.
+
 The compiler check includes the complete direct Panackelty compiler assertions,
 retained Python differential oracles and public CLI fixtures. The same
 assertions also run in `make unit`, whose timer includes both the Python and

@@ -1,0 +1,166 @@
+import stdlib/testing
+import stdlib/testing_files
+import stdlib/testing_commands
+import stdlib/time
+
+pure bytecode_native_nibble(character: Str): Nat {
+  digits = "0123456789abcdef"
+  mut result: Nat = 0
+  for index in 0..16 { if digits[index] == character { result = index } }
+  result
+}
+pure bytecode_native_hex(value: Str): Bytes {
+  mut output = bytes()
+  mut high: Nat = 0
+  mut half = false
+  for index in 0..len(value) {
+    character = value[index]
+    if !is_whitespace(character) {
+      digit = bytecode_native_nibble(character)
+      if !half { high = digit; half = true }
+      else { output = byte_append(output, high * 16 + digit); half = false }
+    }
+  }
+  output
+}
+pure bytecode_native_path(value: Str): Path { result_value_or(path_from_text(value), path_current()) }
+pure bytecode_native_text(value: Path): Str { result_value_or(path_to_text(value), "invalid-path") }
+bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestResult {
+  data = bytecode_native_hex(read_file(file))
+  match fs_write(target, data) {
+    Error(problem) => test_expect(name, false, "fixture write failed: ${problem.code}"),
+    Ok(done) => {
+      outcome = process_run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
+        bytes(), path_current(), [], duration_seconds(30), 1048576)
+      mut valid = false
+      match outcome {
+        Error(problem) => {},
+        Ok(command) => {
+          valid = command.exit_code == 1 && command.signal == 0 && command.stdout == bytes() &&
+            utf8_decode(command.stderr) == "error: ${expected}\n"
+        }
+      }
+      match fs_remove_file(target) {
+        Error(problem) => test_expect(name, false, "fixture cleanup failed: ${problem.code}"),
+        Ok(removed) => test_expect(name, valid, "native verifier result differed from ${expected}")
+      }
+    }
+  }
+}
+bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestResult {
+  data = bytecode_native_hex(read_file(file))
+  match fs_write(target, data) {
+    Error(problem) => test_expect(name, false, "fixture write failed"),
+    Ok(done) => {
+      outcome = process_run(bytecode_native_path("./panack"), ["disasm", bytecode_native_text(target)],
+        bytes(), path_current(), [], duration_seconds(30), 1048576)
+      mut valid = false
+      match outcome {
+        Error(problem) => {},
+        Ok(command) => {
+          valid = command.exit_code == 0 && command.signal == 0 && command.stderr == bytes() &&
+            utf8_decode(command.stdout) == expected
+        }
+      }
+      match fs_remove_file(target) {
+        Error(problem) => test_expect(name, false, "fixture cleanup failed"),
+        Ok(removed) => test_expect(name, valid, "native disassembly differs from reviewed listing")
+      }
+    }
+  }
+}
+main(): Void {
+  match test_workspace_create(bytecode_native_path("/tmp")) {
+    Error(problem) => { eprint("native bytecode workspace creation failed"); process_exit(1) },
+    Ok(workspace) => {
+      mut results: [TestResult] = []
+      target = result_value_or(path_append(workspace.root, bytecode_native_path("input.bc")), workspace.root)
+      results = results.append(bytecode_native_case("rejects_invalid_magic_and_version-1", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-1.hex", "not a Panackelty bytecode file", target))
+      results = results.append(bytecode_native_case("rejects_invalid_magic_and_version-2", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-2.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("rejects_invalid_magic_and_version-3", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-3.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-1", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-1.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-2", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-2.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-3", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-3.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-4", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-4.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-5", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-5.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-6", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-6.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-7", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-7.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-8", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-8.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-9", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-9.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-10", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-10.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-11", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-11.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-12", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-12.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-13", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-13.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-14", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-14.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-15", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-15.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-16", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-16.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-17", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-17.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("rejects_every_truncation_and_trailing_data-18", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-18.hex", "trailing data", target))
+      results = results.append(bytecode_native_case("rejects_malformed_function_records_and_opcodes-1", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-1.hex", "bytecode has no main function", target))
+      results = results.append(bytecode_native_case("rejects_malformed_function_records_and_opcodes-2", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-2.hex", "invalid UTF-8", target))
+      results = results.append(bytecode_native_case("rejects_malformed_function_records_and_opcodes-3", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-3.hex", "invalid function flags", target))
+      results = results.append(bytecode_native_case("rejects_malformed_function_records_and_opcodes-4", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-4.hex", "functions are not in canonical order", target))
+      results = results.append(bytecode_native_case("rejects_malformed_function_records_and_opcodes-5", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-5.hex", "functions are not in canonical order", target))
+      results = results.append(bytecode_native_case("rejects_malformed_function_records_and_opcodes-6", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-6.hex", "unknown bytecode opcode", target))
+      results = results.append(bytecode_native_case("rejects_noncanonical_and_invalid_constants-1", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-1.hex", "non-minimal integer", target))
+      results = results.append(bytecode_native_case("rejects_noncanonical_and_invalid_constants-2", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-2.hex", "negative zero integer", target))
+      results = results.append(bytecode_native_case("rejects_noncanonical_and_invalid_constants-3", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-3.hex", "invalid decimal padding", target))
+      results = results.append(bytecode_native_case("rejects_noncanonical_and_invalid_constants-4", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-4.hex", "non-minimal decimal coefficient", target))
+      results = results.append(bytecode_native_case("rejects_noncanonical_and_invalid_constants-5", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-5.hex", "invalid Bool constant", target))
+      results = results.append(bytecode_native_case("rejects_noncanonical_and_invalid_constants-6", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-6.hex", "unknown constant tag", target))
+      results = results.append(bytecode_native_case("minimal-v4", "tests/fixtures/bytecode/minimal-v4.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("minimal-v5", "tests/fixtures/bytecode/minimal-v5.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("minimal-v6", "tests/fixtures/bytecode/minimal-v6.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("minimal-v7", "tests/fixtures/bytecode/minimal-v7.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("bad-magic", "tests/fixtures/bytecode/bad-magic.hex", "not a Panackelty bytecode file", target))
+      results = results.append(bytecode_native_case("unknown-opcode-v8", "tests/fixtures/bytecode/unknown-opcode-v8.hex", "unknown bytecode opcode", target))
+      results = results.append(bytecode_native_case("invalid-jump-v8", "tests/fixtures/bytecode/invalid-jump-v8.hex", "invalid jump target", target))
+      results = results.append(bytecode_native_case("nonminimal-integer-v8", "tests/fixtures/bytecode/nonminimal-integer-v8.hex", "non-minimal integer", target))
+      results = results.append(bytecode_native_case("truncated-v8", "tests/fixtures/bytecode/truncated-v8.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("trailing-v8", "tests/fixtures/bytecode/trailing-v8.hex", "trailing data", target))
+      results = results.append(bytecode_native_case("codec_structure-1", "tests/fixtures/bytecode/contract_cases/codec_structure-1.hex", "invalid UTF-8", target))
+      results = results.append(bytecode_native_case("codec_structure-2", "tests/fixtures/bytecode/contract_cases/codec_structure-2.hex", "invalid function flags", target))
+      results = results.append(bytecode_native_case("codec_structure-3", "tests/fixtures/bytecode/contract_cases/codec_structure-3.hex", "functions are not in canonical order", target))
+      results = results.append(bytecode_native_case("codec_structure-4", "tests/fixtures/bytecode/contract_cases/codec_structure-4.hex", "functions are not in canonical order", target))
+      results = results.append(bytecode_native_case("codec_structure-5", "tests/fixtures/bytecode/contract_cases/codec_structure-5.hex", "invalid Bool constant", target))
+      results = results.append(bytecode_native_case("codec_structure-6", "tests/fixtures/bytecode/contract_cases/codec_structure-6.hex", "invalid decimal padding", target))
+      results = results.append(bytecode_native_case("codec_structure-7", "tests/fixtures/bytecode/contract_cases/codec_structure-7.hex", "call to unknown function", target))
+      results = results.append(bytecode_native_case("codec_structure-8", "tests/fixtures/bytecode/contract_cases/codec_structure-8.hex", "call arity mismatch", target))
+      results = results.append(bytecode_native_case("codec_structure-9", "tests/fixtures/bytecode/contract_cases/codec_structure-9.hex", "pure function calls impure function", target))
+      results = results.append(bytecode_native_case("limit-function-count", "tests/fixtures/bytecode/contract_cases/limit-function-count.hex", "function count exceeds limit", target))
+      results = results.append(bytecode_native_case("limit-instructions", "tests/fixtures/bytecode/contract_cases/limit-instructions.hex", "instruction count exceeds limit", target))
+      results = results.append(bytecode_native_case("limit-integer-digits", "tests/fixtures/bytecode/contract_cases/limit-integer-digits.hex", "integer exceeds digit limit", target))
+      results = results.append(bytecode_native_case("limit-name-bytes", "tests/fixtures/bytecode/contract_cases/limit-name-bytes.hex", "name exceeds limit", target))
+      results = results.append(bytecode_native_case("limit-text-bytes", "tests/fixtures/bytecode/contract_cases/limit-text-bytes.hex", "text exceeds limit", target))
+      results = results.append(bytecode_native_disasm("all_scalar_constants_round_trip_canonically", "tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.hex", read_file("tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.disasm"), target))
+      results = results.append(bytecode_native_disasm("every_instruction_operand_round_trips", "tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.hex", read_file("tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.disasm"), target))
+      results = results.append(bytecode_native_disasm("load_and_reserialize_is_byte_identical", "tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.hex", read_file("tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.disasm"), target))
+      results = results.append(bytecode_native_disasm("serialization_uses_canonical_function_order", "tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.hex", read_file("tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.disasm"), target))
+      results = results.append(bytecode_native_disasm("signed zero decimal",
+        "tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.hex",
+        read_file("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.disasm"), target))
+      minimal = bytecode_native_hex(read_file("tests/fixtures/bytecode/minimal-v8.hex"))
+      match fs_write(target, minimal) {
+        Error(problem) => { results = results.append(test_expect("native minimal fixture", false, "write failed")) },
+        Ok(done) => {
+          match process_run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
+              bytes(), path_current(), [], duration_seconds(30), 1048576) {
+            Error(problem) => { results = results.append(test_expect("native minimal fixture", false, "command failed")) },
+            Ok(command) => { results = results.append(test_expect("native minimal fixture",
+              command.exit_code == 0 && command.signal == 0 && command.stdout == utf8_encode("ok\n") &&
+              command.stderr == bytes(), "valid minimal vector was rejected")) }
+          }
+          match fs_remove_file(target) {
+            Error(problem) => { results = results.append(test_expect("native minimal cleanup", false, "remove failed")) },
+            Ok(removed) => {}
+          }
+        }
+      }
+      match test_workspace_remove_empty(workspace) {
+        Error(problem) => { results = results.append(test_expect("native bytecode workspace cleanup", false, "directory not empty")) },
+        Ok(removed) => {}
+      }
+      if test_report(results) > 0 { process_exit(1) }
+    }
+  }
+}

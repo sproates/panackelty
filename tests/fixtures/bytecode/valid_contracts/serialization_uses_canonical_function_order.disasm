@@ -1,0 +1,6 @@
+FUNCTION|main|impure|
+0|CALL|zebra|0
+1|RETURN
+FUNCTION|zebra|pure|
+0|CONST|Void
+1|RETURN

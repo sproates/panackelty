@@ -1,10 +1,9 @@
-import decimal
 import tempfile
+import json
 import unittest
 from pathlib import Path
 
-from panackelty import Code, build, bytecode_bytes
-from tests.unit.bytecode.test_serialization import raw_artifact, raw_function, u16
+from panackelty import build, bytecode_bytes
 from tests.unit.compiler.test_self_hosted_emitter import render_bootstrap
 from tests.unit.support import CompilerHarnessTestCase
 
@@ -47,165 +46,59 @@ class SelfHostedBytecodeCodecTests(CompilerHarnessTestCase):
     def assert_differential(self, source):
         self.assertEqual(self.serialize(source), self.expected(source))
 
-    def test_rational_and_unit_bytecode_round_trip(self):
-        source = "main(): Void { third = 1/3; print((third * 30).nat()); print((1/8).dec()); print(()) }"
-        artifact = self.serialize(source)
-        self.assertEqual(artifact, self.expected(source))
-        self.assertEqual(self.serialize(source), artifact)
-        self.assertEqual(self.run_decoder_tool(artifact, "round_trip_bytecode", binary=True), artifact)
+    def test_shared_source_artifacts_match_bootstrap(self):
+        fixtures = PROJECT / "tests/fixtures/bytecode/codec_contracts"
+        paths = sorted(fixtures.glob("*.panack"))
+        self.assertEqual(len(paths), 10)
+        for path in paths:
+            with self.subTest(case=path.stem):
+                source = path.read_text(encoding="utf-8")
+                golden = fixtures / ("order.hex" if path.stem == "order_reversed" else path.stem + ".hex")
+                expected = bytes.fromhex(golden.read_text())
+                actual = self.serialize(source)
+                self.assertEqual(actual, self.expected(source))
+                self.assertEqual(actual, expected)
 
-    def test_serializes_minimal_program_exactly(self):
-        self.assert_differential("main(): Void {}")
+    def test_shared_artifacts_round_trip_and_disassemble(self):
+        root = PROJECT / "tests/fixtures/bytecode"
+        paths = sorted((root / "valid_contracts").glob("*.hex"))
+        self.assertEqual(len(paths), 5)
+        for path in paths:
+            with self.subTest(case=path.stem):
+                artifact = bytes.fromhex(path.read_text())
+                self.assertEqual(self.run_decoder_tool(artifact, "round_trip_bytecode", binary=True), artifact)
+                self.assertEqual(self.run_decoder_tool(artifact, "disassemble_bytecode"),
+                                 path.with_suffix(".disasm").read_text())
+        source = (root / "codec_contracts/disassembly.panack").read_text()
+        artifact = bytes.fromhex((root / "codec_contracts/disassembly.hex").read_text())
+        self.assertEqual(self.run_decoder_tool(artifact, "disassemble_bytecode"), render_bootstrap(source))
 
-    def test_serializes_complete_instruction_and_constant_mix(self):
-        source = r'''
-record Pair { left: Nat, right: Nat }
-enum Maybe { None, Some(Nat) }
-pure calculate(limit: Nat): Dec {
-  mut total: Nat = 0;
-  for value in 0..limit { total = total + value; }
-  if total > 0 && limit > 0 { 12.3400 } else { 0.0 }
-}
-pure unwrap(value: Maybe): Nat {
-  match value { Some(item) => item, None() => 0 }
-}
-main(): Void {
-  pair: Pair = Pair(20, 22);
-  answer: Nat = unwrap(Some(pair.left + pair.right));
-  print("answer ${answer}");
-  print(calculate(answer));
-}
-'''
-        self.assert_differential(source)
-
-    def test_deserializes_and_reserializes_byte_identically(self):
-        source = r'''
-pure values(): Dec { 123.4500 }
-main(): Void { print(values()); }
-'''
-        artifact = self.expected(source)
-        self.assertEqual(
-            self.run_decoder_tool(artifact, "round_trip_bytecode", binary=True),
-            artifact,
-        )
-
-        scalar_artifact = bytecode_bytes(
-            {
-                "main": Code(
-                    "main",
-                    [],
-                    [
-                        ("CONST", ("Int", -123456789)),
-                        ("POP", None),
-                        ("CONST", ("Dec", decimal.Decimal("-0E+2"))),
-                        ("POP", None),
-                        ("CONST", ("Void", None)),
-                        ("RETURN", None),
-                    ],
-                )
-            }
-        )
-        self.assertEqual(
-            self.run_decoder_tool(
-                scalar_artifact, "round_trip_bytecode", binary=True
-            ),
-            scalar_artifact,
-        )
-
-    def test_disassembles_loaded_artifact_to_the_emitter_ir(self):
-        source = "pure answer(): Nat { 42 } main(): Void { print(answer()); }"
-        artifact = self.expected(source)
-        self.assertEqual(
-            self.run_decoder_tool(artifact, "disassemble_bytecode"),
-            render_bootstrap(source),
-        )
-
-    def test_rejects_portable_malformed_vectors(self):
-        vectors = PROJECT / "tests/fixtures/bytecode"
-        cases = (
-            ("bad-magic.hex", "not a Panackelty bytecode file"),
-            ("minimal-v4.hex", "unsupported bytecode version 4"),
-            ("minimal-v5.hex", "unsupported bytecode version 5"),
-            ("minimal-v6.hex", "unsupported bytecode version 6"),
-            ("unknown-opcode-v8.hex", "unknown bytecode opcode"),
-            ("invalid-jump-v8.hex", "invalid jump target"),
-            ("nonminimal-integer-v8.hex", "non-minimal integer"),
-            ("truncated-v8.hex", "truncated data"),
-            ("trailing-v8.hex", "trailing data"),
-        )
-        for name, expected in cases:
-            with self.subTest(vector=name):
-                artifact = bytes.fromhex((vectors / name).read_text(encoding="ascii"))
-                self.assertIn(
-                    expected,
-                    self.run_decoder_tool(artifact, "validate_bytecode"),
-                )
-
-    def test_rejects_structural_call_and_purity_violations(self):
-        def call(name, arity):
-            encoded = name.encode("utf-8")
-            return b"\x11" + u16(len(encoded)) + encoded + bytes((arity,))
-
-        cases = (
-            (raw_artifact([raw_function(name=b"\xff")]), "invalid UTF-8"),
-            (raw_artifact([raw_function(flags=2)]), "unknown function flags"),
-            (
-                raw_artifact([raw_function(), raw_function()]),
-                "duplicate function main",
-            ),
-            (
-                raw_artifact([raw_function(name=b"zebra"), raw_function()]),
-                "not canonically ordered",
-            ),
-            (
-                raw_artifact(
-                    [raw_function(instructions=(b"\x00\x04\x02", b"\x14"))]
-                ),
-                "invalid Bool constant",
-            ),
-            (
-                raw_artifact(
-                    [
-                        raw_function(
-                            instructions=(
-                                b"\x00\x02\x00\x00\x00\x00\x01\x10",
-                                b"\x14",
-                            )
-                        )
-                    ]
-                ),
-                "invalid decimal padding",
-            ),
-            (
-                raw_artifact(
-                    [raw_function(instructions=(call("missing", 0), b"\x14"))]
-                ),
-                "calls unknown function missing",
-            ),
-            (
-                raw_artifact(
-                    [raw_function(instructions=(call("print", 0), b"\x14"))]
-                ),
-                "invalid arity",
-            ),
-            (
-                raw_artifact(
-                    [
-                        raw_function(
-                            flags=1,
-                            instructions=(call("print", 1), b"\x14"),
-                        )
-                    ]
-                ),
-                "pure bytecode function calls impure function print",
-            ),
-        )
-        for artifact, expected in cases:
-            with self.subTest(expected=expected):
-                self.assertIn(
-                    expected,
-                    self.run_decoder_tool(artifact, "validate_bytecode"),
-                )
+    def test_shared_invalid_artifacts_preserve_self_hosted_diagnostics(self):
+        root = PROJECT / "tests/fixtures/bytecode"
+        cases = [(root / "contract_cases" / (case["name"] + ".hex"), case["expected"])
+                 for manifest in ("manifest.json", "codec_manifest.json")
+                 for case in json.loads((root / "contract_cases" / manifest).read_text())]
+        cases += [(root / f"minimal-v{version}.hex", f"unsupported bytecode version {version}")
+                  for version in (4, 5, 6, 7)]
+        cases += [(root / (name + ".hex"), message) for name, message in (
+            ("bad-magic", "not a Panackelty bytecode file"),
+            ("unknown-opcode-v8", "unknown bytecode opcode"),
+            ("invalid-jump-v8", "invalid jump target"),
+            ("nonminimal-integer-v8", "non-minimal integer"),
+            ("truncated-v8", "truncated data"),
+            ("trailing-v8", "trailing data"))]
+        cases += [(root / "contract_cases" / (name + ".hex"), message)
+                  for name, message in (
+                      ("limit-function-count", "function count exceeds limit"),
+                      ("limit-name-bytes", "name exceeds limit"),
+                      ("limit-text-bytes", "text exceeds limit"),
+                      ("limit-integer-digits", "integer exceeds digit limit"),
+                      ("limit-instructions", "function exceeds instruction limit"))]
+        self.assertEqual(len(cases), 57)
+        for path, expected in cases:
+            with self.subTest(case=path.stem):
+                actual = self.run_decoder_tool(bytes.fromhex(path.read_text()), "validate_bytecode")
+                self.assertIn(expected, actual)
 
 
 if __name__ == "__main__":

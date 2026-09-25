@@ -70,11 +70,14 @@ check-compiler-impl:
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --failures-only
 
-check-bytecode: native
+check-bytecode: native native-module-build
 	@$(TIMED) check-bytecode $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-bytecode-impl
 
 check-bytecode-impl:
+	@"$(PANACK_NATIVE_MODULE_TEST)"
 	@$(PYTHON) -m unittest discover -s tests/unit/bytecode -t . -p 'test_*.py' -q
+	@./panack run tests/runner/bytecode_unit.panack
+	@./panack run tests/runner/bytecode_native_unit.panack
 	@./panack run tests/runner/main.panack --case cli_check_disasm
 	@./panack run tests/runner/main.panack --case cli_commands
 
@@ -91,6 +94,8 @@ unit: native native-module-build native-fault-build
 
 unit-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
+	@./panack run tests/runner/bytecode_unit.panack
+	@./panack run tests/runner/bytecode_native_unit.panack
 	@./panack run tests/runner/compiler_lexer_unit.panack
 	@./panack run tests/runner/compiler_parser_unit.panack
 	@./panack run tests/runner/compiler_resolver_unit.panack

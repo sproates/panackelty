@@ -139,14 +139,17 @@ host_direct(workspace: TestWorkspace): [TestResult] {
     Ok(command) => { results = results.append(test_expect("early stdin close",
       command.exit_code == 0 && command.signal == 0, "child did not exit cleanly")) }
   }
-  match process_run(sh, ["-c", "printf \"$PANACK_HOST_TEST\"; pwd; printf '\\377' >&2; exit 9"],
+  // /tmp may be a symlink: compare the actual directory, not shell pwd spelling.
+  match process_run(sh, ["-c", "test . -ef \"$1\" || exit 8; " +
+      "printf '%s\\n' \"$PANACK_HOST_TEST\"; printf '\\377' >&2; exit 9",
+      "host-cwd-check", root_text],
       empty, root, ["PANACK_HOST_TEST=value"], duration_seconds(3), 1000) {
     Error(problem) => { results = results.append(test_expect("environment cwd and binary stderr", false, problem.code)) },
     Ok(command) => {
       mut invalid = byte_append(empty, 255)
       results = results.append(test_expect("environment cwd and binary stderr",
         command.exit_code == 9 && command.signal == 0 &&
-        command.stdout == utf8_encode("value${root_text}\n") && command.stderr == invalid,
+        command.stdout == utf8_encode("value\n") && command.stderr == invalid,
         "process output differed"))
       results = results.append(test_equal_str("invalid UTF-8 process output",
         host_error(host_decode_utf8(command.stderr)), "invalid_utf8"))

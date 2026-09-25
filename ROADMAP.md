@@ -818,12 +818,12 @@ installed.
       recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
-      The direct lexer, parser, resolver, and checker assertions have moved to
-      `tests/runner/compiler_{lexer,parser,resolver,checker}_unit.panack`;
-      purity, emitter, loader, diagnostics, generics, type, and host boundary
+      The direct lexer, parser, resolver, type-checker, and purity assertions have moved to
+      `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`;
+      emitter, loader, diagnostics, generics, type, and host boundary
       unit assertions are still in the compiler migration queue. The checker
-      retains its 31 Python differential comparisons over shared source fixtures
-      until the separately planned oracle migration.
+      retains its 31 Python differential comparisons, and purity retains ten,
+      over shared source fixtures until the separately planned oracle migration.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. The
       Panackelty runner checks twenty-five selected cases, twenty examples,
@@ -864,7 +864,7 @@ seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
 Profile the remaining Python unit harness and native build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
-The unit timer now includes the Panackelty lexer, parser, resolver, and checker probes as well as
+The unit timer now includes the Panackelty lexer, parser, resolver, type-checker, and purity probes as well as
 the remaining Python tests. Keep their compilation and execution cost visible
 when profiling the existing unit-budget warning.
 

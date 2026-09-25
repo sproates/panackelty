@@ -45,7 +45,7 @@ boundaries, decimal/range ambiguity, every invalid character and position,
 both unterminated-string variants, half-open offsets, and semicolon insertion
 at line breaks. It asserts on the lexer result before the public CLI's parser
 and type checker can affect the result. Remaining compiler unit files and
-Python differential checks still run; lexer, parser, resolver, and direct checker assertions are completed portions
+Python differential checks still run; lexer, parser, resolver, direct checker, and direct purity assertions are completed portions
 of the compiler unit step, not its completion gate.
 
 `tests/runner/compiler_parser_unit.panack` replaces all 38 methods from
@@ -174,6 +174,34 @@ and both runners synchronized.
 | `checks_type_references_and_function_returns` | 3 | 0 |
 | `checks_types_across_loaded_modules` | 0 | 3 |
 | **Total** | **31** | **3** |
+
+`tests/runner/compiler_purity_unit.panack` owns the direct contracts from
+all seven original methods of `test_self_hosted_purity.py`: ten source cases
+and one module-graph case. The ten source files in
+`tests/fixtures/compiler_purity` are shared unchanged with the retained Python
+oracle. Inputs, diagnostic substrings, ordered module sources, and entry names
+were audited against every original expanded case. Success explicitly requires
+`ok`; failures preserve the original required diagnostic substring and reject
+`ok`. The native source and saved-bytecode reports match; a wrong expectation
+fails with exit 1, and missing fixtures fail with an I/O error.
+
+The Python test retains all ten original self-hosted-on-Python-VM versus
+bootstrap acceptance comparisons in one parameterized method, using one
+compiled harness per class. It no longer owns direct diagnostic or module
+assertions. This deliberate oracle overlap has the same separate removal gate
+as the checker. Both `make unit` and `make check-compiler` run the native probe.
+Names map `test_<group>` to `<group>-<ordinal>` fixtures/report labels.
+
+| Purity group | Source cases (also oracle) | Native module cases |
+| --- | ---: | ---: |
+| `accepts_pure_calls_constructors_and_recursion` | 1 | 0 |
+| `callable_effects_are_part_of_purity_checking` | 2 | 0 |
+| `checks_purity_across_loaded_modules` | 0 | 1 |
+| `guard_expressions_are_pure` | 1 | 0 |
+| `impure_functions_may_call_pure_and_impure_functions` | 1 | 0 |
+| `rejects_calls_to_impure_user_functions` | 2 | 0 |
+| `rejects_impure_builtins_from_pure_functions` | 3 | 0 |
+| **Total** | **10** | **1** |
 
 The functional runner is `tests/runner/main.panack`. `make functional` runs it,
 the compiler-driver check, and the runner smoke case from source and saved

@@ -1,0 +1,4 @@
+
+pure twice(value: Nat): Nat { value * 2 }
+pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(2) }
+main(): Void { print(apply(@twice)); }

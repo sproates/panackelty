@@ -1,0 +1,6 @@
+
+output(): Void { print(1); }
+pure hidden(): Void {
+  for value in 0..1 { if true { output(); } else {} }
+}
+main(): Void {}

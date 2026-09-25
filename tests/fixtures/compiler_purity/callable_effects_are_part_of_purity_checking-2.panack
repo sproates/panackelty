@@ -1,0 +1,4 @@
+
+output(value: Nat): Nat { print(value); value }
+pure apply(callback: Fn[Nat,Nat]): Nat { callback.call(2) }
+main(): Void { print(apply(@output)); }

@@ -535,7 +535,7 @@ make native-sanitize  # address/undefined-behaviour checks (also run in CI)
 make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
-The compiler check includes direct Panackelty lexer, parser, resolver, and checker assertions alongside
+The compiler check includes direct Panackelty lexer, parser, resolver, type-checker, and purity assertions alongside
 the remaining Python compiler unit tests and public CLI fixtures. The same
 assertions also run in `make unit`, whose timer includes both the Python and
 Panackelty unit suites.

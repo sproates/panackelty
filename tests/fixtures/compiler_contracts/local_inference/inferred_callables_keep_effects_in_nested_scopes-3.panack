@@ -1,0 +1,1 @@
+pure bad(): Str { value = read_file("x"); value } main(): Void {}

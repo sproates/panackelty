@@ -1,0 +1,1 @@
+main(): Void { n = 0; x: Str = n }

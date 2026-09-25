@@ -231,8 +231,19 @@ assertions from its 38 former methods; the resolver retains all 26 expanded
 assertions from 12 former methods. The type checker now has 34 native direct
 contracts; its Python test retains 31 differential comparisons using shared
 source fixtures. The purity checker adds 11 native direct contracts with ten
-shared source fixtures and ten retained Python differential comparisons. Other
-compiler unit and differential checks remain.
+shared source fixtures and ten retained Python differential comparisons. Direct compiler migration is now complete; differential and separately owned
+runtime, stdlib, runner and bootstrap tests remain.
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
 and requires behavior parity before any transitional Python tests are retired.
+
+The remaining direct compiler contracts now run in
+`tests/runner/compiler_contracts_unit.panack` (201 assertions) and
+`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
+rendering and source snapshots, loader/imports and driver commands, generics,
+inference, types and host boundaries. The shared fixture inventory and retained
+Python oracle responsibilities are documented in `tests/PYTHON_MIGRATION.md` and
+`tests/fixtures/compiler_contracts/README.md`. Native compiler assertions are
+complete; this does not imply removal of the differential oracle or the remaining
+bytecode, VM, host/stdlib and test-runner wrappers.

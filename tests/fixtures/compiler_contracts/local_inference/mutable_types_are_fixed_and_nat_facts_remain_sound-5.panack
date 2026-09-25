@@ -1,0 +1,1 @@
+main(): Void { mut n = 1; n = 0; x = n - 1 }

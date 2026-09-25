@@ -1,0 +1,4 @@
+
+noisy(value: Nat): Nat { print(value); value }
+pure bad(): Nat { action = @noisy; alias = action; alias.call(1) }
+main(): Void {}

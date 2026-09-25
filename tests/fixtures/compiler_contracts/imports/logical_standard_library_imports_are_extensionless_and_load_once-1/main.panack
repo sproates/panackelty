@@ -1,0 +1,6 @@
+import stdlib/option
+import "stdlib/option.panack"
+pure describe(value: Option[Nat]): Nat {
+  match value { Some(number) => number, None() => 0 }
+}
+main(): Void { print(describe(Some(42))) }

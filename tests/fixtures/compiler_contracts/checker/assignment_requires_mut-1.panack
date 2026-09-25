@@ -1,0 +1,3 @@
+
+pure bad(): Nat { value: Nat = 1; value = 2; value }
+main(): Void { print(bad()); }

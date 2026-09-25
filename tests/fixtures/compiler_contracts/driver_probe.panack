@@ -1,0 +1,5 @@
+import "../../../src/compiler/driver.panack"
+main(): Void {
+  status: Nat = run_compiler_command(command_args())
+  if status != 0 { print("status ${status}") }
+}

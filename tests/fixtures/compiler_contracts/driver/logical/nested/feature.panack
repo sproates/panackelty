@@ -1,0 +1,2 @@
+import project/shared/answer
+pure feature(): Option[Nat] { Some(answer()) }

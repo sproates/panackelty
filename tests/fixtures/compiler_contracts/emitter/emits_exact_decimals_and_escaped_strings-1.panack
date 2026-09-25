@@ -1,0 +1,7 @@
+
+pure decimal(): Dec { 12.3400 }
+main(): Void {
+  message: Str = "line\ntext";
+  print(message);
+  print(decimal());
+}

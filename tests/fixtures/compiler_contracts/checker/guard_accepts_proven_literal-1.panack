@@ -1,0 +1,4 @@
+
+type Positive = Int where value > 0;
+pure id(x: Positive): Positive { x }
+main(): Void { x: Positive = 3; print(id(x)); }

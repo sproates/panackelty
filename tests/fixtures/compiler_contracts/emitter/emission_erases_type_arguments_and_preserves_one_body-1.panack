@@ -1,0 +1,1 @@
+pure identity[T](x: T): T { x } main(): Void { print(identity(1)); print(identity[Str]("x")) }

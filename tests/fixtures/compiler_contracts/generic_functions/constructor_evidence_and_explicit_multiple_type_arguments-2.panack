@@ -1,0 +1,6 @@
+
+enum Result[T,E] { Ok(T), Error(E) }
+pure recover[T,E](value: Result[T,E], fallback: T): T {
+ match value { Ok(item) => item, Error(message) => fallback }
+}
+main(): Void { recover(Ok(5), 7) }

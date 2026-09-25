@@ -1,0 +1,1 @@
+record Box[T] { value: T } pure f[Box](x: Box): Box { x } main(): Void {}

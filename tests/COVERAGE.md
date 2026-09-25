@@ -26,23 +26,23 @@ Status meanings:
 | Behavior | Evidence | Status and remaining work |
 | --- | --- | --- |
 | Arbitrary-precision `Nat` | `unit/vm/test_numeric.py::test_big_natural_arithmetic`; Project Euler 1–5 functional examples | **Covered** for large arithmetic in focused and algorithm-level programs. |
-| Signed `Int` and literal inference | `unit/compiler/test_checker.py::test_int_accepts_negative_values_but_nat_does_not`; string functional example | **Partial** — add mixed `Nat`/`Int` operator and comparison cases. |
+| Signed `Int` and literal inference | `fixtures/compiler_contracts/checker`; string functional example | **Partial** — add mixed `Nat`/`Int` operator and comparison cases. |
 | Exact `Dec` arithmetic and scale | `unit/vm/test_numeric.py`; decimal functional example | **Covered** for addition, multiplication, finite division, large coefficients, and non-terminating division rejection. Add focused subtraction and remainder cases. |
 | Integral integer division | `unit/vm/test_numeric.py::test_integer_division_stays_integral`; shared forged-runtime corpus | **Partial** — integral results and cross-VM division-by-zero traps are covered; add negative operands and remainder edge cases. |
-| Proven-safe `Nat` subtraction | while-loop and guarded-fact tests in `unit/vm/test_execution.py` and `unit/compiler/test_checker.py`; shared forged-runtime corpus | **Partial** — safe source behavior and cross-VM runtime underflow traps are covered; add direct compile rejection. |
+| Proven-safe `Nat` subtraction | while-loop and guarded-fact tests in `unit/vm/test_execution.py` and `fixtures/compiler_contracts/checker`; shared forged-runtime corpus | **Partial** — safe source behavior and cross-VM runtime underflow traps are covered; add direct compile rejection. |
 | `Bool` values | Broad unit and functional usage | **Partial** — add focused type-error and display cases. |
 | Local binding inference | `unit/compiler/test_local_inference.py`; parser and emitter tests; `functional/cases/local_inference`; `functional/failures/inference_*`; release smoke | **Covered** for both frontends, numeric defaults, strings/booleans/bytes, imported constructors and functions, nested collection evidence, complete-type requirements, fixed mutable types, guarded types, callable effects, scope/order/no-shadowing, Void rejection, exact CLI diagnostics, and identical inferred/annotated emission. |
-| Keyword-free functions, colon return types, local declarations, and block tails | `unit/compiler/test_syntax.py`; all functional programs | **Covered** for accepted syntax, rejection of legacy `fn`, `->`, and `let` forms, and trailing-semicolon value discard. |
+| Keyword-free functions, colon return types, local declarations, and block tails | `fixtures/compiler_contracts/syntax`; all functional programs | **Covered** for accepted syntax, rejection of legacy `fn`, `->`, and `let` forms, and trailing-semicolon value discard. |
 | Newline statement termination and explicit semicolons | Bootstrap syntax tests; self-hosted lexer/parser tests; `semicolonless` functional case; `same_line_without_separator` failure | **Covered** for bindings, assignments, calls, imports, guarded types, blank lines, comments, block tails, multiline operators/parentheses/brackets, same-line separators, and source/bytecode execution. |
 | Receiver-first method calls and callable values | Bootstrap syntax tests; self-hosted parser/resolver/checker/purity/emitter differential tests; callables and collections functional cases; public failures | **Covered** for explicit `@name` references, `PureFn`/`Fn` effects, indirect invocation, array `map`/`reduce`, lowering, chaining, typed Map/Set methods, record-field distinction, collision-free lookup, receiver/callback diagnostics, and source/bytecode execution. |
-| Non-first-class `Void` and implicit fallthrough | `unit/compiler/test_syntax.py`; all functional entry points | **Covered** for empty returns, required non-`Void` results, and invalid value positions. |
+| Non-first-class `Void` and implicit fallthrough | `fixtures/compiler_contracts/syntax`; all functional entry points | **Covered** for empty returns, required non-`Void` results, and invalid value positions. |
 
 ## Guarded types, effects, and bindings
 
 | Behavior | Evidence | Status and remaining work |
 | --- | --- | --- |
-| Literal guard proof and rejection | `unit/compiler/test_checker.py`; `functional/failures/guard_not_proven` | **Covered** for a simple comparison guard through internal and public CLI paths. |
-| Facts introduced by `if` | `unit/compiler/test_checker.py::test_guard_is_proven_by_if_fact` | **Partial** — cover compound `&&`/`||` guards, arithmetic guards, and false branches. |
+| Literal guard proof and rejection | `fixtures/compiler_contracts/checker`; `functional/failures/guard_not_proven` | **Covered** for a simple comparison guard through internal and public CLI paths. |
+| Facts introduced by `if` | `fixtures/compiler_contracts/checker` | **Partial** — cover compound `&&`/`||` guards, arithmetic guards, and false branches. |
 | Guards remain pure and decidable | Checker implementation only | **Gap** — add rejection tests for I/O, calls, and unsupported expressions in guards. |
 | Pure functions cannot call effects | `test_pure_function_cannot_print`, `test_pure_loop_cannot_hide_io`, and `functional/failures/pure_io` | **Partial** — `print` rejection reaches the public CLI; cover calls to user-defined impure functions and every effectful built-in. |
 | Local mutation is allowed in pure code | for/while accumulator tests in `unit/vm/test_execution.py` | **Covered** for `mut`, assignment, `while`, and `for`. |
@@ -65,7 +65,7 @@ Status meanings:
 
 | Behavior | Evidence | Status and remaining work |
 | --- | --- | --- |
-| Record construction and field access | `unit/compiler/test_types.py::test_records_enums_and_exhaustive_match`; records functional case | **Partial** — add unknown fields, duplicate fields, bad field types, and field access on non-records. |
+| Record construction and field access | `fixtures/compiler_contracts/types`; records functional case | **Partial** — add unknown fields, duplicate fields, bad field types, and field access on non-records. |
 | Enum construction and payload binding | Same unit and functional cases; constructor arity rejection | **Partial** — add payload type and unknown-variant failures. |
 | Exhaustive match | exhaustive execution and missing-arm unit tests; `functional/failures/non_exhaustive_match` | **Partial** — missing-arm rejection reaches the public CLI; add duplicate arms, incompatible result types, wrong bindings, and non-enum subjects. |
 | Generic records, `Option`, and `Result` inference | `test_generic_records_option_and_result_inference`; records and option/result functional cases | **Partial** — local-inference tests cover unresolved nested arguments; expand conflicting and wrong-arity failures. |
@@ -105,9 +105,9 @@ Status meanings:
 | --- | --- | --- |
 | `panack` command identity and `.panack` source extension | `functional/cases/cli_commands`; `functional/cases/cli_check_disasm`; all discovered functional programs | **Covered** for help output, canonical source discovery, and rejection of the former `.nu` extension. The two previous Python CLI methods are retired. |
 | Release identity | `functional/cases/cli_commands`; `unit/test_layout.py`; installed-distribution test; `native_conformance.sh` | **Covered** for one canonical semantic prerelease version, source-checkout and installed `panack --version` output, bytecode-format identity, and absence of a duplicated release literal in the launcher. The former Python functional assertion is retired. |
-| Relative import resolution | `unit/compiler/test_imports.py::test_relative_module_imports`; modules functional case | **Covered** for a successful relative import. |
-| Logical import resolution | `unit/compiler/test_imports.py`; self-hosted driver tests; option/result and standard-library functional programs; installed-distribution test | **Covered** for canonical extensionless `stdlib/` and `project/` imports, quoted and suffixed compatibility, entry-root behavior from nested modules, load-once canonicalization, reserved standard-library ownership, invalid paths and suffixes, source/bytecode execution, and installed resource discovery. |
-| Cycle detection | `unit/compiler/test_imports.py::test_import_cycles_are_rejected`; `functional/failures/import_cycle` | **Covered** for a two-module cycle through internal and public CLI paths. |
+| Relative import resolution | `fixtures/compiler_contracts/imports`; modules functional case | **Covered** for a successful relative import. |
+| Logical import resolution | `fixtures/compiler_contracts/imports`; self-hosted driver tests; option/result and standard-library functional programs; installed-distribution test | **Covered** for canonical extensionless `stdlib/` and `project/` imports, quoted and suffixed compatibility, entry-root behavior from nested modules, load-once canonicalization, reserved standard-library ownership, invalid paths and suffixes, source/bytecode execution, and installed resource discovery. |
+| Cycle detection | `fixtures/compiler_contracts/imports`; `functional/failures/import_cycle` | **Covered** for a two-module cycle through internal and public CLI paths. |
 | Import validation, load-once behavior, and duplicate declarations | compiler import tests; self-hosted driver tests; `functional/failures/missing_import`, `invalid_import_suffix`, `invalid_logical_import`, and `invalid_logical_segment` | **Partial** — missing files, invalid suffixes, logical traversal and segment validation, canonical logical load-once behavior, and cycles reach focused or public CLI paths; add duplicate imported names and absolute-path functional cases. |
 | Source executes only through bytecode and VM | Functional harness runs every program from source and compiled bytecode | **Covered** at the public CLI boundary. |
 | Entry point and isolated call frames | Recursive Euler and memoized-Fibonacci functional examples; helper programs; `functional/failures/missing_main` and `main_parameters` | **Partial** — missing and parameterized `main` reach the public CLI; add recursion-depth and frame-isolation failures. |
@@ -116,7 +116,7 @@ Status meanings:
 | Frozen bytecode execution contract | `unit/bytecode/test_contract.py`; `unit/forged_runtime.py`; VM execution, numeric, collection, and runtime suites | **Covered** for operand order, isolated frames, direct/indirect calls, dynamic callable validation, return delivery, conditional stack effects, typed collection methods, Unicode reversal, and matching Python/native traps for forged failures. Every version-8 instruction and value rule is specified in `src/bytecode/FORMAT.md`. |
 | `run` source, `compile`, and `run` bytecode | Functional harness | **Covered** with exact stdout assertions over all discovered programs. |
 | Bare-path run shorthand | `functional/cases/cli_commands` | **Covered** for source and bytecode input. |
-| Compiler diagnostic excerpts | `unit/compiler/test_diagnostics.py`; positioned failure fixtures; CLI display edge cases; release archive smoke | **Covered** for source snapshots, imported errors, line/caret output, tabs, Unicode/control escapes, CRLF, EOF, empty lines, missing-source/invalid-position fallback, and all four source commands. |
+| Compiler diagnostic excerpts | `fixtures/compiler_contracts/diagnostics`; positioned failure fixtures; CLI display edge cases; release archive smoke | **Covered** for source snapshots, imported errors, line/caret output, tabs, Unicode/control escapes, CRLF, EOF, empty lines, missing-source/invalid-position fallback, and all four source commands. |
 | `check` and `disasm` commands | invalid source cases; `test_check_accepts_source_and_bytecode`; source/bytecode parity and malformed-artifact disassembly tests | **Covered** for successful source and bytecode input, exact source diagnostics, equivalent disassembly, and malformed bytecode rejection. |
 | Default and explicit compile output | discovered-program compilation; `functional/cases/cli_commands` | **Covered** for `-o`, the beside-source `.bc` default, and suppression of artifacts after invalid input. |
 
@@ -276,3 +276,10 @@ execution. Host error paths, rendering and nested execution retain gaps.
 Coverage-guided fuzzing, exhaustive syscall/errno combinations and unbounded
 ownership sequences remain follow-up work. Passing sanitizers is evidence for
 exercised paths, not proof of all memory safety.
+
+Direct compiler coverage migration is complete. The contract and integration
+probes provide 201 and 51 assertions respectively; the fixture README maps every
+remaining original compiler method and identifies retained differential evidence.
+Void-valued call arguments (including nested print) are rejected in the current
+self-hosted checker and refreshed seed; command regression checks preserve all
+four rejection paths and ensure failed compilation creates no artifact.

@@ -1,0 +1,1 @@
+pure f(value: Nat): Nat { value = 2; value } main(): Void {}

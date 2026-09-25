@@ -1,0 +1,4 @@
+
+type Port = Nat where value >= 1 && value <= 65535
+pure identity[T](x: T): T { x }
+main(): Void { invalid: Port = identity(0) }

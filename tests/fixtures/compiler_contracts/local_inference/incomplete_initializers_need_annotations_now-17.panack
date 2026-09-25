@@ -1,0 +1,7 @@
+enum Option[T] { None, Some(T) } record Box[T] { value: T } main(): Void {
+  names: [Str] = []
+  selected: Option[Str] = None()
+  boxes: [Box[Str]] = []
+  mut counts: Map[Str,Nat] = map()
+  counts = counts.put("Ada", 1)
+}

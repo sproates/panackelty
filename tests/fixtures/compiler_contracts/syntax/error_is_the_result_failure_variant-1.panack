@@ -1,0 +1,10 @@
+
+enum Result[T, E] { Ok(T), Error(E) }
+
+pure describe(result: Result[Nat,Str]): Str {
+  match result { Ok(value) => "${value}", Error(message) => message }
+}
+
+main(): Void {
+  print(describe(Error("failed")));
+}

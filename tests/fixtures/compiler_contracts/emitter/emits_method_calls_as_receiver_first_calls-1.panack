@@ -1,0 +1,11 @@
+
+pure increment(value: Nat, amount: Nat): Nat { value + amount }
+main(): Void {
+  values: [Nat] = [40.increment(2)].append(43);
+  mut answers: Map[Str,Nat] = map();
+  answers = answers.put("answer", values[0]);
+  print(answers.has("answer"));
+  print(answers.get("answer"));
+  print(set().add("answer").has("answer"));
+  print(values.len());
+}

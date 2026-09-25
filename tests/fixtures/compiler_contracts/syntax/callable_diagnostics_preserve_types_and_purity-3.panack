@@ -1,0 +1,1 @@
+pure text(value: Str): Str { value } main(): Void { print([1].map(@text)); }

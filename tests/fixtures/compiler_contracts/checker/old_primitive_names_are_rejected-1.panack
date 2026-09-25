@@ -1,0 +1,1 @@
+pure old(value: String): String { value } main(): Void {}

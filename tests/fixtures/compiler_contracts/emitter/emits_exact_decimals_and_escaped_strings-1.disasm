@@ -1,0 +1,15 @@
+FUNCTION|decimal|pure|
+0|CONST|Dec:12.3400
+1|RETURN
+FUNCTION|main|impure|
+0|CONST|Str:line
+text
+1|STORE|message
+2|LOAD|message
+3|CALL|print|1
+4|POP
+5|CALL|decimal|0
+6|CALL|print|1
+7|POP
+8|CONST|Void
+9|RETURN

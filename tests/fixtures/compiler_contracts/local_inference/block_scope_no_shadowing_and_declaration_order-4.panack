@@ -1,0 +1,1 @@
+main(): Void { if true { value = 1 }; print(value) }

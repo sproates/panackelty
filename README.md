@@ -535,8 +535,8 @@ make native-sanitize  # address/undefined-behaviour checks (also run in CI)
 make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
-The compiler check includes direct Panackelty lexer, parser, resolver, type-checker, and purity assertions alongside
-the remaining Python compiler unit tests and public CLI fixtures. The same
+The compiler check includes the complete direct Panackelty compiler assertions,
+retained Python differential oracles and public CLI fixtures. The same
 assertions also run in `make unit`, whose timer includes both the Python and
 Panackelty unit suites.
 
@@ -599,3 +599,14 @@ repository write permission is scoped to the final publication job.
 
 Project-wide contribution and validation expectations are documented in
 [AGENTS.md](AGENTS.md).
+
+The remaining direct compiler contracts now run in
+`tests/runner/compiler_contracts_unit.panack` (201 assertions) and
+`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
+rendering and source snapshots, loader/imports and driver commands, generics,
+inference, types and host boundaries. The shared fixture inventory and retained
+Python oracle responsibilities are documented in `tests/PYTHON_MIGRATION.md` and
+`tests/fixtures/compiler_contracts/README.md`. Native compiler assertions are
+complete; this does not imply removal of the differential oracle or the remaining
+bytecode, VM, host/stdlib and test-runner wrappers.

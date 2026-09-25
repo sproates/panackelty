@@ -65,6 +65,8 @@ check-compiler-impl:
 	@./panack run tests/runner/compiler_resolver_unit.panack
 	@./panack run tests/runner/compiler_checker_unit.panack
 	@./panack run tests/runner/compiler_purity_unit.panack
+	@./panack run tests/runner/compiler_contracts_unit.panack
+	@./panack run tests/runner/compiler_integration_unit.panack
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --failures-only
 
@@ -94,6 +96,8 @@ unit-impl:
 	@./panack run tests/runner/compiler_resolver_unit.panack
 	@./panack run tests/runner/compiler_checker_unit.panack
 	@./panack run tests/runner/compiler_purity_unit.panack
+	@./panack run tests/runner/compiler_contracts_unit.panack
+	@./panack run tests/runner/compiler_integration_unit.panack
 
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl

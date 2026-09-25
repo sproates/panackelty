@@ -1,0 +1,1 @@
+pure f[Unit](x: Unit): Unit { x } main(): Void {}

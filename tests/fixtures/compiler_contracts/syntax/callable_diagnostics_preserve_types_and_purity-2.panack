@@ -1,0 +1,1 @@
+pure bad(value: Nat): Nat { value.call() } main(): Void {}

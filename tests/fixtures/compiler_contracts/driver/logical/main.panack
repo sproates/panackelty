@@ -1,0 +1,6 @@
+import stdlib/option
+import "stdlib/option.panack"
+import "nested/feature.panack"
+main(): Void {
+  match feature() { Some(value) => print(value), None() => print(0) }
+}

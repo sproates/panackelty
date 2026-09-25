@@ -1,0 +1,5 @@
+
+pure choose(value: Nat): Nat {
+  if value > 0 { value - 1 } else { 0 }
+}
+main(): Void { print(choose(2)); }

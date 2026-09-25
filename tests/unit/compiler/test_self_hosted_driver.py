@@ -1,148 +1,23 @@
-import contextlib
-import io
+"""Retained byte-identical Python bootstrap vs self-hosted driver oracle."""
 import tempfile
-import unittest
 from pathlib import Path
-
 from panackelty import build, bytecode_bytes
 from tests.unit.support import CompilerHarnessTestCase
 
-
 PROJECT = Path(__file__).resolve().parents[3]
-STDLIB = PROJECT / "src/stdlib"
+FIXTURES = PROJECT / "tests/fixtures/compiler_contracts/driver"
 
 
 class SelfHostedDriverTests(CompilerHarnessTestCase):
-    def invoke(self, arguments):
-        stderr = io.StringIO()
-        with contextlib.redirect_stderr(stderr):
-            stdout = self.run_harness(
-                "compiler/driver.panack",
-                "main(): Void { status: Nat = run_compiler_command(command_args()); "
-                'if status != 0 { print("status ${status}"); } else {} }',
-                arguments,
-                environment={"PANACKELTY_STDLIB_PATH": str(STDLIB)},
-            )
-        return stdout, stderr.getvalue()
-
-    def test_checks_compiles_disassembles_and_runs_source(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "program.panack"
-            source.write_text(
-                'pure answer(): Nat { 42 } main(): Void { print(answer()); }',
-                encoding="utf-8",
-            )
-
-            self.assertEqual(self.invoke(["check", str(source)]), ("ok\n", ""))
-
-            output = root / "program.bc"
-            stdout, stderr = self.invoke(
-                ["compile", str(source), "-o", str(output)]
-            )
-            self.assertEqual((stdout, stderr), (f"wrote {output}\n", ""))
-            self.assertEqual(output.read_bytes(), bytecode_bytes(build(source)))
-
-            stdout, stderr = self.invoke(["disasm", str(source)])
-            self.assertIn("FUNCTION|main|impure|", stdout)
-            self.assertIn("CALL|print|1", stdout)
-            self.assertEqual(stderr, "")
-
-            self.assertEqual(self.invoke(["run", str(source)]), ("42\n", ""))
-
-            self.assertEqual(
-                self.invoke(["check", str(output)]),
-                ("ok\n", ""),
-            )
-            artifact_disassembly = self.invoke(
-                ["disasm", str(output)]
-            )
-            self.assertEqual(artifact_disassembly, (stdout, ""))
-            self.assertEqual(
-                self.invoke([str(output)]),
-                ("42\n", ""),
-            )
-
-    def test_loads_relative_module_graph_and_matches_bootstrap_artifact(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "main.panack"
-            dependency = root / "answer.panack"
-            source.write_text(
-                'import "answer.panack"; main(): Void { print(answer()); }',
-                encoding="utf-8",
-            )
-            dependency.write_text(
-                "pure answer(): Nat { 42 }", encoding="utf-8"
-            )
-            output = root / "self.bc"
-
-            stdout, stderr = self.invoke(
-                ["compile", str(source), "-o", str(output)]
-            )
-
-            self.assertEqual((stdout, stderr), (f"wrote {output}\n", ""))
-            self.assertEqual(output.read_bytes(), bytecode_bytes(build(source)))
-
-    def test_loads_logical_standard_library_and_project_imports(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            shared = root / "shared"
-            nested = root / "nested"
-            shared.mkdir()
-            nested.mkdir()
-            (shared / "answer.panack").write_text(
-                "pure answer(): Nat { 42 }", encoding="utf-8"
-            )
-            (nested / "feature.panack").write_text(
-                "import project/shared/answer\n"
-                "pure feature(): Option[Nat] { Some(answer()) }",
-                encoding="utf-8",
-            )
-            source = root / "main.panack"
-            source.write_text(
-                "import stdlib/option\n"
-                'import "stdlib/option.panack"\n'
-                'import "nested/feature.panack"\n'
-                "main(): Void {\n"
-                "  match feature() { Some(value) => print(value), None() => print(0) }\n"
-                "}",
-                encoding="utf-8",
-            )
-            output = root / "logical.bc"
-
-            stdout, stderr = self.invoke(
-                ["compile", str(source), "-o", str(output)]
-            )
-
-            self.assertEqual((stdout, stderr), (f"wrote {output}\n", ""))
-            self.assertEqual(output.read_bytes(), bytecode_bytes(build(source)))
-
-    def test_reports_missing_modules_and_import_cycles(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            missing = root / "missing-main.panack"
-            missing.write_text(
-                'import "absent.panack"; main(): Void {}', encoding="utf-8"
-            )
-            stdout, stderr = self.invoke(
-                ["check", str(missing)]
-            )
-            self.assertEqual(stdout, "status 1\n")
-            self.assertIn("missing source module", stderr)
-
-            first = root / "first.panack"
-            second = root / "second.panack"
-            first.write_text(
-                'import "second.panack"; main(): Void {}', encoding="utf-8"
-            )
-            second.write_text('import "first.panack";', encoding="utf-8")
-            stdout, stderr = self.invoke(
-                ["check", str(first)]
-            )
-            self.assertEqual(stdout, "status 1\n")
-            self.assertIn("import cycle includes", stderr)
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_shared_module_graph_artifacts_match_bootstrap(self):
+        for entry in ("basic.panack", "relative/main.panack", "logical/main.panack"):
+            with self.subTest(entry=entry), tempfile.TemporaryDirectory() as directory:
+                source = FIXTURES / entry
+                output = Path(directory) / "program.bc"
+                self.run_harness(
+                    "compiler/driver.panack",
+                    "main(): Void { run_compiler_command(command_args()); }",
+                    ["compile", str(source), "-o", str(output)],
+                    environment={"PANACKELTY_STDLIB_PATH": str(PROJECT / "src/stdlib")},
+                )
+                self.assertEqual(output.read_bytes(), bytecode_bytes(build(source)))

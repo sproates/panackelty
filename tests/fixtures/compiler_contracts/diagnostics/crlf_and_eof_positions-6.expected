@@ -1,0 +1,3 @@
+example.panack:1:4: bad input
+  1 | abc\u{d}
+    |    ^

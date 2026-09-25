@@ -1,0 +1,11 @@
+
+enum Result[T,E] { Ok(T), Error(E) }
+enum Option[T] { Some(T), None }
+enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
+enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
+enum ClockError { ClockUnavailable }
+record HostError { operation: Str, code: Str, native_code: Nat }
+enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
+record FileMetadata { kind: FileKind, size: Nat }
+record ProcessOutput { exit_code: Nat, signal: Nat, stdout: Bytes, stderr: Bytes }
+record Box[Path] { value: Path } main(): Void {}

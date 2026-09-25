@@ -1,0 +1,4 @@
+
+pure f[T](x: T): T { x }
+pure natural(x: Nat): Nat { f(x) }
+main(): Void { result: [Nat] = [1,2].map(@natural) }

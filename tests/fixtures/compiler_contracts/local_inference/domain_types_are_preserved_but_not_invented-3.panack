@@ -1,0 +1,1 @@
+type Port = Nat where value >= 1 && value <= 65535; main(): Void { mut ordinary = 8080; ordinary = 0 }

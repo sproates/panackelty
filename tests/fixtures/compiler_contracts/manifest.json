@@ -1,0 +1,1311 @@
+[
+  {
+    "group": "generic_functions",
+    "method": "test_bodies_are_checked_even_when_unused",
+    "name": "generic_functions/bodies_are_checked_even_when_unused-1",
+    "expect": "operator +",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_bodies_are_checked_even_when_unused",
+    "name": "generic_functions/bodies_are_checked_even_when_unused-2",
+    "expect": "len expects",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_bodies_are_checked_even_when_unused",
+    "name": "generic_functions/bodies_are_checked_even_when_unused-3",
+    "expect": "returns Nat, expected T",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_bodies_are_checked_even_when_unused",
+    "name": "generic_functions/bodies_are_checked_even_when_unused-4",
+    "expect": "unknown name missing",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_bodies_are_checked_even_when_unused",
+    "name": "generic_functions/bodies_are_checked_even_when_unused-5",
+    "expect": "pure function cannot call impure",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_constructor_evidence_and_explicit_multiple_type_arguments",
+    "name": "generic_functions/constructor_evidence_and_explicit_multiple_type_arguments-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_constructor_evidence_and_explicit_multiple_type_arguments",
+    "name": "generic_functions/constructor_evidence_and_explicit_multiple_type_arguments-2",
+    "expect": "cannot infer type parameter E",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_empty_evidence_and_argument_order",
+    "name": "generic_functions/empty_evidence_and_argument_order-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_empty_evidence_and_argument_order",
+    "name": "generic_functions/empty_evidence_and_argument_order-2",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_empty_evidence_and_argument_order",
+    "name": "generic_functions/empty_evidence_and_argument_order-3",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_empty_evidence_and_argument_order",
+    "name": "generic_functions/empty_evidence_and_argument_order-4",
+    "expect": "cannot infer type parameter T",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_empty_evidence_and_argument_order",
+    "name": "generic_functions/empty_evidence_and_argument_order-5",
+    "expect": "cannot infer type parameter T",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_generic_helpers_cannot_hide_callable_effects",
+    "name": "generic_functions/generic_helpers_cannot_hide_callable_effects-1",
+    "expect": "pure function cannot call impure function call",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_generic_helpers_cannot_hide_callable_effects",
+    "name": "generic_functions/generic_helpers_cannot_hide_callable_effects-2",
+    "expect": "pure function cannot call impure function call",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_generic_helpers_cannot_hide_callable_effects",
+    "name": "generic_functions/generic_helpers_cannot_hide_callable_effects-3",
+    "expect": "argument 2",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_guarded_types_are_preserved",
+    "name": "generic_functions/guarded_types_are_preserved-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_guarded_types_are_preserved",
+    "name": "generic_functions/guarded_types_are_preserved-2",
+    "expect": "cannot assign Nat to Port",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_inference_explicit_arguments_and_lexical_type_scope",
+    "name": "generic_functions/inference_explicit_arguments_and_lexical_type_scope-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-1",
+    "expect": "incompatible type arguments",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-2",
+    "expect": "expects 1 type arguments",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-3",
+    "expect": "unknown type Missing",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-4",
+    "expect": "Void is only valid",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-5",
+    "expect": "argument 1",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-6",
+    "expect": "expects 2 arguments",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-7",
+    "expect": "explicit type arguments require a generic function",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-8",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-9",
+    "expect": "incompatible type arguments",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_calls_and_conflicting_evidence",
+    "name": "generic_functions/invalid_calls_and_conflicting_evidence-10",
+    "expect": "explicit type arguments require a generic function",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-1",
+    "expect": "duplicate type parameter",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-2",
+    "expect": "conflicts with a type name",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-3",
+    "expect": "conflicts with a type name",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-4",
+    "expect": "main cannot have type parameters",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-5",
+    "expect": "unknown type Missing",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-6",
+    "expect": "unknown type T",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_invalid_declarations_and_unknown_types",
+    "name": "generic_functions/invalid_declarations_and_unknown_types-7",
+    "expect": "unknown type U",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_purity_and_generic_function_references",
+    "name": "generic_functions/purity_and_generic_function_references-1",
+    "expect": "pure function cannot call impure",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_purity_and_generic_function_references",
+    "name": "generic_functions/purity_and_generic_function_references-2",
+    "expect": "generic function references require a non-generic wrapper",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_purity_and_generic_function_references",
+    "name": "generic_functions/purity_and_generic_function_references-3",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "generic_functions",
+    "method": "test_recursion_mutual_calls_and_abstract_callback_parameters",
+    "name": "generic_functions/recursion_mutual_calls_and_abstract_callback_parameters-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-2",
+    "expect": "unknown name value",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-3",
+    "expect": "unknown name value",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-4",
+    "expect": "unknown name value",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-5",
+    "expect": "shadows an existing binding",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-6",
+    "expect": "shadows an existing binding",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-7",
+    "expect": "shadows an existing binding",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-8",
+    "expect": "shadows an existing binding",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_block_scope_no_shadowing_and_declaration_order",
+    "name": "local_inference/block_scope_no_shadowing_and_declaration_order-9",
+    "expect": "cannot assign to immutable local value",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_domain_types_are_preserved_but_not_invented",
+    "name": "local_inference/domain_types_are_preserved_but_not_invented-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_domain_types_are_preserved_but_not_invented",
+    "name": "local_inference/domain_types_are_preserved_but_not_invented-2",
+    "expect": "cannot assign Nat to Port",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_domain_types_are_preserved_but_not_invented",
+    "name": "local_inference/domain_types_are_preserved_but_not_invented-3",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_domain_types_are_preserved_but_not_invented",
+    "name": "local_inference/domain_types_are_preserved_but_not_invented-4",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-1",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-2",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-3",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-4",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-5",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-6",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-7",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-8",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-9",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-10",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-11",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-12",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-13",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-14",
+    "expect": "cannot infer complete type for local value; add a type annotation",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-15",
+    "expect": "cannot infer complete type for local names",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-16",
+    "expect": "cannot infer complete type for local values",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_incomplete_initializers_need_annotations_now",
+    "name": "local_inference/incomplete_initializers_need_annotations_now-17",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_inferred_callables_keep_effects_in_nested_scopes",
+    "name": "local_inference/inferred_callables_keep_effects_in_nested_scopes-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_inferred_callables_keep_effects_in_nested_scopes",
+    "name": "local_inference/inferred_callables_keep_effects_in_nested_scopes-2",
+    "expect": "pure function cannot call impure function call",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_inferred_callables_keep_effects_in_nested_scopes",
+    "name": "local_inference/inferred_callables_keep_effects_in_nested_scopes-3",
+    "expect": "pure function cannot call impure function read_file",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_inferred_callables_keep_effects_in_nested_scopes",
+    "name": "local_inference/inferred_callables_keep_effects_in_nested_scopes-4",
+    "expect": "cannot assign Fn",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_infers_scalars_expressions_and_preserves_numeric_defaults",
+    "name": "local_inference/infers_scalars_expressions_and_preserves_numeric_defaults-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_infers_scalars_expressions_and_preserves_numeric_defaults",
+    "name": "local_inference/infers_scalars_expressions_and_preserves_numeric_defaults-2",
+    "expect": "cannot assign Int to Nat",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_infers_scalars_expressions_and_preserves_numeric_defaults",
+    "name": "local_inference/infers_scalars_expressions_and_preserves_numeric_defaults-3",
+    "expect": "cannot assign Nat to Str",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_infers_scalars_expressions_and_preserves_numeric_defaults",
+    "name": "local_inference/infers_scalars_expressions_and_preserves_numeric_defaults-4",
+    "expect": "cannot assign Int to Nat",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_mutable_types_are_fixed_and_nat_facts_remain_sound",
+    "name": "local_inference/mutable_types_are_fixed_and_nat_facts_remain_sound-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_mutable_types_are_fixed_and_nat_facts_remain_sound",
+    "name": "local_inference/mutable_types_are_fixed_and_nat_facts_remain_sound-2",
+    "expect": "cannot assign Int to Nat",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_mutable_types_are_fixed_and_nat_facts_remain_sound",
+    "name": "local_inference/mutable_types_are_fixed_and_nat_facts_remain_sound-3",
+    "expect": "cannot assign Bool to Str",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_mutable_types_are_fixed_and_nat_facts_remain_sound",
+    "name": "local_inference/mutable_types_are_fixed_and_nat_facts_remain_sound-4",
+    "expect": "cannot assign to immutable local n",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_mutable_types_are_fixed_and_nat_facts_remain_sound",
+    "name": "local_inference/mutable_types_are_fixed_and_nat_facts_remain_sound-5",
+    "expect": "Nat subtraction may underflow",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-2",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-3",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-4",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-5",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-6",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-7",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-8",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-9",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-10",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_nested_collection_and_constructor_evidence_is_order_independent",
+    "name": "local_inference/nested_collection_and_constructor_evidence_is_order_independent-11",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_void_and_incompatible_values_are_rejected",
+    "name": "local_inference/void_and_incompatible_values_are_rejected-1",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_void_and_incompatible_values_are_rejected",
+    "name": "local_inference/void_and_incompatible_values_are_rejected-2",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_void_and_incompatible_values_are_rejected",
+    "name": "local_inference/void_and_incompatible_values_are_rejected-3",
+    "expect": "array elements have incompatible types",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_void_and_incompatible_values_are_rejected",
+    "name": "local_inference/void_and_incompatible_values_are_rejected-4",
+    "expect": "branches have incompatible types",
+    "kind": "check"
+  },
+  {
+    "group": "local_inference",
+    "method": "test_void_and_incompatible_values_are_rejected",
+    "name": "local_inference/void_and_incompatible_values_are_rejected-5",
+    "expect": "array elements have incompatible types",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-2",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-3",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-4",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-5",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-6",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_host_capability_types_and_effects",
+    "name": "host_types/host_capability_types_and_effects-7",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-1",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-2",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-3",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-4",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-5",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-6",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-7",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-8",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-9",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-10",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-11",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-12",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-13",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-14",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-15",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-16",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-17",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-18",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_invalid_types_forged_construction_and_impure_clock_are_rejected",
+    "name": "host_types/invalid_types_forged_construction_and_impure_clock_are_rejected-19",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "host_types",
+    "method": "test_opaque_values_work_in_generics_records_and_pure_calls",
+    "name": "host_types/opaque_values_work_in_generics_records_and_pure_calls-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-1",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-2",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-3",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-4",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-5",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-6",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-7",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-8",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-9",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-10",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-11",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-12",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-13",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-14",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-15",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_invalid_conversions_arithmetic_and_void_remain_rejected",
+    "name": "rational_unit/invalid_conversions_arithmetic_and_void_remain_rejected-16",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "rational_unit",
+    "method": "test_rational_and_unit_types_in_generic_values_and_callbacks",
+    "name": "rational_unit/rational_and_unit_types_in_generic_values_and_callbacks-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_assignment_requires_mut",
+    "name": "checker/assignment_requires_mut-1",
+    "expect": "immutable local",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_constructor_arguments_are_checked",
+    "name": "checker/constructor_arguments_are_checked-1",
+    "expect": "Some expects 1 arguments, got 0",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_guard_accepts_proven_literal",
+    "name": "checker/guard_accepts_proven_literal-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_guard_is_proven_by_if_fact",
+    "name": "checker/guard_is_proven_by_if_fact-1",
+    "expect": "ok",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_guard_rejects_bad_literal",
+    "name": "checker/guard_rejects_bad_literal-1",
+    "expect": "guard is not proven",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_int_accepts_negative_values_but_nat_does_not",
+    "name": "checker/int_accepts_negative_values_but_nat_does_not-1",
+    "expect": "-42\n",
+    "kind": "run"
+  },
+  {
+    "group": "checker",
+    "method": "test_int_accepts_negative_values_but_nat_does_not",
+    "name": "checker/int_accepts_negative_values_but_nat_does_not-2",
+    "expect": "cannot assign Int to Nat",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_loop_variable_cannot_overwrite_outer_binding",
+    "name": "checker/loop_variable_cannot_overwrite_outer_binding-1",
+    "expect": "shadows an existing binding",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_match_must_be_exhaustive",
+    "name": "checker/match_must_be_exhaustive-1",
+    "expect": "non-exhaustive match; missing None",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_old_primitive_names_are_rejected",
+    "name": "checker/old_primitive_names_are_rejected-1",
+    "expect": "unknown type String",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_pure_function_cannot_print",
+    "name": "checker/pure_function_cannot_print-1",
+    "expect": "pure function cannot call impure",
+    "kind": "check"
+  },
+  {
+    "group": "checker",
+    "method": "test_pure_loop_cannot_hide_io",
+    "name": "checker/pure_loop_cannot_hide_io-1",
+    "expect": "pure function cannot call impure",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_callable_diagnostics_preserve_types_and_purity",
+    "name": "syntax/callable_diagnostics_preserve_types_and_purity-1",
+    "expect": "pure function cannot invoke an impure callable",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_callable_diagnostics_preserve_types_and_purity",
+    "name": "syntax/callable_diagnostics_preserve_types_and_purity-2",
+    "expect": "call expects a callable, got Nat",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_callable_diagnostics_preserve_types_and_purity",
+    "name": "syntax/callable_diagnostics_preserve_types_and_purity-3",
+    "expect": "map callback must accept Nat",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_callable_diagnostics_preserve_types_and_purity",
+    "name": "syntax/callable_diagnostics_preserve_types_and_purity-4",
+    "expect": "map requires a pure callable",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_callable_diagnostics_preserve_types_and_purity",
+    "name": "syntax/callable_diagnostics_preserve_types_and_purity-5",
+    "expect": "cannot assign PureFn[Nat,Nat] to PureFn[Int,Nat]",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_error_is_the_result_failure_variant",
+    "name": "syntax/error_is_the_result_failure_variant-1",
+    "expect": "failed\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_if_else_is_optional_in_void_position",
+    "name": "syntax/if_else_is_optional_in_void_position-1",
+    "expect": "42\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_if_without_else_is_void_in_value_position",
+    "name": "syntax/if_without_else_is_void_in_value_position-1",
+    "expect": "returns Void, expected Nat",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_keyword_free_functions_bindings_and_void_fallthrough",
+    "name": "syntax/keyword_free_functions_bindings_and_void_fallthrough-1",
+    "expect": "answer 42\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_legacy_function_keywords_and_arrows_are_rejected",
+    "name": "syntax/legacy_function_keywords_and_arrows_are_rejected-1",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_legacy_function_keywords_and_arrows_are_rejected",
+    "name": "syntax/legacy_function_keywords_and_arrows_are_rejected-2",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_legacy_function_keywords_and_arrows_are_rejected",
+    "name": "syntax/legacy_function_keywords_and_arrows_are_rejected-3",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_legacy_let_and_missing_unit_return_are_rejected",
+    "name": "syntax/legacy_let_and_missing_unit_return_are_rejected-1",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_legacy_let_and_missing_unit_return_are_rejected",
+    "name": "syntax/legacy_let_and_missing_unit_return_are_rejected-2",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_legacy_let_and_missing_unit_return_are_rejected",
+    "name": "syntax/legacy_let_and_missing_unit_return_are_rejected-3",
+    "expect": "!ok",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_line_breaks_replace_statement_semicolons",
+    "name": "syntax/line_breaks_replace_statement_semicolons-1",
+    "expect": "yes\n43\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_method_call_receiver_is_checked_as_argument_one",
+    "name": "syntax/method_call_receiver_is_checked_as_argument_one-1",
+    "expect": "argument 1 to starts_with is Nat, expected Str",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_method_calls_lower_to_calls_with_the_receiver_first",
+    "name": "syntax/method_calls_lower_to_calls_with_the_receiver_first-1",
+    "expect": "2\ntrue\n42\ntrue\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_named_callable_values_map_reduce_and_indirect_calls",
+    "name": "syntax/named_callable_values_map_reduce_and_indirect_calls-1",
+    "expect": "[2, 4, 6]\n6\n8\n9\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_non_void_function_requires_a_result",
+    "name": "syntax/non_void_function_requires_a_result-1",
+    "expect": "returns Void, expected Nat",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_parenthesized_dot_name_is_a_method_not_a_record_field_call",
+    "name": "syntax/parenthesized_dot_name_is_a_method_not_a_record_field_call-1",
+    "expect": "unknown function value",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_same_line_statements_still_require_a_separator",
+    "name": "syntax/same_line_statements_still_require_a_separator-1",
+    "expect": "expected line break, semicolon, or closing brace after binding",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_semicolons_still_separate_same_line_statements",
+    "name": "syntax/semicolons_still_separate_same_line_statements-1",
+    "expect": "first\nsecond\n",
+    "kind": "run"
+  },
+  {
+    "group": "syntax",
+    "method": "test_short_collection_methods_are_type_directed",
+    "name": "syntax/short_collection_methods_are_type_directed-1",
+    "expect": "has expects a Map or Set, got Array[Nat]",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_short_collection_methods_are_type_directed",
+    "name": "syntax/short_collection_methods_are_type_directed-2",
+    "expect": "get expects a Map, got Set[$T]",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_short_collection_methods_are_type_directed",
+    "name": "syntax/short_collection_methods_are_type_directed-3",
+    "expect": "add expects a Set, got Map[$K,$V]",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_trailing_semicolon_discards_a_block_value",
+    "name": "syntax/trailing_semicolon_discards_a_block_value-1",
+    "expect": "returns Void, expected Nat",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_void_is_only_valid_as_a_return_type",
+    "name": "syntax/void_is_only_valid_as_a_return_type-1",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_void_is_only_valid_as_a_return_type",
+    "name": "syntax/void_is_only_valid_as_a_return_type-2",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_void_is_only_valid_as_a_return_type",
+    "name": "syntax/void_is_only_valid_as_a_return_type-3",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "syntax",
+    "method": "test_void_is_only_valid_as_a_return_type",
+    "name": "syntax/void_is_only_valid_as_a_return_type-4",
+    "expect": "Void",
+    "kind": "check"
+  },
+  {
+    "group": "types",
+    "method": "test_generic_records_option_and_result_inference",
+    "name": "types/generic_records_option_and_result_inference-1",
+    "expect": "answer\n42\n0\n",
+    "kind": "run"
+  },
+  {
+    "group": "types",
+    "method": "test_records_enums_and_exhaustive_match",
+    "name": "types/records_enums_and_exhaustive_match-1",
+    "expect": "17\n25\n7\n",
+    "kind": "run"
+  }
+]

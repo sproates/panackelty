@@ -1,0 +1,1 @@
+main(): Void { answer: Nat = 42 print(answer) }

@@ -1,0 +1,21 @@
+
+pure add(left: Nat, right: Nat): Nat {
+  left +
+    right
+}
+
+main(): Void {
+  mut answer: Nat = add(
+    20,
+    22
+  )
+
+  // Blank lines and comments do not disturb termination.
+  if answer == 42 {
+    print("yes")
+  }
+
+  answer = answer
+    + 1
+  print(answer)
+}

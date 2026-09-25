@@ -818,12 +818,13 @@ installed.
       recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
-      The direct lexer, parser, resolver, type-checker, and purity assertions have moved to
-      `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`;
-      emitter, loader, diagnostics, generics, type, and host boundary
-      unit assertions are still in the compiler migration queue. The checker
-      retains its 31 Python differential comparisons, and purity retains ten,
-      over shared source fixtures until the separately planned oracle migration.
+      Direct compiler coverage is complete: lexer, parser, resolver, checker,
+      purity, emitter, diagnostics, loader/imports, driver, generics, inference,
+      types and host-boundary assertions run natively. The two final compiler
+      probes add 201 direct and 51 integration assertions. Bytecode, verifier,
+      VM, runtime and standard-library coverage remain in this combined item.
+      Python differential compiler evidence remains until the oracle milestone;
+      the exact retained-case and ownership audit is in `tests/PYTHON_MIGRATION.md`.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. The
       Panackelty runner checks twenty-five selected cases, twenty examples,
@@ -864,9 +865,11 @@ seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
 Profile the remaining Python unit harness and native build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
-The unit timer now includes the Panackelty lexer, parser, resolver, type-checker, and purity probes as well as
+The unit timer now includes all seven Panackelty compiler probes as well as
 the remaining Python tests. Keep their compilation and execution cost visible
-when profiling the existing unit-budget warning.
+when profiling the existing unit-budget warning. The final compiler migration
+adds a direct driver build, source/bytecode commands and snapshot checks; profile
+these separately from the retained Python oracle before increasing allowances.
 
 Current environment follow-up: the September 2026 testing-library branch
 reported a 21-second unit phase against its 15-second warning threshold, also

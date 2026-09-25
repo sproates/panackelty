@@ -1,0 +1,7 @@
+
+main(): Void {
+  mut answer: Nat = 0;
+  if true { answer = 42; };
+  if false { 99 };
+  print(answer);
+}

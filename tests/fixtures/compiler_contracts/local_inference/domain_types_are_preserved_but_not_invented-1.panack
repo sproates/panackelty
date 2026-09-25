@@ -1,0 +1,1 @@
+type Port = Nat where value >= 1 && value <= 65535; main(): Void { configured: Port = 8080; copied = configured; checked: Port = copied }

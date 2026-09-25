@@ -1,0 +1,4 @@
+
+effect(value: Nat): Nat { print(value); value }
+pure apply[T,U](value: T, op: PureFn[T,U]): U { op.call(value) }
+main(): Void { apply(1, @effect) }

@@ -1,0 +1,5 @@
+
+pure bad(): Void {
+  for value in 0..3 { print(value); }
+}
+main(): Void {}

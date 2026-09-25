@@ -1,0 +1,1 @@
+pure f[Rat](x: Rat): Rat { x } main(): Void {}

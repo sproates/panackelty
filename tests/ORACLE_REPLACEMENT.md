@@ -1,8 +1,8 @@
 # Python differential oracle replacement
 
 The live Python compiler/VM comparisons are retired. This is **not** repository-wide
-Python removal: bootstrap implementation safeguards and
-development-harness tests still use Python. Language semantics, bytecode version 8
+Python removal: 21 bootstrap implementation safeguards still use Python.
+Development-harness tests now use shell/native checks. Language semantics, bytecode version 8
 and the checked compiler seed are unchanged.
 
 ## Evidence and independence
@@ -66,8 +66,9 @@ semantics. The unused rational source helper is also removed.
   frontend accepts it and the VM traps when executed; its runtime rejection is
   already in the VM corpus. This phase difference is not claimed as equivalence.
 - `compiler/test_bootstrap_diagnostics.py`: stage-0 callable/import wording.
-- Seed corruption, fixture-runner failure injection, repository layout, packaging,
-  timing and build contracts remain Python harness work.
+Seed corruption, fixture-runner failure injection, repository layout, packaging,
+timing and build contracts have moved to `unit/harness`. The complete 52-method
+audit is in [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md).
 
 These are not live differential dependencies. Retire them only alongside the
 stage-0 implementation or with explicit native replacements during the final

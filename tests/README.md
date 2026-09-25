@@ -6,14 +6,17 @@ All twenty former Python functional methods now have Panackelty-hosted
 replacement evidence. The runner (`runner/main.panack`) checks twenty-five
 selected success cases, twenty examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
-`runner_smoke` from source and saved bytecode. The Python unit tests remain.
+`runner_smoke` from source and saved bytecode. Only 21 transitional Python implementation tests remain.
 
-Panackelty has five validation paths:
+Panackelty has six validation paths:
 
 - `unit` tests exercise implementation internals directly. Panackelty probes
-  cover the lexer, parser, resolver, type checker, and purity; the remaining compiler, bytecode,
-  verifier, VM, and runtime tests use the Python harness during migration.
+  cover compiler, bytecode, VM, host and standard-library behavior. The 21
+  remaining Python methods protect the transitional implementation itself.
   Small source snippets isolate internal behavior and failures.
+- `harness` checks repository/CI policy, distribution, timing, seed rejection
+  and fixture-runner failures using shell and native Panackelty subprocesses.
+  Run `make harness PYTHON=false`; see [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md).
 - `functional` tests treat the `panack` command as a black box. They compile or
   run complete `.panack` programs on the VM, capture their output, and compare it
   with the expected observable behavior.
@@ -30,7 +33,7 @@ Run a level independently with `make unit`, `make functional`,
 development validation with `make check`.
 Each command prints its wall-clock duration and budget; an over-budget run also
 prints a warning without hiding the underlying test result.
-The unit phase times `unit-impl`, including both the Python tests and the
+The unit phase times `unit-impl`, including the native harness, retained Python tests and
 Panackelty probes, and propagates a failure from either suite.
 
 For incremental work, use `make check-compiler`, `make check-bytecode`, or
@@ -60,7 +63,7 @@ of `runner_smoke` still invoke the complete runner themselves.
 
 CI runs `make check` once per pull-request revision and again after a merge to
 `main`. It does not repeat the focused developer targets before the full suite.
-Superseded PR runs are cancelled. Both platform package jobs still run bootstrap,
+Superseded PR runs are cancelled. Both platform package jobs run `make harness PYTHON=false`, then bootstrap,
 native conformance, and exact-archive gates. The default native build uses `-O2`;
 functional and native process tests exercise the same optimised VM. Native tests
 use the production build graph rather than maintaining separate source lists.
@@ -97,11 +100,11 @@ retired; bootstrap-only object/limit and seed safeguards remain, recorded in
 
 Remaining Python unit tests are grouped by subsystem under `tests/unit/compiler`,
 `tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output
-helpers live in `tests/unit/support.py`. Add a focused module to the owning
-subsystem instead of growing a single catch-all test file; `make unit`
-discovers the package tree recursively.
+helpers live in `tests/unit/support.py`. These packages only safeguard the
+transitional implementation and will retire with it. Add new behavioral tests
+to the owning native/Panackelty probe; `make unit` includes all these checks.
 
-`tests/unit/test_native_distribution.py` covers both conventional staged
+`tests/unit/harness/distribution.sh` covers both conventional staged
 installation and the download archive. Its archive test builds the packaging
 layout without Python, validates the complete file set, relocates the extracted
 directory, and runs a standard-library program through `bin/panack`. Its
@@ -115,7 +118,7 @@ README inside the final archive, installs that archive under an isolated home,
 runs the documented commands with development tools absent from `PATH`, then
 exercises the replacement-style upgrade and complete removal procedures.
 
-`tests/unit/test_layout.py` locks the packaging workflow to the two supported
+`tests/unit/harness/layout.sh` locks the packaging workflow to the two supported
 runner/architecture pairs, the Python-free package command, checksum and
 provenance uploads, and the absence of tag or release triggers. It separately
 requires the tag workflow to match `VERSION`, depend on complete validation and
@@ -196,7 +199,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for bootstrap implementation and build/test-harness safeguards;
+Python remains only for the transitional implementation and its 21 unit safeguards;
 seed regeneration now uses verified self-hosted stages.
 
 

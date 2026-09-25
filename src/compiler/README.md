@@ -109,5 +109,5 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for bootstrap implementation and build/test-harness safeguards;
+Python remains only for the transitional implementation and its 21 unit safeguards;
 seed regeneration now uses verified self-hosted stages.

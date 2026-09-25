@@ -476,7 +476,7 @@ host failures without requiring a shell or decoding binary output.
 During development, `make functional` uses the Panackelty-hosted runner for
 twenty-five selected success cases, twenty examples, and forty-one failure
 cases, plus a self-hosted compiler check and the runner smoke case from source
-and bytecode. Python remains in bootstrap safeguards and development-harness tests.
+and bytecode. Python remains only in the transitional implementation and its unit safeguards.
 
 ## Explore further
 
@@ -512,7 +512,7 @@ toolchain itself. Normal Panackelty programs should use a downloaded release.
 
 A source build requires a POSIX-like Linux or macOS environment, a C11 compiler,
 and `make`. The complete development suite additionally requires Python 3.12;
-Python implements the remaining bootstrap safeguards and development harness, not the toolchain
+Python is used only by the remaining transitional implementation safeguards, not the toolchain
 shipped to users.
 
 The checkout directory may contain spaces and parentheses. The native VM builds
@@ -618,7 +618,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for bootstrap implementation and build/test-harness safeguards;
+Python remains only for the transitional implementation and its 21 unit safeguards;
 seed regeneration now uses verified self-hosted stages.
 
 
@@ -640,3 +640,8 @@ The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+Development harness checks now run without Python using `make harness PYTHON=false`.
+They cover repository/CI policy, packaging, timing, corrupt seeds and fixture-runner
+failure propagation on both supported platforms. The [retirement inventory](tests/HARNESS_MIGRATION.md)
+maps all 31 migrated methods and the 21 implementation-only methods still retained.

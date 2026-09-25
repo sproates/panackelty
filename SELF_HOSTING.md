@@ -224,14 +224,14 @@ signatures; the normal compiler and library fixed-point comparisons still apply.
 explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
 bounded process results and expected host errors. The testing-library foundation
 and live oracle replacement are complete. Seed refresh is now self-hosted;
-bootstrap implementation and harness retirement remain.
+bootstrap implementation retirement remains.
 The Panackelty-hosted functional runner now checks twenty-five selected
 success fixtures, all twenty examples, and forty-one failure fixtures. It
 also checks six `run`/`disasm` failure pairs, rational traps, exact displayed
 diagnostics, environment and file I/O, and a stage-two compiler driver
 comparison. `runner_smoke` runs from both source and saved bytecode. The
 Python functional and live differential methods are retired; bootstrap
-implementation and harness retirement remain.
+implementation retirement remains.
 The direct lexer, parser, and resolver unit contracts now run in Panackelty and their
 former Python test files have been retired. The parser retains all 192 expanded
 assertions from its 38 former methods; the resolver retains all 26 expanded
@@ -260,7 +260,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for bootstrap implementation and build/test-harness safeguards;
+Python remains only for the transitional implementation and its 21 unit safeguards;
 seed regeneration now uses verified self-hosted stages.
 
 
@@ -282,3 +282,8 @@ The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+Development-harness migration is complete: 31 former Python methods now run as
+shell/native checks, with a 52-method retirement audit in `tests/HARNESS_MIGRATION.md`.
+The remaining 21 methods guard only the transitional implementation and retire
+with it. Both supported package jobs run `make harness PYTHON=false`.

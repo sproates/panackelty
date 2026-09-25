@@ -802,7 +802,7 @@ prerequisite so programs can use these APIs without knowing repository paths.
 ## Eliminate Python from the repository — in progress
 
 Python has been removed from the public toolchain, but it still implements the
-remaining bootstrap safeguards, test harness, and compatibility facade. Seed
+remaining bootstrap implementation safeguards and compatibility facade. Seed
 regeneration now uses the native VM and self-hosted compiler. Retire those uses
 after logical imports, the required host capabilities, and the Panackelty testing foundation are complete. Completion
 means the current repository contains no Python source or Python command
@@ -847,6 +847,12 @@ installed.
       2–4 must reach a compiler and standard-library fixed point and match the
       expected conformance output before publication; shell failure injection
       and a real refresh with a Python-free `PATH` protect this workflow.
+- [x] Retire the general development Python harness: 31 methods now use
+      shell/native checks for repository/CI, installation/archive, timing,
+      seed rejection and runner failures. Both platform jobs run
+      `make harness PYTHON=false`. The 21 implementation-only methods remain
+      until the transitional implementation retires; `tests/HARNESS_MIGRATION.md`
+      records the complete 52-method audit and added failure cases.
 - [ ] Remove the root compatibility facade and the transitional implementation
       under `src/bootstrap`
 - [ ] Remove Python variables, commands, cache cleanup, and file-pattern handling
@@ -861,7 +867,12 @@ installed.
 
 ## Keep validation within development budgets — in progress
 
-Prioritize the remaining unit/build-harness cost after oracle retirement.
+Prioritize unit and bootstrap costs after development-harness retirement.
+The native harness preserves process bounds, archive/installation checks and
+runner fault injection; profile repeated compilation without dropping evidence.
+The initial isolated native harness passed in 33 seconds against its 15-second
+warning budget. This replaces a 31.5-second run of the former 31 Python methods;
+no speed improvement is claimed from changing the harness language alone.
 The seed-refresh gate adds isolated compiler stages to the bootstrap phase;
 profile that cost separately and preserve its digest, fixed-point and failure
 evidence when reducing repeated compilation. Keep the existing phase and total

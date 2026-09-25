@@ -1,0 +1,20 @@
+
+import stdlib/option
+record Holder { label: Str, values: [Nat] }
+pure identity(value: Nat): Nat { value }
+main(): Nat {
+    items: [Nat] = [1, 2, 3]
+    holder: Holder = Holder("numbers", items)
+    mut total: Nat = 0
+    for item in holder.values { total = total + identity(item) }
+    negative: Dec = -1.25
+    label: Str = holder.label
+    text: Str = "value ${negative} ${label}"
+    encoded: Bytes = utf8_encode(text)
+    values: Map[Str,Nat] = map_put(map(), "total", total)
+    names: Set[Str] = set_add(set(), "total")
+    operation: PureFn[Nat,Nat] = @identity
+    choice: Option[Nat] = Some(operation.call(map_get(values, "total")))
+    answer: Nat = match choice { Some(value) => value, None() => 0 }
+    if answer == 6 && set_has(names, "total") && byte_len(encoded) > 0 { 42 } else { 0 }
+}

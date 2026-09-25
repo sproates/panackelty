@@ -112,6 +112,18 @@ static void utf8_offsets_preserve_code_points(void)
     release(value);
 }
 
+static void void_return_preserves_value_kind(void)
+{
+    Instruction instructions[] = {{.op = OP_CONST, .constant = {.tag = 5}},
+                                  {.op = OP_RETURN}};
+    Function function = {.name = "main", .ins_count = 2, .ins = instructions};
+    Program program = {.count = 1, .functions = &function};
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, &function, NULL);
+    assert(result && result->kind == V_VOID && !vm.error);
+    release(result);
+}
+
 static void frames_release_arguments_on_return_and_trap(void)
 {
     char *parameters[] = {"argument"};
@@ -454,6 +466,7 @@ int main(int argc, char **argv)
     persistent_versions_keep_shared_children_alive();
     exact_arithmetic_borrows_operands();
     utf8_offsets_preserve_code_points();
+    void_return_preserves_value_kind();
     frames_release_arguments_on_return_and_trap();
     nested_calls_preserve_caller_ownership();
     verifier_rejects_forged_structures();

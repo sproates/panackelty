@@ -1,0 +1,1055 @@
+[
+  {
+    "name": "ExecutionTests-array_index_is_bounds_checked_by_vm-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_array_index_is_bounds_checked_by_vm",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: index 2 is out of bounds for length 1",
+    "python_return": null
+  },
+  {
+    "name": "ExecutionTests-arrays_iteration_indexing_and_len-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_arrays_iteration_indexing_and_len",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "38\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "ExecutionTests-boolean_operators_short_circuit-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_boolean_operators_short_circuit",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "false\ntrue\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "ExecutionTests-pure_for_loop_with_mutable_accumulator-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_pure_for_loop_with_mutable_accumulator",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "4950\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "ExecutionTests-pure_while_loop_with_mutable_locals-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_pure_while_loop_with_mutable_locals",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "265252859812191058636308480000000\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "ExecutionTests-str_index_is_bounds_checked_by_vm-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_str_index_is_bounds_checked_by_vm",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: index 2 is out of bounds for length 2",
+    "python_return": null
+  },
+  {
+    "name": "ExecutionTests-str_interpolation_concatenation_and_numeric_values-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_str_interpolation_concatenation_and_numeric_values",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "Hello, Ada: 7, -2, 0.125\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "ExecutionTests-str_unicode_indexing_and_length-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_str_unicode_indexing_and_length",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "\u03bb\ud83d\ude42\n3\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "ExecutionTests-string_methods_reverse_unicode_code_points-1",
+    "origin": "tests.unit.vm.test_execution.ExecutionTests.test_string_methods_reverse_unicode_code_points",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "\ud83d\ude42\u03bbA\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "NumericTests-big_natural_arithmetic-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_big_natural_arithmetic",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "8999999999999999999999999999991\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "NumericTests-dec_arithmetic_exceeds_host_context_without_rounding-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_dec_arithmetic_exceeds_host_context_without_rounding",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "1111111101111111110111111111011111111101111111110111111111011111111101111111110111111111011111111101111111110111111111011111111101111111110111111111010.00\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "NumericTests-dec_finite_division_is_exact-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_dec_finite_division_is_exact",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "0.125\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "NumericTests-dec_is_exact-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_dec_is_exact",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "0.3\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "NumericTests-integer_division_produces_rational-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_integer_division_produces_rational",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "7/2\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "NumericTests-rational_conversion_and_zero_failures-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: Rat is not an exact Nat",
+    "python_return": null
+  },
+  {
+    "name": "NumericTests-rational_conversion_and_zero_failures-2",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: Rat is not an exact Nat",
+    "python_return": null
+  },
+  {
+    "name": "NumericTests-rational_conversion_and_zero_failures-3",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "Dec division has a non-terminating result; explicit rounding is not implemented",
+    "python_return": null
+  },
+  {
+    "name": "NumericTests-rational_conversion_and_zero_failures-4",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: division by zero",
+    "python_return": null
+  },
+  {
+    "name": "NumericTests-rational_conversion_and_zero_failures-5",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: division by zero",
+    "python_return": null
+  },
+  {
+    "name": "NumericTests-rational_conversion_and_zero_failures-6",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: division by zero",
+    "python_return": null
+  },
+  {
+    "name": "NumericTests-rational_unit_program_matches_contract-1",
+    "origin": "tests.unit.vm.test_numeric.NumericTests.test_rational_unit_program_matches_contract",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "1/3\n10/1\n10\n0.125\n-0.125\n1/2\n-2/3\n6/1\n2/3\n-1/3\n-1/3\n0/1\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\n3\n()\nOk(())\n[(), ()]\n1\ntrue\nset{1/2}\n()\n999999999999999999999999999999/1\n0\n2.5\n1/3 ()\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "CollectionTests-byte_buffers_and_utf8-1",
+    "origin": "tests.unit.vm.test_collections.CollectionTests.test_byte_buffers_and_utf8",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "bytes(cebb21)\n3\n206\n\u03bb!\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "CollectionTests-empty_array_append_and_concat_are_pure-1",
+    "origin": "tests.unit.vm.test_collections.CollectionTests.test_empty_array_append_and_concat_are_pure",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "[2, 3, 5, 7]\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "CollectionTests-persistent_maps_and_sets_are_pure-1",
+    "origin": "tests.unit.vm.test_collections.CollectionTests.test_persistent_maps_and_sets_are_pure",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "42\nfalse\ntrue\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "CollectionTests-short_collection_aliases_dispatch_by_receiver_type-1",
+    "origin": "tests.unit.vm.test_collections.CollectionTests.test_short_collection_aliases_dispatch_by_receiver_type",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "true\n42\ntrue\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "BytecodeContractTests-binary_operands_preserve_push_order-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_binary_operands_preserve_push_order",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "5\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_call_frames_have_isolated_locals_and_return_values",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "7\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "BytecodeContractTests-conditional_jump_consumes_its_condition-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_conditional_jump_consumes_its_condition",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "2\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-2",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-3",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-4",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-5",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-6",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-7",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid host operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-8",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operation requires Path",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-9",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operation requires Duration",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-10",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operation requires Instant",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-11",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid path constructor operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-12",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid path constructor operand",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-13",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: duration seconds requires Rat",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-14",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: duration requires Int",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-15",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operation requires Instant",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-16",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: rational conversion requires Rat",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-17",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: quotient requires Nat operands",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-18",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: Rat does not support remainder",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-19",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: Nat underflow",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-20",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: byte value 256 is outside 0..255",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-21",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid UTF-8",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-22",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: map key 'missing' was not found",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-23",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: division by zero",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-24",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: indirect call target was not found",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-25",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: indirect call requires a callable",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-26",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operand stack underflow",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-forged_runtime_safety_failures_trap_in_the_oracle-27",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_forged_runtime_safety_failures_trap_in_the_oracle",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operand stack underflow",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-indirect_calls_recheck_purity_at_runtime-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_indirect_calls_recheck_purity_at_runtime",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: pure function invokes impure callable",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-indirect_calls_validate_and_deliver_results-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_indirect_calls_validate_and_deliver_results",
+    "mode": "run",
+    "status": 0,
+    "python_stdout": "42\n",
+    "python_error": null,
+    "python_return": "Void"
+  },
+  {
+    "name": "BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-1",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_invalid_dynamic_state_becomes_a_vm_trap",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operand stack underflow",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-2",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_invalid_dynamic_state_becomes_a_vm_trap",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: invalid bytecode execution",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-3",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_invalid_dynamic_state_becomes_a_vm_trap",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: operand stack underflow",
+    "python_return": null
+  },
+  {
+    "name": "BytecodeContractTests-invalid_dynamic_state_becomes_a_vm_trap-4",
+    "origin": "tests.unit.bytecode.test_contract.BytecodeContractTests.test_invalid_dynamic_state_becomes_a_vm_trap",
+    "mode": "run",
+    "status": 1,
+    "python_stdout": "",
+    "python_error": "VM trap: Nat has no field field",
+    "python_return": null
+  },
+  {
+    "name": "NativeLoaderTests-accepts_minimal_version_eight_artifact-1",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_accepts_minimal_version_eight_artifact",
+    "mode": "check",
+    "status": 0
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-1",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-2",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-3",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-4",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-5",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-6",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-7",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-8",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-9",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-10",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-11",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-12",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-13",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-14",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-15",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-16",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-17",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-18",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_every_truncation_of_a_valid_artifact-19",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_every_truncation_of_a_valid_artifact",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-1",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-2",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-3",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-4",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-5",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-6",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-7",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-8",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_forged_structural_and_semantic_violations-9",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_forged_structural_and_semantic_violations",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_shared_malformed_artifacts-1",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_shared_malformed_artifacts",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_shared_malformed_artifacts-2",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_shared_malformed_artifacts",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_shared_malformed_artifacts-3",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_shared_malformed_artifacts",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_shared_malformed_artifacts-4",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_shared_malformed_artifacts",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_shared_malformed_artifacts-5",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_shared_malformed_artifacts",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeLoaderTests-rejects_shared_malformed_artifacts-6",
+    "origin": "tests.unit.vm.test_native_loader.NativeLoaderTests.test_rejects_shared_malformed_artifacts",
+    "mode": "check",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-1",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-2",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-3",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-4",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-5",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-6",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-7",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-string_index_and_slice_boundaries_still_trap-8",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_string_index_and_slice_boundaries_still_trap",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-1",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_matches_numeric_and_trap_semantics",
+    "mode": "run",
+    "status": 0
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-2",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_matches_numeric_and_trap_semantics",
+    "mode": "run",
+    "status": 0
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-3",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_matches_numeric_and_trap_semantics",
+    "mode": "run",
+    "status": 0
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-4",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_matches_numeric_and_trap_semantics",
+    "mode": "run",
+    "status": 0
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_matches_numeric_and_trap_semantics-5",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_matches_numeric_and_trap_semantics",
+    "mode": "run",
+    "status": 0
+  },
+  {
+    "name": "NativeExecutionTests-rational_conversion_and_zero_failures-1",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-rational_conversion_and_zero_failures-2",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-rational_conversion_and_zero_failures-3",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-rational_conversion_and_zero_failures-4",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-rational_conversion_and_zero_failures-5",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-rational_conversion_and_zero_failures-6",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_rational_conversion_and_zero_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-1",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-2",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-3",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-4",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-5",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-6",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-7",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-8",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-9",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-10",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-11",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-12",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-13",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-14",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-15",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-16",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-17",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-18",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-19",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-20",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-21",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-22",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-23",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-24",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-25",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-26",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-27",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-28",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_traps_on_forged_dynamic_failures-29",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_traps_on_forged_dynamic_failures",
+    "mode": "run",
+    "status": 1
+  },
+  {
+    "name": "NativeExecutionTests-native_vm_rechecks_indirect_call_purity-1",
+    "origin": "tests.unit.vm.test_native_execution.NativeExecutionTests.test_native_vm_rechecks_indirect_call_purity",
+    "mode": "run",
+    "status": 1
+  }
+]

@@ -1,0 +1,1 @@
+error: VM trap: len requires Str, Bytes, or Array

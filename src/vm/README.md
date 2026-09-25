@@ -116,3 +116,12 @@ These targets include seeded arithmetic properties, persistent-value lifetimes,
 and deterministic mutation of every operand and constant form. They supplement,
 but do not prove, memory safety; exhaustive host failures and coverage-guided
 fuzzing remain follow-up work.
+
+
+Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 153 assertions
+include native module, bigint and allocation-failure wrappers; header isolation
+runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
+and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
+The shared Python VM observations and seeded arithmetic properties remain oracle
+evidence until the oracle-replacement milestone; host/runtime migration is next.

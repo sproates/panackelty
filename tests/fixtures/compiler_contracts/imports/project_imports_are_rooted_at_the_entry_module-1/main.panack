@@ -1,0 +1,2 @@
+import "app/feature.panack"
+main(): Void { print(feature()) }

@@ -44,9 +44,9 @@ replacement checks exact token classes, all punctuation and longest-match
 boundaries, decimal/range ambiguity, every invalid character and position,
 both unterminated-string variants, half-open offsets, and semicolon insertion
 at line breaks. It asserts on the lexer result before the public CLI's parser
-and type checker can affect the result. Remaining compiler unit files and
-Python differential checks still run; lexer, parser, resolver, direct checker, and direct purity assertions are completed portions
-of the compiler unit step, not its completion gate.
+and type checker can affect the result. The direct compiler unit migration is
+now complete; Python differential evidence and separately owned runner,
+standard-library and bootstrap tests remain active (see the ownership audit below).
 
 `tests/runner/compiler_parser_unit.panack` replaces all 38 methods from
 `tests/unit/compiler/test_self_hosted_parser.py`, expanding them into 192 named
@@ -319,6 +319,39 @@ specific case can migrate:
 - Some tests construct malformed bytecode and source probes dynamically. Move
   those to shared declarative fixtures or independently validated generators
   before retiring their Python builders.
+
+## Remaining direct compiler migration — complete
+
+`runner/compiler_contracts_unit.panack` adds 201 direct assertions: 177 frontend
+checks, ten exact emitter listings, and fourteen diagnostic renderings.
+`runner/compiler_integration_unit.panack` adds 51 command/loader/driver assertions,
+including ten source execution cases, generic execution, six import cases,
+byte-identical native artifacts, source/artifact disassembly, missing modules,
+cycles, a two-assertion loader source-snapshot helper, cleanup, and the newly
+exposed Void-argument regression. Both run under `make unit` and `make check-compiler`.
+
+The full original-method mapping and immutable-input inventory are in
+[compiler contract fixtures](fixtures/compiler_contracts/README.md). Direct
+`test_checker`, `test_syntax`, `test_types`, `test_imports` and `test_diagnostics`
+files are retired. Generic, inference, host-type, rational/unit, emitter and
+driver Python suites now retain only oracle evidence: 142 source acceptance
+comparisons, ten emission comparisons (including the added explicit-binding
+counterpart), and three driver artifact comparisons. Earlier checker/purity
+oracles retain their 31/10 source comparisons. Two documented diagnostic wording
+differences retain explicit bootstrap and self-hosted checks.
+
+The migration uncovered an existing self-hosted acceptance gap for
+`print(print(1))`. The checker now rejects Void-valued call arguments, as the
+language specification and bootstrap checker already require. The version-8 seed
+is refreshed with the existing stage-0 command; this does not complete the later
+Python-free seed-regeneration milestone. Command checks cover check/run/disasm,
+compile failure and absence of a failed artifact.
+
+The directory still contains tests owned by later milestones: bootstrap seed
+corruption (`test_bootstrap`); runner failure injection (`test_panackelty_runner`);
+testing-library/files/commands and environment wrappers (host/stdlib); and
+standard-library byte identity (oracle). Their location does not make them
+unfinished direct compiler coverage, and none is silently retired or moved.
 
 ## Migration order and removal gates
 

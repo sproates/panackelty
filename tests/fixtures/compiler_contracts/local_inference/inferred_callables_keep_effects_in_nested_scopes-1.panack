@@ -1,0 +1,16 @@
+
+enum Option[T] { None, Some(T) }
+pure increment(value: Nat): Nat { value + 1 }
+pure use(): Nat {
+  action = @increment
+  alias = action
+  mut result = alias.call(40)
+  actions = [action]
+  for item in actions { copied = item; result = copied.call(result) }
+  selected = Some(action)
+  match selected {
+    Some(item) => { copied = item; copied.call(result) },
+    None() => result
+  }
+}
+main(): Void { print(use()) }

@@ -1,0 +1,1 @@
+pure widen(value: Nat): Nat { value } main(): Void { callback: PureFn[Int,Nat] = @widen; }

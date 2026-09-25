@@ -1,0 +1,9 @@
+
+pure twice(value: Nat): Nat { value * 2 }
+pure total(accumulator: Nat, value: Nat): Nat { accumulator + value }
+main(): Void {
+  callback: PureFn[Nat,Nat] = @twice
+  print(callback.call(3))
+  print([1, 2].map(callback))
+  print([1, 2].reduce(0, @total))
+}

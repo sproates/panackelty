@@ -1,0 +1,11 @@
+
+pure increment(value: Nat): Nat {
+  value + 1
+}
+
+main(): Void {
+  answer: Nat = increment(41);
+  mut message: Str = "answer";
+  message = "${message} ${answer}";
+  print(message);
+}

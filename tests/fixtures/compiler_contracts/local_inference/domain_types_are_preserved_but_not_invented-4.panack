@@ -1,0 +1,1 @@
+type Port = Nat where value >= 1 && value <= 65535; type Count = Nat where value <= 10; main(): Void { port: Port = 8080; count: Count = 2; values = [port, count]; checked: [Nat] = values }

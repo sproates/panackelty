@@ -1,0 +1,1 @@
+pure signed(): Int { 41 } main(): Void { n = signed(); x: Nat = n }

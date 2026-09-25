@@ -1,0 +1,7 @@
+
+pure bad(): Nat {
+  value: Nat = 10;
+  for value in 0..3 {}
+  value
+}
+main(): Void {}

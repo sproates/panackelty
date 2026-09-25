@@ -905,6 +905,9 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
         checked: CheckedExpression = check_expression_scoped(argument, environment, facts, program, scope_types)
         diagnostics = concat(diagnostics, checked.diagnostics)
         argument_infos = append(argument_infos, checked.info)
+        if checked.info.name == "Void" {
+          diagnostics = append(diagnostics, checker_diagnostic("Void is not a value and cannot be passed as an argument"))
+        }
         if index < len(expected) && len(function.type_parameters) == 0 {
           template: Str = expected[index]
           inferred = infer_template(program, template, checked.info.name, parameters, inferred)

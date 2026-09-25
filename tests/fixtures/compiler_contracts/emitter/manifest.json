@@ -1,0 +1,42 @@
+[
+  {
+    "name": "emitter/emits_exact_decimals_and_escaped_strings-1",
+    "method": "test_emits_exact_decimals_and_escaped_strings"
+  },
+  {
+    "name": "emitter/emits_function_references_indirect_calls_map_and_reduce-1",
+    "method": "test_emits_function_references_indirect_calls_map_and_reduce"
+  },
+  {
+    "name": "emitter/emits_if_without_else_with_balanced_void_paths-1",
+    "method": "test_emits_if_without_else_with_balanced_void_paths"
+  },
+  {
+    "name": "emitter/emits_loops_arrays_indexing_and_short_circuiting-1",
+    "method": "test_emits_loops_arrays_indexing_and_short_circuiting"
+  },
+  {
+    "name": "emitter/emits_method_calls_as_receiver_first_calls-1",
+    "method": "test_emits_method_calls_as_receiver_first_calls"
+  },
+  {
+    "name": "emitter/emits_records_variants_matches_and_interpolation-1",
+    "method": "test_emits_records_variants_matches_and_interpolation"
+  },
+  {
+    "name": "emitter/emits_scalars_calls_and_control_flow-1",
+    "method": "test_emits_scalars_calls_and_control_flow"
+  },
+  {
+    "name": "emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1",
+    "method": "test_inferred_bindings_emit_the_same_code_as_explicit_bindings"
+  },
+  {
+    "name": "emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2",
+    "method": "test_inferred_bindings_emit_the_same_code_as_explicit_bindings"
+  },
+  {
+    "name": "emitter/emission_erases_type_arguments_and_preserves_one_body-1",
+    "method": "test_emission_erases_type_arguments_and_preserves_one_body"
+  }
+]

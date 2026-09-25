@@ -1,0 +1,1 @@
+import "answer.panack"; main(): Void { print(answer()); }

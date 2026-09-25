@@ -1,0 +1,1 @@
+main(): Void { print(map().add(1)); }

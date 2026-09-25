@@ -1,0 +1,15 @@
+FUNCTION|main|impure|
+0|CONST|Str:Ada
+1|STORE|name
+2|CONST|Nat:1
+3|STORE|n
+4|LOAD|n
+5|CONST|Nat:1
+6|BINARY|+
+7|STORE|n
+8|LOAD|name
+9|CALL|print|1
+10|POP
+11|LOAD|n
+12|CALL|print|1
+13|RETURN

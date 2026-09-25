@@ -1,0 +1,3 @@
+example.panack:1:8: bad input
+  1 |     \u{3bb}\u{4e2d}\u{1f642}e\u{301} #
+    |                                      ^

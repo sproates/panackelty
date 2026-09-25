@@ -1,0 +1,5 @@
+main(): Void {
+  mut message = "waiting"
+  if true { message = "ready"; local = "first"; print(local) }
+  if false { local = "second"; print(local) }
+}

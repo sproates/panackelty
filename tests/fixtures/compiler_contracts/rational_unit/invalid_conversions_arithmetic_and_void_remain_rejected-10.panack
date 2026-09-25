@@ -1,0 +1,1 @@
+main(): Void { x: Unit = print(1) }

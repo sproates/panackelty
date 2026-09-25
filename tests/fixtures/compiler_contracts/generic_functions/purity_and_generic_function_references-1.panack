@@ -1,0 +1,1 @@
+f[T](x: T): T { print(x); x } pure g(): Nat { f(1) } main(): Void {}

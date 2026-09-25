@@ -1,0 +1,5 @@
+
+type Port = Nat where value >= 1 && value <= 65535
+pure identity[T](x: T): T { x }
+pure with_port[T](x: T, port: Port): T { x }
+main(): Void { port: Port = 80; copy: Port = identity(port); text: Str = with_port("ok", 80) }

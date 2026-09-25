@@ -547,7 +547,8 @@ now run directly on the native VM. Positive results must equal `ok`; negative
 cases retain their required diagnostic substrings. The purity probe similarly
 checks ten shared source fixtures and one module graph while retaining all ten
 Python differential comparisons. The unit timer includes both languages' assertions;
-remaining compiler unit and differential checks continue during migration.
+direct compiler migration is complete; differential and separately owned runtime,
+stdlib, runner and bootstrap checks remain during their respective migrations.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default
@@ -586,3 +587,14 @@ redirects VM allocations and selected host syscalls, sweeps each allocation
 failure position, and asserts memory, descriptor and child-process cleanup.
 Production builds contain no fault controls.
 See `src/vm/README.md` for the complete file map and ownership conventions.
+
+The remaining direct compiler contracts now run in
+`tests/runner/compiler_contracts_unit.panack` (201 assertions) and
+`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
+rendering and source snapshots, loader/imports and driver commands, generics,
+inference, types and host boundaries. The shared fixture inventory and retained
+Python oracle responsibilities are documented in `tests/PYTHON_MIGRATION.md` and
+`tests/fixtures/compiler_contracts/README.md`. Native compiler assertions are
+complete; this does not imply removal of the differential oracle or the remaining
+bytecode, VM, host/stdlib and test-runner wrappers.

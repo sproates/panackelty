@@ -16,9 +16,15 @@ and prove the new fixed point before committing it.
 Current SHA-256:
 
 ```text
-23b829e74555180a7a166c79620f87d53c4fed0db43f3b0795f62977568e12e4  compiler-v8.bc
+6d5f1cb5ebccb8023b399e1a02e465726cbaf49083c194f402146ceb264aed6a  compiler-v8.bc
 ```
 
 The current seed includes the Path, Duration, and Instant builtin signatures.
 It is refreshed because the complete prelude imports the new time module; the
 previous seed cannot check that module. The bytecode format remains version 8.
+
+The compiler-unit migration refresh also enforces the existing non-value `Void`
+argument rule (including nested `print`), matching the bootstrap checker.
+This refresh uses the existing stage-0 process; replacing that process with a
+Python-free seed workflow remains separate work. Fixed-point bootstrap and
+release checks validate the refreshed seed.

@@ -1,0 +1,11 @@
+
+record Pair { left: Nat, right: Nat }
+enum Maybe { None, Some(Nat) }
+pure unwrap(value: Maybe): Nat {
+  match value { Some(item) => item, None() => 0 }
+}
+main(): Void {
+  pair: Pair = Pair(20, 22);
+  answer: Nat = unwrap(Some(pair.left + pair.right));
+  print("answer ${answer}");
+}

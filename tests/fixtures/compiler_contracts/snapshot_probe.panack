@@ -1,0 +1,15 @@
+import "../../../src/compiler/driver.panack"
+import stdlib/testing
+main(): Void {
+  filename = command_args()[0]
+  write_file(filename, "main(): Void { print(missing) }\n")
+  loaded: LoadedProject = load_project(filename)
+  write_file(filename, "main(): Void {}")
+  results = [
+    test_equal_str("snapshot file changed", read_file(filename), "main(): Void {}"),
+    test_equal_str("loader retains original diagnostic source",
+      diagnostic_messages(loaded.diagnostics, loaded.sources) + "\n",
+      "${filename}:1:22: unknown name missing\n  1 | main(): Void { print(missing) }\n    |                      ^\n")
+  ]
+  if test_report(results) > 0 { process_exit(1) }
+}

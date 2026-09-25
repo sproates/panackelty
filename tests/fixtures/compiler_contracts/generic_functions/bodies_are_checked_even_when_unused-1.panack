@@ -1,0 +1,1 @@
+pure f[T](x: T): T { x + x } main(): Void {}

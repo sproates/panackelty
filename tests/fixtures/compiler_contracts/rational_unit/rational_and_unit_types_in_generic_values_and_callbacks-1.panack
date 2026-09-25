@@ -1,0 +1,20 @@
+
+enum Result[T,E] { Ok(T), Error(E) }
+record Box[T] { value: T }
+pure identity[T](x: T): T { x }
+pure ignore(x: Rat): Unit { () }
+pure done(): Result[Unit,Str] { Ok(()) }
+main(): Void {
+ third = 1/3
+ ten: Rat = third * 30
+ x: Nat = ten.nat()
+ d: Dec = (1/8).dec()
+ negative: Rat = -third
+ sum: Rat = 1 + third
+ values: [Unit] = [third].map(@ignore)
+ box: Box[Unit] = Box(identity(()))
+ result: Result[Unit,Str] = done()
+ print(1/2 == 2/4)
+ print(1 < third)
+ print(quotient(7, 2))
+}

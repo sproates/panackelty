@@ -1,0 +1,22 @@
+
+record Box[T] { value: T }
+enum Option[T] { None, Some(T) }
+pure identity[T](value: T): T { local: T = value; local }
+pure first[T](values: [T]): Option[T] {
+  if values.len() == 0 { None() } else { Some(values[0]) }
+}
+pure unwrap[T](box: Box[T]): T { identity[T](box.value) }
+pure choose[T](values: [T], fallback: T): T {
+  if values.len() == 0 { fallback } else { values[0] }
+}
+main(): Void {
+  n: Nat = identity(7)
+  s: Str = "text".identity[Str]()
+  b: Bool = identity[Bool](true)
+  nested: [[Str]] = identity[[[Str]]]([["nested"]])
+  empty: Option[Str] = first[Str]([])
+  result: Nat = unwrap(Box(4))
+  combined: Str = choose([], "fallback")
+  widened: Int = choose([1], -1)
+  indexed: Nat = [1, 2][0]
+}

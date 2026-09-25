@@ -1,0 +1,1 @@
+pure same[T](a: T, b: T): T { a } main(): Void { same(1, "x") }

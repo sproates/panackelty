@@ -1,0 +1,4 @@
+
+pure natural(value: Nat): Nat { value }
+pure signed(value: Int): Nat { 1 }
+main(): Void { actions = [@natural, @signed] }

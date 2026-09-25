@@ -1,0 +1,1 @@
+pure identity(value: Int): Int { value } main(): Void { print(identity(-42)); }

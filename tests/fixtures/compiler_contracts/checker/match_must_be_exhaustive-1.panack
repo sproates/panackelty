@@ -1,0 +1,4 @@
+
+enum MaybeNat { None, Some(Nat) }
+pure unwrap(value: MaybeNat): Nat { match value { Some(found) => found } }
+main(): Void {}

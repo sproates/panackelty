@@ -1,0 +1,1 @@
+show(value: Nat): Void { print(value) } main(): Void { print([1].map(@show)); }

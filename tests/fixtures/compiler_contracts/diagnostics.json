@@ -1,0 +1,128 @@
+[
+  {
+    "source": "\n\n\n\n\n\n\n\n\n\n\n  bad\n",
+    "line": 12,
+    "column": 3,
+    "file": "example.panack",
+    "available": true,
+    "name": "ascii_line_and_multidigit_gutter-1",
+    "expected": "example.panack:12:3: bad input\n  12 |   bad\n     |   ^\n"
+  },
+  {
+    "source": "first\r\n\tbad\r\n",
+    "line": 2,
+    "column": 2,
+    "file": "example.panack",
+    "available": true,
+    "name": "crlf_and_eof_positions-2",
+    "expected": "example.panack:2:2: bad input\n  2 |     bad\n    |     ^\n"
+  },
+  {
+    "source": "abc",
+    "line": 1,
+    "column": 4,
+    "file": "example.panack",
+    "available": true,
+    "name": "crlf_and_eof_positions-3",
+    "expected": "example.panack:1:4: bad input\n  1 | abc\n    |    ^\n"
+  },
+  {
+    "source": "abc\n",
+    "line": 2,
+    "column": 1,
+    "file": "example.panack",
+    "available": true,
+    "name": "crlf_and_eof_positions-4",
+    "expected": "example.panack:2:1: bad input\n  2 | \n    | ^\n"
+  },
+  {
+    "source": "",
+    "line": 1,
+    "column": 1,
+    "file": "example.panack",
+    "available": true,
+    "name": "crlf_and_eof_positions-5",
+    "expected": "example.panack:1:1: bad input\n  1 | \n    | ^\n"
+  },
+  {
+    "source": "abc\r",
+    "line": 1,
+    "column": 4,
+    "file": "example.panack",
+    "available": true,
+    "name": "crlf_and_eof_positions-6",
+    "expected": "example.panack:1:4: bad input\n  1 | abc\\u{d}\n    |    ^\n"
+  },
+  {
+    "source": "bad",
+    "line": 1,
+    "column": 1,
+    "file": "",
+    "available": true,
+    "name": "missing_sources_and_invalid_positions_preserve_header-7",
+    "expected": "bad input\n"
+  },
+  {
+    "source": "bad",
+    "line": 1,
+    "column": 1,
+    "file": "example.panack",
+    "available": false,
+    "name": "missing_sources_and_invalid_positions_preserve_header-8",
+    "expected": "example.panack:1:1: bad input\n"
+  },
+  {
+    "source": "bad",
+    "line": 0,
+    "column": 1,
+    "file": "example.panack",
+    "available": true,
+    "name": "missing_sources_and_invalid_positions_preserve_header-9",
+    "expected": "example.panack:0:1: bad input\n"
+  },
+  {
+    "source": "bad",
+    "line": 1,
+    "column": 0,
+    "file": "example.panack",
+    "available": true,
+    "name": "missing_sources_and_invalid_positions_preserve_header-10",
+    "expected": "example.panack:1:0: bad input\n"
+  },
+  {
+    "source": "bad",
+    "line": 2,
+    "column": 1,
+    "file": "example.panack",
+    "available": true,
+    "name": "missing_sources_and_invalid_positions_preserve_header-11",
+    "expected": "example.panack:2:1: bad input\n"
+  },
+  {
+    "source": "bad",
+    "line": 1,
+    "column": 5,
+    "file": "example.panack",
+    "available": true,
+    "name": "missing_sources_and_invalid_positions_preserve_header-12",
+    "expected": "example.panack:1:5: bad input\n"
+  },
+  {
+    "source": "\tλ中🙂é #",
+    "line": 1,
+    "column": 8,
+    "file": "example.panack",
+    "available": true,
+    "name": "tabs_unicode_and_controls_have_deterministic_display_columns-13",
+    "expected": "example.panack:1:8: bad input\n  1 |     \\u{3bb}\\u{4e2d}\\u{1f642}e\\u{301} #\n    |                                      ^\n"
+  },
+  {
+    "source": "\\\u001b\t?",
+    "line": 1,
+    "column": 4,
+    "file": "example.panack",
+    "available": true,
+    "name": "tabs_unicode_and_controls_have_deterministic_display_columns-14",
+    "expected": "example.panack:1:4: bad input\n  1 | \\\\\\u{1b}    ?\n    |             ^\n"
+  }
+]

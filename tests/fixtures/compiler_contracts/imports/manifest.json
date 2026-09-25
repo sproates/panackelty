@@ -1,0 +1,44 @@
+[
+  {
+    "name": "imports/import_cycles_are_rejected-1",
+    "method": "test_import_cycles_are_rejected",
+    "entry": "first.panack",
+    "expect": "import cycle",
+    "kind": "reject"
+  },
+  {
+    "name": "imports/invalid_logical_imports_are_rejected-1",
+    "method": "test_invalid_logical_imports_are_rejected",
+    "entry": "invalid-0.panack",
+    "expect": "invalid logical import path",
+    "kind": "reject"
+  },
+  {
+    "name": "imports/invalid_logical_imports_are_rejected-2",
+    "method": "test_invalid_logical_imports_are_rejected",
+    "entry": "invalid-1.panack",
+    "expect": "logical import extension must be .panack",
+    "kind": "reject"
+  },
+  {
+    "name": "imports/logical_standard_library_imports_are_extensionless_and_load_once-1",
+    "method": "test_logical_standard_library_imports_are_extensionless_and_load_once",
+    "entry": "main.panack",
+    "expect": "42\n",
+    "kind": "run"
+  },
+  {
+    "name": "imports/project_imports_are_rooted_at_the_entry_module-1",
+    "method": "test_project_imports_are_rooted_at_the_entry_module",
+    "entry": "main.panack",
+    "expect": "42\n",
+    "kind": "run"
+  },
+  {
+    "name": "imports/relative_module_imports-1",
+    "method": "test_relative_module_imports",
+    "entry": "main.panack",
+    "expect": "42\n",
+    "kind": "run"
+  }
+]

@@ -1,0 +1,1 @@
+pure empty[T](): [T] { [] } main(): Void { x: [Nat] = empty() }

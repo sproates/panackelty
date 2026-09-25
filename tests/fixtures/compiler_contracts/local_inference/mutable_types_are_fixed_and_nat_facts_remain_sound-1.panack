@@ -1,0 +1,8 @@
+main(): Void {
+  mut label = "first"
+  label = "second"
+  mut balance: Int = 0
+  balance = -1
+  mut count = 2
+  if count >= 1 { count = count - 1 }
+}

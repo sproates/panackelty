@@ -1,0 +1,12 @@
+FUNCTION|identity|pure|x
+0|LOAD|x
+1|RETURN
+FUNCTION|main|impure|
+0|CONST|Nat:1
+1|CALL|identity|1
+2|CALL|print|1
+3|POP
+4|CONST|Str:x
+5|CALL|identity|1
+6|CALL|print|1
+7|RETURN

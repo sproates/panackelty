@@ -1,0 +1,1 @@
+pure quiet(value: Nat): Nat { value } noisy(value: Nat): Nat { print(value); value } main(): Void { mut action = @quiet; action = @noisy }

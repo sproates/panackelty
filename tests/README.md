@@ -176,3 +176,14 @@ included in ordinary VM tests. CI additionally runs the sanitizer corpus and
 uploads the HTML coverage report. CI explicitly installs matching Clang and LLVM
 packages; local tool overrides are `LLVM_CC`, `LLVM_COV` and `LLVM_PROFDATA`.
 No fault-injection controls enter production.
+
+The remaining direct compiler contracts now run in
+`tests/runner/compiler_contracts_unit.panack` (201 assertions) and
+`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
+rendering and source snapshots, loader/imports and driver commands, generics,
+inference, types and host boundaries. The shared fixture inventory and retained
+Python oracle responsibilities are documented in `tests/PYTHON_MIGRATION.md` and
+`tests/fixtures/compiler_contracts/README.md`. Native compiler assertions are
+complete; this does not imply removal of the differential oracle or the remaining
+bytecode, VM, host/stdlib and test-runner wrappers.

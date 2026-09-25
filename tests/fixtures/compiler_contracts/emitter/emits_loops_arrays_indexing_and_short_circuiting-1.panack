@@ -1,0 +1,12 @@
+
+pure sum(limit: Nat): Nat {
+  mut total: Nat = 0;
+  for value in 0..limit { total = total + value; }
+  mut cursor: Nat = limit;
+  while cursor > 0 { cursor = cursor - 1; }
+  if limit == 0 || total >= limit { total } else { 0 }
+}
+main(): Void {
+  values: [Nat] = [sum(4), 42];
+  print(values[0]);
+}

@@ -76,16 +76,21 @@ runner_source(directory: Path): Result[Path,Str] {
 }
 
 pure runner_command(arguments: [Str], clear_stdlib_value: Bool): TestCommand {
+  runner_timed_command(arguments, clear_stdlib_value, 20)
+}
+
+pure runner_timed_command(arguments: [Str], clear_stdlib_value: Bool,
+                          timeout: Nat): TestCommand {
   // process_run can override inherited variables, but cannot remove them.
   // The stdlib fixture expects this variable to be absent, as in the Python harness.
   if clear_stdlib_value {
     TestCommand(runner_path("/bin/sh"),
       ["-c", "unset PANACKELTY_STDLIB_VALUE; exec \"$@\"", "runner-stdlib",
         "./panack"].concat(arguments), bytes(), path_current(), [],
-      duration_seconds(20), 1048576)
+      duration_seconds(timeout), 1048576)
   } else {
     TestCommand(runner_path("./panack"), arguments, bytes(), path_current(), [],
-      duration_seconds(20), 1048576)
+      duration_seconds(timeout), 1048576)
   }
 }
 
@@ -111,8 +116,11 @@ runner_program(label: Str, source: Path, expected_file: Path,
     },
     Ok(expected) => {
       mut results: [TestResult] = []
+      // This source path builds the complete compiler before executing it.
+      // Match compiler_driver's build allowance; ordinary cases keep 20s.
+      source_timeout = if label == "case/compiler_skeleton" { 90 } else { 20 }
       source_result = test_run_command("${label}/source",
-        runner_command(["run", source_path], label == "case/stdlib"),
+        runner_timed_command(["run", source_path], label == "case/stdlib", source_timeout),
         ProcessOutput(0, 0, expected, bytes()))
       results = results.append(source_result)
 
@@ -121,7 +129,7 @@ runner_program(label: Str, source: Path, expected_file: Path,
         TestCommand(runner_path("/bin/sh"),
           ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec ./panack compile \"$2\" -o \"$1\"; fi",
             "runner-compiler", expected_path, source_path], bytes(), path_current(), [],
-          duration_seconds(20), 1048576)
+          duration_seconds(90), 1048576)
       } else {
         runner_command(["compile", source_path, "-o", expected_path], label == "case/stdlib")
       }

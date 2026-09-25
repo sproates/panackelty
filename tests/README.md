@@ -11,7 +11,7 @@ selected success cases, twenty examples, and forty-one expected failures.
 Panackelty has five validation paths:
 
 - `unit` tests exercise implementation internals directly. Panackelty probes
-  cover the lexer and parser; the remaining compiler, checker, bytecode,
+  cover the lexer, parser, and resolver; the remaining compiler, checker, bytecode,
   verifier, VM, and runtime tests use the Python harness during migration.
   Small source snippets isolate internal behavior and failures.
 - `functional` tests treat the `panack` command as a black box. They compile or
@@ -44,6 +44,9 @@ that verified artifact, and the later bootstrap phase extends it to stage 3 for
 the byte-identical fixed-point proof. Other programs are still compiled through
 the public CLI before their bytecode output is checked. The proof runs only in
 the bootstrap phase, not again as a unit test.
+The compiler fixture allows 90 seconds for source execution and compilation,
+which can build the complete compiler. Ordinary fixture commands retain 20
+seconds; phase timing warnings remain independent of command timeouts.
 `make functional` captures one successful full runner report and passes its
 temporary file to `runner_smoke` in both source and bytecode mode. Each mode
 compares the exact report; a missing or changed report fails. Standalone runs
@@ -68,7 +71,7 @@ evidence changes.
 
 `stdlib/testing` supplies pure structured assertions and an explicit reporter
 for new Panackelty-hosted tests. Its initial end-to-end case is
-`functional/cases/testing_library`; the lexer and parser unit probes now also
+`functional/cases/testing_library`; the lexer, parser, and resolver unit probes now also
 use it directly. The remaining Python unit harness retains its own discovery.
 `stdlib/testing_files` exposes sorted immediate fixture directories and
 temporary workspaces; `functional/cases/testing_fixtures` exercises their
@@ -126,7 +129,9 @@ The Panackelty functional runner currently executes cases sequentially.
 and checks 192 fixed expectations for expressions, blocks, types, and programs.
 Its 38 groups preserve the former Python method names, including all expanded
 subtests and exact malformed-input diagnostics. `runner/compiler_lexer_unit.panack`
-similarly covers the eight direct lexer contracts. Both run in `make unit` and
+similarly covers the eight direct lexer contracts.
+`runner/compiler_resolver_unit.panack` covers 26 exact source and module-graph
+expectations in 12 groups, including diagnostic paths and positions. All run in `make unit` and
 `make check-compiler`; each reports failures and exits nonzero on a mismatch.
 Their old-to-new assertion mapping is recorded in `PYTHON_MIGRATION.md`.
 
@@ -143,7 +148,7 @@ stem and a `.stdout` extension, keeping every documented example executable.
 The release archive includes the complete directory so links in its language
 tour resolve to the same programs validated by this harness.
 
-Self-hosted resolver, checker, purity, emitter, driver, and bytecode tests
+Self-hosted checker, purity, emitter, driver, and bytecode tests
 use `CompilerHarnessTestCase` to compile each parameterised probe once per class.
 Test inputs travel through command arguments or temporary files instead of being
 embedded into a newly compiled probe each time. Every invocation constructs a

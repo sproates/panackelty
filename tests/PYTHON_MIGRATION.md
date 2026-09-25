@@ -45,7 +45,7 @@ boundaries, decimal/range ambiguity, every invalid character and position,
 both unterminated-string variants, half-open offsets, and semicolon insertion
 at line breaks. It asserts on the lexer result before the public CLI's parser
 and type checker can affect the result. Remaining compiler unit files and
-Python differential checks still run; lexer and parser are completed portions
+Python differential checks still run; lexer, parser, and resolver are completed portions
 of the compiler unit step, not its completion gate.
 
 `tests/runner/compiler_parser_unit.panack` replaces all 38 methods from
@@ -106,6 +106,37 @@ The count includes every expanded former subtest. Each comparison is exact.
 | `reports_malformed_record_declarations` | 10 |
 | `reports_malformed_type_references` | 7 |
 | **Total** | **192** |
+
+`tests/runner/compiler_resolver_unit.panack` replaces all 12 methods from
+`tests/unit/compiler/test_self_hosted_resolver.py` with 26 named assertions.
+The audit compares each original entry point, source text, ordered module list,
+entry-module name, and exact expected output. The original Python suite and
+new native probe passed; saved-bytecode execution matched the source report.
+An injected incorrect expectation produced one named failure and exit status 1.
+Both unit and compiler checks require the probe. Coverage includes transitive
+reachability, ignoring unreachable modules, a diamond visited once, missing
+and duplicate modules, cycles, symbol conflicts, scope and shadowing, multiple
+ordered diagnostics, lexer/parser error propagation, and owning-file positions.
+The pre-existing interpolation-reference coverage backlog is unchanged.
+
+As with the parser, `test_<group>` maps to `resolver_unit_<group>` and report
+labels `resolver/<group>/<ordinal>`; all comparisons preserve exact strings.
+
+| Resolver group | Assertions |
+| --- | ---: |
+| `enforces_lexical_scope_and_shadowing` | 5 |
+| `method_calls_use_global_callable_lookup` | 1 |
+| `propagates_lexer_and_parser_failures` | 2 |
+| `reports_duplicate_and_conflicting_top_level_symbols` | 5 |
+| `reports_module_graph_failures` | 5 |
+| `reports_module_parse_and_lex_failures_with_paths` | 2 |
+| `reports_name_failure_in_owning_module` | 1 |
+| `reports_unknown_names_functions_and_variants` | 1 |
+| `resolves_guard_value_and_recursive_calls` | 1 |
+| `resolves_reachable_transitive_modules` | 1 |
+| `resolves_top_level_callables_builtins_and_local_names` | 1 |
+| `visits_a_diamond_dependency_only_once` | 1 |
+| **Total** | **26** |
 
 The functional runner is `tests/runner/main.panack`. `make functional` runs it,
 the compiler-driver check, and the runner smoke case from source and saved
@@ -188,6 +219,12 @@ raw byte streams and exit status, checks empty stderr on success, and reports
 case names in a deterministic order. Invalid source must fail the intended
 public command without leaving a compiled artifact. The runner's own failure
 count sets a nonzero process exit status; `make check` must propagate it.
+
+The compiler fixture's source and compile commands allow 90 seconds because
+both can build the complete compiler, matching the compiler-driver build
+allowance. Ordinary fixture commands retain their 20-second limit, and the
+phase timing budgets still warn independently. Exact stdout/stderr, exit
+status, artifact identity where required, and cleanup assertions are retained.
 
 Use unique temporary workspaces and bounded subprocesses. Track every created
 file and directory, remove contents explicitly, then require successful empty

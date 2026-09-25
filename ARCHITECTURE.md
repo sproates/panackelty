@@ -533,9 +533,10 @@ versa. `make functional` runs it with the self-hosted compiler driver check
 and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
 itself. Each owns an isolated workspace and reports cleanup failure. Python
-unit tests remain active. The direct lexer, parser, resolver, and checker contracts run in
+unit tests remain active. The direct lexer, parser, resolver, type-checker, and purity contracts run in
 `runner/compiler_lexer_unit.panack`, `runner/compiler_parser_unit.panack`,
-`runner/compiler_resolver_unit.panack`, and `runner/compiler_checker_unit.panack`
+`runner/compiler_resolver_unit.panack`, `runner/compiler_checker_unit.panack`,
+and `runner/compiler_purity_unit.panack`
 under `make unit` and `make check-compiler`. The parser imports the real compiler
 module and checks 192 fixed syntax/diagnostic expectations across four entry
 points. The resolver checks 26 fixed expectations for lexical names and
@@ -543,7 +544,9 @@ already-loaded module graphs, including precise imported-module diagnostics.
 The checker adds 34 contracts, sharing 31 source fixtures with the retained
 Python-VM-versus-bootstrap acceptance oracle. Three module-graph contracts
 now run directly on the native VM. Positive results must equal `ok`; negative
-cases retain their required diagnostic substrings. The unit timer includes both languages' assertions;
+cases retain their required diagnostic substrings. The purity probe similarly
+checks ten shared source fixtures and one module graph while retaining all ten
+Python differential comparisons. The unit timer includes both languages' assertions;
 remaining compiler unit and differential checks continue during migration.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.

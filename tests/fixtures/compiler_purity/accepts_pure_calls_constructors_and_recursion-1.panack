@@ -1,0 +1,9 @@
+
+record Pair { left: Nat, right: Nat }
+enum Option[T] { None, Some(T) }
+pure sum(pair: Pair): Nat { pair.left + pair.right }
+pure countdown(value: Nat): Nat {
+  if value > 0 { countdown(value - 1) } else { 0 }
+}
+pure wrapped(): Option[Nat] { Some(sum(Pair(20, 22)) + countdown(2)) }
+main(): Void { print(wrapped()); }

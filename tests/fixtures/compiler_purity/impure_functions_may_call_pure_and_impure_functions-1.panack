@@ -1,0 +1,4 @@
+
+pure answer(): Nat { 42 }
+output(): Void { print(answer()); }
+main(): Void { output(); }

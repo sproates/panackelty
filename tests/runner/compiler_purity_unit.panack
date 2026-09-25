@@ -1,0 +1,52 @@
+import "../../src/compiler/purity.panack"
+import stdlib/testing
+
+// Shared source fixtures also feed the retained Python differential oracle.
+// Success requires ok; failures preserve the original diagnostic substrings.
+pure purity_unit_contains(actual: Str, expected: Str): Bool {
+  mut found = false
+  for offset in 0..len(actual) {
+    if starts_with_at(actual, expected, offset) { found = true }
+  }
+  found
+}
+
+pure purity_unit_compare(name: Str, actual: Str, expected: Str): TestResult {
+  if expected == "ok" { test_equal_str(name, actual, expected) } else {
+    test_expect(name, actual != "ok" && purity_unit_contains(actual, expected),
+      "expected diagnostic ${expected}, got ${actual}")
+  }
+}
+
+purity_unit_source(name: Str, expected: Str): TestResult {
+  filename = "tests/fixtures/compiler_purity/${name}.panack"
+  // Use the compiler loader's file primitive; missing inputs fail the suite.
+  purity_unit_compare(name, check_source_frontend(read_file(filename)), expected)
+}
+
+main(): Void {
+  mut results: [TestResult] = []
+  // Former test_accepts_pure_calls_constructors_and_recursion
+  results = results.append(purity_unit_source("accepts_pure_calls_constructors_and_recursion-1", "ok"))
+  // Former test_callable_effects_are_part_of_purity_checking
+  results = results.append(purity_unit_source("callable_effects_are_part_of_purity_checking-1", "ok"))
+  results = results.append(purity_unit_source("callable_effects_are_part_of_purity_checking-2", "pure function cannot call impure function call"))
+  // Former test_checks_purity_across_loaded_modules
+  results = results.append(purity_unit_compare("checks_purity_across_loaded_modules-1",
+    check_loaded_source_frontend([
+      LoadedSource("main.panack", "import \"output.panack\"; pure bad(): Void { output(); } main(): Void {}"),
+      LoadedSource("output.panack", "output(): Void { print(1); }")
+    ], "main.panack"), "pure function cannot call impure function output"))
+  // Former test_guard_expressions_are_pure
+  results = results.append(purity_unit_source("guard_expressions_are_pure-1", "pure function cannot call impure function read_line"))
+  // Former test_impure_functions_may_call_pure_and_impure_functions
+  results = results.append(purity_unit_source("impure_functions_may_call_pure_and_impure_functions-1", "ok"))
+  // Former test_rejects_calls_to_impure_user_functions
+  results = results.append(purity_unit_source("rejects_calls_to_impure_user_functions-1", "pure function cannot call impure function output"))
+  results = results.append(purity_unit_source("rejects_calls_to_impure_user_functions-2", "pure function cannot call impure function output"))
+  // Former test_rejects_impure_builtins_from_pure_functions
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-1", "pure function cannot call impure function print"))
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-2", "pure function cannot call impure function read_file"))
+  results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-3", "pure function cannot call impure function read_line"))
+  if test_report(results) > 0 { process_exit(1) }
+}

@@ -1,0 +1,1 @@
+pure bad(): Str { if true { read_line() } else { "" } } main(): Void {}

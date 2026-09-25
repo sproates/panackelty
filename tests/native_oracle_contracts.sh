@@ -10,12 +10,24 @@ fixtures=tests/fixtures/oracle_contracts
 mode=${1:-all}
 case "$mode" in all|artifacts) ;; *) echo "unknown oracle contract group" >&2; exit 1 ;; esac
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-oracles.XXXXXX")
-trap 'rm -rf "$temporary"' 0
+phase=initialization
+cleanup() {
+    status=$?
+    trap - 0
+    if [ "$status" -ne 0 ]; then
+        echo "oracle contracts failed during $phase" >&2
+        if [ -s "$temporary/errors" ]; then cat "$temporary/errors" >&2; fi
+    fi
+    rm -rf "$temporary"
+    exit "$status"
+}
+trap cleanup 0
 trap 'exit 1' HUP INT TERM
 
 fail() { echo "oracle contracts: $*" >&2; exit 1; }
 
 if [ "$mode" = all ]; then
+    phase="arithmetic and registry"
     rows() { test "$(wc -l < "$fixtures/$1")" -eq "$2" || fail "changed case count: $1"; }
     rows integer.stdin 1800
     rows integer.stdout 1800
@@ -41,6 +53,7 @@ if [ "$mode" = all ]; then
 fi
 
 compile() {
+    phase="compiling $1"
     "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
     test ! -s "$temporary/errors" || fail "compile stderr: $1"
     printf 'wrote %s\n' "$temporary/program.bc" > "$temporary/expected-compile"
@@ -100,6 +113,7 @@ for source in tests/functional/cases/*/main.panack examples/*.panack; do
         examples/*) name=${source##*/}; expected="tests/functional/expected/examples/${name%.panack}.stdout" ;;
         *) expected="${source%/*}/expected.stdout" ;;
     esac
+    phase="running $source"
     "$vm" run "$temporary/program.bc" > "$temporary/output" 2> "$temporary/errors"
     test ! -s "$temporary/errors" || fail "execution stderr: $source"
     cmp "$expected" "$temporary/output"

@@ -185,27 +185,32 @@ native-vm-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build native-fault-
 	@CC="$(CC)" sh tests/native_headers.sh
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" "$(abspath $(BUILD_DIR)/vm/panack-vm)" run "$(SEED_COMPILER)" run tests/runner/vm_unit.panack
 
-.PHONY: native-oracle-contracts native-oracle-artifacts
+.PHONY: native-oracle-contracts native-oracle-contracts-impl native-oracle-artifacts
 native-oracle-artifacts: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" sh tests/native_oracle_contracts.sh artifacts
 
-native-oracle-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build
+native-oracle-contracts: native
+	@$(MAKE) --no-print-directory native-oracle-contracts-impl
+
+native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" sh tests/native_oracle_contracts.sh
 
 # Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
-native-sanitize:
+# Corpus programs call the public CLI too. Build that ordinary binary before
+# recursing with instrumentation, without replacing it with an instrumented VM.
+native-sanitize: native
 	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-check
 
 native-instrumented-check: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-vm-contracts
-	@UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-oracle-contracts
+	@UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-oracle-contracts-impl
 
 # LLVM branch coverage uses the same native corpus in a separate build tree.
 LLVM_CC ?= clang
 LLVM_COV ?= $(shell command -v llvm-cov 2>/dev/null || xcrun --find llvm-cov 2>/dev/null)
 LLVM_PROFDATA ?= $(shell command -v llvm-profdata 2>/dev/null || xcrun --find llvm-profdata 2>/dev/null)
 .PHONY: native-coverage
-native-coverage:
+native-coverage: native
 	@test -n "$(LLVM_COV)" -a -n "$(LLVM_PROFDATA)" || { echo "LLVM coverage tools are required" >&2; exit 1; }
 	@mkdir -p build/coverage
 	@rm -f build/coverage/*.profraw

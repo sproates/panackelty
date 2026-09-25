@@ -43,7 +43,10 @@ expected semantics and bytecode, not merely accepting current program output.
 
 `make unit` and `make check-vm` include `native-oracle-contracts` as well as
 `native-vm-contracts`. Sanitizer and LLVM coverage builds invoke the same targets
-with their selected instrumented VM and module binaries. `make check-compiler`
+with their selected instrumented VM and module binaries. The instrumentation
+entry points first build the ordinary public CLI needed by nested CLI fixtures;
+the instrumented binaries remain isolated. Standalone coverage after cleanup
+exposed and now verifies this dependency. `make check-compiler`
 also runs the focused `native-oracle-artifacts` group. No assertion moved out
 of canonical `make check` to meet a timing budget. The general compiler/codec
 probes retain their existing unit and focused-component target wiring.

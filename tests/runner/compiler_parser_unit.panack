@@ -1,0 +1,815 @@
+import "../../src/compiler/parser.panack"
+import stdlib/testing
+
+// Direct parser contracts, grouped by the former Python test method.
+// Expected strings are fixed syntax/diagnostic contracts, not compiler output
+// generated at test time. Every expanded former subtest has its own assertion.
+
+pure parser_unit_binary_operators_are_left_associative(): [TestResult] {
+  [
+    test_equal_str("parser/binary_operators_are_left_associative/1",
+      parse_source("10 - 3 - 2"),
+      "((10 - 3) - 2)")
+  ]
+}
+
+pure parser_unit_generic_function_syntax_and_explicit_calls_round_trip(): [TestResult] {
+  [
+    test_equal_str("parser/generic_function_syntax_and_explicit_calls_round_trip/1",
+      parse_program_source("pure identity[T](value: T): T { value }"),
+      "pure identity[T](value: T): T { value }"),
+    test_equal_str("parser/generic_function_syntax_and_explicit_calls_round_trip/2",
+      parse_source("identity[Str](text)"),
+      "identity[Str](text)"),
+    test_equal_str("parser/generic_function_syntax_and_explicit_calls_round_trip/3",
+      parse_source("identity[[Nat]](values)"),
+      "identity[[Nat]](values)"),
+    test_equal_str("parser/generic_function_syntax_and_explicit_calls_round_trip/4",
+      parse_source("values[0]"),
+      "values[0]"),
+    test_equal_str("parser/generic_function_syntax_and_explicit_calls_round_trip/5",
+      parse_source("value.identity[Nat]()"),
+      "identity[Nat](value)")
+  ]
+}
+
+pure parser_unit_match_expressions_participate_in_precedence_and_blocks(): [TestResult] {
+  [
+    test_equal_str("parser/match_expressions_participate_in_precedence_and_blocks/1",
+      parse_block_source("{ selected: Nat = 1 + match option { Some(value) => value, None() => 0 }; selected }"),
+      "{ selected: Nat = (1 + match option { Some(value) => value, None() => 0 }); selected }")
+  ]
+}
+
+pure parser_unit_method_calls_lower_to_receiver_first_calls(): [TestResult] {
+  [
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/1",
+      parse_source("value.transform()"),
+      "transform(value)"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/2",
+      parse_source("values.append(1)"),
+      "append(values, 1)"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/3",
+      parse_source("values.append(1).len()"),
+      "len(append(values, 1))"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/4",
+      parse_source("make().field.transform(2)"),
+      "transform(make().field, 2)"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/5",
+      parse_source("values.put(\"key\", 1)"),
+      "$method_put(values, \"key\", 1)"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/6",
+      parse_source("values.has(\"key\")"),
+      "$method_has(values, \"key\")"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/7",
+      parse_source("values.get(\"key\")"),
+      "$method_get(values, \"key\")"),
+    test_equal_str("parser/method_calls_lower_to_receiver_first_calls/8",
+      parse_source("values.add(1)"),
+      "$method_add(values, 1)")
+  ]
+}
+
+pure parser_unit_parentheses_override_precedence(): [TestResult] {
+  [
+    test_equal_str("parser/parentheses_override_precedence/1",
+      parse_source("(1 + 2) * 3"),
+      "((1 + 2) * 3)")
+  ]
+}
+
+pure parser_unit_parses_bindings_assignments_and_nested_type_references(): [TestResult] {
+  [
+    test_equal_str("parser/parses_bindings_assignments_and_nested_type_references/1",
+      parse_block_source("{ answer: Nat = 40 + 2; mut values: Map[Str,[Nat]] = build(); values = update(values); values }"),
+      "{ answer: Nat = (40 + 2); mut values: Map[Str,[Nat]] = build(); values = update(values); values }")
+  ]
+}
+
+pure parser_unit_parses_complete_mixed_program(): [TestResult] {
+  [
+    test_equal_str("parser/parses_complete_mixed_program/1",
+      parse_program_source("import \"runtime.panack\"; type Positive = Int where value > 0; record Pair[A, B] { first: A, second: B } enum Option[T] { None, Some(T) } pure value_or(value: Option[Nat], fallback: Nat): Nat { match value { Some(found) => found, None() => fallback } } main(): Void { print(value_or(Some(42), 0)); }"),
+      "import \"runtime.panack\"; type Positive = Int where (value > 0); record Pair[A,B] { first: A, second: B } enum Option[T] { None, Some(T) } pure value_or(value: Option[Nat], fallback: Nat): Nat { match value { Some(found) => found, None() => fallback } } main(): Void { print(value_or(Some(42), 0)); }")
+  ]
+}
+
+pure parser_unit_parses_complete_nested_type_references(): [TestResult] {
+  [
+    test_equal_str("parser/parses_complete_nested_type_references/1",
+      parse_type_source("Nat"),
+      "Nat"),
+    test_equal_str("parser/parses_complete_nested_type_references/2",
+      parse_type_source("[Nat]"),
+      "[Nat]"),
+    test_equal_str("parser/parses_complete_nested_type_references/3",
+      parse_type_source("Map[Str,[Nat]]"),
+      "Map[Str,[Nat]]"),
+    test_equal_str("parser/parses_complete_nested_type_references/4",
+      parse_type_source("Result[Option[Nat],Map[Str,[Dec]]]"),
+      "Result[Option[Nat],Map[Str,[Dec]]]")
+  ]
+}
+
+pure parser_unit_parses_empty_and_import_only_programs(): [TestResult] {
+  [
+    test_equal_str("parser/parses_empty_and_import_only_programs/1",
+      parse_program_source(""),
+      ""),
+    test_equal_str("parser/parses_empty_and_import_only_programs/2",
+      parse_program_source("import \"types.panack\""),
+      "import \"types.panack\";"),
+    test_equal_str("parser/parses_empty_and_import_only_programs/3",
+      parse_program_source("import \"types.panack\";"),
+      "import \"types.panack\";"),
+    test_equal_str("parser/parses_empty_and_import_only_programs/4",
+      parse_program_source("import \"types.panack\";\n// shared parser data\nimport \"lexer.panack\";"),
+      "import \"types.panack\"; import \"lexer.panack\";"),
+    test_equal_str("parser/parses_empty_and_import_only_programs/5",
+      parse_program_source("import \"../shared/token.panack\";"),
+      "import \"../shared/token.panack\";"),
+    test_equal_str("parser/parses_empty_and_import_only_programs/6",
+      parse_program_source("import stdlib/option"),
+      "import \"stdlib/option\";"),
+    test_equal_str("parser/parses_empty_and_import_only_programs/7",
+      parse_program_source("import project/shared/token.panack;"),
+      "import \"project/shared/token\";"),
+    test_equal_str("parser/parses_empty_and_import_only_programs/8",
+      parse_program_source("import \"stdlib/result.panack\";"),
+      "import \"stdlib/result.panack\";")
+  ]
+}
+
+pure parser_unit_parses_empty_statement_and_value_blocks(): [TestResult] {
+  [
+    test_equal_str("parser/parses_empty_statement_and_value_blocks/1",
+      parse_block_source("{}"),
+      "{}"),
+    test_equal_str("parser/parses_empty_statement_and_value_blocks/2",
+      parse_block_source("{ 42 }"),
+      "{ 42 }"),
+    test_equal_str("parser/parses_empty_statement_and_value_blocks/3",
+      parse_block_source("{ 42; }"),
+      "{ 42; }"),
+    test_equal_str("parser/parses_empty_statement_and_value_blocks/4",
+      parse_block_source("{ print(1); print(2); }"),
+      "{ print(1); print(2); }"),
+    test_equal_str("parser/parses_empty_statement_and_value_blocks/5",
+      parse_block_source("{ print(1); 2 + 3 }"),
+      "{ print(1); (2 + 3) }")
+  ]
+}
+
+pure parser_unit_parses_enum_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/parses_enum_declarations/1",
+      parse_program_source("enum Empty {}"),
+      "enum Empty {}"),
+    test_equal_str("parser/parses_enum_declarations/2",
+      parse_program_source("enum Direction { North, South, East, West }"),
+      "enum Direction { North, South, East, West }"),
+    test_equal_str("parser/parses_enum_declarations/3",
+      parse_program_source("enum Option[T] { None, Some(T), }"),
+      "enum Option[T] { None, Some(T) }"),
+    test_equal_str("parser/parses_enum_declarations/4",
+      parse_program_source("enum Result[T, E] { Ok(T), Error(E) }"),
+      "enum Result[T,E] { Ok(T), Error(E) }"),
+    test_equal_str("parser/parses_enum_declarations/5",
+      parse_program_source("enum Entry[K, V] { Missing, Found(K,Map[K,[V]]) }"),
+      "enum Entry[K,V] { Missing, Found(K,Map[K,[V]]) }")
+  ]
+}
+
+pure parser_unit_parses_every_binary_operator(): [TestResult] {
+  [
+    test_equal_str("parser/parses_every_binary_operator/1",
+      parse_source("left .. right"),
+      "(left .. right)"),
+    test_equal_str("parser/parses_every_binary_operator/2",
+      parse_source("left || right"),
+      "(left || right)"),
+    test_equal_str("parser/parses_every_binary_operator/3",
+      parse_source("left && right"),
+      "(left && right)"),
+    test_equal_str("parser/parses_every_binary_operator/4",
+      parse_source("left == right"),
+      "(left == right)"),
+    test_equal_str("parser/parses_every_binary_operator/5",
+      parse_source("left != right"),
+      "(left != right)"),
+    test_equal_str("parser/parses_every_binary_operator/6",
+      parse_source("left < right"),
+      "(left < right)"),
+    test_equal_str("parser/parses_every_binary_operator/7",
+      parse_source("left <= right"),
+      "(left <= right)"),
+    test_equal_str("parser/parses_every_binary_operator/8",
+      parse_source("left > right"),
+      "(left > right)"),
+    test_equal_str("parser/parses_every_binary_operator/9",
+      parse_source("left >= right"),
+      "(left >= right)"),
+    test_equal_str("parser/parses_every_binary_operator/10",
+      parse_source("left + right"),
+      "(left + right)"),
+    test_equal_str("parser/parses_every_binary_operator/11",
+      parse_source("left - right"),
+      "(left - right)"),
+    test_equal_str("parser/parses_every_binary_operator/12",
+      parse_source("left * right"),
+      "(left * right)"),
+    test_equal_str("parser/parses_every_binary_operator/13",
+      parse_source("left / right"),
+      "(left / right)"),
+    test_equal_str("parser/parses_every_binary_operator/14",
+      parse_source("left % right"),
+      "(left % right)")
+  ]
+}
+
+pure parser_unit_parses_every_binary_precedence_level(): [TestResult] {
+  [
+    test_equal_str("parser/parses_every_binary_precedence_level/1",
+      parse_source("1..2 || false && 3 == 4 < 5 + 6 * 7"),
+      "(1 .. (2 || (false && (3 == (4 < (5 + (6 * 7)))))))")
+  ]
+}
+
+pure parser_unit_parses_function_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/parses_function_declarations/1",
+      parse_program_source("main(): Void {}"),
+      "main(): Void {}"),
+    test_equal_str("parser/parses_function_declarations/2",
+      parse_program_source("pure answer(): Nat { 40 + 2 }"),
+      "pure answer(): Nat { (40 + 2) }"),
+    test_equal_str("parser/parses_function_declarations/3",
+      parse_program_source("pure lookup(index: Map[Str,[Nat]], fallback: Option[Nat]): Result[Nat,Str] { if len(index) > 0 { Ok(1) } else { Error(\"empty\") } }"),
+      "pure lookup(index: Map[Str,[Nat]], fallback: Option[Nat]): Result[Nat,Str] { if (len(index) > 0) { Ok(1) } else { Error(\"empty\") } }"),
+    test_equal_str("parser/parses_function_declarations/4",
+      parse_program_source("process(values: [Nat]): Void { for value in values { print(value); } }"),
+      "process(values: [Nat]): Void { for value in values { print(value); } }")
+  ]
+}
+
+pure parser_unit_parses_guarded_type_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/parses_guarded_type_declarations/1",
+      parse_program_source("import \"types.panack\"; type Positive = Int where value > 0; type Port = Nat where value >= 1 && value <= 65535;"),
+      "import \"types.panack\"; type Positive = Int where (value > 0); type Port = Nat where ((value >= 1) && (value <= 65535));")
+  ]
+}
+
+pure parser_unit_parses_if_expressions_as_block_items(): [TestResult] {
+  [
+    test_equal_str("parser/parses_if_expressions_as_block_items/1",
+      parse_block_source("{ if ready { print(1); } else { print(0); }; if answer > 0 { answer } else { 0 } }"),
+      "{ if ready { print(1); } else { print(0); }; if (answer > 0) { answer } else { 0 } }")
+  ]
+}
+
+pure parser_unit_parses_if_expressions_with_block_branches(): [TestResult] {
+  [
+    test_equal_str("parser/parses_if_expressions_with_block_branches/1",
+      parse_source("if ready { 1 } else { 0 }"),
+      "if ready { 1 } else { 0 }"),
+    test_equal_str("parser/parses_if_expressions_with_block_branches/2",
+      parse_source("if ready { print(1); }"),
+      "if ready { print(1); }"),
+    test_equal_str("parser/parses_if_expressions_with_block_branches/3",
+      parse_source("if value > 0 { print(value); value } else { 0 }"),
+      "if (value > 0) { print(value); value } else { 0 }"),
+    test_equal_str("parser/parses_if_expressions_with_block_branches/4",
+      parse_source("1 + if ready { 2 } else { 3 }"),
+      "(1 + if ready { 2 } else { 3 })")
+  ]
+}
+
+pure parser_unit_parses_inferred_bindings_without_new_operators(): [TestResult] {
+  [
+    test_equal_str("parser/parses_inferred_bindings_without_new_operators/1",
+      parse_block_source("{ name = \"Ada\"; mut ready = true; ready = false; name }"),
+      "{ name = \"Ada\"; mut ready = true; ready = false; name }")
+  ]
+}
+
+pure parser_unit_parses_match_expressions_and_patterns(): [TestResult] {
+  [
+    test_equal_str("parser/parses_match_expressions_and_patterns/1",
+      parse_source("match option { Some(value) => value, None() => 0 }"),
+      "match option { Some(value) => value, None() => 0 }"),
+    test_equal_str("parser/parses_match_expressions_and_patterns/2",
+      parse_source("match pair { Pair(left, right) => left + right }"),
+      "match pair { Pair(left, right) => (left + right) }"),
+    test_equal_str("parser/parses_match_expressions_and_patterns/3",
+      parse_source("match result { Ok(value) => { print(value); value }, Error(message) => fail(message), }"),
+      "match result { Ok(value) => { print(value); value }, Error(message) => fail(message) }"),
+    test_equal_str("parser/parses_match_expressions_and_patterns/4",
+      parse_source("match outer { Some(value) => match value { Some(inner) => inner, None() => 0 }, None() => 0 }"),
+      "match outer { Some(value) => match value { Some(inner) => inner, None() => 0 }, None() => 0 }"),
+    test_equal_str("parser/parses_match_expressions_and_patterns/5",
+      parse_source("match value {}"),
+      "match value {}")
+  ]
+}
+
+pure parser_unit_parses_named_function_references_and_functional_methods(): [TestResult] {
+  [
+    test_equal_str("parser/parses_named_function_references_and_functional_methods/1",
+      parse_source("@twice"),
+      "@twice"),
+    test_equal_str("parser/parses_named_function_references_and_functional_methods/2",
+      parse_source("values.map(@twice).reduce(0, @total)"),
+      "$method_reduce($method_map(values, @twice), 0, @total)")
+  ]
+}
+
+pure parser_unit_parses_record_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/parses_record_declarations/1",
+      parse_program_source("record Empty {}"),
+      "record Empty {}"),
+    test_equal_str("parser/parses_record_declarations/2",
+      parse_program_source("record Position { line: Nat, column: Nat }"),
+      "record Position { line: Nat, column: Nat }"),
+    test_equal_str("parser/parses_record_declarations/3",
+      parse_program_source("record Pair[A, B] { first: A, second: B, }"),
+      "record Pair[A,B] { first: A, second: B }"),
+    test_equal_str("parser/parses_record_declarations/4",
+      parse_program_source("record Index[K, V] { values: Map[K,[Option[V]]] }"),
+      "record Index[K,V] { values: Map[K,[Option[V]]] }")
+  ]
+}
+
+pure parser_unit_parses_scalar_and_array_literals(): [TestResult] {
+  [
+    test_equal_str("parser/parses_scalar_and_array_literals/1",
+      parse_source("42"),
+      "42"),
+    test_equal_str("parser/parses_scalar_and_array_literals/2",
+      parse_source("12.50"),
+      "12.50"),
+    test_equal_str("parser/parses_scalar_and_array_literals/3",
+      parse_source("\"hello\""),
+      "\"hello\""),
+    test_equal_str("parser/parses_scalar_and_array_literals/4",
+      parse_source("true"),
+      "true"),
+    test_equal_str("parser/parses_scalar_and_array_literals/5",
+      parse_source("false"),
+      "false"),
+    test_equal_str("parser/parses_scalar_and_array_literals/6",
+      parse_source("[]"),
+      "[]"),
+    test_equal_str("parser/parses_scalar_and_array_literals/7",
+      parse_source("[1, 2.5, \"three\", false]"),
+      "[1, 2.5, \"three\", false]")
+  ]
+}
+
+pure parser_unit_parses_semicolonless_blocks_and_multiline_expressions(): [TestResult] {
+  [
+    test_equal_str("parser/parses_semicolonless_blocks_and_multiline_expressions/1",
+      parse_block_source("{\nname: Nat = (\n20 +\n22\n)\nname = name +\n1\nprint(name)\nname\n}"),
+      "{ name: Nat = (20 + 22); name = (name + 1); print(name); name }"),
+    test_equal_str("parser/parses_semicolonless_blocks_and_multiline_expressions/2",
+      parse_block_source("{ name: Nat = 1 }"),
+      "{ name: Nat = 1; }"),
+    test_equal_str("parser/parses_semicolonless_blocks_and_multiline_expressions/3",
+      parse_block_source("{ name = 1 }"),
+      "{ name = 1; }")
+  ]
+}
+
+pure parser_unit_parses_unary_calls_fields_and_indexes(): [TestResult] {
+  [
+    test_equal_str("parser/parses_unary_calls_fields_and_indexes/1",
+      parse_source("!items[1 + 2].ready"),
+      "(!items[(1 + 2)].ready)"),
+    test_equal_str("parser/parses_unary_calls_fields_and_indexes/2",
+      parse_source("build(1, [2, 3], user.name)[0]"),
+      "build(1, [2, 3], user.name)[0]"),
+    test_equal_str("parser/parses_unary_calls_fields_and_indexes/3",
+      parse_source("empty()"),
+      "empty()"),
+    test_equal_str("parser/parses_unary_calls_fields_and_indexes/4",
+      parse_source("--value"),
+      "(-(-value))")
+  ]
+}
+
+pure parser_unit_parses_while_and_for_statements(): [TestResult] {
+  [
+    test_equal_str("parser/parses_while_and_for_statements/1",
+      parse_block_source("{ while ready { print(1); } }"),
+      "{ while ready { print(1); } }"),
+    test_equal_str("parser/parses_while_and_for_statements/2",
+      parse_block_source("{ while cursor > 0 { cursor = cursor - 1; }; cursor }"),
+      "{ while (cursor > 0) { cursor = (cursor - 1); } cursor }"),
+    test_equal_str("parser/parses_while_and_for_statements/3",
+      parse_block_source("{ for value in 0..limit { print(value); } }"),
+      "{ for value in (0 .. limit) { print(value); } }"),
+    test_equal_str("parser/parses_while_and_for_statements/4",
+      parse_block_source("{ for item in values { while ready { use(item); } }; result }"),
+      "{ for item in values { while ready { use(item); } } result }")
+  ]
+}
+
+pure parser_unit_program_parser_propagates_lexer_failures(): [TestResult] {
+  [
+    test_equal_str("parser/program_parser_propagates_lexer_failures/1",
+      parse_program_source("#"),
+      "lexing failed")
+  ]
+}
+
+pure parser_unit_propagates_lexer_failures(): [TestResult] {
+  [
+    test_equal_str("parser/propagates_lexer_failures/1",
+      parse_source("#"),
+      "lexing failed")
+  ]
+}
+
+pure parser_unit_reports_malformed_blocks(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_blocks/1",
+      parse_block_source("42"),
+      "expected opening brace"),
+    test_equal_str("parser/reports_malformed_blocks/2",
+      parse_block_source("{"),
+      "expected closing brace"),
+    test_equal_str("parser/reports_malformed_blocks/3",
+      parse_block_source("{ mut }"),
+      "expected binding name"),
+    test_equal_str("parser/reports_malformed_blocks/4",
+      parse_block_source("{ mut name Nat = 1; }"),
+      "expected : or = after binding name"),
+    test_equal_str("parser/reports_malformed_blocks/5",
+      parse_block_source("{ name: = 1; }"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_blocks/6",
+      parse_block_source("{ name: Nat 1; }"),
+      "expected = after binding type"),
+    test_equal_str("parser/reports_malformed_blocks/7",
+      parse_block_source("{ print(1) print(2); }"),
+      "expected semicolon or closing brace"),
+    test_equal_str("parser/reports_malformed_blocks/8",
+      parse_block_source("{ name: Map[] = 1; }"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_blocks/9",
+      parse_block_source("{} extra"),
+      "unexpected token after block")
+  ]
+}
+
+pure parser_unit_reports_malformed_enum_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_enum_declarations/1",
+      parse_program_source("enum"),
+      "expected enum name"),
+    test_equal_str("parser/reports_malformed_enum_declarations/2",
+      parse_program_source("enum Option"),
+      "expected opening enum brace"),
+    test_equal_str("parser/reports_malformed_enum_declarations/3",
+      parse_program_source("enum Option[] {}"),
+      "expected type parameter"),
+    test_equal_str("parser/reports_malformed_enum_declarations/4",
+      parse_program_source("enum Option[T,] {}"),
+      "expected type parameter"),
+    test_equal_str("parser/reports_malformed_enum_declarations/5",
+      parse_program_source("enum Option[T E] {}"),
+      "expected comma or closing type parameter bracket"),
+    test_equal_str("parser/reports_malformed_enum_declarations/6",
+      parse_program_source("enum Option { 1 }"),
+      "expected enum variant name"),
+    test_equal_str("parser/reports_malformed_enum_declarations/7",
+      parse_program_source("enum Option { Some( }"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_enum_declarations/8",
+      parse_program_source("enum Option { Some(Nat }"),
+      "expected comma or closing variant parenthesis"),
+    test_equal_str("parser/reports_malformed_enum_declarations/9",
+      parse_program_source("enum Option { Some(Nat,) }"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_enum_declarations/10",
+      parse_program_source("enum Pair { Both(Nat Str) }"),
+      "expected comma or closing variant parenthesis"),
+    test_equal_str("parser/reports_malformed_enum_declarations/11",
+      parse_program_source("enum Option { None Some(Nat) }"),
+      "expected comma or closing enum brace"),
+    test_equal_str("parser/reports_malformed_enum_declarations/12",
+      parse_program_source("enum Option { None"),
+      "expected closing enum brace")
+  ]
+}
+
+pure parser_unit_reports_malformed_expressions(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_expressions/1",
+      parse_source(""),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_expressions/2",
+      parse_source("()"),
+      "$unit()"),
+    test_equal_str("parser/reports_malformed_expressions/3",
+      parse_source("[1,]"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_expressions/4",
+      parse_source("call(1 2)"),
+      "expected comma or )"),
+    test_equal_str("parser/reports_malformed_expressions/5",
+      parse_source("(1"),
+      "expected closing parenthesis"),
+    test_equal_str("parser/reports_malformed_expressions/6",
+      parse_source("items[0"),
+      "expected closing bracket"),
+    test_equal_str("parser/reports_malformed_expressions/7",
+      parse_source("value."),
+      "expected field name"),
+    test_equal_str("parser/reports_malformed_expressions/8",
+      parse_source("value.method(1 2)"),
+      "expected comma or )"),
+    test_equal_str("parser/reports_malformed_expressions/9",
+      parse_source("1 +"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_expressions/10",
+      parse_source("1 2"),
+      "unexpected token")
+  ]
+}
+
+pure parser_unit_reports_malformed_function_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_function_declarations/1",
+      parse_program_source("pure"),
+      "expected function name"),
+    test_equal_str("parser/reports_malformed_function_declarations/2",
+      parse_program_source("main"),
+      "expected opening function parenthesis"),
+    test_equal_str("parser/reports_malformed_function_declarations/3",
+      parse_program_source("main[Value(): Void {}"),
+      "expected comma or closing type parameter bracket"),
+    test_equal_str("parser/reports_malformed_function_declarations/4",
+      parse_program_source("main("),
+      "expected function parameter"),
+    test_equal_str("parser/reports_malformed_function_declarations/5",
+      parse_program_source("main(1: Nat): Void {}"),
+      "expected function parameter"),
+    test_equal_str("parser/reports_malformed_function_declarations/6",
+      parse_program_source("main(value Nat): Void {}"),
+      "expected colon after parameter name"),
+    test_equal_str("parser/reports_malformed_function_declarations/7",
+      parse_program_source("main(value: ): Void {}"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_function_declarations/8",
+      parse_program_source("main(value: Nat"),
+      "expected closing function parenthesis"),
+    test_equal_str("parser/reports_malformed_function_declarations/9",
+      parse_program_source("main(value: Nat other: Nat): Void {}"),
+      "expected comma or closing function parenthesis"),
+    test_equal_str("parser/reports_malformed_function_declarations/10",
+      parse_program_source("main(value: Nat,): Void {}"),
+      "expected function parameter"),
+    test_equal_str("parser/reports_malformed_function_declarations/11",
+      parse_program_source("main() Void {}"),
+      "expected colon after function parameters"),
+    test_equal_str("parser/reports_malformed_function_declarations/12",
+      parse_program_source("main(): {}"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_function_declarations/13",
+      parse_program_source("main(): Void"),
+      "expected opening brace")
+  ]
+}
+
+pure parser_unit_reports_malformed_guarded_type_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/1",
+      parse_program_source("type"),
+      "expected type name"),
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/2",
+      parse_program_source("type = Int where value > 0;"),
+      "expected type name"),
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/3",
+      parse_program_source("type Positive Int where value > 0;"),
+      "expected = after type name"),
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/4",
+      parse_program_source("type Positive = ;"),
+      "expected guarded type base"),
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/5",
+      parse_program_source("type Positive = where value > 0;"),
+      "expected where after guarded type base"),
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/6",
+      parse_program_source("type Positive = Int value > 0;"),
+      "expected where after guarded type base"),
+    test_equal_str("parser/reports_malformed_guarded_type_declarations/7",
+      parse_program_source("type Positive = Int where;"),
+      "expected expression")
+  ]
+}
+
+pure parser_unit_reports_malformed_if_expressions(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_if_expressions/1",
+      parse_source("if"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_if_expressions/2",
+      parse_source("if ready"),
+      "expected opening brace"),
+    test_equal_str("parser/reports_malformed_if_expressions/3",
+      parse_source("if ready { 1 } else"),
+      "expected opening brace"),
+    test_equal_str("parser/reports_malformed_if_expressions/4",
+      parse_source("if ready { 1 } else 0"),
+      "expected opening brace")
+  ]
+}
+
+pure parser_unit_reports_malformed_import_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_import_declarations/1",
+      parse_program_source("import"),
+      "expected import path"),
+    test_equal_str("parser/reports_malformed_import_declarations/2",
+      parse_program_source("import lexer.panack;"),
+      "expected '/' in logical import path"),
+    test_equal_str("parser/reports_malformed_import_declarations/3",
+      parse_program_source("import stdlib/;"),
+      "expected logical import path segment"),
+    test_equal_str("parser/reports_malformed_import_declarations/4",
+      parse_program_source("import stdlib/option.txt;"),
+      "logical import extension must be .panack"),
+    test_equal_str("parser/reports_malformed_import_declarations/5",
+      parse_program_source("import \"lexer.panack\"; extra"),
+      "expected opening function parenthesis")
+  ]
+}
+
+pure parser_unit_reports_malformed_loops(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_loops/1",
+      parse_block_source("{ while }"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_loops/2",
+      parse_block_source("{ while ready }"),
+      "expected opening brace"),
+    test_equal_str("parser/reports_malformed_loops/3",
+      parse_block_source("{ for }"),
+      "expected loop variable"),
+    test_equal_str("parser/reports_malformed_loops/4",
+      parse_block_source("{ for item }"),
+      "expected in after loop variable"),
+    test_equal_str("parser/reports_malformed_loops/5",
+      parse_block_source("{ for item of values {} }"),
+      "expected in after loop variable"),
+    test_equal_str("parser/reports_malformed_loops/6",
+      parse_block_source("{ for item in }"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_loops/7",
+      parse_block_source("{ for item in values }"),
+      "expected opening brace")
+  ]
+}
+
+pure parser_unit_reports_malformed_match_expressions(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_match_expressions/1",
+      parse_source("match"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_match_expressions/2",
+      parse_source("match value"),
+      "expected opening match brace"),
+    test_equal_str("parser/reports_malformed_match_expressions/3",
+      parse_source("match value {"),
+      "expected closing match brace"),
+    test_equal_str("parser/reports_malformed_match_expressions/4",
+      parse_source("match value { 1() => 1 }"),
+      "expected pattern variant"),
+    test_equal_str("parser/reports_malformed_match_expressions/5",
+      parse_source("match value { Some => 1 }"),
+      "expected opening pattern parenthesis"),
+    test_equal_str("parser/reports_malformed_match_expressions/6",
+      parse_source("match value { Some( }"),
+      "expected pattern binding"),
+    test_equal_str("parser/reports_malformed_match_expressions/7",
+      parse_source("match value { Some(item other) => item }"),
+      "expected comma or closing pattern parenthesis"),
+    test_equal_str("parser/reports_malformed_match_expressions/8",
+      parse_source("match value { Some(item,) => item }"),
+      "expected pattern binding"),
+    test_equal_str("parser/reports_malformed_match_expressions/9",
+      parse_source("match value { Some(item) item }"),
+      "expected => after pattern"),
+    test_equal_str("parser/reports_malformed_match_expressions/10",
+      parse_source("match value { Some(item) => }"),
+      "expected expression"),
+    test_equal_str("parser/reports_malformed_match_expressions/11",
+      parse_source("match value { Some(item) => item None() => 0 }"),
+      "expected comma or closing match brace")
+  ]
+}
+
+pure parser_unit_reports_malformed_record_declarations(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_record_declarations/1",
+      parse_program_source("record"),
+      "expected record name"),
+    test_equal_str("parser/reports_malformed_record_declarations/2",
+      parse_program_source("record Position"),
+      "expected opening record brace"),
+    test_equal_str("parser/reports_malformed_record_declarations/3",
+      parse_program_source("record Pair[] {}"),
+      "expected type parameter"),
+    test_equal_str("parser/reports_malformed_record_declarations/4",
+      parse_program_source("record Pair[A,] {}"),
+      "expected type parameter"),
+    test_equal_str("parser/reports_malformed_record_declarations/5",
+      parse_program_source("record Pair[A B] {}"),
+      "expected comma or closing type parameter bracket"),
+    test_equal_str("parser/reports_malformed_record_declarations/6",
+      parse_program_source("record Position { 1: Nat }"),
+      "expected record field name"),
+    test_equal_str("parser/reports_malformed_record_declarations/7",
+      parse_program_source("record Position { line Nat }"),
+      "expected colon after record field name"),
+    test_equal_str("parser/reports_malformed_record_declarations/8",
+      parse_program_source("record Position { line: }"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_record_declarations/9",
+      parse_program_source("record Position { line: Nat column: Nat }"),
+      "expected comma or closing record brace"),
+    test_equal_str("parser/reports_malformed_record_declarations/10",
+      parse_program_source("record Position { line: Nat"),
+      "expected closing record brace")
+  ]
+}
+
+pure parser_unit_reports_malformed_type_references(): [TestResult] {
+  [
+    test_equal_str("parser/reports_malformed_type_references/1",
+      parse_type_source(""),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_type_references/2",
+      parse_type_source("[]"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_type_references/3",
+      parse_type_source("[Nat"),
+      "expected closing type bracket"),
+    test_equal_str("parser/reports_malformed_type_references/4",
+      parse_type_source("Map[]"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_type_references/5",
+      parse_type_source("Map[Nat,]"),
+      "expected type"),
+    test_equal_str("parser/reports_malformed_type_references/6",
+      parse_type_source("Map[Nat Str]"),
+      "expected comma or closing type bracket"),
+    test_equal_str("parser/reports_malformed_type_references/7",
+      parse_type_source("Nat Str"),
+      "unexpected token after type")
+  ]
+}
+
+main(): Void {
+  mut results: [TestResult] = []
+  results = results.concat(parser_unit_binary_operators_are_left_associative())
+  results = results.concat(parser_unit_generic_function_syntax_and_explicit_calls_round_trip())
+  results = results.concat(parser_unit_match_expressions_participate_in_precedence_and_blocks())
+  results = results.concat(parser_unit_method_calls_lower_to_receiver_first_calls())
+  results = results.concat(parser_unit_parentheses_override_precedence())
+  results = results.concat(parser_unit_parses_bindings_assignments_and_nested_type_references())
+  results = results.concat(parser_unit_parses_complete_mixed_program())
+  results = results.concat(parser_unit_parses_complete_nested_type_references())
+  results = results.concat(parser_unit_parses_empty_and_import_only_programs())
+  results = results.concat(parser_unit_parses_empty_statement_and_value_blocks())
+  results = results.concat(parser_unit_parses_enum_declarations())
+  results = results.concat(parser_unit_parses_every_binary_operator())
+  results = results.concat(parser_unit_parses_every_binary_precedence_level())
+  results = results.concat(parser_unit_parses_function_declarations())
+  results = results.concat(parser_unit_parses_guarded_type_declarations())
+  results = results.concat(parser_unit_parses_if_expressions_as_block_items())
+  results = results.concat(parser_unit_parses_if_expressions_with_block_branches())
+  results = results.concat(parser_unit_parses_inferred_bindings_without_new_operators())
+  results = results.concat(parser_unit_parses_match_expressions_and_patterns())
+  results = results.concat(parser_unit_parses_named_function_references_and_functional_methods())
+  results = results.concat(parser_unit_parses_record_declarations())
+  results = results.concat(parser_unit_parses_scalar_and_array_literals())
+  results = results.concat(parser_unit_parses_semicolonless_blocks_and_multiline_expressions())
+  results = results.concat(parser_unit_parses_unary_calls_fields_and_indexes())
+  results = results.concat(parser_unit_parses_while_and_for_statements())
+  results = results.concat(parser_unit_program_parser_propagates_lexer_failures())
+  results = results.concat(parser_unit_propagates_lexer_failures())
+  results = results.concat(parser_unit_reports_malformed_blocks())
+  results = results.concat(parser_unit_reports_malformed_enum_declarations())
+  results = results.concat(parser_unit_reports_malformed_expressions())
+  results = results.concat(parser_unit_reports_malformed_function_declarations())
+  results = results.concat(parser_unit_reports_malformed_guarded_type_declarations())
+  results = results.concat(parser_unit_reports_malformed_if_expressions())
+  results = results.concat(parser_unit_reports_malformed_import_declarations())
+  results = results.concat(parser_unit_reports_malformed_loops())
+  results = results.concat(parser_unit_reports_malformed_match_expressions())
+  results = results.concat(parser_unit_reports_malformed_record_declarations())
+  results = results.concat(parser_unit_reports_malformed_type_references())
+  if test_report(results) > 0 { process_exit(1) }
+}

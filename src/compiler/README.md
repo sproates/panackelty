@@ -72,6 +72,14 @@ from the audited compiler seed on the native VM. The stage-0 implementation in
 `src/bootstrap/panackelty.py` remains only as a development oracle and explicit
 seed-regeneration tool. This directory contains only Panackelty implementation
 sources and documentation.
+Direct lexer and parser unit contracts live in
+`tests/runner/compiler_lexer_unit.panack` and
+`tests/runner/compiler_parser_unit.panack`. Both import these implementation
+modules and use `stdlib/testing`; `make unit` and `make check-compiler` run
+them on the native VM. The parser probe preserves all 192 expanded expectations
+from the retired Python parser harness. Remaining compiler differential tests
+still use the development oracle.
+
 The pure backend boundary is:
 
 ```panackelty

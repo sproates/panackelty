@@ -45,8 +45,67 @@ boundaries, decimal/range ambiguity, every invalid character and position,
 both unterminated-string variants, half-open offsets, and semicolon insertion
 at line breaks. It asserts on the lexer result before the public CLI's parser
 and type checker can affect the result. Remaining compiler unit files and
-Python differential checks still run; this is the first slice of the compiler
-unit step, not the completion gate for that step.
+Python differential checks still run; lexer and parser are completed portions
+of the compiler unit step, not its completion gate.
+
+`tests/runner/compiler_parser_unit.panack` replaces all 38 methods from
+`tests/unit/compiler/test_self_hosted_parser.py`, expanding them into 192 named
+assertions. The migration audit compared every original parser entry point,
+input, and expected string with the replacement. The old Python suite and new
+native probe both passed, and the saved-bytecode report matched the source
+report exactly. An injected incorrect expectation produced one named failure
+and exit status 1. No expected string is obtained from the compiler under test.
+Both `make unit` and `make check-compiler` require the probe; the unit timer now
+covers Python plus Panackelty compilation/execution. These are direct parser
+contracts, including malformed fragments that would never pass a full compiler
+check. Positioned diagnostics through the loader remain in the existing
+functional fixtures and other compiler unit tests.
+
+For every row below, the old method was `test_<group>`, the replacement function
+is `parser_unit_<group>`, and the report labels are `parser/<group>/<ordinal>`.
+The count includes every expanded former subtest. Each comparison is exact.
+
+| Parser group | Assertions |
+| --- | ---: |
+| `binary_operators_are_left_associative` | 1 |
+| `generic_function_syntax_and_explicit_calls_round_trip` | 5 |
+| `match_expressions_participate_in_precedence_and_blocks` | 1 |
+| `method_calls_lower_to_receiver_first_calls` | 8 |
+| `parentheses_override_precedence` | 1 |
+| `parses_bindings_assignments_and_nested_type_references` | 1 |
+| `parses_complete_mixed_program` | 1 |
+| `parses_complete_nested_type_references` | 4 |
+| `parses_empty_and_import_only_programs` | 8 |
+| `parses_empty_statement_and_value_blocks` | 5 |
+| `parses_enum_declarations` | 5 |
+| `parses_every_binary_operator` | 14 |
+| `parses_every_binary_precedence_level` | 1 |
+| `parses_function_declarations` | 4 |
+| `parses_guarded_type_declarations` | 1 |
+| `parses_if_expressions_as_block_items` | 1 |
+| `parses_if_expressions_with_block_branches` | 4 |
+| `parses_inferred_bindings_without_new_operators` | 1 |
+| `parses_match_expressions_and_patterns` | 5 |
+| `parses_named_function_references_and_functional_methods` | 2 |
+| `parses_record_declarations` | 4 |
+| `parses_scalar_and_array_literals` | 7 |
+| `parses_semicolonless_blocks_and_multiline_expressions` | 3 |
+| `parses_unary_calls_fields_and_indexes` | 4 |
+| `parses_while_and_for_statements` | 4 |
+| `program_parser_propagates_lexer_failures` | 1 |
+| `propagates_lexer_failures` | 1 |
+| `reports_malformed_blocks` | 9 |
+| `reports_malformed_enum_declarations` | 12 |
+| `reports_malformed_expressions` | 10 |
+| `reports_malformed_function_declarations` | 13 |
+| `reports_malformed_guarded_type_declarations` | 7 |
+| `reports_malformed_if_expressions` | 4 |
+| `reports_malformed_import_declarations` | 5 |
+| `reports_malformed_loops` | 7 |
+| `reports_malformed_match_expressions` | 11 |
+| `reports_malformed_record_declarations` | 10 |
+| `reports_malformed_type_references` | 7 |
+| **Total** | **192** |
 
 The functional runner is `tests/runner/main.panack`. `make functional` runs it,
 the compiler-driver check, and the runner smoke case from source and saved

@@ -1,0 +1,1 @@
+pure bad(flag: Bool): Nat { if flag { 1 } else { "no" } } main(): Void {}

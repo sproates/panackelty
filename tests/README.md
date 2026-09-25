@@ -11,7 +11,7 @@ selected success cases, twenty examples, and forty-one expected failures.
 Panackelty has five validation paths:
 
 - `unit` tests exercise implementation internals directly. Panackelty probes
-  cover the lexer, parser, and resolver; the remaining compiler, checker, bytecode,
+  cover the lexer, parser, resolver, and checker; the remaining compiler, bytecode,
   verifier, VM, and runtime tests use the Python harness during migration.
   Small source snippets isolate internal behavior and failures.
 - `functional` tests treat the `panack` command as a black box. They compile or
@@ -71,7 +71,7 @@ evidence changes.
 
 `stdlib/testing` supplies pure structured assertions and an explicit reporter
 for new Panackelty-hosted tests. Its initial end-to-end case is
-`functional/cases/testing_library`; the lexer, parser, and resolver unit probes now also
+`functional/cases/testing_library`; the lexer, parser, resolver, and checker unit probes now also
 use it directly. The remaining Python unit harness retains its own discovery.
 `stdlib/testing_files` exposes sorted immediate fixture directories and
 temporary workspaces; `functional/cases/testing_fixtures` exercises their
@@ -133,7 +133,12 @@ similarly covers the eight direct lexer contracts.
 `runner/compiler_resolver_unit.panack` covers 26 exact source and module-graph
 expectations in 12 groups, including diagnostic paths and positions. All run in `make unit` and
 `make check-compiler`; each reports failures and exits nonzero on a mismatch.
-Their old-to-new assertion mapping is recorded in `PYTHON_MIGRATION.md`.
+The checker probe, `runner/compiler_checker_unit.panack`, also runs in both
+targets. It checks 31 source fixtures and three module graphs, requiring `ok`
+for success and preserving diagnostic substrings for failures. The Python
+checker test retains only differential acceptance comparisons on the same
+31 source fixtures. Read `fixtures/compiler_checker/README.md` when adding
+a checker case. Their old-to-new assertion mapping is in `PYTHON_MIGRATION.md`.
 
 Expected CLI failures live under `tests/functional/failures`. Each failure has
 its own directory containing `main.panack` and `expected.stderr`; the harness runs
@@ -148,7 +153,7 @@ stem and a `.stdout` extension, keeping every documented example executable.
 The release archive includes the complete directory so links in its language
 tour resolve to the same programs validated by this harness.
 
-Self-hosted checker, purity, emitter, driver, and bytecode tests
+The retained checker oracle and self-hosted purity, emitter, driver, and bytecode tests
 use `CompilerHarnessTestCase` to compile each parameterised probe once per class.
 Test inputs travel through command arguments or temporary files instead of being
 embedded into a newly compiled probe each time. Every invocation constructs a

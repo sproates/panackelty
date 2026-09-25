@@ -1,0 +1,1 @@
+enum Maybe { None, Some(Nat) } pure bad(value: Maybe): Nat { match value { Some() => 1, None() => 0 } } main(): Void {}

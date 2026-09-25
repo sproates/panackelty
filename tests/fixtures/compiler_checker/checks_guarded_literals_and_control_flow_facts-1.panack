@@ -1,0 +1,6 @@
+
+type Positive = Int where value > 0;
+pure positive(value: Int): Int {
+  if value > 0 { checked: Positive = value; checked } else { 0 }
+}
+main(): Void { literal: Positive = 3; print(positive(literal)); }

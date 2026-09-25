@@ -1,0 +1,1 @@
+record Box { value: Nat } main(): Void { print(Box(1).value()); }

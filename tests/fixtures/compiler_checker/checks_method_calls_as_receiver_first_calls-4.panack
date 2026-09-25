@@ -1,0 +1,1 @@
+main(): Void { print([1].has(1)); }

@@ -1,0 +1,15 @@
+
+record Pair { left: Nat, right: Nat }
+pure total(pair: Pair, extra: Nat): Nat { pair.left + pair.right + extra }
+main(): Void {
+  pair: Pair = Pair(20, 21);
+  values: [Nat] = [pair.total(1)].append(43);
+  mut answers: Map[Str,Nat] = map();
+  answers = answers.put("answer", values[0]);
+  mut seen: Set[Str] = set();
+  seen = seen.add("answer");
+  print(values.len());
+  print(answers.has("answer"));
+  print(answers.get("answer"));
+  print(seen.has("answer"));
+}

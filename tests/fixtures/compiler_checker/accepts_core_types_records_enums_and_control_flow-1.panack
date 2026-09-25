@@ -1,0 +1,15 @@
+
+record Pair { left: Nat, right: Nat }
+enum Option[T] { None, Some(T) }
+pure choose(option: Option[Nat], fallback: Nat): Nat {
+  match option { Some(value) => value, None() => fallback }
+}
+pure sum(values: [Nat]): Nat {
+  mut total: Nat = 0;
+  for value in values { total = total + value; }
+  total
+}
+main(): Void {
+  pair: Pair = Pair(20, 22);
+  print(sum([pair.left, choose(Some(1), 0)]));
+}

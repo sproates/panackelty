@@ -1,0 +1,13 @@
+
+pure values(): Map[Str,Nat] {
+  mut result: Map[Str,Nat] = map();
+  result = map_put(result, "answer", 42);
+  result
+}
+pure unique(): Set[Nat] { set_add(set(), 1) }
+main(): Void {
+  items: [Nat] = append([], 1);
+  print(len(concat(items, [2])));
+  print(map_get(values(), "answer"));
+  print(set_has(unique(), 1));
+}

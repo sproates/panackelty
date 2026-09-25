@@ -1,0 +1,3 @@
+
+type Positive = Int where value > 0;
+main(): Void { value: Positive = 0; print(value); }

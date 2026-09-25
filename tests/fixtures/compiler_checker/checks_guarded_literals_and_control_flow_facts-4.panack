@@ -1,0 +1,5 @@
+
+pure decrement(value: Nat): Nat {
+  if value == 0 { 0 } else { value - 1 }
+}
+main(): Void { print(decrement(2)); }

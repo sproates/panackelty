@@ -533,7 +533,9 @@ versa. `make functional` runs it with the self-hosted compiler driver check
 and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
 itself. Each owns an isolated workspace and reports cleanup failure. Python
-unit tests remain active.
+unit tests remain active. The direct lexer contracts run in
+`runner/compiler_lexer_unit.panack` under `make unit` and `make check-compiler`;
+remaining compiler unit and differential checks continue during migration.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default

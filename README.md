@@ -535,6 +535,10 @@ make native-sanitize  # address/undefined-behaviour checks (also run in CI)
 make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
+The compiler check includes direct Panackelty lexer unit assertions alongside
+the remaining Python compiler unit tests and public CLI fixtures. The same
+lexer assertions also run in `make unit`.
+
 The public compiler is written in Panackelty. To run it from source as an
 ordinary Panackelty program:
 

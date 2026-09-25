@@ -1,0 +1,50 @@
+import "../../src/compiler/lexer.panack"
+import stdlib/testing
+
+// Direct lexer unit contracts. Keep these independent of the public compiler CLI:
+// malformed expressions can still have a valid token stream.
+main(): Void {
+  mut results: [TestResult] = []
+  results = results.append(test_equal_str("classes, comments and escapes",
+    render(lex("// ignored\n_name42 17 3.14 \"a\\\\b\"")),
+    "identifier:_name42\nnumber:17\ndecimal:3.14\nstring:\"a\\\\b\"\n"))
+  results = results.append(test_equal_str("symbol vocabulary and longest match",
+    render(lex("=> .. == != <= >= && || ( ) { } [ ] . , ; : = + - * / % < > !")),
+    "punctuation:=>\npunctuation:..\npunctuation:==\npunctuation:!=\npunctuation:<=\npunctuation:>=\npunctuation:&&\npunctuation:||\npunctuation:(\npunctuation:)\npunctuation:{\npunctuation:}\npunctuation:[\npunctuation:]\npunctuation:.\npunctuation:,\npunctuation:;\npunctuation::\npunctuation:=\npunctuation:+\npunctuation:-\npunctuation:*\npunctuation:/\npunctuation:%\npunctuation:<\npunctuation:>\npunctuation:!\n"))
+  results = results.append(test_equal_str("range and decimal boundaries",
+    render(lex("1..2 3. 4.5")),
+    "number:1\npunctuation:..\nnumber:2\nnumber:3\npunctuation:.\ndecimal:4.5\n"))
+  results = results.append(test_equal_str("every invalid character and position",
+    render(lex("valid\n# & | ?")),
+    "2:1: unexpected character #\n2:3: unexpected character &\n2:5: unexpected character |\n2:7: unexpected character ?\n"))
+  results = results.append(test_equal_str("unterminated plain string",
+    render(lex("\"open")), "1:1: unterminated string\n"))
+  results = results.append(test_equal_str("unterminated escaped quote",
+    render(lex("\"escaped\\\"")), "1:1: unterminated string\n"))
+
+  match lex("name 42") {
+    Error(diagnostics) => {
+      results = results.append(test_expect("half-open token offsets", false,
+        "unexpected diagnostics"))
+    },
+    Ok(tokens) => {
+      if len(tokens) == 2 {
+        first = tokens[0]
+        second = tokens[1]
+        results = results.append(test_expect("half-open token offsets",
+          first.text == "name" && first.start == 0 && first.end == 4 &&
+          second.text == "42" && second.start == 5 && second.end == 7,
+          "wrong token text or half-open offset"))
+      } else {
+        results = results.append(test_expect("half-open token offsets", false,
+          "expected two tokens"))
+      }
+    }
+  }
+
+  results = results.append(test_equal_str("terminating line breaks only",
+    render(lex("first\nsecond\nthird +\nfour\nitems[\n0\n]\nif ready {\ncall()\n}\nelse {\nother()\n}\nlast")),
+    "identifier:first\npunctuation:;\nidentifier:second\npunctuation:;\nidentifier:third\npunctuation:+\nidentifier:four\npunctuation:;\nidentifier:items\npunctuation:[\nnumber:0\npunctuation:]\npunctuation:;\nidentifier:if\nidentifier:ready\npunctuation:{\nidentifier:call\npunctuation:(\npunctuation:)\npunctuation:}\nidentifier:else\npunctuation:{\nidentifier:other\npunctuation:(\npunctuation:)\npunctuation:}\npunctuation:;\nidentifier:last\n"))
+
+  if test_report(results) > 0 { process_exit(1) }
+}

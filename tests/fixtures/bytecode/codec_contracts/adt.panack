@@ -1,0 +1,6 @@
+record Pair { left: Nat, right: Nat }
+enum Answer { Missing, Found(Pair) }
+pure total(answer: Answer): Nat {
+  match answer { Missing() => 0, Found(pair) => pair.left + pair.right }
+}
+main(): Void { print(total(Found(Pair(19, 23)))); }

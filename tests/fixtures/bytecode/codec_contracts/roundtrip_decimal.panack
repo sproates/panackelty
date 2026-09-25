@@ -1,0 +1,3 @@
+
+pure values(): Dec { 123.4500 }
+main(): Void { print(values()); }

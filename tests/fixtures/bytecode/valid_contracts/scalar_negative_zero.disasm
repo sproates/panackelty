@@ -1,0 +1,7 @@
+FUNCTION|main|impure|
+0|CONST|Int:-123456789
+1|POP
+2|CONST|DecParts:-0e+2
+3|POP
+4|CONST|Void
+5|RETURN

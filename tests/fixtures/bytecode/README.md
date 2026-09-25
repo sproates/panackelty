@@ -24,3 +24,8 @@ Version 8 implementations must produce these results:
 
 When the bytecode version or encoding changes, retain old-version vectors for
 compatibility testing and add new files rather than rewriting their bytes.
+
+The direct bytecode migration adds [contract cases](contract_cases/README.md),
+source/golden codec artifacts under `codec_contracts/`, and decoded instruction
+listings under `valid_contracts/`. Both native probes use these reviewed inputs;
+they do not generate expected bytes while testing.

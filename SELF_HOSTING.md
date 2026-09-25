@@ -233,6 +233,15 @@ contracts; its Python test retains 31 differential comparisons using shared
 source fixtures. The purity checker adds 11 native direct contracts with ten
 shared source fixtures and ten retained Python differential comparisons. Direct compiler migration is now complete; differential and separately owned
 runtime, stdlib, runner and bootstrap tests remain.
+
+Direct bytecode/verification coverage runs in
+`tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
+and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
+These share fixed version-8 and malformed artifact vectors and compare exact
+canonical artifacts and disassemblies. The retained Python tests cover oracle,
+VM and bootstrap-only object/limit cases, recorded in
+`tests/fixtures/bytecode/contract_cases/README.md`.
+
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
 and requires behavior parity before any transitional Python tests are retired.

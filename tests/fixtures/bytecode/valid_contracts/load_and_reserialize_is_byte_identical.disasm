@@ -1,0 +1,11 @@
+FUNCTION|greeting|pure|name
+0|LOAD|name
+1|INTERPOLATE|Hello, ,
+2|RETURN
+FUNCTION|main|impure|
+0|CONST|Str:Panackelty
+1|CALL|greeting|1
+2|CALL|print|1
+3|POP
+4|CONST|Void
+5|RETURN

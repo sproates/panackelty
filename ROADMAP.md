@@ -821,8 +821,11 @@ installed.
       Direct compiler coverage is complete: lexer, parser, resolver, checker,
       purity, emitter, diagnostics, loader/imports, driver, generics, inference,
       types and host-boundary assertions run natively. The two final compiler
-      probes add 201 direct and 51 integration assertions. Bytecode, verifier,
-      VM, runtime and standard-library coverage remain in this combined item.
+      probes add 201 direct and 51 integration assertions. Bytecode and verifier
+      wire coverage now runs in two Panackelty probes and direct C verifier
+      checks. Python-only in-memory object and adjustable-limit checks remain
+      until the oracle replacement. VM, runtime and standard-library coverage
+      remain in this combined item.
       Python differential compiler evidence remains until the oracle milestone;
       the exact retained-case and ownership audit is in `tests/PYTHON_MIGRATION.md`.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
@@ -865,6 +868,11 @@ seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
 Profile the remaining Python unit harness and native build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
+The bytecode milestone adds two portable codec/native command probes; a local
+focused check took 19 seconds against its 15-second warning budget. Profile
+fixture decoding, redundant process launches and retained Python oracle work
+without dropping malformed inputs or changing the timing budgets.
+
 The unit timer now includes all seven Panackelty compiler probes as well as
 the remaining Python tests. Keep their compilation and execution cost visible
 when profiling the existing unit-budget warning. The final compiler migration

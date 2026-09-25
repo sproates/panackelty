@@ -1,0 +1,185 @@
+import "../../src/bytecode/decoder.panack"
+import stdlib/testing
+
+pure bytecode_nibble(character: Str): Nat {
+  digits: Str = "0123456789abcdef"
+  mut result: Nat = 0
+  for index in 0..16 { if digits[index] == character { result = index } }
+  result
+}
+pure bytecode_from_hex(value: Str): Bytes {
+  mut output = bytes()
+  mut high: Nat = 0
+  mut half = false
+  for index in 0..len(value) {
+    character = value[index]
+    if !is_whitespace(character) {
+      digit = bytecode_nibble(character)
+      if !half { high = digit; half = true }
+      else { output = byte_append(output, high * 16 + digit); half = false }
+    }
+  }
+  output
+}
+pure bytecode_contains(actual: Str, expected: Str): Bool {
+  mut found = false
+  for index in 0..len(actual) { if starts_with_at(actual, expected, index) { found = true } }
+  found
+}
+bytecode_case(name: Str, file: Str, expected: Str): TestResult {
+  data = bytecode_from_hex(read_file(file))
+  actual = validate_bytecode(data)
+  test_expect(name, actual != "ok" && bytecode_contains(actual, expected),
+    "expected ${expected}, got ${actual}")
+}
+main(): Void {
+  mut results: [TestResult] = []
+  results = results.append(bytecode_case("rejects_invalid_magic_and_version-1", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-1.hex", "not a Panackelty bytecode file"))
+  results = results.append(bytecode_case("rejects_invalid_magic_and_version-2", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-2.hex", "unsupported bytecode version"))
+  results = results.append(bytecode_case("rejects_invalid_magic_and_version-3", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-3.hex", "unsupported bytecode version"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-1", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-1.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-2", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-2.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-3", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-3.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-4", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-4.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-5", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-5.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-6", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-6.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-7", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-7.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-8", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-8.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-9", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-9.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-10", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-10.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-11", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-11.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-12", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-12.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-13", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-13.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-14", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-14.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-15", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-15.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-16", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-16.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-17", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-17.hex", "truncated data"))
+  results = results.append(bytecode_case("rejects_every_truncation_and_trailing_data-18", "tests/fixtures/bytecode/contract_cases/rejects_every_truncation_and_trailing_data-18.hex", "trailing data"))
+  results = results.append(bytecode_case("rejects_malformed_function_records_and_opcodes-1", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-1.hex", "no main function"))
+  results = results.append(bytecode_case("rejects_malformed_function_records_and_opcodes-2", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-2.hex", "invalid UTF-8"))
+  results = results.append(bytecode_case("rejects_malformed_function_records_and_opcodes-3", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-3.hex", "unknown function flags"))
+  results = results.append(bytecode_case("rejects_malformed_function_records_and_opcodes-4", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-4.hex", "duplicate function main"))
+  results = results.append(bytecode_case("rejects_malformed_function_records_and_opcodes-5", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-5.hex", "not canonically ordered"))
+  results = results.append(bytecode_case("rejects_malformed_function_records_and_opcodes-6", "tests/fixtures/bytecode/contract_cases/rejects_malformed_function_records_and_opcodes-6.hex", "unknown bytecode opcode"))
+  results = results.append(bytecode_case("rejects_noncanonical_and_invalid_constants-1", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-1.hex", "non-minimal integer"))
+  results = results.append(bytecode_case("rejects_noncanonical_and_invalid_constants-2", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-2.hex", "negative zero integer"))
+  results = results.append(bytecode_case("rejects_noncanonical_and_invalid_constants-3", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-3.hex", "invalid decimal padding"))
+  results = results.append(bytecode_case("rejects_noncanonical_and_invalid_constants-4", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-4.hex", "non-minimal decimal coefficient"))
+  results = results.append(bytecode_case("rejects_noncanonical_and_invalid_constants-5", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-5.hex", "invalid Bool constant"))
+  results = results.append(bytecode_case("rejects_noncanonical_and_invalid_constants-6", "tests/fixtures/bytecode/contract_cases/rejects_noncanonical_and_invalid_constants-6.hex", "unknown constant tag"))
+  results = results.append(bytecode_case("minimal-v4", "tests/fixtures/bytecode/minimal-v4.hex", "unsupported bytecode version 4"))
+  results = results.append(bytecode_case("minimal-v5", "tests/fixtures/bytecode/minimal-v5.hex", "unsupported bytecode version 5"))
+  results = results.append(bytecode_case("minimal-v6", "tests/fixtures/bytecode/minimal-v6.hex", "unsupported bytecode version 6"))
+  results = results.append(bytecode_case("minimal-v7", "tests/fixtures/bytecode/minimal-v7.hex", "unsupported bytecode version 7"))
+  results = results.append(bytecode_case("bad-magic", "tests/fixtures/bytecode/bad-magic.hex", "not a Panackelty bytecode file"))
+  results = results.append(bytecode_case("unknown-opcode-v8", "tests/fixtures/bytecode/unknown-opcode-v8.hex", "unknown bytecode opcode"))
+  results = results.append(bytecode_case("invalid-jump-v8", "tests/fixtures/bytecode/invalid-jump-v8.hex", "invalid jump target"))
+  results = results.append(bytecode_case("nonminimal-integer-v8", "tests/fixtures/bytecode/nonminimal-integer-v8.hex", "non-minimal integer"))
+  results = results.append(bytecode_case("truncated-v8", "tests/fixtures/bytecode/truncated-v8.hex", "truncated data"))
+  results = results.append(bytecode_case("trailing-v8", "tests/fixtures/bytecode/trailing-v8.hex", "trailing data"))
+  results = results.append(bytecode_case("codec_structure-1", "tests/fixtures/bytecode/contract_cases/codec_structure-1.hex", "invalid UTF-8"))
+  results = results.append(bytecode_case("codec_structure-2", "tests/fixtures/bytecode/contract_cases/codec_structure-2.hex", "unknown function flags"))
+  results = results.append(bytecode_case("codec_structure-3", "tests/fixtures/bytecode/contract_cases/codec_structure-3.hex", "duplicate function main"))
+  results = results.append(bytecode_case("codec_structure-4", "tests/fixtures/bytecode/contract_cases/codec_structure-4.hex", "not canonically ordered"))
+  results = results.append(bytecode_case("codec_structure-5", "tests/fixtures/bytecode/contract_cases/codec_structure-5.hex", "invalid Bool constant"))
+  results = results.append(bytecode_case("codec_structure-6", "tests/fixtures/bytecode/contract_cases/codec_structure-6.hex", "invalid decimal padding"))
+  results = results.append(bytecode_case("codec_structure-7", "tests/fixtures/bytecode/contract_cases/codec_structure-7.hex", "calls unknown function missing"))
+  results = results.append(bytecode_case("codec_structure-8", "tests/fixtures/bytecode/contract_cases/codec_structure-8.hex", "invalid arity"))
+  results = results.append(bytecode_case("codec_structure-9", "tests/fixtures/bytecode/contract_cases/codec_structure-9.hex", "pure bytecode function calls impure function print"))
+  results = results.append(bytecode_case("limit-function-count", "tests/fixtures/bytecode/contract_cases/limit-function-count.hex", "function count exceeds limit"))
+  results = results.append(bytecode_case("limit-instructions", "tests/fixtures/bytecode/contract_cases/limit-instructions.hex", "function exceeds instruction limit"))
+  results = results.append(bytecode_case("limit-integer-digits", "tests/fixtures/bytecode/contract_cases/limit-integer-digits.hex", "integer exceeds digit limit"))
+  results = results.append(bytecode_case("limit-name-bytes", "tests/fixtures/bytecode/contract_cases/limit-name-bytes.hex", "name exceeds limit"))
+  results = results.append(bytecode_case("limit-text-bytes", "tests/fixtures/bytecode/contract_cases/limit-text-bytes.hex", "text exceeds limit"))
+  minimal = bytecode_from_hex(read_file("tests/fixtures/bytecode/minimal-v8.hex"))
+  results = results.append(test_equal_str("minimal vector accepted", validate_bytecode(minimal), "ok"))
+  results = results.append(test_expect("minimal vector canonical", round_trip_bytecode(minimal) == minimal,
+    "minimal vector changed after round trip"))
+  all_sc_bytes = bytecode_from_hex(read_file("tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.hex"))
+  results = results.append(test_equal_str("all_scalar_constants_round_trip_canonically/accepted", validate_bytecode(all_sc_bytes), "ok"))
+  results = results.append(test_equal_str("all_scalar_constants_round_trip_canonically/instructions", disassemble_bytecode(all_sc_bytes), read_file("tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.disasm")))
+  results = results.append(test_expect("all_scalar_constants_round_trip_canonically/canonical", round_trip_bytecode(all_sc_bytes) == all_sc_bytes,
+    "round-trip bytes differed"))
+  every__bytes = bytecode_from_hex(read_file("tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.hex"))
+  results = results.append(test_equal_str("every_instruction_operand_round_trips/accepted", validate_bytecode(every__bytes), "ok"))
+  results = results.append(test_equal_str("every_instruction_operand_round_trips/instructions", disassemble_bytecode(every__bytes), read_file("tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.disasm")))
+  results = results.append(test_expect("every_instruction_operand_round_trips/canonical", round_trip_bytecode(every__bytes) == every__bytes,
+    "round-trip bytes differed"))
+  load_a_bytes = bytecode_from_hex(read_file("tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.hex"))
+  results = results.append(test_equal_str("load_and_reserialize_is_byte_identical/accepted", validate_bytecode(load_a_bytes), "ok"))
+  results = results.append(test_equal_str("load_and_reserialize_is_byte_identical/instructions", disassemble_bytecode(load_a_bytes), read_file("tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.disasm")))
+  results = results.append(test_expect("load_and_reserialize_is_byte_identical/canonical", round_trip_bytecode(load_a_bytes) == load_a_bytes,
+    "round-trip bytes differed"))
+  serial_bytes = bytecode_from_hex(read_file("tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.hex"))
+  results = results.append(test_equal_str("serialization_uses_canonical_function_order/accepted", validate_bytecode(serial_bytes), "ok"))
+  results = results.append(test_equal_str("serialization_uses_canonical_function_order/instructions", disassemble_bytecode(serial_bytes), read_file("tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.disasm")))
+  results = results.append(test_expect("serialization_uses_canonical_function_order/canonical", round_trip_bytecode(serial_bytes) == serial_bytes,
+    "round-trip bytes differed"))
+  golden_adt = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/adt.hex"))
+  source_adt = read_file("tests/fixtures/bytecode/codec_contracts/adt.panack")
+  results = results.append(test_expect("codec/adt/bootstrap artifact",
+    compile_source_bytecode(source_adt) == golden_adt, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/adt/fixed bytes",
+    round_trip_bytecode(golden_adt) == golden_adt, "codec altered canonical bytes"))
+  golden_complete = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/complete.hex"))
+  source_complete = read_file("tests/fixtures/bytecode/codec_contracts/complete.panack")
+  results = results.append(test_expect("codec/complete/bootstrap artifact",
+    compile_source_bytecode(source_complete) == golden_complete, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/complete/fixed bytes",
+    round_trip_bytecode(golden_complete) == golden_complete, "codec altered canonical bytes"))
+  golden_disassembly = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/disassembly.hex"))
+  source_disassembly = read_file("tests/fixtures/bytecode/codec_contracts/disassembly.panack")
+  results = results.append(test_expect("codec/disassembly/bootstrap artifact",
+    compile_source_bytecode(source_disassembly) == golden_disassembly, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/disassembly/fixed bytes",
+    round_trip_bytecode(golden_disassembly) == golden_disassembly, "codec altered canonical bytes"))
+  golden_minimal = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/minimal.hex"))
+  source_minimal = read_file("tests/fixtures/bytecode/codec_contracts/minimal.panack")
+  results = results.append(test_expect("codec/minimal/bootstrap artifact",
+    compile_source_bytecode(source_minimal) == golden_minimal, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/minimal/fixed bytes",
+    round_trip_bytecode(golden_minimal) == golden_minimal, "codec altered canonical bytes"))
+  golden_order = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/order.hex"))
+  source_order = read_file("tests/fixtures/bytecode/codec_contracts/order.panack")
+  results = results.append(test_expect("codec/order/bootstrap artifact",
+    compile_source_bytecode(source_order) == golden_order, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/order/fixed bytes",
+    round_trip_bytecode(golden_order) == golden_order, "codec altered canonical bytes"))
+  golden_rational_unit = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/rational_unit.hex"))
+  source_rational_unit = read_file("tests/fixtures/bytecode/codec_contracts/rational_unit.panack")
+  results = results.append(test_expect("codec/rational_unit/bootstrap artifact",
+    compile_source_bytecode(source_rational_unit) == golden_rational_unit, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/rational_unit/fixed bytes",
+    round_trip_bytecode(golden_rational_unit) == golden_rational_unit, "codec altered canonical bytes"))
+  golden_repeated = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/repeated.hex"))
+  source_repeated = read_file("tests/fixtures/bytecode/codec_contracts/repeated.panack")
+  results = results.append(test_expect("codec/repeated/bootstrap artifact",
+    compile_source_bytecode(source_repeated) == golden_repeated, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/repeated/fixed bytes",
+    round_trip_bytecode(golden_repeated) == golden_repeated, "codec altered canonical bytes"))
+  golden_roundtrip_decimal = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/roundtrip_decimal.hex"))
+  source_roundtrip_decimal = read_file("tests/fixtures/bytecode/codec_contracts/roundtrip_decimal.panack")
+  results = results.append(test_expect("codec/roundtrip_decimal/bootstrap artifact",
+    compile_source_bytecode(source_roundtrip_decimal) == golden_roundtrip_decimal, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/roundtrip_decimal/fixed bytes",
+    round_trip_bytecode(golden_roundtrip_decimal) == golden_roundtrip_decimal, "codec altered canonical bytes"))
+  golden_roundtrip_greeting = bytecode_from_hex(read_file("tests/fixtures/bytecode/codec_contracts/roundtrip_greeting.hex"))
+  source_roundtrip_greeting = read_file("tests/fixtures/bytecode/codec_contracts/roundtrip_greeting.panack")
+  results = results.append(test_expect("codec/roundtrip_greeting/bootstrap artifact",
+    compile_source_bytecode(source_roundtrip_greeting) == golden_roundtrip_greeting, "compiled bytes differ from reviewed golden"))
+  results = results.append(test_expect("codec/roundtrip_greeting/fixed bytes",
+    round_trip_bytecode(golden_roundtrip_greeting) == golden_roundtrip_greeting, "codec altered canonical bytes"))
+  results = results.append(test_expect("codec/function declaration order",
+    compile_source_bytecode(read_file("tests/fixtures/bytecode/codec_contracts/order_reversed.panack")) == golden_order,
+    "function declaration order changed canonical bytes"))
+  results = results.append(test_expect("codec/repeated compilation",
+    compile_source_bytecode(source_repeated) == compile_source_bytecode(source_repeated),
+    "same source produced different bytes"))
+  signed_zero = bytecode_from_hex(read_file("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.hex"))
+  results = results.append(test_equal_str("signed zero decimal/accepted", validate_bytecode(signed_zero), "ok"))
+  results = results.append(test_expect("signed zero decimal/canonical",
+    round_trip_bytecode(signed_zero) == signed_zero, "decimal bytes changed"))
+  results = results.append(test_equal_str("signed zero decimal/operand",
+    disassemble_bytecode(signed_zero), read_file("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.disasm")))
+  if test_report(results) > 0 { process_exit(1) }
+}

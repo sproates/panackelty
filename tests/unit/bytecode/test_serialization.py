@@ -1,4 +1,5 @@
-import decimal
+"""Retained bootstrap-specific limits, verification hook and VM/CLI oracles."""
+
 import os
 import subprocess
 import tempfile
@@ -11,7 +12,6 @@ from panackelty import (
     BYTECODE_VERSION,
     Code,
     PanackeltyError,
-    VM,
     bytecode_bytes,
     load_bytecode,
     write_bytecode,
@@ -20,7 +20,6 @@ from tests.unit.support import PanackeltyTestCase
 
 
 PROJECT = Path(__file__).resolve().parents[3]
-HEADER_SIZE = len(BYTECODE_MAGIC) + 2
 
 
 def u16(value):
@@ -46,21 +45,12 @@ def raw_artifact(functions, *, version=BYTECODE_VERSION, trailing=b""):
 
 
 class SerializationTests(PanackeltyTestCase):
+
     def load_artifact(self, data):
         with tempfile.TemporaryDirectory() as directory:
             bytecode = Path(directory) / "test.bc"
             bytecode.write_bytes(data)
             return load_bytecode(bytecode)
-
-    def test_rejects_invalid_magic_and_version(self):
-        with tempfile.TemporaryDirectory() as directory:
-            bytecode = Path(directory) / "broken.bc"
-            bytecode.write_bytes(b"not-panackelty-bytecode")
-            with self.assertRaisesRegex(PanackeltyError, "not a Panackelty bytecode file"):
-                load_bytecode(bytecode)
-
-        with self.assertRaisesRegex(PanackeltyError, "unsupported bytecode version"):
-            self.load_artifact(raw_artifact([], version=BYTECODE_VERSION + 1))
 
     def test_rejects_artifacts_over_the_size_limit_before_decoding(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -138,122 +128,6 @@ class SerializationTests(PanackeltyTestCase):
                     with self.assertRaisesRegex(PanackeltyError, message):
                         self.load_artifact(artifact)
 
-    def test_rejects_every_truncation_and_trailing_data(self):
-        artifact = raw_artifact([raw_function()])
-        for end in range(HEADER_SIZE, len(artifact)):
-            with self.subTest(end=end):
-                with self.assertRaisesRegex(PanackeltyError, "truncated data"):
-                    self.load_artifact(artifact[:end])
-        with self.assertRaisesRegex(PanackeltyError, "trailing data"):
-            self.load_artifact(artifact + b"\x00")
-
-    def test_rejects_malformed_function_records_and_opcodes(self):
-        cases = (
-            (raw_artifact([]), "no main function"),
-            (raw_artifact([raw_function(name=b"\xff")]), "invalid UTF-8"),
-            (raw_artifact([raw_function(flags=2)]), "unknown function flags"),
-            (
-                raw_artifact([raw_function(), raw_function()]),
-                "duplicate function main",
-            ),
-            (
-                raw_artifact([raw_function(name=b"zebra"), raw_function()]),
-                "not canonically ordered",
-            ),
-            (
-                raw_artifact([raw_function(instructions=(b"\xff",))]),
-                "unknown bytecode opcode",
-            ),
-        )
-        for artifact, message in cases:
-            with self.subTest(message=message):
-                with self.assertRaisesRegex(PanackeltyError, message):
-                    self.load_artifact(artifact)
-
-    def test_rejects_noncanonical_and_invalid_constants(self):
-        cases = (
-            (b"\x00\x00\x00\x01\x00", "non-minimal integer"),
-            (b"\x00\x01\x01\x00\x00", "negative zero integer"),
-            (b"\x00\x02\x00\x00\x00\x00\x01\x10", "invalid decimal padding"),
-            (
-                b"\x00\x02\x00\x00\x00\x00\x02\x01",
-                "non-minimal decimal coefficient",
-            ),
-            (b"\x00\x04\x02", "invalid Bool constant"),
-            (b"\x00\xff", "unknown constant tag"),
-        )
-        for instruction, message in cases:
-            artifact = raw_artifact(
-                [raw_function(instructions=(instruction, b"\x14"))]
-            )
-            with self.subTest(message=message):
-                with self.assertRaisesRegex(PanackeltyError, message):
-                    self.load_artifact(artifact)
-
-    def test_all_scalar_constants_round_trip_canonically(self):
-        instructions = [
-            ("CONST", ("Nat", 0)),
-            ("POP", None),
-            ("CONST", ("Nat", 10 ** 100)),
-            ("POP", None),
-            ("CONST", ("Int", -123456789)),
-            ("POP", None),
-            ("CONST", ("Dec", decimal.Decimal("123.4500"))),
-            ("POP", None),
-            ("CONST", ("Str", "héllo 🌍")),
-            ("POP", None),
-            ("CONST", ("Bool", True)),
-            ("POP", None),
-            ("CONST", ("Void", None)),
-            ("RETURN", None),
-        ]
-        functions = {"main": Code("main", [], instructions)}
-        artifact = bytecode_bytes(functions)
-        decoded = self.load_artifact(artifact)
-
-        self.assertEqual(decoded["main"].instructions, instructions)
-        self.assertEqual(bytecode_bytes(decoded), artifact)
-
-    def test_every_instruction_operand_round_trips(self):
-        instructions = [
-            ("CONST", ("Nat", 1)),
-            ("LOAD", "value"),
-            ("STORE", "value"),
-            ("POP", None),
-            ("UNARY", "-"),
-            ("BINARY", "+"),
-            ("MAKE_RANGE", None),
-            ("MAKE_ARRAY", 2),
-            ("INDEX_GET", None),
-            ("INTERPOLATE", ("before", "after")),
-            ("ITER_INIT", "iterator"),
-            ("ITER_NEXT", ("iterator", "item", 22)),
-            ("MAKE_RECORD", ("Pair", ("left", "right"))),
-            ("FIELD_GET", "left"),
-            ("MAKE_VARIANT", ("Option", "Some", 1)),
-            ("MATCH_VARIANT", ("Some", 22)),
-            ("MATCH_FAIL", None),
-            ("CALL", ("helper", 0)),
-            ("CONST", ("Str", "helper")),
-            ("CALL_VALUE", 0),
-            ("JUMP_FALSE", 22),
-            ("JUMP", 22),
-            ("RETURN", None),
-        ]
-        functions = {
-            "main": Code("main", [], instructions),
-            "helper": Code(
-                "helper",
-                [],
-                [("CONST", ("Void", None)), ("RETURN", None)],
-                pure=True,
-            ),
-        }
-
-        decoded = self.load_artifact(bytecode_bytes(functions))
-
-        self.assertEqual(decoded["main"].instructions, instructions)
-
     def test_source_build_verifies_emitted_bytecode(self):
         with patch("src.bootstrap.panackelty.verify_bytecode") as verifier:
             functions = self.compile("main(): Void {}")
@@ -273,34 +147,6 @@ main(): Void { print(total(Found(Pair(19, 23)))); }
             path = Path(directory) / "adt.bc"
             write_bytecode(code, path)
             self.assertEqual(self.run_code(load_bytecode(path)), "42\n")
-
-    def test_serialization_uses_canonical_function_order(self):
-        main = Code(
-            "main",
-            [],
-            [("CALL", ("zebra", 0)), ("RETURN", None)],
-        )
-        zebra = Code(
-            "zebra",
-            [],
-            [("CONST", ("Void", None)), ("RETURN", None)],
-            pure=True,
-        )
-        forward = {"main": main, "zebra": zebra}
-        reverse = {"zebra": zebra, "main": main}
-
-        self.assertEqual(bytecode_bytes(forward), bytecode_bytes(reverse))
-        self.assertEqual(list(self.load_artifact(bytecode_bytes(reverse))), ["main", "zebra"])
-
-    def test_repeated_compilation_is_byte_identical(self):
-        source = """
-pure answer(): Nat { 6 * 7 }
-main(): Void { print(answer()); }
-"""
-        self.assertEqual(
-            bytecode_bytes(self.compile(source)),
-            bytecode_bytes(self.compile(source)),
-        )
 
     def test_cli_compilation_is_identical_across_hash_seeds(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -330,17 +176,6 @@ main(): Void { print(answer()); }
                     env=environment,
                 )
             self.assertEqual(artifacts[0].read_bytes(), artifacts[1].read_bytes())
-
-    def test_load_and_reserialize_is_byte_identical(self):
-        code = self.compile(
-            'pure greeting(name: Str): Str { "Hello, ${name}" } '
-            'main(): Void { print(greeting("Panackelty")); }'
-        )
-        original = bytecode_bytes(code)
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "round-trip.bc"
-            path.write_bytes(original)
-            self.assertEqual(bytecode_bytes(load_bytecode(path)), original)
 
 
 if __name__ == "__main__":

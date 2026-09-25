@@ -1,0 +1,167 @@
+[
+  {
+    "name": "rejects_invalid_magic_and_version-1",
+    "method": "test_rejects_invalid_magic_and_version",
+    "expected": "not a Panackelty bytecode file"
+  },
+  {
+    "name": "rejects_invalid_magic_and_version-2",
+    "method": "test_rejects_invalid_magic_and_version",
+    "expected": "unsupported bytecode version"
+  },
+  {
+    "name": "rejects_invalid_magic_and_version-3",
+    "method": "test_rejects_invalid_magic_and_version",
+    "expected": "unsupported bytecode version"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-1",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-2",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-3",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-4",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-5",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-6",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-7",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-8",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-9",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-10",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-11",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-12",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-13",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-14",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-15",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-16",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-17",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "truncated data"
+  },
+  {
+    "name": "rejects_every_truncation_and_trailing_data-18",
+    "method": "test_rejects_every_truncation_and_trailing_data",
+    "expected": "trailing data"
+  },
+  {
+    "name": "rejects_malformed_function_records_and_opcodes-1",
+    "method": "test_rejects_malformed_function_records_and_opcodes",
+    "expected": "no main function"
+  },
+  {
+    "name": "rejects_malformed_function_records_and_opcodes-2",
+    "method": "test_rejects_malformed_function_records_and_opcodes",
+    "expected": "invalid UTF-8"
+  },
+  {
+    "name": "rejects_malformed_function_records_and_opcodes-3",
+    "method": "test_rejects_malformed_function_records_and_opcodes",
+    "expected": "unknown function flags"
+  },
+  {
+    "name": "rejects_malformed_function_records_and_opcodes-4",
+    "method": "test_rejects_malformed_function_records_and_opcodes",
+    "expected": "duplicate function main"
+  },
+  {
+    "name": "rejects_malformed_function_records_and_opcodes-5",
+    "method": "test_rejects_malformed_function_records_and_opcodes",
+    "expected": "not canonically ordered"
+  },
+  {
+    "name": "rejects_malformed_function_records_and_opcodes-6",
+    "method": "test_rejects_malformed_function_records_and_opcodes",
+    "expected": "unknown bytecode opcode"
+  },
+  {
+    "name": "rejects_noncanonical_and_invalid_constants-1",
+    "method": "test_rejects_noncanonical_and_invalid_constants",
+    "expected": "non-minimal integer"
+  },
+  {
+    "name": "rejects_noncanonical_and_invalid_constants-2",
+    "method": "test_rejects_noncanonical_and_invalid_constants",
+    "expected": "negative zero integer"
+  },
+  {
+    "name": "rejects_noncanonical_and_invalid_constants-3",
+    "method": "test_rejects_noncanonical_and_invalid_constants",
+    "expected": "invalid decimal padding"
+  },
+  {
+    "name": "rejects_noncanonical_and_invalid_constants-4",
+    "method": "test_rejects_noncanonical_and_invalid_constants",
+    "expected": "non-minimal decimal coefficient"
+  },
+  {
+    "name": "rejects_noncanonical_and_invalid_constants-5",
+    "method": "test_rejects_noncanonical_and_invalid_constants",
+    "expected": "invalid Bool constant"
+  },
+  {
+    "name": "rejects_noncanonical_and_invalid_constants-6",
+    "method": "test_rejects_noncanonical_and_invalid_constants",
+    "expected": "unknown constant tag"
+  }
+]

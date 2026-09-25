@@ -1,0 +1,1 @@
+main(): Void { print(alpha() + zebra()); } pure alpha(): Nat { 40 } pure zebra(): Nat { 2 }

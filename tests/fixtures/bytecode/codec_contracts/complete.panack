@@ -1,0 +1,17 @@
+
+record Pair { left: Nat, right: Nat }
+enum Maybe { None, Some(Nat) }
+pure calculate(limit: Nat): Dec {
+  mut total: Nat = 0;
+  for value in 0..limit { total = total + value; }
+  if total > 0 && limit > 0 { 12.3400 } else { 0.0 }
+}
+pure unwrap(value: Maybe): Nat {
+  match value { Some(item) => item, None() => 0 }
+}
+main(): Void {
+  pair: Pair = Pair(20, 22);
+  answer: Nat = unwrap(Some(pair.left + pair.right));
+  print("answer ${answer}");
+  print(calculate(answer));
+}

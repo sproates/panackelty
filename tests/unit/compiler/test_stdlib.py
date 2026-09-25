@@ -7,6 +7,8 @@ from pathlib import Path
 from panackelty import VM, build, bytecode_bytes
 
 
+"""Retained bootstrap/stage-one stdlib byte-identity oracle."""
+
 PROJECT = Path(__file__).resolve().parents[3]
 COMPILER = PROJECT / "src/compiler/main.panack"
 STDLIB = PROJECT / "src/stdlib"
@@ -32,28 +34,6 @@ class StandardLibraryTests(unittest.TestCase):
                 output.getvalue(), f"wrote {stage_one_artifact}\n"
             )
             self.assertEqual(stage_one_artifact.read_bytes(), bootstrap_artifact)
-
-    def test_environment_wrapper_returns_option_without_trapping(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "main.panack"
-            source.write_text(
-                "import stdlib/environment\n"
-                "pure describe(value: Option[Str]): Str {\n"
-                "  match value { Some(text) => text, None() => \"none\" }\n"
-                "}\n"
-                "main(): Void {\n"
-                '  print(describe(environment("PRESENT")));\n'
-                '  print(describe(environment("MISSING")));\n'
-                "}\n",
-                encoding="utf-8",
-            )
-
-            output = io.StringIO()
-            with contextlib.redirect_stdout(output):
-                VM(build(source), environment={"PRESENT": "configured"}).run()
-
-        self.assertEqual(output.getvalue(), "configured\nnone\n")
 
 
 if __name__ == "__main__":

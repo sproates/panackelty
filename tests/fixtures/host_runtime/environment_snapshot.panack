@@ -1,0 +1,5 @@
+main(): Void {
+  print(environment_has("PANACK_PRESENT"))
+  print(environment_get("PANACK_PRESENT"))
+  print(environment_has("PANACK_MISSING"))
+}

@@ -1,0 +1,4 @@
+main(): Void {
+  print(path_join("project/src", "../tests"))
+  print(path_join("/project/src", "../tests"))
+}

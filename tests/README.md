@@ -122,9 +122,10 @@ Structurally valid artifacts that forge dynamically unsafe states live in
 `tests/fixtures/vm_contracts`. The native Panackelty probe and retained Python
 VM oracle execute the same reviewed bytes and require the recorded traps.
 
-Shared file-I/O source builders live in `tests/unit/file_io_cases.py`. Oracle,
-native, and public-CLI tests use them for identical text/binary round trips and
-missing, denied, invalid-content, and unrepresentable-path failures.
+Portable file-I/O source programs and dynamic host assertions now live in
+`tests/functional/cases/cli_environment_files` and `tests/runner/host_runtime_unit.panack`.
+They check identical text/binary round trips, disk bytes, missing and denied
+paths, invalid UTF-8 content and embedded-NUL rejection through the native CLI.
 
 Each test-only functional case has its own directory under
 `tests/functional/cases` containing `main.panack` and `expected.stdout`. Supporting
@@ -204,3 +205,13 @@ runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
 The shared Python VM observations and seeded arithmetic properties remain oracle
 evidence until the oracle-replacement milestone; host/runtime migration is next.
+
+Direct host, runtime and standard-library assertions run in
+`tests/runner/host_runtime_unit.panack` with reviewed source and malformed
+bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
+process, file, path, environment and timing contracts and exact testing-library
+reports. Direct C host checks and forced failures run under instrumentation.
+The [migration inventory](fixtures/host_runtime/README.md) maps all 37
+former methods: 31 retired with native evidence and six retained as independent
+Python differential oracles. Functional source and bytecode cases still verify
+public behaviour on both supported platforms.

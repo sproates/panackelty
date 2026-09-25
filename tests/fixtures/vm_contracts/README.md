@@ -93,7 +93,7 @@ ordinary CLI binary. Native C tests remain in C.
 Python's seeded integer/decimal/Fraction properties, builtin registry comparison,
 bootstrap-compiled compiler/stdlib loading and cross-compiler program artifacts
 remain independent oracle evidence for the oracle-replacement milestone.
-`test_native_execution.py` also retains inherited SIGPIPE, environment and file
-checks for the host/runtime milestone. `test_runtime.py`, host capabilities,
-host types and stdlib/testing-library wrappers remain assigned to that milestone.
-This PR does not count those retained tests as removed Python.
+The subsequent host/runtime milestone migrated inherited SIGPIPE, environment,
+file, host-type and testing-library wrappers. Its native evidence and the six
+retained independent Python oracles are inventoried in
+`../host_runtime/README.md`.

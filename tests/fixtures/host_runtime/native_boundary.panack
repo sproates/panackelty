@@ -1,0 +1,7 @@
+main(): Void {
+  args: [Str] = command_args()
+  print(args[0])
+  print(environment_get("PANACK_NATIVE_TEST"))
+  eprint("native stderr")
+  process_exit(7)
+}

@@ -816,7 +816,7 @@ installed.
       declarative fixtures shared between them. The ownership inventory,
       parity gates, migration sequence, and unresolved runner prerequisites are
       recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
-- [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
+- [x] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
       Direct compiler coverage is complete: lexer, parser, resolver, checker,
       purity, emitter, diagnostics, loader/imports, driver, generics, inference,
@@ -825,8 +825,9 @@ installed.
       wire coverage now runs in two Panackelty probes and direct C verifier
       checks. Python-only in-memory object and adjustable-limit checks remain
       until the oracle replacement. Direct VM execution and loader coverage now runs in 153 Panackelty
-      assertions plus native C/header contracts. Runtime and standard-library
-      coverage remain in this combined item.
+      assertions plus native C/header contracts. Direct runtime, host and standard-library coverage now adds 95 Panackelty
+      assertions, 12 fixed purity vectors and native C type/failure cases.
+      Python-only differential oracles remain for the separate oracle milestone.
       Python differential compiler evidence remains until the oracle milestone;
       the exact retained-case and ownership audit is in `tests/PYTHON_MIGRATION.md`.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
@@ -869,6 +870,10 @@ seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
 Profile the remaining Python unit harness and native build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
+The host milestone adds process and filesystem boundary cases without
+changing the 15/120-second budgets. Profile retained Python oracle runs and
+byte-exact host process assertions if the warning persists; keep all failure
+cases and sanitizer coverage.
 The VM milestone adds portable execution/loader and native-wrapper probes.
 Its local focused `make check-vm` passed in 48 seconds against the 15-second
 budget, including the retained host and differential Python tests.

@@ -1,0 +1,8 @@
+import stdlib/environment
+pure describe(value: Option[Str]): Str {
+  match value { Some(text) => text, None() => "none" }
+}
+main(): Void {
+  print(describe(environment("PRESENT")))
+  print(describe(environment("MISSING")))
+}

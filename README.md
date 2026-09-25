@@ -588,8 +588,10 @@ The full validation suite includes focused compiler and VM tests, black-box
 program tests through `panack`, and a fixed-point bootstrap proof. The three
 component checks retain representative public-command evidence while targeting
 the 15-second incremental budget. The Python stage-0 implementation remains
-only for deliberate seed regeneration and its implementation safeguards; the public
-toolchain runs without it.
+only for its implementation safeguards pending retirement; the public
+toolchain runs without it. `make regenerate-seed` now verifies the recorded seed
+digest, builds fresh self-hosted stages, and checks compiler/library identity
+before replacing the seed. See [the refresh procedure](bootstrap/README.md).
 
 Continuous integration runs on pull-request updates and pushes to `main`.
 New commits cancel older runs for the same pull request. The test job runs
@@ -616,7 +618,8 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for seed regeneration and bootstrap/build/test-harness safeguards.
+Python remains for bootstrap implementation and build/test-harness safeguards;
+seed regeneration now uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`

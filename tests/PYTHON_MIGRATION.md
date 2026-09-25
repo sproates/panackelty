@@ -4,8 +4,9 @@ This is the migration contract for removing Python from the *repository*.
 The downloadable compiler, native VM, package, and release smoke path already
 run without it. Functional and direct unit contracts now use Panackelty/C.
 Live Python differential oracles are retired; fixed expectations, native checks
-and bootstrap proofs replace them. Python seed regeneration and bootstrap/build/
-harness safeguards remain. See [oracle retirement](ORACLE_REPLACEMENT.md).
+and bootstrap proofs replace them. Seed regeneration now uses verified native
+stages. Python bootstrap/build/harness safeguards remain. See
+[oracle retirement](ORACLE_REPLACEMENT.md).
 
 ## Baseline and ownership (September 2026)
 
@@ -334,9 +335,9 @@ public diagnostic wording is checked by the native probes.
 The migration uncovered an existing self-hosted acceptance gap for
 `print(print(1))`. The checker now rejects Void-valued call arguments, as the
 language specification and bootstrap checker already require. The version-8 seed
-is refreshed with the existing stage-0 command; this does not complete the later
-Python-free seed-regeneration milestone. Command checks cover check/run/disasm,
-compile failure and absence of a failed artifact.
+was refreshed with the then-current stage-0 command. The subsequent
+Python-free seed-refresh workflow reproduces that seed byte for byte. Command
+checks cover check/run/disasm, compile failure and absence of a failed artifact.
 
 The directory still contains tests owned by later milestones: bootstrap seed
 corruption (`test_bootstrap`); runner failure injection (`test_panackelty_runner`);
@@ -416,9 +417,12 @@ permission scenario was counted as observed when the host runs as root.
    contracts. Maintain focused component checks and the full suite throughout.
 4. Differential oracle replacement is complete: fixed independent expectations,
    native/self-hosted checks and bootstrap identity cover the retired cases
-   ([audit](ORACLE_REPLACEMENT.md)). Next replace seed regeneration with a
-   verified staged self-hosted refresh; retain the bootstrap-specific failure
-   safeguards until that implementation is retired.
+   ([audit](ORACLE_REPLACEMENT.md)). Seed regeneration is also complete:
+   `bootstrap/regenerate-seed.sh` verifies the recorded input digest, builds
+   fresh stages 2–4, checks compiler and standard-library identity and expected
+   output, and publishes only after validation. Shell failure injection and a
+   real refresh with a Python-free `PATH` protect the workflow. Retain the
+   bootstrap-specific safeguards until that implementation is retired.
 5. Remove the facade, bootstrap Python, harness, Make/CI Python setup and
    commands only after no consumers remain. Add a policy check against Python
    source, shebangs, and invocations. From a clean environment without Python,

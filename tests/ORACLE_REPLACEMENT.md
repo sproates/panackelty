@@ -1,7 +1,7 @@
 # Python differential oracle replacement
 
 The live Python compiler/VM comparisons are retired. This is **not** repository-wide
-Python removal: stage-0 seed regeneration, bootstrap implementation safeguards and
+Python removal: bootstrap implementation safeguards and
 development-harness tests still use Python. Language semantics, bytecode version 8
 and the checked compiler seed are unchanged.
 
@@ -71,6 +71,6 @@ semantics. The unused rational source helper is also removed.
 
 These are not live differential dependencies. Retire them only alongside the
 stage-0 implementation or with explicit native replacements during the final
-harness migration. Next: implement verified self-hosted seed refresh, then remove
-the Python implementation/facade and remaining Make/CI/harness uses, enforce the
+harness migration. Verified self-hosted seed refresh is now implemented. Next:
+remove the Python implementation/facade and remaining Make/CI/harness uses, enforce the
 no-Python policy, and validate on Python-free Linux and macOS environments.

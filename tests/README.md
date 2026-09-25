@@ -42,8 +42,14 @@ The complete workflow builds the stage-2 self-hosted compiler once. Functional
 compiler-driver checks and the compiler program's compiled-output case reuse
 that verified artifact, and the later bootstrap phase extends it to stage 3 for
 the byte-identical fixed-point proof. Other programs are still compiled through
-the public CLI before their bytecode output is checked. The proof runs only in
-the bootstrap phase, not again as a unit test.
+the public CLI before their bytecode output is checked. The ordinary proof runs in
+the bootstrap phase. That phase also exercises a fresh seed refresh on a
+temporary copy with a Python-free `PATH`, independently of cached stages.
+`seed_refresh.sh` uses a fake VM for fast unit/focused-compiler failure injection:
+bad digests, hash failures, verifier/compiler failures, stage mismatches, runtime
+and expected-output failures, signals, locks, symlinks, concurrent edits,
+successful publication and an unchanged fixed point. See `bootstrap/README.md`
+for the refresh contract.
 The compiler fixture allows 90 seconds for source execution and compilation,
 which can build the complete compiler. Ordinary fixture commands retain 20
 seconds; phase timing warnings remain independent of command timeouts.
@@ -190,7 +196,8 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for seed regeneration and bootstrap/build/test-harness safeguards.
+Python remains for bootstrap implementation and build/test-harness safeguards;
+seed regeneration now uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`

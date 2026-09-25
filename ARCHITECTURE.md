@@ -13,7 +13,15 @@ the `.panack` sources under `src/compiler`. Version-8 artifacts execute on the
 same VM. Stable component boundaries live under `src/compiler`,
 `src/bytecode`, `src/vm`, and `src/runtime`.
 
-Python code is intentionally confined to the transitional seed-regeneration implementation
+`bootstrap/regenerate-seed.sh` refreshes the seed using only the native VM,
+self-hosted compiler and shell utilities. It checks the recorded input SHA-256,
+verifies fresh compiler stages 2–4 and their byte identity, then checks identical
+standard-library artifacts and their expected runtime output before publication.
+It uses a per-seed lock and rejects changed inputs. The seed and digest are
+renamed separately; interruption between them is detected as a digest mismatch
+on the next refresh. See `bootstrap/README.md` for review and recovery.
+
+Python code is intentionally confined to the transitional bootstrap implementation
 in `src/bootstrap`, a temporary import-compatibility facade, and development
 tests. It is absent from build, execution, installation, and package artifacts.
 The release smoke gate extracts and relocates the final archive, enters a fresh
@@ -57,7 +65,7 @@ The major components are:
 | Component | Responsibility | Current location |
 | --- | --- | --- |
 | CLI | Dispatches `check`, `compile`, `run`, and `disasm` | Native launcher `panack`; Panackelty driver in `src/compiler/driver.panack` |
-| Compiler | Loads modules and performs lexing, parsing, checking, and emission | Public implementation in `src/compiler`; stage-0 seed tool in `src/bootstrap/panackelty.py` |
+| Compiler | Loads modules and performs lexing, parsing, checking, and emission | Public implementation in `src/compiler`; transitional implementation in `src/bootstrap/panackelty.py` |
 | Bytecode | Defines serialization, loading, verification, and disassembly | Contract in `src/bytecode`; independent native loader/verifier in `src/vm`; bootstrap implementation in `src/bootstrap/panackelty.py` |
 | VM | Executes verified instructions using isolated stack frames | Portable C11 seed in `src/vm`; stage-0 implementation in `src/bootstrap/panackelty.py` |
 | Runtime | Implements built-ins and the effectful host boundary | ABI contract in `src/runtime`; native implementation in `src/vm`; stage-0 implementation in `src/bootstrap/panackelty.py` |
@@ -519,7 +527,7 @@ completed-process/host-error distinction; effectful wrappers return ordinary
 `TestResult` values for deterministic reporting. It adds no new host ABI.
 
 The [Python-free test architecture](tests/PYTHON_MIGRATION.md) maps the
-transitional seed-regeneration implementation and harness to Panackelty-hosted behavioral
+transitional bootstrap implementation and harness to Panackelty-hosted behavioral
 tests, direct native C tests, and portable golden fixtures. It preserves their behavior during migration and treats the fixed-point bootstrap and
 exact-artifact release gates as independent required evidence.
 The `tests/runner/main.panack` selects twenty-five discovered success fixtures,
@@ -603,7 +611,8 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for seed regeneration and bootstrap/build/test-harness safeguards.
+Python remains for bootstrap implementation and build/test-harness safeguards;
+seed regeneration now uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`

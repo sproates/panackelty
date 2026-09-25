@@ -60,6 +60,7 @@ check-compiler: native
 
 check-compiler-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
+	@./panack run tests/runner/compiler_lexer_unit.panack
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --failures-only
 
@@ -81,6 +82,7 @@ check-vm-impl:
 
 unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
+	@./panack run tests/runner/compiler_lexer_unit.panack
 
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl

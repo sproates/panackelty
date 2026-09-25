@@ -818,6 +818,10 @@ installed.
       recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
+      The direct lexer unit assertions have moved to
+      `tests/runner/compiler_lexer_unit.panack`; parser, resolver, checker,
+      purity, emitter, loader, diagnostics, generics, type, and host boundary
+      unit assertions are still in the compiler migration queue.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. The
       Panackelty runner checks twenty-five selected cases, twenty examples,
@@ -843,6 +847,12 @@ installed.
       and release smoke tests from a clean environment without Python
 
 ## Keep validation within development budgets — in progress
+
+The September 2026 clean local check after the lexer unit migration took 125
+seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
+Profile the remaining Python unit harness and native build/bootstrap on this
+environment while retaining all compiler unit assertions. CI timings remain
+the reference for the cross-platform validation budget.
 
 Current environment follow-up: the September 2026 testing-library branch
 reported a 21-second unit phase against its 15-second warning threshold, also

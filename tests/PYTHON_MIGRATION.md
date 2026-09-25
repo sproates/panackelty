@@ -34,6 +34,20 @@ backlog items, not implicit losses.
 
 ## Runner and fixture contracts
 
+### Compiler unit migration in progress
+
+`tests/runner/compiler_lexer_unit.panack` directly imports the compiler lexer
+and runs in `make unit` and `make check-compiler`. It replaces all seven methods
+in the former `tests/unit/compiler/test_self_hosted_lexer.py` (eight named
+assertions because the two unterminated-string inputs are separate). The
+replacement checks exact token classes, all punctuation and longest-match
+boundaries, decimal/range ambiguity, every invalid character and position,
+both unterminated-string variants, half-open offsets, and semicolon insertion
+at line breaks. It asserts on the lexer result before the public CLI's parser
+and type checker can affect the result. Remaining compiler unit files and
+Python differential checks still run; this is the first slice of the compiler
+unit step, not the completion gate for that step.
+
 The functional runner is `tests/runner/main.panack`. `make functional` runs it,
 the compiler-driver check, and the runner smoke case from source and saved
 bytecode without Python. It captures the full runner's successful output once;

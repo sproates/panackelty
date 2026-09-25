@@ -802,9 +802,9 @@ prerequisite so programs can use these APIs without knowing repository paths.
 ## Eliminate Python from the repository — in progress
 
 Python has been removed from the public toolchain, but it still implements the
-remaining bootstrap safeguards, test harness, compatibility facade, and seed
-regeneration command. Retire those uses after logical imports, the required host
-capabilities, and the Panackelty testing foundation are complete. Completion
+remaining bootstrap safeguards, test harness, and compatibility facade. Seed
+regeneration now uses the native VM and self-hosted compiler. Retire those uses
+after logical imports, the required host capabilities, and the Panackelty testing foundation are complete. Completion
 means the current repository contains no Python source or Python command
 invocation and its full development, bootstrap, conformance, packaging, and
 release validation succeeds on a machine where no Python interpreter is
@@ -841,9 +841,12 @@ installed.
       fixed-point bootstrap evidence; preserve 1,800 integer, 422 decimal and
       96 rational expectations plus 82 builtin signatures without regenerating
       expected results during validation. Bootstrap-only implementation tests
-      remain until seed regeneration and the Python implementation are retired.
-- [ ] Replace `regenerate-seed` with a documented staged self-hosted process that
-      verifies its input seed and resulting compiler artifacts
+      remain until the Python implementation is retired.
+- [x] Replace `regenerate-seed` with a documented staged self-hosted process that
+      verifies its input seed and resulting compiler artifacts. Fresh stages
+      2–4 must reach a compiler and standard-library fixed point and match the
+      expected conformance output before publication; shell failure injection
+      and a real refresh with a Python-free `PATH` protect this workflow.
 - [ ] Remove the root compatibility facade and the transitional implementation
       under `src/bootstrap`
 - [ ] Remove Python variables, commands, cache cleanup, and file-pattern handling
@@ -858,7 +861,11 @@ installed.
 
 ## Keep validation within development budgets — in progress
 
-Prioritize the remaining unit/build-harness cost after oracle retirement. The
+Prioritize the remaining unit/build-harness cost after oracle retirement.
+The seed-refresh gate adds isolated compiler stages to the bootstrap phase;
+profile that cost separately and preserve its digest, fixed-point and failure
+evidence when reducing repeated compilation. Keep the existing phase and total
+budgets and record refresh-migration timings in its PR. The
 new native oracle target retains the full program corpus under sanitizers and
 coverage; profile its compilation work and reuse verified artifacts without
 removing observations. The 15-second unit and 120-second clean-check budgets

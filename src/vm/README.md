@@ -11,7 +11,8 @@ and output at each step.
 
 The portable C11 VM is the execution target. Independent fixed expectations
 now replace live comparisons with the transitional Python VM. The latter remains
-only for stage-0 seed regeneration and bootstrap-specific safeguards.
+only for bootstrap-specific safeguards pending retirement. Seed regeneration
+uses verified self-hosted stages on this VM.
 
 The VM trusts neither source compilation nor bytecode files. Serialized
 artifacts are verified before execution, and safety checks such as bounds

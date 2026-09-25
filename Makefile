@@ -37,6 +37,7 @@ PACKAGE_ARCHIVE := $(abspath $(BUILD_DIR))/$(PACKAGE_NAME).tar.gz
 PACKAGE_CHECKSUM := $(PACKAGE_ARCHIVE).sha256
 BOOTSTRAP_DIR := $(BUILD_DIR)/bootstrap
 SEED_COMPILER ?= bootstrap/compiler-v8.bc
+SEED_DIGEST ?= $(SEED_COMPILER).sha256
 COMPILER_SOURCE := src/compiler/main.panack
 STDLIB_CONFORMANCE := tests/functional/cases/stdlib/main.panack
 STAGE1_COMPILER := $(BOOTSTRAP_DIR)/stage1/compiler.bc
@@ -59,6 +60,7 @@ check-compiler: native
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
 check-compiler-impl:
+	@sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
 	@./panack run tests/runner/compiler_lexer_unit.panack
@@ -96,6 +98,7 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
+	@sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
 	@./panack run tests/runner/host_runtime_unit.panack
@@ -255,6 +258,7 @@ bootstrap-check-impl: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STA
 	cmp $(STAGE2_COMPILER) $(STAGE3_COMPILER)
 	cmp $(STAGE1_STDLIB) $(STAGE2_STDLIB)
 	cmp $(STAGE2_STDLIB) $(STAGE3_STDLIB)
+	sh tests/seed_refresh.sh --native
 
 native-check: bootstrap-check
 	sh tests/native_conformance.sh
@@ -302,8 +306,8 @@ package-checksum: release-smoke
 quick-start: package-checksum
 	@$(TIMED) quick-start $(INCREMENTAL_BUDGET_SECONDS) sh tests/quick_start.sh "$(PACKAGE_ARCHIVE)" "$(VERSION)"
 
-regenerate-seed:
-	$(PYTHON) -B src/bootstrap/panackelty.py compile $(COMPILER_SOURCE) -o $(SEED_COMPILER)
+regenerate-seed: native
+	sh bootstrap/regenerate-seed.sh ./panack-vm "$(SEED_COMPILER)" "$(SEED_DIGEST)" "$(COMPILER_SOURCE)" "$(STDLIB_CONFORMANCE)"
 
 clean:
 	rm -f panack-vm

@@ -9,8 +9,8 @@ coverage in `make check`.
 
 The self-hosting critical path is complete. The public compiler, VM, build,
 conformance, installation, and package path no longer depend on Python. The
-transitional Python implementation remains an explicit seed-regeneration tool
-with bootstrap-specific safeguards, not a release or build dependency.
+transitional Python implementation remains only for bootstrap-specific
+safeguards pending retirement, not a release, build, or seed-refresh dependency.
 
 The completed critical path was:
 
@@ -190,6 +190,11 @@ compiler stages, and their version-8 artifacts must be byte-identical.
 The native VM builds and runs the compiler and standard library, reproduces
 their artifacts exactly, and passes the native conformance suite without
 Python. The checked seed and its digest are documented in `bootstrap/README.md`.
+Seed refresh is now self-hosted: `make regenerate-seed` verifies the input
+digest, stages compiler builds 2–4, checks compiler and standard-library
+identity plus expected output, and publishes only after all checks pass. A
+real refresh with a Python-free `PATH` runs in `make bootstrap-check`; shell
+failure injection runs in the unit and focused compiler suites.
 The compiler source itself exercises the typed Map and Set method aliases in
 its lexer and project loader, so every bootstrap stage proves those calls as
 part of the fixed point.
@@ -218,14 +223,15 @@ signatures; the normal compiler and library fixed-point comparisons still apply.
 `stdlib/testing_files` provides sorted fixture directory discovery and
 explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
 bounded process results and expected host errors. The testing-library foundation
-and live oracle replacement are complete; seed and harness retirement remain.
+and live oracle replacement are complete. Seed refresh is now self-hosted;
+bootstrap implementation and harness retirement remain.
 The Panackelty-hosted functional runner now checks twenty-five selected
 success fixtures, all twenty examples, and forty-one failure fixtures. It
 also checks six `run`/`disasm` failure pairs, rational traps, exact displayed
 diagnostics, environment and file I/O, and a stage-two compiler driver
 comparison. `runner_smoke` runs from both source and saved bytecode. The
-Python functional and live differential methods are retired; seed and harness
-retirement remain.
+Python functional and live differential methods are retired; bootstrap
+implementation and harness retirement remain.
 The direct lexer, parser, and resolver unit contracts now run in Panackelty and their
 former Python test files have been retired. The parser retains all 192 expanded
 assertions from its 38 former methods; the resolver retains all 26 expanded
@@ -254,7 +260,8 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for seed regeneration and bootstrap/build/test-harness safeguards.
+Python remains for bootstrap implementation and build/test-harness safeguards;
+seed regeneration now uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`

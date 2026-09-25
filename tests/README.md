@@ -10,9 +10,10 @@ selected success cases, twenty examples, and forty-one expected failures.
 
 Panackelty has five validation paths:
 
-- `unit` tests exercise implementation internals directly through the Python
-  compiler, checker, bytecode, verifier, VM, and runtime interfaces. Small
-  source snippets may be used to isolate internal behavior and failures.
+- `unit` tests exercise implementation internals directly. Panackelty probes
+  cover the lexer and parser; the remaining compiler, checker, bytecode,
+  verifier, VM, and runtime tests use the Python harness during migration.
+  Small source snippets isolate internal behavior and failures.
 - `functional` tests treat the `panack` command as a black box. They compile or
   run complete `.panack` programs on the VM, capture their output, and compare it
   with the expected observable behavior.
@@ -29,6 +30,8 @@ Run a level independently with `make unit`, `make functional`,
 development validation with `make check`.
 Each command prints its wall-clock duration and budget; an over-budget run also
 prints a warning without hiding the underlying test result.
+The unit phase times `unit-impl`, including both the Python tests and the
+Panackelty probes, and propagates a failure from either suite.
 
 For incremental work, use `make check-compiler`, `make check-bytecode`, or
 `make check-vm`. Each runs the owning unit-test subtree plus representative
@@ -65,17 +68,16 @@ evidence changes.
 
 `stdlib/testing` supplies pure structured assertions and an explicit reporter
 for new Panackelty-hosted tests. Its initial end-to-end case is
-`functional/cases/testing_library`; the Python unit harness still owns
-test discovery and execution until its later migration.
+`functional/cases/testing_library`; the lexer and parser unit probes now also
+use it directly. The remaining Python unit harness retains its own discovery.
 `stdlib/testing_files` exposes sorted immediate fixture directories and
 temporary workspaces; `functional/cases/testing_fixtures` exercises their
-creation, enumeration, and explicit cleanup. Python unit tests still run
-the complete suite.
+creation, enumeration, and explicit cleanup.
 `stdlib/testing_commands` supplies byte-exact process and host-error
 assertions; `functional/cases/testing_commands` verifies those via the public
-CLI. Python remains the suite orchestrator until the migration phase.
+CLI. Make orchestrates the Python and Panackelty checks during migration.
 
-Unit tests are grouped by implementation subsystem under `tests/unit/compiler`,
+Remaining Python unit tests are grouped by subsystem under `tests/unit/compiler`,
 `tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output
 helpers live in `tests/unit/support.py`. Add a focused module to the owning
 subsystem instead of growing a single catch-all test file; `make unit`
@@ -118,14 +120,15 @@ Each test-only functional case has its own directory under
 modules live beside `main.panack`. A case may use `source.path` instead of `main.panack`
 to test a program elsewhere in the repository. The harness discovers these
 directories automatically, so adding a case does not require Python changes.
-Independent success and failure cases run concurrently, using up to four
-workers by default. Set `PANACK_TEST_JOBS` to a positive integer to tune that
-concurrency.
+The Panackelty functional runner currently executes cases sequentially.
 
-Self-hosted parser tests compile one command-argument-driven driver per parser
-entry point and reuse its verified code across cases. Each assertion still
-executes the real Panackelty-hosted parser while avoiding repeated compilation
-of an unchanged compiler module graph.
+`runner/compiler_parser_unit.panack` imports the parser directly, compiles once,
+and checks 192 fixed expectations for expressions, blocks, types, and programs.
+Its 38 groups preserve the former Python method names, including all expanded
+subtests and exact malformed-input diagnostics. `runner/compiler_lexer_unit.panack`
+similarly covers the eight direct lexer contracts. Both run in `make unit` and
+`make check-compiler`; each reports failures and exits nonzero on a mismatch.
+Their old-to-new assertion mapping is recorded in `PYTHON_MIGRATION.md`.
 
 Expected CLI failures live under `tests/functional/failures`. Each failure has
 its own directory containing `main.panack` and `expected.stderr`; the harness runs
@@ -140,7 +143,7 @@ stem and a `.stdout` extension, keeping every documented example executable.
 The release archive includes the complete directory so links in its language
 tour resolve to the same programs validated by this harness.
 
-Self-hosted lexer, resolver, checker, purity, emitter, driver, and bytecode tests
+Self-hosted resolver, checker, purity, emitter, driver, and bytecode tests
 use `CompilerHarnessTestCase` to compile each parameterised probe once per class.
 Test inputs travel through command arguments or temporary files instead of being
 embedded into a newly compiled probe each time. Every invocation constructs a

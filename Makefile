@@ -1,4 +1,4 @@
-.PHONY: all check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
+.PHONY: all check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
 
 PYTHON ?= python3
 CFLAGS ?= -O2
@@ -61,6 +61,7 @@ check-compiler: native
 check-compiler-impl:
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
 	@./panack run tests/runner/compiler_lexer_unit.panack
+	@./panack run tests/runner/compiler_parser_unit.panack
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --failures-only
 
@@ -81,8 +82,12 @@ check-vm-impl:
 	@./panack run tests/runner/main.panack --case cli_environment_files
 
 unit: native native-module-build native-fault-build
-	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
+	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
+
+unit-impl:
+	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
 	@./panack run tests/runner/compiler_lexer_unit.panack
+	@./panack run tests/runner/compiler_parser_unit.panack
 
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl

@@ -867,7 +867,26 @@ installed.
 
 ## Keep validation within development budgets — in progress
 
-Prioritize unit and bootstrap costs after development-harness retirement.
+**Immediate next priority after repository-wide Python removal.** Complete the
+Python-removal gates above, then improve validation speed before starting
+unrelated roadmap work. Strong coverage remains more important than speed;
+do not drop assertions, failure cases, sanitizer checks or platform gates,
+move required coverage out of canonical validation, or widen timing budgets.
+
+The latest pre-removal CI baseline (PR #64) is 275 seconds for `make check`:
+169 seconds for units, 42 for functional tests and 59 for bootstrap. Establish
+a fresh baseline after Python removal rather than assuming its deletion alone
+will fix validation time.
+
+- [ ] Profile clean and incremental validation on Linux and macOS, separating
+      native builds, probe compilation, subprocess overhead and bootstrap stages
+- [ ] Reduce duplicated work, safely reuse verified artifacts and optimize the
+      measured bottlenecks while preserving all existing validation evidence
+- [ ] Demonstrate clean `make check` within 120 seconds and focused incremental
+      checks within 15 seconds on the reference environments; retain visible
+      per-phase timing, warnings and CI reports to catch future regressions
+
+Prioritize unit and bootstrap costs during this follow-up.
 The native harness preserves process bounds, archive/installation checks and
 runner fault injection; profile repeated compilation without dropping evidence.
 The initial isolated native harness passed in 33 seconds against its 15-second

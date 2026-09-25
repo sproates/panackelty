@@ -880,6 +880,19 @@ will fix validation time.
 
 - [ ] Profile clean and incremental validation on Linux and macOS, separating
       native builds, probe compilation, subprocess overhead and bootstrap stages
+- [ ] Make CI validation proportional to the change. Roadmap and other purely
+      informational documentation edits should run lightweight document/link
+      checks without rebuilding the compiler or running the full test,
+      packaging, sanitizer and coverage suites. Classify changes conservatively:
+      documents used as executable fixtures or packaged inputs (including the
+      README quick start), specification changes, mixed code/document changes,
+      and validation/workflow changes must retain the relevant behavioral and
+      release gates; unknown impact must fall back to full validation
+- [ ] Keep a stable required CI result for both lightweight and full validation,
+      so documentation-only PRs can merge promptly without bypassing protection
+      or waiting for checks that do not apply. Test change classification,
+      including additions, deletions, renames and mixed changes, and document
+      which gates each class requires; retain full release validation
 - [ ] Reduce duplicated work, safely reuse verified artifacts and optimize the
       measured bottlenecks while preserving all existing validation evidence
 - [ ] Demonstrate clean `make check` within 120 seconds and focused incremental

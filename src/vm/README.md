@@ -9,10 +9,9 @@ Start with the [VM execution guide](../../docs/VM_GUIDE.md) for instruction
 listings and worked programs showing the operand stack, locals, call frames,
 and output at each step.
 
-Two independent implementations enforce this contract. The portable C11 seed
-VM in this directory is the bootstrap execution target. The transitional
-Python VM in `src/bootstrap/panackelty.py` remains a development oracle used for
-differential conformance.
+The portable C11 VM is the execution target. Independent fixed expectations
+now replace live comparisons with the transitional Python VM. The latter remains
+only for stage-0 seed regeneration and bootstrap-specific safeguards.
 
 The VM trusts neither source compilation nor bytecode files. Serialized
 artifacts are verified before execution, and safety checks such as bounds
@@ -98,7 +97,7 @@ The formatter is a development convenience, not a build dependency.
 
 `make native` compiles components separately and tracks header dependencies.
 `make check-vm` includes direct C module contracts, independent header compilation,
-registry parity with the oracle, and the existing native and public CLI corpus.
+registry parity with fixed independent signatures, and the existing native and public CLI corpus.
 `make native-unit` runs only the C contracts. `make native-sanitize` builds isolated
 AddressSanitizer/UndefinedBehaviorSanitizer binaries, runs those contracts, and
 runs the native loader and execution suites against the instrumented runner.
@@ -119,12 +118,13 @@ fuzzing remain follow-up work.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 153 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The shared Python VM observations and seeded arithmetic properties remain oracle
-evidence until the oracle-replacement milestone; host/runtime migration is next.
+The 61 former Python VM observations use fixed native contracts, including 21
+per-artifact C return-kind assertions. Fixed independent arithmetic expectations
+and builtin signatures run in `make native-oracle-contracts`.
 
 Direct host, runtime and standard-library assertions run in
 `tests/runner/host_runtime_unit.panack` with reviewed source and malformed
@@ -132,6 +132,6 @@ bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
 The [migration inventory](../../tests/fixtures/host_runtime/README.md) maps all 37
-former methods: 31 retired with native evidence and six retained as independent
-Python differential oracles. Functional source and bytecode cases still verify
+former methods: 31 migrated to direct native evidence and the final six replaced
+by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.

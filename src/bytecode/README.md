@@ -20,7 +20,7 @@ disassembly and follows complete programs through those instructions.
 
 Portable canonical and malformed-artifact vectors live in
 [`tests/fixtures/bytecode`](../../tests/fixtures/bytecode). They are stored as
-plain hexadecimal text so the Python oracle, native VM, and self-hosted tooling
+plain hexadecimal text so the native VM and self-hosted tooling
 can all validate the exact same artifact bytes.
 
 ## Canonical ordering and deterministic artifacts
@@ -70,6 +70,6 @@ Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
-canonical artifacts and disassemblies. The retained Python tests cover oracle,
-VM and bootstrap-only object/limit cases, recorded in
+canonical artifacts and disassemblies. Live Python differential comparisons are
+retired; bootstrap-only object/limit and seed safeguards remain, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.

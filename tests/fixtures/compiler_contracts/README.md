@@ -3,8 +3,7 @@
 These fixtures preserve the source texts and expectations of the remaining
 compiler unit migration. `manifest.json` maps the original method and expanded
 case to its source, expectation and check/run mode; the native probes name each
-case identically. It is also the input inventory for retained Python acceptance
-comparisons. `emitter/manifest.json` maps the original emitter cases (plus the
+case identically. It preserves the former Python acceptance comparison inputs. `emitter/manifest.json` maps the original emitter cases (plus the
 generic emission contract) to exact instruction listings. `diagnostics.json`
 records the original rendering inputs and expected bytes, also stored under
 `diagnostics/` so CRLF, controls and Unicode are read without string-literal
@@ -17,7 +16,8 @@ as well. The direct probe imports the current compiler; the integration probe
 runs complete programs through `panack` and compiles a direct driver harness once
 in an isolated temporary workspace. Both fail with status 1 on assertion failure.
 Missing fixtures are failures. The integration probe checks artifact and workspace
-cleanup. No checked-in bytecode is used for test expectations.
+cleanup. Independent artifact goldens added during oracle retirement live under
+`../oracle_contracts/`, without changing these direct source/listing expectations.
 
 ## Source assertion inventory
 
@@ -40,35 +40,27 @@ binding emitter fixtures have identical complete listings. The generic listing
 contains exactly `identity` and `main`, preserving the former function-set
 assertion, and native execution must print `1` followed by `x`.
 
-## Preserved differential evidence
+## Retired differential evidence
 
-The checker/purity oracles from previous steps still retain 31/10 comparisons.
-This change retains 39 generic, 59 local-inference, 27 host-type and 17 rational/unit
-acceptance comparisons; ten emitter listings include all nine original
-emitter/generic differential cases plus the explicit-binding counterpart. All
-three driver artifact comparisons remain against the Python bootstrap compiler.
-The expected listings were captured from the bootstrap emitter and verified
-against the self-hosted emitter on both Python and native VMs before retirement.
-The Python oracle and native assertions consume the same sources.
+The 142 acceptance, ten emitter and three driver comparisons, plus the earlier
+31/10 checker/purity cases, now use fixed native expectations and artifact goldens.
+The old oracle passed before retirement. See `tests/ORACLE_REPLACEMENT.md`.
 
 Two pre-existing diagnostic wording differences are explicit: the bootstrap
 checker says `pure function cannot invoke an impure callable`, while the
 self-hosted frontend says `pure function cannot call impure function call`;
 the bootstrap loader says `logical import extension must be .panack`, while
 the self-hosted loader reports `invalid logical import path`. The native probes
-assert their established messages and `test_diagnostic_oracle.py` retains both
+assert their established messages and `unit/compiler/test_bootstrap_diagnostics.py` retains both
 bootstrap wording contracts alongside their self-hosted counterparts. This is
 not a blanket acceptance of arbitrary rejection messages.
 
 ## Remaining Python ownership
 
-Direct compiler coverage is migrated. Files still under `unit/compiler` are
-not all compiler contracts: `test_bootstrap.py` belongs to seed/bootstrap work;
-`test_panackelty_runner.py` covers orchestration failure injection;
-`test_testing_{library,commands,files}.py` and the environment assertion in
-`test_stdlib.py` belong to host/standard-library migration. The standard-library
-artifact comparison and the compiler differential suites belong to the oracle
-milestone. They remain active and are not counted as removed coverage.
+Seed corruption, bootstrap-specific diagnostic wording, and fixture-runner
+failure injection remain in `unit/compiler`. Live compiler differential tests
+are retired. Standard-library byte identity now has a fixed reference artifact
+and stage-1/stage-2/stage-3 comparisons.
 
 ## Per-method source mapping
 

@@ -401,7 +401,7 @@ static void bigint_boundaries(void)
     }
 }
 
-/* Batched probe: the Python tests compute independent arbitrary-precision oracles. */
+/* Batched probe checked against fixed, independently calculated expectations. */
 static void arithmetic_probe(void)
 {
     char mode[16], a_text[512], b_text[512];
@@ -490,8 +490,33 @@ static void mutate_artifact(const char *path)
     printf("decoder corpus: %zu mutations, %zu truncations\n", mutations, length);
 }
 
+/* The CLI intentionally discards main's result. Keep the former oracle's
+ * return-kind assertion on every successful shared VM fixture as a C contract. */
+static void artifact_returns_void(const char *path)
+{
+    FILE *file = fopen(path, "rb");
+    assert(file && !fseek(file, 0, SEEK_END));
+    long size = ftell(file);
+    assert(size > 0 && size < 1048576 && !fseek(file, 0, SEEK_SET));
+    uint8_t *bytes = malloc((size_t)size);
+    assert(bytes && fread(bytes, 1, (size_t)size, file) == (size_t)size && !fclose(file));
+    Program program = {0};
+    const char *error = NULL;
+    assert(decode(bytes, (size_t)size, &program, &error) && verify(&program, &error));
+    free(bytes);
+    VM vm = {.program = &program};
+    Value *result = execute(&vm, program_function(&program, "main"), NULL);
+    assert(result && result->kind == V_VOID && !vm.error);
+    release(result);
+    free_program(&program);
+}
+
 int main(int argc, char **argv)
 {
+    if (argc == 3 && strcmp(argv[1], "return-void") == 0) {
+        artifact_returns_void(argv[2]);
+        return 0;
+    }
     if (argc == 3 && strcmp(argv[1], "mutate") == 0) {
         mutate_artifact(argv[2]);
         return 0;

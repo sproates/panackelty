@@ -33,16 +33,15 @@ requires the self-hosted decoder's original messages. The C command requires
 its established exact output, including `invalid function flags`, canonical
 ordering for duplicate/out-of-order names, generic unknown-call/arity/purity
 messages, and a version rejection without the particular version number.
-The Python oracle keeps its specific duplicate, name, version and call
-messages, including the patched low-bound tests below. These exceptions are
+Bootstrap-specific implementation tests keep their patched low-bound checks
+until the stage-0 implementation retires. These exceptions are
 named per input; they are never treated as arbitrary rejection.
 
 Python remains for tests of the Python bootstrap's in-memory verifier and
-artificially patched limits, the source-build verification hook, the VM
-return/trap contract, Python hash-seed isolation and self-hosted-versus-bootstrap
-byte identity. Bytecode wire format, native verifier and direct codec coverage
-has a Python-free path, but the differential oracle, VM and final harness
-removal have their own milestones. No Python-only assertion is deleted because
+artificially patched limits, the source-build verification hook, stage-0 ADT/minimal-Void self-checks and
+CLI hash-seed isolation. Live codec/VM comparisons are retired; fixed native
+expectations and per-artifact C return-kind checks replace them. Bytecode wire format, native verifier and direct codec coverage
+has a Python-free path; the final seed and harness retirement remains. No Python-only assertion is deleted because
 its invalid object has no wire encoding.
 
 ## Migrated source-method inventory
@@ -53,7 +52,7 @@ its invalid object has no wire encoding.
 | `test_serialization.py::test_rejects_every_truncation_and_trailing_data` | 18 | Panackelty decoder + C command |
 | `test_serialization.py::test_rejects_malformed_function_records_and_opcodes` | 6 | Panackelty decoder + C command |
 | `test_serialization.py::test_rejects_noncanonical_and_invalid_constants` | 6 | Panackelty decoder + C command |
-| `test_self_hosted_codec.py::test_rejects_structural_call_and_purity_violations` | 9 | Panackelty decoder + C command + retained oracle |
+| `test_self_hosted_codec.py::test_rejects_structural_call_and_purity_violations` | 9 | Panackelty decoder + C command + fixed expectations |
 | `test_vectors.py::test_legacy_vectors_are_identified_and_rejected` | 4 | Shared versioned vectors in both native suites |
 | `test_vectors.py::test_malformed_vectors_are_rejected` | 6 | Shared versioned vectors in both native suites |
 | `test_serialization.py::test_all_scalar_constants_round_trip_canonically` | 1 | Exact scalar artifact and disassembly, codec round trip |
@@ -61,4 +60,4 @@ its invalid object has no wire encoding.
 | `test_serialization.py::test_serialization_uses_canonical_function_order` | 1 | Opposite-order source inputs, same golden bytes and sorted disassembly |
 | `test_serialization.py::test_repeated_compilation_is_byte_identical` | 1 | Repeated Panackelty codec comparison against golden |
 | `test_serialization.py::test_load_and_reserialize_is_byte_identical` | 1 | Exact reserialized artifact and disassembly |
-| `test_self_hosted_codec.py` serialization, round-trip and disassembly methods | 9 sources + 5 special artifacts | Shared goldens, native exact assertions and retained Python differential oracle |
+| `test_self_hosted_codec.py` serialization, round-trip and disassembly methods | 9 sources + 5 special artifacts | Shared goldens, native exact assertions and fixed independent listings |

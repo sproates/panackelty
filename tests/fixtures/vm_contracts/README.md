@@ -2,8 +2,8 @@
 
 These version-8 hexadecimal artifacts were captured from the original tests at
 `9677518` before retirement. All 38 original selected methods passed during
-capture. The compiler/stdlib loader oracle and compile-time nonterminating
-Decimal check remain in Python; the other 36 methods expand into 145 native
+capture. The compile-time nonterminating Decimal safeguard remains in Python;
+compiler/stdlib loading now uses fixed artifact expectations; the other 36 methods expand into 145 native
 observations. `manifest.json` records each original method and case name.
 
 `tests/runner/vm_unit.panack` runs each artifact through the native VM's `run`
@@ -11,11 +11,11 @@ or `check` command and compares exact status, stdout and stderr, with a timeout,
 output bounds and checked temporary-file cleanup. This is direct VM evidence;
 the existing functional suite still compiles and executes source programs.
 
-The 61 cases carrying `python_*` fields also run in `test_vm_oracle.py` until
-the separately planned oracle replacement. They preserve the original Python
-output, trap text and return type, including Void's None payload. Native and
-Python diagnostic wording is recorded separately where it differs. Native
-Void return kind also has a direct C assertion. The corpus includes all 27
+The 61 cases carrying `python_*` fields retain archival observations from the
+retired oracle, not live Python tests. All fixed stdout expectations match native
+fixtures; trap wording follows the native contract. Every successful artifact
+also checks `V_VOID` return kind in C, preserving evidence hidden by CLI output.
+The corpus includes all 27
 former `FORGED_DYNAMIC_FAILURES`, every loader truncation, the eight string
 index/slice boundaries, all rational conversion/zero failures, exact 150-digit
 Decimal multiplication, calls, frames, branching, collections and Unicode.
@@ -88,12 +88,10 @@ forwards sanitizer settings and LLVM_PROFILE_FILE. Both instrumentation gates
 run the same corpus in separate build directories; they do not overwrite the
 ordinary CLI binary. Native C tests remain in C.
 
-## Retained work and ownership
+## Remaining ownership
 
-Python's seeded integer/decimal/Fraction properties, builtin registry comparison,
-bootstrap-compiled compiler/stdlib loading and cross-compiler program artifacts
-remain independent oracle evidence for the oracle-replacement milestone.
-The subsequent host/runtime milestone migrated inherited SIGPIPE, environment,
-file, host-type and testing-library wrappers. Its native evidence and the six
-retained independent Python oracles are inventoried in
-`../host_runtime/README.md`.
+Live Python VM, seeded arithmetic, registry and artifact oracles are retired.
+`tests/native_oracle_contracts.sh` checks independently calculated fixed results
+and artifact bytes under ordinary, sanitizer and coverage builds. See
+`../../ORACLE_REPLACEMENT.md` for the case audit. Python stage-0 and test-harness
+safeguards remain for the separate seed/final-removal milestones.

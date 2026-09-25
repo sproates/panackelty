@@ -85,8 +85,8 @@ Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
-canonical artifacts and disassemblies. The retained Python tests cover oracle,
-VM and bootstrap-only object/limit cases, recorded in
+canonical artifacts and disassemblies. Live Python differential comparisons are
+retired; bootstrap-only object/limit and seed safeguards remain, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
 Remaining Python unit tests are grouped by subsystem under `tests/unit/compiler`,
@@ -119,8 +119,8 @@ complete static file set and ensures its Pages workflow validates pull requests
 but grants deployment permissions only after a change reaches `main`.
 
 Structurally valid artifacts that forge dynamically unsafe states live in
-`tests/fixtures/vm_contracts`. The native Panackelty probe and retained Python
-VM oracle execute the same reviewed bytes and require the recorded traps.
+`tests/fixtures/vm_contracts`. The native Panackelty probe executes the reviewed bytes and requires fixed
+status/streams; C probes also check all 21 successful return kinds.
 
 Portable file-I/O source programs and dynamic host assertions now live in
 `tests/functional/cases/cli_environment_files` and `tests/runner/host_runtime_unit.panack`.
@@ -144,12 +144,10 @@ expectations in 12 groups, including diagnostic paths and positions. All run in 
 `make check-compiler`; each reports failures and exits nonzero on a mismatch.
 The checker probe, `runner/compiler_checker_unit.panack`, also runs in both
 targets. It checks 31 source fixtures and three module graphs, requiring `ok`
-for success and preserving diagnostic substrings for failures. The Python
-checker test retains only differential acceptance comparisons on the same
-31 source fixtures. Read `fixtures/compiler_checker/README.md` when adding
+for success and preserving diagnostic substrings for failures. Live Python
+comparisons are retired; these fixed expectations remain unchanged. Read `fixtures/compiler_checker/README.md` when adding
 a checker case. `runner/compiler_purity_unit.panack` follows the same pattern
-for ten shared source fixtures and one cross-module contract, retaining all ten
-Python differential comparisons. Its maintenance contract is in
+for ten fixed source fixtures and one cross-module contract. Its maintenance contract is in
 `fixtures/compiler_purity/README.md`. Both probes require `ok` for success
 and preserve the original diagnostic substrings on failure. Their old-to-new
 assertion mapping is in `PYTHON_MIGRATION.md`.
@@ -167,12 +165,11 @@ stem and a `.stdout` extension, keeping every documented example executable.
 The release archive includes the complete directory so links in its language
 tour resolve to the same programs validated by this harness.
 
-The retained checker and purity oracles and self-hosted emitter, driver, and bytecode tests
-use `CompilerHarnessTestCase` to compile each parameterised probe once per class.
-Test inputs travel through command arguments or temporary files instead of being
-embedded into a newly compiled probe each time. Every invocation constructs a
-fresh VM; output and environment are isolated even after a failed invocation.
-Harnesses are rebuilt in each test process, with no persistent artifact cache.
+The live Python compiler/VM oracle and its unused harness are retired.
+`make native-oracle-contracts` checks fixed independent arithmetic, signatures,
+artifacts and the full program corpus. Unit, focused VM, sanitizer and coverage
+gates include it. See `ORACLE_REPLACEMENT.md` for the complete audit and retained
+bootstrap-specific checks.
 The `string_boundaries` functional case covers ASCII and mixed-width Unicode,
 combining characters, empty strings, NULs, and derived string values through
 source execution, saved bytecode, and native conformance. Native unit tests
@@ -191,20 +188,19 @@ The remaining direct compiler contracts now run in
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. The shared fixture inventory and retained
-Python oracle responsibilities are documented in `tests/PYTHON_MIGRATION.md` and
-`tests/fixtures/compiler_contracts/README.md`. Native compiler assertions are
-complete; this does not imply removal of the differential oracle or the remaining
-bytecode, VM, host/stdlib and test-runner wrappers.
+inference, types and host boundaries. Fixed expectations now replace the Python
+differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
+Python remains for seed regeneration and bootstrap/build/test-harness safeguards.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 153 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The shared Python VM observations and seeded arithmetic properties remain oracle
-evidence until the oracle-replacement milestone; host/runtime migration is next.
+The 61 former Python VM observations use fixed native contracts, including 21
+per-artifact C return-kind assertions. Fixed independent arithmetic expectations
+and builtin signatures run in `make native-oracle-contracts`.
 
 Direct host, runtime and standard-library assertions run in
 `tests/runner/host_runtime_unit.panack` with reviewed source and malformed
@@ -212,6 +208,6 @@ bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
 The [migration inventory](fixtures/host_runtime/README.md) maps all 37
-former methods: 31 retired with native evidence and six retained as independent
-Python differential oracles. Functional source and bytecode cases still verify
+former methods: 31 migrated to direct native evidence and the final six replaced
+by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.

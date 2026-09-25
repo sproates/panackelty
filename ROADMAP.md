@@ -799,10 +799,10 @@ prerequisite so programs can use these APIs without knowing repository paths.
       plus bounded byte-exact command assertions and expected host errors.
       Migration of the Python oracle and harness is a separate initiative below
 
-## Eliminate Python from the repository — planned after host capabilities
+## Eliminate Python from the repository — in progress
 
 Python has been removed from the public toolchain, but it still implements the
-transitional development oracle, test harness, compatibility facade, and seed
+remaining bootstrap safeguards, test harness, compatibility facade, and seed
 regeneration command. Retire those uses after logical imports, the required host
 capabilities, and the Panackelty testing foundation are complete. Completion
 means the current repository contains no Python source or Python command
@@ -815,7 +815,7 @@ installed.
       functional behavior; focused C tests for native VM internals; and portable
       declarative fixtures shared between them. The ownership inventory,
       parity gates, migration sequence, and unresolved runner prerequisites are
-      recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
+      recorded in `tests/PYTHON_MIGRATION.md`; remaining safeguards stay active
 - [x] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
       Direct compiler coverage is complete: lexer, parser, resolver, checker,
@@ -824,12 +824,11 @@ installed.
       probes add 201 direct and 51 integration assertions. Bytecode and verifier
       wire coverage now runs in two Panackelty probes and direct C verifier
       checks. Python-only in-memory object and adjustable-limit checks remain
-      until the oracle replacement. Direct VM execution and loader coverage now runs in 153 Panackelty
+      until the stage-0 implementation retires. Direct VM execution and loader coverage now runs in 174 Panackelty
       assertions plus native C/header contracts. Direct runtime, host and standard-library coverage now adds 95 Panackelty
       assertions, 12 fixed purity vectors and native C type/failure cases.
-      Python-only differential oracles remain for the separate oracle milestone.
-      Python differential compiler evidence remains until the oracle milestone;
-      the exact retained-case and ownership audit is in `tests/PYTHON_MIGRATION.md`.
+      Fixed native expectations replace live differential comparisons; the
+      retirement audit is in `tests/ORACLE_REPLACEMENT.md`.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
       file fixtures, output comparisons, and exit-status assertions. The
       Panackelty runner checks twenty-five selected cases, twenty examples,
@@ -837,9 +836,12 @@ installed.
       contracts. `make functional` also validates the stage-two compiler
       driver and runs its smoke case from source and bytecode; no Python
       functional methods remain.
-- [ ] Replace differential reliance on the Python compiler and VM with portable
+- [x] Replace differential reliance on the Python compiler and VM with portable
       golden artifacts, contract tests, native/self-hosted cross-checks, and
-      fixed-point bootstrap evidence
+      fixed-point bootstrap evidence; preserve 1,800 integer, 422 decimal and
+      96 rational expectations plus 82 builtin signatures without regenerating
+      expected results during validation. Bootstrap-only implementation tests
+      remain until seed regeneration and the Python implementation are retired.
 - [ ] Replace `regenerate-seed` with a documented staged self-hosted process that
       verifies its input seed and resulting compiler artifacts
 - [ ] Remove the root compatibility facade and the transitional implementation
@@ -855,6 +857,14 @@ installed.
       and release smoke tests from a clean environment without Python
 
 ## Keep validation within development budgets — in progress
+
+Prioritize the remaining unit/build-harness cost after oracle retirement. The
+new native oracle target retains the full program corpus under sanitizers and
+coverage; profile its compilation work and reuse verified artifacts without
+removing observations. The 15-second unit and 120-second clean-check budgets
+remain unchanged. The first oracle-retirement check passed in 129 seconds
+(unit 94, functional 26, bootstrap 7); unit and total warnings remain. Record
+final ordinary and instrumented measurements in the migration PR.
 
 The resolver migration exposed the compiler fixture's 20-second subprocess
 limit on this environment: unchanged compiler source execution succeeded in

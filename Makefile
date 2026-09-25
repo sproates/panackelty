@@ -59,6 +59,7 @@ check-compiler: native
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
 check-compiler-impl:
+	@$(MAKE) --no-print-directory native-oracle-artifacts
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
 	@./panack run tests/runner/compiler_lexer_unit.panack
 	@./panack run tests/runner/compiler_parser_unit.panack
@@ -85,7 +86,7 @@ check-vm: native native-module-build native-fault-build
 	@$(TIMED) check-vm $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-vm-impl
 
 check-vm-impl:
-	@$(MAKE) --no-print-directory native-vm-contracts
+	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit/vm -t . -p 'test_*.py' -q
 	@./panack run tests/runner/host_runtime_unit.panack
 	@./panack run tests/runner/main.panack --case cli_commands
@@ -95,7 +96,7 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
-	@$(MAKE) --no-print-directory native-vm-contracts
+	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
 	@./panack run tests/runner/host_runtime_unit.panack
 	@./panack run tests/runner/bytecode_unit.panack
@@ -184,13 +185,20 @@ native-vm-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build native-fault-
 	@CC="$(CC)" sh tests/native_headers.sh
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" "$(abspath $(BUILD_DIR)/vm/panack-vm)" run "$(SEED_COMPILER)" run tests/runner/vm_unit.panack
 
+.PHONY: native-oracle-contracts native-oracle-artifacts
+native-oracle-artifacts: $(BUILD_DIR)/vm/panack-vm
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" sh tests/native_oracle_contracts.sh artifacts
+
+native-oracle-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" sh tests/native_oracle_contracts.sh
+
 # Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
 native-sanitize:
 	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-check
 
 native-instrumented-check: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-vm-contracts
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(PYTHON) -B -m unittest -q tests.unit.vm.test_native_loader tests.unit.vm.test_native_execution tests.unit.vm.test_native_modules
+	@UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-oracle-contracts
 
 # LLVM branch coverage uses the same native corpus in a separate build tree.
 LLVM_CC ?= clang
@@ -240,6 +248,7 @@ bootstrap-check: native
 
 bootstrap-check-impl: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)
 	cmp $(STAGE2_COMPILER) $(STAGE3_COMPILER)
+	cmp $(STAGE1_STDLIB) $(STAGE2_STDLIB)
 	cmp $(STAGE2_STDLIB) $(STAGE3_STDLIB)
 
 native-check: bootstrap-check

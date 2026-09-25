@@ -27,8 +27,8 @@ Status meanings:
 | --- | --- | --- |
 | Arbitrary-precision `Nat` | `runner/vm_unit.panack`; `fixtures/vm_contracts`; Project Euler 1–5 functional examples | **Covered** for large arithmetic in focused and algorithm-level programs. |
 | Signed `Int` and literal inference | `fixtures/compiler_contracts/checker`; string functional example | **Partial** — add mixed `Nat`/`Int` operator and comparison cases. |
-| Exact `Dec` arithmetic and scale | `runner/vm_unit.panack`; retained numeric compile-time oracle; decimal functional example | **Covered** for addition, multiplication, finite division, large coefficients, and non-terminating division rejection. Add focused subtraction and remainder cases. |
-| Integer division produces `Rat` | `runner/vm_unit.panack`; shared VM corpus and Python oracle | **Covered** for rational results, negative operands/remainders and division-by-zero traps. |
+| Exact `Dec` arithmetic and scale | `runner/vm_unit.panack`; stage-0 compile-time safeguard; decimal functional example | **Covered** for addition, multiplication, finite division, large coefficients, and non-terminating division rejection. Add focused subtraction and remainder cases. |
+| Integer division produces `Rat` | `runner/vm_unit.panack`; shared VM corpus and fixed Fraction expectations | **Covered** for rational results, negative operands/remainders and division-by-zero traps. |
 | Proven-safe `Nat` subtraction | while-loop and guarded-fact tests in `runner/vm_unit.panack` and `fixtures/compiler_contracts/checker`; shared forged-runtime corpus | **Partial** — safe source behavior and cross-VM runtime underflow traps are covered; add direct compile rejection. |
 | `Bool` values | Broad unit and functional usage | **Partial** — add focused type-error and display cases. |
 | Local binding inference | `unit/compiler/test_local_inference.py`; parser and emitter tests; `functional/cases/local_inference`; `functional/failures/inference_*`; release smoke | **Covered** for both frontends, numeric defaults, strings/booleans/bytes, imported constructors and functions, nested collection evidence, complete-type requirements, fixed mutable types, guarded types, callable effects, scope/order/no-shadowing, Void rejection, exact CLI diagnostics, and identical inferred/annotated emission. |
@@ -83,17 +83,17 @@ Status meanings:
 | Panackelty-hosted lexer | `runner/compiler_lexer_unit.panack`; compiler-lexer and positioned-failure functional cases | **Covered** for comments, whitespace, identifiers, integers, decimals, strings, every symbol, longest-match boundaries, half-open offsets, invalid characters, file-aware positioned diagnostics, and unterminated strings. The direct lexer suite now runs without the Python harness. |
 | Panackelty-hosted parser | `runner/compiler_parser_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Covered** for the complete accepted grammar and focused malformed input, including one-based file, line, and column reporting through the project loader. All 192 expanded assertions from the former 38 Python methods retain their exact input and expected rendering/diagnostic, with the method-to-probe mapping in `PYTHON_MIGRATION.md`. |
 | Panackelty-hosted name resolver | `runner/compiler_resolver_unit.panack`; compiler-skeleton and positioned-failure functional cases | **Partial** — top-level declarations, constructors, built-ins, lexical scopes, calls, assignments, loops, guards, match bindings, and already-loaded module graphs are covered, including source-accurate imported-module name failures. All 26 assertions from the former 12 Python methods are mapped in `PYTHON_MIGRATION.md`. Interpolation references remain. |
-| Panackelty-hosted type/refinement checker | `runner/compiler_checker_unit.panack`; `fixtures/compiler_checker`; `unit/compiler/test_self_hosted_checker.py`; compiler-skeleton and positioned-failure functional cases | **Covered** for declared and generic type references, records, enums, constructor inference, operators, arrays, indexing, persistent collections, built-ins, bindings, assignment, loops, branches, returns, entry points, exhaustive matches, guarded literals and branch facts, safe `Nat` subtraction, cross-module types, and source-accurate primary type failures. 34 native assertions cover all former direct checker contracts, with explicit `ok` on success and the existing diagnostic substrings on failure. The 31 differential source cases still compare Python-VM self-hosted acceptance with the bootstrap checker, using the same source fixtures as the native assertions. |
-| Panackelty-hosted purity checker | `runner/compiler_purity_unit.panack`; `fixtures/compiler_purity`; `unit/compiler/test_self_hosted_purity.py`; compiler-skeleton functional case from source and bytecode | **Covered** for pure recursion, constructors and built-ins, direct and nested impure calls, user-function effects, guarded-type predicates, and calls across an already-loaded module graph. 11 native assertions preserve all former direct purity contracts, requiring `ok` for success and the original diagnostic substrings on failure. All ten differential source cases still compare complete-frontend acceptance on the Python VM with the bootstrap checker, sharing their source fixtures with the native assertions. |
-| Panackelty-hosted bytecode emitter | `unit/compiler/test_self_hosted_emitter.py` | **Covered** differentially against the bootstrap emitter for constants, calls, branches, short-circuiting, loops, arrays, indexing, records, variants, matches, interpolation, exact decimals, escaped strings, and deterministic temporary/jump allocation. Binary artifact tooling remains the next backend layer. |
-| Panackelty-hosted bytecode tooling | `runner/bytecode_unit.panack`, `runner/bytecode_native_unit.panack`, `unit/vm/native_modules.c`, `unit/bytecode/test_self_hosted_codec.py`; portable vectors in `tests/fixtures/bytecode` | **Covered** differentially for byte-identical version-8 serialization, canonical function ordering, direct and indirect calls, the complete instruction mix, scalar constants, exact numerics, records, variants, matches, and control flow. The bounded decoder, verifier, disassembler, and reserializer reject portable malformed vectors plus invalid UTF-8, flags, ordering, constants, calls, arities, and purity edges. |
-| Panackelty-hosted project loader and CLI | `unit/compiler/test_self_hosted_driver.py`; `runner/compiler_driver.panack`; `native_conformance.sh` | **Covered** for source and bytecode `check`, `compile`, `run`, and `disasm`, bare-path execution, file-relative, project-root, and toolchain-standard-library imports, canonical load-once identity, installed resource discovery, invalid logical paths, canonical output, missing modules, cycles, byte-identical differential artifacts, and execution through the public native command. |
-| Standard library and host ABI | `unit/compiler/test_stdlib.py`; `runner/host_runtime_unit.panack`; `functional/cases/stdlib`; `functional/cases/cli_environment_files`; `make bootstrap-check` | **Covered** for the complete prelude module graph, canonical option/result use, collection/text/byte/path APIs, checked environment access, inherited and explicit VM argument snapshots, bootstrap-stage byte-identical compilation, and source/compiled execution. |
+| Panackelty-hosted type/refinement checker | `runner/compiler_checker_unit.panack`; `fixtures/compiler_checker`; `fixtures/compiler_checker`; compiler-skeleton and positioned-failure functional cases | **Covered** for declared and generic type references, records, enums, constructor inference, operators, arrays, indexing, persistent collections, built-ins, bindings, assignment, loops, branches, returns, entry points, exhaustive matches, guarded literals and branch facts, safe `Nat` subtraction, cross-module types, and source-accurate primary type failures. 34 native assertions cover all former direct checker contracts, with explicit `ok` on success and the existing diagnostic substrings on failure. All 31 former differential source cases retain these same fixed native expectations; live Python comparisons are retired. |
+| Panackelty-hosted purity checker | `runner/compiler_purity_unit.panack`; `fixtures/compiler_purity`; `fixtures/compiler_purity`; compiler-skeleton functional case from source and bytecode | **Covered** for pure recursion, constructors and built-ins, direct and nested impure calls, user-function effects, guarded-type predicates, and calls across an already-loaded module graph. 11 native assertions preserve all former direct purity contracts, requiring `ok` for success and the original diagnostic substrings on failure. All ten differential source cases still compare complete-frontend acceptance on the Python VM with the bootstrap checker, sharing their source fixtures with the native assertions. |
+| Panackelty-hosted bytecode emitter | `runner/compiler_contracts_unit.panack` | **Covered** differentially against the bootstrap emitter for constants, calls, branches, short-circuiting, loops, arrays, indexing, records, variants, matches, interpolation, exact decimals, escaped strings, and deterministic temporary/jump allocation. Binary artifact tooling remains the next backend layer. |
+| Panackelty-hosted bytecode tooling | `runner/bytecode_unit.panack`, `runner/bytecode_native_unit.panack`, `unit/vm/native_modules.c`, `runner/bytecode_unit.panack`; portable vectors in `tests/fixtures/bytecode` | **Covered** differentially for byte-identical version-8 serialization, canonical function ordering, direct and indirect calls, the complete instruction mix, scalar constants, exact numerics, records, variants, matches, and control flow. The bounded decoder, verifier, disassembler, and reserializer reject portable malformed vectors plus invalid UTF-8, flags, ordering, constants, calls, arities, and purity edges. |
+| Panackelty-hosted project loader and CLI | `runner/compiler_integration_unit.panack`; `runner/compiler_driver.panack`; `native_conformance.sh` | **Covered** for source and bytecode `check`, `compile`, `run`, and `disasm`, bare-path execution, file-relative, project-root, and toolchain-standard-library imports, canonical load-once identity, installed resource discovery, invalid logical paths, canonical output, missing modules, cycles, byte-identical differential artifacts, and execution through the public native command. |
+| Standard library and host ABI | `native_oracle_contracts.sh`; `runner/host_runtime_unit.panack`; `functional/cases/stdlib`; `functional/cases/cli_environment_files`; `make bootstrap-check` | **Covered** for the complete prelude module graph, canonical option/result use, collection/text/byte/path APIs, checked environment access, inherited and explicit VM argument snapshots, bootstrap-stage byte-identical compilation, and source/compiled execution. |
 | Testing library assertions and reporting | `runner/host_runtime_unit.panack`; `functional/cases/testing_library` | **Partial** — empty, mixed, and failed assertions cover structured results, caller order, summary, and returned failure count in direct native probes and public source/bytecode CLI tests. The former Python wrapper methods are retired; expand malformed-report presentation cases as needed. |
 | Testing fixture discovery and isolation | `runner/host_runtime_unit.panack`; `functional/cases/testing_fixtures` | **Partial** — missing-root errors, sorted directory filtering, explicitly owned temporary creation, nonempty cleanup failure, and successful explicit cleanup run through native direct checks and public source/bytecode CLI. Add metadata-race and non-UTF-8 fixture conformance cases. |
 | Testing command assertions | `runner/host_runtime_unit.panack`; `functional/cases/testing_commands` | **Covered** for exit/signal and byte-stream comparison failures, host-error conversion, successful nonzero exit, expected launch and output-limit failures, and unexpected completion through direct native and public source/bytecode CLI tests. Expand timeout and invalid-UTF-8 cases with the wider host conformance backlog. |
 | Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/compiler/test_panackelty_runner.py` | **Covered** — twenty-five selected success fixtures and twenty example programs run source, compile, and bytecode with byte-exact streams/status; forty-one failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; six also check run/disasm. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The functional recipe captures one complete runner report and checks its exact bytes from both smoke modes; standalone smoke still runs the full runner. All twenty former Python functional methods have replacement evidence, mapped in `tests/PYTHON_MIGRATION.md`. |
-| Native C11 seed VM | `unit/vm/test_native_loader.py`; `unit/vm/test_native_execution.py`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
+| Native C11 seed VM | `runner/vm_unit.panack`; `native_oracle_contracts.sh`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
 | Reproducible native distribution | `unit/compiler/test_bootstrap.py`; `make bootstrap-check`; `unit/test_native_distribution.py`; `unit/test_layout.py`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, Python-free conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and one canonical full-suite invocation. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
 | Public bug reporting | `.github/ISSUE_TEMPLATE/bug_report.yml`; `unit/test_layout.py`; `CONTRIBUTING.md` | **Covered** by a required GitHub issue form for version, platform, minimal source, command, expected behavior, actual output, and saved-bytecode behavior; blank issues are disabled and security reports are redirected to the private channel. |
 | Public project website | `site/index.html`; `.github/workflows/pages.yml`; `unit/test_layout.py` | **Covered** by a dependency-free responsive static site whose workflow validates the exact published file set on pull requests and limits Pages deployment permissions to post-merge runs from protected `main`. |
@@ -112,8 +112,8 @@ Status meanings:
 | Source executes only through bytecode and VM | Functional harness runs every program from source and compiled bytecode | **Covered** at the public CLI boundary. |
 | Entry point and isolated call frames | Recursive Euler and memoized-Fibonacci functional examples; helper programs; `functional/failures/missing_main` and `main_parameters` | **Partial** — missing and parameterized `main` reach the public CLI; add recursion-depth and frame-isolation failures. |
 | Bytecode header, version, and serialization | `runner/bytecode_unit.panack`, `runner/bytecode_native_unit.panack`, shared portable vectors and codec goldens, and compiled functional programs | **Covered** for the compact version-8 binary layout, header, version, truncation, trailing data, function records, opcodes, tagged scalar values, minimal numeric encodings, canonical function ordering, repeated-compilation identity, byte-identical load/reserialize round trips, and implementation-neutral golden artifacts. |
-| Verification of emitted and untrusted bytecode | direct C `unit/vm/native_modules.c` verifier tests, native/Panackelty malformed-vector probes, and retained Python-only source-build hook and limit oracles | **Covered** for compiler output entering the VM, documented structural rejection rules, portable malformed artifacts, pre-decode artifact size, and versioned count, text, numeric, and collection limits. Static stack-shape validation remains a hardening gap. |
-| Frozen bytecode execution contract | `runner/vm_unit.panack`; `fixtures/vm_contracts`; `unit/vm/test_vm_oracle.py`; native C and runtime suites | **Covered** for operand order, isolated frames, direct/indirect calls, dynamic callable validation, return delivery, conditional stack effects, typed collection methods, Unicode reversal, and matching Python/native traps for forged failures. Every version-8 instruction and value rule is specified in `src/bytecode/FORMAT.md`. |
+| Verification of emitted and untrusted bytecode | direct C `unit/vm/native_modules.c` verifier tests, native/Panackelty malformed-vector probes, and retained bootstrap-only source-build hook and limit safeguards | **Covered** for compiler output entering the VM, documented structural rejection rules, portable malformed artifacts, pre-decode artifact size, and versioned count, text, numeric, and collection limits. Static stack-shape validation remains a hardening gap. |
+| Frozen bytecode execution contract | `runner/vm_unit.panack`; `fixtures/vm_contracts`; `unit/vm/native_modules.c`; native C and runtime suites | **Covered** for operand order, isolated frames, direct/indirect calls, dynamic callable validation, return delivery, conditional stack effects, typed collection methods, Unicode reversal, and fixed native traps for forged failures. Every version-8 instruction and value rule is specified in `src/bytecode/FORMAT.md`. |
 | `run` source, `compile`, and `run` bytecode | Functional harness | **Covered** with exact stdout assertions over all discovered programs. |
 | Bare-path run shorthand | `functional/cases/cli_commands` | **Covered** for source and bytecode input. |
 | Compiler diagnostic excerpts | `fixtures/compiler_contracts/diagnostics`; positioned failure fixtures; CLI display edge cases; release archive smoke | **Covered** for source snapshots, imported errors, line/caret output, tabs, Unicode/control escapes, CRLF, EOF, empty lines, missing-source/invalid-position fallback, and all four source commands. |
@@ -122,16 +122,16 @@ Status meanings:
 
 ## Generic source functions
 
-`unit/compiler/test_generic_functions.py` checks both frontends for inference,
+`runner/compiler_contracts_unit.panack` checks fixed expectations for inference,
 explicit type arguments, lexical type scope, nested and guarded types, empty
 collection evidence, argument-order independence, recursion, callable parameters,
 invalid declarations, conflicting evidence, unresolved types, unused invalid
 bodies, and purity. Parser round trips preserve type lists and indexing. Emitter
-checks compare both compilers' disassembly and require one erased function body.
+checks compare fixed independent disassembly and require one erased function body.
 
 The `generic_functions` example exercises imported Option/Result/array helpers
 through source and bytecode execution, and the native VM suite compares it with
-the Python oracle. Functional failure fixtures cover ambiguous inference,
+fixed independently reviewed output. Functional failure fixtures cover ambiguous inference,
 conflicting types, explicit type arity, abstract arithmetic, purity, and generic
 main rejection. Bootstrap validation includes the generic standard-library
 helpers in its stage-2/stage-3 compiler and library identity checks.
@@ -187,7 +187,7 @@ language behavior.
 
 `compiler/test_rational_unit.py` checks both frontends for inference, generic
 payloads, callbacks, conversions, and invalid type combinations.
-`runner/vm_unit.panack` and the retained numeric oracles cover normalization,
+`runner/vm_unit.panack` and fixed numeric expectations cover normalization,
 large integers, signed arithmetic, exact conversion failures, zero divisors,
 and Unit behavior; seeded rational arithmetic is checked against `Fraction`.
 `functional/cases/rational_unit` runs through source and compiled public CLI
@@ -199,10 +199,10 @@ Rounded decimal conversion and Rat/Unit guarded-type bases remain unsupported.
 
 ## Path, Duration, and Instant evidence
 
-`unit/compiler/test_host_types.py` compares both frontends for opaque value
+`runner/compiler_contracts_unit.panack` checks fixed expectations for opaque value
 use, generic storage, forbidden constructors/fields, wrong arguments, reserved
 names, and pure-clock rejection. `runner/host_runtime_unit.panack` exercises native path spellings and verifier purity.
-`unit/vm/test_host_types.py` retains only its independent Python VM oracle.
+Fixed host conformance output also runs in `native_oracle_contracts.sh`.
 `unit/vm/native_faults.c` injects the native clock failure and asserts the
 structured `ClockUnavailable` result.
 The shared forged-runtime corpus rejects wrong operand tags and records forged
@@ -234,7 +234,7 @@ suspension remain outside this focused coverage.
 ## Native VM module and memory contracts
 
 `tests/native_headers.sh` compiles every native header independently
-and twice to check self-containment and guards. The retained Python module oracle compares every builtin's
+and twice to check self-containment and guards. Fixed independent signatures compare every builtin's
 arity and purity with the native registry while requiring a non-null handler.
 Its direct C harness, `native_modules.c`, exercises copied byte/name ownership,
 retained collection children, exact arithmetic without operand mutation, Unicode
@@ -260,8 +260,9 @@ Wrappers track VM allocations and selected descriptors, not libc internals.
 A valid artifact containing all 22 opcodes and all six constant forms supplies
 every truncation, eight bit flips and six boundary substitutions per byte;
 mutated code is decoded/verified/released, never executed. Seeded arithmetic
-properties compare signed limb boundaries and 100-digit operands with Python
-integers, and decimal scales through +/-4096 with exact fractions. Persistent
+vectors compare signed limb boundaries and 100-digit operands with independent
+integer expectations, and decimal scales through +/-4096 with frozen exact
+fraction results; no live Python calculation remains. Persistent
 array versions share children across nonsequential release. Exact-output checks
 and `functional/cases/vm_numeric_boundaries` cover quotient formatting and large
 numeric boundaries through both runtimes and the public CLI.
@@ -281,19 +282,20 @@ exercised paths, not proof of all memory safety.
 
 Direct compiler coverage migration is complete. The contract and integration
 probes provide 201 and 51 assertions respectively; the fixture README maps every
-remaining original compiler method and identifies retained differential evidence.
+remaining original compiler method and maps retired differential evidence to fixed expectations.
 Void-valued call arguments (including nested print) are rejected in the current
 self-hosted checker and refreshed seed; command regression checks preserve all
 four rejection paths and ensure failed compilation creates no artifact.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 153 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The shared Python VM observations and seeded arithmetic properties remain oracle
-evidence until the oracle-replacement milestone; host/runtime migration is next.
+The 61 former Python VM observations use fixed native contracts, including 21
+per-artifact C return-kind assertions. Fixed independent arithmetic expectations
+and builtin signatures run in `make native-oracle-contracts`.
 
 Direct host, runtime and standard-library assertions run in
 `tests/runner/host_runtime_unit.panack` with reviewed source and malformed
@@ -301,6 +303,15 @@ bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
 The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
-former methods: 31 retired with native evidence and six retained as independent
-Python differential oracles. Functional source and bytecode cases still verify
+former methods: 31 migrated to direct native evidence and the final six replaced
+by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+## Differential oracle retirement
+
+Live compiler/VM comparisons are replaced by fixed native expectations, 1,800
+integer and 422 decimal observations, 96 exact rational results, 82 builtin
+signatures, five artifact goldens and compiler/library bootstrap identity.
+All 21 successful shared VM artifacts also assert Void return kind in C.
+The full case mapping and retained bootstrap-only exceptions are in
+[ORACLE_REPLACEMENT.md](ORACLE_REPLACEMENT.md).

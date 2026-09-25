@@ -45,7 +45,7 @@ boundaries, decimal/range ambiguity, every invalid character and position,
 both unterminated-string variants, half-open offsets, and semicolon insertion
 at line breaks. It asserts on the lexer result before the public CLI's parser
 and type checker can affect the result. Remaining compiler unit files and
-Python differential checks still run; lexer, parser, and resolver are completed portions
+Python differential checks still run; lexer, parser, resolver, and direct checker assertions are completed portions
 of the compiler unit step, not its completion gate.
 
 `tests/runner/compiler_parser_unit.panack` replaces all 38 methods from
@@ -137,6 +137,43 @@ labels `resolver/<group>/<ordinal>`; all comparisons preserve exact strings.
 | `resolves_top_level_callables_builtins_and_local_names` | 1 |
 | `visits_a_diamond_dependency_only_once` | 1 |
 | **Total** | **26** |
+
+`tests/runner/compiler_checker_unit.panack` owns the direct contracts from
+all 12 original methods of `test_self_hosted_checker.py`: 31 source cases and
+three module-graph cases. The sources live in `tests/fixtures/compiler_checker`
+and are read unchanged by both native assertions and the retained Python
+oracle. Each fixture name is `<group>-<ordinal>` from the table below. Module
+graphs retain their exact ordered sources and entry names in the native probe.
+The migration audit compares every source, expected substring, and module graph
+against the original expanded methods.
+
+Success now explicitly requires `ok`. Failure checks preserve the original
+substring expectations, including the positioned imported-module diagnostic,
+and explicitly reject `ok`. The Python test retains **all 31** original
+Python-VM-self-hosted-versus-bootstrap acceptance comparisons, compiled once
+per class. It no longer owns the direct diagnostic or module assertions.
+This deliberate overlap preserves the differential oracle until its separate
+removal gate; it is not a claim that Python checker coverage has been removed.
+Source and saved-bytecode reports match, an incorrect expectation fails, and
+missing fixture files fail execution. Both unit and compiler targets require
+the native probe. The fixture README describes how to keep the shared corpus
+and both runners synchronized.
+
+| Checker group | Source cases (also oracle) | Native module cases |
+| --- | ---: | ---: |
+| `accepts_core_types_records_enums_and_control_flow` | 1 | 0 |
+| `accepts_if_without_else_in_void_position` | 1 | 0 |
+| `checks_callable_values_and_functional_array_methods` | 2 | 0 |
+| `checks_calls_fields_and_constructor_inference` | 3 | 0 |
+| `checks_guarded_literals_and_control_flow_facts` | 4 | 0 |
+| `checks_match_exhaustiveness_payloads_and_branch_types` | 4 | 0 |
+| `checks_method_calls_as_receiver_first_calls` | 4 | 0 |
+| `checks_mutability_and_entry_point` | 3 | 0 |
+| `checks_operators_arrays_indexing_and_loops` | 4 | 0 |
+| `checks_persistent_collections_and_builtin_arguments` | 2 | 0 |
+| `checks_type_references_and_function_returns` | 3 | 0 |
+| `checks_types_across_loaded_modules` | 0 | 3 |
+| **Total** | **31** | **3** |
 
 The functional runner is `tests/runner/main.panack`. `make functional` runs it,
 the compiler-driver check, and the runner smoke case from source and saved

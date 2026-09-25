@@ -228,8 +228,9 @@ Python functional methods have been retired; unit and oracle migration remains.
 The direct lexer, parser, and resolver unit contracts now run in Panackelty and their
 former Python test files have been retired. The parser retains all 192 expanded
 assertions from its 38 former methods; the resolver retains all 26 expanded
-assertions from 12 former methods. Other compiler unit and differential checks
-remain.
+assertions from 12 former methods. The type checker now has 34 native direct
+contracts; its Python test retains 31 differential comparisons using shared
+source fixtures. Other compiler unit and differential checks remain.
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
 and requires behavior parity before any transitional Python tests are retired.

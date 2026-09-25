@@ -1,0 +1,1 @@
+record Pair { left: Nat, right: Nat } main(): Void { pair: Pair = Pair(1, 2); print(pair.missing); }

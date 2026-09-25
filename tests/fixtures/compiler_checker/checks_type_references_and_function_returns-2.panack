@@ -1,0 +1,1 @@
+pure bad(): Nat { true } main(): Void {}

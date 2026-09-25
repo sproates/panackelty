@@ -1,0 +1,1 @@
+record Pair { left: Nat, right: Nat } main(): Void { print(Pair(1)); }

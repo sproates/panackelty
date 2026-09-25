@@ -1,0 +1,1 @@
+main(): Void { value: Nat = "bad" + 1; }

@@ -1,0 +1,1 @@
+enum Option[T] { None, Some(T) } main(): Void { value: Option[Nat] = Some(1); print(value); }

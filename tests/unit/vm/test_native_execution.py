@@ -7,15 +7,13 @@ import random
 from fractions import Fraction
 from pathlib import Path
 
-from panackelty import Code, build, bytecode_bytes
+from panackelty import build, bytecode_bytes
 from tests.unit.file_io_cases import (
     nul_path_source,
     read_source,
     round_trip_source,
     write_source,
 )
-from tests.unit.forged_runtime import FORGED_DYNAMIC_FAILURES
-from tests.unit.rational_cases import RATIONAL_FAILURES, rational_failure_source
 
 
 PROJECT = Path(__file__).resolve().parents[3]
@@ -87,62 +85,6 @@ class NativeExecutionTests(unittest.TestCase):
                 self.assertEqual(result.stdout, expected)
                 self.assertEqual(result.stderr, "")
 
-    def test_string_index_and_slice_boundaries_still_trap(self):
-        for index, expression in enumerate((
-            '""[0]', '"abc"[3]', '"λ中🙂"[3]',
-            '"abc"[999999999999999999999999999999]',
-            'slice("abc", 2, 1)', 'slice("abc", 0, 4)',
-            'slice("λ中🙂", 0, 4)', 'slice("", 0, 1)',
-        )):
-            with self.subTest(expression=expression):
-                result = self.run_source(
-                    f"main(): Void {{ print({expression}); }}", f"string-bound-{index}"
-                )
-                self.assertNotEqual(result.returncode, 0)
-                self.assertEqual(result.stdout, "")
-                self.assertIn("VM trap:", result.stderr)
-
-    def test_native_vm_matches_numeric_and_trap_semantics(self):
-        long_decimal = "1234567890" * 15 + ".0"
-        scaled_decimal = str(int("1234567890" * 15) * 9) + ".00"
-        cases = (
-            (
-                "main(): Void { print(999999999999999999999999999999 * 9); }",
-                "8999999999999999999999999999991\n",
-            ),
-            (
-                "main(): Void { mut n: Nat = 30; mut p: Nat = 1; "
-                "while n > 0 { p = p * n; n = n - 1; } print(p); }",
-                "265252859812191058636308480000000\n",
-            ),
-            (
-                "main(): Void { print(0.1 + 0.2); print(1.0 / 8.0); }",
-                "0.3\n0.125\n",
-            ),
-            (
-                "main(): Void { print(-7 / 3); print(-7 % 3); print(7 % -3); "
-                "print(1.0 == 1.00); print(is_letter(\"λ\")); }",
-                "-7/3\n2\n-2\ntrue\nfalse\n",
-            ),
-            (
-                f"main(): Void {{ print({long_decimal} * 9.0); }}",
-                scaled_decimal + "\n",
-            ),
-        )
-        root = Path(self.temporary.name)
-        for index, (source_text, expected) in enumerate(cases):
-            with self.subTest(source=source_text):
-                source = root / f"numeric-{index}.panack"
-                artifact = root / f"numeric-{index}.bc"
-                source.write_text(source_text, encoding="utf-8")
-                artifact.write_bytes(bytecode_bytes(build(source)))
-                result = subprocess.run(
-                    [str(self.executable), "run", str(artifact)],
-                    capture_output=True,
-                    text=True,
-                )
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertEqual(result.stdout, expected)
 
     def test_rational_arithmetic_matches_fraction_oracle(self):
         randomizer = random.Random(812)
@@ -159,13 +101,6 @@ class NativeExecutionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "\n".join(expected) + "\n")
 
-    def test_rational_conversion_and_zero_failures(self):
-        for index, (expression, message) in enumerate(RATIONAL_FAILURES):
-            with self.subTest(expression=expression):
-                result = self.run_source(rational_failure_source(expression), f"rat-failure-{index}")
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(message, result.stderr)
-                self.assertEqual(result.stdout, "")
 
     def test_native_vm_runs_the_self_hosted_compiler(self):
         root = Path(self.temporary.name)
@@ -290,98 +225,6 @@ class NativeExecutionTests(unittest.TestCase):
                     self.assertIn("I/O error:", result.stderr)
         finally:
             denied.chmod(0o600)
-
-    def test_native_vm_traps_on_forged_dynamic_failures(self):
-        root = Path(self.temporary.name)
-        for index, (name, instructions, messages) in enumerate(
-            FORGED_DYNAMIC_FAILURES
-        ):
-            with self.subTest(case=name):
-                artifact = root / f"trap-{index}.bc"
-                artifact.write_bytes(
-                    bytecode_bytes({"main": Code("main", [], instructions)})
-                )
-                result = subprocess.run(
-                    [str(self.executable), "run", str(artifact)],
-                    capture_output=True,
-                    text=True,
-                )
-                self.assertEqual(result.returncode, 1)
-                self.assertIn("VM trap:", result.stderr)
-                for message in messages:
-                    self.assertIn(message, result.stderr)
-
-        invalid_operand = root / "trap-invalid-operand.bc"
-        invalid_operand.write_bytes(
-            bytecode_bytes(
-                {
-                    "main": Code(
-                        "main",
-                        [],
-                        [
-                            ("CONST", ("Nat", 1)),
-                            ("CALL", ("len", 1)),
-                            ("RETURN", None),
-                        ],
-                    )
-                }
-            )
-        )
-        result = subprocess.run(
-            [str(self.executable), "run", str(invalid_operand)],
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("len requires", result.stderr)
-
-        source = root / "nonterminating.panack"
-        artifact = root / "nonterminating.bc"
-        source.write_text(
-            "pure divide(a: Dec, b: Dec): Dec { a / b } "
-            "main(): Void { print(divide(1.0, 3.0)); }",
-            encoding="utf-8",
-        )
-        artifact.write_bytes(bytecode_bytes(build(source)))
-        result = subprocess.run(
-            [str(self.executable), "run", str(artifact)],
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("non-terminating decimal division", result.stderr)
-
-    def test_native_vm_rechecks_indirect_call_purity(self):
-        root = Path(self.temporary.name)
-        artifact = root / "indirect-purity.bc"
-        artifact.write_bytes(
-            bytecode_bytes(
-                {
-                    "main": Code(
-                        "main",
-                        [],
-                        [
-                            ("CONST", ("Str", "effect")),
-                            ("CALL_VALUE", 0),
-                            ("RETURN", None),
-                        ],
-                        pure=True,
-                    ),
-                    "effect": Code(
-                        "effect",
-                        [],
-                        [("CONST", ("Void", None)), ("RETURN", None)],
-                    ),
-                }
-            )
-        )
-        result = subprocess.run(
-            [str(self.executable), "run", str(artifact)],
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(result.returncode, 1)
-        self.assertIn("pure function invokes impure callable", result.stderr)
 
 
 if __name__ == "__main__":

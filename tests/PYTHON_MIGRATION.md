@@ -23,7 +23,7 @@ and the discovered programs exercise substantially more observations.
 | `tests/unit/compiler/` | Focused Panackelty compiler probes and public-CLI contract fixtures | Lexer, parser, resolver, checker, purity, emitter, loader, driver, diagnostics, generics, type and host boundary failures; deterministic artifacts and bootstrap-stage parity. Do not replace precise negative assertions with only success programs. |
 | `tests/unit/bytecode/` and `tests/fixtures/bytecode/` | Portable golden bytecode and malformed vectors, native verifier/decoder tests, and Panackelty-hosted codec assertions | Versioned encoding, canonical round trips, verifier rejection, resource bounds, forged unsafe states, exact error categories, and repeated-compilation identity. |
 | `tests/unit/vm/` and `tests/unit/vm/*.c` | Direct C module/fault/sanitizer tests plus black-box Panackelty programs on the native VM | Stack/frame/value ownership, exact numeric semantics, collection and host operations, allocation/syscall injection and cleanup, runtime traps, and native coverage. Keep the C tests; replace their Python launch/assert wrappers. |
-| `tests/unit/{support,file_io_cases,forged_runtime,rational_cases}.py` | Portable declarative inputs and expected results, shared by the relevant native and Panackelty tests | Generated source and forged bytecode cases must be inventoried individually before replacing them; preserve boundary values, failure categories, and binary data rather than counting files. |
+| `tests/unit/{support,file_io_cases,rational_cases}.py` | Portable declarative inputs and expected results, shared by the relevant native and Panackelty tests | Generated source and forged bytecode cases must be inventoried individually before replacing them; preserve boundary values, failure categories, and binary data rather than counting files. |
 | `tests/unit/test_{layout,native_distribution,validation}.py` | POSIX packaging/CI contract checks and Panackelty-hosted assertions where appropriate | Exact archive contents and checksums, relocation and paths with spaces, CI safety triggers, clean build flags, timing warnings, and quick-start output. Keep exact-artifact shell gates independent of the source tree. |
 | `panackelty.py`, `src/bootstrap/panackelty.py`, `make regenerate-seed` | Checked native/self-hosted cross-checks, portable golden artifacts, fixed-point bootstrap, and a documented staged seed refresh | Python compiler/VM differential accept/reject and trap evidence, seed integrity, stage-2/stage-3 byte identity, and a reviewable seed digest. |
 
@@ -373,6 +373,26 @@ build-hook instrumentation and CLI hash-seed launch check are mapped to the
 later oracle, VM and harness milestones. These retained methods stay active;
 none is credited as removed Python. The bytecode format and language semantics
 are unchanged, and the version-8 seed was not refreshed in this step.
+
+## Direct VM unit migration — complete
+
+
+Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 153 assertions
+include native module, bigint and allocation-failure wrappers; header isolation
+runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
+and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
+The shared Python VM observations and seeded arithmetic properties remain oracle
+evidence until the oracle-replacement milestone; host/runtime migration is next.
+
+The [case inventory](fixtures/vm_contracts/README.md) maps all 36 retired direct
+methods to 145 expanded native cases and seven native wrapper methods to their
+Panackelty/shell replacements. The 61 Python VM observations remain active on
+those same fixtures, preserving Python diagnostics and value types. Native C
+module/fault tests remain intact; native BigInt source is now a tracked C test.
+Source compilation is still covered by the functional corpus. Retained registry,
+seeded numeric and bootstrap-artifact comparisons belong to the oracle milestone;
+remaining host/runtime/stdlib tests belong to the next milestone.
 
 ## Migration order and removal gates
 

@@ -85,6 +85,7 @@ check-vm: native native-module-build native-fault-build
 	@$(TIMED) check-vm $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-vm-impl
 
 check-vm-impl:
+	@$(MAKE) --no-print-directory native-vm-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit/vm -t . -p 'test_*.py' -q
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --case cli_environment_files
@@ -93,6 +94,7 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
+	@$(MAKE) --no-print-directory native-vm-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
 	@./panack run tests/runner/bytecode_unit.panack
 	@./panack run tests/runner/bytecode_native_unit.panack
@@ -171,12 +173,22 @@ $(BUILD_DIR)/vm/panack-vm: $(VM_OBJECTS)
 native-unit: $(BUILD_DIR)/vm/test_modules
 	UBSAN_OPTIONS=halt_on_error=1 "$(abspath $(BUILD_DIR)/vm/test_modules)"
 
+export PANACK_NATIVE_BIGINT_TEST := $(abspath $(BUILD_DIR)/vm/test_bigint)
+$(BUILD_DIR)/vm/test_bigint: tests/unit/vm/native_bigint.c $(BUILD_DIR)/vm/bigint.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(BUILD_DIR)/vm/bigint.o -o $@ $(LDLIBS)
+
+.PHONY: native-vm-contracts
+native-vm-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build native-fault-build $(BUILD_DIR)/vm/test_bigint
+	@CC="$(CC)" sh tests/native_headers.sh
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" "$(abspath $(BUILD_DIR)/vm/panack-vm)" run "$(SEED_COMPILER)" run tests/runner/vm_unit.panack
+
 # Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
 native-sanitize:
 	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-check
 
-native-instrumented-check: native-unit native-fault $(BUILD_DIR)/vm/panack-vm
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(PYTHON) -B -m unittest -q tests.unit.vm.test_native_loader tests.unit.vm.test_native_execution tests.unit.vm.test_native_modules tests.unit.vm.test_native_faults
+native-instrumented-check: $(BUILD_DIR)/vm/panack-vm
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-vm-contracts
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(PYTHON) -B -m unittest -q tests.unit.vm.test_native_loader tests.unit.vm.test_native_execution tests.unit.vm.test_native_modules
 
 # LLVM branch coverage uses the same native corpus in a separate build tree.
 LLVM_CC ?= clang
@@ -189,9 +201,9 @@ native-coverage:
 	@rm -f build/coverage/*.profraw
 	LLVM_PROFILE_FILE="$(abspath build/coverage)/%p.profraw" $(MAKE) CC="$(LLVM_CC)" BUILD_DIR=build/coverage CFLAGS="-O1 -g -fprofile-instr-generate -fcoverage-mapping" LDFLAGS="-fprofile-instr-generate" native-instrumented-check
 	"$(LLVM_PROFDATA)" merge -sparse build/coverage/*.profraw -o build/coverage/coverage.profdata
-	"$(LLVM_COV)" report build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -instr-profile=build/coverage/coverage.profdata src/vm > build/coverage/summary.txt
+	"$(LLVM_COV)" report build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -object build/coverage/vm/test_bigint -instr-profile=build/coverage/coverage.profdata src/vm > build/coverage/summary.txt
 	@cat build/coverage/summary.txt
-	"$(LLVM_COV)" show build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -instr-profile=build/coverage/coverage.profdata -show-branches=count -format=html -output-dir=build/coverage/html src/vm
+	"$(LLVM_COV)" show build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -object build/coverage/vm/test_bigint -instr-profile=build/coverage/coverage.profdata -show-branches=count -format=html -output-dir=build/coverage/html src/vm
 
 -include $(VM_OBJECTS:.o=.d)
 

@@ -824,8 +824,9 @@ installed.
       probes add 201 direct and 51 integration assertions. Bytecode and verifier
       wire coverage now runs in two Panackelty probes and direct C verifier
       checks. Python-only in-memory object and adjustable-limit checks remain
-      until the oracle replacement. VM, runtime and standard-library coverage
-      remain in this combined item.
+      until the oracle replacement. Direct VM execution and loader coverage now runs in 153 Panackelty
+      assertions plus native C/header contracts. Runtime and standard-library
+      coverage remain in this combined item.
       Python differential compiler evidence remains until the oracle milestone;
       the exact retained-case and ownership audit is in `tests/PYTHON_MIGRATION.md`.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
@@ -868,6 +869,11 @@ seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
 Profile the remaining Python unit harness and native build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
+The VM milestone adds portable execution/loader and native-wrapper probes.
+Its local focused `make check-vm` passed in 48 seconds against the 15-second
+budget, including the retained host and differential Python tests.
+Keep their process-launch and fixture-decoding costs in the same prioritized
+unit-budget investigation; the 120/15-second targets are unchanged.
 The bytecode milestone adds two portable codec/native command probes; a local
 focused check took 19 seconds against its 15-second warning budget. Profile
 fixture decoding, redundant process launches and retained Python oracle work

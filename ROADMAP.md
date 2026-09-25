@@ -818,8 +818,8 @@ installed.
       recorded in `tests/PYTHON_MIGRATION.md`; the old checks remain active
 - [ ] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
-      The direct lexer and parser unit assertions have moved to
-      `tests/runner/compiler_{lexer,parser}_unit.panack`; resolver, checker,
+      The direct lexer, parser, and resolver unit assertions have moved to
+      `tests/runner/compiler_{lexer,parser,resolver}_unit.panack`; checker,
       purity, emitter, loader, diagnostics, generics, type, and host boundary
       unit assertions are still in the compiler migration queue.
 - [x] Port functional-test discovery, subprocess orchestration, environment and
@@ -848,12 +848,21 @@ installed.
 
 ## Keep validation within development budgets — in progress
 
+The resolver migration exposed the compiler fixture's 20-second subprocess
+limit on this environment: unchanged compiler source execution succeeded in
+21.8 seconds when measured separately, while the first full run failed its
+source and compile commands. These two compiler-building commands now use the
+existing compiler-driver build allowance of 90 seconds; ordinary fixture
+commands and phase warning budgets are unchanged. The failed run took 183
+seconds overall (unit 171). Profile compiler self-compilation as part of the
+prioritized timing work; increasing a command allowance is not a speed fix.
+
 The September 2026 clean local check after the lexer unit migration took 125
 seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
 Profile the remaining Python unit harness and native build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
-The unit timer now includes the Panackelty lexer and parser probes as well as
+The unit timer now includes the Panackelty lexer, parser, and resolver probes as well as
 the remaining Python tests. Keep their compilation and execution cost visible
 when profiling the existing unit-budget warning.
 

@@ -533,11 +533,14 @@ versa. `make functional` runs it with the self-hosted compiler driver check
 and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
 itself. Each owns an isolated workspace and reports cleanup failure. Python
-unit tests remain active. The direct lexer and parser contracts run in
-`runner/compiler_lexer_unit.panack` and `runner/compiler_parser_unit.panack`
+unit tests remain active. The direct lexer, parser, and resolver contracts run in
+`runner/compiler_lexer_unit.panack`, `runner/compiler_parser_unit.panack`,
+and `runner/compiler_resolver_unit.panack`
 under `make unit` and `make check-compiler`. The parser imports the real compiler
 module and checks 192 fixed syntax/diagnostic expectations across four entry
-points. The unit timer includes both languages' assertions;
+points. The resolver checks 26 fixed expectations for lexical names and
+already-loaded module graphs, including precise imported-module diagnostics.
+The unit timer includes both languages' assertions;
 remaining compiler unit and differential checks continue during migration.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.

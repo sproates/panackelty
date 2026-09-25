@@ -225,10 +225,11 @@ also checks six `run`/`disasm` failure pairs, rational traps, exact displayed
 diagnostics, environment and file I/O, and a stage-two compiler driver
 comparison. `runner_smoke` runs from both source and saved bytecode. The
 Python functional methods have been retired; unit and oracle migration remains.
-The direct lexer and parser unit contracts now run in Panackelty and their
+The direct lexer, parser, and resolver unit contracts now run in Panackelty and their
 former Python test files have been retired. The parser retains all 192 expanded
-assertions from its 38 former methods. Other compiler unit and differential
-checks remain.
+assertions from its 38 former methods; the resolver retains all 26 expanded
+assertions from 12 former methods. Other compiler unit and differential checks
+remain.
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
 and requires behavior parity before any transitional Python tests are retired.

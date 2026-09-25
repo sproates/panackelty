@@ -140,6 +140,28 @@ package-manager installation, repository-wide Python removal, generic functions,
 new automation APIs, complete diagnostic rendering, or a backwards-compatibility
 guarantee. Those remain independent follow-up initiatives.
 
+## Interactive REPL — planned
+
+Add a read-evaluate-print loop for exploring Panackelty expressions, trying
+standard-library APIs and learning the language without creating a source file
+for every experiment. Schedule this after Python removal and the immediate
+validation-speed work; it must not introduce a Python dependency.
+
+- [ ] Specify the entry command (for example `panack repl`), expression result
+      display, multiline input and incomplete-input detection
+- [ ] Define session semantics for bindings, functions, imports, mutation and
+      redefinition, including what state survives compilation or runtime errors
+- [ ] Compile interactive input to bytecode and execute it through the existing
+      native VM, preserving exact numerics, static checks and purity/effect
+      boundaries; do not introduce a separate evaluation engine
+- [ ] Provide useful diagnostics and session commands for help, reset and exit;
+      define interrupt, EOF, history and noninteractive-input behavior
+- [ ] Add transcript and failure-recovery tests covering state across inputs,
+      multiline definitions, imports, type/purity errors, runtime traps and
+      interruption on both supported platforms
+- [ ] Document the workflow and ship the REPL in the standalone toolchain,
+      with packaging and release smoke coverage
+
 ## Language direction and differentiation — exploration
 
 Panackelty should combine strong static guarantees with a low-friction programming

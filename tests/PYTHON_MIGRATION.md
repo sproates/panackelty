@@ -5,7 +5,7 @@ The downloadable compiler, native VM, package, and release smoke path already
 run without it. Functional and direct unit contracts now use Panackelty/C.
 Live Python differential oracles are retired; fixed expectations, native checks
 and bootstrap proofs replace them. Seed regeneration now uses verified native
-stages. Python bootstrap/build/harness safeguards remain. See
+stages. Only 21 Python implementation safeguards remain; the development harness is native. See
 [oracle retirement](ORACLE_REPLACEMENT.md).
 
 ## Baseline and ownership (September 2026)
@@ -26,7 +26,7 @@ and the discovered programs exercise substantially more observations.
 | `tests/unit/bytecode/` and `tests/fixtures/bytecode/` | Portable golden bytecode and malformed vectors, native verifier/decoder tests, and Panackelty-hosted codec assertions | Versioned encoding, canonical round trips, verifier rejection, resource bounds, forged unsafe states, exact error categories, and repeated-compilation identity. |
 | `tests/unit/vm/` and `tests/unit/vm/*.c` | Direct C module/fault/sanitizer tests plus black-box Panackelty programs on the native VM | Stack/frame/value ownership, exact numeric semantics, collection and host operations, allocation/syscall injection and cleanup, runtime traps, and native coverage. Keep the C tests; replace their Python launch/assert wrappers. |
 | `tests/unit/support.py` | Portable declarative inputs and expected results, shared by the relevant native and Panackelty tests | Generated source and forged bytecode cases must be inventoried individually before replacing them; preserve boundary values, failure categories, and binary data rather than counting files. |
-| `tests/unit/test_{layout,native_distribution,validation}.py` | POSIX packaging/CI contract checks and Panackelty-hosted assertions where appropriate | Exact archive contents and checksums, relocation and paths with spaces, CI safety triggers, clean build flags, timing warnings, and quick-start output. Keep exact-artifact shell gates independent of the source tree. |
+| `tests/unit/harness/{layout,distribution,validation}.sh` | POSIX packaging/CI contract checks and Panackelty-hosted assertions where appropriate | Exact archive contents and checksums, relocation and paths with spaces, CI safety triggers, clean build flags, timing warnings, and quick-start output. Keep exact-artifact shell gates independent of the source tree. |
 | `panackelty.py`, `src/bootstrap/panackelty.py`, `make regenerate-seed` | Checked native/self-hosted cross-checks, portable golden artifacts, fixed-point bootstrap, and a documented staged seed refresh | Python compiler/VM differential accept/reject and trap evidence, seed integrity, stage-2/stage-3 byte identity, and a reviewable seed digest. |
 
 `tests/COVERAGE.md` remains the specification-to-behavior map. For each migrated
@@ -231,7 +231,7 @@ verified compiler artifact for its compiled-output check instead of compiling
 the compiler again. Without it, the runner compiles the source normally.
 It reports failures through its process status and removes each artifact before
 requiring an empty workspace. `functional/cases/runner_smoke` checks its exact
-success report through the public CLI; `unit/compiler/test_panackelty_runner.py`
+success report through the public CLI; `unit/harness/runner.sh`
 injects wrong expected output and checks both source and bytecode failures. Its
 `--test-cleanup-failure <parent>` mode leaves a sentinel in a uniquely created
 workspace, verifies that empty-directory removal fails, reports a nonzero exit,
@@ -339,10 +339,11 @@ was refreshed with the then-current stage-0 command. The subsequent
 Python-free seed-refresh workflow reproduces that seed byte for byte. Command
 checks cover check/run/disasm, compile failure and absence of a failed artifact.
 
-The directory still contains tests owned by later milestones: bootstrap seed
-corruption (`test_bootstrap`); runner failure injection (`test_panackelty_runner`);
-the remaining build/distribution contracts. Standard-library byte identity now
-uses a fixed reference artifact and stage-1/stage-2/stage-3 comparisons.
+Seed-corruption and fixture-runner failure tests now live in `unit/harness`,
+alongside native build/distribution contracts. The complete 52-method audit in
+[HARNESS_MIGRATION.md](HARNESS_MIGRATION.md) maps 31 migrated methods and the 21
+implementation-only safeguards retained until stage-0 retirement. Standard-library
+byte identity uses a fixed reference and stage-1/stage-2/stage-3 comparisons.
 
 ## Direct bytecode and verifier migration — complete
 
@@ -433,3 +434,12 @@ Each migration PR should list the old tests/cases retired, the replacement
 fixtures and assertions, the before/after behavior matrix, platform checks,
 and any timing change. Keeping both implementations temporarily is a deliberate
 migration aid, not a permanent second execution engine.
+
+## Development harness migration — complete
+
+All 31 general development tests from the remaining 52-method Python suite now
+run as shell/native contracts. `make harness PYTHON=false` runs them independently;
+`make unit` includes all of them, and `make check-compiler` includes runner/seed
+contracts. CI runs the full harness on Linux and macOS before package gates.
+[HARNESS_MIGRATION.md](HARNESS_MIGRATION.md) records every retired method, extra
+failure evidence, and the exact 21 remaining implementation-only methods.

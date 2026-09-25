@@ -1,0 +1,32 @@
+import stdlib/testing_commands
+
+pure harness_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+
+// Shell harness supervisor: expected status, seconds, stdout, stderr, cwd, command...
+// Inspect streams separately so failures with intentionally nonempty stderr remain testable.
+main(): Void {
+  args = command_args()
+  if len(args) < 6 { eprint("harness command requires six arguments"); process_exit(1) }
+  mut command: [Str] = []
+  for index in 6..len(args) { command = command.append(args[index]) }
+  match process_run(harness_path(args[5]), command, bytes(), harness_path(args[4]),
+      [], duration_seconds(nat_from_str(args[1])), 16777216) {
+    Error(problem) => {
+      write_bytes(args[2], bytes())
+      code = problem.code
+      write_bytes(args[3], utf8_encode("harness host error: ${code}\n"))
+      process_exit(1)
+    },
+    Ok(output) => {
+      write_bytes(args[2], output.stdout)
+      write_bytes(args[3], output.stderr)
+      accepted = if args[0] == "failure" { output.exit_code != 0 } else {
+        output.exit_code == nat_from_str(args[0])
+      }
+      if !accepted || output.signal != 0 {
+        eprint("harness command returned unexpected exit status or signal")
+        process_exit(1)
+      }
+    }
+  }
+}

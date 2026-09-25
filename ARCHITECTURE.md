@@ -474,11 +474,16 @@ standard-library comparisons. Focused compiler, bytecode, and VM targets combine
 their internal suites with representative public-CLI checks. The complete validation phase timings are published in CI summaries and
 retained as run artifacts; focused targets report timings when run locally. `SELF_HOSTING.md` records the completed stages.
 
-Self-hosted component unit tests compile parameterised harnesses once per test
-class. Each input executes in a fresh Python VM with fresh arguments, environment,
-and output capture. The harness reuse is limited to the current test class in
-one process; it is not a persistent compiler cache. Source and module inputs,
-bytecode files, and expected success and failure assertions remain per-case.
+Self-hosted component unit probes execute on the native VM. Development harness
+contracts use POSIX shell for fixtures and Make/archive/CI assertions, with a
+Panackelty supervisor enforcing subprocess timeouts, signals and exact captured
+bytes. Each invocation compiles that supervisor once into a temporary directory;
+each shell group owns its isolated workspace and cleanup. `make unit` includes
+the full harness; focused compiler checks include runner and corrupt-seed gates.
+Both platform package jobs run `make harness PYTHON=false` before packaging.
+Only 21 transitional implementation tests still use Python discovery and helpers.
+Their retirement is tied to removal of that implementation, not the native harness.
+See `tests/HARNESS_MIGRATION.md` for every migrated and retained method.
 
 ## Rational and Unit values
 
@@ -540,8 +545,9 @@ verifies that every example source has a corresponding expected output and vice
 versa. `make functional` runs it with the self-hosted compiler driver check
 and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
-itself. Each owns an isolated workspace and reports cleanup failure. Python
-unit tests remain active.
+itself. Each owns an isolated workspace and reports cleanup failure. Native
+harness tests inject report/fixture errors and assert failure and cleanup; the
+remaining Python tests protect only the transitional implementation.
 
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
@@ -563,7 +569,7 @@ The checker checks 31 fixed source expectations and three module graphs.
 The purity probe checks ten fixed sources and one module graph. Success requires
 `ok`; failures retain specific diagnostic expectations. Live Python differential
 comparisons are retired; independent goldens and native/bootstrap checks are
-mapped in `tests/ORACLE_REPLACEMENT.md`. Python bootstrap and harness safeguards
+mapped in `tests/ORACLE_REPLACEMENT.md`. Python bootstrap implementation safeguards
 remain until the final removal gates.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
@@ -611,7 +617,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains for bootstrap implementation and build/test-harness safeguards;
+Python remains only for the transitional implementation and its 21 unit safeguards;
 seed regeneration now uses verified self-hosted stages.
 
 

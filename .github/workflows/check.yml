@@ -25,6 +25,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Check native development harness
+        run: make harness PYTHON=false
+
       - name: Build, test, and package the native toolchain
         run: make package PYTHON=false
 

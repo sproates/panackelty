@@ -3,7 +3,7 @@ import stdlib/testing_files
 import stdlib/testing_commands
 import stdlib/text
 
-// Run from the repository root. Python unit tests remain active during migration.
+// Run from the repository root. Native harness tests cover failure propagation.
 pure runner_path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
 }

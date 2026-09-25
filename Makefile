@@ -60,6 +60,7 @@ check-compiler: native
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
 check-compiler-impl:
+	@sh tests/harness.sh compiler
 	@sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
 	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
@@ -98,6 +99,7 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
+	@sh tests/harness.sh
 	@sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
@@ -314,3 +316,7 @@ clean:
 	rm -rf build
 	find . -type d -name '__pycache__' -prune -exec rm -rf {} +
 	find . -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+
+.PHONY: harness
+harness: native
+	@$(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh

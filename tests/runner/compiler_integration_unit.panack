@@ -17,6 +17,12 @@ pure integration_command(args: [Str]): TestCommand {
 integration_output(name: Str, args: [Str], expected: Str): TestResult {
   test_run_command(name, integration_command(args), ProcessOutput(0, 0, utf8_encode(expected), bytes()))
 }
+integration_probe(name: Str, args: [Str], expected: Str): TestResult {
+  command = TestCommand(contract_path("/bin/sh"),
+    ["tests/run_probe.sh"].concat(args), bytes(), path_current(), [],
+    duration_seconds(90), 1048576)
+  test_run_command(name, command, ProcessOutput(0, 0, utf8_encode(expected), bytes()))
+}
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {
   match process_run(contract_path("./panack"), args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
     Error(error) => test_expect(name, false, "command failed"),
@@ -47,8 +53,8 @@ main(): Void {
       reference = contract_text(reference_path)
       snapshot_path = contract_child(workspace.root, "broken.panack")
       snapshot = contract_text(snapshot_path)
-      results = results.append(integration_output("build direct driver probe",
-        ["compile", "tests/fixtures/compiler_contracts/driver_probe.panack", "-o", driver], "wrote ${driver}\n"))
+      results = results.append(integration_probe("build direct driver probe",
+        ["--compile", "tests/fixtures/compiler_contracts/driver_probe.panack", driver], "wrote ${driver}\n"))
       results = results.append(integration_output("checker/int_accepts_negative_values_but_nat_does_not-1", ["run", "tests/fixtures/compiler_contracts/checker/int_accepts_negative_values_but_nat_does_not-1.panack"], "-42\n"))
       results = results.append(integration_output("syntax/error_is_the_result_failure_variant-1", ["run", "tests/fixtures/compiler_contracts/syntax/error_is_the_result_failure_variant-1.panack"], "failed\n"))
       results = results.append(integration_output("syntax/if_else_is_optional_in_void_position-1", ["run", "tests/fixtures/compiler_contracts/syntax/if_else_is_optional_in_void_position-1.panack"], "42\n"))
@@ -116,8 +122,8 @@ main(): Void {
         "tests/fixtures/compiler_contracts/driver/missing-main.panack"], 0, "status 1\n", "missing source module"))
       results = results.append(integration_error("driver import cycle", ["run", driver, "check",
         "tests/fixtures/compiler_contracts/driver/first.panack"], 0, "status 1\n", "import cycle includes"))
-      results = results.append(integration_output("loader source snapshot",
-        ["run", "tests/fixtures/compiler_contracts/snapshot_probe.panack", snapshot],
+      results = results.append(integration_probe("loader source snapshot",
+        ["tests/fixtures/compiler_contracts/snapshot_probe.panack", snapshot],
         "PASS snapshot file changed\nPASS loader retains original diagnostic source\ntests: 2, failures: 0\n"))
       for file in [driver_path, artifact_path, reference_path, snapshot_path] {
         match fs_remove_file(file) {

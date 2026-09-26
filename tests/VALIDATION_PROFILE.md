@@ -4,7 +4,56 @@ This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 
-## Measurement boundaries
+## Reuse and bounded workers — 2026-09-26
+
+Same local arm64 host, macOS 26.5, Apple Clang 21.0.0, default `-O2`.
+The before revision is `8cd16e2`; after measurements include this change. No
+other builds ran concurrently with the timed checks. These are local wall-clock
+observations, not a cross-platform speed claim. The two-worker setting remains
+the default; four workers provided only a small further improvement.
+
+| Check | Before | After | Budget |
+| --- | ---: | ---: | ---: |
+| Clean `make check`, two workers after | 176s | 127s | 120s |
+| Clean `make check`, four workers after | 176s | 123s | 120s |
+| Cached `make check-compiler` | 56s | 15s | 15s |
+| Cached `make check-bytecode` | 11s | 2s | 15s |
+| Cached `make check-vm` | 37s | 28s | 15s |
+
+Focused measurements run compiler, bytecode and VM checks in that order after
+the complete check, with no source edits between them. Before measurements
+reuse native outputs; after measurements also reuse compiled probes. Earlier
+after runs measured 14/2/27 seconds, so the compiler target has little headroom.
+
+The two-worker clean run reduced time by about 28%. Unit time changed from
+106s to 83s; functional time from 27s to 1s; bootstrap remained 31s. These phase
+figures reflect work sharing: the oracle smoke executes the real full runner
+once, then the functional phase checks that successful observation through its
+source and bytecode smoke modes. Compiler stage 2 is also prepared before the
+oracle corpus and shared. No test result survives the check session.
+
+Compiled probes reuse bytecode only when all source/toolchain inputs match;
+every invocation executes the tests. Invalidating a key causes recompilation,
+so cached timings are not a promise that arbitrary source edits finish equally
+quickly. The shell harness reuses its compiled runner across failure scenarios,
+and the native oracle compiles its bounded command supervisor once per run.
+Independent probes use a bounded worker pool with deterministic output.
+
+All 1,276 baseline `PASS` observations remain (normalizing temporary workspace
+names), with 18 additional regression observations. Native LLVM coverage was
+run separately on both revisions: the entire per-file summary is identical,
+including 86.97% line, 80.29% branch and 100% function coverage.
+AddressSanitizer/UndefinedBehaviorSanitizer validation also passed. Coverage builds
+retain separate selected-VM compilation and execution; no corpus was removed.
+
+Remaining work: the clean total and full-unit warning budgets are still
+exceeded. The standalone VM target must execute its own complete oracle runner;
+its source compilation and subprocess work remain a priority. The independent
+seed-refresh staging proof remains intact. Cross-platform initial and cached
+profiles are collected by the profiling workflow; assess hosted results
+separately from these local observations.
+
+## Earlier profiling baseline: measurement boundaries
 
 The base revision is `9975186` (alpha.9), plus this profiling change. Clean
 checks include native compilation, unit and functional suites, fixed-point

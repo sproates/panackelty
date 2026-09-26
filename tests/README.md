@@ -36,10 +36,27 @@ The unit phase times `unit-impl`, including the native harness and Panackelty pr
 For incremental work, use `make check-compiler`, `make check-bytecode`, or
 `make check-vm`. Each runs the owning unit-test subtree plus representative
 public-CLI workflows, and each has a 15-second budget when the native toolchain
-is already built. `make unit` remains a quick way to run every internal test.
+is already built. `make unit` runs every internal test.
 
-The complete workflow builds the stage-2 self-hosted compiler once. Functional
-compiler-driver checks and the compiler program's compiled-output case reuse
+`tests/run_probe.sh` caches compiled probe bytecode under `build/probes` (or
+`BUILD_DIR/probes`). Its key covers the selected VM, compiler seed, helper,
+source paths and contents, and all Panackelty sources under `src`, `tests`,
+`examples` and the selected standard library. Added/deleted files and edits with
+restored timestamps invalidate reuse. Cached bytecode has a checked digest;
+failed compilation and inputs changed during compilation are never published.
+Every invocation executes the probe and its assertions. Instrumented VMs have
+separate keys and build directories. `make clean` removes all cached bytecode.
+The compiler integration driver and snapshot helper use the same cache; fixture
+programs still exercise the public CLI. The shell harness compiles its runner
+once per group and reuses it across isolated failure-injection scenarios.
+Independent internal probes use two workers by default; set
+`VALIDATION_JOBS=1` for serial execution or choose a limit from 1 to 32. Setup
+and fixture mutation remain serial. The worker pool buffers stdout/stderr and prints
+results in the requested order, waits for every probe, and propagates failures.
+
+The complete workflow builds the stage-2 self-hosted compiler once, before the
+native oracle corpus. Oracle and functional compiler-driver checks and the
+compiler program's compiled-output case reuse
 that verified artifact, and the later bootstrap phase extends it to stage 3 for
 the byte-identical fixed-point proof. Other programs are still compiled through
 the public CLI before their bytecode output is checked. The ordinary proof runs in
@@ -53,10 +70,16 @@ for the refresh contract.
 The compiler fixture allows 90 seconds for source execution and compilation,
 which can build the complete compiler. Ordinary fixture commands retain 20
 seconds; phase timing warnings remain independent of command timeouts.
-`make functional` captures one successful full runner report and passes its
-temporary file to `runner_smoke` in both source and bytecode mode. Each mode
-compares the exact report; a missing or changed report fails. Standalone runs
-of `runner_smoke` still invoke the complete runner themselves.
+`make check` creates a fresh temporary report session. The oracle corpus runs
+`runner_smoke` on its selected VM; that smoke program executes the full fixture
+runner through the public CLI and captures its actual report only after checking
+exit status, signal, stdout and stderr. The later functional phase reuses this
+report and compares its exact bytes through both source and bytecode smoke
+execution. A missing or changed report fails. The session is removed on success
+or failure, and ambient report overrides are cleared at entry. Test results
+are never reused between check invocations. Standalone `make functional` and
+`runner_smoke` still execute the full runner themselves; standalone oracle,
+sanitizer and coverage targets retain their own complete corpus execution.
 
 CI runs one main test job per pull-request revision and again after a merge to
 `main`. It does not repeat focused developer targets before the full suite.
@@ -139,8 +162,8 @@ to test a program elsewhere in the repository. The harness discovers these
 directories automatically, so adding a case does not require harness changes.
 The Panackelty functional runner currently executes cases sequentially.
 
-`runner/compiler_parser_unit.panack` imports the parser directly, compiles once,
-and checks 192 fixed expectations for expressions, blocks, types, and programs.
+`runner/compiler_parser_unit.panack` imports the parser directly and checks
+192 fixed expectations for expressions, blocks, types, and programs.
 Its 38 groups cover valid input and exact malformed-input diagnostics.
 `runner/compiler_lexer_unit.panack`
 similarly covers the eight direct lexer contracts.
@@ -253,10 +276,11 @@ done
 ```
 
 Record the source commit, host/runner image, compiler version, build flags and
-whether native prerequisites already existed with each experiment. Do not run
+whether native prerequisites and probe caches already existed with each experiment. Do not run
 other builds concurrently. Repeat measurements only when noise or a regression
 needs investigation. A clean check includes builds; the focused baseline starts
-with ordinary native prerequisites built. Parent rows include their children:
+after the full check has populated ordinary native outputs and probe caches.
+Parent rows include their children, and worker observations can overlap:
 **do not sum nested rows**. One-second resolution is intended to find large
 costs, not benchmark tiny operations. Probe rows include their source compilation
 and execution; harness groups include their subprocesses. Fixture rebuilds can
@@ -266,8 +290,10 @@ overhead, and are not CPU measurements or end-to-end GitHub workflow duration.
 Both Check packaging jobs archive the clean-check and subsequent package profile,
 including failure rows, separately from budget records. Expected negative-control
 commands may have nonzero rows inside a successful harness group. `Validation profile`
-collects warm compiler/bytecode/VM measurements on both supported platforms when
-the profiler changes or by manual dispatch. It does not run on ordinary code or
+collects an initial focused run and an immediate cached repeat for each
+compiler/bytecode/VM target on both supported platforms when the profiler or
+probe helpers change, or by manual dispatch. The initial run starts with native
+prerequisites built; later components can reuse helpers built by earlier ones. It does not run on ordinary code or
 documentation PRs. Existing required checks, sanitizers and release gates remain
 in place. Findings and next investigations live in
 [`VALIDATION_PROFILE.md`](VALIDATION_PROFILE.md).

@@ -487,6 +487,15 @@ the full harness; focused compiler checks include runner and corrupt-seed gates.
 Both platform package jobs run `make check-no-interpreter`: a clean full check,
 native conformance and packaging with only allowlisted tools visible.
 
+Compiled internal probes use a content-addressed cache under the build tree.
+The key includes source names and bytes, the compiler seed, selected VM and
+standard-library inputs. Cache entries contain verified bytecode and a digest;
+publication follows a second input check. Every invocation still executes the
+probe. Sanitizer and coverage executables have separate cache identities, and
+public-CLI fixture compilation remains part of the behavioral tests. Independent
+probes use a bounded worker pool with ordered output; setup and fixture mutation
+remain serial.
+
 ## Rational and Unit values
 
 The compiler recognizes `Rat` and `Unit` as first-class types. Integer division
@@ -540,10 +549,12 @@ and `compile` diagnostics and require no bytecode artifact. Six selected
 failures also assert exact diagnostics for `run` and `disasm`. Diagnostics are
 normalized to `<case>` for exact comparison across checkout locations. It
 verifies that every example source has a corresponding expected output and vice
-versa. `make functional` runs it with the self-hosted compiler driver check
-and captures its successful report once. `runner_smoke` compares that exact
-report from source and bytecode; outside the recipe it runs the full runner
-itself. Each owns an isolated workspace and reports cleanup failure. Native
+versa. During `make check`, the native oracle smoke program executes this
+runner and captures its successful report in a fresh check-session directory.
+The functional phase reuses that observation alongside its self-hosted compiler
+driver check. `runner_smoke` compares the exact report from source and bytecode;
+standalone functional and oracle targets each execute the full runner. The
+session is removed after the check, including on failure. Each owns an isolated workspace and reports cleanup failure. Native
 harness tests inject report/fixture errors and assert failure and cleanup.
 
 Direct bytecode/verification coverage runs in

@@ -1,6 +1,7 @@
 import stdlib/testing_commands
 import stdlib/filesystem
 import stdlib/environment
+import "../../../runner/report_capture.panack"
 
 pure runner_path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
@@ -62,8 +63,14 @@ main(): Void {
           "runner report differed")
       }
     },
-    None() => test_run_command("Panackelty fixture runner", command,
-      ProcessOutput(0, 0, expected, bytes()))
+    None() => {
+      destination = match environment("PANACK_TEST_CAPTURE_RUNNER_REPORT") {
+        Some(file) => Some(runner_path(file)),
+        None() => None()
+      }
+      capture_test_report("Panackelty fixture runner", command,
+        ProcessOutput(0, 0, expected, bytes()), destination)
+    }
   }
   failures = test_report([result])
   if failures > 0 { process_exit(1) }

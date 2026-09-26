@@ -13,8 +13,9 @@ time; changes must update both the inventory and corresponding native assertion.
 
 Run `make check-compiler` from the repository root. `make unit` runs these probes
 as well. The direct probe imports the current compiler; the integration probe
-runs complete programs through `panack` and compiles a direct driver harness once
-in an isolated temporary workspace. Both fail with status 1 on assertion failure.
+runs complete programs through `panack`. Its direct driver and source-snapshot
+helper use the content-checked probe cache; the driver artifact is copied into
+an isolated temporary workspace before its contracts execute. Both fail with status 1 on assertion failure.
 Missing fixtures are failures. The integration probe checks artifact and workspace
 cleanup. Independent artifact goldens added during oracle retirement live under
 `../oracle_contracts/`, without changing these direct source/listing expectations.

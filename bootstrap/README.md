@@ -8,6 +8,9 @@ and the existing non-value `Void` argument rule. The format remains version 8.
 
 The seed passes through the bounded native loader and verifier like every other
 bytecode artifact. Normal bootstrap uses it to produce stage 2, then stage 3.
+Stage 2 uses the content-checked probe cache described in
+[the testing guide](../tests/README.md); its output is verified on each use.
+The independent seed-refresh transaction below always builds fresh stages.
 `make bootstrap-check` requires identical stage-2/stage-3 compiler artifacts and
 stage-1/stage-2/stage-3 standard-library artifacts. It also tests a complete seed
 refresh in a temporary directory with an allowlisted `PATH`.

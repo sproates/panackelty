@@ -187,6 +187,10 @@ compiler stages, and their version-8 artifacts must be byte-identical.
 The native VM builds and runs the compiler and standard library, reproduces
 their artifacts exactly, and passes the native conformance suite. The checked
 seed and its digest are documented in `bootstrap/README.md`.
+Stage 2 may reuse bytecode keyed by the complete source/toolchain contents; it
+is verified before use and shared by the oracle and functional checks. Stage 3
+and the isolated seed-refresh transaction retain their independent compilation
+and byte-identity checks.
 Seed refresh is now self-hosted: `make regenerate-seed` verifies the input
 digest, stages compiler builds 2–4, checks compiler and standard-library
 identity plus expected output, and publishes only after all checks pass. A

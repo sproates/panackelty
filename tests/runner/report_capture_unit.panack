@@ -1,0 +1,53 @@
+import "report_capture.panack"
+import stdlib/testing_files
+
+pure capture_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+pure capture_command(script: Str): TestCommand {
+  TestCommand(capture_path("/bin/sh"), ["-c", script], bytes(), path_current(), [],
+    duration_seconds(5), 4096)
+}
+pure capture_passed(result: TestResult): Bool {
+  match result.outcome { TestPassed() => true, TestFailed(reason) => false }
+}
+capture_missing(file: Path): Bool {
+  match fs_metadata(file) { Error(error) => error.code == "not_found", Ok(value) => false }
+}
+main(): Void {
+  match test_workspace_create(capture_path("/tmp")) {
+    Error(error) => { eprint("capture workspace failed"); process_exit(1) },
+    Ok(workspace) => {
+      file = result_value_or(path_append(workspace.root, capture_path("report")), workspace.root)
+      expected = ProcessOutput(0, 0, utf8_encode("good\n"), bytes())
+      mut results: [TestResult] = []
+      for script in ["printf 'wrong\\n'", "printf 'good\\n'; exit 7",
+          "printf 'good\\n'; printf error >&2", "kill -TERM $$"] {
+        result = capture_test_report("runner", capture_command(script), expected, Some(file))
+        results = results.append(test_expect("capture rejects ${script}",
+          !capture_passed(result) && capture_missing(file), "failed observation was published"))
+      }
+      missing = TestCommand(capture_path("/not-a-test-executable"), [], bytes(),
+        path_current(), [], duration_seconds(5), 4096)
+      results = results.append(test_expect("capture rejects host error",
+        !capture_passed(capture_test_report("runner", missing, expected, Some(file))) &&
+          capture_missing(file), "host error was published"))
+      good = capture_command("printf 'good\\n'")
+      results = results.append(test_expect("capture optional destination",
+        capture_passed(capture_test_report("runner", good, expected, None())) &&
+          capture_missing(file), "optional capture failed"))
+      results = results.append(test_expect("capture rejects write failure",
+        !capture_passed(capture_test_report("runner", good, expected, Some(workspace.root))),
+        "write failure was ignored"))
+      results = results.append(test_expect("capture accepts exact success",
+        capture_passed(capture_test_report("runner", good, expected, Some(file))),
+        "successful observation was rejected"))
+      actual = match fs_read(file, 4096) { Ok(value) => value, Error(error) => bytes() }
+      results = results.append(test_expect("capture exact bytes", actual == expected.stdout,
+        "captured bytes differ"))
+      fs_remove_file(file);
+      results = results.append(test_expect("capture workspace cleanup",
+        match test_workspace_remove_empty(workspace) { Ok(value) => true, Error(error) => false },
+        "workspace cleanup failed"))
+      if test_report(results) > 0 { process_exit(1) }
+    }
+  }
+}

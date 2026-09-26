@@ -928,6 +928,12 @@ repeated bootstrap work first, preserving all assertions.
       checks within 15 seconds on the reference environments; retain visible
       per-phase timing, warnings and CI reports to catch future regressions
 
+Detailed opt-in profiling now separates native builds, harness groups, source
+probes and bootstrap stages. Both packaging platforms retain clean-check
+profiles, while a separate targeted workflow records focused warm checks.
+See [the profiling report](tests/VALIDATION_PROFILE.md) for evidence and the
+next measured investigations. This instrumentation does not claim a speed fix.
+
 Prioritize unit and bootstrap costs during this follow-up.
 The native harness preserves process bounds, archive/installation checks and
 runner fault injection; profile repeated compilation without dropping evidence.

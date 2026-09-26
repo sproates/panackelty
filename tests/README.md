@@ -234,3 +234,46 @@ Release publication controls use disposable local Git repositories and a stubbed
 GitHub CLI boundary to verify real annotated-tag creation, same-tag retries, and
 rejection of lightweight or wrong-commit tags before publication. Development
 validation therefore requires Git; downloaded toolchains are unaffected.
+
+## Detailed validation profiling
+
+Set `VALIDATION_PROFILE_FILE` to an **absolute** path outside `build/` to
+append opt-in, headerless TSV observations. Columns are run context, label,
+parent label (`-` at the root), elapsed wall-clock seconds, and exit status.
+`VALIDATION_PROFILE_RUN` names the experiment. Labels contain no tabs/newlines.
+The wrapper preserves command arguments, stdout/stderr and exit status; failure
+to append a report warns without changing the command result. With profiling
+unset it directly executes the command. Budget warnings and their existing
+`VALIDATION_TIMINGS_FILE` format remain unchanged.
+
+```sh
+profile_dir=$(mktemp -d)
+export VALIDATION_PROFILE_FILE="$profile_dir/profile.tsv"
+export VALIDATION_TIMINGS_FILE="$profile_dir/budgets.tsv"
+make clean
+VALIDATION_PROFILE_RUN=clean sh tests/profile_command.sh clean/check make check
+for component in compiler bytecode vm; do
+  VALIDATION_PROFILE_RUN="warm-$component" \
+    sh tests/profile_command.sh "warm/check-$component" make "check-$component"
+done
+```
+
+Record the source commit, host/runner image, compiler version, build flags and
+whether native prerequisites already existed with each experiment. Do not run
+other builds concurrently. Repeat measurements only when noise or a regression
+needs investigation. A clean check includes builds; the focused baseline starts
+with ordinary native prerequisites built. Parent rows include their children:
+**do not sum nested rows**. One-second resolution is intended to find large
+costs, not benchmark tiny operations. Probe rows include their source compilation
+and execution; harness groups include their subprocesses. Fixture rebuilds can
+appear more than once under different parents. Observations include profiling
+overhead, and are not CPU measurements or end-to-end GitHub workflow duration.
+
+Both Check packaging jobs archive the clean-check and subsequent package profile,
+including failure rows, separately from budget records. Expected negative-control
+commands may have nonzero rows inside a successful harness group. `Validation profile`
+collects warm compiler/bytecode/VM measurements on both supported platforms when
+the profiler changes or by manual dispatch. It does not run on ordinary code or
+documentation PRs. Existing required checks, sanitizers and release gates remain
+in place. Findings and next investigations live in
+[`VALIDATION_PROFILE.md`](VALIDATION_PROFILE.md).

@@ -597,6 +597,8 @@ before replacing the seed. See [the refresh procedure](bootstrap/README.md).
 Continuous integration runs on pull-request updates and pushes to `main`.
 New commits cancel older runs for the same pull request. The test job runs
 `make check` once; the focused targets above remain available for local work.
+Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profiling)
+separates native builds, harness groups, probes and bootstrap costs.
 
 Continuous integration builds this package independently on Ubuntu 22.04
 x86-64 and macOS 14 arm64. Both jobs run `make check-no-interpreter`, covering

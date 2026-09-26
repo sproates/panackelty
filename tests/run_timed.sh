@@ -5,7 +5,7 @@ budget=$2
 shift 2
 
 started=$(date +%s)
-"$@"
+sh tests/profile_command.sh "phase/$label" "$@"
 status=$?
 finished=$(date +%s)
 elapsed=$((finished - started))

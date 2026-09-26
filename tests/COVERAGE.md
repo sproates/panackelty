@@ -339,3 +339,9 @@ by the release workflow; local tests do not claim to exercise GitHub permissions
 The publication block also runs against disposable local Git remotes with a
 stubbed GitHub CLI: real tags must be annotated, retries preserve their object,
 and lightweight/wrong-commit tags prevent release creation.
+
+Detailed profiling contracts in `unit/harness/validation.sh` cover disabled and
+enabled execution, byte-exact streams (including NUL), arguments with spaces,
+nonzero exits, appended rows, nested parent/run context, report-write failures
+and a complete program through the public CLI. Profiling does not replace any
+existing validation or change its timing budgets.

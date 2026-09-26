@@ -8,6 +8,7 @@ INCREMENTAL_BUDGET_SECONDS ?= 15
 FUNCTIONAL_BUDGET_SECONDS ?= 75
 BOOTSTRAP_BUDGET_SECONDS ?= 60
 TIMED := sh tests/run_timed.sh
+PROFILE := sh tests/profile_command.sh
 
 .NOTPARALLEL: check-phases
 
@@ -58,66 +59,66 @@ check-compiler: native
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
 check-compiler-impl:
-	@sh tests/harness.sh compiler
-	@sh tests/seed_refresh.sh
+	@$(PROFILE) harness/compiler sh tests/harness.sh compiler
+	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@./panack run tests/runner/compiler_lexer_unit.panack
-	@./panack run tests/runner/compiler_parser_unit.panack
-	@./panack run tests/runner/compiler_resolver_unit.panack
-	@./panack run tests/runner/compiler_checker_unit.panack
-	@./panack run tests/runner/compiler_purity_unit.panack
-	@./panack run tests/runner/compiler_contracts_unit.panack
-	@./panack run tests/runner/compiler_integration_unit.panack
-	@./panack run tests/runner/main.panack --case cli_commands
-	@./panack run tests/runner/main.panack --failures-only
+	@$(PROFILE) probe/compiler_lexer_unit ./panack run tests/runner/compiler_lexer_unit.panack
+	@$(PROFILE) probe/compiler_parser_unit ./panack run tests/runner/compiler_parser_unit.panack
+	@$(PROFILE) probe/compiler_resolver_unit ./panack run tests/runner/compiler_resolver_unit.panack
+	@$(PROFILE) probe/compiler_checker_unit ./panack run tests/runner/compiler_checker_unit.panack
+	@$(PROFILE) probe/compiler_purity_unit ./panack run tests/runner/compiler_purity_unit.panack
+	@$(PROFILE) probe/compiler_contracts_unit ./panack run tests/runner/compiler_contracts_unit.panack
+	@$(PROFILE) probe/compiler_integration_unit ./panack run tests/runner/compiler_integration_unit.panack
+	@$(PROFILE) functional/case/cli_commands ./panack run tests/runner/main.panack --case cli_commands
+	@$(PROFILE) functional/failures ./panack run tests/runner/main.panack --failures-only
 
 check-bytecode: native native-module-build
 	@$(TIMED) check-bytecode $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-bytecode-impl
 
 check-bytecode-impl:
 	@"$(PANACK_NATIVE_MODULE_TEST)"
-	@./panack run tests/runner/bytecode_unit.panack
-	@./panack run tests/runner/bytecode_native_unit.panack
-	@./panack run tests/runner/main.panack --case cli_check_disasm
-	@./panack run tests/runner/main.panack --case cli_commands
+	@$(PROFILE) probe/bytecode_unit ./panack run tests/runner/bytecode_unit.panack
+	@$(PROFILE) probe/bytecode_native_unit ./panack run tests/runner/bytecode_native_unit.panack
+	@$(PROFILE) functional/case/cli_check_disasm ./panack run tests/runner/main.panack --case cli_check_disasm
+	@$(PROFILE) functional/case/cli_commands ./panack run tests/runner/main.panack --case cli_commands
 
 check-vm: native native-module-build native-fault-build
 	@$(TIMED) check-vm $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-vm-impl
 
 check-vm-impl:
-	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
-	@./panack run tests/runner/host_runtime_unit.panack
-	@./panack run tests/runner/main.panack --case cli_commands
-	@./panack run tests/runner/main.panack --case cli_environment_files
+	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
+	@$(PROFILE) probe/host_runtime_unit ./panack run tests/runner/host_runtime_unit.panack
+	@$(PROFILE) functional/case/cli_commands ./panack run tests/runner/main.panack --case cli_commands
+	@$(PROFILE) functional/case/cli_environment_files ./panack run tests/runner/main.panack --case cli_environment_files
 
 unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
-	@sh tests/harness.sh
-	@sh tests/seed_refresh.sh
-	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
-	@./panack run tests/runner/host_runtime_unit.panack
-	@./panack run tests/runner/bytecode_unit.panack
-	@./panack run tests/runner/bytecode_native_unit.panack
-	@./panack run tests/runner/compiler_lexer_unit.panack
-	@./panack run tests/runner/compiler_parser_unit.panack
-	@./panack run tests/runner/compiler_resolver_unit.panack
-	@./panack run tests/runner/compiler_checker_unit.panack
-	@./panack run tests/runner/compiler_purity_unit.panack
-	@./panack run tests/runner/compiler_contracts_unit.panack
-	@./panack run tests/runner/compiler_integration_unit.panack
+	@$(PROFILE) harness sh tests/harness.sh
+	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
+	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
+	@$(PROFILE) probe/host_runtime_unit ./panack run tests/runner/host_runtime_unit.panack
+	@$(PROFILE) probe/bytecode_unit ./panack run tests/runner/bytecode_unit.panack
+	@$(PROFILE) probe/bytecode_native_unit ./panack run tests/runner/bytecode_native_unit.panack
+	@$(PROFILE) probe/compiler_lexer_unit ./panack run tests/runner/compiler_lexer_unit.panack
+	@$(PROFILE) probe/compiler_parser_unit ./panack run tests/runner/compiler_parser_unit.panack
+	@$(PROFILE) probe/compiler_resolver_unit ./panack run tests/runner/compiler_resolver_unit.panack
+	@$(PROFILE) probe/compiler_checker_unit ./panack run tests/runner/compiler_checker_unit.panack
+	@$(PROFILE) probe/compiler_purity_unit ./panack run tests/runner/compiler_purity_unit.panack
+	@$(PROFILE) probe/compiler_contracts_unit ./panack run tests/runner/compiler_contracts_unit.panack
+	@$(PROFILE) probe/compiler_integration_unit ./panack run tests/runner/compiler_integration_unit.panack
 
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
 
 functional-impl: $(STAGE2_COMPILER)
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" ./panack run tests/runner/compiler_driver.panack
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) functional/compiler-driver ./panack run tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"
 	@report=$$(mktemp); artifact="$(abspath $(BUILD_DIR))/runner-smoke.bc"; \
 		trap 'rm -f "$$report" "$$artifact"' 0; \
 		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
-			./panack run tests/runner/main.panack > "$$report" && \
+			$(PROFILE) functional/runner ./panack run tests/runner/main.panack > "$$report" && \
 		cat "$$report" && \
 		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
 			PANACK_TEST_RUNNER_REPORT="$$report" \
@@ -136,28 +137,28 @@ export PANACK_NATIVE_MODULE_TEST := $(abspath $(BUILD_DIR)/vm/test_modules)
 VM_WARNINGS := -std=c11 -Wall -Wextra -Werror -pedantic
 
 panack-vm: $(VM_OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
+	$(PROFILE) "native-build/$@" $(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
 
 $(BUILD_DIR)/vm/%.o: src/vm/%.c
 	@mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
 
 $(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c $(VM_LIBRARY_OBJECTS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)
 
 $(BUILD_DIR)/fault/%.o: src/vm/%.c tests/unit/vm/fault_injection.h
 	@mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h -MMD -MP -c $< -o $@
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h -MMD -MP -c $< -o $@
 
 $(BUILD_DIR)/fault/injection.o: tests/unit/vm/fault_injection.c tests/unit/vm/fault_injection.h
 	@mkdir -p "$(@D)"
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -c $< -o $@
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -c $< -o $@
 
 $(BUILD_DIR)/fault/test_faults: tests/unit/vm/native_faults.c $(BUILD_DIR)/fault/injection.o $(FAULT_OBJECTS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm -DPANACK_TEST_INJECT -include tests/unit/vm/fault_injection.h $(LDFLAGS) $< $(FAULT_OBJECTS) $(BUILD_DIR)/fault/injection.o -o $@ $(LDLIBS)
 
 .PHONY: native-fault-build native-fault
 native-fault-build: $(BUILD_DIR)/fault/test_faults
@@ -170,29 +171,29 @@ native-fault: native-fault-build
 native-module-build: $(BUILD_DIR)/vm/test_modules
 
 $(BUILD_DIR)/vm/panack-vm: $(VM_OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
+	$(PROFILE) "native-build/$@" $(CC) $(CFLAGS) $(LDFLAGS) $(VM_OBJECTS) -o $@ $(LDLIBS)
 
 native-unit: $(BUILD_DIR)/vm/test_modules
 	UBSAN_OPTIONS=halt_on_error=1 "$(abspath $(BUILD_DIR)/vm/test_modules)"
 
 export PANACK_NATIVE_BIGINT_TEST := $(abspath $(BUILD_DIR)/vm/test_bigint)
 $(BUILD_DIR)/vm/test_bigint: tests/unit/vm/native_bigint.c $(BUILD_DIR)/vm/bigint.o
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(BUILD_DIR)/vm/bigint.o -o $@ $(LDLIBS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(BUILD_DIR)/vm/bigint.o -o $@ $(LDLIBS)
 
 .PHONY: native-vm-contracts
 native-vm-contracts: $(BUILD_DIR)/vm/panack-vm native-module-build native-fault-build $(BUILD_DIR)/vm/test_bigint
-	@CC="$(CC)" sh tests/native_headers.sh
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" "$(abspath $(BUILD_DIR)/vm/panack-vm)" run "$(SEED_COMPILER)" run tests/runner/vm_unit.panack
+	@CC="$(CC)" $(PROFILE) native-headers sh tests/native_headers.sh
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" $(PROFILE) probe/vm_unit "$(abspath $(BUILD_DIR)/vm/panack-vm)" run "$(SEED_COMPILER)" run tests/runner/vm_unit.panack
 
 .PHONY: native-oracle-contracts native-oracle-contracts-impl native-oracle-artifacts
 native-oracle-artifacts: $(BUILD_DIR)/vm/panack-vm
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" sh tests/native_oracle_contracts.sh artifacts
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh artifacts
 
 native-oracle-contracts: native
 	@$(MAKE) --no-print-directory native-oracle-contracts-impl
 
 native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" sh tests/native_oracle_contracts.sh
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh
 
 # Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
 # Corpus programs call the public CLI too. Build that ordinary binary before
@@ -228,22 +229,22 @@ $(STAGE1_COMPILER): $(SEED_COMPILER)
 
 $(STAGE2_COMPILER): $(STAGE1_COMPILER) $(COMPILER_SOURCE)
 	mkdir -p $(dir $@)
-	./panack-vm run $(STAGE1_COMPILER) compile $(COMPILER_SOURCE) -o $@
+	$(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE1_COMPILER) compile $(COMPILER_SOURCE) -o $@
 	./panack-vm check $@
 
 $(STAGE3_COMPILER): $(STAGE2_COMPILER) $(COMPILER_SOURCE)
 	mkdir -p $(dir $@)
-	./panack-vm run $(STAGE2_COMPILER) compile $(COMPILER_SOURCE) -o $@
+	$(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE2_COMPILER) compile $(COMPILER_SOURCE) -o $@
 	./panack-vm check $@
 
 $(STAGE1_STDLIB): $(STAGE1_COMPILER) $(STDLIB_CONFORMANCE)
-	./panack-vm run $(STAGE1_COMPILER) compile $(STDLIB_CONFORMANCE) -o $@
+	$(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE1_COMPILER) compile $(STDLIB_CONFORMANCE) -o $@
 
 $(STAGE2_STDLIB): $(STAGE2_COMPILER) $(STDLIB_CONFORMANCE)
-	./panack-vm run $(STAGE2_COMPILER) compile $(STDLIB_CONFORMANCE) -o $@
+	$(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE2_COMPILER) compile $(STDLIB_CONFORMANCE) -o $@
 
 $(STAGE3_STDLIB): $(STAGE3_COMPILER) $(STDLIB_CONFORMANCE)
-	./panack-vm run $(STAGE3_COMPILER) compile $(STDLIB_CONFORMANCE) -o $@
+	$(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE3_COMPILER) compile $(STDLIB_CONFORMANCE) -o $@
 
 bootstrap: native $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)
 
@@ -254,7 +255,7 @@ bootstrap-check-impl: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STA
 	cmp $(STAGE2_COMPILER) $(STAGE3_COMPILER)
 	cmp $(STAGE1_STDLIB) $(STAGE2_STDLIB)
 	cmp $(STAGE2_STDLIB) $(STAGE3_STDLIB)
-	sh tests/seed_refresh.sh --native
+	$(PROFILE) seed-refresh/native-staging sh tests/seed_refresh.sh --native
 
 native-check: bootstrap-check
 	sh tests/native_conformance.sh

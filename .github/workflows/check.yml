@@ -21,12 +21,25 @@ jobs:
           - target: macos-arm64
             runner: macos-14
     runs-on: ${{ matrix.runner }}
+    env:
+      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
+      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
 
       - name: Validate and package with an isolated command environment
         run: make check-no-interpreter
+
+      - name: Archive detailed validation profile
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: validation-profile-${{ matrix.target }}-${{ github.run_id }}
+          path: |
+            validation-profile.tsv
+            validation-timings.tsv
+          if-no-files-found: warn
 
       - name: Record build provenance
         shell: bash

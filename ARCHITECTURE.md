@@ -472,7 +472,12 @@ verified stage-2 compiler before the bootstrap phase produces stage 3 and proves
 the fixed point. This keeps the proof singular without reducing its compiler or
 standard-library comparisons. Focused compiler, bytecode, and VM targets combine
 their internal suites with representative public-CLI checks. The complete validation phase timings are published in CI summaries and
-retained as run artifacts; focused targets report timings when run locally. `SELF_HOSTING.md` records the completed stages.
+retained as run artifacts; focused targets report timings when run locally.
+`tests/profile_command.sh` adds opt-in inclusive wall-clock observations without
+changing the validation graph or budget records. Native build commands, harness
+groups, source probes and bootstrap stages carry parent labels; nested rows
+overlap. Packaging CI retains clean-check profiles on both platforms, and the
+separate profiling workflow collects focused native-warm measurements. `SELF_HOSTING.md` records the completed stages.
 
 Self-hosted component unit probes execute on the native VM. Development harness
 contracts use POSIX shell for fixtures and Make/archive/CI assertions, with a

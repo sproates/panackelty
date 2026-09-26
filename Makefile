@@ -13,7 +13,7 @@ PROBE := sh tests/run_probe.sh
 PROBES := sh tests/run_probes.sh
 export VALIDATION_JOBS ?= 2
 
-.NOTPARALLEL: check-phases
+.NOTPARALLEL: check-phases ci-compiler ci-runtime-phases ci-bootstrap
 
 BUILD_DIR ?= build
 PREFIX ?= /usr/local
@@ -100,14 +100,25 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
+	@$(MAKE) --no-print-directory unit-harness
+	@$(MAKE) --no-print-directory unit-runtime
+	@$(MAKE) --no-print-directory unit-compiler
+
+.PHONY: unit-harness unit-runtime unit-compiler
+unit-harness: native
 	@$(PROFILE) harness sh tests/harness.sh
 	@$(PROFILE) probe/report_capture_unit $(PROBE) tests/runner/report_capture_unit.panack
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
+
+unit-runtime: native native-module-build native-fault-build
 	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 	@$(PROBES) tests/runner/host_runtime_unit.panack \
 		tests/runner/bytecode_unit.panack \
-		tests/runner/bytecode_native_unit.panack \
-		tests/runner/compiler_lexer_unit.panack \
+		tests/runner/bytecode_native_unit.panack
+
+unit-compiler: native
+	@$(MAKE) --no-print-directory native-oracle-artifacts
+	@$(PROBES) tests/runner/compiler_lexer_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
@@ -342,4 +353,23 @@ policy:
 	@sh tests/no_python_test.sh
 
 check-no-interpreter:
-	@sh tests/without_interpreter.sh
+	@sh tests/without_interpreter.sh "$(CI_SUITE)"
+
+# CI partitions use the same targets as the canonical check. Each runs in a
+# fresh checkout; only runtime + functional share a session-local observation.
+.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
+ci-compiler: policy unit-harness unit-compiler
+
+ci-runtime:
+	@sh tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases
+
+ci-runtime-phases: unit-runtime functional
+
+ci-bootstrap: bootstrap-check quick-start
+
+ci-conformance-source: native
+	@$(PROFILE) native-conformance/source sh tests/native_conformance.sh source
+
+ci-conformance-bytecode: native
+	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
+	@$(MAKE) --no-print-directory quick-start

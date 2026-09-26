@@ -824,7 +824,8 @@ for suite ownership and commands.
 `make policy` enforces the source-tree dependency boundary.
 `make check-no-interpreter` starts from a clean build and validates unit and
 functional checks, bootstrap, conformance, packaging and release smoke with an
-allowlisted `PATH`. Both supported platform jobs run this proof.
+allowlisted `PATH`. Both supported platforms run this proof across five clean
+CI partitions, sharing canonical test targets.
 
 ## Keep validation within development budgets — in progress
 
@@ -862,6 +863,14 @@ repeated bootstrap work first, preserving all assertions.
       cached artifact digests, share one successful runner observation within
       each canonical check, and run independent probes with bounded workers
       while preserving assertions and instrumented corpus execution
+- [x] Partition CI across compiler/harness, runtime/functional, bootstrap and
+      native conformance jobs on both packaging platforms; run sanitizers and
+      coverage independently, retaining stable aggregate gates and every proof
+- [x] Demonstrate full cold CI below three minutes across repeated hosted runs,
+      tracking queue/setup overhead and total runner time as well as elapsed
+      duration: final runs took 2m20s and 2m28s versus 6m48s, with 3–8% more
+      raw runner time. Two minutes remains a stretch goal; sanitizer execution
+      and runner startup are the next CI bottlenecks, not relaxed test budgets
 - [ ] Reduce the remaining standalone VM-runner and compiler-build costs. The
       September 2026 macOS comparison reduced clean checks from 176s to 127s
       with two workers (123s with four), still above the 120s target. The full
@@ -879,7 +888,7 @@ packaging, sanitizer, coverage and release gates remain for relevant changes.
 See [change-aware CI](tests/README.md#change-aware-ci) for the exact boundary.
 
 Detailed opt-in profiling now separates native builds, harness groups, source
-probes and bootstrap stages. Both packaging platforms retain clean-check
+probes and bootstrap stages. Both packaging platforms retain clean suite
 profiles, while a separate targeted workflow records focused warm checks.
 See [the profiling report](tests/VALIDATION_PROFILE.md) for evidence and the
 next measured investigations. This instrumentation does not claim a speed fix.
@@ -1018,9 +1027,9 @@ public-CLI coverage. CI publishes and archives each timing row.
 ### CI feedback improvements
 
 The Check workflow runs once per pull-request update, with pushes limited to
-`main`, and cancels superseded runs for the same PR. The test job invokes
-`make check` once instead of preceding it with overlapping component checks.
-Both required platform packaging jobs and their complete validation gates remain.
+`main`, and cancels superseded runs for the same PR. CI partitions the canonical
+check into shared suites without repeating focused developer checks.
+Both required platform packaging checks and their complete validation gates remain.
 
 The native VM now defaults to `-O2` with standard overridable build flags. A
 macOS compiler benchmark took 38.77 seconds without optimisation and 13.16

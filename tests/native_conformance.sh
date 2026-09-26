@@ -1,6 +1,9 @@
 #!/bin/sh
 
 set -eu
+[ "$#" -le 1 ] || { echo 'expected at most one conformance mode' >&2; exit 2; }
+mode=${1:-all}
+case "$mode" in all|source|bytecode) ;; *) echo 'unknown conformance mode' >&2; exit 2 ;; esac
 
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 panack="$project/panack"
@@ -21,15 +24,19 @@ assert_program() {
   actual="$temporary/$label.stdout"
   errors="$temporary/$label.stderr"
 
-  "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
-  test ! -s "$errors" || fail "$label wrote unexpected stderr"
-  cmp "$expected" "$actual" || fail "$label source output differs"
+  if [ "$mode" != bytecode ]; then
+    sh "$project/tests/profile_command.sh" "conformance/$label/source" "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
+    test ! -s "$errors" || fail "$label wrote unexpected stderr"
+    cmp "$expected" "$actual" || fail "$label source output differs"
+  fi
 
-  "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
-  test ! -s "$errors" || fail "$label compilation wrote unexpected stderr"
-  "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
-  test ! -s "$errors" || fail "$label artifact wrote unexpected stderr"
-  cmp "$expected" "$actual" || fail "$label artifact output differs"
+  if [ "$mode" != source ]; then
+    sh "$project/tests/profile_command.sh" "conformance/$label/compile" "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
+    test ! -s "$errors" || fail "$label compilation wrote unexpected stderr"
+    sh "$project/tests/profile_command.sh" "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
+    test ! -s "$errors" || fail "$label artifact wrote unexpected stderr"
+    cmp "$expected" "$actual" || fail "$label artifact output differs"
+  fi
 }
 
 for case_directory in "$project"/tests/functional/cases/*; do
@@ -47,6 +54,11 @@ for source in "$project"/examples/*.panack; do
   name=$(basename "$source" .panack)
   assert_program "example-$name" "$source" "$project/tests/functional/expected/examples/$name.stdout"
 done
+
+if [ "$mode" = source ]; then
+  echo 'native source conformance: ok'
+  exit 0
+fi
 
 for case_directory in "$project"/tests/functional/failures/*; do
   name=$(basename "$case_directory")

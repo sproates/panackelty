@@ -12,7 +12,7 @@ No language feature, VM semantics, compiler seed or bytecode format changes.
 
 `make harness` runs every migrated group. `make unit` includes it,
 and `make check-compiler` includes the seed and runner groups. Both Linux x86-64
-and macOS arm64 package jobs run the full harness before packaging. The supervisor
+and macOS arm64 package gates require the full harness alongside packaging. The supervisor
 is compiled once into a temporary directory per invocation and removed on exit.
 Each group owns an isolated temporary tree, including paths with spaces.
 

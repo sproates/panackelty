@@ -163,3 +163,5 @@ grep -F 'CI_VALIDATION_RESULT: ${{ needs.package_build.result }}' .github/workfl
 grep -F 'CI_VALIDATION_RESULT: ${{ needs.test_run.result }}' .github/workflows/check.yml >/dev/null || fail 'missing test result'
 grep -F 'name: Package (${{ matrix.target }})' .github/workflows/check.yml >/dev/null || fail 'package check names changed'
 echo 'CI workflow routing and cancellation contracts passed.'
+sh tests/ci_partition.sh
+sh tests/ci_conformance.sh

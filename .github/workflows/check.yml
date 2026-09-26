@@ -48,10 +48,12 @@ jobs:
   package_build:
     needs: changes
     if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
-    name: Build package (${{ matrix.target }})
+    name: Build package (${{ matrix.target }}, ${{ matrix.suite }})
     strategy:
       fail-fast: false
       matrix:
+        target: [linux-x86_64, macos-arm64]
+        suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]
         include:
           - target: linux-x86_64
             runner: ubuntu-22.04
@@ -67,20 +69,20 @@ jobs:
 
       - name: Validate and package with an isolated command environment
         if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
-        run: make check-no-interpreter
+        run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}
 
       - name: Archive detailed validation profile
         if: always() && needs.changes.result == 'success' && needs.changes.outputs.route == 'full'
         uses: actions/upload-artifact@v6
         with:
-          name: validation-profile-${{ matrix.target }}-${{ github.run_id }}
+          name: validation-profile-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
           path: |
             validation-profile.tsv
             validation-timings.tsv
           if-no-files-found: warn
 
       - name: Record build provenance
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        if: matrix.suite == 'conformance-bytecode' && success()
         shell: bash
         run: |
           archive=$(find build -maxdepth 1 -name 'panackelty-*.tar.gz' -print -quit)
@@ -95,7 +97,7 @@ jobs:
           } >"${archive}.provenance"
 
       - name: Upload packaged toolchain
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        if: matrix.suite == 'conformance-bytecode' && success()
         uses: actions/upload-artifact@v6
         with:
           name: panackelty-${{ matrix.target }}-${{ github.sha }}
@@ -107,34 +109,40 @@ jobs:
           retention-days: 14
 
   test_run:
-    name: Full validation
+    name: Full validation (${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [compiler, runtime, bootstrap, sanitize, coverage]
     needs: changes
     if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
     runs-on: ubuntu-latest
+    env:
+      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
+      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
+      VALIDATION_PROFILE_RUN: ${{ matrix.suite }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
 
       - name: Run project checks
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
-        env:
-          VALIDATION_TIMINGS_FILE: validation-timings.tsv
-        run: make check
+        if: contains(fromJSON('["compiler", "runtime", "bootstrap"]'), matrix.suite)
+        run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
 
       - name: Check native memory and undefined behaviour
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        if: matrix.suite == 'sanitize'
         run: make native-sanitize CC=clang
 
       - name: Install matching LLVM coverage tools
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        if: matrix.suite == 'coverage'
         run: sudo apt-get update && sudo apt-get install -y clang llvm
 
       - name: Measure native branch coverage
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        if: matrix.suite == 'coverage'
         run: make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROFDATA=/usr/bin/llvm-profdata
 
       - name: Archive native coverage
-        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        if: matrix.suite == 'coverage'
         uses: actions/upload-artifact@v6
         with:
           name: native-coverage-${{ github.run_id }}
@@ -169,8 +177,10 @@ jobs:
         if: always() && needs.changes.result == 'success' && needs.changes.outputs.route == 'full'
         uses: actions/upload-artifact@v6
         with:
-          name: validation-timings-${{ github.run_id }}
-          path: validation-timings.tsv
+          name: validation-timings-${{ matrix.suite }}-${{ github.run_id }}
+          path: |
+            validation-timings.tsv
+            validation-profile.tsv
           if-no-files-found: warn
 
   # Only these short compatibility gates use always(). Expensive jobs retain

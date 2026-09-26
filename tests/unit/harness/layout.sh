@@ -113,14 +113,16 @@ equal_files "$work/events" "$work/expected"
 awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
-make check
+sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
 make native-sanitize CC=clang
 sudo apt-get update && sudo apt-get install -y clang llvm
 make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROFDATA=/usr/bin/llvm-profdata
 |
 COMMANDS
 equal_files "$work/commands" "$work/expected"
-for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: validation-timings.tsv'; do contains "$work/test-job" "$text"; done
+for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
+    'suite: [compiler, runtime, bootstrap, sanitize, coverage]' \
+    "if: matrix.suite == 'sanitize'" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done
 test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 3 || fail 'release checkout credential policy'
 test "$(grep -c 'contents: write' .github/workflows/release.yml)" = 1 || fail 'release permission policy'
 pass

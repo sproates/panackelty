@@ -438,15 +438,17 @@ program through its public command.
 
 The Check workflow runs on pull requests and pushes to `main`, avoiding a
 second run on each feature-branch push. Concurrency groups cancel superseded
-runs for the same pull request while preserving runs on `main`. Its test job
-runs `make check` once; focused developer targets are not run again before it.
+runs for the same pull request while preserving runs on `main`. Its validation
+matrix partitions the canonical check into shared suites; focused developer
+targets are not run again before them.
 
 The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 14 arm64
-matrix. Each job runs a clean full check and the complete package path with
-only allowlisted commands visible—including bootstrap,
-native conformance, exact-archive smoke testing, checksum generation, and the
-packaged quick start—then retains the archive, checksum, source commit, and
-runner-image provenance as one workflow artifact. The workflow has no tag or
+matrix. Five clean suites per platform cover the complete check and package
+proofs with only allowlisted commands visible, including bootstrap, native
+conformance, exact-archive smoke testing, checksum generation and the packaged
+quick start. The bytecode conformance suite retains the archive, checksum, source commit
+and runner-image provenance as one workflow artifact; the stable package gates
+require every suite to pass. The workflow has no tag or
 release trigger, so producing validated CI artifacts cannot publish a release.
 
 The separate tag workflow accepts only a tag equal to `v` plus the canonical
@@ -475,7 +477,7 @@ retained as run artifacts; focused targets report timings when run locally.
 `tests/profile_command.sh` adds opt-in inclusive wall-clock observations without
 changing the validation graph or budget records. Native build commands, harness
 groups, source probes and bootstrap stages carry parent labels; nested rows
-overlap. Packaging CI retains clean-check profiles on both platforms, and the
+overlap. Packaging CI retains clean suite profiles on both platforms, and the
 separate profiling workflow collects focused native-warm measurements. `SELF_HOSTING.md` records the completed stages.
 
 Self-hosted component unit probes execute on the native VM. Development harness
@@ -484,8 +486,10 @@ Panackelty supervisor enforcing subprocess timeouts, signals and exact captured
 bytes. Each invocation compiles that supervisor once into a temporary directory;
 each shell group owns its isolated workspace and cleanup. `make unit` includes
 the full harness; focused compiler checks include runner and corrupt-seed gates.
-Both platform package jobs run `make check-no-interpreter`: a clean full check,
-native conformance and packaging with only allowlisted tools visible.
+Both platforms partition `make check-no-interpreter` into five clean suites:
+compiler/harness, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.
+Each suite has an allowlisted tool environment. Together they retain the full
+validation graph without repeating bootstrap after the complete check.
 
 Compiled internal probes use a content-addressed cache under the build tree.
 The key includes source names and bytes, the compiler seed, selected VM and
@@ -662,9 +666,16 @@ Ubuntu. They always verify classification and the applicable execution result;
 failed/cancelled/missing classification or full work fails them. The package
 gates require the complete platform matrix to pass. Documentation-only changes
 require full work to be skipped and produce no archive build or upload.
-Separate cancellable `test_run` and `package_build` jobs retain every original
-test, sanitizer, coverage and supported-platform packaging step on the full
-route. Only the short result gates use `always()`, preventing superseded builds
+Cancellable `test_run` and `package_build` matrices retain every original
+test, sanitizer, coverage and supported-platform packaging proof on the full
+route. Ordinary validation uses the same unit subtargets as `make check`;
+runtime and functional checks share a fresh session-local runner report.
+Sanitizers and coverage run independently with their own complete instrumented
+corpus. Bootstrap retains independent seed-refresh staging. Each job builds
+its own native prerequisites: cross-job transfers would introduce a dependency
+before small builds. No persistent cache or previous test result is required.
+Bytecode conformance uploads the exact tested archive; its presence alone does not
+certify the other suites, so consumers must also require the stable package gates. Only the short result gates use `always()`, preventing superseded builds
 from staying alive and blocking new PR updates. The `validation-...` concurrency
 group isolates the rollout from earlier unconditional jobs. Releases remain fully
 validated independently of this classifier.

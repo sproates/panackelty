@@ -2,6 +2,12 @@
 # Prove clean development, bootstrap, conformance and packaging with only
 # explicitly allowed native tools visible. Hosted machines need not be altered.
 set -eu
+[ "$#" -le 1 ] || { echo 'expected at most one isolated validation suite' >&2; exit 2; }
+suite=${1:-all}
+case "$suite" in
+    all|compiler|runtime|bootstrap|conformance-source|conformance-bytecode) ;;
+    *) echo 'unknown isolated validation suite' >&2; exit 2 ;;
+esac
 root=$(pwd -P)
 work=$(mktemp -d "${TMPDIR:-/tmp}/panack-native-environment.XXXXXX")
 trap 'rm -rf "$work"' 0
@@ -26,6 +32,10 @@ for interpreter in "$language" "${language}2" "${language}3" "${language}3.12"; 
 done
 cd "$root"
 make clean
-VALIDATION_PROFILE_RUN=clean sh tests/profile_command.sh clean/check make check
-VALIDATION_PROFILE_RUN=package sh tests/profile_command.sh package make package
+if [ "$suite" = all ]; then
+    VALIDATION_PROFILE_RUN=clean sh tests/profile_command.sh clean/check make check
+    VALIDATION_PROFILE_RUN=package sh tests/profile_command.sh package make package
+else
+    VALIDATION_PROFILE_RUN=$suite sh tests/profile_command.sh "ci/$suite" make "ci-$suite"
+fi
 echo 'isolated native development and package validation: passed'

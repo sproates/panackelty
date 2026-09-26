@@ -15,7 +15,13 @@ language features before implementing them so release work stays focused.
 
 ## Validate a change
 
-From the repository root, run:
+For changes limited to the informational files listed in `scripts/ci_docs.sh`,
+run `make docs` and review the content. CI checks those documents and local file
+links without building the toolchain. See
+[change-aware CI](tests/README.md#change-aware-ci) for the exact boundary.
+
+For implementation, specification, packaged-input, workflow, mixed or unknown
+changes, run from the repository root:
 
 ```sh
 make check

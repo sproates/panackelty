@@ -286,4 +286,6 @@ public behaviour on both supported platforms.
 Development-harness migration is complete: 31 former Python methods now run as
 shell/native checks, with a 52-method retirement audit in `tests/HARNESS_MIGRATION.md`.
 The final 21 implementation-only methods retired with their implementation.
-Both supported package jobs run `make check-no-interpreter`.
+Both supported package jobs run `make check-no-interpreter` on the full
+validation route. Informational-only edits use the documented lightweight
+checks and do not rebuild or package the toolchain.

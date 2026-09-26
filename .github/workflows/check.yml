@@ -6,7 +6,7 @@ on:
   pull_request:
 
 concurrency:
-  group: check-${{ github.event.pull_request.number || github.run_id }}
+  group: validation-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -45,10 +45,10 @@ jobs:
           git diff --check "$(git merge-base "$CI_BASE_SHA" "$CI_HEAD_SHA")" "$CI_HEAD_SHA" --
           bash scripts/check_docs.sh
 
-  package:
+  package_build:
     needs: changes
-    if: always()
-    name: Package (${{ matrix.target }})
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+    name: Build package (${{ matrix.target }})
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
             runner: ubuntu-22.04
           - target: macos-arm64
             runner: macos-14
-    runs-on: ${{ needs.changes.outputs.route == 'docs' && 'ubuntu-22.04' || matrix.runner }}
+    runs-on: ${{ matrix.runner }}
     env:
       VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
       VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
@@ -65,14 +65,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Require a successful validation route
-        env:
-          CI_SCOPE_RESULT: ${{ needs.changes.result }}
-          CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
-        run: sh scripts/ci_gate.sh
-
       - name: Validate and package with an isolated command environment
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: make check-no-interpreter
 
       - name: Archive detailed validation profile
@@ -86,7 +80,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Record build provenance
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         shell: bash
         run: |
           archive=$(find build -maxdepth 1 -name 'panackelty-*.tar.gz' -print -quit)
@@ -101,7 +95,7 @@ jobs:
           } >"${archive}.provenance"
 
       - name: Upload packaged toolchain
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         uses: actions/upload-artifact@v6
         with:
           name: panackelty-${{ matrix.target }}-${{ github.sha }}
@@ -112,40 +106,35 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  test:
+  test_run:
+    name: Full validation
     needs: changes
-    if: always()
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Require a successful validation route
-        env:
-          CI_SCOPE_RESULT: ${{ needs.changes.result }}
-          CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
-        run: sh scripts/ci_gate.sh
-
       - name: Run project checks
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         env:
           VALIDATION_TIMINGS_FILE: validation-timings.tsv
         run: make check
 
       - name: Check native memory and undefined behaviour
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: make native-sanitize CC=clang
 
       - name: Install matching LLVM coverage tools
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: sudo apt-get update && sudo apt-get install -y clang llvm
 
       - name: Measure native branch coverage
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROFDATA=/usr/bin/llvm-profdata
 
       - name: Archive native coverage
-        if: needs.changes.outputs.route == 'full'
+        if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         uses: actions/upload-artifact@v6
         with:
           name: native-coverage-${{ github.run_id }}
@@ -183,3 +172,38 @@ jobs:
           name: validation-timings-${{ github.run_id }}
           path: validation-timings.tsv
           if-no-files-found: warn
+
+  # Only these short compatibility gates use always(). Expensive jobs retain
+  # normal cancellation, so a superseded PR update does not wait for old builds.
+  package:
+    name: Package (${{ matrix.target }})
+    needs: [changes, package_build]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [linux-x86_64, macos-arm64]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Report validation result
+        env:
+          CI_SCOPE_RESULT: ${{ needs.changes.result }}
+          CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
+          CI_VALIDATION_RESULT: ${{ needs.package_build.result }}
+        run: sh scripts/ci_gate.sh
+
+  test:
+    needs: [changes, test_run]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v6
+      - name: Report validation result
+        env:
+          CI_SCOPE_RESULT: ${{ needs.changes.result }}
+          CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
+          CI_VALIDATION_RESULT: ${{ needs.test_run.result }}
+        run: sh scripts/ci_gate.sh

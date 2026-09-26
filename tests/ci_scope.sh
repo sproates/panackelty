@@ -126,38 +126,40 @@ reject_docs 'unclosed inline link'
 # A failed or cancelled classifier must fail every stable check, not skip green.
 for result in failure cancelled skipped ''; do
     for selected in docs full ''; do
-        if CI_SCOPE_RESULT="$result" CI_SCOPE_ROUTE="$selected" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed classification'; fi
+        if CI_SCOPE_RESULT="$result" CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed classification'; fi
     done
 done
 for selected in '' invalid; do
-    if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted invalid route'; fi
+    if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted invalid route'; fi
 done
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
 for selected in docs full; do
-    CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" sh "$root/scripts/ci_gate.sh" >/dev/null
+    for result in failure cancelled skipped success ''; do
+        if [[ "$selected:$result" == docs:skipped || "$selected:$result" == full:success ]]; then continue; fi
+        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT="$result" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
+            fail 'accepted failed, cancelled or unexpected execution result'
+        fi
+    done
 done
 cd "$root"
 bash scripts/check_docs.sh >/dev/null
 echo 'CI routing, stable-result guards and documentation checks passed.'
-# Assert the workflow keeps its current required-check names and runs its guards
-# even when the classifier fails. Every costly step must require the full route.
+# Only short result gates may be unconditional. Real work must be cancellable.
 awk '
-/^  (package|test):$/ { job=1; next }
-/^  [a-z_]+:$/ { job=0 }
-job && /^    needs: changes$/ { dependencies++ }
-job && /^    if: always\(\)$/ { guards++ }
-END { exit dependencies!=2 || guards!=2 }
-' .github/workflows/check.yml || fail 'stable jobs must wait for and check classification'
-awk '
-function check() {
-    if (step!="" && step!="Check out repository" && step!="Require a successful validation route" && !full) bad=1
-    if (step=="Require a successful validation route" && conditional) bad=1
-}
-/^  (package|test):$/ { check(); job=1; step=""; next }
-/^  [a-z_]+:$/ { check(); job=0; step="" }
-job && /^      - name: / { check(); step=substr($0,15); full=0; conditional=0 }
-job && /^        if:/ { conditional=1; if (index($0,"needs.changes.outputs.route == \047full\047")) full=1 }
-END { check(); exit bad }
-' .github/workflows/check.yml || fail 'missing full-route step guard'
+/^  (package|test):$/ { gate=1; heavy=0; next }
+/^  (package_build|test_run):$/ { gate=0; heavy=1; next }
+/^  [a-z_]+:$/ { gate=0; heavy=0 }
+gate && /^    needs: \[changes, (package_build|test_run)\]$/ { dependencies++ }
+gate && /^    if: always\(\)$/ { guards++ }
+gate && /^    timeout-minutes: 2$/ { bounds++ }
+heavy && /^    needs: changes$/ { work_dependencies++ }
+heavy && $0=="    if: needs.changes.result == \047success\047 && needs.changes.outputs.route == \047full\047 && !cancelled()" { routes++ }
+heavy && /^    if: always/ { bad=1 }
+END { exit bad || dependencies!=2 || guards!=2 || bounds!=2 || work_dependencies!=2 || routes!=2 }
+' .github/workflows/check.yml || fail 'stable gates or cancellable work dependencies'
 test "$(grep -c 'run: sh scripts/ci_gate.sh' .github/workflows/check.yml)" = 2 || fail 'stable result scripts'
+grep -F 'CI_VALIDATION_RESULT: ${{ needs.package_build.result }}' .github/workflows/check.yml >/dev/null || fail 'missing package result'
+grep -F 'CI_VALIDATION_RESULT: ${{ needs.test_run.result }}' .github/workflows/check.yml >/dev/null || fail 'missing test result'
 grep -F 'name: Package (${{ matrix.target }})' .github/workflows/check.yml >/dev/null || fail 'package check names changed'
-echo 'CI workflow routing contracts passed.'
+echo 'CI workflow routing and cancellation contracts passed.'

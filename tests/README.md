@@ -308,11 +308,16 @@ validated; this is deliberately not a general Markdown renderer or network
 crawler. Content still needs human review.
 
 The existing `test`, `Package (linux-x86_64)` and `Package (macos-arm64)` results
-remain stable. On docs changes the package-named jobs run only short guards on
+remain stable as short, two-minute-bounded result gates. On docs changes the package-named jobs run only short guards on
 Ubuntu and explicitly report that full validation is not applicable; they do
 not claim a platform build took place. They verify that classification and docs
-checks succeeded. On full changes they retain their original platforms and all
-gates. No branch-protection settings need changing. Workflow-wide path filters
+checks succeeded and full work was skipped. On full changes they require the
+separate cancellable execution jobs to succeed; package gates require the whole
+platform matrix. Those execution jobs retain their original platforms and all
+gates. Only short result jobs use `always()`: putting it on an expensive job
+would keep superseded builds running after cancellation. Per-PR cancellation
+uses the `validation-...` concurrency group to separate this rollout from older
+unconditional jobs. No branch-protection settings need changing. Workflow-wide path filters
 are avoided so required check results are never left pending due to filtering.
 Release validation and the separate profiling/Pages workflows retain their
 existing triggers and gates.

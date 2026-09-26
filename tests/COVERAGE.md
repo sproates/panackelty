@@ -353,6 +353,6 @@ policy paths, mixed changes, executable/symlink documents, unusual filenames,
 missing revisions, valid and broken local links, incoming deleted-file links,
 conflict markers, NUL bytes, incomplete links, and failed/cancelled/skipped
 classifier outcomes. Workflow contracts retain both named package checks and
-the test check, ensure their routing guards run unconditionally, and require
-full-route conditions on every costly step. These tests need only shell, Git
+the test check, ensure their bounded result guards run unconditionally, reject failed/cancelled
+execution results, and require cancellable full-route execution jobs. These tests need only shell, Git
 and the existing native command allowlist; no compiler bootstrap is needed.

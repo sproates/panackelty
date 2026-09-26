@@ -4,6 +4,28 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## 0.1.0-alpha.9 — 2026-09-26
+
+- Add `stdlib/testing` assertions and ordered reports, `stdlib/testing_files`
+  fixture discovery and temporary workspaces, and `stdlib/testing_commands`
+  byte-exact child-process and host-error assertions.
+- Complete repository-wide Python removal. Development tests, bootstrap,
+  conformance, packaging and release validation now use Panackelty, C and
+  standard host tools. A tested source policy rejects interpreter dependencies;
+  Linux and macOS CI also validate with Python unavailable from `PATH`.
+- Regenerate the compiler seed through verified self-hosted stages, checking
+  its input digest, compiler and standard-library fixed points, and expected
+  conformance output before publication.
+- Replace live compiler/VM oracles with reviewed portable fixtures and fixed
+  independent arithmetic expectations, preserving native fault-injection,
+  sanitizer and branch-coverage gates.
+- Reject Void-valued call arguments such as `print(print(1))`, which the
+  self-hosted checker previously accepted incorrectly. The compiler seed is
+  updated; bytecode remains version 8.
+- Known development limitation: clean validation still exceeds its 120-second
+  target. Validation-speed improvements are the next engineering priority;
+  coverage and failure checks remain intact.
+
 ## 0.1.0-alpha.8 — 2026-09-24
 
 - Split the native VM into separately compiled modules, with self-contained

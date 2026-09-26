@@ -1,0 +1,66 @@
+name: Validation profile
+
+# Focused baselines are collected when profiling changes, or on manual request;
+# routine code PRs do not acquire an extra round of validation.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/profile.yml'
+      - 'tests/profile_command.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  focused:
+    name: Warm profile (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x86_64
+            runner: ubuntu-22.04
+          - target: macos-arm64
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    env:
+      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
+      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build ordinary native prerequisites
+        env:
+          VALIDATION_PROFILE_RUN: preparation
+        run: make native native-module-build native-fault-build
+      - name: Measure focused checks with native prerequisites built
+        shell: bash
+        run: |
+          status=0
+          for component in compiler bytecode vm; do
+            VALIDATION_PROFILE_RUN="warm-$component" \
+              sh tests/profile_command.sh "warm/check-$component" \
+              make "check-$component" || status=1
+          done
+          exit "$status"
+      - name: Record environment
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "source_commit=$GITHUB_SHA"
+            echo "runner=$RUNNER_OS-$RUNNER_ARCH"
+            echo "runner_image=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+            cc --version
+          } > profile-environment.txt
+      - name: Archive focused profiles
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: focused-profile-${{ matrix.target }}-${{ github.run_id }}
+          path: |
+            validation-profile.tsv
+            validation-timings.tsv
+            profile-environment.txt
+          if-no-files-found: warn

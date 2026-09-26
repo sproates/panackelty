@@ -26,6 +26,6 @@ for interpreter in "$language" "${language}2" "${language}3" "${language}3.12"; 
 done
 cd "$root"
 make clean
-make check
-make package
+VALIDATION_PROFILE_RUN=clean sh tests/profile_command.sh clean/check make check
+VALIDATION_PROFILE_RUN=package sh tests/profile_command.sh package make package
 echo 'isolated native development and package validation: passed'

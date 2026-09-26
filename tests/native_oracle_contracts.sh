@@ -38,7 +38,7 @@ if [ "$mode" = all ]; then
     rows builtin.stdout 82
 
     bounded() {
-        "$vm" run "$seed" run tests/runner/oracle_command.panack "$@"
+        sh tests/profile_command.sh "oracle/command/$2" "$vm" run "$seed" run tests/runner/oracle_command.panack "$@"
     }
     bounded 20 "$fixtures/integer.stdin" "$temporary/integer" "$modules" arithmetic
     cmp "$fixtures/integer.stdout" "$temporary/integer"
@@ -54,7 +54,7 @@ fi
 
 compile() {
     phase="compiling $1"
-    "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
+    sh tests/profile_command.sh "oracle/compile/$1" "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
     test ! -s "$temporary/errors" || fail "compile stderr: $1"
     printf 'wrote %s\n' "$temporary/program.bc" > "$temporary/expected-compile"
     cmp "$temporary/expected-compile" "$temporary/compile"
@@ -114,7 +114,7 @@ for source in tests/functional/cases/*/main.panack examples/*.panack; do
         *) expected="${source%/*}/expected.stdout" ;;
     esac
     phase="running $source"
-    "$vm" run "$temporary/program.bc" > "$temporary/output" 2> "$temporary/errors"
+    sh tests/profile_command.sh "oracle/run/$source" "$vm" run "$temporary/program.bc" > "$temporary/output" 2> "$temporary/errors"
     test ! -s "$temporary/errors" || fail "execution stderr: $source"
     cmp "$expected" "$temporary/output"
 done

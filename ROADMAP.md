@@ -866,9 +866,11 @@ repeated bootstrap work first, preserving all assertions.
 - [x] Partition CI across compiler/harness, runtime/functional, bootstrap and
       native conformance jobs on both packaging platforms; run sanitizers and
       coverage independently, retaining stable aggregate gates and every proof
-- [ ] Demonstrate full cold CI below three minutes across repeated hosted runs,
+- [x] Demonstrate full cold CI below three minutes across repeated hosted runs,
       tracking queue/setup overhead and total runner time as well as elapsed
-      duration; two minutes is a stretch goal, not a relaxed test budget
+      duration: final runs took 2m20s and 2m28s versus 6m48s, with 3–8% more
+      raw runner time. Two minutes remains a stretch goal; sanitizer execution
+      and runner startup are the next CI bottlenecks, not relaxed test budgets
 - [ ] Reduce the remaining standalone VM-runner and compiler-build costs. The
       September 2026 macOS comparison reduced clean checks from 176s to 127s
       with two workers (123s with four), still above the 120s target. The full

@@ -16,7 +16,7 @@ also sequenced project checks (194s), sanitizers (117s) and coverage (58s,
 plus 10s tool installation).
 
 CI now partitions shared canonical targets into compiler/harness,
-runtime/functional and bootstrap suites. Both packaging platforms add a
+runtime/functional and bootstrap suites. Both packaging platforms add
 source and bytecode conformance suites, and Ubuntu runs sanitizers and coverage
 independently. Bytecode conformance also builds and checks the archive.
 Each suite starts in a fresh checkout; no persistent cache or transferred test
@@ -29,13 +29,34 @@ The initial partitioned hosted runs passed in 166s and 185s, with 1,148s and
 because macOS conformance took 157s. Source and bytecode conformance now run
 in separate jobs, retaining both complete executions without sharing reports.
 
-Local macOS validation passed a clean `make check` in 128 seconds and a clean
-isolated conformance/archive suite in 76 seconds. This is a CI scheduling
-change, not a claim that serial local validation now meets its 120-second
-budget. Hosted end-to-end and summed runner timings must be assessed separately;
-the target is under three minutes on repeated cold runs, with two minutes as a
-stretch. Native conformance now records each source, compile and bytecode step
-to expose its remaining cost.
+The final code at `71bf486` passed two complete cold runs, including both
+platforms, sanitizers, coverage and stable gates. No Actions cache was restored.
+Elapsed time includes classification, runner startup/queue delays and result
+gates; summed job duration counts parallel runner time separately.
+
+| Run | Elapsed | Summed runner time | macOS portion |
+| --- | ---: | ---: | ---: |
+| [Baseline](https://github.com/sproates/panackelty/actions/runs/36249712860) | 6m48s | 19m05s | 5m53s |
+| [Final, attempt 1](https://github.com/sproates/panackelty/actions/runs/36252221963/attempts/1) | 2m20s | 20m41s | 7m10s |
+| [Final, attempt 2](https://github.com/sproates/panackelty/actions/runs/36252221963/attempts/2) | 2m28s | 19m45s | 6m23s |
+
+This is a 64–66% elapsed reduction with 3–8% more raw runner time on these
+observations. Raw durations exclude billing rounding and platform multipliers;
+they are not a billing estimate. Conformance jobs took 61–78s. Sanitizers took
+100–127s and are the main remaining execution bottleneck; one Linux bootstrap
+job also experienced 36s more startup delay than its peers in attempt 1.
+The two-minute stretch goal remains open.
+
+Both Linux paths preserve all 1,296 baseline `PASS` observations and macOS
+preserves all 1,294, including multiplicity and normalizing temporary paths.
+The complete hosted native coverage summary is byte-identical to the baseline:
+86.91% lines, 80.09% branches and 100% functions. Dispatch/failure controls and
+source/bytecode partition equivalence tests also pass.
+
+The final clean local macOS `make check` passed in 131 seconds; an earlier
+complete isolated conformance/archive run took 76 seconds. Serial local
+validation still exceeds its 120-second budget. Native conformance now records
+each source, compile and bytecode step to expose its remaining cost.
 
 ## Reuse and bounded workers — 2026-09-26
 

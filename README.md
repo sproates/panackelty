@@ -610,12 +610,12 @@ Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profi
 separates native builds, harness groups, probes and bootstrap costs.
 
 Continuous integration builds this package independently on Ubuntu 22.04
-x86-64 and macOS 14 arm64. Each platform runs four clean, isolated suites via
+x86-64 and macOS 14 arm64. Each platform runs five clean, isolated suites via
 `make check-no-interpreter CI_SUITE=…`: compiler/harness, runtime/functional,
-bootstrap, and native conformance/packaging. Together they cover the complete
+bootstrap, source conformance and bytecode conformance/packaging. Together they cover the complete
 check and package proofs with only allowlisted commands visible. The stable
 package checks require every suite on both platforms to succeed.
-The conformance job retains the exact archive,
+The bytecode conformance job retains the exact archive,
 its SHA-256 checksum, and a provenance record naming the source commit and
 runner image. These routine CI jobs never publish a release.
 

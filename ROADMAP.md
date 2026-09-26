@@ -824,7 +824,7 @@ for suite ownership and commands.
 `make policy` enforces the source-tree dependency boundary.
 `make check-no-interpreter` starts from a clean build and validates unit and
 functional checks, bootstrap, conformance, packaging and release smoke with an
-allowlisted `PATH`. Both supported platforms run this proof across four clean
+allowlisted `PATH`. Both supported platforms run this proof across five clean
 CI partitions, sharing canonical test targets.
 
 ## Keep validation within development budgets — in progress

@@ -52,7 +52,7 @@ runs `make clean`, `make check` and `make package` (which includes
 `make native-check`). Thus it
 includes unit and functional tests, failure injection, fresh bootstrap and seed
 refresh, native conformance, archive/checksum checks and the packaged quick start.
-Linux x86-64 and macOS arm64 CI partition these proofs into four clean suites
+Linux x86-64 and macOS arm64 CI partition these proofs into five clean suites
 using `CI_SUITE`; their stable package gates require every suite. Independent
 Linux jobs retain sanitizer and LLVM coverage gates.
 

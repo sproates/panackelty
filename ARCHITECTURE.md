@@ -443,10 +443,10 @@ matrix partitions the canonical check into shared suites; focused developer
 targets are not run again before them.
 
 The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 14 arm64
-matrix. Four clean suites per platform cover the complete check and package
+matrix. Five clean suites per platform cover the complete check and package
 proofs with only allowlisted commands visible, including bootstrap, native
 conformance, exact-archive smoke testing, checksum generation and the packaged
-quick start. The conformance suite retains the archive, checksum, source commit
+quick start. The bytecode conformance suite retains the archive, checksum, source commit
 and runner-image provenance as one workflow artifact; the stable package gates
 require every suite to pass. The workflow has no tag or
 release trigger, so producing validated CI artifacts cannot publish a release.
@@ -486,8 +486,8 @@ Panackelty supervisor enforcing subprocess timeouts, signals and exact captured
 bytes. Each invocation compiles that supervisor once into a temporary directory;
 each shell group owns its isolated workspace and cleanup. `make unit` includes
 the full harness; focused compiler checks include runner and corrupt-seed gates.
-Both platforms partition `make check-no-interpreter` into four clean suites:
-compiler/harness, runtime/functional, bootstrap, and conformance/packaging.
+Both platforms partition `make check-no-interpreter` into five clean suites:
+compiler/harness, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.
 Each suite has an allowlisted tool environment. Together they retain the full
 validation graph without repeating bootstrap after the complete check.
 
@@ -674,7 +674,7 @@ Sanitizers and coverage run independently with their own complete instrumented
 corpus. Bootstrap retains independent seed-refresh staging. Each job builds
 its own native prerequisites: cross-job transfers would introduce a dependency
 before small builds. No persistent cache or previous test result is required.
-Conformance uploads the exact tested archive; its presence alone does not
+Bytecode conformance uploads the exact tested archive; its presence alone does not
 certify the other suites, so consumers must also require the stable package gates. Only the short result gates use `always()`, preventing superseded builds
 from staying alive and blocking new PR updates. The `validation-...` concurrency
 group isolates the rollout from earlier unconditional jobs. Releases remain fully

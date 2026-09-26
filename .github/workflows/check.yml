@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
       matrix:
         target: [linux-x86_64, macos-arm64]
-        suite: [compiler, runtime, bootstrap, conformance]
+        suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]
         include:
           - target: linux-x86_64
             runner: ubuntu-22.04
@@ -82,7 +82,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Record build provenance
-        if: matrix.suite == 'conformance' && success()
+        if: matrix.suite == 'conformance-bytecode' && success()
         shell: bash
         run: |
           archive=$(find build -maxdepth 1 -name 'panackelty-*.tar.gz' -print -quit)
@@ -97,7 +97,7 @@ jobs:
           } >"${archive}.provenance"
 
       - name: Upload packaged toolchain
-        if: matrix.suite == 'conformance' && success()
+        if: matrix.suite == 'conformance-bytecode' && success()
         uses: actions/upload-artifact@v6
         with:
           name: panackelty-${{ matrix.target }}-${{ github.sha }}

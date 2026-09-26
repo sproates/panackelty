@@ -5,7 +5,7 @@ set -eu
 [ "$#" -le 1 ] || { echo 'expected at most one isolated validation suite' >&2; exit 2; }
 suite=${1:-all}
 case "$suite" in
-    all|compiler|runtime|bootstrap|conformance) ;;
+    all|compiler|runtime|bootstrap|conformance-source|conformance-bytecode) ;;
     *) echo 'unknown isolated validation suite' >&2; exit 2 ;;
 esac
 root=$(pwd -P)

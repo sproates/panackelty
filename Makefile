@@ -357,7 +357,7 @@ check-no-interpreter:
 
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
-.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance
+.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
 ci-compiler: policy unit-harness unit-compiler
 
 ci-runtime:
@@ -367,6 +367,9 @@ ci-runtime-phases: unit-runtime functional
 
 ci-bootstrap: bootstrap-check quick-start
 
-ci-conformance: native
-	@$(PROFILE) native-conformance sh tests/native_conformance.sh
+ci-conformance-source: native
+	@$(PROFILE) native-conformance/source sh tests/native_conformance.sh source
+
+ci-conformance-bytecode: native
+	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 	@$(MAKE) --no-print-directory quick-start

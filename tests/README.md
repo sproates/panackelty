@@ -83,7 +83,7 @@ sanitizer and coverage targets retain their own complete corpus execution.
 
 CI runs a validation matrix per pull-request revision and again after a merge
 to `main`. It does not repeat focused developer targets before the full suite.
-Superseded PR runs are cancelled. Both packaging platforms run four clean
+Superseded PR runs are cancelled. Both packaging platforms run five clean
 `make check-no-interpreter CI_SUITE=…` partitions with an allowlisted command
 environment. The default command without `CI_SUITE` still performs the complete
 standalone proof. CI uses these shared targets:
@@ -93,10 +93,11 @@ standalone proof. CI uses these shared targets:
 | `compiler` | Policy, full harness, report-capture and seed-failure controls, all compiler probes |
 | `runtime` | Native VM/oracle contracts, host/bytecode probes, complete functional phase |
 | `bootstrap` | Fixed-point bootstrap, independent seed refresh, archive smoke and quick start |
-| `conformance` | Native source/bytecode conformance, archive smoke and quick start; uploads archive |
+| `conformance-source` | Every native source conformance program |
+| `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
 
 Ubuntu validation runs the first three suites plus independent sanitizer and
-coverage jobs. Each packaging platform runs all four ordinary suites. The
+coverage jobs. Each packaging platform runs all five ordinary suites. The
 canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
 `unit-compiler` targets, and `make check` remains the complete local command.
 The stable required checks aggregate all applicable jobs, including failures

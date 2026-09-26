@@ -21,7 +21,7 @@ run() {
     result=0
     (cd "$work/tree"; PATH="$work/bin:$PATH" sh tests/without_interpreter.sh "$@") > "$work/output" 2>&1 || result=$?
 }
-for suite in compiler runtime bootstrap conformance; do
+for suite in compiler runtime bootstrap conformance-source conformance-bytecode; do
     run "$suite"
     [ "$result" = 0 ] || fail "dispatch failed: $suite"
     printf 'clean\nci-%s\n' "$suite" > "$work/expected"
@@ -65,10 +65,11 @@ for contract in \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
     'ci-bootstrap: bootstrap-check quick-start' \
-    'native-conformance sh tests/native_conformance.sh'; do
+    'native-conformance/source sh tests/native_conformance.sh source' \
+    'native-conformance/bytecode sh tests/native_conformance.sh bytecode'; do
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"
 done
-grep -F 'suite: [compiler, runtime, bootstrap, conformance]' .github/workflows/check.yml >/dev/null || fail 'missing package partition'
+grep -F 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]' .github/workflows/check.yml >/dev/null || fail 'missing package partition'
 grep -F 'suite: [compiler, runtime, bootstrap, sanitize, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing validation partition'
 grep -F 'run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing isolated suite dispatch'
 grep -F 'run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing project suite dispatch'

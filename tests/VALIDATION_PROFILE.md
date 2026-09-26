@@ -17,11 +17,17 @@ plus 10s tool installation).
 
 CI now partitions shared canonical targets into compiler/harness,
 runtime/functional and bootstrap suites. Both packaging platforms add a
-conformance/archive suite, and Ubuntu runs sanitizers and coverage independently.
+source and bytecode conformance suites, and Ubuntu runs sanitizers and coverage
+independently. Bytecode conformance also builds and checks the archive.
 Each suite starts in a fresh checkout; no persistent cache or transferred test
 result is required. Bootstrap and seed-refresh independence remain intact.
 Only the successful runner observation within runtime/functional is shared.
 The standalone full commands and their warning budgets remain available.
+
+The initial partitioned hosted runs passed in 166s and 185s, with 1,148s and
+1,214s summed runner time. The second run exceeded the three-minute target
+because macOS conformance took 157s. Source and bytecode conformance now run
+in separate jobs, retaining both complete executions without sharing reports.
 
 Local macOS validation passed a clean `make check` in 128 seconds and a clean
 isolated conformance/archive suite in 76 seconds. This is a CI scheduling

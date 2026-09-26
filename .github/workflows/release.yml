@@ -1,6 +1,16 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Confirm VERSION (for example 0.1.0-alpha.9)"
+        required: true
+        type: string
+      commit:
+        description: "Confirm the full 40-character main commit to release"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -8,23 +18,28 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-publication
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-22.04
     steps:
-      - name: Check out tagged source
+      - name: Check out exact release source
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          ref: ${{ github.sha }}
 
-      - name: Require the canonical version tag
-        shell: bash
+      - name: Require confirmed release identity
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_COMMIT: ${{ inputs.commit }}
         run: |
-          expected_tag="v$(cat VERSION)"
-          if [[ "$GITHUB_REF_NAME" != "$expected_tag" ]]; then
-            echo "release tag $GITHUB_REF_NAME does not match $expected_tag" >&2
-            exit 1
-          fi
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          sh scripts/release_request.sh "$GITHUB_EVENT_NAME" "$GITHUB_REF" \
+            "$GITHUB_SHA" "$REQUESTED_VERSION" "$REQUESTED_COMMIT" > "$RUNNER_TEMP/release-notes.md"
 
       - name: Run the complete project validation
         run: make check
@@ -42,10 +57,11 @@ jobs:
             runner: macos-14
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: Check out tagged source
+      - name: Check out exact release source
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          ref: ${{ github.sha }}
 
       - name: Build and verify the native release package
         run: make package
@@ -80,10 +96,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Check out tagged source
+      - name: Check out exact release source
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          ref: ${{ github.sha }}
 
       - name: Download validated release assets
         uses: actions/download-artifact@v7
@@ -110,13 +127,34 @@ jobs:
           done
           test "$(find . -maxdepth 1 -type f | wc -l)" -eq 6
 
-      - name: Publish the verified prerelease
+      - name: Create or verify the annotated tag and publish
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_COMMIT: ${{ inputs.commit }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release-assets/* \
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          sh scripts/release_request.sh "$GITHUB_EVENT_NAME" "$GITHUB_REF" \
+            "$GITHUB_SHA" "$REQUESTED_VERSION" "$REQUESTED_COMMIT" > "$RUNNER_TEMP/release-notes.md"
+          expected_tag="v$(cat VERSION)"
+          # Fetch is required to distinguish an absent tag from a network failure.
+          git fetch origin --tags
+          if git show-ref --verify --quiet "refs/tags/$expected_tag"; then
+            test "$(git cat-file -t "refs/tags/$expected_tag")" = tag
+            test "$(git rev-parse "refs/tags/$expected_tag^{}")" = "$GITHUB_SHA"
+          else
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            git -c user.name=sproates \
+              -c user.email=218187+sproates@users.noreply.github.com \
+              tag -a "$expected_tag" "$GITHUB_SHA" -F "$RUNNER_TEMP/release-notes.md"
+            gh auth setup-git
+            git push origin "refs/tags/$expected_tag"
+          fi
+          # A token-created tag does not trigger another run: publish here, after
+          # the same validation/package gates. Never edit an existing release.
+          gh release create "$expected_tag" release-assets/* \
             --verify-tag \
             --prerelease \
             --latest=false \
-            --title "Panackelty ${GITHUB_REF_NAME#v}" \
+            --title "Panackelty ${expected_tag#v}" \
             --notes-from-tag

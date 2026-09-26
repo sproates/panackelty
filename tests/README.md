@@ -224,3 +224,13 @@ public behaviour on both supported platforms.
 `make policy` checks the source tree for forbidden interpreter dependencies and
 runs adversarial policy controls. It is part of `make check`. The final retirement
 audit and isolated-environment proof are in [PYTHON_REMOVAL.md](PYTHON_REMOVAL.md).
+
+Manual release request controls run in `unit/harness/release.sh`: confirmed main
+commit and version, canonical tag requests, rejected events/branches/inputs, and
+missing, empty or duplicate release notes. The workflow keeps publication behind
+full validation and both platform packages, with exact source provenance.
+
+Release publication controls use disposable local Git repositories and a stubbed
+GitHub CLI boundary to verify real annotated-tag creation, same-tag retries, and
+rejection of lightweight or wrong-commit tags before publication. Development
+validation therefore requires Git; downloaded toolchains are unaffected.

@@ -25,15 +25,32 @@ dependencies.
 
 Merging to `main` runs checks and creates CI artifacts; it does not publish a
 release. Prepare version, changelog, and download-link updates in a release PR.
-After its required checks pass and it is merged, push an annotated version tag
-on that merged commit. The tag message supplies the public release notes.
+After its required checks pass and it is merged, use either release entry point:
 
-A release tag must exactly match `v` followed by the version in `VERSION`. The
-tag workflow first runs the complete development suite, then independently
-builds and smoke-tests the Linux x86-64 and macOS arm64 archives without Python.
+- Push an annotated version tag on the merged commit. Its message supplies the
+  public release notes.
+- In GitHub Actions, select **Release → Run workflow**, select `main`, and confirm
+  the exact `VERSION` value and full 40-character commit SHA currently on `main`.
+  The workflow rejects branch, version or commit mismatches before building.
+  If `main` advances before dispatch, refresh the SHA and review the new commit.
+  Manual releases take their notes from the matching nonempty changelog section.
+
+Both paths pin every checkout to the event's commit. A release tag must exactly
+match `v` followed by `VERSION`. The workflow runs the complete development suite,
+then independently builds and smoke-tests Linux x86-64 and macOS arm64 archives.
 Only after both matrix jobs succeed does the final job download their retained
-archives, verify their SHA-256 checksums and provenance, and publish the tag as
-a GitHub prerelease. Only that final job has repository write permission.
+archives and verify SHA-256 checksums and source-commit provenance.
+
+Only that final job has repository write permission. For a manual release it
+creates an annotated tag at the validated commit, then publishes the prerelease
+in the same run: tags created using the workflow token do not start another
+release workflow. No personal access token or terminal credentials are needed.
+Existing tags are accepted only if annotated and pointing to that exact commit;
+they are never moved. Existing releases are never edited or overwritten. A failed
+publication can be retried with the same commit and matching tag if no release
+was created. If GitHub created a partial release, inspect it before recovery;
+the workflow will not overwrite it. Release runs are serialized and never cancel
+an in-progress publication.
 
 ## Compatibility during the preview
 

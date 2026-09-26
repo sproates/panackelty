@@ -2,6 +2,7 @@
 # Fixed independent expectations replace the former live Python differential
 # oracle. Run from the repository root; selected binaries retain instrumentation.
 set -eu
+unset PANACK_TEST_RUNNER_REPORT PANACK_TEST_CAPTURE_RUNNER_REPORT
 
 vm=${PANACK_NATIVE_BINARY:-./panack-vm}
 modules=${PANACK_NATIVE_MODULE_TEST:-./build/vm/test_modules}
@@ -26,6 +27,18 @@ trap 'exit 1' HUP INT TERM
 
 fail() { echo "oracle contracts: $*" >&2; exit 1; }
 
+compile() {
+    phase="compiling $1"
+    sh tests/profile_command.sh "oracle/compile/$1" "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
+    test ! -s "$temporary/errors" || fail "compile stderr: $1"
+    printf 'wrote %s\n' "$temporary/program.bc" > "$temporary/expected-compile"
+    cmp "$temporary/expected-compile" "$temporary/compile"
+    "$vm" check "$temporary/program.bc" > "$temporary/check" 2> "$temporary/errors"
+    test ! -s "$temporary/errors" || fail "artifact verification stderr: $1"
+    printf 'ok\n' > "$temporary/ok"
+    cmp "$temporary/ok" "$temporary/check"
+}
+
 if [ "$mode" = all ]; then
     phase="arithmetic and registry"
     rows() { test "$(wc -l < "$fixtures/$1")" -eq "$2" || fail "changed case count: $1"; }
@@ -37,8 +50,11 @@ if [ "$mode" = all ]; then
     rows builtin.names 82
     rows builtin.stdout 82
 
+    compile tests/runner/oracle_command.panack
+    cp "$temporary/program.bc" "$temporary/command.bc"
+    phase="arithmetic and registry"
     bounded() {
-        sh tests/profile_command.sh "oracle/command/$2" "$vm" run "$seed" run tests/runner/oracle_command.panack "$@"
+        sh tests/profile_command.sh "oracle/command/$2" "$vm" run "$temporary/command.bc" "$@"
     }
     bounded 20 "$fixtures/integer.stdin" "$temporary/integer" "$modules" arithmetic
     cmp "$fixtures/integer.stdout" "$temporary/integer"
@@ -51,18 +67,6 @@ if [ "$mode" = all ]; then
     bounded 10 /dev/null "$temporary/registry" "$modules" registry "$@"
     cmp "$fixtures/builtin.stdout" "$temporary/registry"
 fi
-
-compile() {
-    phase="compiling $1"
-    sh tests/profile_command.sh "oracle/compile/$1" "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
-    test ! -s "$temporary/errors" || fail "compile stderr: $1"
-    printf 'wrote %s\n' "$temporary/program.bc" > "$temporary/expected-compile"
-    cmp "$temporary/expected-compile" "$temporary/compile"
-    "$vm" check "$temporary/program.bc" > "$temporary/check" 2> "$temporary/errors"
-    test ! -s "$temporary/errors" || fail "artifact verification stderr: $1"
-    printf 'ok\n' > "$temporary/ok"
-    cmp "$temporary/ok" "$temporary/check"
-}
 
 check_golden() {
     od -An -v -tx1 "$temporary/program.bc" | tr -d ' \n' > "$temporary/actual.hex"
@@ -114,6 +118,12 @@ for source in tests/functional/cases/*/main.panack examples/*.panack; do
         *) expected="${source%/*}/expected.stdout" ;;
     esac
     phase="running $source"
+    unset PANACK_TEST_CAPTURE_RUNNER_REPORT
+    if [ "$source" = tests/functional/cases/runner_smoke/main.panack ] &&
+        [ -n "${PANACK_CHECK_RUNNER_REPORT:-}" ]; then
+        PANACK_TEST_CAPTURE_RUNNER_REPORT=$PANACK_CHECK_RUNNER_REPORT
+        export PANACK_TEST_CAPTURE_RUNNER_REPORT
+    fi
     sh tests/profile_command.sh "oracle/run/$source" "$vm" run "$temporary/program.bc" > "$temporary/output" 2> "$temporary/errors"
     test ! -s "$temporary/errors" || fail "execution stderr: $source"
     cmp "$expected" "$temporary/output"

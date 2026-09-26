@@ -8,6 +8,9 @@ on:
     paths:
       - '.github/workflows/profile.yml'
       - 'tests/profile_command.sh'
+      - 'tests/check.sh'
+      - 'tests/run_probe.sh'
+      - 'tests/run_probes.sh'
 
 permissions:
   contents: read
@@ -33,14 +36,16 @@ jobs:
         env:
           VALIDATION_PROFILE_RUN: preparation
         run: make native native-module-build native-fault-build
-      - name: Measure focused checks with native prerequisites built
+      - name: Measure initial and cached focused checks
         shell: bash
         run: |
           status=0
           for component in compiler bytecode vm; do
-            VALIDATION_PROFILE_RUN="warm-$component" \
-              sh tests/profile_command.sh "warm/check-$component" \
-              make "check-$component" || status=1
+            for state in initial cached; do
+              VALIDATION_PROFILE_RUN="$state-$component" \
+                sh tests/profile_command.sh "$state/check-$component" \
+                make "check-$component" || status=1
+            done
           done
           exit "$status"
       - name: Record environment

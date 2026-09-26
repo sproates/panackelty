@@ -1,0 +1,23 @@
+import stdlib/testing_commands
+import stdlib/filesystem
+
+// Publish only a complete, byte-exact successful subprocess observation.
+capture_test_report(name: Str, command: TestCommand, expected: ProcessOutput,
+                    destination: Option[Path]): TestResult {
+  actual = process_run(command.executable, command.arguments, command.stdin,
+    command.working_directory, command.environment, command.timeout, command.output_limit)
+  result = test_command_result(name, actual, expected)
+  match result.outcome {
+    TestFailed(reason) => result,
+    TestPassed() => match destination {
+      None() => result,
+      Some(file) => match actual {
+        Error(error) => test_expect(name, false, "report command failed"),
+        Ok(output) => match fs_write(file, output.stdout) {
+          Ok(done) => result,
+          Error(error) => test_expect(name, false, "runner report capture failed")
+        }
+      }
+    }
+  }
+}

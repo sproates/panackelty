@@ -556,6 +556,10 @@ ordinary Panackelty program:
 ./panack run src/compiler/main.panack -- compile examples/euler001.panack -o build/euler001.bc
 ```
 
+Internal test probes reuse compiled bytecode when their source and toolchain
+contents match. Every check still executes the tests. `make clean` removes the
+cache; see [the testing guide](tests/README.md) for the reuse and isolation rules.
+
 Build and test the distribution with:
 
 ```sh

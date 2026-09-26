@@ -858,12 +858,16 @@ repeated bootstrap work first, preserving all assertions.
       or waiting for checks that do not apply. Test change classification,
       including additions, deletions, renames and mixed changes, and document
       which gates each class requires; retain full release validation
-- [ ] Reduce duplicated work, safely reuse verified artifacts and optimize the
-      measured bottlenecks while preserving all existing validation evidence
-      The 2026-09-26 macOS documentation-validation run passed from a clean
-      build in 168 seconds (unit 102s, functional 24s, bootstrap 30s), exceeding
-      the 120-second total and 15-second unit budgets. Keep this optimization
-      work prioritized; the documentation changes do not address those costs.
+- [x] Reuse compiled probes using complete source/toolchain content keys, verify
+      cached artifact digests, share one successful runner observation within
+      each canonical check, and run independent probes with bounded workers
+      while preserving assertions and instrumented corpus execution
+- [ ] Reduce the remaining standalone VM-runner and compiler-build costs. The
+      September 2026 macOS comparison reduced clean checks from 176s to 127s
+      with two workers (123s with four), still above the 120s target. The full
+      unit phase also retains its warning. Prioritize the measured remaining
+      work without weakening standalone targets or isolated bootstrap proofs;
+      see `tests/VALIDATION_PROFILE.md` for warm timings and coverage comparison
 - [ ] Demonstrate clean `make check` within 120 seconds and focused incremental
       checks within 15 seconds on the reference environments; retain visible
       per-phase timing, warnings and CI reports to catch future regressions

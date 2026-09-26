@@ -1,6 +1,7 @@
 #!/bin/sh
 . tests/unit/harness/common.sh
-runner=$root/tests/runner/main.panack
+runner=$work/runner.bc
+sh tests/run_probe.sh --compile tests/runner/main.panack "$runner"
 case_name=smoke-missing-and-mismatched-report
 printf 'wrong runner output\n' > "$work/report"
 capture 1 30 env PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack

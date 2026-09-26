@@ -1120,6 +1120,26 @@ localize while keeping `make check` the canonical validation command.
 Testing work that is also a prerequisite for self-hosting should be reflected
 in both roadmaps when completed.
 
+### Publish public coverage reports — planned
+
+The native VM's LLVM line and branch coverage is currently uploaded as a CI
+artifact. Make the HTML report available at a stable public URL such as
+`https://panackelty.com/coverage/`, so readers can open it directly without
+visiting an Actions run or downloading and extracting an archive.
+
+- [ ] Publish the successful `main` build's native coverage HTML and summary
+      through the project's existing GitHub Pages site, with source commit,
+      generation date and an explicit label that this covers the native C VM,
+      not the self-hosted compiler or the entire language
+- [ ] Keep the website and coverage deployment coordinated so a normal site
+      update cannot erase the latest report and a report update cannot replace
+      the site with stale content; publish only from trusted, successful builds
+- [ ] Link the stable report from the site and README, verify its entry page and
+      relative source-navigation links after deployment, and keep the existing
+      downloadable CI artifact for debugging
+- [ ] Document how publication failures and stale results appear, and ensure
+      release and PR workflows cannot publish an unreviewed coverage site
+
 ## Change Panackelty syntax — complete
 
 The accepted syntax removes redundant declaration keywords, uses a colon for

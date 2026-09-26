@@ -6,17 +6,17 @@ All twenty former Python functional methods now have Panackelty-hosted
 replacement evidence. The runner (`runner/main.panack`) checks twenty-five
 selected success cases, twenty examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
-`runner_smoke` from source and saved bytecode. Only 21 transitional Python implementation tests remain.
+`runner_smoke` from source and saved bytecode. The transitional implementation and its implementation-only tests are retired.
 
-Panackelty has six validation paths:
+Panackelty has six core validation paths, plus the repository policy and
+isolated-environment proof:
 
 - `unit` tests exercise implementation internals directly. Panackelty probes
-  cover compiler, bytecode, VM, host and standard-library behavior. The 21
-  remaining Python methods protect the transitional implementation itself.
+  cover compiler, bytecode, VM, host and standard-library behavior.
   Small source snippets isolate internal behavior and failures.
 - `harness` checks repository/CI policy, distribution, timing, seed rejection
   and fixture-runner failures using shell and native Panackelty subprocesses.
-  Run `make harness PYTHON=false`; see [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md).
+  Run `make harness`; see [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md).
 - `functional` tests treat the `panack` command as a black box. They compile or
   run complete `.panack` programs on the VM, capture their output, and compare it
   with the expected observable behavior.
@@ -33,8 +33,7 @@ Run a level independently with `make unit`, `make functional`,
 development validation with `make check`.
 Each command prints its wall-clock duration and budget; an over-budget run also
 prints a warning without hiding the underlying test result.
-The unit phase times `unit-impl`, including the native harness, retained Python tests and
-Panackelty probes, and propagates a failure from either suite.
+The unit phase times `unit-impl`, including the native harness and Panackelty probes, and propagates any failure.
 
 For incremental work, use `make check-compiler`, `make check-bytecode`, or
 `make check-vm`. Each runs the owning unit-test subtree plus representative
@@ -61,10 +60,12 @@ temporary file to `runner_smoke` in both source and bytecode mode. Each mode
 compares the exact report; a missing or changed report fails. Standalone runs
 of `runner_smoke` still invoke the complete runner themselves.
 
-CI runs `make check` once per pull-request revision and again after a merge to
-`main`. It does not repeat the focused developer targets before the full suite.
-Superseded PR runs are cancelled. Both platform package jobs run `make harness PYTHON=false`, then bootstrap,
-native conformance, and exact-archive gates. The default native build uses `-O2`;
+CI runs one main test job per pull-request revision and again after a merge to
+`main`. It does not repeat focused developer targets before the full suite.
+Superseded PR runs are cancelled. Both platform package jobs additionally run
+`make check-no-interpreter`, proving the full workflow from a clean build with
+an allowlisted command environment. This includes bootstrap, native conformance
+and exact-archive gates. The default native build uses `-O2`;
 functional and native process tests exercise the same optimised VM. Native tests
 use the production build graph rather than maintaining separate source lists.
 `make native-sanitize` additionally runs native module, loader, and execution
@@ -81,13 +82,13 @@ evidence changes.
 `stdlib/testing` supplies pure structured assertions and an explicit reporter
 for new Panackelty-hosted tests. Its initial end-to-end case is
 `functional/cases/testing_library`; the lexer, parser, resolver, type-checker, and purity unit probes now also
-use it directly. The remaining Python unit harness retains its own discovery.
+use it directly.
 `stdlib/testing_files` exposes sorted immediate fixture directories and
 temporary workspaces; `functional/cases/testing_fixtures` exercises their
 creation, enumeration, and explicit cleanup.
 `stdlib/testing_commands` supplies byte-exact process and host-error
 assertions; `functional/cases/testing_commands` verifies those via the public
-CLI. Make orchestrates the Python and Panackelty checks during migration.
+CLI. Make orchestrates shell, C and Panackelty checks.
 
 
 Direct bytecode/verification coverage runs in
@@ -95,14 +96,12 @@ Direct bytecode/verification coverage runs in
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Live Python differential comparisons are
-retired; bootstrap-only object/limit and seed safeguards remain, recorded in
+retired together with bootstrap-only object/limit safeguards, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
-Remaining Python unit tests are grouped by subsystem under `tests/unit/compiler`,
-`tests/unit/bytecode`, and `tests/unit/vm`. Shared compilation and VM-output
-helpers live in `tests/unit/support.py`. These packages only safeguard the
-transitional implementation and will retire with it. Add new behavioral tests
-to the owning native/Panackelty probe; `make unit` includes all these checks.
+The former implementation-only unit packages and their support helper are
+retired. Add new behavioral tests to the owning native/Panackelty probe;
+`make unit` includes all these checks.
 
 `tests/unit/harness/distribution.sh` covers both conventional staged
 installation and the download archive. Its archive test builds the packaging
@@ -199,7 +198,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains only for the transitional implementation and its 21 unit safeguards;
+The transitional implementation and its 21 implementation-only safeguards are retired;
 seed regeneration now uses verified self-hosted stages.
 
 
@@ -221,3 +220,7 @@ The [migration inventory](fixtures/host_runtime/README.md) maps all 37
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+`make policy` checks the source tree for forbidden interpreter dependencies and
+runs adversarial policy controls. It is part of `make check`. The final retirement
+audit and isolated-environment proof are in [PYTHON_REMOVAL.md](PYTHON_REMOVAL.md).

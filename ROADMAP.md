@@ -22,8 +22,8 @@ package-manager distribution must not delay the preview.
 
 Python removal from the development repository is not a preview prerequisite.
 The shipped compiler, VM, standard library, installation path, package path,
-and release smoke tests must remain Python-free; contributors may continue to
-use the transitional Python oracle and test harness described below.
+and release smoke tests remain Python-free. Repository-wide removal is now
+complete, including development tests and CI.
 
 ### 1. Freeze the preview contract
 
@@ -117,7 +117,7 @@ use the transitional Python oracle and test harness described below.
       Git configuration, the current GitHub login, or files under `~/.ssh`
 - [x] Create and inspect one clean initial commit, publish the repository, then
       clone it into a fresh directory and run the documented contributor checks
-      plus `make package PYTHON=false`
+      plus `make package`
 - [x] Publish the annotated `0.1.0-alpha.1` tag and release only after its platform
       matrix and exact-archive gates pass
 - [x] Download each public release asset by its published URL, verify its
@@ -215,7 +215,7 @@ Generic source functions, a first-class success value, and exact rational
 arithmetic are implemented. Opaque paths, exact durations, and monotonic instants
 are now implemented, together with typed filesystem and bounded process APIs,
 checked decoding, and sleep. The testing-library foundation is complete;
-repository-wide Python removal is the next migration initiative. Recursive
+repository-wide Python removal is complete. Recursive
 filesystem operations remain a separate follow-up.
 
 - [x] Specify and implement generic source functions and explicit type arguments,
@@ -821,23 +821,24 @@ prerequisite so programs can use these APIs without knowing repository paths.
       plus bounded byte-exact command assertions and expected host errors.
       Migration of the Python oracle and harness is a separate initiative below
 
-## Eliminate Python from the repository — in progress
+## Eliminate Python from the repository — complete
 
-Python has been removed from the public toolchain, but it still implements the
-remaining bootstrap implementation safeguards and compatibility facade. Seed
-regeneration now uses the native VM and self-hosted compiler. Retire those uses
-after logical imports, the required host capabilities, and the Panackelty testing foundation are complete. Completion
-means the current repository contains no Python source or Python command
-invocation and its full development, bootstrap, conformance, packaging, and
-release validation succeeds on a machine where no Python interpreter is
-installed.
+The transitional implementation, compatibility facade and final 21
+implementation-only tests are retired. The current source tree contains no
+Python source or interpreter command dependency. `make policy` protects that
+boundary; `make check-no-interpreter` starts from a clean build and validates
+unit/functional checks, bootstrap, conformance, packaging and release smoke with
+an allowlisted `PATH` exposing no Python interpreter. Both supported platform
+jobs run this proof. Hosted machines may have interpreters outside that command
+environment; the proof does not claim to uninstall system software.
+See `tests/PYTHON_REMOVAL.md` for scope and the retired-test audit.
 
 - [x] Complete and document the replacement test architecture: use the
       Panackelty-hosted library for compiler, language, standard-library, and
       functional behavior; focused C tests for native VM internals; and portable
       declarative fixtures shared between them. The ownership inventory,
       parity gates, migration sequence, and unresolved runner prerequisites are
-      recorded in `tests/PYTHON_MIGRATION.md`; remaining safeguards stay active
+      recorded in `tests/PYTHON_MIGRATION.md`; the final retirement audit is complete
 - [x] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
       coverage without losing focused assertions or important failure cases
       Direct compiler coverage is complete: lexer, parser, resolver, checker,
@@ -845,8 +846,8 @@ installed.
       types and host-boundary assertions run natively. The two final compiler
       probes add 201 direct and 51 integration assertions. Bytecode and verifier
       wire coverage now runs in two Panackelty probes and direct C verifier
-      checks. Python-only in-memory object and adjustable-limit checks remain
-      until the stage-0 implementation retires. Direct VM execution and loader coverage now runs in 174 Panackelty
+      checks. Python-only in-memory object and adjustable-limit checks retired
+      with their implementation. Direct VM execution and loader coverage now runs in 174 Panackelty
       assertions plus native C/header contracts. Direct runtime, host and standard-library coverage now adds 95 Panackelty
       assertions, 12 fixed purity vectors and native C type/failure cases.
       Fixed native expectations replace live differential comparisons; the
@@ -863,7 +864,7 @@ installed.
       fixed-point bootstrap evidence; preserve 1,800 integer, 422 decimal and
       96 rational expectations plus 82 builtin signatures without regenerating
       expected results during validation. Bootstrap-only implementation tests
-      remain until the Python implementation is retired.
+      retired with their implementation.
 - [x] Replace `regenerate-seed` with a documented staged self-hosted process that
       verifies its input seed and resulting compiler artifacts. Fresh stages
       2–4 must reach a compiler and standard-library fixed point and match the
@@ -872,25 +873,25 @@ installed.
 - [x] Retire the general development Python harness: 31 methods now use
       shell/native checks for repository/CI, installation/archive, timing,
       seed rejection and runner failures. Both platform jobs run
-      `make harness PYTHON=false`. The 21 implementation-only methods remain
-      until the transitional implementation retires; `tests/HARNESS_MIGRATION.md`
+      `make check-no-interpreter`. The 21 implementation-only methods retired
+      with the transitional implementation; `tests/HARNESS_MIGRATION.md`
       records the complete 52-method audit and added failure cases.
-- [ ] Remove the root compatibility facade and the transitional implementation
+- [x] Remove the root compatibility facade and the transitional implementation
       under `src/bootstrap`
-- [ ] Remove Python variables, commands, cache cleanup, and file-pattern handling
+- [x] Remove Python variables, commands, cache cleanup, and file-pattern handling
       from the Makefile and other development scripts
-- [ ] Remove Python setup and execution from CI
-- [ ] Update architecture, bootstrap, contributor, test, and user documentation
+- [x] Remove Python setup and execution from CI
+- [x] Update architecture, bootstrap, contributor, test, and user documentation
       so none describes Python as a current project component
-- [ ] Add a repository policy check that rejects Python source files, Python
+- [x] Add a repository policy check that rejects Python source files, Python
       shebangs, and Python command invocations
-- [ ] Prove `make check`, native conformance, bootstrap verification, packaging,
+- [x] Prove `make check`, native conformance, bootstrap verification, packaging,
       and release smoke tests from a clean environment without Python
 
 ## Keep validation within development budgets — in progress
 
-**Immediate next priority after repository-wide Python removal.** Complete the
-Python-removal gates above, then improve validation speed before starting
+**Immediate next priority after repository-wide Python removal.** The
+Python-removal gates above are complete; improve validation speed before starting
 unrelated roadmap work. Strong coverage remains more important than speed;
 do not drop assertions, failure cases, sanitizer checks or platform gates,
 move required coverage out of canonical validation, or widen timing budgets.
@@ -899,6 +900,12 @@ The latest pre-removal CI baseline (PR #64) is 275 seconds for `make check`:
 169 seconds for units, 42 for functional tests and 59 for bootstrap. Establish
 a fresh baseline after Python removal rather than assuming its deletion alone
 will fix validation time.
+
+The first post-removal isolated local check passed in 239 seconds: units took
+146 seconds, functional tests 37 seconds and bootstrap 50 seconds. This is a
+local baseline, not a comparison with CI hardware. Unit and total-check budget
+warnings remain active; profile native compilation, harness subprocesses and
+repeated bootstrap work first, preserving all assertions.
 
 - [ ] Profile clean and incremental validation on Linux and macOS, separating
       native builds, probe compilation, subprocess overhead and bootstrap stages
@@ -949,11 +956,11 @@ prioritized timing work; increasing a command allowance is not a speed fix.
 
 The September 2026 clean local check after the lexer unit migration took 125
 seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
-Profile the remaining Python unit harness and native build/bootstrap on this
+Profile the native unit harness and build/bootstrap on this
 environment while retaining all compiler unit assertions. CI timings remain
 the reference for the cross-platform validation budget.
 The host milestone adds process and filesystem boundary cases without
-changing the 15/120-second budgets. Profile retained Python oracle runs and
+changing the 15/120-second budgets. Profile native oracle runs and
 byte-exact host process assertions if the warning persists; keep all failure
 cases and sanitizer coverage.
 The VM milestone adds portable execution/loader and native-wrapper probes.
@@ -963,14 +970,14 @@ Keep their process-launch and fixture-decoding costs in the same prioritized
 unit-budget investigation; the 120/15-second targets are unchanged.
 The bytecode milestone adds two portable codec/native command probes; a local
 focused check took 19 seconds against its 15-second warning budget. Profile
-fixture decoding, redundant process launches and retained Python oracle work
+fixture decoding, redundant process launches and native oracle work
 without dropping malformed inputs or changing the timing budgets.
 
 The unit timer now includes all seven Panackelty compiler probes as well as
-the remaining Python tests. Keep their compilation and execution cost visible
+the native unit tests. Keep their compilation and execution cost visible
 when profiling the existing unit-budget warning. The final compiler migration
 adds a direct driver build, source/bytecode commands and snapshot checks; profile
-these separately from the retained Python oracle before increasing allowances.
+these separately from the native oracle before increasing allowances.
 
 Current environment follow-up: the September 2026 testing-library branch
 reported a 21-second unit phase against its 15-second warning threshold, also

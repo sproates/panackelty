@@ -74,8 +74,8 @@ The old `tests/unit/file_io_cases.py` generated sources only for retired
 methods; its contents are now represented by the functional and direct public
 CLI probes. Standard-library byte identity, compiler artifacts, seeded Fraction
 properties and program outputs now use fixed independent expectations in
-`../oracle_contracts`. Bootstrap and harness safeguards still use Python; their
-ownership is recorded in `../../ORACLE_REPLACEMENT.md`.
+`../oracle_contracts`. The final implementation and harness retirement is
+recorded in `../../PYTHON_REMOVAL.md`.
 
 The direct process environment/cwd/binary-stderr case compares the child's
 working directory by filesystem identity. Shells may resolve symlinks when

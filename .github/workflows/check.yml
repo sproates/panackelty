@@ -25,11 +25,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Check native development harness
-        run: make harness PYTHON=false
-
-      - name: Build, test, and package the native toolchain
-        run: make package PYTHON=false
+      - name: Validate and package with an isolated command environment
+        run: make check-no-interpreter
 
       - name: Record build provenance
         shell: bash
@@ -61,11 +58,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
 
       - name: Run project checks
         env:

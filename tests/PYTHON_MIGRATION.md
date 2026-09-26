@@ -1,11 +1,12 @@
 # Python-free development test architecture
 
-This is the migration contract for removing Python from the *repository*.
+This records the completed migration removing Python from the *repository*.
 The downloadable compiler, native VM, package, and release smoke path already
 run without it. Functional and direct unit contracts now use Panackelty/C.
 Live Python differential oracles are retired; fixed expectations, native checks
 and bootstrap proofs replace them. Seed regeneration now uses verified native
-stages. Only 21 Python implementation safeguards remain; the development harness is native. See
+stages. The last 21 implementation-only safeguards retired with the bootstrap
+implementation. The development harness is native. See
 [oracle retirement](ORACLE_REPLACEMENT.md).
 
 ## Baseline and ownership (September 2026)
@@ -47,8 +48,8 @@ boundaries, decimal/range ambiguity, every invalid character and position,
 both unterminated-string variants, half-open offsets, and semicolon insertion
 at line breaks. It asserts on the lexer result before the public CLI's parser
 and type checker can affect the result. The direct compiler unit migration is
-now complete; Python differential evidence and separately owned runner,
-standard-library and bootstrap tests remain active (see the ownership audit below).
+now complete; fixed expectations and native runner, standard-library and
+bootstrap tests preserve the evidence (see the ownership audit below).
 
 `tests/runner/compiler_parser_unit.panack` replaces all 38 methods from
 `tests/unit/compiler/test_self_hosted_parser.py`, expanding them into 192 named
@@ -329,7 +330,7 @@ The full original-method mapping and immutable-input inventory are in
 `test_checker`, `test_syntax`, `test_types`, `test_imports` and `test_diagnostics`
 files are retired. The 142 source acceptance, ten emission, three driver artifact
 and earlier 31/10 checker/purity comparisons now use fixed native expectations.
-Two bootstrap-specific wording safeguards remain in `test_bootstrap_diagnostics`;
+Two bootstrap-specific wording safeguards retired with their implementation;
 public diagnostic wording is checked by the native probes.
 
 The migration uncovered an existing self-hosted acceptance gap for
@@ -342,7 +343,7 @@ checks cover check/run/disasm, compile failure and absence of a failed artifact.
 Seed-corruption and fixture-runner failure tests now live in `unit/harness`,
 alongside native build/distribution contracts. The complete 52-method audit in
 [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md) maps 31 migrated methods and the 21
-implementation-only safeguards retained until stage-0 retirement. Standard-library
+implementation-only safeguards now retired with stage-0. Standard-library
 byte identity uses a fixed reference and stage-1/stage-2/stage-3 comparisons.
 
 ## Direct bytecode and verifier migration — complete
@@ -360,8 +361,7 @@ mapping is [here](fixtures/bytecode/contract_cases/README.md).
 The live codec oracle is retired: all ten source variants, five special artifacts
 and 57 rejection cases keep fixed native expectations. Bootstrap-only verifier
 object shapes, adjustable implementation limits, build hooks, minimal/ADT VM
-self-checks and CLI hash-seed checks remain for the final bootstrap/harness
-removal. Bytecode format and language semantics are unchanged.
+self-checks and CLI hash-seed checks retired with the bootstrap implementation. Bytecode format and language semantics are unchanged.
 
 ## Direct VM unit migration — complete
 
@@ -403,7 +403,7 @@ stage-1/stage-2/stage-3 byte identity. The injected Python clock
 failure has direct native fault-injection evidence and is retired; no root-only
 permission scenario was counted as observed when the host runs as root.
 
-## Migration order and removal gates
+## Completed migration order and removal gates
 
 1. Establish a Panackelty runner on a representative fixed fixture subset.
    Run old and new paths together; compare the per-case observation matrix,
@@ -438,8 +438,9 @@ migration aid, not a permanent second execution engine.
 ## Development harness migration — complete
 
 All 31 general development tests from the remaining 52-method Python suite now
-run as shell/native contracts. `make harness PYTHON=false` runs them independently;
+run as shell/native contracts. `make harness` runs them independently;
 `make unit` includes all of them, and `make check-compiler` includes runner/seed
 contracts. CI runs the full harness on Linux and macOS before package gates.
 [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md) records every retired method, extra
-failure evidence, and the exact 21 remaining implementation-only methods.
+failure evidence, and the final 21 implementation-only methods retired with
+their implementation. See [final removal](PYTHON_REMOVAL.md).

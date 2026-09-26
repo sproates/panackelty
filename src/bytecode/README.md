@@ -52,15 +52,16 @@ version increment.
 
 [`codec.panack`](codec.panack) contains the Panackelty-hosted version-8
 serializer. It consumes the typed IR from `src/compiler/emitter.panack`, sorts
-functions canonically, and emits the same bytes as the bootstrap serializer.
+functions canonically, and emits bytes checked against frozen independent
+bootstrap artifacts.
 [`decoder.panack`](decoder.panack) performs bounded binary reads, strict UTF-8
 and numeric validation, structural and semantic verification, disassembly, and
 canonical reserialization. It consumes the same portable malformed vectors as
-the bootstrap loader. Differential tests compare complete artifacts byte for
+the native loader. Fixed contract tests compare complete artifacts byte for
 byte.
 
 This directory contains only the portable format contract and Panackelty-hosted
-implementation. Temporary Python tooling is confined to `src/bootstrap`.
+implementation. The transitional Python toolchain is retired.
 
 Version 8 preserves the version-7 instruction layout while changing integer
 division semantics. Rational values are constructed at runtime; Unit uses the
@@ -71,5 +72,5 @@ Direct bytecode/verification coverage runs in
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Live Python differential comparisons are
-retired; bootstrap-only object/limit and seed safeguards remain, recorded in
+retired together with bootstrap-only object/limit safeguards, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.

@@ -1,7 +1,7 @@
 import "../../src/compiler/checker.panack"
 import stdlib/testing
 
-// Shared source fixtures also feed the retained Python differential oracle.
+// Shared source fixtures preserve independently recorded acceptance expectations.
 // Diagnostics retain the original substring assertions; successful cases must
 // explicitly return ok, rather than merely agree with the other implementation.
 pure checker_unit_contains(actual: Str, expected: Str): Bool {

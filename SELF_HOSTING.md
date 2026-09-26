@@ -9,8 +9,8 @@ coverage in `make check`.
 
 The self-hosting critical path is complete. The public compiler, VM, build,
 conformance, installation, and package path no longer depend on Python. The
-transitional Python implementation remains only for bootstrap-specific
-safeguards pending retirement, not a release, build, or seed-refresh dependency.
+transitional Python implementation, compatibility facade and implementation-only
+tests are removed. Development validation also runs entirely without Python.
 
 The completed critical path was:
 
@@ -224,14 +224,14 @@ signatures; the normal compiler and library fixed-point comparisons still apply.
 explicitly owned temporary workspaces. `stdlib/testing_commands` now checks
 bounded process results and expected host errors. The testing-library foundation
 and live oracle replacement are complete. Seed refresh is now self-hosted;
-bootstrap implementation retirement remains.
+bootstrap implementation retirement is complete.
 The Panackelty-hosted functional runner now checks twenty-five selected
 success fixtures, all twenty examples, and forty-one failure fixtures. It
 also checks six `run`/`disasm` failure pairs, rational traps, exact displayed
 diagnostics, environment and file I/O, and a stage-two compiler driver
 comparison. `runner_smoke` runs from both source and saved bytecode. The
 Python functional and live differential methods are retired; bootstrap
-implementation retirement remains.
+implementation retirement is complete.
 The direct lexer, parser, and resolver unit contracts now run in Panackelty and their
 former Python test files have been retired. The parser retains all 192 expanded
 assertions from its 38 former methods; the resolver retains all 26 expanded
@@ -246,12 +246,12 @@ Direct bytecode/verification coverage runs in
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Live Python differential comparisons are
-retired; bootstrap-only object/limit and seed safeguards remain, recorded in
+retired together with bootstrap-only object/limit safeguards, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
 The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
 their current responsibilities, assigns native and Panackelty-hosted evidence,
-and requires behavior parity before any transitional Python tests are retired.
+and records the behavior evidence used to retire transitional tests.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
@@ -260,7 +260,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains only for the transitional implementation and its 21 unit safeguards;
+The transitional implementation and its 21 implementation-only safeguards are retired;
 seed regeneration now uses verified self-hosted stages.
 
 
@@ -285,5 +285,5 @@ public behaviour on both supported platforms.
 
 Development-harness migration is complete: 31 former Python methods now run as
 shell/native checks, with a 52-method retirement audit in `tests/HARNESS_MIGRATION.md`.
-The remaining 21 methods guard only the transitional implementation and retire
-with it. Both supported package jobs run `make harness PYTHON=false`.
+The final 21 implementation-only methods retired with their implementation.
+Both supported package jobs run `make check-no-interpreter`.

@@ -595,13 +595,18 @@ digest, builds fresh self-hosted stages, and checks compiler/library identity
 before replacing the seed. See [the refresh procedure](bootstrap/README.md).
 
 Continuous integration runs on pull-request updates and pushes to `main`.
-New commits cancel older runs for the same pull request. The test job runs
-`make check` once; the focused targets above remain available for local work.
+New commits cancel older runs for the same pull request. For implementation, mixed or uncertain changes, the test job runs `make check`
+once; the focused targets above remain available for local work. Changes limited
+to the explicit informational-document allowlist receive quick document/local-link
+checks, without compiler builds, packaging, sanitizers or coverage. The existing
+check names remain present and reject routing failures. See
+[change-aware CI](tests/README.md#change-aware-ci) and use `make docs` locally
+for those informational edits.
 Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profiling)
 separates native builds, harness groups, probes and bootstrap costs.
 
 Continuous integration builds this package independently on Ubuntu 22.04
-x86-64 and macOS 14 arm64. Both jobs run `make check-no-interpreter`, covering
+x86-64 and macOS 14 arm64. For full validation, both jobs run `make check-no-interpreter`, covering
 a clean full check and packaging with only allowlisted commands visible.
 Each successful matrix job retains the exact archive,
 its SHA-256 checksum, and a provenance record naming the source commit and

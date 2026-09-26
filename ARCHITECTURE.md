@@ -641,3 +641,28 @@ The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+### Change-aware validation routing
+
+The Check workflow always starts on PR updates and main pushes. Its `changes`
+job tests the routing/checking scripts, compares the complete merge-base-to-head
+diff, and selects `docs` only when every old/new path is an allowlisted regular,
+non-executable informational file. Unknown paths/history, executable documents,
+symlinks, specifications, packaged inputs and mixed changes select `full`.
+Renames are expanded to deletion/addition so neither path is hidden.
+
+On the documentation route it checks whitespace in the change, document
+conflict markers/NUL bytes, local inline/image/reference link destinations and
+incoming links to informational files. It performs no network link requests
+and does not validate heading fragments or implement a full Markdown parser.
+The `test` and two `Package (...)` checks are short, bounded result gates on
+Ubuntu. They always verify classification and the applicable execution result;
+failed/cancelled/missing classification or full work fails them. The package
+gates require the complete platform matrix to pass. Documentation-only changes
+require full work to be skipped and produce no archive build or upload.
+Separate cancellable `test_run` and `package_build` jobs retain every original
+test, sanitizer, coverage and supported-platform packaging step on the full
+route. Only the short result gates use `always()`, preventing superseded builds
+from staying alive and blocking new PR updates. The `validation-...` concurrency
+group isolates the rollout from earlier unconditional jobs. Releases remain fully
+validated independently of this classifier.

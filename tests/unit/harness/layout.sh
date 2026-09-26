@@ -23,7 +23,7 @@ absent .github/workflows/check.yml release:
 absent .github/workflows/check.yml tags:
 pass
 case_name=ci-runs-full-validation-once-per-pr-revision
-contains .github/workflows/check.yml 'group: check-${{ github.event.pull_request.number || github.run_id }}'
+contains .github/workflows/check.yml 'group: validation-${{ github.event.pull_request.number || github.run_id }}'
 contains .github/workflows/check.yml 'cancel-in-progress: ${{ github.event_name == '"'"'pull_request'"'"' }}'
 contains .github/workflows/check.yml 'name: Package (${{ matrix.target }})'
 pass
@@ -110,7 +110,7 @@ contains .github/workflows/check.yml 'run: make check-no-interpreter'
 awk '/^on:$/ { selected=1; next } /^concurrency:/ { selected=0 } selected && NF { print }' .github/workflows/check.yml > "$work/events"
 printf '  push:\n    branches: [main]\n  pull_request:\n' > "$work/expected"
 equal_files "$work/events" "$work/expected"
-awk '/^  test:$/ { selected=1; next } selected { print }' .github/workflows/check.yml > "$work/test-job"
+awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
 make check

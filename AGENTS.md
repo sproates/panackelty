@@ -57,6 +57,21 @@ Perform a cleanup audit after every change and before final validation:
 - Finish with `git status` and a targeted file/reference search so the commit
   contains no accidental outputs, stale references, or unexplained files.
 
+## Informational documentation changes
+
+For changes limited to regular, non-executable files in the explicit
+`scripts/ci_docs.sh` allowlist, run `make docs` and review the edited content.
+These informational edits do not require rebuilding the compiler or running
+`make check`. The allowlist currently covers the roadmap, architecture,
+self-hosting status and three test/report documents. Additions, deletions and
+renames must keep local links valid.
+
+README quick-start content, specifications, packaged documents, instructions,
+workflows, code, mixed changes and unknown impact require full validation.
+Changes to the routing/checking implementation require its regression suite
+and the canonical `make check`. CI preserves the existing check names on both
+routes; routing failures must fail those checks.
+
 ## Validation
 
 `make check` is the canonical project validation command. It must remain usable

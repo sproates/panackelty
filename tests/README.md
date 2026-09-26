@@ -277,3 +277,47 @@ the profiler changes or by manual dispatch. It does not run on ordinary code or
 documentation PRs. Existing required checks, sanitizers and release gates remain
 in place. Findings and next investigations live in
 [`VALIDATION_PROFILE.md`](VALIDATION_PROFILE.md).
+
+
+## Change-aware CI
+
+`make docs` checks informational documentation locally without building native
+tools. `make ci-check` exercises change classification, routing failures and
+link-checking fixtures. The latter is also part of `make check` through the
+policy stage and runs before CI selects a route.
+
+| Changes | Check workflow |
+| --- | --- |
+| Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` as regular non-executable files | Document checks and local file links; no builds, packaging, sanitizer or coverage work |
+| README, specification, packaged inputs, instructions, workflows, code, other paths or mixed changes | Full existing validation and both platform packages |
+| Missing revisions/history or empty/unknown diff | Full validation |
+| Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
+
+The classifier compares the complete PR diff from its merge base, not only the
+last commit; main pushes compare the prior commit to the pushed head. It inspects
+both sides of additions, deletions, renames and mode changes. Symlinks and
+executable Markdown never select the fast path. `scripts/ci_docs.sh` is the
+single allowlist; expanding it requires evidence that the document is neither
+an executable fixture nor a packaged/behavioral input.
+
+The fast path checks changed whitespace, empty/NUL-containing documents,
+conflict markers, and local inline/image/reference link destinations outside
+code fences. It also checks incoming links to allowlisted files, catching broken
+references after deletion/rename. Remote URLs and heading fragments are not
+validated; this is deliberately not a general Markdown renderer or network
+crawler. Content still needs human review.
+
+The existing `test`, `Package (linux-x86_64)` and `Package (macos-arm64)` results
+remain stable as short, two-minute-bounded result gates. On docs changes the package-named jobs run only short guards on
+Ubuntu and explicitly report that full validation is not applicable; they do
+not claim a platform build took place. They verify that classification and docs
+checks succeeded and full work was skipped. On full changes they require the
+separate cancellable execution jobs to succeed; package gates require the whole
+platform matrix. Those execution jobs retain their original platforms and all
+gates. Only short result jobs use `always()`: putting it on an expensive job
+would keep superseded builds running after cancellation. Per-PR cancellation
+uses the `validation-...` concurrency group to separate this rollout from older
+unconditional jobs. No branch-protection settings need changing. Workflow-wide path filters
+are avoided so required check results are never left pending due to filtering.
+Release validation and the separate profiling/Pages workflows retain their
+existing triggers and gates.

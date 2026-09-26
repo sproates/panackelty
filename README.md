@@ -476,7 +476,7 @@ host failures without requiring a shell or decoding binary output.
 During development, `make functional` uses the Panackelty-hosted runner for
 twenty-five selected success cases, twenty examples, and forty-one failure
 cases, plus a self-hosted compiler check and the runner smoke case from source
-and bytecode. Python remains only in the transitional implementation and its unit safeguards.
+and bytecode. All development and release checks now run without Python.
 
 ## Explore further
 
@@ -494,7 +494,7 @@ and bytecode. Python remains only in the transitional implementation and its uni
 - [The self-hosting guide](SELF_HOSTING.md) follows the bootstrap chain and its
   reproducibility guarantees.
 - [The Python-free test migration plan](tests/PYTHON_MIGRATION.md) inventories
-  development coverage and the gates for replacing the transitional harness.
+  the completed migration and its coverage-preservation evidence.
 - [The roadmap](ROADMAP.md) tracks upcoming language and engineering work.
 - [The release policy](RELEASE_POLICY.md) defines preview stability, supported
   systems, compatibility, and support lifetime.
@@ -511,9 +511,10 @@ This workflow is for contributors and people who want to build or inspect the
 toolchain itself. Normal Panackelty programs should use a downloaded release.
 
 A source build requires a POSIX-like Linux or macOS environment, a C11 compiler,
-and `make`. The complete development suite additionally requires Python 3.12;
-Python is used only by the remaining transitional implementation safeguards, not the toolchain
-shipped to users.
+and `make`, plus standard POSIX utilities and a SHA-256 utility. The complete
+development suite has no Python dependency. `make policy` rejects source-tree
+interpreter dependencies; `make check-no-interpreter` runs a clean full check,
+native conformance and packaging with only explicitly allowed tools in `PATH`.
 
 The checkout directory may contain spaces and parentheses. The native VM builds
 with `-O2` by default. Standard `CC`, `CPPFLAGS`, `CFLAGS`, `LDFLAGS`, and
@@ -541,13 +542,13 @@ Direct bytecode/verification coverage runs in
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Live Python differential comparisons are
-retired; bootstrap-only object/limit and seed safeguards remain, recorded in
+retired together with bootstrap-only object/limit safeguards, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
 The compiler check includes the complete direct Panackelty compiler assertions,
 fixed independent expectations and public CLI fixtures. The same
-assertions also run in `make unit`, whose timer includes both the Python and
-Panackelty unit suites.
+assertions also run in `make unit`, whose timer includes the shell harness,
+Panackelty probes and native C contracts.
 
 The public compiler is written in Panackelty. To run it from source as an
 ordinary Panackelty program:
@@ -559,7 +560,7 @@ ordinary Panackelty program:
 Build and test the Python-free distribution path with:
 
 ```sh
-make package PYTHON=false
+make package
 ```
 
 This command completes the native conformance and reproducible-bootstrap gates,
@@ -567,7 +568,7 @@ builds the final archive, and smoke-tests that exact archive from a fresh
 directory with Python, `make`, and a C compiler absent from `PATH`. It also
 writes the archive's `.sha256` checksum and executes the packaged README's
 quick start, upgrade, and removal procedures. Run
-`make release-smoke PYTHON=false` to rebuild and exercise only the archive gate.
+`make release-smoke` to rebuild and exercise only the archive gate.
 
 The release archive is written to
 `build/panackelty-VERSION-OS-ARCH.tar.gz`, with fields derived from `VERSION` and
@@ -587,9 +588,8 @@ the download-friendly archive layout.
 The full validation suite includes focused compiler and VM tests, black-box
 program tests through `panack`, and a fixed-point bootstrap proof. The three
 component checks retain representative public-command evidence while targeting
-the 15-second incremental budget. The Python stage-0 implementation remains
-only for its implementation safeguards pending retirement; the public
-toolchain runs without it. `make regenerate-seed` now verifies the recorded seed
+the 15-second incremental budget. The former stage-0 implementation and
+compatibility facade are removed. `make regenerate-seed` now verifies the recorded seed
 digest, builds fresh self-hosted stages, and checks compiler/library identity
 before replacing the seed. See [the refresh procedure](bootstrap/README.md).
 
@@ -598,7 +598,9 @@ New commits cancel older runs for the same pull request. The test job runs
 `make check` once; the focused targets above remain available for local work.
 
 Continuous integration builds this package independently on Ubuntu 22.04
-x86-64 and macOS 14 arm64. Each successful matrix job retains the exact archive,
+x86-64 and macOS 14 arm64. Both jobs run `make check-no-interpreter`, covering
+a clean full check and packaging with only allowlisted commands visible.
+Each successful matrix job retains the exact archive,
 its SHA-256 checksum, and a provenance record naming the source commit and
 runner image. These routine CI jobs never publish a release.
 
@@ -618,7 +620,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains only for the transitional implementation and its 21 unit safeguards;
+The transitional implementation and its 21 implementation-only safeguards are retired;
 seed regeneration now uses verified self-hosted stages.
 
 
@@ -641,7 +643,7 @@ former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
 
-Development harness checks now run without Python using `make harness PYTHON=false`.
+Development harness checks now run without Python using `make harness`.
 They cover repository/CI policy, packaging, timing, corrupt seeds and fixture-runner
 failure propagation on both supported platforms. The [retirement inventory](tests/HARNESS_MIGRATION.md)
 maps all 31 migrated methods and the 21 implementation-only methods still retained.

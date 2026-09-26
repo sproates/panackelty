@@ -33,16 +33,11 @@ requires the self-hosted decoder's original messages. The C command requires
 its established exact output, including `invalid function flags`, canonical
 ordering for duplicate/out-of-order names, generic unknown-call/arity/purity
 messages, and a version rejection without the particular version number.
-Bootstrap-specific implementation tests keep their patched low-bound checks
-until the stage-0 implementation retires. These exceptions are
-named per input; they are never treated as arbitrary rejection.
-
-Python remains for tests of the Python bootstrap's in-memory verifier and
-artificially patched limits, the source-build verification hook, stage-0 ADT/minimal-Void self-checks and
-CLI hash-seed isolation. Live codec/VM comparisons are retired; fixed native
-expectations and per-artifact C return-kind checks replace them. Bytecode wire format, native verifier and direct codec coverage
-has a Python-free path; the final seed and harness retirement remains. No Python-only assertion is deleted because
-its invalid object has no wire encoding.
+Bootstrap-specific patched limits and in-memory object tests retired together
+with the removed stage-0 implementation. Native wire checks, direct C verifier
+contracts and self-hosted codec fixtures remain active. Fixed native expectations
+and per-artifact C return-kind checks replace live codec/VM comparisons; see
+[final retirement](../../../PYTHON_REMOVAL.md).
 
 ## Migrated source-method inventory
 

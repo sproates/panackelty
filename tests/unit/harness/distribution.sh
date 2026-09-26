@@ -17,7 +17,7 @@ for name in Makefile VERSION panack panack-vm bootstrap src tests examples READM
     ln -s "$root/$name" "$checkout/$name"
 done
 cd "$checkout"
-capture 0 90 make quick-start PYTHON=false
+capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one archive'
 archive=$1
@@ -33,7 +33,7 @@ equal_files "$archive.sha256" "$work/checksum"
 pass
 case_name=archive-members-and-relocation
 cd "$root"
-capture 0 90 make package-archive PYTHON=false "BUILD_DIR=$work/archive-build"
+capture 0 90 make package-archive "BUILD_DIR=$work/archive-build"
 set -- "$work"/archive-build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one custom-build archive'
 archive=$1

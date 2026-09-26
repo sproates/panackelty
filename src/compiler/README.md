@@ -68,9 +68,9 @@ This directory contains the compiler being implemented in Panackelty:
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute
-from the audited compiler seed on the native VM. The stage-0 implementation in
-`src/bootstrap/panackelty.py` remains only for bootstrap-specific tests pending
-retirement. This directory contains only Panackelty implementation sources and
+from the audited compiler seed on the native VM. The stage-0 implementation
+and its implementation-only tests are retired. This directory contains only
+Panackelty implementation sources and
 documentation.
 Direct lexer, parser, resolver, type-checker, and purity contracts live in
 `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`. These import the implementation
@@ -109,5 +109,5 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains only for the transitional implementation and its 21 unit safeguards;
+The transitional implementation and its 21 implementation-only safeguards are retired;
 seed regeneration now uses verified self-hosted stages.

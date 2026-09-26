@@ -1,8 +1,6 @@
 .PHONY: all check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
 
-PYTHON ?= python3
 CFLAGS ?= -O2
-export PYTHONDONTWRITEBYTECODE := 1
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
 
 CHECK_BUDGET_SECONDS ?= 120
@@ -52,7 +50,7 @@ all: native
 check:
 	@$(TIMED) check $(CHECK_BUDGET_SECONDS) $(MAKE) --no-print-directory check-phases
 
-check-phases: unit functional bootstrap-check quick-start
+check-phases: policy unit functional bootstrap-check quick-start
 
 test: check
 
@@ -63,7 +61,6 @@ check-compiler-impl:
 	@sh tests/harness.sh compiler
 	@sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@$(PYTHON) -m unittest discover -s tests/unit/compiler -t . -p 'test_*.py' -q
 	@./panack run tests/runner/compiler_lexer_unit.panack
 	@./panack run tests/runner/compiler_parser_unit.panack
 	@./panack run tests/runner/compiler_resolver_unit.panack
@@ -79,7 +76,6 @@ check-bytecode: native native-module-build
 
 check-bytecode-impl:
 	@"$(PANACK_NATIVE_MODULE_TEST)"
-	@$(PYTHON) -m unittest discover -s tests/unit/bytecode -t . -p 'test_*.py' -q
 	@./panack run tests/runner/bytecode_unit.panack
 	@./panack run tests/runner/bytecode_native_unit.panack
 	@./panack run tests/runner/main.panack --case cli_check_disasm
@@ -90,7 +86,6 @@ check-vm: native native-module-build native-fault-build
 
 check-vm-impl:
 	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
-	@$(PYTHON) -m unittest discover -s tests/unit/vm -t . -p 'test_*.py' -q
 	@./panack run tests/runner/host_runtime_unit.panack
 	@./panack run tests/runner/main.panack --case cli_commands
 	@./panack run tests/runner/main.panack --case cli_environment_files
@@ -102,7 +97,6 @@ unit-impl:
 	@sh tests/harness.sh
 	@sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
-	@$(PYTHON) -m unittest discover -s tests/unit -t . -p 'test_*.py' -q
 	@./panack run tests/runner/host_runtime_unit.panack
 	@./panack run tests/runner/bytecode_unit.panack
 	@./panack run tests/runner/bytecode_native_unit.panack
@@ -314,9 +308,15 @@ regenerate-seed: native
 clean:
 	rm -f panack-vm
 	rm -rf build
-	find . -type d -name '__pycache__' -prune -exec rm -rf {} +
-	find . -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 
 .PHONY: harness
 harness: native
 	@$(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
+
+.PHONY: policy check-no-interpreter
+policy:
+	@sh tests/no_python.sh
+	@sh tests/no_python_test.sh
+
+check-no-interpreter:
+	@sh tests/without_interpreter.sh

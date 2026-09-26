@@ -1,5 +1,5 @@
 #!/bin/sh
-# Development contracts that do not execute the transitional Python toolchain.
+# Native development harness contracts.
 set -eu
 root=$(pwd -P)
 workspace=$(mktemp -d "${TMPDIR:-/tmp}/panack-harness-command.XXXXXX")

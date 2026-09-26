@@ -3,11 +3,11 @@
 The pre-migration suite retained 52 Python test methods. This milestone replaces
 31 development contracts with POSIX shell checks under `tests/unit/harness`,
 using the native `tests/runner/harness_command.panack` for bounded subprocesses.
-The remaining 21 methods protect the transitional Python implementation itself;
-they remain in canonical validation until that implementation is removed.
+The final 21 methods protected the transitional Python implementation itself;
+they retired with that implementation. All native replacement contracts remain.
 No language feature, VM semantics, compiler seed or bytecode format changes.
 
-`make harness PYTHON=false` runs every migrated group. `make unit` includes it,
+`make harness` runs every migrated group. `make unit` includes it,
 and `make check-compiler` includes the seed and runner groups. Both Linux x86-64
 and macOS arm64 package jobs run the full harness before packaging. The supervisor
 is compiled once into a temporary directory per invocation and removed on exit.
@@ -71,7 +71,7 @@ missing packaged modules cannot be masked by the source tree.
 | `compiler/test_panackelty_runner.py: test_source_path_rejects_escape_and_symlink` | `runner.sh` |
 | `compiler/test_bootstrap.py: test_corrupt_seed_is_rejected_before_bootstrap` | `bootstrap.sh` |
 
-## Retained implementation-only methods
+## Implementation-only methods retired with the implementation
 
 These methods have no remaining development-harness ownership. Native wire,
 compiler and VM contracts already have separate evidence in
@@ -79,7 +79,7 @@ compiler and VM contracts already have separate evidence in
 limits, verifier hooks, hash randomisation and bootstrap-specific wording must
 not be misrepresented as native APIs.
 
-| Retained file | Methods |
+| Former file | Methods |
 | --- | --- |
 | `tests/unit/bytecode/test_serialization.py` | `test_rejects_artifacts_over_the_size_limit_before_decoding`, `test_decoder_checks_declared_resource_limits`, `test_source_build_verifies_emitted_bytecode`, `test_adt_bytecode_round_trip`, `test_cli_compilation_is_identical_across_hash_seeds` |
 | `tests/unit/bytecode/test_vectors.py` | `test_minimal_v8_vector_loads_runs_and_is_canonical` |
@@ -96,10 +96,10 @@ NUL-containing stdout/stderr. Archive validation uses a valid control and reject
 wrong ownership, symlink entries and the wrong top-level directory before any
 extraction. Corrupt-seed validation also asserts stage two is never produced.
 
-## Remaining work
+## Final removal — complete
 
-Retire the 21 implementation-only methods alongside `panackelty.py` and
-`src/bootstrap/panackelty.py`; remove their support/discovery packages and Python
-Make/CI dependencies; update current-component documentation; add the no-Python
-repository policy; prove all workflows in Python-free Linux/macOS environments.
-Preserve every native harness, functional, seed-refresh and instrumented gate.
+The 21 implementation-only methods, compatibility facade and transitional source
+are removed together. Make and CI contain no interpreter setup or invocation.
+The repository policy and isolated-platform validation are described in
+[PYTHON_REMOVAL.md](PYTHON_REMOVAL.md). Every native harness, functional,
+seed-refresh and instrumented gate remains active.

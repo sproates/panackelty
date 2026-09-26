@@ -2,7 +2,7 @@
 
 These version-8 hexadecimal artifacts were captured from the original tests at
 `9677518` before retirement. All 38 original selected methods passed during
-capture. The compile-time nonterminating Decimal safeguard remains in Python;
+capture. The compile-time nonterminating Decimal safeguard retired with stage-0;
 compiler/stdlib loading now uses fixed artifact expectations; the other 36 methods expand into 145 native
 observations. `manifest.json` records each original method and case name.
 
@@ -93,5 +93,5 @@ ordinary CLI binary. Native C tests remain in C.
 Live Python VM, seeded arithmetic, registry and artifact oracles are retired.
 `tests/native_oracle_contracts.sh` checks independently calculated fixed results
 and artifact bytes under ordinary, sanitizer and coverage builds. See
-`../../ORACLE_REPLACEMENT.md` for the case audit. Python stage-0 and test-harness
-safeguards remain for the separate seed/final-removal milestones.
+`../../ORACLE_REPLACEMENT.md` for the case audit. The final implementation and
+harness removal is recorded in `../../PYTHON_REMOVAL.md`.

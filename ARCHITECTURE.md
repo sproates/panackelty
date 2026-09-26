@@ -21,9 +21,10 @@ It uses a per-seed lock and rejects changed inputs. The seed and digest are
 renamed separately; interruption between them is detected as a digest mismatch
 on the next refresh. See `bootstrap/README.md` for review and recovery.
 
-Python code is intentionally confined to the transitional bootstrap implementation
-in `src/bootstrap`, a temporary import-compatibility facade, and development
-tests. It is absent from build, execution, installation, and package artifacts.
+The transitional bootstrap implementation and import facade are retired.
+Source, development validation, seed refresh and release workflows have no
+Python dependency. A tested repository policy rejects reintroduction; both
+platform package jobs validate with an allowlisted command environment.
 The release smoke gate extracts and relocates the final archive, enters a fresh
 working directory, removes Python, `make`, and compiler commands from `PATH`,
 then checks the public CLI, source compilation and execution, bundled standard
@@ -65,10 +66,10 @@ The major components are:
 | Component | Responsibility | Current location |
 | --- | --- | --- |
 | CLI | Dispatches `check`, `compile`, `run`, and `disasm` | Native launcher `panack`; Panackelty driver in `src/compiler/driver.panack` |
-| Compiler | Loads modules and performs lexing, parsing, checking, and emission | Public implementation in `src/compiler`; transitional implementation in `src/bootstrap/panackelty.py` |
-| Bytecode | Defines serialization, loading, verification, and disassembly | Contract in `src/bytecode`; independent native loader/verifier in `src/vm`; bootstrap implementation in `src/bootstrap/panackelty.py` |
-| VM | Executes verified instructions using isolated stack frames | Portable C11 seed in `src/vm`; stage-0 implementation in `src/bootstrap/panackelty.py` |
-| Runtime | Implements built-ins and the effectful host boundary | ABI contract in `src/runtime`; native implementation in `src/vm`; stage-0 implementation in `src/bootstrap/panackelty.py` |
+| Compiler | Loads modules and performs lexing, parsing, checking, and emission | Public implementation in `src/compiler` |
+| Bytecode | Defines serialization, loading, verification, and disassembly | Contract in `src/bytecode`; independent native loader/verifier in `src/vm` |
+| VM | Executes verified instructions using isolated stack frames | Portable C11 seed in `src/vm` |
+| Runtime | Implements built-ins and the effectful host boundary | ABI contract in `src/runtime`; native implementation in `src/vm` |
 | Standard library | Defines portable core types and APIs over deterministic primitives and the host ABI | Panackelty sources in `src/stdlib` |
 | Project website | Presents the public language overview and routes readers to source documentation and releases | Dependency-free static files in `site`; deployed from protected `main` by `.github/workflows/pages.yml` |
 
@@ -79,11 +80,9 @@ panackelty/
 ├── AGENTS.md                development definition of done
 ├── Makefile                 canonical validation command
 ├── panack                    stable command-line entry point
-├── panackelty.py             temporary import-compatibility facade
 ├── bootstrap/               audited stage-1 compiler seed
 ├── src/
-│   ├── bootstrap/           complete transitional host toolchain
-│   ├── compiler/            compiler being written in Panackelty
+│   ├── compiler/            self-hosted Panackelty compiler
 │   ├── bytecode/            bytecode format and verifier boundary
 │   ├── vm/                  portable C11 seed VM and value model
 │   ├── runtime/             built-ins and operating-system boundary
@@ -95,9 +94,9 @@ panackelty/
 │   ├── quick_start.sh      packaged README workflow gate
 │   ├── release_archive_smoke.sh  exact downloaded-artifact release gate
 │   ├── unit/
-│   │   ├── compiler/       parser, checker, type, and import tests
-│   │   ├── bytecode/       serialization and verifier tests
-│   │   └── vm/             execution, numeric, collection, and runtime tests
+│   │   ├── harness/        shell development contracts
+│   │   └── vm/             native C module and fault tests
+│   ├── runner/             Panackelty component and functional probes
 │   └── functional/         complete Panackelty program and CLI tests
 ├── .github/workflows/       continuous validation, releases, and Pages deployment
 ├── ARCHITECTURE.md          this implementation description
@@ -160,7 +159,7 @@ assignments. Inferred types must contain no unresolved constructor/collection
 parameters at that declaration. Nested generic evidence is merged recursively.
 The purity pass retains checked types for inferred locals, loop variables, and
 pattern bindings so callable effects survive aliases and nested scopes.
-Both the transitional Python frontend and the self-hosted frontend implement
+The self-hosted frontend implements
 these rules. The emitter still uses the existing `STORE` instruction for both
 forms; the VM and bytecode format do not change. This is local inference, not a
 solver that gathers constraints from later uses.
@@ -444,7 +443,8 @@ runs for the same pull request while preserving runs on `main`. Its test job
 runs `make check` once; focused developer targets are not run again before it.
 
 The CI packaging job is an explicit Ubuntu 22.04 x86-64 and macOS 14 arm64
-matrix. Each job runs the complete Python-free package path—including bootstrap,
+matrix. Each job runs a clean full check and the complete package path with
+only allowlisted commands visible—including bootstrap,
 native conformance, exact-archive smoke testing, checksum generation, and the
 packaged quick start—then retains the archive, checksum, source commit, and
 runner-image provenance as one workflow artifact. The workflow has no tag or
@@ -480,20 +480,20 @@ Panackelty supervisor enforcing subprocess timeouts, signals and exact captured
 bytes. Each invocation compiles that supervisor once into a temporary directory;
 each shell group owns its isolated workspace and cleanup. `make unit` includes
 the full harness; focused compiler checks include runner and corrupt-seed gates.
-Both platform package jobs run `make harness PYTHON=false` before packaging.
-Only 21 transitional implementation tests still use Python discovery and helpers.
+Both platform package jobs run `make check-no-interpreter`: a clean full check,
+native conformance and packaging with only allowlisted tools visible.
+The transitional implementation and its 21 implementation-only tests are retired.
 Their retirement is tied to removal of that implementation, not the native harness.
 See `tests/HARNESS_MIGRATION.md` for every migrated and retained method.
 
 ## Rational and Unit values
 
-Both compilers recognize `Rat` and `Unit` as first-class types. Integer division
+The compiler recognizes `Rat` and `Unit` as first-class types. Integer division
 emits the existing `BINARY /` instruction; the VM constructs a normalized exact
 rational. Integer operands may participate in rational arithmetic. `()` lowers
 to a pure `$unit` call and remains distinct from the internal Void sentinel.
 Conversions and natural quotient division are pure runtime services. The native
-VM owns arbitrary-precision numerator/denominator storage; the transitional
-Python VM uses `Fraction`. Bytecode 8 rejects earlier artifacts because `/`
+VM owns arbitrary-precision numerator/denominator storage. Bytecode 8 rejects earlier artifacts because `/`
 changed semantics. The compiler itself now uses explicit `quotient` calls.
 
 ## Opaque paths and time
@@ -502,8 +502,7 @@ The checker recognizes `Path`, `Duration`, and `Instant` as opaque types.
 `src/stdlib/path.panack` owns path error declarations; `src/stdlib/time.panack`
 owns clock/duration errors and portable duration arithmetic. The native VM
 implements checked construction, lexical path operations, exact tick storage,
-and clock reads in `src/vm/host_types.c`, declared by `host_types.h`. The transitional
-Python VM uses distinct opaque payload objects and the same contracts.
+and clock reads in `src/vm/host_types.c`, declared by `host_types.h`.
 Only `instant_now` crosses the host boundary. Both verifiers enforce its effect
 and builtin arity; runtime tags prevent forged records from acting as opaque
 values. No constant tags or instructions are added to bytecode version 8.
@@ -514,7 +513,6 @@ values. No constant tags or instructions are added to bytecode version 8.
 checked UTF-8 decoding, and sleep. The compiler and verifier register their exact
 arities and effects. Processes use fork/exec with a launch-error pipe, a dedicated
 process group, nonblocking pipe polling, bounded buffers, and monotonic deadlines.
-The transitional stage-0 implementation implements the same contract with subprocess and selectors.
 `stdlib/host`, `stdlib/filesystem`, and `stdlib/process` define structured results.
 The existing string-based file ABI remains necessary for the compiler bootstrap.
 
@@ -532,7 +530,7 @@ completed-process/host-error distinction; effectful wrappers return ordinary
 `TestResult` values for deterministic reporting. It adds no new host ABI.
 
 The [Python-free test architecture](tests/PYTHON_MIGRATION.md) maps the
-transitional bootstrap implementation and harness to Panackelty-hosted behavioral
+retired bootstrap implementation and harness to Panackelty-hosted behavioral
 tests, direct native C tests, and portable golden fixtures. It preserves their behavior during migration and treats the fixed-point bootstrap and
 exact-artifact release gates as independent required evidence.
 The `tests/runner/main.panack` selects twenty-five discovered success fixtures,
@@ -547,14 +545,14 @@ and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
 itself. Each owns an isolated workspace and reports cleanup failure. Native
 harness tests inject report/fixture errors and assert failure and cleanup; the
-remaining Python tests protect only the transitional implementation.
+transitional implementation and its remaining tests are retired.
 
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Live Python differential comparisons are
-retired; bootstrap-only object/limit and seed safeguards remain, recorded in
+retired together with bootstrap-only object/limit safeguards, recorded in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
 The direct lexer, parser, resolver, type-checker, and purity contracts run in
@@ -569,8 +567,7 @@ The checker checks 31 fixed source expectations and three module graphs.
 The purity probe checks ten fixed sources and one module graph. Success requires
 `ok`; failures retain specific diagnostic expectations. Live Python differential
 comparisons are retired; independent goldens and native/bootstrap checks are
-mapped in `tests/ORACLE_REPLACEMENT.md`. Python bootstrap implementation safeguards
-remain until the final removal gates.
+mapped in `tests/ORACLE_REPLACEMENT.md`. Bootstrap implementation safeguards retired with the implementation.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default
@@ -617,7 +614,7 @@ The remaining direct compiler contracts now run in
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. Fixed expectations now replace the Python
 differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-Python remains only for the transitional implementation and its 21 unit safeguards;
+The transitional implementation and its 21 implementation-only safeguards are retired;
 seed regeneration now uses verified self-hosted stages.
 
 

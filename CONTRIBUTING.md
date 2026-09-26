@@ -25,6 +25,11 @@ This is the canonical validation command and includes unit tests, complete
 program tests through `panack`, and the reproducible-bootstrap proof. Add focused
 unit tests for changed internals and functional tests for observable behavior.
 
+Development uses C, Panackelty and POSIX tools. `make policy` rejects interpreter
+dependencies; `make check-no-interpreter` repeats the complete development and
+package workflow with an allowlisted command environment. See
+[the removal audit](tests/PYTHON_REMOVAL.md) for the exact validation boundary.
+
 Repository-specific requirements for documentation, cleanup, validation budgets,
 and commits are defined in `AGENTS.md` and apply to every contribution.
 

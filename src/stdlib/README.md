@@ -36,9 +36,9 @@ The concise collection operations are method-only and type-directed, so they
 do not reserve `put`, `has`, `get`, or `add` in the global source namespace.
 Legacy prefixed free functions remain available for bootstrap compatibility.
 
-The library conformance program is compiled once by the bootstrap compiler and
-again by the complete Panackelty-hosted compiler. Tests require byte-identical
-artifacts and execute the result, so every currently available compiler stage
+The library conformance program is compiled by the audited seed and fresh
+self-hosted stages. Tests require byte-identical artifacts, compare against
+frozen independent bytes and execute the result, so every compiler stage
 checks this module graph.
 
 ## Typed paths and time

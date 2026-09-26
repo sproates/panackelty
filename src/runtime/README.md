@@ -24,9 +24,8 @@ starting a new VM invocation. `run_bytecode` inherits arguments;
 names, signatures, snapshot behavior, and failure rules are frozen in
 [`ABI.md`](ABI.md).
 
-This directory contains contracts rather than a Python re-export layer. The
-transitional bootstrap implementation remains isolated under `src/bootstrap`;
-the public host implementation is the native VM.
+This directory contains contracts. The host implementation is the native VM;
+the transitional bootstrap implementation is retired.
 
 Pure rational conversion services `nat` and `dec`, the natural `quotient`
 operation, and internal `$unit` construction are specified in [ABI.md](ABI.md).

@@ -10,8 +10,7 @@ listings and worked programs showing the operand stack, locals, call frames,
 and output at each step.
 
 The portable C11 VM is the execution target. Independent fixed expectations
-now replace live comparisons with the transitional Python VM. The latter remains
-only for bootstrap-specific safeguards pending retirement. Seed regeneration
+replace live comparisons with the retired Python VM. Seed regeneration
 uses verified self-hosted stages on this VM.
 
 The VM trusts neither source compilation nor bytecode files. Serialized
@@ -34,7 +33,7 @@ bounded version-8 decoding and independent semantic verification; `run`
 executes verified artifacts with the reference-counted value model, exact
 numerics, persistent collections, UTF-8 operations, and stable host ABI. It
 accepts and runs the complete compiler and standard-library artifacts and
-consumes the same malformed vectors as the bootstrap loader. Build it with
+consumes the same malformed vectors as the self-hosted decoder. Build it with
 `make native`. The build defaults to `CFLAGS=-O2`, retaining strict C11 and
 warning checks. `CC`, `CPPFLAGS`, `CFLAGS`, `LDFLAGS`, and `LDLIBS` are
 configurable. Run `make clean` before changing flags, for example before

@@ -1,7 +1,8 @@
 # Python differential oracle replacement
 
-The live Python compiler/VM comparisons are retired. This is **not** repository-wide
-Python removal: 21 bootstrap implementation safeguards still use Python.
+The live Python compiler/VM comparisons are retired. Repository-wide removal
+is also complete; the final 21 implementation-only safeguards retired with their
+implementation. See [the removal audit](PYTHON_REMOVAL.md).
 Development-harness tests now use shell/native checks. Language semantics, bytecode version 8
 and the checked compiler seed are unchanged.
 
@@ -39,7 +40,7 @@ expected semantics and bytecode, not merely accepting current program output.
 | Decimal properties | All 104 original boundary/seeded operand/exponent pairs × four operations plus six exact divisions: 422 independent expectations, including scales through ±4096. Decimal output is normalized with string operations only; no floating-point conversion or rounding. |
 | Builtin registry | All 82 original names, arities and purity flags in fixed data. The same C probe also requires each handler to exist. |
 | Host capabilities and host types | Existing exact conformance output runs in both functional source/bytecode paths and the native oracle corpus. |
-| Two differing compiler diagnostics | Native probes retain their established wording. Bootstrap-only wording safeguards remain in `test_bootstrap_diagnostics.py`; no live cross-implementation comparison is needed. |
+| Two differing compiler diagnostics | Native probes retain their established wording. Bootstrap-only wording safeguards retired with their implementation; no live cross-implementation comparison is needed. |
 
 `make unit` and `make check-vm` include `native-oracle-contracts` as well as
 `native-vm-contracts`. Sanitizer and LLVM coverage builds invoke the same targets
@@ -55,11 +56,11 @@ The compiler-harness cache helper and its test were retired with their last
 consumers. They tested the removed Python test infrastructure, not language
 semantics. The unused rational source helper is also removed.
 
-## Deliberately retained Python safeguards
+## Final implementation safeguards — retired
 
 - `bytecode/test_verifier.py`: Python-only in-memory object shapes, mutable limits,
   function signatures and purity checks. Wire/native representable cases already
-  have independent C/Panackelty evidence; these still protect the stage-0 tool.
+  have independent C/Panackelty evidence; these retired with the stage-0 tool.
 - `bytecode/test_serialization.py` and `test_vectors.py`: stage-0 limits, source-build
   verifier invocation, Python ADT/minimal-Void self-checks and CLI hash-seed isolation.
 - `vm/test_numeric.py`: stage-0 rejects `1.0 / 3.0` during compilation. The native
@@ -70,8 +71,6 @@ Seed corruption, fixture-runner failure injection, repository layout, packaging,
 timing and build contracts have moved to `unit/harness`. The complete 52-method
 audit is in [HARNESS_MIGRATION.md](HARNESS_MIGRATION.md).
 
-These are not live differential dependencies. Retire them only alongside the
-stage-0 implementation or with explicit native replacements during the final
-harness migration. Verified self-hosted seed refresh is now implemented. Next:
-remove the Python implementation/facade and remaining Make/CI/harness uses, enforce the
-no-Python policy, and validate on Python-free Linux and macOS environments.
+These were implementation-only safeguards, not live differential dependencies.
+They are now retired with the stage-0 implementation. Native replacements and
+final repository checks are recorded in [PYTHON_REMOVAL.md](PYTHON_REMOVAL.md).

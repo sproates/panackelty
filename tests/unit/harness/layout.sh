@@ -13,7 +13,7 @@ contains .github/workflows/check.yml 'target: linux-x86_64
 contains .github/workflows/check.yml 'target: macos-arm64
             runner: macos-14'
 contains .github/workflows/check.yml 'runs-on: ${{ matrix.runner }}'
-contains .github/workflows/check.yml 'run: make package PYTHON=false'
+contains .github/workflows/check.yml 'run: make check-no-interpreter'
 contains .github/workflows/check.yml 'uses: actions/upload-artifact@v6'
 contains .github/workflows/check.yml 'build/panackelty-*.tar.gz.sha256'
 contains .github/workflows/check.yml 'build/panackelty-*.tar.gz.provenance'
@@ -36,7 +36,7 @@ contains .github/workflows/release.yml 'expected_tag="v$(cat VERSION)"'
 contains .github/workflows/release.yml '[[ "$GITHUB_REF_NAME" != "$expected_tag" ]]'
 contains .github/workflows/release.yml 'run: make check'
 contains .github/workflows/release.yml 'needs: validate'
-contains .github/workflows/release.yml 'run: make package PYTHON=false'
+contains .github/workflows/release.yml 'run: make package'
 contains .github/workflows/release.yml 'target: linux-x86_64
             runner: ubuntu-22.04'
 contains .github/workflows/release.yml 'target: macos-arm64
@@ -68,7 +68,7 @@ contains README.md '<!-- quick-start-program-begin -->'
 contains README.md '<!-- quick-start-program-end -->'
 contains README.md '<!-- quick-start-output-begin -->'
 contains README.md '<!-- quick-start-output-end -->'
-contains Makefile 'check-phases: unit functional bootstrap-check quick-start'
+contains Makefile 'check-phases: policy unit functional bootstrap-check quick-start'
 contains Makefile 'package: native-check
 	$(MAKE) quick-start'
 contains tests/quick_start.sh 'for utility in awk cmp dirname gzip ln mkdir mv readlink rm tar; do'
@@ -95,10 +95,7 @@ contains .github/workflows/pages.yml 'id-token: write'
 contains .github/workflows/pages.yml 'uses: actions/deploy-pages@v4'
 pass
 case_name=layout-version-and-implementation
-find src -type f -name '*.py' | sort > "$work/sources"
-printf 'src/bootstrap/panackelty.py\n' > "$work/expected"
-equal_files "$work/sources" "$work/expected"
-if grep -i python panack >/dev/null; then fail 'public launcher depends on Python'; fi
+sh tests/no_python.sh
 awk 'NR!=1 || !/^[0-9]+\.[0-9]+\.[0-9]+-[a-z]+\.[0-9]+$/ { bad=1 } END { exit bad || NR!=1 }' VERSION || fail 'invalid version'
 version=$(cat VERSION)
 printf '%s\n' "$version" > "$work/version"
@@ -106,7 +103,7 @@ equal_files VERSION "$work/version"
 absent panack "$version"
 pass
 case_name=ci-event-and-command-contracts
-contains .github/workflows/check.yml 'run: make harness PYTHON=false'
+contains .github/workflows/check.yml 'run: make check-no-interpreter'
 awk '/^on:$/ { selected=1; next } /^concurrency:/ { selected=0 } selected && NF { print }' .github/workflows/check.yml > "$work/events"
 printf '  push:\n    branches: [main]\n  pull_request:\n' > "$work/expected"
 equal_files "$work/events" "$work/expected"

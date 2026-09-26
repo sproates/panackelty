@@ -26,11 +26,6 @@ jobs:
             exit 1
           fi
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
       - name: Run the complete project validation
         run: make check
 
@@ -53,7 +48,7 @@ jobs:
           persist-credentials: false
 
       - name: Build and verify the native release package
-        run: make package PYTHON=false
+        run: make package
 
       - name: Record build provenance
         shell: bash

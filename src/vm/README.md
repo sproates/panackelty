@@ -9,8 +9,8 @@ Start with the [VM execution guide](../../docs/VM_GUIDE.md) for instruction
 listings and worked programs showing the operand stack, locals, call frames,
 and output at each step.
 
-The portable C11 VM is the execution target. Independent fixed expectations
-replace live comparisons with the retired Python VM. Seed regeneration
+The portable C11 VM is the execution target. Tests check its behavior against
+independent fixed expectations. Seed regeneration
 uses verified self-hosted stages on this VM.
 
 The VM trusts neither source compilation nor bytecode files. Serialized
@@ -122,7 +122,7 @@ against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The 61 former Python VM observations use fixed native contracts, including 21
+The VM corpus checks 61 fixed execution contracts, including 21
 per-artifact C return-kind assertions. Fixed independent arithmetic expectations
 and builtin signatures run in `make native-oracle-contracts`.
 

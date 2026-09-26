@@ -1,5 +1,8 @@
 # Python differential oracle replacement
 
+This is a historical audit of the completed toolchain migration. For current
+test commands and suite ownership, see [the testing guide](README.md).
+
 The live Python compiler/VM comparisons are retired. Repository-wide removal
 is also complete; the final 21 implementation-only safeguards retired with their
 implementation. See [the removal audit](PYTHON_REMOVAL.md).

@@ -1,7 +1,7 @@
 # Panackelty roadmap
 
 This roadmap tracks post-bootstrap language and engineering initiatives. The
-completed compiler bootstrap and removal of Python from the public toolchain
+completed compiler bootstrap and reproducibility guarantees
 are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 
 An item is complete only when its implementation, focused tests, end-to-end
@@ -11,7 +11,7 @@ coverage, and affected documentation are complete and `make check` passes.
 
 The immediate product goal is a public developer preview that lets a new user
 download Panackelty, put `panack` on `PATH`, and check, compile, and run a source
-file without Python, `make`, a C compiler, or a source checkout. The preview is
+file using the downloaded toolchain. The preview is
 an explicitly experimental release rather than a claim of language or bytecode
 stability.
 
@@ -19,11 +19,6 @@ The initial target matrix is Linux x86-64 and macOS arm64. Each target remains
 in the matrix only if its final downloadable artifact can be built and exercised
 on that platform in release automation. Windows, additional architectures, and
 package-manager distribution must not delay the preview.
-
-Python removal from the development repository is not a preview prerequisite.
-The shipped compiler, VM, standard library, installation path, package path,
-and release smoke tests remain Python-free. Repository-wide removal is now
-complete, including development tests and CI.
 
 ### 1. Freeze the preview contract
 
@@ -71,8 +66,8 @@ complete, including development tests and CI.
 - [x] Replace the archive's installation-shaped `usr/local` root with a friendly,
       relocatable top-level `panackelty/` directory containing `bin`, `libexec`,
       `share`, documentation, and license files
-- [x] Build an archive independently for every supported target without Python
-      or other development-only tools in the resulting artifact
+- [x] Build an archive independently for every supported target containing only
+      the runtime toolchain and user-facing files
 - [x] Verify that moving the extracted directory does not break compiler or
       standard-library discovery
 - [x] Publish SHA-256 checksums and build provenance beside every archive
@@ -82,7 +77,7 @@ complete, including development tests and CI.
 - [x] Add a release smoke test that starts from the final archive rather than
       the source or staging installation tree
 - [x] On every supported target, unpack the archive into a fresh directory with
-      no repository checkout, Python, `make`, or C compiler available
+      only runtime tools available and no repository checkout
 - [x] Require the unpacked toolchain to report its version and help, check a
       source file, compile it, run source and bytecode, pass program arguments,
       import the bundled standard library, and reject malformed bytecode
@@ -136,7 +131,7 @@ panack run hello.bc
 ```
 
 The preview does not require Windows support, a single-file executable,
-package-manager installation, repository-wide Python removal, generic functions,
+package-manager installation, generic functions,
 new automation APIs, complete diagnostic rendering, or a backwards-compatibility
 guarantee. Those remain independent follow-up initiatives.
 
@@ -144,8 +139,8 @@ guarantee. Those remain independent follow-up initiatives.
 
 Add a read-evaluate-print loop for exploring Panackelty expressions, trying
 standard-library APIs and learning the language without creating a source file
-for every experiment. Schedule this after Python removal and the immediate
-validation-speed work; it must not introduce a Python dependency.
+for every experiment. Schedule this after the immediate validation-speed work
+and implement it with the existing toolchain.
 
 - [ ] Specify the entry command (for example `panack repl`), expression result
       display, multiline input and incomplete-input detection
@@ -214,8 +209,7 @@ host capabilities initiative.
 Generic source functions, a first-class success value, and exact rational
 arithmetic are implemented. Opaque paths, exact durations, and monotonic instants
 are now implemented, together with typed filesystem and bounded process APIs,
-checked decoding, and sleep. The testing-library foundation is complete;
-repository-wide Python removal is complete. Recursive
+checked decoding, and sleep. The testing-library foundation is complete. Recursive
 filesystem operations remain a separate follow-up.
 
 - [x] Specify and implement generic source functions and explicit type arguments,
@@ -779,7 +773,7 @@ project root is the entry source file's directory.
 ## Expand automation and host capabilities — in progress
 
 Panackelty should gain the general host capabilities needed by dependable
-automation programs before its test suite is moved away from Python. These APIs
+automation programs. These APIs
 must be useful outside the test harness, remain visibly effectful, behave
 predictably across supported platforms, and expose structured failures rather
 than test-specific shortcuts. Logical standard-library imports are a
@@ -815,93 +809,35 @@ prerequisite so programs can use these APIs without knowing repository paths.
       exhaustive injected host failures and traversal coverage remain pending
 - [x] Build a small Panackelty testing library with assertions, structured test
       results, fixture discovery, temporary isolation, command assertions, and
-      deterministic reporting as the foundation for Python removal; the three
+      deterministic reporting for automated validation; the three
       explicitly imported modules now cover pure assertions and ordered reports,
       sorted immediate fixture directories and explicitly owned workspaces,
       plus bounded byte-exact command assertions and expected host errors.
-      Migration of the Python oracle and harness is a separate initiative below
 
-## Eliminate Python from the repository — complete
+## Self-hosted development toolchain — complete
 
-The transitional implementation, compatibility facade and final 21
-implementation-only tests are retired. The current source tree contains no
-Python source or interpreter command dependency. `make policy` protects that
-boundary; `make check-no-interpreter` starts from a clean build and validates
-unit/functional checks, bootstrap, conformance, packaging and release smoke with
-an allowlisted `PATH` exposing no Python interpreter. Both supported platform
-jobs run this proof. Hosted machines may have interpreters outside that command
-environment; the proof does not claim to uninstall system software.
-See `tests/PYTHON_REMOVAL.md` for scope and the retired-test audit.
+The compiler and test probes run on the native VM. Shell harnesses cover build,
+repository and release contracts; fixed independent fixtures and bootstrap
+identity checks provide additional evidence. See [the testing guide](tests/README.md)
+for suite ownership and commands.
 
-- [x] Complete and document the replacement test architecture: use the
-      Panackelty-hosted library for compiler, language, standard-library, and
-      functional behavior; focused C tests for native VM internals; and portable
-      declarative fixtures shared between them. The ownership inventory,
-      parity gates, migration sequence, and unresolved runner prerequisites are
-      recorded in `tests/PYTHON_MIGRATION.md`; the final retirement audit is complete
-- [x] Port compiler, bytecode, verifier, VM, runtime, and standard-library unit
-      coverage without losing focused assertions or important failure cases
-      Direct compiler coverage is complete: lexer, parser, resolver, checker,
-      purity, emitter, diagnostics, loader/imports, driver, generics, inference,
-      types and host-boundary assertions run natively. The two final compiler
-      probes add 201 direct and 51 integration assertions. Bytecode and verifier
-      wire coverage now runs in two Panackelty probes and direct C verifier
-      checks. Python-only in-memory object and adjustable-limit checks retired
-      with their implementation. Direct VM execution and loader coverage now runs in 174 Panackelty
-      assertions plus native C/header contracts. Direct runtime, host and standard-library coverage now adds 95 Panackelty
-      assertions, 12 fixed purity vectors and native C type/failure cases.
-      Fixed native expectations replace live differential comparisons; the
-      retirement audit is in `tests/ORACLE_REPLACEMENT.md`.
-- [x] Port functional-test discovery, subprocess orchestration, environment and
-      file fixtures, output comparisons, and exit-status assertions. The
-      Panackelty runner checks twenty-five selected cases, twenty examples,
-      forty-one failure fixtures, and the complete CLI/environment/file
-      contracts. `make functional` also validates the stage-two compiler
-      driver and runs its smoke case from source and bytecode; no Python
-      functional methods remain.
-- [x] Replace differential reliance on the Python compiler and VM with portable
-      golden artifacts, contract tests, native/self-hosted cross-checks, and
-      fixed-point bootstrap evidence; preserve 1,800 integer, 422 decimal and
-      96 rational expectations plus 82 builtin signatures without regenerating
-      expected results during validation. Bootstrap-only implementation tests
-      retired with their implementation.
-- [x] Replace `regenerate-seed` with a documented staged self-hosted process that
-      verifies its input seed and resulting compiler artifacts. Fresh stages
-      2–4 must reach a compiler and standard-library fixed point and match the
-      expected conformance output before publication; shell failure injection
-      and a real refresh with a Python-free `PATH` protect this workflow.
-- [x] Retire the general development Python harness: 31 methods now use
-      shell/native checks for repository/CI, installation/archive, timing,
-      seed rejection and runner failures. Both platform jobs run
-      `make check-no-interpreter`. The 21 implementation-only methods retired
-      with the transitional implementation; `tests/HARNESS_MIGRATION.md`
-      records the complete 52-method audit and added failure cases.
-- [x] Remove the root compatibility facade and the transitional implementation
-      under `src/bootstrap`
-- [x] Remove Python variables, commands, cache cleanup, and file-pattern handling
-      from the Makefile and other development scripts
-- [x] Remove Python setup and execution from CI
-- [x] Update architecture, bootstrap, contributor, test, and user documentation
-      so none describes Python as a current project component
-- [x] Add a repository policy check that rejects Python source files, Python
-      shebangs, and Python command invocations
-- [x] Prove `make check`, native conformance, bootstrap verification, packaging,
-      and release smoke tests from a clean environment without Python
+`make policy` enforces the source-tree dependency boundary.
+`make check-no-interpreter` starts from a clean build and validates unit and
+functional checks, bootstrap, conformance, packaging and release smoke with an
+allowlisted `PATH`. Both supported platform jobs run this proof.
 
 ## Keep validation within development budgets — in progress
 
-**Immediate next priority after repository-wide Python removal.** The
-Python-removal gates above are complete; improve validation speed before starting
-unrelated roadmap work. Strong coverage remains more important than speed;
+**Immediate priority:** improve validation speed before starting unrelated
+roadmap work. Strong coverage remains more important than speed;
 do not drop assertions, failure cases, sanitizer checks or platform gates,
 move required coverage out of canonical validation, or widen timing budgets.
 
-The latest pre-removal CI baseline (PR #64) is 275 seconds for `make check`:
-169 seconds for units, 42 for functional tests and 59 for bootstrap. Establish
-a fresh baseline after Python removal rather than assuming its deletion alone
-will fix validation time.
+The historical CI baseline from PR #64 is 275 seconds for `make check`:
+169 seconds for units, 42 for functional tests and 59 for bootstrap. Use fresh
+measurements of the current toolchain to guide validation improvements.
 
-The first post-removal isolated local check passed in 239 seconds: units took
+The initial isolated local check passed in 239 seconds: units took
 146 seconds, functional tests 37 seconds and bootstrap 50 seconds. This is a
 local baseline, not a comparison with CI hardware. Unit and total-check budget
 warnings remain active; profile native compilation, harness subprocesses and
@@ -924,6 +860,10 @@ repeated bootstrap work first, preserving all assertions.
       which gates each class requires; retain full release validation
 - [ ] Reduce duplicated work, safely reuse verified artifacts and optimize the
       measured bottlenecks while preserving all existing validation evidence
+      The 2026-09-26 macOS documentation-validation run passed from a clean
+      build in 168 seconds (unit 102s, functional 24s, bootstrap 30s), exceeding
+      the 120-second total and 15-second unit budgets. Keep this optimization
+      work prioritized; the documentation changes do not address those costs.
 - [ ] Demonstrate clean `make check` within 120 seconds and focused incremental
       checks within 15 seconds on the reference environments; retain visible
       per-phase timing, warnings and CI reports to catch future regressions
@@ -944,8 +884,7 @@ Prioritize unit and bootstrap costs during this follow-up.
 The native harness preserves process bounds, archive/installation checks and
 runner fault injection; profile repeated compilation without dropping evidence.
 The initial isolated native harness passed in 33 seconds against its 15-second
-warning budget. This replaces a 31.5-second run of the former 31 Python methods;
-no speed improvement is claimed from changing the harness language alone.
+warning budget.
 The seed-refresh gate adds isolated compiler stages to the bootstrap phase;
 profile that cost separately and preserve its digest, fixed-point and failure
 evidence when reducing repeated compilation. Keep the existing phase and total
@@ -977,8 +916,8 @@ byte-exact host process assertions if the warning persists; keep all failure
 cases and sanitizer coverage.
 The VM milestone adds portable execution/loader and native-wrapper probes.
 Its local focused `make check-vm` passed in 48 seconds against the 15-second
-budget, including the retained host and differential Python tests.
-Keep their process-launch and fixture-decoding costs in the same prioritized
+budget in the historical measurement, which included the then-active
+differential tests. Keep process-launch and fixture-decoding costs in the same prioritized
 unit-budget investigation; the 120/15-second targets are unchanged.
 The bytecode milestone adds two portable codec/native command probes; a local
 focused check took 19 seconds against its 15-second warning budget. Profile
@@ -1114,7 +1053,7 @@ localize while keeping `make check` the canonical validation command.
 
 - [x] Separate internal unit tests from black-box functional program tests
 - [x] Discover functional cases and example expectations without a central
-      Python manifest
+      manifest
 - [x] Inventory the behavior promised by `SPEC.md` and map it to existing tests
 - [ ] Add focused success and failure tests for every language construct and
       runtime built-in

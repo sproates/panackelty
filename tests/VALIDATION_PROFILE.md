@@ -1,6 +1,6 @@
 # Validation profiling baseline
 
-This is the measurement phase of the post-Python-removal performance work.
+This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 

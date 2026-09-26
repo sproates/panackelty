@@ -81,12 +81,31 @@ are never reused between check invocations. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 
-CI runs one main test job per pull-request revision and again after a merge to
-`main`. It does not repeat focused developer targets before the full suite.
-Superseded PR runs are cancelled. Both platform package jobs additionally run
-`make check-no-interpreter`, proving the full workflow from a clean build with
-an allowlisted command environment. This includes bootstrap, native conformance
-and exact-archive gates. The default native build uses `-O2`;
+CI runs a validation matrix per pull-request revision and again after a merge
+to `main`. It does not repeat focused developer targets before the full suite.
+Superseded PR runs are cancelled. Both packaging platforms run four clean
+`make check-no-interpreter CI_SUITE=…` partitions with an allowlisted command
+environment. The default command without `CI_SUITE` still performs the complete
+standalone proof. CI uses these shared targets:
+
+| Suite | Shared coverage |
+| --- | --- |
+| `compiler` | Policy, full harness, report-capture and seed-failure controls, all compiler probes |
+| `runtime` | Native VM/oracle contracts, host/bytecode probes, complete functional phase |
+| `bootstrap` | Fixed-point bootstrap, independent seed refresh, archive smoke and quick start |
+| `conformance` | Native source/bytecode conformance, archive smoke and quick start; uploads archive |
+
+Ubuntu validation runs the first three suites plus independent sanitizer and
+coverage jobs. Each packaging platform runs all four ordinary suites. The
+canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
+`unit-compiler` targets, and `make check` remains the complete local command.
+The stable required checks aggregate all applicable jobs, including failures
+and cancellation. A package artifact is usable only with successful package
+gates for its revision; upload alone does not certify the entire matrix.
+
+Native compilation stays local to each job, avoiding an artifact-transfer
+dependency. Bootstrap and instrumented builds remain isolated. No persistent
+cache is needed for the CI duration target. The default native build uses `-O2`;
 functional and native process tests exercise the same optimised VM. Native tests
 use the production build graph rather than maintaining separate source lists.
 `make native-sanitize` additionally runs native module, loader, and execution
@@ -287,7 +306,7 @@ and execution; harness groups include their subprocesses. Fixture rebuilds can
 appear more than once under different parents. Observations include profiling
 overhead, and are not CPU measurements or end-to-end GitHub workflow duration.
 
-Both Check packaging jobs archive the clean-check and subsequent package profile,
+Every Check packaging suite archives its clean suite profile,
 including failure rows, separately from budget records. Expected negative-control
 commands may have nonzero rows inside a successful harness group. `Validation profile`
 collects an initial focused run and an immediate cached repeat for each

@@ -597,8 +597,10 @@ digest, builds fresh self-hosted stages, and checks compiler/library identity
 before replacing the seed. See [the refresh procedure](bootstrap/README.md).
 
 Continuous integration runs on pull-request updates and pushes to `main`.
-New commits cancel older runs for the same pull request. For implementation, mixed or uncertain changes, the test job runs `make check`
-once; the focused targets above remain available for local work. Changes limited
+New commits cancel older runs for the same pull request. For implementation, mixed or uncertain changes, CI partitions the canonical
+check into compiler/harness, runtime/functional and bootstrap jobs, alongside
+independent sanitizer and coverage jobs. The focused targets above remain
+available for local work; `make check` still runs the complete local suite. Changes limited
 to the explicit informational-document allowlist receive quick document/local-link
 checks, without compiler builds, packaging, sanitizers or coverage. The existing
 check names remain present and reject routing failures. See
@@ -608,9 +610,12 @@ Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profi
 separates native builds, harness groups, probes and bootstrap costs.
 
 Continuous integration builds this package independently on Ubuntu 22.04
-x86-64 and macOS 14 arm64. For full validation, both jobs run `make check-no-interpreter`, covering
-a clean full check and packaging with only allowlisted commands visible.
-Each successful matrix job retains the exact archive,
+x86-64 and macOS 14 arm64. Each platform runs four clean, isolated suites via
+`make check-no-interpreter CI_SUITE=…`: compiler/harness, runtime/functional,
+bootstrap, and native conformance/packaging. Together they cover the complete
+check and package proofs with only allowlisted commands visible. The stable
+package checks require every suite on both platforms to succeed.
+The conformance job retains the exact archive,
 its SHA-256 checksum, and a provenance record naming the source commit and
 runner image. These routine CI jobs never publish a release.
 

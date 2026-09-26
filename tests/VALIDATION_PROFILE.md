@@ -4,6 +4,33 @@ This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 
+## Concurrent CI suites — 2026-09-26
+
+The baseline main run `36249712860` at `9f0da42` completed in 408 seconds
+(6m48s), including startup and result gates. Its summed job durations were
+1,145 seconds (19m05s of runner time, before billing multipliers/rounding).
+The Linux/macOS package commands took 377/345 seconds: their complete checks
+took 202/189 seconds, followed by package validation taking 175/155 seconds.
+That second pass repeated bootstrap for 46/38 seconds. Full Ubuntu validation
+also sequenced project checks (194s), sanitizers (117s) and coverage (58s,
+plus 10s tool installation).
+
+CI now partitions shared canonical targets into compiler/harness,
+runtime/functional and bootstrap suites. Both packaging platforms add a
+conformance/archive suite, and Ubuntu runs sanitizers and coverage independently.
+Each suite starts in a fresh checkout; no persistent cache or transferred test
+result is required. Bootstrap and seed-refresh independence remain intact.
+Only the successful runner observation within runtime/functional is shared.
+The standalone full commands and their warning budgets remain available.
+
+Local macOS validation passed a clean `make check` in 128 seconds and a clean
+isolated conformance/archive suite in 76 seconds. This is a CI scheduling
+change, not a claim that serial local validation now meets its 120-second
+budget. Hosted end-to-end and summed runner timings must be assessed separately;
+the target is under three minutes on repeated cold runs, with two minutes as a
+stretch. Native conformance now records each source, compile and bytecode step
+to expose its remaining cost.
+
 ## Reuse and bounded workers — 2026-09-26
 
 Same local arm64 host, macOS 26.5, Apple Clang 21.0.0, default `-O2`.

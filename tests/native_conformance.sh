@@ -21,13 +21,13 @@ assert_program() {
   actual="$temporary/$label.stdout"
   errors="$temporary/$label.stderr"
 
-  "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
+  sh "$project/tests/profile_command.sh" "conformance/$label/source" "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
   test ! -s "$errors" || fail "$label wrote unexpected stderr"
   cmp "$expected" "$actual" || fail "$label source output differs"
 
-  "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
+  sh "$project/tests/profile_command.sh" "conformance/$label/compile" "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
   test ! -s "$errors" || fail "$label compilation wrote unexpected stderr"
-  "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
+  sh "$project/tests/profile_command.sh" "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
   test ! -s "$errors" || fail "$label artifact wrote unexpected stderr"
   cmp "$expected" "$actual" || fail "$label artifact output differs"
 }

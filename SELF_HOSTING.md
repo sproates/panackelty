@@ -281,6 +281,7 @@ and bytecode cases verify public behaviour on both supported platforms.
 
 Development harness checks use shell and native tools to validate repository
 policy, packaging, timing, seed rejection and fixture-runner failures.
-Both supported package jobs run `make check-no-interpreter` on the full
-validation route. Informational-only edits use the documented lightweight
+Both supported platforms run the four `make check-no-interpreter CI_SUITE=…`
+partitions on the full validation route, retaining the complete check, isolated
+bootstrap proof, native conformance and exact-archive checks. Informational-only edits use the documented lightweight
 checks and do not rebuild or package the toolchain.

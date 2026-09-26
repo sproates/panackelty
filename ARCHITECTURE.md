@@ -641,3 +641,23 @@ The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+### Change-aware validation routing
+
+The Check workflow always starts on PR updates and main pushes. Its `changes`
+job tests the routing/checking scripts, compares the complete merge-base-to-head
+diff, and selects `docs` only when every old/new path is an allowlisted regular,
+non-executable informational file. Unknown paths/history, executable documents,
+symlinks, specifications, packaged inputs and mixed changes select `full`.
+Renames are expanded to deletion/addition so neither path is hidden.
+
+On the documentation route it checks whitespace in the change, document
+conflict markers/NUL bytes, local inline/image/reference link destinations and
+incoming links to informational files. It performs no network link requests
+and does not validate heading fragments or implement a full Markdown parser.
+The `test` and two `Package (...)` checks always verify the classifier result;
+failed/cancelled/missing classification fails them. Documentation-only package
+checks run short routing guards on Ubuntu, with no archive build or upload.
+The same check names retain every original test, sanitizer, coverage and
+supported-platform packaging step on the full route. Releases remain fully
+validated independently of this classifier.

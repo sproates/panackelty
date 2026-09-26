@@ -12,7 +12,7 @@ contains .github/workflows/check.yml 'target: linux-x86_64
             runner: ubuntu-22.04'
 contains .github/workflows/check.yml 'target: macos-arm64
             runner: macos-14'
-contains .github/workflows/check.yml 'runs-on: ${{ matrix.runner }}'
+contains .github/workflows/check.yml "runs-on: \${{ needs.changes.outputs.route == 'docs' && 'ubuntu-22.04' || matrix.runner }}"
 contains .github/workflows/check.yml 'run: make check-no-interpreter'
 contains .github/workflows/check.yml 'uses: actions/upload-artifact@v6'
 contains .github/workflows/check.yml 'build/panackelty-*.tar.gz.sha256'
@@ -113,6 +113,7 @@ equal_files "$work/events" "$work/expected"
 awk '/^  test:$/ { selected=1; next } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
+sh scripts/ci_gate.sh
 make check
 make native-sanitize CC=clang
 sudo apt-get update && sudo apt-get install -y clang llvm

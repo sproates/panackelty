@@ -301,7 +301,7 @@ Direct host, runtime and standard-library assertions run in
 bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
-The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
+The [migration inventory](fixtures/host_runtime/README.md) maps all 37
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
@@ -345,3 +345,14 @@ enabled execution, byte-exact streams (including NUL), arguments with spaces,
 nonzero exits, appended rows, nested parent/run context, report-write failures
 and a complete program through the public CLI. Profiling does not replace any
 existing validation or change its timing budgets.
+
+
+CI routing and documentation regressions in `tests/ci_scope.sh` cover the entire
+PR delta, merge-base divergence, additions/deletions/renames, unknown/packaged/
+policy paths, mixed changes, executable/symlink documents, unusual filenames,
+missing revisions, valid and broken local links, incoming deleted-file links,
+conflict markers, NUL bytes, incomplete links, and failed/cancelled/skipped
+classifier outcomes. Workflow contracts retain both named package checks and
+the test check, ensure their routing guards run unconditionally, and require
+full-route conditions on every costly step. These tests need only shell, Git
+and the existing native command allowlist; no compiler bootstrap is needed.

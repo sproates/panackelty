@@ -907,9 +907,9 @@ local baseline, not a comparison with CI hardware. Unit and total-check budget
 warnings remain active; profile native compilation, harness subprocesses and
 repeated bootstrap work first, preserving all assertions.
 
-- [ ] Profile clean and incremental validation on Linux and macOS, separating
+- [x] Profile clean and incremental validation on Linux and macOS, separating
       native builds, probe compilation, subprocess overhead and bootstrap stages
-- [ ] Make CI validation proportional to the change. Roadmap and other purely
+- [x] Make CI validation proportional to the change. Roadmap and other purely
       informational documentation edits should run lightweight document/link
       checks without rebuilding the compiler or running the full test,
       packaging, sanitizer and coverage suites. Classify changes conservatively:
@@ -917,7 +917,7 @@ repeated bootstrap work first, preserving all assertions.
       README quick start), specification changes, mixed code/document changes,
       and validation/workflow changes must retain the relevant behavioral and
       release gates; unknown impact must fall back to full validation
-- [ ] Keep a stable required CI result for both lightweight and full validation,
+- [x] Keep a stable required CI result for both lightweight and full validation,
       so documentation-only PRs can merge promptly without bypassing protection
       or waiting for checks that do not apply. Test change classification,
       including additions, deletions, renames and mixed changes, and document
@@ -927,6 +927,12 @@ repeated bootstrap work first, preserving all assertions.
 - [ ] Demonstrate clean `make check` within 120 seconds and focused incremental
       checks within 15 seconds on the reference environments; retain visible
       per-phase timing, warnings and CI reports to catch future regressions
+
+Informational-only changes now use lightweight documentation/local-file-link
+checks through an explicit conservative allowlist. Existing named check results
+remain present and fail if routing or documentation checking fails. Full code,
+packaging, sanitizer, coverage and release gates remain for relevant changes.
+See [change-aware CI](tests/README.md#change-aware-ci) for the exact boundary.
 
 Detailed opt-in profiling now separates native builds, harness groups, source
 probes and bootstrap stages. Both packaging platforms retain clean-check

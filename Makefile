@@ -314,8 +314,16 @@ clean:
 harness: native
 	@$(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
 
-.PHONY: policy check-no-interpreter
+.PHONY: docs ci-check policy check-no-interpreter
+docs:
+	@git diff --check HEAD
+	@bash scripts/check_docs.sh
+
+ci-check:
+	@bash tests/ci_scope.sh
+
 policy:
+	@bash tests/ci_scope.sh
 	@sh tests/no_python.sh
 	@sh tests/no_python_test.sh
 

@@ -329,3 +329,13 @@ The final 21 implementation-only methods retired with their implementation.
 `make policy` rejects source, shebang and command dependencies, with adversarial
 controls. Both platform jobs run a clean full check, native conformance and
 packaging through `make check-no-interpreter`; see `PYTHON_REMOVAL.md`.
+
+Manual release initiation is covered by `unit/harness/release.sh` and workflow
+contracts in `unit/harness/layout.sh`. Controls reject unconfirmed source/version,
+non-main dispatch, noncanonical tags, invalid events and ambiguous changelog
+notes. All three release checkouts pin the event SHA; tag identity and artifact
+provenance are checked before publication. Live GitHub publication is verified
+by the release workflow; local tests do not claim to exercise GitHub permissions.
+The publication block also runs against disposable local Git remotes with a
+stubbed GitHub CLI: real tags must be annotated, retries preserve their object,
+and lightweight/wrong-commit tags prevent release creation.

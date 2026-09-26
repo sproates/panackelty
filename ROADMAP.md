@@ -1181,3 +1181,7 @@ function return types, and distinguishes no-return functions with `Void`.
 - [ ] Extend coverage-guided decoder fuzzing, host syscall/errno combinations,
       rendering and nested-execution branch coverage, and longer ownership runs;
       retain exact arithmetic, purity and runtime trap conformance throughout.
+
+Manual release initiation retains the full validation gates. Keep its metadata
+controls in the existing harness; the known 120-second clean-check timing issue
+remains prioritized, without weakening release tests.

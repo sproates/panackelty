@@ -512,7 +512,8 @@ toolchain itself. Normal Panackelty programs should use a downloaded release.
 
 A source build requires a POSIX-like Linux or macOS environment, a C11 compiler,
 and `make`, plus standard POSIX utilities and a SHA-256 utility. The complete
-development suite has no Python dependency. `make policy` rejects source-tree
+development suite additionally requires Git for release-tag safety tests and has
+no Python dependency. `make policy` rejects source-tree
 interpreter dependencies; `make check-no-interpreter` runs a clean full check,
 native conformance and packaging with only explicitly allowed tools in `PATH`.
 

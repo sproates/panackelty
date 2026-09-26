@@ -9,7 +9,7 @@ HARNESS_COMMAND=$workspace/command.bc
 export HARNESS_COMMAND
 ./panack compile tests/runner/harness_command.panack -o "$HARNESS_COMMAND"
 case "${1:-all}" in
-    all) groups='layout validation bootstrap runner distribution' ;;
+    all) groups='layout release validation bootstrap runner distribution' ;;
     compiler) groups='bootstrap runner' ;;
     *) echo 'usage: sh tests/harness.sh [all|compiler]' >&2; exit 1 ;;
 esac

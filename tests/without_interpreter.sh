@@ -7,7 +7,7 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/panack-native-environment.XXXXXX")
 trap 'rm -rf "$work"' 0
 trap 'exit 1' HUP INT TERM
 mkdir "$work/bin"
-for utility in sh bash make cc gcc clang as ld ar ranlib xcrun xcodebuild \
+for utility in sh bash git make cc gcc clang as ld ar ranlib xcrun xcodebuild \
     awk basename cat chmod cmp comm cp cut date dd dirname env find grep gzip \
     head install ln mkdir mkfifo mktemp mv od readlink realpath rm rmdir sed sha256sum shasum \
     sleep sort stat tail tar tee touch tr uname wc which xargs; do

@@ -33,7 +33,10 @@ contains .github/workflows/release.yml 'tags:
 contains .github/workflows/release.yml 'permissions:
   contents: read'
 contains .github/workflows/release.yml 'expected_tag="v$(cat VERSION)"'
-contains .github/workflows/release.yml '[[ "$GITHUB_REF_NAME" != "$expected_tag" ]]'
+contains .github/workflows/release.yml 'sh scripts/release_request.sh'
+contains .github/workflows/release.yml 'workflow_dispatch:'
+contains .github/workflows/release.yml 'cancel-in-progress: false'
+contains .github/workflows/release.yml 'test "$(git rev-parse "refs/tags/$expected_tag^{}")" = "$GITHUB_SHA"'
 contains .github/workflows/release.yml 'run: make check'
 contains .github/workflows/release.yml 'needs: validate'
 contains .github/workflows/release.yml 'run: make package'
@@ -45,7 +48,7 @@ contains .github/workflows/release.yml 'needs: [validate, package]'
 contains .github/workflows/release.yml 'uses: actions/download-artifact@v7'
 contains .github/workflows/release.yml 'sha256sum -c "${archive}.sha256"'
 contains .github/workflows/release.yml 'grep -Fx "source_commit=$GITHUB_SHA"'
-contains .github/workflows/release.yml 'gh release create "$GITHUB_REF_NAME"'
+contains .github/workflows/release.yml 'gh release create "$expected_tag"'
 contains .github/workflows/release.yml 'GH_TOKEN: ${{ github.token }}'
 contains .github/workflows/release.yml --verify-tag
 contains .github/workflows/release.yml --prerelease

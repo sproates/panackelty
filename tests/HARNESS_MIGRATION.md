@@ -1,5 +1,8 @@
 # Development harness retirement
 
+This is a historical audit of the completed toolchain migration. For current
+test commands and suite ownership, see [the testing guide](README.md).
+
 The pre-migration suite retained 52 Python test methods. This milestone replaces
 31 development contracts with POSIX shell checks under `tests/unit/harness`,
 using the native `tests/runner/harness_command.panack` for bounded subprocesses.

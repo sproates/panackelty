@@ -1,5 +1,8 @@
 # Python-free development test architecture
 
+This is a historical audit of the completed toolchain migration. For current
+test commands and suite ownership, see [the testing guide](README.md).
+
 This records the completed migration removing Python from the *repository*.
 The downloadable compiler, native VM, package, and release smoke path already
 run without it. Functional and direct unit contracts now use Panackelty/C.

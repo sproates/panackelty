@@ -10,7 +10,7 @@ The seed passes through the bounded native loader and verifier like every other
 bytecode artifact. Normal bootstrap uses it to produce stage 2, then stage 3.
 `make bootstrap-check` requires identical stage-2/stage-3 compiler artifacts and
 stage-1/stage-2/stage-3 standard-library artifacts. It also tests a complete seed
-refresh in a temporary directory with Python absent from `PATH`.
+refresh in a temporary directory with an allowlisted `PATH`.
 
 ## Refreshing the seed
 
@@ -22,7 +22,7 @@ make check
 ```
 
 Refresh requires a C11 toolchain, Make, POSIX shell utilities and `sha256sum`
-(Linux) or `shasum` (macOS). It never invokes Python or the transitional compiler.
+(Linux) or `shasum` (macOS). The existing seed compiles each successive stage.
 `SEED_COMPILER` may select another seed; `SEED_DIGEST` defaults to that path plus
 `.sha256`. The two files must share a directory. The digest file must contain
 exactly one SHA-256 line with two spaces and the seed's basename, followed by a
@@ -54,4 +54,4 @@ it. Restore inputs rather than blessing an unexpected digest mismatch.
 
 This process requires a seed that can compile the current compiler source and
 a native VM that can load its bytecode. A future incompatible format or language
-transition needs an explicit, reviewed bridge; there is no Python fallback.
+transition needs an explicit, reviewed bridge from the existing seed.

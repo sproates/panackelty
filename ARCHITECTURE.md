@@ -21,12 +21,11 @@ It uses a per-seed lock and rejects changed inputs. The seed and digest are
 renamed separately; interruption between them is detected as a digest mismatch
 on the next refresh. See `bootstrap/README.md` for review and recovery.
 
-The transitional bootstrap implementation and import facade are retired.
-Source, development validation, seed refresh and release workflows have no
-Python dependency. A tested repository policy rejects reintroduction; both
-platform package jobs validate with an allowlisted command environment.
+Development and release workflows use the self-hosted toolchain, C11 compiler
+and shell utilities. Both platform package jobs validate with an allowlisted
+command environment; a repository policy check enforces the dependency boundary.
 The release smoke gate extracts and relocates the final archive, enters a fresh
-working directory, removes Python, `make`, and compiler commands from `PATH`,
+working directory, restricts `PATH` to runtime tools,
 then checks the public CLI, source compilation and execution, bundled standard
 library discovery, argument forwarding, saved bytecode, and malformed-bytecode
 rejection through the extracted `panack` command alone.
@@ -134,7 +133,7 @@ Method-only collection names lower to internal, unspellable built-in targets so
 they cannot collide with global source functions. The checker resolves
 `put/get/add` to their single collection family and accepts `has` only for Map
 or Set receivers. Because the emitter deliberately consumes the existing
-untyped AST, both VMs safely dispatch the erased internal `has` call from the
+untyped AST, the VM safely dispatch the erased internal `has` call from the
 runtime value tag after the static check. Explicit `@name` expressions create
 non-capturing callable values whose `PureFn[...]` or `Fn[...]` type retains the
 declared effect. `.call(...)` emits `CALL_VALUE`; array `map` and `reduce` lower
@@ -273,10 +272,10 @@ compiler lexing without changing bytecode or language semantics.
 
 The portable C11 seed VM under `src/vm/` independently decodes, verifies,
 and executes version-8 artifacts. Its reference-counted values and
-arbitrary-precision numerics are implemented without Python or third-party
-libraries. Differential tests run the complete program corpus on both VMs and
-execute the Panackelty-hosted compiler on the native VM. A shared adversarial
-instruction corpus also requires both VMs to trap on the same forged indirect
+arbitrary-precision numerics use no third-party libraries. Fixed-expectation
+tests run the complete program corpus and execute the Panackelty-hosted compiler
+on the native VM. An adversarial instruction corpus also requires the VM to trap
+on forged indirect
 calls, arithmetic, byte, UTF-8, map, and operand-stack failures.
 
 The same contract caps artifact bytes, functions, parameters, instructions,
@@ -423,8 +422,8 @@ flowchart TD
 ```
 
 The bootstrap is complete: `make bootstrap-check` proves the fixed point, and
-`make native-check` plus `make package` exercise the release path without
-Python. `make package` stages the conventional installed layout beneath a
+`make native-check` plus `make package` exercise the release path.
+`make package` stages the conventional installed layout beneath a
 single relocatable `panackelty/` archive root and adds the top-level README and
 license plus the tested user-facing examples linked by the language tour. A
 portable checksum target uses the host's `sha256sum` or `shasum`
@@ -433,7 +432,7 @@ launcher derives its prefix from its own resolved path, so moving
 the extracted directory preserves VM, compiler, version, and standard-library
 discovery. Archive creation suppresses platform metadata sidecars and normalizes
 stored ownership so release artifacts do not expose the build account. A
-distribution test builds that archive without Python, rejects unexpected paths,
+distribution test builds that archive, rejects unexpected paths,
 files, and ownership, moves the extracted directory, and runs a standard-library
 program through its public command.
 
@@ -487,9 +486,6 @@ each shell group owns its isolated workspace and cleanup. `make unit` includes
 the full harness; focused compiler checks include runner and corrupt-seed gates.
 Both platform package jobs run `make check-no-interpreter`: a clean full check,
 native conformance and packaging with only allowlisted tools visible.
-The transitional implementation and its 21 implementation-only tests are retired.
-Their retirement is tied to removal of that implementation, not the native harness.
-See `tests/HARNESS_MIGRATION.md` for every migrated and retained method.
 
 ## Rational and Unit values
 
@@ -534,10 +530,9 @@ boundary. Pure result comparators preserve byte-exact output and the
 completed-process/host-error distinction; effectful wrappers return ordinary
 `TestResult` values for deterministic reporting. It adds no new host ABI.
 
-The [Python-free test architecture](tests/PYTHON_MIGRATION.md) maps the
-retired bootstrap implementation and harness to Panackelty-hosted behavioral
-tests, direct native C tests, and portable golden fixtures. It preserves their behavior during migration and treats the fixed-point bootstrap and
-exact-artifact release gates as independent required evidence.
+The [test suites](tests/README.md) combine Panackelty-hosted behavioral tests,
+direct native C tests, and portable golden fixtures. The fixed-point bootstrap
+and exact-artifact release gates provide independent evidence.
 The `tests/runner/main.panack` selects twenty-five discovered success fixtures,
 twenty example programs, and forty-one expected failure fixtures. It checks
 source, compilation, and bytecode for successes; the failures check `check`
@@ -549,15 +544,14 @@ versa. `make functional` runs it with the self-hosted compiler driver check
 and captures its successful report once. `runner_smoke` compares that exact
 report from source and bytecode; outside the recipe it runs the full runner
 itself. Each owns an isolated workspace and reports cleanup failure. Native
-harness tests inject report/fixture errors and assert failure and cleanup; the
-transitional implementation and its remaining tests are retired.
+harness tests inject report/fixture errors and assert failure and cleanup.
 
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
-canonical artifacts and disassemblies. Live Python differential comparisons are
-retired together with bootstrap-only object/limit safeguards, recorded in
+canonical artifacts and disassemblies. Fixture provenance and wire-format
+expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
 The direct lexer, parser, resolver, type-checker, and purity contracts run in
@@ -570,9 +564,8 @@ points. The resolver checks 26 fixed expectations for lexical names and
 already-loaded module graphs, including precise imported-module diagnostics.
 The checker checks 31 fixed source expectations and three module graphs.
 The purity probe checks ten fixed sources and one module graph. Success requires
-`ok`; failures retain specific diagnostic expectations. Live Python differential
-comparisons are retired; independent goldens and native/bootstrap checks are
-mapped in `tests/ORACLE_REPLACEMENT.md`. Bootstrap implementation safeguards retired with the implementation.
+`ok`; failures retain specific diagnostic expectations. Independent goldens
+and native/bootstrap checks are mapped in `tests/ORACLE_REPLACEMENT.md`.
 The `cli_check_disasm` fixture checks source and bytecode validation, matching
 disassembly, malformed bytecode rejection, and legacy source extension rejection.
 The `cli_commands` fixture checks bare source/bytecode invocation, default
@@ -617,10 +610,9 @@ The remaining direct compiler contracts now run in
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. Fixed expectations now replace the Python
-differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-The transitional implementation and its 21 implementation-only safeguards are retired;
-seed regeneration now uses verified self-hosted stages.
+inference, types and host boundaries. The probes use fixed expectations;
+their provenance is recorded in
+`tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
@@ -628,7 +620,7 @@ against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The 61 former Python VM observations use fixed native contracts, including 21
+The VM corpus checks 61 fixed execution contracts, including 21
 per-artifact C return-kind assertions. Fixed independent arithmetic expectations
 and builtin signatures run in `make native-oracle-contracts`.
 
@@ -637,10 +629,9 @@ Direct host, runtime and standard-library assertions run in
 bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
-The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
-former methods: 31 migrated to direct native evidence and the final six replaced
-by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
-public behaviour on both supported platforms.
+The [fixture guide](tests/fixtures/host_runtime/README.md) describes direct native
+evidence, fixed oracle fixtures and bootstrap cross-checks. Functional source
+and bytecode cases verify public behaviour on both supported platforms.
 
 ### Change-aware validation routing
 

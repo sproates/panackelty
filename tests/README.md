@@ -1,12 +1,10 @@
 # Tests
 
-[Python-free test architecture and migration inventory](PYTHON_MIGRATION.md)
-maps each existing test area to its replacement and records the parity gates.
-All twenty former Python functional methods now have Panackelty-hosted
-replacement evidence. The runner (`runner/main.panack`) checks twenty-five
+The suites combine Panackelty probes, native C tests, shell harness checks,
+and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
 selected success cases, twenty examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
-`runner_smoke` from source and saved bytecode. The transitional implementation and its implementation-only tests are retired.
+`runner_smoke` from source and saved bytecode.
 
 Panackelty has six core validation paths, plus the repository policy and
 isolated-environment proof:
@@ -22,7 +20,7 @@ isolated-environment proof:
   with the expected observable behavior.
 - `native-check` uses only the native VM, compiler seed, and POSIX tools. It
   proves the stage-2/stage-3 fixed point and runs the success, failure, and
-  malformed-artifact conformance corpus without Python.
+  malformed-artifact conformance corpus.
 - `release-smoke` extracts and relocates the final download archive, then uses
   only that toolchain from a fresh working directory and a runtime-only `PATH`.
 - `quick-start` verifies the packaged README's download checksum, installation,
@@ -46,7 +44,7 @@ that verified artifact, and the later bootstrap phase extends it to stage 3 for
 the byte-identical fixed-point proof. Other programs are still compiled through
 the public CLI before their bytecode output is checked. The ordinary proof runs in
 the bootstrap phase. That phase also exercises a fresh seed refresh on a
-temporary copy with a Python-free `PATH`, independently of cached stages.
+temporary copy with an allowlisted `PATH`, independently of cached stages.
 `seed_refresh.sh` uses a fake VM for fast unit/focused-compiler failure injection:
 bad digests, hash failures, verifier/compiler failures, stage mismatches, runtime
 and expected-output failures, signals, locks, symlinks, concurrent edits,
@@ -95,17 +93,16 @@ Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
-canonical artifacts and disassemblies. Live Python differential comparisons are
-retired together with bootstrap-only object/limit safeguards, recorded in
+canonical artifacts and disassemblies. Fixture provenance and wire-format
+expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
-The former implementation-only unit packages and their support helper are
-retired. Add new behavioral tests to the owning native/Panackelty probe;
+Add new behavioral tests to the owning native/Panackelty probe;
 `make unit` includes all these checks.
 
 `tests/unit/harness/distribution.sh` covers both conventional staged
 installation and the download archive. Its archive test builds the packaging
-layout without Python, validates the complete file set, relocates the extracted
+layout, validates the complete file set, relocates the extracted
 directory, and runs a standard-library program through `bin/panack`. Its
 checksum test independently verifies the digest emitted by `package-checksum`.
 `tests/release_archive_smoke.sh` is the separate release gate: it starts from
@@ -118,7 +115,7 @@ runs the documented commands with development tools absent from `PATH`, then
 exercises the replacement-style upgrade and complete removal procedures.
 
 `tests/unit/harness/layout.sh` locks the packaging workflow to the two supported
-runner/architecture pairs, the Python-free package command, checksum and
+runner/architecture pairs, the package command, checksum and
 provenance uploads, and the absence of tag or release triggers. It separately
 requires the tag workflow to match `VERSION`, depend on complete validation and
 both matrix packages, recheck downloaded assets, and confine write permission
@@ -139,26 +136,25 @@ Each test-only functional case has its own directory under
 `tests/functional/cases` containing `main.panack` and `expected.stdout`. Supporting
 modules live beside `main.panack`. A case may use `source.path` instead of `main.panack`
 to test a program elsewhere in the repository. The harness discovers these
-directories automatically, so adding a case does not require Python changes.
+directories automatically, so adding a case does not require harness changes.
 The Panackelty functional runner currently executes cases sequentially.
 
 `runner/compiler_parser_unit.panack` imports the parser directly, compiles once,
 and checks 192 fixed expectations for expressions, blocks, types, and programs.
-Its 38 groups preserve the former Python method names, including all expanded
-subtests and exact malformed-input diagnostics. `runner/compiler_lexer_unit.panack`
+Its 38 groups cover valid input and exact malformed-input diagnostics.
+`runner/compiler_lexer_unit.panack`
 similarly covers the eight direct lexer contracts.
 `runner/compiler_resolver_unit.panack` covers 26 exact source and module-graph
 expectations in 12 groups, including diagnostic paths and positions. All run in `make unit` and
 `make check-compiler`; each reports failures and exits nonzero on a mismatch.
 The checker probe, `runner/compiler_checker_unit.panack`, also runs in both
 targets. It checks 31 source fixtures and three module graphs, requiring `ok`
-for success and preserving diagnostic substrings for failures. Live Python
-comparisons are retired; these fixed expectations remain unchanged. Read `fixtures/compiler_checker/README.md` when adding
+for success and preserving diagnostic substrings for failures.
+Read `fixtures/compiler_checker/README.md` when adding
 a checker case. `runner/compiler_purity_unit.panack` follows the same pattern
 for ten fixed source fixtures and one cross-module contract. Its maintenance contract is in
 `fixtures/compiler_purity/README.md`. Both probes require `ok` for success
-and preserve the original diagnostic substrings on failure. Their old-to-new
-assertion mapping is in `PYTHON_MIGRATION.md`.
+and check specific diagnostic substrings on failure.
 
 Expected CLI failures live under `tests/functional/failures`. Each failure has
 its own directory containing `main.panack` and `expected.stderr`; the harness runs
@@ -173,7 +169,6 @@ stem and a `.stdout` extension, keeping every documented example executable.
 The release archive includes the complete directory so links in its language
 tour resolve to the same programs validated by this harness.
 
-The live Python compiler/VM oracle and its unused harness are retired.
 `make native-oracle-contracts` checks fixed independent arithmetic, signatures,
 artifacts and the full program corpus. Unit, focused VM, sanitizer and coverage
 gates include it. See `ORACLE_REPLACEMENT.md` for the complete audit and retained
@@ -196,10 +191,9 @@ The remaining direct compiler contracts now run in
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. Fixed expectations now replace the Python
-differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-The transitional implementation and its 21 implementation-only safeguards are retired;
-seed regeneration now uses verified self-hosted stages.
+inference, types and host boundaries. The probes use fixed expectations;
+their provenance is recorded in
+`tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
@@ -207,7 +201,7 @@ against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The 61 former Python VM observations use fixed native contracts, including 21
+The VM corpus checks 61 fixed execution contracts, including 21
 per-artifact C return-kind assertions. Fixed independent arithmetic expectations
 and builtin signatures run in `make native-oracle-contracts`.
 
@@ -216,14 +210,14 @@ Direct host, runtime and standard-library assertions run in
 bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
-The [migration inventory](fixtures/host_runtime/README.md) maps all 37
-former methods: 31 migrated to direct native evidence and the final six replaced
-by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
-public behaviour on both supported platforms.
+The [fixture guide](fixtures/host_runtime/README.md) describes direct native
+evidence, fixed oracle fixtures and bootstrap cross-checks. Functional source
+and bytecode cases verify public behaviour on both supported platforms.
 
 `make policy` checks the source tree for forbidden interpreter dependencies and
-runs adversarial policy controls. It is part of `make check`. The final retirement
-audit and isolated-environment proof are in [PYTHON_REMOVAL.md](PYTHON_REMOVAL.md).
+runs adversarial policy controls. It is part of `make check`.
+`make check-no-interpreter` repeats full validation, native conformance and
+packaging with an allowlisted command environment.
 
 Manual release request controls run in `unit/harness/release.sh`: confirmed main
 commit and version, canonical tag requests, rejected events/branches/inputs, and

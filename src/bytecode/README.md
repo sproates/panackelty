@@ -61,7 +61,7 @@ the native loader. Fixed contract tests compare complete artifacts byte for
 byte.
 
 This directory contains only the portable format contract and Panackelty-hosted
-implementation. The transitional Python toolchain is retired.
+implementation.
 
 Version 8 preserves the version-7 instruction layout while changing integer
 division semantics. Rational values are constructed at runtime; Unit uses the
@@ -71,6 +71,6 @@ Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
-canonical artifacts and disassemblies. Live Python differential comparisons are
-retired together with bootstrap-only object/limit safeguards, recorded in
+canonical artifacts and disassemblies. Fixture provenance and wire-format
+expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.

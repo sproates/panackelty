@@ -67,7 +67,7 @@ bytecode is not assumed to have passed the source type checker.
 
 The seed VM is portable C11 and uses only the C standard library plus the small
 operating-system adaptation in the host-service implementation. No compiler,
-Python runtime, third-party numeric library, or platform-specific value layout
+third-party numeric library or platform-specific value layout
 is part of the native executable.
 
 ## Opaque host-domain values

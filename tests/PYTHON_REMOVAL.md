@@ -1,5 +1,8 @@
 # Repository-wide interpreter removal
 
+This is a historical audit of the completed toolchain migration. For current
+test commands and suite ownership, see [the testing guide](README.md).
+
 The transitional implementation, root import facade, unit discovery packages
 and their support helper are removed. Development, bootstrap, conformance,
 installation, packaging and release validation use Panackelty, C and POSIX tools.

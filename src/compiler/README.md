@@ -76,10 +76,10 @@ Direct lexer, parser, resolver, type-checker, and purity contracts live in
 `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`. These import the implementation
 modules and use `stdlib/testing`; `make unit` and `make check-compiler` run
 them on the native VM. The parser probe preserves all 192 expanded expectations
-from the retired Python parser harness; the resolver preserves 26 source and
+for expressions, blocks, types and programs; the resolver checks 26 source and
 module-graph assertions, including exact positioned diagnostics. The checker
 and purity probes keep all 31/10 source expectations and 3/1 module contracts.
-Their Python comparison tests are retired; the fixed-expectation audit is in
+The fixed-expectation audit is in
 `tests/ORACLE_REPLACEMENT.md`.
 
 The pure backend boundary is:
@@ -107,7 +107,6 @@ The remaining direct compiler contracts now run in
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. Fixed expectations now replace the Python
-differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-The transitional implementation and its 21 implementation-only safeguards are retired;
-seed regeneration now uses verified self-hosted stages.
+inference, types and host boundaries. The probes use fixed expectations;
+their provenance is recorded in
+`tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.

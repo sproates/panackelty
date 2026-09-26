@@ -1,16 +1,14 @@
 # Self-hosting roadmap
 
-The goal is to run the Panackelty compiler and standard library without a Python
-dependency, then reach a reproducible compiler fixed point. A milestone is
-complete only when its behavior has end-to-end and focused failure-case
-coverage in `make check`.
+The compiler and standard library build on the native VM and reach a
+reproducible compiler fixed point. A milestone is complete only when its behavior
+has end-to-end and focused failure-case coverage in `make check`.
 
 ## Bootstrap status
 
-The self-hosting critical path is complete. The public compiler, VM, build,
-conformance, installation, and package path no longer depend on Python. The
-transitional Python implementation, compatibility facade and implementation-only
-tests are removed. Development validation also runs entirely without Python.
+The self-hosting critical path is complete. The compiler is written in
+Panackelty and executes on the portable C11 VM. Build, validation, installation
+and packaging use this toolchain and standard development utilities.
 
 The completed critical path was:
 
@@ -21,10 +19,9 @@ The completed critical path was:
    Panackelty, then compile the complete compiler with the bootstrap toolchain.
 4. Define the minimum standard-library and VM-to-host boundary required by the
    compiler.
-5. Implement the portable native seed VM and run the same conformance suite on
-   both implementations.
+5. Implement the portable native seed VM and validate its conformance.
 6. Produce stage-1, stage-2, and stage-3 compilers and require a byte-identical
-   fixed point before removing Python.
+   fixed point.
 
 Post-bootstrap language and engineering priorities are tracked in
 `ROADMAP.md`.
@@ -173,7 +170,7 @@ compiler stages, and their version-8 artifacts must be byte-identical.
 - [x] Define portable value representation, allocation, and memory reclamation
 - [x] Implement the VM, verifier, loader, and OS boundary in portable C11
 - [x] Match Panackelty numeric, UTF-8, collection, trap, and effect semantics
-- [x] Differentially execute the conformance suite on the Python and native VMs
+- [x] Validate the native VM against independent conformance expectations
 - [x] Validate malformed and adversarial bytecode on the native VM
 - [x] Run the Panackelty compiler bytecode on the native VM
 
@@ -184,16 +181,16 @@ compiler stages, and their version-8 artifacts must be byte-identical.
 - [x] Use stage 2 to produce stage 3
 - [x] Require stage 2 and stage 3 compiler and standard-library artifacts to be
       byte-identical
-- [x] Build, test, and package from a clean environment without Python
-- [x] Remove Python from release and build dependencies
+- [x] Build, test, and package with an allowlisted command environment
+- [x] Establish a self-contained release and build toolchain
 
 The native VM builds and runs the compiler and standard library, reproduces
-their artifacts exactly, and passes the native conformance suite without
-Python. The checked seed and its digest are documented in `bootstrap/README.md`.
+their artifacts exactly, and passes the native conformance suite. The checked
+seed and its digest are documented in `bootstrap/README.md`.
 Seed refresh is now self-hosted: `make regenerate-seed` verifies the input
 digest, stages compiler builds 2–4, checks compiler and standard-library
 identity plus expected output, and publishes only after all checks pass. A
-real refresh with a Python-free `PATH` runs in `make bootstrap-check`; shell
+real refresh with an allowlisted `PATH` runs in `make bootstrap-check`; shell
 failure injection runs in the unit and focused compiler suites.
 The compiler source itself exercises the typed Map and Set method aliases in
 its lexer and project loader, so every bootstrap stage proves those calls as
@@ -230,38 +227,34 @@ success fixtures, all twenty examples, and forty-one failure fixtures. It
 also checks six `run`/`disasm` failure pairs, rational traps, exact displayed
 diagnostics, environment and file I/O, and a stage-two compiler driver
 comparison. `runner_smoke` runs from both source and saved bytecode. The
-Python functional and live differential methods are retired; bootstrap
-implementation retirement is complete.
-The direct lexer, parser, and resolver unit contracts now run in Panackelty and their
-former Python test files have been retired. The parser retains all 192 expanded
-assertions from its 38 former methods; the resolver retains all 26 expanded
-assertions from 12 former methods. The type checker now has 34 native direct
+functional suite checks fixed expectations.
+The direct lexer, parser, and resolver unit contracts run in Panackelty.
+The parser has 192 assertions in 38 groups; the resolver has 26 assertions
+in 12 groups. The type checker now has 34 native direct
 contracts using fixed source expectations. The purity checker adds 11 native
-contracts with ten fixed source inputs. Live compiler/VM differential checks
-are retired; fixed independent arithmetic/artifact expectations and bootstrap
-identity replace them. See `tests/ORACLE_REPLACEMENT.md`.
+contracts with ten fixed source inputs. Fixed independent arithmetic/artifact
+expectations and bootstrap identity provide additional evidence.
+See `tests/ORACLE_REPLACEMENT.md`.
 
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
 These share fixed version-8 and malformed artifact vectors and compare exact
-canonical artifacts and disassemblies. Live Python differential comparisons are
-retired together with bootstrap-only object/limit safeguards, recorded in
+canonical artifacts and disassemblies. Fixture provenance and wire-format
+expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.
 
-The [replacement test architecture](tests/PYTHON_MIGRATION.md) inventories
-their current responsibilities, assigns native and Panackelty-hosted evidence,
-and records the behavior evidence used to retire transitional tests.
+The [testing guide](tests/README.md) describes the native and Panackelty-hosted
+suites and their validation commands.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. Fixed expectations now replace the Python
-differential oracle; the case mapping is in `tests/ORACLE_REPLACEMENT.md`.
-The transitional implementation and its 21 implementation-only safeguards are retired;
-seed regeneration now uses verified self-hosted stages.
+inference, types and host boundaries. The probes use fixed expectations;
+their provenance is recorded in
+`tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
@@ -269,7 +262,7 @@ against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.
-The 61 former Python VM observations use fixed native contracts, including 21
+The VM corpus checks 61 fixed execution contracts, including 21
 per-artifact C return-kind assertions. Fixed independent arithmetic expectations
 and builtin signatures run in `make native-oracle-contracts`.
 
@@ -278,14 +271,12 @@ Direct host, runtime and standard-library assertions run in
 bytecode fixtures in `tests/fixtures/host_runtime`. The probe asserts native
 process, file, path, environment and timing contracts and exact testing-library
 reports. Direct C host checks and forced failures run under instrumentation.
-The [migration inventory](tests/fixtures/host_runtime/README.md) maps all 37
-former methods: 31 migrated to direct native evidence and the final six replaced
-by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
-public behaviour on both supported platforms.
+The [fixture guide](tests/fixtures/host_runtime/README.md) describes direct native
+evidence, fixed oracle fixtures and bootstrap cross-checks. Functional source
+and bytecode cases verify public behaviour on both supported platforms.
 
-Development-harness migration is complete: 31 former Python methods now run as
-shell/native checks, with a 52-method retirement audit in `tests/HARNESS_MIGRATION.md`.
-The final 21 implementation-only methods retired with their implementation.
+Development harness checks use shell and native tools to validate repository
+policy, packaging, timing, seed rejection and fixture-runner failures.
 Both supported package jobs run `make check-no-interpreter` on the full
 validation route. Informational-only edits use the documented lightweight
 checks and do not rebuild or package the toolchain.

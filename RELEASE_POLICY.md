@@ -17,9 +17,8 @@ Windows and other processor architectures are not supported by the initial
 preview.
 
 Downloaded toolchains require only the operating system, a terminal, `tar`, and
-the platform's standard SHA-256 utility for download verification. Python,
-`make`, a C compiler, and a source checkout are not runtime or compilation
-dependencies.
+the platform's standard SHA-256 utility for download verification. The archive
+includes the compiler, VM, and standard library needed to build and run programs.
 
 ## Release gate
 

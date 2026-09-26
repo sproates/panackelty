@@ -2,6 +2,7 @@
 # Source-tree policy, including untracked files and extensionless scripts.
 # Historical documentation and frozen test data are permitted.
 set -eu
+export LC_ALL=C
 root=${1:-.}
 test -d "$root" || { echo 'policy: missing source tree' >&2; exit 1; }
 list=$(mktemp)

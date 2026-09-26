@@ -10,6 +10,7 @@ language=${language}thon
 mkdir -p "$work/tree/.github/workflows" "$work/tree/docs"
 printf '# Historical %s migration\n' "$language" > "$work/tree/docs/history.md"
 printf '#!/bin/sh\nprintf "hello\\n"\n' > "$work/tree/valid"
+printf '\377\376\000\200binary asset\n' > "$work/tree/image.bin"
 sh "$script" "$work/tree" > "$work/log"
 reject() {
     if sh "$script" "$work/tree" > "$work/log" 2>&1; then

@@ -30,7 +30,9 @@ files and symlinks; only root `.git`, `build` and `output` directories are exclu
 It rejects source/cache extensions, interpreter shebangs on extensionless files,
 literal interpreter commands in build/workflow/script/source files, interpreter
 variable invocations and the CI setup action. Comments and historical Markdown
-are allowed. Command patterns cover unversioned, major-version and dotted-version
+are allowed. Scanning uses the C locale so arbitrary bytes in assets do not cause
+multibyte conversion failures; an invalid-byte binary asset is a positive control.
+Command patterns cover unversioned, major-version and dotted-version
 names, absolute paths, quoted commands and environment wrappers.
 
 Controls inject each prohibited category into isolated trees, including names

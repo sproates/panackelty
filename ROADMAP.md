@@ -1177,6 +1177,30 @@ function return types, and distinguishes no-return functions with `Void`.
 - [x] Update every example and user-facing command snippet
 - [x] Advance the bytecode version for the `Void` value-tag change
 
+## Codebase-wide human readability and refactoring — planned
+
+Extend the native VM readability cleanup across all project code, including
+the compiler, bytecode tooling, runtime, standard library, bootstrap code,
+CLI, build and CI scripts, and test harnesses. Make the code straightforward
+for a human maintainer to read, navigate and change. This backlog item follows
+the immediate validation-performance priority above.
+
+- [ ] Audit each component for dense or oversized functions, unclear names,
+      duplicated logic, hidden dependencies and obsolete code; record a scoped
+      refactoring sequence using the native VM cleanup as the model.
+- [ ] Split responsibilities into cohesive modules and small, clearly named
+      functions; make interfaces, data flow, ownership and error handling
+      explicit, with consistent formatting and comments explaining non-obvious
+      decisions and invariants.
+- [ ] Remove obsolete code and unnecessary duplication, keeping any required
+      bootstrap distinctions explicit; update architecture and component
+      documentation alongside each refactor.
+- [ ] Preserve observable behavior, exact numeric semantics, purity, bytecode
+      safety and bootstrap reproducibility. Retain all existing assertions,
+      add meaningful regression coverage where gaps are found, and validate
+      each scoped refactor with `make check` and applicable sanitizer/platform
+      gates; measure and avoid validation or runtime performance regressions.
+
 ## Native VM readability and test hardening
 
 - [x] Decompose native decoding, verification, values, arithmetic, execution,

@@ -17,6 +17,70 @@ form for ideas or bounded investigations; an open issue is not a commitment.
 The repository records agreed direction and priorities, with Issues providing
 linked work details and discussion.
 
+## Conventions
+
+These conventions apply to new and substantially changed work. Preserve existing
+public names and keep unrelated formatting or renaming out of focused changes.
+Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
+
+### Branches, commits and pull requests
+
+- Branch from current `main` using `<kind>/<short-kebab-case-description>`.
+  Use `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `ci/` or `chore/`
+  for the principal purpose; use `chore/` for maintenance that does not fit
+  another kind. For example: `feat/compiler-name-suggestions` or
+  `docs/adoption-direction-and-issue-workflow`. An issue number is optional:
+  `fix/123-import-collision`. Existing branches need not be renamed.
+- Use focused commits with a short imperative subject describing the result,
+  such as “Explain unresolved names with nearby suggestions”. Add a body when
+  the reason or trade-off is not obvious. Conventional Commit prefixes are
+  not required. Use your GitHub noreply identity and verify it before committing.
+- Give PRs a descriptive title and explain the problem, resulting behavior,
+  scope, validation and material limitations. Link related issues and roadmap
+  items; reserve automatic issue-closing links for work completed on merge.
+- Keep each PR reviewable around one coherent outcome. Update affected docs,
+  report actual test results and preserve unrelated work. Follow the
+  [roadmap process](docs/ROADMAP_PROCESS.md) for priorities and decisions.
+- Never push directly to `main`. Obtain explicit user permission for each PR
+  merge; scope approval and green checks alone are not merge permission.
+
+### Panackelty source
+
+- Use two spaces for indentation, spaces rather than tabs, and a final newline.
+  Keep imports together at the start and separate top-level declarations with
+  blank lines. Match nearby layout where a small edit does not justify reformatting.
+- Use descriptive `snake_case` function, binding, field and file names;
+  `PascalCase` type and variant names; and short conventional type parameters
+  such as `T` where their meaning is clear. Preserve deliberate public spellings.
+- Prefer small cohesive functions, clear intermediate names and multi-line control
+  flow when nesting or multiple operations make a compact expression hard to read.
+  Simple one-line expressions are acceptable; avoid dense statement chains.
+- Comment intent, invariants, non-obvious constraints and trade-offs. Keep comments
+  accurate and avoid narrating code that already explains itself.
+- Preserve explicit purity and type/effect contracts. Use inference where it
+  improves clarity; do not remove useful type information merely to shorten code.
+- Follow [standard-library guidance](src/stdlib/README.md) for current public
+  prefixes and imports. Namespace design remains pending; this guide does not
+  authorise API renaming or claim that a source formatter is available.
+
+### C, tests and repository structure
+
+- Follow [VM editing and ownership conventions](src/vm/README.md#ownership-and-editing-conventions)
+  and `src/vm/.clang-format` for C: four spaces, braces, descriptive names and
+  explicit ownership contracts. Format changed C code and inspect the diff;
+  keep unrelated formatting out of the PR.
+- Follow [ARCHITECTURE.md](ARCHITECTURE.md#repository-layout) and component READMEs
+  for file placement and responsibility boundaries. Keep implementation in
+  `src/`, user examples in `examples/`, and tests in the documented test layout.
+- Follow [tests/README.md](tests/README.md) for fixtures, runners and assertions,
+  and [AGENTS.md](AGENTS.md) for meaningful coverage, cleanup and validation.
+  Test names should describe the behavior or failure being checked.
+- Follow [RELEASE_POLICY.md](RELEASE_POLICY.md) for versions, tags, compatibility
+  and release gates rather than defining a separate release naming scheme here.
+
+These are review conventions, not a claim of automated enforcement. Existing
+policy, formatting and validation tools cover only their documented scope.
+
 ## Validate a change
 
 For changes limited to the informational files listed in `scripts/ci_docs.sh`,

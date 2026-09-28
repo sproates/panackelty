@@ -397,7 +397,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Full cold hosted CI | Five follow-up runs: 88/106/107/103/97s, median 103s | Hosted scheduling/completion has no proven hard upper bound |
 | Local clean check, append experiment | 107s | Environment-specific result, not a universal guarantee |
 | Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
-| Local clean check, adoption/workflow docs (2026-09-29) | 147s; unit phase 101s; all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
+| Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

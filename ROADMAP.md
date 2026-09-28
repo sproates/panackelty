@@ -47,6 +47,9 @@ priority. Look for useful small improvements as well as large enabling projects.
 - [ ] Review roadmap documentation and planning process: ownership of status,
       source of truth across documents, historical versus active evidence,
       acceptance criteria, review cadence and when shipped work is reconciled
+- [ ] Compare repository-only planning with GitHub Issues/Projects and a hybrid:
+      planning friction, portability, backup/export, source of truth and duplicate
+      status maintenance; agree the boundary before migrating any backlog
 - [ ] Compare developer-experience opportunities with infrastructure and test work
       on their merits; avoid ranking purely by coverage percentages or a simplistic
       benefit/effort score that ignores risk and dependencies
@@ -85,6 +88,7 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | --- | --- | --- |
 | In progress / Now | Adopt the roadmap decision process | Agreed process documented, validated and merged with permission |
 | Planned / Next | Holistic assessment and roadmap refresh | Apply the process; review effort-aware findings and priorities in chat |
+| Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
 | Candidate | Developer experience and compiler assistance | Practical help for understanding, writing and changing programs; assess useful increments and cost |
 | Candidate | Reconcile test evidence and close verified gaps | Accurate matrix and bounded correctness/safety test PRs |
@@ -116,6 +120,32 @@ The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules
   [the profiling report](tests/VALIDATION_PROFILE.md), behavioral evidence in
   [the coverage matrix](tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](SELF_HOSTING.md).
+
+## Review GitHub repository settings and tooling — idea
+
+Assess whether repository configuration and available tooling can improve
+security, code quality and contributor experience. This is a backlog item, not
+an assertion that any particular feature is disabled or suitable. Include it in
+the holistic assessment and compare its value and effort with other candidates.
+
+- [ ] Inventory actual settings, workflows and enabled checks; distinguish
+      unavailable, disabled, already configured and redundant capabilities
+- [ ] Evaluate applicable code/security scanning, secret scanning and push
+      protection, dependency alerts/updates/review (including Actions), and
+      static-analysis or code-quality tools; verify language/ecosystem support
+      and avoid implying that a C scanner analyses custom `.panack` semantics
+- [ ] Review branch/ruleset protections, required checks, workflow/token
+      permissions, environment/release protections and contribution settings
+      against the project's agreed workflow
+- [ ] Record benefit, findings/actionability, false positives, setup and ongoing
+      effort, CI latency, cost/plan availability, access needs and ownership
+- [ ] Recommend a minimal useful set with a clear enable/retain/defer rationale,
+      acceptance checks and an alert-triage process; obtain explicit permission
+      before changing settings, protections, permissions or paid services
+
+Acceptance for the review is an evidence-backed inventory and prioritised
+recommendations. Enabling selected features is separately scoped work with
+its own verification; do not turn on every available feature by default.
 
 ## Measure Panackelty source coverage — candidate pending assessment
 

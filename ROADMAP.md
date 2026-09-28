@@ -34,27 +34,34 @@ agents remains a hypothesis to test.
 ## Draft status and next tasks — updated 2026-09-29
 
 **The implementation roadmap remains a draft for discussion.** The decision
-process was adopted in PR #83. An initial repository review found useful leads,
-but the broader application and AI-agent adoption ambition requires a deeper
-assessment. No coverage-first or compiler-suggestions-first sequence is approved.
+process was adopted in PR #83. The expanded architectural assessment is now
+prepared for review, with evidence and proposed experiment tasks linked below.
+No coverage-first or compiler-suggestions-first sequence is approved.
 
 ### Now: expanded holistic and architectural gap assessment
 
-- [ ] Assess execution targets, embedding/interoperability, concurrency and
+Work record: [issue #85](https://github.com/sproates/panackelty/issues/85).
+The [assessment report](docs/ADOPTION_ASSESSMENT.md) is prepared for review; its
+proposed implementation ordering is not agreed. Evidence covers host integration,
+execution lifecycle, composition, developer/agent assistance, platform/library
+gaps, resources, performance, distribution, security and maintainability.
+
+- [x] Assess execution targets, embedding/interoperability, concurrency and
       cancellation, memory/resource management, modules/namespaces/packages,
       networking, GUI/platform integration and development tooling against the
       intended application range; identify decisions that could constrain it
-- [ ] Review correctness, security, testing/measurement, performance, libraries,
+- [x] Review correctness, security, testing/measurement, performance, libraries,
       installation/releases, maintainability, documentation and adoption;
       include repository settings/tooling and human-readable code refactoring
-- [ ] Distinguish observed defects, verified omissions, deliberate limitations,
+- [x] Distinguish observed defects, verified omissions, deliberate limitations,
       stale documentation and hypotheses, citing current repository evidence
-- [ ] For each finding, record value, affected users/agents, effort including
+- [x] For each finding, record value, affected users/agents, effort including
       tests/docs/maintenance, risk, dependencies, confidence and a smallest
       useful PR or investigation; compare useful assistance with infrastructure
-- [ ] Reconcile stale roadmap/document claims and apply the repository-led
+- [x] Reconcile stale roadmap states, record remaining documentation drift
+      for scoped follow-up, and apply the repository-led
       [Issues workflow](docs/ROADMAP_PROCESS.md#github-issues-workflow)
-- [ ] Present concise findings and a provisional Now / Next / Later comparison
+- [x] Present concise findings and a provisional Now / Next / Later comparison
       in chat; identify prerequisite decisions and deliberate deferrals
 
 Acceptance: evidence-backed assessment across the intended application range,
@@ -62,6 +69,11 @@ with effort and architectural uncertainty explicit. It does not promise all
 platforms or authorise implementation of every identified gap.
 
 ### Next: bounded AI-assisted development experiment
+
+Work record: [issue #86](https://github.com/sproates/panackelty/issues/86).
+Task briefs, acceptance design and a proposed resource ceiling are in the
+[assessment](docs/ADOPTION_ASSESSMENT.md#proposed-experiment-for-issue-86--not-run).
+The experiment has not run; review its scope/budget before execution.
 
 - [ ] Select a few small representative application/change tasks and define
       independent acceptance tests before running agents; include a later
@@ -111,8 +123,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Status | Initiative | Outcome to assess |
 | --- | --- | --- |
 | Done | Adopt the roadmap decision process | Merged in PR #83; implementation ordering remains draft |
-| Planned / Now | Expanded holistic and architectural assessment | Compare real developer and AI-agent needs, effort and enabling foundations |
-| Planned / Next | Bounded AI-assisted development experiment | Test application delivery and maintenance; review evidence before implementation priorities |
+| In progress / review | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report prepared; user review and merged repository summary pending |
+| Planned / Next | [Bounded experiment (#86)](https://github.com/sproates/panackelty/issues/86) | Proposed tasks/budget await review; no runs yet |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -267,8 +279,10 @@ failed collection; partial collection must not appear as a complete green report
 
 ## Grooming gaps and decisions — newly explicit
 
-These are initial findings, not a completed holistic audit or authorization for
-every feature. The assessment must look beyond the testing-focused findings below.
+These earlier findings are retained as supporting context. The broader
+[2026-09-29 assessment](docs/ADOPTION_ASSESSMENT.md) now covers application
+architecture and adoption as well as testing. Neither report authorises every
+feature or settles implementation priorities.
 
 | Gap or ambiguity | Evidence / consequence | Treatment |
 | --- | --- | --- |
@@ -287,7 +301,7 @@ choices, not newly discovered omissions. Missing package management, concurrency
 module visibility and compatibility guarantees are explicitly deferred in the
 specification; do not promote them merely because other languages have them.
 
-## Harden and expand test coverage — in progress
+## Harden and expand test coverage — candidate; foundation delivered
 
 The goal is to make regressions difficult to introduce and failures easy to
 localize while keeping `make check` the canonical validation command.
@@ -341,14 +355,16 @@ lines, 80.65% branches and 100% functions; it is not a `.panack` baseline.
 - [x] Confirm the first merged `main` run publishes successfully and passes the
       live entry-page, source-navigation and provenance checks
 
-## Codebase-wide human readability and refactoring — planned
+## Codebase-wide human readability and refactoring — candidate
 
 Extend the native VM readability cleanup across all project code, including
 the compiler, bytecode tooling, runtime, standard library, bootstrap code,
 CLI, build and CI scripts, and test harnesses. Make the code straightforward
 for a human maintainer to read, navigate and change. Start with an audit, then
 refactor in component-sized PRs after establishing
-relevant test evidence and the source-coverage baseline. The REPL is not a
+relevant test evidence. The assessment proposes using source coverage to inform
+risk without making its delivery a blanket prerequisite for small, well-tested
+refactors; review that dependency with the implementation priorities. The REPL is not a
 prerequisite; do not mix feature changes into readability refactors.
 
 - [ ] Audit each component for dense or oversized functions, unclear names,
@@ -398,6 +414,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local clean check, append experiment | 107s | Environment-specific result, not a universal guarantee |
 | Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
 | Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
+| Local assessment validation (2026-09-29; native build already present) | 144s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

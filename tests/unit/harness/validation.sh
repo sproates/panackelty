@@ -85,3 +85,52 @@ pass
 case_name=sanitizer-partition-equivalence
 sh tests/ci_sanitize.sh
 pass
+
+case_name=runtime-parallel-dispatch-and-failure-propagation
+mkdir "$work/runtime"
+cat > "$work/runtime/make" <<'MAKE'
+#!/bin/sh
+set -eu
+group=${2#unit-runtime-}
+[ "${VALIDATION_JOBS:-}" = 1 ] || exit 9
+printf '%s\n' "$group" > "$RUNTIME_CONTROL/$group.started"
+if [ "${RUNTIME_PARALLEL:-}" = yes ]; then
+    if [ "$group" = native ]; then
+        printf 'ready\n' > "$RUNTIME_CONTROL/barrier"
+    else
+        IFS= read -r ready < "$RUNTIME_CONTROL/barrier"
+        [ "$ready" = ready ] || exit 10
+    fi
+fi
+printf '%s stdout\n' "$group"
+printf '%s stderr\n' "$group" >&2
+if [ "${RUNTIME_FAIL:-}" = "$group" ]; then exit 7; fi
+MAKE
+chmod +x "$work/runtime/make"
+mkfifo "$work/runtime/barrier"
+for workers in 1 2; do
+    for fault in none native probes; do
+        rm -f "$work/runtime/native.started" "$work/runtime/probes.started"
+        expected=0
+        if [ "$fault" != none ]; then expected=7; fi
+        parallel=no
+        if [ "$workers" = 2 ]; then parallel=yes; fi
+        capture "$expected" 5 env VALIDATION_JOBS="$workers" RUNTIME_CONTROL="$work/runtime" \
+            RUNTIME_FAIL="$fault" RUNTIME_PARALLEL="$parallel" \
+            sh tests/runtime_checks.sh "$work/runtime/make"
+        contains "$work/stdout" 'native stdout'
+        contains "$work/stderr" 'native stderr'
+        if [ "$workers" = 2 ] || [ "$fault" != native ]; then
+            contains "$work/stdout" 'probes stdout'
+            contains "$work/stderr" 'probes stderr'
+            test -f "$work/runtime/probes.started" || fail 'lost runtime probes'
+        fi
+    done
+done
+for invalid in 0 33 invalid; do
+    rm -f "$work/runtime/native.started" "$work/runtime/probes.started"
+    capture 2 5 env VALIDATION_JOBS="$invalid" RUNTIME_CONTROL="$work/runtime" \
+        sh tests/runtime_checks.sh "$work/runtime/make"
+    test ! -f "$work/runtime/native.started" && test ! -f "$work/runtime/probes.started" || fail 'invalid worker count performed work'
+done
+pass

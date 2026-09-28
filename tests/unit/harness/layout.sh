@@ -121,7 +121,7 @@ make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROF
 COMMANDS
 equal_files "$work/commands" "$work/expected"
 for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
-    'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
+    'suite: [harness, compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
     "if: startsWith(matrix.suite, 'sanitize-')" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done
 test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 3 || fail 'release checkout credential policy'
 test "$(grep -c 'contents: write' .github/workflows/release.yml)" = 1 || fail 'release permission policy'

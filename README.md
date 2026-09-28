@@ -598,7 +598,7 @@ before replacing the seed. See [the refresh procedure](bootstrap/README.md).
 
 Continuous integration runs on pull-request updates and pushes to `main`.
 New commits cancel older runs for the same pull request. For implementation, mixed or uncertain changes, CI partitions the canonical
-check into compiler/harness, runtime/functional and bootstrap jobs, alongside
+check into harness, compiler, runtime/functional and bootstrap jobs, alongside
 independent sanitizer and coverage jobs. The focused targets above remain
 available for local work; `make check` still runs the complete local suite. Changes limited
 to the explicit informational-document allowlist receive quick document/local-link
@@ -610,8 +610,8 @@ Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profi
 separates native builds, harness groups, probes and bootstrap costs.
 
 Continuous integration builds this package independently on Ubuntu 22.04
-x86-64 and macOS 14 arm64. Each platform runs five clean, isolated suites via
-`make check-no-interpreter CI_SUITE=…`: compiler/harness, runtime/functional,
+x86-64 and macOS 14 arm64. Each platform runs six clean, isolated suites via
+`make check-no-interpreter CI_SUITE=…`: harness, compiler, runtime/functional,
 bootstrap, source conformance and bytecode conformance/packaging. Together they cover the complete
 check and package proofs with only allowlisted commands visible. The stable
 package checks require every suite on both platforms to succeed.

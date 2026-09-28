@@ -853,6 +853,22 @@ observation retained and an identical native coverage summary. See
       upper bound: one of five runs still took 123 seconds. Keep that timing
       miss visible rather than presenting only the four faster runs.
 
+The focused VM investigation at merged PR #76 records a 26.219-second local
+cached median and 36.338-second median after a test-source edit. Hosted cached
+checks took 45s on Linux and 52s on macOS in one profile pair per platform.
+The nested functional runner dominates, and a short compiler CPU sample points
+to collection copying and release work. Prioritize persistent array append
+allocation/copying while preserving aliases and failure behavior; keep the
+broad probe fingerprint intact until dependency completeness can be proved.
+See [the focused investigation](tests/VALIDATION_PROFILE.md#focused-vm-check-investigation--2026-09-28)
+for all trials, measurement limits and the optimisation PR acceptance criteria.
+
+- [x] Refresh the focused VM baseline with repeated unchanged and source-edit
+      runs, component CPU measurements and a hosted platform cross-check
+- [ ] Reduce measured collection-copying costs in compiler execution; preserve
+      persistent values and add ownership/failure regressions before claiming
+      a focused-check improvement
+
 The historical CI baseline from PR #64 is 275 seconds for `make check`:
 169 seconds for units, 42 for functional tests and 59 for bootstrap. Use fresh
 measurements of the current toolchain to guide validation improvements.

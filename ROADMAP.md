@@ -4,18 +4,33 @@ This roadmap tracks post-bootstrap language and engineering initiatives. The
 completed compiler bootstrap and reproducibility guarantees
 are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 
-An item is complete only when its implementation, focused tests, end-to-end
-coverage, and affected documentation are complete and `make check` passes.
+Use the [roadmap decision process](docs/ROADMAP_PROCESS.md) for item states,
+assessment criteria, priorities, document ownership and review. Implementation
+items require their agreed scope, meaningful tests, affected documentation and
+canonical validation; documentation and design items use their applicable checks.
 
 ## Draft status and next task — updated 2026-09-29
 
-**This roadmap remains a draft for discussion.** The agreed very next task is
-an effort-aware, holistic gap assessment. The implementation ordering below is
-provisional, including source coverage; no coverage-first sequence is approved.
+**The implementation roadmap remains a draft for discussion.** The lightweight
+prioritisation process was agreed in conversation on 2026-09-29 and is being
+documented for adoption. Adopt that process first, then conduct the holistic
+gap assessment, review its findings here with the user, and agree implementation
+priorities. No coverage-first sequence is approved.
 
-## Next task: holistic gap assessment and roadmap/process refresh
+## Now: adopt the roadmap decision process
 
-Assess the whole project before selecting the next implementation initiative.
+- [x] Agree the lightweight process in conversation
+- [x] Document states, assessment criteria, prioritisation, document roles and
+      review/completion rules in [the process document](docs/ROADMAP_PROCESS.md)
+- [ ] Validate and merge the process PR with explicit user permission
+
+Acceptance: the agreed process is documented and adopted; no implementation
+priority is selected merely by adopting it.
+
+## Next: holistic gap assessment and roadmap refresh
+
+After adopting the process, assess the whole project before selecting the next
+implementation initiative.
 Strong test coverage and an enjoyable, productive developer experience are both
 strategic goals. Neither substitutes for the other or automatically determines
 priority. Look for useful small improvements as well as large enabling projects.
@@ -38,7 +53,8 @@ priority. Look for useful small improvements as well as large enabling projects.
 - [ ] Produce a concise in-chat assessment and proposed ordering, identifying
       quick wins, larger investments, prerequisite decisions and deliberate deferrals
 - [ ] Review the proposed ordering with the user before treating it as agreed;
-      retain this roadmap and PR as drafts until that review is complete
+      keep the implementation roadmap and assessment proposals provisional until
+      that review is complete; this does not prevent adopting the process first
 
 ### Developer experience: useful assistance from the compiler
 
@@ -67,7 +83,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 
 | Status | Initiative | Outcome to assess |
 | --- | --- | --- |
-| Agreed next task | Holistic assessment and roadmap/process refresh | Evidence-backed, effort-aware priorities reviewed in chat |
+| In progress / Now | Adopt the roadmap decision process | Agreed process documented, validated and merged with permission |
+| Planned / Next | Holistic assessment and roadmap refresh | Apply the process; review effort-aware findings and priorities in chat |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
 | Candidate | Developer experience and compiler assistance | Practical help for understanding, writing and changing programs; assess useful increments and cost |
 | Candidate | Reconcile test evidence and close verified gaps | Accurate matrix and bounded correctness/safety test PRs |
@@ -83,6 +100,8 @@ actual risk. Coverage is execution evidence, not proof of assertion quality;
 preserve the established validation gates while reviewing future priorities.
 
 ### How to turn the backlog into PRs
+
+The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules.
 
 - Complete the holistic assessment before choosing the principal implementation
   initiative. Subsequent work must follow the reviewed priority order, not the

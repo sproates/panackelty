@@ -3,7 +3,10 @@
 Use this lightweight process to choose Panackelty work deliberately. Strong
 correctness and test evidence, useful capabilities, and an enjoyable developer
 experience are strategic goals. Compiler assistance deserves explicit attention
-beyond the presentation of error messages. This process does not predetermine
+beyond the presentation of error messages. Evaluate adoption by human developers
+and AI coding agents, while retaining human readability and maintainability.
+Use the ambition in [ROADMAP.md](../ROADMAP.md) to guide assessment, not to
+claim current platform support or superiority. This process does not predetermine
 which implementation should come next.
 
 ## Item states
@@ -77,6 +80,7 @@ remain explicit; agreement on priorities alone does not authorize a merge.
 | --- | --- |
 | `ROADMAP.md` | Authoritative current item state, agreed priority, concise rationale and links |
 | This process | Rules for assessment, prioritisation and review |
+| GitHub Issues | Detailed work records, investigation evidence and discussion linked from the roadmap |
 | Supporting proposals | Detailed design, assumptions and options linked from an item |
 | `tests/COVERAGE.md` | Behavioral test evidence and identified test gaps; links to roadmap priority |
 | `tests/VALIDATION_PROFILE.md` | Reproducible performance observations and historical experiments |
@@ -90,6 +94,56 @@ supporting documents link to it rather than maintaining competing priority lists
 Historical snapshots may retain their original status when clearly labelled as
 historical. Existing duplicated or stale entries should be reconciled during
 the roadmap refresh, not silently treated as current commitments.
+
+## GitHub Issues workflow
+
+Start from this repository, not remembered conversations. Read this process and
+[ROADMAP.md](../ROADMAP.md), then follow the roadmap's item links to
+[GitHub Issues](https://github.com/sproates/panackelty/issues). The repository is
+authoritative for ambition, agreed priorities, item state, accepted decisions
+and completion summaries. Issues hold detailed tasks and discussion; essential
+decisions must not exist only in a chat, issue comment or GitHub Project.
+
+1. Search open and closed issues and the roadmap before creating an item.
+   Use **Roadmap proposal** for features, investigations and maintenance; use
+   **Bug report** for defects and SECURITY.md for sensitive reports. Link the
+   matching roadmap section and related issues/PRs. Split independently
+   deliverable work; do not bulk-migrate the historical backlog.
+2. In the issue body, record the candidate assessment above: problem/evidence,
+   users and agents affected, value, effort, risk, dependencies/confidence,
+   smallest outcome/non-goals and acceptance evidence. Unknowns are acceptable.
+   Identify the scope as a feature, investigation, maintenance or defect.
+3. Treat new proposals as **Idea** unless another state is explicitly agreed.
+   Open/closed is issue lifecycle, not roadmap priority. Labels and Projects
+   may aid discovery but are optional and cannot override the repository.
+4. Before scheduling implementation, bring a concise recommendation to the user
+   in chat. Record accepted priority, rationale, state and issue link in a
+   roadmap PR. A linked issue need not duplicate the authoritative priority.
+   If records conflict, resolve against the repository and document any newly
+   agreed change; do not silently promote a discussion into a commitment.
+5. Link implementation PRs to their issue and roadmap item. Define verification
+   and reflect completion evidence in the PR and affected repository documents.
+   Do not auto-close on merge when deployment or other acceptance remains open.
+6. Close an issue after its acceptance evidence is complete and the repository
+   completion summary is merged. For duplicates or rejected proposals, record
+   the reason and canonical link; preserve significant decisions in the repo.
+   Deferred work keeps a reason and revisit trigger, not an implied deadline.
+
+Adopt incrementally: after this workflow PR is merged, create/link issues for
+the expanded assessment and bounded experiment first. Move other active items
+when they are assessed; preserve older roadmap detail until it has a useful
+replacement. Each migrated item retains a concise repository summary, state,
+dependencies, agreed rationale and outcome, plus its issue URL. This preserves
+planning continuity if GitHub is unavailable; detailed discussion remains on
+GitHub, so a future full migration would require an explicit export/backup plan.
+No GitHub Project, bulk migration or new labels are required by this change.
+
+If issue access is unavailable, record the limitation and proposed work in the
+repository PR; never invent issue numbers or claim updates succeeded. Do not
+change repository settings or bypass access controls to complete planning.
+Use feature branches, GitHub noreply commit identity and explicit user permission
+for each PR merge. Approval of this process does not authorise feature delivery,
+settings changes or subsequent merges.
 
 ## Review and completion
 
@@ -117,7 +171,12 @@ record a follow-up without implying it has already been delivered.
 3. Compare findings and agree priorities in conversation.
 4. Update the roadmap with the agreed work and deliberate deferrals.
 
-The process proposal was agreed in conversation on 2026-09-29. Its adoption does
-not approve the draft implementation ordering. The holistic assessment remains
-outstanding; source coverage, developer assistance and other candidates must
-still be compared on evidence, benefit, effort and dependencies.
+The process was adopted in PR #83 on 2026-09-29. In the subsequent discussion,
+the user agreed the broad general-purpose ambition and explicit adoption focus
+on developers and AI coding agents, and approved repository-led use of Issues.
+This refresh records that direction and defines the workflow. An initial review
+has not settled implementation priorities: the expanded architectural assessment
+and bounded comparative experiment precede that decision. Compiler assistance,
+source coverage and other candidates must still be compared on evidence, value,
+effort and dependencies. REPL and further validation speed work remain lower
+priority; no platform backend, toolkit or interoperability strategy is selected.

@@ -10,8 +10,12 @@ language behavior, `ARCHITECTURE.md` for component boundaries, and `ROADMAP.md`
 for current priorities. Security-sensitive reports must follow `SECURITY.md`
 instead of using a public issue.
 
-The developer preview is the immediate priority. Please discuss substantial new
-language features before implementing them so release work stays focused.
+The developer preview has shipped; implementation priorities are being assessed.
+Follow the [roadmap decision process](docs/ROADMAP_PROCESS.md) and discuss
+substantial features before implementing them. Use the **Roadmap proposal** issue
+form for ideas or bounded investigations; an open issue is not a commitment.
+The repository records agreed direction and priorities, with Issues providing
+linked work details and discussion.
 
 ## Validate a change
 

@@ -2,6 +2,16 @@
 
 These instructions apply to every change made within the Panackelty project.
 
+## Planning and approvals
+
+Before selecting work, read [ROADMAP.md](ROADMAP.md) and the
+[roadmap decision process](docs/ROADMAP_PROCESS.md), including its GitHub Issues
+workflow. The repository defines direction, priority, decisions and how to find
+issue details; do not rely on prior chat history or infer priority from issue age.
+Keep accepted decisions and completion summaries in the repository as described
+there. Use feature branches and PRs; never push directly to main. Obtain explicit
+user permission for each PR merge; agreement on scope is not merge permission.
+
 ## Definition of done
 
 For every implementation change:

@@ -159,6 +159,10 @@ all targets or unrelated differentiators from the older roadmap.
 
 ## Proposed experiment for issue #86 — not run
 
+Historical proposal as reviewed in PR #87. The subsequent authorised delivery
+pilot has now run; see [its report](AGENT_DELIVERY_PILOT.md) for results and
+protocol deviations. The section below preserves the original proposal.
+
 [Issue #86](https://github.com/sproates/panackelty/issues/86) tracks the subsequent
 experiment. Agent competence and agent choice are different questions.
 

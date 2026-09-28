@@ -10,12 +10,18 @@ capture 0 15 make --always-make --dry-run native 'CFLAGS=-O0 -g' CPPFLAGS=-DPANA
 for flag in -O0 -g -DPANACK_BUILD_TEST=1 -L/tmp -lm -std=c11 -Wall -Wextra -Werror -pedantic; do token_present "$work/stdout" "$flag"; done
 absent "$work/stdout" '-O2'
 pass
+# Record the original inode as well as its bytes: relinking identical VM bytes
+# still invalidates concurrent compiler commands on some platforms.
+shared_vm_inode=$(ls -di "$root/panack-vm" | awk '{ print $1 }')
+cp "$root/panack-vm" "$work/shared-vm-bytes"
 case_name=checksum-from-spaced-checkout
 checkout=$work/'checkout with spaces (test)'
 mkdir "$checkout"
-for name in Makefile VERSION panack panack-vm bootstrap src tests examples README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
+for name in Makefile VERSION panack bootstrap src tests examples README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
     ln -s "$root/$name" "$checkout/$name"
 done
+# Builds must own the executable they relink; a symlink shares the live root VM.
+cp "$root/panack-vm" "$checkout/panack-vm"
 cd "$checkout"
 capture 0 90 make quick-start
 set -- "$checkout"/build/panackelty-*.tar.gz
@@ -32,7 +38,7 @@ printf '%s  %s\n' "$digest" "$archive_name" > "$work/checksum"
 equal_files "$archive.sha256" "$work/checksum"
 pass
 case_name=archive-members-and-relocation
-cd "$root"
+cd "$checkout"
 capture 0 90 make package-archive "BUILD_DIR=$work/archive-build"
 set -- "$work"/archive-build/panackelty-*.tar.gz
 test "$#" = 1 && test -f "$1" || fail 'expected exactly one custom-build archive'
@@ -76,7 +82,7 @@ capture 0 30 "$command" run "$work/relocated/toolchain/examples/collections_and_
 equal_files "$work/stdout" "$root/tests/functional/expected/examples/collections_and_bytes.stdout"
 pass
 case_name=installed-files-and-logical-imports
-cd "$root"
+cd "$checkout"
 destination=$work/'installation with spaces (test)'
 capture 0 30 make install "DESTDIR=$destination" PREFIX=/usr/local
 installed=$destination/usr/local
@@ -124,4 +130,8 @@ COPYFILE_DISABLE=1 tar $owner_flags -C forged -czf bad.tar.gz panackelty
 if archive_contract bad.tar.gz; then fail 'archive checker accepts symlink'; fi
 COPYFILE_DISABLE=1 tar $owner_flags -C forged/panackelty -czf bad.tar.gz file
 if archive_contract bad.tar.gz; then fail 'archive checker accepts wrong top-level directory'; fi
+pass
+case_name=distribution-preserves-shared-vm
+test "$(ls -di "$root/panack-vm" | awk '{ print $1 }')" = "$shared_vm_inode" || fail 'distribution replaced shared VM'
+equal_files "$root/panack-vm" "$work/shared-vm-bytes"
 pass

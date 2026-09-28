@@ -8,8 +8,9 @@ vm=${PANACK_NATIVE_BINARY:-./panack-vm}
 modules=${PANACK_NATIVE_MODULE_TEST:-./build/vm/test_modules}
 seed=${SEED_COMPILER:-bootstrap/compiler-v8.bc}
 fixtures=tests/fixtures/oracle_contracts
+[ "$#" -le 1 ] || { echo "expected at most one oracle group" >&2; exit 2; }
 mode=${1:-all}
-case "$mode" in all|artifacts) ;; *) echo "unknown oracle contract group" >&2; exit 1 ;; esac
+case "$mode" in all|artifacts|without-runner|runner) ;; *) echo "unknown oracle contract group" >&2; exit 2 ;; esac
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-oracles.XXXXXX")
 phase=initialization
 cleanup() {
@@ -39,7 +40,7 @@ compile() {
     cmp "$temporary/ok" "$temporary/check"
 }
 
-if [ "$mode" = all ]; then
+if [ "$mode" = all ] || [ "$mode" = without-runner ]; then
     phase="arithmetic and registry"
     rows() { test "$(wc -l < "$fixtures/$1")" -eq "$2" || fail "changed case count: $1"; }
     rows integer.stdin 1800
@@ -74,35 +75,38 @@ check_golden() {
     cmp "$fixtures/$1.hex" "$temporary/actual.hex"
 }
 
-if [ "$mode" = all ]; then
+if [ "$mode" = all ] || [ "$mode" = without-runner ]; then
     compile "$fixtures/rational.panack"
     "$vm" run "$temporary/program.bc" > "$temporary/rational" 2> "$temporary/errors"
     test ! -s "$temporary/errors" || fail "rational stderr"
     cmp "$fixtures/rational.stdout" "$temporary/rational"
 fi
 
-for entry in basic relative/main logical/main; do
-    compile "tests/fixtures/compiler_contracts/driver/$entry.panack"
-    case "$entry" in
-        basic) golden=driver-basic ;;
-        relative/main) golden=driver-relative ;;
-        logical/main) golden=driver-logical ;;
-    esac
-    check_golden "$golden"
-done
-compile tests/functional/cases/stdlib/main.panack
-check_golden stdlib
-compile examples/euler001.panack
-check_golden euler001
-"$vm" check "$seed" > "$temporary/check" 2> "$temporary/errors"
-test ! -s "$temporary/errors" || fail "compiler seed verification stderr"
-cmp "$temporary/ok" "$temporary/check"
-"$vm" run "$seed" check examples/euler001.panack > "$temporary/check" 2> "$temporary/errors"
-test ! -s "$temporary/errors" || fail "compiler source check stderr"
-cmp "$temporary/ok" "$temporary/check"
-"$vm" run "$seed" run examples/euler001.panack > "$temporary/output" 2> "$temporary/errors"
-test ! -s "$temporary/errors" || fail "compiler source run stderr"
-cmp tests/functional/expected/examples/euler001.stdout "$temporary/output"
+if [ "$mode" != runner ]; then
+    for entry in basic relative/main logical/main; do
+        compile "tests/fixtures/compiler_contracts/driver/$entry.panack"
+        case "$entry" in
+            basic) golden=driver-basic ;;
+            relative/main) golden=driver-relative ;;
+            logical/main) golden=driver-logical ;;
+        esac
+        check_golden "$golden"
+    done
+    compile tests/functional/cases/stdlib/main.panack
+    check_golden stdlib
+    compile examples/euler001.panack
+    check_golden euler001
+    "$vm" check "$seed" > "$temporary/check" 2> "$temporary/errors"
+    test ! -s "$temporary/errors" || fail "compiler seed verification stderr"
+    cmp "$temporary/ok" "$temporary/check"
+    "$vm" run "$seed" check examples/euler001.panack > "$temporary/check" 2> "$temporary/errors"
+    test ! -s "$temporary/errors" || fail "compiler source check stderr"
+    cmp "$temporary/ok" "$temporary/check"
+    "$vm" run "$seed" run examples/euler001.panack > "$temporary/output" 2> "$temporary/errors"
+    test ! -s "$temporary/errors" || fail "compiler source run stderr"
+    cmp tests/functional/expected/examples/euler001.stdout "$temporary/output"
+
+fi
 
 if [ "$mode" = artifacts ]; then
     echo "native oracle artifact contracts: ok"
@@ -112,6 +116,11 @@ fi
 # The original instrumented oracle ran every functional main and example on the
 # selected VM. Preserve that corpus here, including meta-runner programs.
 for source in tests/functional/cases/*/main.panack examples/*.panack; do
+    case "$mode:$source" in
+        runner:tests/functional/cases/runner_smoke/main.panack) ;;
+        runner:*) continue ;;
+        without-runner:tests/functional/cases/runner_smoke/main.panack) continue ;;
+    esac
     compile "$source"
     case "$source" in
         examples/*) name=${source##*/}; expected="tests/functional/expected/examples/${name%.panack}.stdout" ;;

@@ -61,16 +61,21 @@ for contract in \
     '$(MAKE) --no-print-directory unit-harness' \
     '$(MAKE) --no-print-directory unit-runtime' \
     '$(MAKE) --no-print-directory unit-compiler' \
-    'ci-compiler: policy unit-harness unit-compiler' \
+    'ci-compiler: policy native' \
+    'sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler' \
+    'sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes' \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
     'ci-bootstrap: bootstrap-check quick-start' \
+    'sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh' \
+    'bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)' \
+    'seed-refresh/native-staging sh tests/seed_refresh.sh --native' \
     'native-conformance/source sh tests/native_conformance.sh source' \
     'native-conformance/bytecode sh tests/native_conformance.sh bytecode'; do
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"
 done
 grep -F 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]' .github/workflows/check.yml >/dev/null || fail 'missing package partition'
-grep -F 'suite: [compiler, runtime, bootstrap, sanitize, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing validation partition'
+grep -F 'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing validation partition'
 grep -F 'run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing isolated suite dispatch'
 grep -F 'run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing project suite dispatch'
 echo 'CI partition dispatch, failure propagation and shared coverage passed.'

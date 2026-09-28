@@ -67,13 +67,13 @@ check-compiler-impl:
 	@$(PROFILE) harness/compiler sh tests/harness.sh compiler
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@$(PROBES) tests/runner/compiler_lexer_unit.panack \
-		tests/runner/compiler_parser_unit.panack \
-		tests/runner/compiler_resolver_unit.panack \
+	@$(PROBES) tests/runner/compiler_integration_unit.panack \
+		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \
-		tests/runner/compiler_contracts_unit.panack \
-		tests/runner/compiler_integration_unit.panack
+		tests/runner/compiler_resolver_unit.panack \
+		tests/runner/compiler_parser_unit.panack \
+		tests/runner/compiler_lexer_unit.panack
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
 
@@ -111,20 +111,26 @@ unit-harness: native
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 
 unit-runtime: native native-module-build native-fault-build
+	@sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes
+
+.PHONY: unit-runtime-native unit-runtime-probes
+unit-runtime-native:
 	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
+
+unit-runtime-probes:
 	@$(PROBES) tests/runner/host_runtime_unit.panack \
 		tests/runner/bytecode_unit.panack \
 		tests/runner/bytecode_native_unit.panack
 
 unit-compiler: native
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@$(PROBES) tests/runner/compiler_lexer_unit.panack \
-		tests/runner/compiler_parser_unit.panack \
-		tests/runner/compiler_resolver_unit.panack \
+	@$(PROBES) tests/runner/compiler_integration_unit.panack \
+		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \
-		tests/runner/compiler_contracts_unit.panack \
-		tests/runner/compiler_integration_unit.panack
+		tests/runner/compiler_resolver_unit.panack \
+		tests/runner/compiler_parser_unit.panack \
+		tests/runner/compiler_lexer_unit.panack
 
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
@@ -219,12 +225,31 @@ native-oracle-contracts-impl: $(BUILD_DIR)/vm/panack-vm native-module-build $(ST
 # Keep instrumentation isolated from ordinary build artifacts and the CLI binary.
 # Corpus programs call the public CLI too. Build that ordinary binary before
 # recursing with instrumentation, without replacing it with an instrumented VM.
-native-sanitize: native
-	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-check
+SANITIZE_SUITE ?= all
 
-native-instrumented-check: $(BUILD_DIR)/vm/panack-vm
+# Reject unknown suites before performing any build.
+native-sanitize:
+	@case "$(SANITIZE_SUITE)" in all|vm|oracle|runner) ;; *) echo "unknown sanitizer suite" >&2; exit 2 ;; esac
+	@$(MAKE) --no-print-directory native
+	$(MAKE) BUILD_DIR=build/sanitize CFLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined" LDFLAGS="-fsanitize=address,undefined" native-instrumented-$(SANITIZE_SUITE)
+
+# The serial standalone/coverage target and CI shards share implementations.
+.PHONY: native-instrumented-all native-instrumented-vm native-instrumented-oracle native-instrumented-runner
+native-instrumented-check: native-instrumented-all
+
+native-instrumented-all:
+	@$(MAKE) --no-print-directory native-instrumented-vm
+	@$(MAKE) --no-print-directory native-instrumented-oracle
+	@$(MAKE) --no-print-directory native-instrumented-runner
+
+native-instrumented-vm: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-vm-contracts
-	@UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-oracle-contracts-impl
+
+native-instrumented-oracle: $(BUILD_DIR)/vm/panack-vm native-module-build
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh without-runner
+
+native-instrumented-runner: $(BUILD_DIR)/vm/panack-vm $(STAGE2_COMPILER)
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle-runner sh tests/native_oracle_contracts.sh runner
 
 # LLVM branch coverage uses the same native corpus in a separate build tree.
 LLVM_CC ?= clang
@@ -276,10 +301,16 @@ bootstrap: native $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_
 bootstrap-check: native
 	@$(TIMED) bootstrap $(BOOTSTRAP_BUDGET_SECONDS) $(MAKE) --no-print-directory bootstrap-check-impl
 
-bootstrap-check-impl: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)
+bootstrap-check-impl:
+	@sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh
+
+.PHONY: bootstrap-fixed-point bootstrap-seed-refresh
+bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)
 	cmp $(STAGE2_COMPILER) $(STAGE3_COMPILER)
 	cmp $(STAGE1_STDLIB) $(STAGE2_STDLIB)
 	cmp $(STAGE2_STDLIB) $(STAGE3_STDLIB)
+
+bootstrap-seed-refresh:
 	$(PROFILE) seed-refresh/native-staging sh tests/seed_refresh.sh --native
 
 native-check: bootstrap-check
@@ -358,7 +389,8 @@ check-no-interpreter:
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
 .PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
-ci-compiler: policy unit-harness unit-compiler
+ci-compiler: policy native
+	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 
 ci-runtime:
 	@sh tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases

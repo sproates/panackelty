@@ -49,7 +49,8 @@ separate keys and build directories. `make clean` removes all cached bytecode.
 The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.
-Independent internal probes use two workers by default; set
+Compiler probes schedule integration and contract checks first to avoid a long
+final worker tail. Independent internal probes use two workers by default; set
 `VALIDATION_JOBS=1` for serial execution or choose a limit from 1 to 32. Setup
 and fixture mutation remain serial. The worker pool buffers stdout/stderr and prints
 results in the requested order, waits for every probe, and propagates failures.
@@ -96,10 +97,36 @@ standalone proof. CI uses these shared targets:
 | `conformance-source` | Every native source conformance program |
 | `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
 
-Ubuntu validation runs the first three suites plus independent sanitizer and
-coverage jobs. Each packaging platform runs all five ordinary suites. The
-canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
+Ubuntu validation runs the first three suites, three sanitizer partitions
+(`sanitize-vm`, `sanitize-oracle`, `sanitize-runner`), and independent coverage.
+The sanitizer partitions execute VM contracts, oracle fixtures/programs excluding
+the nested functional runner, and that runner respectively. `SANITIZE_SUITE`
+selects a partition; its default `all` preserves the complete standalone proof.
+The coverage target calls the same complete sequence. Partition regression
+checks compare operation multiplicity and inject compilation, verification,
+execution, stderr and output failures. Each packaging platform runs all five
+ordinary suites. The canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
 `unit-compiler` targets, and `make check` remains the complete local command.
+Distribution builds own a copied VM in their temporary checkout and assert that
+the shared VM inode and bytes remain unchanged, so concurrent compiler commands
+cannot observe a relink.
+
+CI compiler validation overlaps harness and compiler suites after native setup,
+using three workers: one for the harness and two for compiler probes. The
+macOS matrix retains five jobs to avoid a sixth job waiting for a runner.
+Native conformance also uses bounded workers (two by default). Each program
+keeps its source/compile/bytecode assertions together in an isolated temporary
+directory; NUL-delimited arguments preserve paths containing spaces. Negative
+fixtures and CLI/archive checks still run after every program succeeds.
+Bootstrap overlaps the ordinary fixed-point check with the isolated native
+seed-refresh proof. They read the same immutable sources and seed but build
+separate stages; no generated compiler stage or proof result is shared between them.
+Both must succeed before quick-start or conformance gates proceed.
+Runtime validation overlaps the native corpus with host/bytecode probes using
+two workers after building shared native prerequisites. Only the native corpus
+captures the functional runner report; probe artifacts are separate. A one-worker
+setting retains serial execution. Failure controls use a FIFO rendezvous to
+prove both branches execute concurrently and propagate either failure.
 The stable required checks aggregate all applicable jobs, including failures
 and cancellation. A package artifact is usable only with successful package
 gates for its revision; upload alone does not certify the entire matrix.

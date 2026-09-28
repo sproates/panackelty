@@ -486,6 +486,20 @@ Panackelty supervisor enforcing subprocess timeouts, signals and exact captured
 bytes. Each invocation compiles that supervisor once into a temporary directory;
 each shell group owns its isolated workspace and cleanup. `make unit` includes
 the full harness; focused compiler checks include runner and corrupt-seed gates.
+Sanitizer validation uses three independent jobs for VM contracts, oracle
+programs, and the nested functional runner. Standalone sanitizer and coverage
+commands execute the same complete sequence. Compiler probe scheduling puts
+the longest independent checks first in the bounded worker pool. Harness and compiler checks
+run concurrently inside one CI job, keeping the macOS matrix at five jobs.
+Distribution checks build and install inside their temporary checkout with a
+copied VM, retaining the shared executable unchanged for compiler commands.
+CI assigns one worker to the harness and two to compiler probes. Runtime validation overlaps native corpus execution
+with independent host/bytecode probes, retaining a two-worker bound. Native
+conformance runs independent programs through two workers, each owning its
+artifacts and captured streams; negative and archive gates remain sequential.
+Bootstrap overlaps ordinary fixed-point verification with the independent
+seed-refresh proof; their stages and publication checks remain isolated.
+
 Both platforms partition `make check-no-interpreter` into five clean suites:
 compiler/harness, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.
 Each suite has an allowlisted tool environment. Together they retain the full

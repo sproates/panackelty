@@ -4,6 +4,105 @@ This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 
+## Pipeline critical-path improvements — 2026-09-28
+
+The final implementation at `8934654` partitions sanitizer work
+into VM contracts, ordinary oracle programs and the nested functional runner.
+Compiler jobs run the harness alongside compiler probes, with a three-worker
+budget (one plus two); long compiler probes start first. Runtime validation
+uses two workers to overlap the native corpus with independent host/bytecode
+probes. Native conformance runs complete programs through two isolated workers,
+keeping each program's source/compile/bytecode assertions together. Bootstrap
+overlaps the ordinary fixed-point check with the isolated seed-refresh proof,
+retaining separate stages, hashes and comparisons. The macOS matrix retains
+five jobs, avoiding an extra runner queue.
+Distribution builds own their temporary executable and verify that the shared
+VM inode and bytes remain unchanged, keeping compiler commands safe during
+overlap. Every partition uses fresh native builds; no persistent cache or transferred
+test result is used. The complete standalone commands retain all proofs.
+
+The baseline sample comprises runs [36253029490](https://github.com/sproates/panackelty/actions/runs/36253029490),
+[36252658731](https://github.com/sproates/panackelty/actions/runs/36252658731) and
+[36252221963 attempt 2](https://github.com/sproates/panackelty/actions/runs/36252221963/attempts/2).
+Their median required-check completion was **2m28s**, with a range of
+2m27s–2m31s; median summed job duration was
+19m45s. The table contains every attempt of the final source revision,
+including any timing misses. All runs use the full PR merge-ref route against
+`main`, with both packaging platforms, sanitizers, coverage and stable gates.
+
+| Cold full run | All required checks complete | Summed job duration | Result |
+| --- | ---: | ---: | --- |
+| [Attempt 1](https://github.com/sproates/panackelty/actions/runs/36390450065/attempts/1) | 2m03s | 16m40s | passed |
+| [Attempt 2](https://github.com/sproates/panackelty/actions/runs/36390450065/attempts/2) | 1m42s | 16m16s | passed |
+| [Attempt 3](https://github.com/sproates/panackelty/actions/runs/36390450065/attempts/3) | 1m43s | 16m30s | passed |
+| [Attempt 4](https://github.com/sproates/panackelty/actions/runs/36390450065/attempts/4) | 1m44s | 16m36s | passed |
+| [Attempt 5](https://github.com/sproates/panackelty/actions/runs/36390450065/attempts/5) | 1m42s | 16m14s | passed |
+
+Median completion is **1m43s**, a **30.4% reduction**. The
+slowest run is 2m03s;
+4/5 runs finished below two minutes.
+Median summed job duration is **16m30s**, a 16.5% reduction.
+These are elapsed runner durations, not CPU consumption or billing estimates;
+platform multipliers and rounding are excluded.
+
+Elapsed time runs from each attempt's `run_started_at` to the last job's
+`completed_at`, including classification, runner queue/setup, uploads and final
+required-result gates. Initial attempts start at workflow creation; reruns use
+their new attempt start. Workflow `updated_at` can include later bookkeeping and
+is not the endpoint. Hosted runner availability can still cause slower outliers;
+the target is an observed operating result, not a guarantee of queue latency.
+
+All 1,296 baseline PASS observations on each Linux validation path and 1,294 on
+macOS remain, including multiplicity. Three additional harness observations cover
+sanitizer partition equivalence, suite concurrency/failure propagation and
+shared-executable isolation. Temporary workspace names are normalized before
+comparing PASS observations; labels and multiplicity remain unchanged. The
+sanitizer VM and coverage paths retain all 174 native PASS observations. The
+oracle partition controls compare every selected compile, verify and execute
+operation against the standalone sequence and inject each failure category.
+The suite scheduler's FIFO controls verify overlap, bounded worker allocation,
+serial behavior, invalid input rejection and failures in either branch.
+
+The 2m03s outlier was held up by the Linux runtime packaging job: it started
+52 seconds after the attempt began and then ran for 63 seconds, with the final
+gate completing at 123 seconds. Four runs finished below two minutes. Keep
+queue latency visible; this sample establishes a median, not an every-run cap.
+
+The final native coverage summary is byte-for-byte identical to the baseline:
+86.91% lines, 80.09% branches and 100% functions. Both platforms retain all
+46 source conformance observations and 92 compile/bytecode observations,
+including multiplicity. Negative fixtures, CLI contracts, archive checks and
+both bootstrap proofs pass; no source, bytecode or instrumentation path was
+substituted with a saved result.
+
+The final clean local `make check` passed in 117 seconds (unit 77s,
+functional 1s, bootstrap 24s, quick start 1s, with native setup included
+in the total). The functional phase still verifies its session-local captured
+runner report; the complete runner executes in the native corpus. Complete
+native conformance, a fresh standalone bootstrap proof and the complete
+standalone sanitizer sequence also passed during implementation. The unit-phase
+warning remains; this work does not claim the separate focused-VM 15-second
+target has been met.
+
+### Earlier measurements and the shared-executable correction
+
+An earlier [five-run sample](https://github.com/sproates/panackelty/actions/runs/36386916198)
+before the conformance/bootstrap overlap took 112, 126, 129, 126 and 120 seconds
+(median 126). Those misses motivated the remaining scheduling changes.
+The next [sample at `88493f2`](https://github.com/sproates/panackelty/actions/runs/36388078564)
+took 143, 105, 115, 103 and 113 seconds (median 113); its 143-second outlier
+included a macOS compiler runner starting 32 seconds later than its peers.
+
+The subsequent [documentation-head run](https://github.com/sproates/panackelty/actions/runs/36389380876)
+failed five Linux compiler integration assertions. Distribution tests rebuilt
+the root VM while compiler commands used it, making that overlap unsafe.
+Distribution builds now use a copied executable in their temporary checkout;
+a regression checks the shared VM inode and bytes remain unchanged. Reinstating
+the root archive build makes that regression fail. Compiler integration failures
+now include the actual exit status, signal and streams. The final five-run table
+above measures the corrected source revision and replaces those earlier
+samples as the merge evidence.
+
 ## Concurrent CI suites — 2026-09-26
 
 The baseline main run `36249712860` at `9f0da42` completed in 408 seconds
@@ -45,7 +144,8 @@ observations. Raw durations exclude billing rounding and platform multipliers;
 they are not a billing estimate. Conformance jobs took 61–78s. Sanitizers took
 100–127s and are the main remaining execution bottleneck; one Linux bootstrap
 job also experienced 36s more startup delay than its peers in attempt 1.
-The two-minute stretch goal remains open.
+At that point the two-minute stretch goal remained open; the September 28
+measurements above supersede that pipeline baseline.
 
 Both Linux paths preserve all 1,296 baseline `PASS` observations and macOS
 preserves all 1,294, including multiplicity and normalizing temporary paths.

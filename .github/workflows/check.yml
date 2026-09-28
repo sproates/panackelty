@@ -61,6 +61,7 @@ jobs:
             runner: macos-14
     runs-on: ${{ matrix.runner }}
     env:
+      VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}
       VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
       VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
     steps:
@@ -113,11 +114,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [compiler, runtime, bootstrap, sanitize, coverage]
+        suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]
     needs: changes
     if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
     runs-on: ubuntu-latest
     env:
+      VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}
       VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
       VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
       VALIDATION_PROFILE_RUN: ${{ matrix.suite }}
@@ -130,8 +132,10 @@ jobs:
         run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
 
       - name: Check native memory and undefined behaviour
-        if: matrix.suite == 'sanitize'
-        run: make native-sanitize CC=clang
+        if: startsWith(matrix.suite, 'sanitize-')
+        env:
+          SANITIZE_JOB: ${{ matrix.suite }}
+        run: make native-sanitize CC=clang SANITIZE_SUITE="${SANITIZE_JOB#sanitize-}"
 
       - name: Install matching LLVM coverage tools
         if: matrix.suite == 'coverage'

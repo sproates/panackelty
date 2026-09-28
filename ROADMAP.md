@@ -34,15 +34,17 @@ agents remains a hypothesis to test.
 ## Draft status and next tasks — updated 2026-09-29
 
 **The implementation roadmap remains a draft for discussion.** The decision
-process was adopted in PR #83. The expanded architectural assessment is now
-prepared for review, with evidence and proposed experiment tasks linked below.
-No coverage-first or compiler-suggestions-first sequence is approved.
+process was adopted in PR #83; the assessment was adopted in PR #87. The
+12-trial delivery pilot is complete and [reported for review](docs/AGENT_DELIVERY_PILOT.md).
+Its proposed implementation priorities are not yet agreed.
 
-### Now: expanded holistic and architectural gap assessment
+<a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
+
+### Completed: expanded holistic and architectural gap assessment
 
 Work record: [issue #85](https://github.com/sproates/panackelty/issues/85).
-The [assessment report](docs/ADOPTION_ASSESSMENT.md) is prepared for review; its
-proposed implementation ordering is not agreed. Evidence covers host integration,
+The [assessment report](docs/ADOPTION_ASSESSMENT.md) was merged in PR #87; issue
+#85 is closed. Its implementation ordering remained provisional pending the pilot. Evidence covers host integration,
 execution lifecycle, composition, developer/agent assistance, platform/library
 gaps, resources, performance, distribution, security and maintainability.
 
@@ -68,24 +70,28 @@ Acceptance: evidence-backed assessment across the intended application range,
 with effort and architectural uncertainty explicit. It does not promise all
 platforms or authorise implementation of every identified gap.
 
-### Next: bounded AI-assisted development experiment
+<a id="next-bounded-ai-assisted-development-experiment"></a>
+
+### Now: review completed AI-assisted delivery pilot
 
 Work record: [issue #86](https://github.com/sproates/panackelty/issues/86).
-Task briefs, acceptance design and a proposed resource ceiling are in the
-[assessment](docs/ADOPTION_ASSESSMENT.md#proposed-experiment-for-issue-86--not-run).
-The experiment has not run; review its scope/budget before execution.
+The [pilot report and evidence](docs/AGENT_DELIVERY_PILOT.md) record 12 fresh-context
+trials: Panackelty passed four of six initial and maintained tasks, with HTTP
+blocked twice; Python passed six of six. Token usage/cost were unavailable.
+The bounded delivery arm is complete; review and merge of the report remain.
+The free-choice arm, TypeScript comparison and human onboarding were not run.
 
-- [ ] Select a few small representative application/change tasks and define
+- [x] Select a few small representative application/change tasks and define
       independent acceptance tests before running agents; include a later
       maintenance change and human readability review
-- [ ] Compare Panackelty with Python or JavaScript/TypeScript on Node.js using
+- [x] Compare Panackelty with Python or JavaScript/TypeScript on Node.js using
       recorded model/tool versions, equivalent resource budgets, task briefs
       and access to documentation; record language-specific setup differences
-- [ ] Measure correctness, elapsed time, cost where observable, repair attempts,
+- [x] Measure correctness, elapsed time, cost where observable, repair attempts,
       human intervention, setup/library failures and subsequent-change success
-- [ ] Preserve prompts, revisions, commands and results sufficiently to reproduce
+- [x] Preserve prompts, revisions, commands and results sufficiently to reproduce
       the experiment; disclose model familiarity, run variation and sample limits
-- [ ] Include unsupported tasks and failures; separate missing capabilities from
+- [x] Include unsupported tasks and failures; separate missing capabilities from
       language/tooling friction, and do not generalise a small study to all models
 - [ ] Review results alongside the assessment and agree the first implementation
       milestone with the user before scheduling feature work
@@ -94,6 +100,18 @@ Acceptance: a reproducible feasibility report, limitations and proposed priority
 changes, not a predetermined win or a claim of mainstream adoption. Bound the
 experiment scope and budget before execution; do not introduce a Python runtime
 dependency into Panackelty's own development or validation workflow.
+
+### Proposed next work from the pilot — awaiting agreement
+
+1. A bounded library-ergonomics PR for sorting and literal suffix support (S–M),
+   replacing repeated trial helpers with documented, tested APIs.
+2. Host/network integration design (S–M investigation; large delivery), grounded
+   in the blocked service task and shared lifecycle/ownership requirements.
+3. Targeted compiler/API assistance for observed interpolation, numeric proof
+   and discovery friction; retain broader diagnostics as an assessed candidate.
+
+These are recommendations, not implementation authorisation. Source coverage,
+namespaces, security tooling and other backlog work remain visible for comparison.
 
 ### Developer experience: useful assistance from the compiler
 
@@ -123,8 +141,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Status | Initiative | Outcome to assess |
 | --- | --- | --- |
 | Done | Adopt the roadmap decision process | Merged in PR #83; implementation ordering remains draft |
-| In progress / review | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report prepared; user review and merged repository summary pending |
-| Planned / Next | [Bounded experiment (#86)](https://github.com/sproates/panackelty/issues/86) | Proposed tasks/budget await review; no runs yet |
+| Done | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report adopted in PR #87; issue closed |
+| In progress / review | [Delivery pilot (#86)](https://github.com/sproates/panackelty/issues/86) | 12 trials complete; results PR and priority review pending |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -415,6 +433,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
 | Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
 | Local assessment validation (2026-09-29; native build already present) | 144s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
+| Local delivery-pilot report validation (2026-09-29; native build already present) | 148s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

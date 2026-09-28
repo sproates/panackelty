@@ -28,7 +28,7 @@ integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: St
     Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => test_expect(name, actual.exit_code == status && actual.signal == 0 &&
       actual.stdout == utf8_encode(output) && integration_contains(utf8_decode(actual.stderr), expected),
-      "unexpected status/output or missing diagnostic ${expected}")
+      "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${utf8_decode(actual.stdout)}, stderr: ${utf8_decode(actual.stderr)}")
   }
 }
 integration_bytes(name: Str, left: Path, right: Path): TestResult {

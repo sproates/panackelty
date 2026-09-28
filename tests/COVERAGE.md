@@ -336,6 +336,10 @@ functional runner. `tests/ci_sanitize.sh` compares standalone and partitioned
 operation multiplicity and injects compile, verify, execution, stderr and output
 failures; invalid selections fail before executing the VM. The standalone
 sanitizer and coverage targets execute all three shared implementations.
+Distribution regressions also retain the shared VM inode and bytes while
+building and installing from an isolated checkout, detecting accidental relinks
+that can disrupt concurrent compiler commands.
+
 Runtime scheduling controls inject failures into each concurrent branch and
 use a FIFO rendezvous to check overlap without relying on elapsed timing.
 `tests/ci_conformance.sh` proves that the source and bytecode partitions, with serial and parallel workers, together

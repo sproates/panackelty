@@ -6,7 +6,7 @@ See [the reproduction procedure](README.md#detailed-validation-profiling).
 
 ## Pipeline critical-path improvements — 2026-09-28
 
-The final implementation at `88493f2` partitions sanitizer work
+The initial measured implementation at `88493f2` partitions sanitizer work
 into VM contracts, ordinary oracle programs and the nested functional runner.
 Compiler jobs run the harness alongside compiler probes, with a three-worker
 budget (one plus two); long compiler probes start first. Runtime validation
@@ -24,7 +24,7 @@ The baseline sample comprises runs [36253029490](https://github.com/sproates/pan
 [36252221963 attempt 2](https://github.com/sproates/panackelty/actions/runs/36252221963/attempts/2).
 Their median required-check completion was **2m28s**, with a range of
 2m27s–2m31s; median summed job duration was
-19m45s. The table contains every attempt of the final source revision,
+19m45s. The table contains every attempt of that source revision,
 including any timing misses. All runs use the full PR merge-ref route against
 `main`, with both packaging platforms, sanitizers, coverage and stable gates.
 
@@ -67,20 +67,31 @@ operation against the standalone sequence and inject each failure category.
 The suite scheduler's FIFO controls verify overlap, bounded worker allocation,
 serial behavior, invalid input rejection and failures in either branch.
 
-The final native coverage summary is byte-for-byte identical to the baseline:
+The measured native coverage summary is byte-for-byte identical to the baseline:
 86.91% lines, 80.09% branches and 100% functions. Both platforms retain all
 46 source conformance observations and 92 compile/bytecode observations,
 including multiplicity. Negative fixtures, CLI contracts, archive checks and
 both bootstrap proofs pass; no source, bytecode or instrumentation path was
 substituted with a saved result.
 
-The final clean local `make check` passed in 117 seconds (unit 79s,
+The measured clean local `make check` passed in 117 seconds (unit 79s,
 functional 0s rounded, bootstrap 24s, quick start 1s, with native setup included
 in the total). The functional phase still verifies its session-local captured
 runner report; the complete runner executes in the native corpus. A fresh
 standalone bootstrap proof passed in 24 seconds, and complete native conformance
 passed with parallel workers. The unit-phase warning remains; this work does
 not claim the separate focused-VM 15-second target has been met.
+
+### Shared executable isolation follow-up
+
+The subsequent [documentation-head run](https://github.com/sproates/panackelty/actions/runs/36389380876)
+failed five Linux compiler integration assertions. Distribution tests rebuilt
+the root VM while compiler commands used it, making that overlap unsafe.
+Distribution builds now use a copied executable in their temporary checkout;
+a regression checks the shared VM inode and bytes remain unchanged. Reinstating
+the root archive build makes that regression fail. Compiler integration failures
+now include the actual exit status, signal and streams. The measurements above
+precede this correction; a fresh five-run sample is required before merge.
 
 ## Concurrent CI suites — 2026-09-26
 

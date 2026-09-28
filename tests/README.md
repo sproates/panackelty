@@ -107,6 +107,10 @@ checks compare operation multiplicity and inject compilation, verification,
 execution, stderr and output failures. Each packaging platform runs all five
 ordinary suites. The canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
 `unit-compiler` targets, and `make check` remains the complete local command.
+Distribution builds own a copied VM in their temporary checkout and assert that
+the shared VM inode and bytes remain unchanged, so concurrent compiler commands
+cannot observe a relink.
+
 CI compiler validation overlaps harness and compiler suites after native setup,
 using three workers: one for the harness and two for compiler probes. The
 macOS matrix retains five jobs to avoid a sixth job waiting for a runner.

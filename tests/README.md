@@ -116,7 +116,7 @@ directory; NUL-delimited arguments preserve paths containing spaces. Negative
 fixtures and CLI/archive checks still run after every program succeeds.
 Bootstrap overlaps the ordinary fixed-point check with the isolated native
 seed-refresh proof. They read the same immutable sources and seed but build
-separate stages; no compiler artifact or proof result is shared between them.
+separate stages; no generated compiler stage or proof result is shared between them.
 Both must succeed before quick-start or conformance gates proceed.
 Runtime validation overlaps the native corpus with host/bytecode probes using
 two workers after building shared native prerequisites. Only the native corpus

@@ -139,7 +139,7 @@ guarantee. Those remain independent follow-up initiatives.
 
 Add a read-evaluate-print loop for exploring Panackelty expressions, trying
 standard-library APIs and learning the language without creating a source file
-for every experiment. Schedule this after the immediate validation-speed work
+for every experiment. Schedule this after public coverage publication
 and implement it with the existing toolchain.
 
 - [ ] Specify the entry command (for example `panack repl`), expression result
@@ -829,8 +829,16 @@ CI partitions, sharing canonical test targets.
 
 ## Keep validation within development budgets — in progress
 
-**Immediate priority:** improve validation speed before starting unrelated
-roadmap work. Strong coverage remains more important than speed;
+**Non-blocking backlog:** CI now has a 103-second median and the latest clean
+local check takes 107 seconds. Defer further focused-check optimisation while
+publishing public coverage reports, then progressing the REPL. Keep the
+15-second focused target, existing timing warnings and measured misses visible;
+revisit optimisation when feedback delays become disruptive.
+The public-coverage publication checkout passed a clean local `make check` in
+145 seconds (unit 99s, functional 1s, bootstrap 37s) on September 28. This
+environment still exceeds the clean and unit budgets; retain those warnings
+as backlog evidence, not a blocker for publishing existing coverage.
+Strong coverage remains more important than speed;
 do not drop assertions, failure cases, sanitizer checks or platform gates,
 move required coverage out of canonical validation, or widen timing budgets.
 
@@ -1132,25 +1140,28 @@ localize while keeping `make check` the canonical validation command.
 Testing work that is also a prerequisite for self-hosting should be reflected
 in both roadmaps when completed.
 
-### Publish public coverage reports — planned
+### Publish public coverage reports — awaiting deployment
 
-The native VM's LLVM line and branch coverage is currently uploaded as a CI
-artifact. Make the HTML report available at a stable public URL such as
+The native VM's LLVM line and branch coverage remains uploaded as a CI
+artifact. The coordinated Pages publisher makes the HTML report available at
 `https://panackelty.com/coverage/`, so readers can open it directly without
-visiting an Actions run or downloading and extracting an archive.
+visiting an Actions run or downloading and extracting an archive. Final public
+deployment verification follows merge and successful `main` validation.
 
-- [ ] Publish the successful `main` build's native coverage HTML and summary
+- [x] Implement publication of the successful `main` build's native coverage HTML and summary
       through the project's existing GitHub Pages site, with source commit,
       generation date and an explicit label that this covers the native C VM,
       not the self-hosted compiler or the entire language
-- [ ] Keep the website and coverage deployment coordinated so a normal site
+- [x] Keep the website and coverage deployment coordinated so a normal site
       update cannot erase the latest report and a report update cannot replace
       the site with stale content; publish only from trusted, successful builds
-- [ ] Link the stable report from the site and README, verify its entry page and
-      relative source-navigation links after deployment, and keep the existing
+- [x] Link the stable report from the site and README, add deployment checks for
+      its entry page and relative source-navigation links, and keep the existing
       downloadable CI artifact for debugging
-- [ ] Document how publication failures and stale results appear, and ensure
+- [x] Document how publication failures and stale results appear, and ensure
       release and PR workflows cannot publish an unreviewed coverage site
+- [ ] Confirm the first merged `main` run publishes successfully and passes the
+      live entry-page, source-navigation and provenance checks
 
 ## Change Panackelty syntax — complete
 
@@ -1183,7 +1194,7 @@ Extend the native VM readability cleanup across all project code, including
 the compiler, bytecode tooling, runtime, standard library, bootstrap code,
 CLI, build and CI scripts, and test harnesses. Make the code straightforward
 for a human maintainer to read, navigate and change. This backlog item follows
-the immediate validation-performance priority above.
+coverage publication and the REPL; further validation-speed work is non-blocking.
 
 - [ ] Audit each component for dense or oversized functions, unclear names,
       duplicated logic, hidden dependencies and obsolete code; record a scoped
@@ -1219,5 +1230,5 @@ the immediate validation-performance priority above.
       retain exact arithmetic, purity and runtime trap conformance throughout.
 
 Manual release initiation retains the full validation gates. Keep its metadata
-controls in the existing harness; the known 120-second clean-check timing issue
-remains prioritized, without weakening release tests.
+controls in the existing harness; retain timing warnings and the non-blocking
+performance backlog without weakening release tests.

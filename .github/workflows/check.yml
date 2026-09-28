@@ -154,6 +154,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: native-coverage-${{ github.run_id }}
+          retention-days: 90
           path: |
             build/coverage/summary.txt
             build/coverage/html/

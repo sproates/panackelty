@@ -1,55 +1,115 @@
 name: Pages
 
 on:
-  push:
+  workflow_run:
+    workflows: [Check]
+    types: [completed]
     branches: [main]
-    paths:
-      - "site/**"
-      - ".github/workflows/pages.yml"
   pull_request:
     branches: [main]
     paths:
       - "site/**"
+      - "scripts/*pages*"
+      - "tests/pages*"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# One production writer for both website and coverage. Queued runs select the
+# latest successful sources when they start, not the triggering run's old tree.
 concurrency:
-  group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
     name: Build Pages
-    runs-on: ubuntu-22.04
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      pages: read
+    outputs:
+      site_sha: ${{ steps.source.outputs.site_sha }}
     steps:
-      - name: Check out repository
+      - name: Check out trusted publisher (or PR for unprivileged tests)
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+          persist-credentials: false
 
-      - name: Validate static site
-        shell: bash
+      - name: Test source selection and report navigation
+        run: node --test tests/pages.test.cjs
+
+      - name: Test complete site assembly
+        run: sh tests/pages.sh
+
+      - name: Select successful main website and coverage sources
+        if: github.event_name != 'pull_request'
+        id: source
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const selectSource = require('./scripts/pages_source.cjs');
+            const {site, run, report} = await selectSource(github, context.repo);
+            const archive = await github.rest.actions.downloadArtifact({
+              ...context.repo, artifact_id: report.id, archive_format: 'zip',
+            });
+            fs.writeFileSync(`${process.env.RUNNER_TEMP}/coverage.zip`, Buffer.from(archive.data));
+            core.setOutput('site_sha', site.head_sha);
+            core.setOutput('coverage_sha', run.head_sha);
+            core.setOutput('generated', report.created_at);
+            core.setOutput('run_id', String(run.id));
+            await core.summary.addHeading('Coverage publication sources')
+              .addRaw(`Website: ${site.head_sha}\n\nCoverage: ${run.head_sha}\n\nArchived: ${report.created_at}\n`)
+              .write();
+
+      - name: Check out validated website content
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.source.outputs.site_sha }}
+          path: validated-site
+          persist-credentials: false
+
+      - name: Assemble complete Pages artifact
+        if: github.event_name != 'pull_request'
+        env:
+          COVERAGE_SHA: ${{ steps.source.outputs.coverage_sha }}
+          SITE_SHA: ${{ steps.source.outputs.site_sha }}
+          COVERAGE_GENERATED: ${{ steps.source.outputs.generated }}
+          COVERAGE_RUN: ${{ steps.source.outputs.run_id }}
         run: |
-          test -s site/index.html
-          test -s site/styles.css
-          test -s site/favicon.svg
-          ! grep -R 'href="http://' site
-          ! grep -R 'src="http://' site
+          mkdir "$RUNNER_TEMP/coverage"
+          unzip -q "$RUNNER_TEMP/coverage.zip" -d "$RUNNER_TEMP/coverage"
+          sh scripts/build_pages.sh validated-site/site "$RUNNER_TEMP/coverage" build/pages \
+            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA"
+          node scripts/check_pages.cjs build/pages
 
       - name: Configure GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: build/pages
 
   deploy:
     name: Deploy Pages
     if: github.event_name != 'pull_request'
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -60,3 +120,28 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  verify:
+    name: Verify published coverage
+    needs: [build, deploy]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: github-pages
+          path: published-artifact
+      - name: Check deployed entry points, source navigation and provenance
+        run: |
+          mkdir published
+          tar -xf published-artifact/artifact.tar -C published
+          for attempt in 1 2 3 4 5; do
+            if node scripts/check_pages.cjs published https://panackelty.com/; then
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1

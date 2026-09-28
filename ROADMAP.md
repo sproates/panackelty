@@ -840,17 +840,17 @@ three-worker job, schedules long compiler probes first, and overlaps independent
 runtime probes. Native conformance runs independent programs through two
 isolated workers; ordinary fixed-point and isolated seed-refresh proofs overlap
 without sharing their stages. The macOS matrix retains five jobs to avoid runner queueing.
-Five cold full runs now have a 113-second median, down from 148 seconds,
+Five cold full runs now have a 103-second median, down from 148 seconds,
 including classification, queue/setup and required result gates. Four finished
-below two minutes; the 143-second outlier included a 32-second later macOS
-runner start. Median summed runner time fell 15.4%, with every baseline test
+below two minutes; the 123-second outlier included a Linux runtime job
+starting 52 seconds into the run. Median summed runner time fell 16.5%, with every baseline test
 observation retained and an identical native coverage summary. See
 [the complete profiling evidence](tests/VALIDATION_PROFILE.md).
 
 - [x] Bring the median full cold pipeline below two minutes with all validation
       and platform gates retained; record all five runs, including the outlier
 - [ ] Investigate hosted-runner queue tails before treating 120 seconds as an
-      upper bound: one of five runs still took 143 seconds. Keep that timing
+      upper bound: one of five runs still took 123 seconds. Keep that timing
       miss visible rather than presenting only the four faster runs.
 
 The historical CI baseline from PR #64 is 275 seconds for `make check`:
@@ -888,7 +888,7 @@ remain open. Preserve every assertion when investigating the remaining cost.
 - [x] Demonstrate full cold CI below three minutes across repeated hosted runs,
       tracking queue/setup overhead and total runner time as well as elapsed
       duration: final runs took 2m20s and 2m28s versus 6m48s, with 3–8% more
-      raw runner time. Later September 28 work reaches a 113-second median
+      raw runner time. Later September 28 work reaches a 103-second median
       with lower runner time; the recorded queue-delay outlier remains a follow-up
 - [ ] Reduce the remaining standalone VM-runner and compiler-build costs. The
       September 2026 macOS comparison reduced clean checks from 176s to 127s

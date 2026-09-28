@@ -4,18 +4,33 @@ This roadmap tracks post-bootstrap language and engineering initiatives. The
 completed compiler bootstrap and reproducibility guarantees
 are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 
-An item is complete only when its implementation, focused tests, end-to-end
-coverage, and affected documentation are complete and `make check` passes.
+Use the [roadmap decision process](docs/ROADMAP_PROCESS.md) for item states,
+assessment criteria, priorities, document ownership and review. Implementation
+items require their agreed scope, meaningful tests, affected documentation and
+canonical validation; documentation and design items use their applicable checks.
 
 ## Draft status and next task — updated 2026-09-29
 
-**This roadmap remains a draft for discussion.** The agreed very next task is
-an effort-aware, holistic gap assessment. The implementation ordering below is
-provisional, including source coverage; no coverage-first sequence is approved.
+**The implementation roadmap remains a draft for discussion.** The lightweight
+prioritisation process was agreed in conversation on 2026-09-29 and is being
+documented for adoption. Adopt that process first, then conduct the holistic
+gap assessment, review its findings here with the user, and agree implementation
+priorities. No coverage-first sequence is approved.
 
-## Next task: holistic gap assessment and roadmap/process refresh
+## Now: adopt the roadmap decision process
 
-Assess the whole project before selecting the next implementation initiative.
+- [x] Agree the lightweight process in conversation
+- [x] Document states, assessment criteria, prioritisation, document roles and
+      review/completion rules in [the process document](docs/ROADMAP_PROCESS.md)
+- [ ] Validate and merge the process PR with explicit user permission
+
+Acceptance: the agreed process is documented and adopted; no implementation
+priority is selected merely by adopting it.
+
+## Next: holistic gap assessment and roadmap refresh
+
+After adopting the process, assess the whole project before selecting the next
+implementation initiative.
 Strong test coverage and an enjoyable, productive developer experience are both
 strategic goals. Neither substitutes for the other or automatically determines
 priority. Look for useful small improvements as well as large enabling projects.
@@ -32,13 +47,17 @@ priority. Look for useful small improvements as well as large enabling projects.
 - [ ] Review roadmap documentation and planning process: ownership of status,
       source of truth across documents, historical versus active evidence,
       acceptance criteria, review cadence and when shipped work is reconciled
+- [ ] Compare repository-only planning with GitHub Issues/Projects and a hybrid:
+      planning friction, portability, backup/export, source of truth and duplicate
+      status maintenance; agree the boundary before migrating any backlog
 - [ ] Compare developer-experience opportunities with infrastructure and test work
       on their merits; avoid ranking purely by coverage percentages or a simplistic
       benefit/effort score that ignores risk and dependencies
 - [ ] Produce a concise in-chat assessment and proposed ordering, identifying
       quick wins, larger investments, prerequisite decisions and deliberate deferrals
 - [ ] Review the proposed ordering with the user before treating it as agreed;
-      retain this roadmap and PR as drafts until that review is complete
+      keep the implementation roadmap and assessment proposals provisional until
+      that review is complete; this does not prevent adopting the process first
 
 ### Developer experience: useful assistance from the compiler
 
@@ -67,7 +86,10 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 
 | Status | Initiative | Outcome to assess |
 | --- | --- | --- |
-| Agreed next task | Holistic assessment and roadmap/process refresh | Evidence-backed, effort-aware priorities reviewed in chat |
+| In progress / Now | Adopt the roadmap decision process | Agreed process documented, validated and merged with permission |
+| Planned / Next | Holistic assessment and roadmap refresh | Apply the process; review effort-aware findings and priorities in chat |
+| Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
+| Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
 | Candidate | Developer experience and compiler assistance | Practical help for understanding, writing and changing programs; assess useful increments and cost |
 | Candidate | Reconcile test evidence and close verified gaps | Accurate matrix and bounded correctness/safety test PRs |
@@ -84,6 +106,8 @@ preserve the established validation gates while reviewing future priorities.
 
 ### How to turn the backlog into PRs
 
+The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules.
+
 - Complete the holistic assessment before choosing the principal implementation
   initiative. Subsequent work must follow the reviewed priority order, not the
   placement of a detailed proposal in this draft.
@@ -97,6 +121,70 @@ preserve the established validation gates while reviewing future priorities.
   [the profiling report](tests/VALIDATION_PROFILE.md), behavioral evidence in
   [the coverage matrix](tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](SELF_HOSTING.md).
+
+## Language namespaces — idea
+
+Assess first-class language support for namespaces separately from the existing
+logical import paths (`stdlib/...` and `project/...`). Import path organisation
+alone does not settle qualified symbol lookup or namespace semantics.
+
+- [ ] Identify real name-collision, discoverability and API-organisation problems
+      and representative programs that would benefit from namespaces
+- [ ] Specify declaration and qualification syntax, namespace/module relationships,
+      nesting, aliases, imports, visibility/exports, collision and shadowing rules
+- [ ] Assess interactions with functions, types, generics, method syntax and
+      compiler assistance; define useful unresolved/ambiguous-name diagnostics
+- [ ] Estimate compiler, bytecode/runtime, bootstrap and tooling implications;
+      decide compatibility and migration before selecting an implementation
+- [ ] Define focused and public-CLI acceptance tests for lookup, imports,
+      qualification, visibility and failures across source and installed toolchains
+
+## Namespace the current standard library — idea
+
+Review how existing library APIs should be grouped, exported and referenced so
+users can discover them and avoid collisions. This is a separate deliverable
+from general namespace support, with an explicit dependency assessment.
+
+- [ ] Inventory current modules and exported names; identify collisions,
+      inconsistent naming and unnecessarily exposed implementation details
+- [ ] Propose coherent namespace boundaries and ergonomic qualified/unqualified
+      usage, evaluated on real programs and compiler-assisted discoverability
+- [ ] Decide which improvements are possible with today's imports and which
+      require the language namespace proposal; avoid assuming they must ship
+      together or making incompatible naming decisions independently
+- [ ] Plan compatibility or a deliberate preview migration for compiler sources,
+      libraries, examples, tests, documentation and installed packages
+- [ ] Define acceptance evidence that public APIs remain accessible, names resolve
+      predictably and existing behavior is preserved through the migration
+
+Both items remain unscheduled assessment candidates. Preserve existing public
+contracts until the namespace design and any migration are explicitly agreed.
+
+## Review GitHub repository settings and tooling — idea
+
+Assess whether repository configuration and available tooling can improve
+security, code quality and contributor experience. This is a backlog item, not
+an assertion that any particular feature is disabled or suitable. Include it in
+the holistic assessment and compare its value and effort with other candidates.
+
+- [ ] Inventory actual settings, workflows and enabled checks; distinguish
+      unavailable, disabled, already configured and redundant capabilities
+- [ ] Evaluate applicable code/security scanning, secret scanning and push
+      protection, dependency alerts/updates/review (including Actions), and
+      static-analysis or code-quality tools; verify language/ecosystem support
+      and avoid implying that a C scanner analyses custom `.panack` semantics
+- [ ] Review branch/ruleset protections, required checks, workflow/token
+      permissions, environment/release protections and contribution settings
+      against the project's agreed workflow
+- [ ] Record benefit, findings/actionability, false positives, setup and ongoing
+      effort, CI latency, cost/plan availability, access needs and ownership
+- [ ] Recommend a minimal useful set with a clear enable/retain/defer rationale,
+      acceptance checks and an alert-triage process; obtain explicit permission
+      before changing settings, protections, permissions or paid services
+
+Acceptance for the review is an evidence-backed inventory and prioritised
+recommendations. Enabling selected features is separately scoped work with
+its own verification; do not turn on every available feature by default.
 
 ## Measure Panackelty source coverage — candidate pending assessment
 

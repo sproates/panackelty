@@ -47,6 +47,7 @@ case "$operation" in
     compile) printf '%s\n' "$source" > "$6"; printf 'wrote %s\n' "$6" ;;
     run) printf 'hello\n' ;;
     execute)
+        if [ "${CI_SANITIZE_FAIL:-}" = "output:$source" ]; then echo wrong; exit 0; fi
         case "$source" in
             tests/runner/oracle_command.panack)
                 case "$4" in
@@ -56,7 +57,7 @@ case "$operation" in
                     *) exit 8 ;;
                 esac ;;
             tests/fixtures/oracle_contracts/rational.panack) cat tests/fixtures/oracle_contracts/rational.stdout ;;
-            *) if [ "${CI_SANITIZE_FAIL:-}" = "output:$source" ]; then echo wrong; else echo hello; fi ;;
+            *) echo hello ;;
         esac ;;
     *) exit 9 ;;
 esac
@@ -82,9 +83,12 @@ done
 sort "$work/shards" > "$work/sorted"
 cmp "$work/all" "$work/sorted" || fail 'shards changed observation multiplicity'
 for mode in without-runner runner; do
-    if [ "$mode" = runner ]; then source=tests/functional/cases/runner_smoke/main.panack
-    else source=tests/functional/cases/ordinary/main.panack; fi
     for fault in compile execute verify stderr output; do
+        # Inject at the earliest relevant operation. The complete positive union
+        # above covers every later program; failure controls need no repeated prefix.
+        if [ "$mode" = runner ]; then source=tests/functional/cases/runner_smoke/main.panack
+        elif [ "$fault" = output ]; then source=tests/fixtures/oracle_contracts/rational.panack
+        else source=tests/runner/oracle_command.panack; fi
         CI_SANITIZE_FAIL=$fault:$source; export CI_SANITIZE_FAIL
         run "$mode"
         [ "$result" != 0 ] || fail "accepted $mode $fault"

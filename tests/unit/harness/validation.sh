@@ -130,6 +130,13 @@ for workers in 1 2 3; do
         fi
     done
 done
+for workers in 01 08; do
+    parallel=no; probe_workers=1
+    if [ "$workers" = 08 ]; then parallel=yes; probe_workers=7; fi
+    capture 0 5 env VALIDATION_JOBS="$workers" RUNTIME_CONTROL="$work/runtime" \
+        RUNTIME_FAIL=none RUNTIME_PARALLEL="$parallel" RUNTIME_PROBE_JOBS="$probe_workers" \
+        sh tests/run_suites.sh "$work/runtime/make" unit-runtime-native unit-runtime-probes
+done
 for invalid in 0 33 invalid; do
     rm -f "$work/runtime/native.started" "$work/runtime/probes.started"
     capture 2 5 env VALIDATION_JOBS="$invalid" RUNTIME_CONTROL="$work/runtime" \

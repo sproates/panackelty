@@ -7,6 +7,15 @@
 
 /* Reference-counted values. Constructors return one owned reference unless documented otherwise. */
 
+/* At most two array views share append storage: a prefix and its one-element
+ * extension. A further append forks until one view dies. This bounds retention
+ * and lets dropping an extension promptly release its otherwise hidden child.
+ */
+struct ArrayStorage {
+    size_t refs, count, capacity;
+    Value **items;
+};
+
 Value *value_new(ValueKind kind)
 {
     Value *v = calloc(1, sizeof(*v));
@@ -56,6 +65,21 @@ void release(Value *v)
     case V_ARRAY:
     case V_MAP:
     case V_SET:
+        if (v->as.sequence.storage) {
+            ArrayStorage *storage = v->as.sequence.storage;
+            if (--storage->refs == 0) {
+                for (size_t i = 0; i < storage->count; i++) {
+                    release(storage->items[i]);
+                }
+                free(storage->items);
+                free(storage);
+            } else if (v->as.sequence.count == storage->count) {
+                /* Only the shorter view survives; discard the hidden suffix. */
+                release(storage->items[--storage->count]);
+                storage->items[storage->count] = NULL;
+            }
+            break;
+        }
         for (size_t i = 0; i < v->as.sequence.count; i++) {
             release(v->as.sequence.items[i]);
         }
@@ -165,6 +189,93 @@ Value *value_sequence(ValueKind kind, Value **items, size_t count)
         v->as.sequence.items[i] = retain(items[i]);
     }
     return v;
+}
+
+/* Follow ownership edges, including a shared view's hidden suffix. Sharing is
+ * safe only when the appended item cannot retain this backing store. Bound the
+ * traversal so deep or wide values conservatively copy without unbounded work.
+ */
+static bool append_independent(const Value *item, const ArrayStorage *target, size_t *budget)
+{
+    if (*budget == 0) {
+        return false;
+    }
+    --*budget;
+    switch (item->kind) {
+    case V_ARRAY:
+    case V_MAP:
+    case V_SET: {
+        const ArrayStorage *storage = item->as.sequence.storage;
+        if (storage == target) {
+            return false;
+        }
+        size_t count = storage ? storage->count : item->as.sequence.count;
+        for (size_t i = 0; i < count; i++) {
+            if (!append_independent(item->as.sequence.items[i], target, budget)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    case V_ITER:
+        return append_independent(item->as.iterator.iterable, target, budget);
+    case V_RECORD:
+    case V_VARIANT:
+        for (size_t i = 0; i < item->as.named.count; i++) {
+            if (!append_independent(item->as.named.values[i], target, budget)) {
+                return false;
+            }
+        }
+        return true;
+    default:
+        return true;
+    }
+}
+
+Value *value_array_append(Value *array, Value *item)
+{
+    size_t count = array->as.sequence.count;
+    size_t limit = SIZE_MAX / sizeof(Value *);
+    if (count >= limit) {
+        return NULL;
+    }
+    Value *result = value_new(V_ARRAY);
+    if (!result) {
+        return NULL;
+    }
+    ArrayStorage *storage = array->as.sequence.storage;
+    size_t budget = 64;
+    if (storage && storage->refs == 1 && count < storage->capacity &&
+        append_independent(item, storage, &budget)) {
+        /* Allocate the result before changing storage: OOM leaves inputs intact. */
+        storage->items[count] = retain(item);
+        storage->count = count + 1;
+        storage->refs++;
+    } else {
+        storage = calloc(1, sizeof(*storage));
+        if (!storage) {
+            free(result);
+            return NULL;
+        }
+        size_t capacity = count < 8 ? 8 : count <= limit / 2 ? count * 2 : limit;
+        storage->items = malloc(capacity * sizeof(Value *));
+        if (!storage->items) {
+            free(storage);
+            free(result);
+            return NULL;
+        }
+        storage->refs = 1;
+        storage->count = count + 1;
+        storage->capacity = capacity;
+        for (size_t i = 0; i < count; i++) {
+            storage->items[i] = retain(array->as.sequence.items[i]);
+        }
+        storage->items[count] = retain(item);
+    }
+    result->as.sequence.count = count + 1;
+    result->as.sequence.items = storage->items;
+    result->as.sequence.storage = storage;
+    return result;
 }
 
 bool value_equal(const Value *a, const Value *b)

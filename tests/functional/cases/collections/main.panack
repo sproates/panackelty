@@ -12,6 +12,30 @@ pure encoded(): Bytes {
   utf8_encode("λ").byte_append(33)
 }
 
+record Snapshot {
+  values: [Nat]
+}
+
+pure persistent_append(): Bool {
+  mut values: [Nat] = []
+  for i in 0..64 { values = values.append(i) }
+  snapshot = Snapshot(values)
+  branch = values.append(99)
+  mut visited: Nat = 0
+  for item in values {
+    values = values.append(item + 100)
+    visited = visited + 1
+  }
+  nested: [[Nat]] = [snapshot.values]
+  boxes: [Snapshot] = [snapshot]
+  nested_more = nested.append(values)
+  boxes_more = boxes.append(Snapshot(branch))
+  len(values) == 128 && len(snapshot.values) == 64 && len(branch) == 65 &&
+    branch[64] == 99 && snapshot.values[63] == 63 && visited == 64 &&
+    len(nested) == 1 && len(nested_more[0]) == 64 && len(nested_more[1]) == 128 &&
+    len(boxes) == 1 && len(boxes_more[1].values) == 65
+}
+
 main(): Void {
   mut names: Set[Str] = set()
   names = names.add("Panackelty")
@@ -19,4 +43,5 @@ main(): Void {
   print(symbols().get("answer"))
   print(names.has("Panackelty"))
   print(encoded().utf8_decode())
+  print(persistent_append())
 }

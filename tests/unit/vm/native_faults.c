@@ -97,6 +97,57 @@ static void construct_array(void)
     assert(operand->refs == 1);
 }
 
+static Value *append_base, *append_item;
+
+static void append_array(void)
+{
+    size_t count = append_base->as.sequence.count;
+    size_t refs = append_item->refs;
+    Value *first = count ? append_base->as.sequence.items[0] : NULL;
+    Value *result = value_array_append(append_base, append_item);
+    assert((result != NULL) == !fault_triggered());
+    assert(append_base->as.sequence.count == count);
+    assert(!count || append_base->as.sequence.items[0] == first);
+    if (result) {
+        assert(result->as.sequence.count == count + 1);
+        assert(result->as.sequence.items[count] == append_item);
+    }
+    release(result);
+    assert(append_item->refs == refs);
+}
+
+static void append_failures(void)
+{
+    append_item = operand;
+    append_base = value_sequence(V_ARRAY, NULL, 0);
+    assert(append_base);
+    sweep("append empty", append_array);
+    Value *next = value_array_append(append_base, operand);
+    assert(next);
+    release(append_base);
+    append_base = next;
+    sweep("append spare capacity", append_array);
+    Value *extension = value_array_append(append_base, operand);
+    assert(extension);
+    sweep("append shared prefix", append_array);
+    release(extension);
+    char *names[] = {"snapshot"};
+    append_item = named_value(V_RECORD, "Box", names, &append_base, 1);
+    assert(append_item);
+    sweep("append nested alias", append_array);
+    release(append_item);
+    append_item = operand;
+    for (size_t i = 1; i < 8; i++) {
+        next = value_array_append(append_base, operand);
+        assert(next);
+        release(append_base);
+        append_base = next;
+    }
+    sweep("append capacity growth", append_array);
+    release(append_base);
+    assert(operand->refs == 1);
+}
+
 static void construct_text(void)
 {
     Value *result = value_data(V_STR, (const uint8_t *)"hello", 5);
@@ -409,6 +460,7 @@ int main(int argc, char **argv)
     assert(operand);
     sweep("record", construct_record);
     sweep("array", construct_array);
+    append_failures();
     sweep("text", construct_text);
     sweep("frames", frames);
     release(operand);

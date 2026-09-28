@@ -440,3 +440,119 @@ remain active until the optimization work demonstrates the existing targets.
 Rows with nonzero status can be expected failure-injection commands nested in a
 successful harness group; use the outer check result to determine suite success.
 Do not interpret every negative-control observation as a CI failure.
+
+## Persistent array append experiment — 2026-09-28
+
+The implementation reduces repeated array copying using at most two views of
+one backing store. A prefix and one extension retain separate visible lengths;
+branches, possible ownership cycles and exhausted inspection budgets copy.
+The [value model](../src/vm/VALUE_MODEL.md#persistent-array-append-storage)
+defines allocation, bounded ownership inspection and prompt suffix reclamation.
+No assertion, standalone validation stage, bytecode contract or timing budget
+is removed or relaxed.
+
+The comparison uses the same macOS 26.5 arm64 development environment, Apple
+Clang 21.0.0, `-O2`, and two workers as the focused baseline at merged `8e13d54`.
+Native prerequisites are prepared before the initial check; unchanged trials
+reuse valid artifacts. Each edited trial appends a distinct comment to the
+original host-runtime probe, then runs the complete check. Source bytes are
+restored after the experiment. Totals include the whole Make invocation and
+were measured by an external monotonic subprocess timer. Runs are sequential;
+these are local observations, not cross-platform speed guarantees.
+
+| Scenario | Before (seconds) | After (seconds) |
+| --- | --- | --- |
+| Initial, empty probe cache | 36.156 | 33.904 |
+| Unchanged run 1 | 26.219 | 25.598 |
+| Unchanged run 2 | 26.137 | 25.613 |
+| Unchanged run 3 | 26.325 | 25.595 |
+| Test-source edit 1 | 35.588 | 33.529 |
+| Test-source edit 2 | 37.051 | 32.993 |
+| Test-source edit 3 | 36.338 | 32.043 |
+
+The cached median changes from **26.219s to 25.598s** (2.4% lower); the edited
+median changes from **36.338s to 32.993s** (9.2% lower). All seven after runs
+pass and retain the same visible PASS observations. The cached improvement is
+small and should not be presented as a large general VM speedup. **The 15-second
+focused target remains unmet.** Compiler execution and the complete nested
+functional runner still need further measured work.
+
+A controlled append workload isolates the changed operation: compile a program
+that appends integers `0..20000` into an initially empty array, then prints its
+length and final element. Run the same bytecode on old and new `-O2` VMs,
+alternating version order across three trials. Both produce exactly `20000`
+and `19999`, with empty stderr and success status.
+
+| Append-only bytecode execution | Trial 1 | Trial 2 | Trial 3 | Median |
+| --- | ---: | ---: | ---: | ---: |
+| Before | 0.3667s | 0.3468s | 0.3473s | 0.3473s |
+| After | 0.0076s | 0.0077s | 0.0072s | 0.0076s |
+
+This approximately 46x result applies to repeated unbranched append, not the
+entire compiler or validation pipeline. Shared snapshots and large child graphs
+can deliberately take the copying path. The optimisation trades spare buffer
+capacity and a bounded ownership inspection for reduced repeated allocation
+and retention work; it does not promise constant-time append for every value.
+
+Validation before publication:
+
+- Clean `make check` passes in 107s (unit 72s, functional 1s, bootstrap 19s).
+  All 1,297 baseline PASS observations remain, including multiplicity after
+  normalizing temporary paths. The unit-phase warning remains recorded.
+- Complete standalone AddressSanitizer/UndefinedBehaviorSanitizer validation
+  passes, including the original 174 native observations and full oracle corpus.
+- Native regressions compare 256 deterministic branching updates with independent
+  copied arrays, retain snapshots in different release orders, check both
+  prefix/extension lifetimes and prompt hidden-child reclamation, reject direct
+  and indirect storage cycles (including a hidden suffix), exercise growth,
+  bounded inspection and overflow, and sweep every append allocation failure.
+- The public collections fixture covers aliases, nested arrays/records and append
+  during iteration in both source and bytecode modes. Its existing assertions
+  remain and the persistent-append check is added to its expected output.
+
+The initial conservative experiment allowed sharing only for sequence-free
+children and measured a 24.551s cached median. The final version admits small
+independent nested collections through bounded ownership inspection and measured
+25.598s. These experiments ran at different times, so the difference is not an
+isolated estimate of inspection overhead. The final measurements above are the
+reported result; the faster preliminary sample is not substituted for them.
+
+### Hosted validation of the append implementation
+
+The [focused profiling workflow](https://github.com/sproates/panackelty/actions/runs/36398315858)
+passes on Linux and macOS at implementation `1a545b4`. Compared with the
+[baseline workflow](https://github.com/sproates/panackelty/actions/runs/36395124883):
+
+| Platform | Initial VM check before / after | Cached VM check before / after |
+| --- | --- | --- |
+| Ubuntu 22.04 x86-64 | 61s / 55s | 45s / 41s |
+| macOS 14 arm64 | 64s / 41s | 52s / 31s |
+
+These are single initial/cached pairs on hosted runners, not repeated medians
+or isolated hardware comparisons. They support the direction of the local
+result but do not establish those percentages as repeatable speedups. Both
+hosted focused targets still exceed 15 seconds.
+
+Full hosted validation preserves every baseline PASS observation on both Linux
+paths and macOS. Native coverage changes from 86.91% to 87.43% of lines and
+80.09% to 80.65% of branches, with 100% function coverage retained. The changed
+`value.c` has 95.98% line and 92.04% branch coverage. The ownership tests check
+retains per distinct backing store and verify every visible retained version;
+they no longer assume every snapshot must own a separate buffer.
+
+The first full CI run passed in 153s while the additional profiling workflow
+was active. Its macOS runtime job started at 79s, versus 20–21s for the other
+macOS package jobs. That observation is retained here; it is not the comparison
+for an otherwise idle pipeline. The following cold runs occur after profiling
+finished, with the same full validation and platform gates.
+
+| Cold full pipeline run | Required gates complete | Summed runner duration | Result |
+| --- | ---: | ---: | --- |
+| [Attempt 2](https://github.com/sproates/panackelty/actions/runs/36398315862/attempts/2) | 1m48s | 16m16s | passed |
+| [Attempt 3](https://github.com/sproates/panackelty/actions/runs/36398315862/attempts/3) | 1m44s | 15m07s | passed |
+
+Both observations retain full pipeline completion below two minutes. This pair
+is a regression check, not a replacement five-run median or a guarantee about
+hosted queue latency. Timing uses attempt start through the last completed job,
+including classification, setup, uploads and aggregate gates, as in the earlier
+pipeline report. Summed job durations are not CPU use or billing estimates.

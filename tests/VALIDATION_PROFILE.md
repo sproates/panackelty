@@ -377,3 +377,43 @@ independent nested collections through bounded ownership inspection and measured
 25.598s. These experiments ran at different times, so the difference is not an
 isolated estimate of inspection overhead. The final measurements above are the
 reported result; the faster preliminary sample is not substituted for them.
+
+### Hosted validation of the append implementation
+
+The [focused profiling workflow](https://github.com/sproates/panackelty/actions/runs/36398315858)
+passes on Linux and macOS at implementation `1a545b4`. Compared with the
+[baseline workflow](https://github.com/sproates/panackelty/actions/runs/36395124883):
+
+| Platform | Initial VM check before / after | Cached VM check before / after |
+| --- | --- | --- |
+| Ubuntu 22.04 x86-64 | 61s / 55s | 45s / 41s |
+| macOS 14 arm64 | 64s / 41s | 52s / 31s |
+
+These are single initial/cached pairs on hosted runners, not repeated medians
+or isolated hardware comparisons. They support the direction of the local
+result but do not establish those percentages as repeatable speedups. Both
+hosted focused targets still exceed 15 seconds.
+
+Full hosted validation preserves every baseline PASS observation on both Linux
+paths and macOS. Native coverage changes from 86.91% to 87.43% of lines and
+80.09% to 80.65% of branches, with 100% function coverage retained. The changed
+`value.c` has 95.98% line and 92.04% branch coverage. The ownership tests check
+retains per distinct backing store and verify every visible retained version;
+they no longer assume every snapshot must own a separate buffer.
+
+The first full CI run passed in 153s while the additional profiling workflow
+was active. Its macOS runtime job started at 79s, versus 20–21s for the other
+macOS package jobs. That observation is retained here; it is not the comparison
+for an otherwise idle pipeline. The following cold runs occur after profiling
+finished, with the same full validation and platform gates.
+
+| Cold full pipeline run | Required gates complete | Summed runner duration | Result |
+| --- | ---: | ---: | --- |
+| [Attempt 2](https://github.com/sproates/panackelty/actions/runs/36398315862/attempts/2) | 1m48s | 16m16s | passed |
+| [Attempt 3](https://github.com/sproates/panackelty/actions/runs/36398315862/attempts/3) | 1m44s | 15m07s | passed |
+
+Both observations retain full pipeline completion below two minutes. This pair
+is a regression check, not a replacement five-run median or a guarantee about
+hosted queue latency. Timing uses attempt start through the last completed job,
+including classification, setup, uploads and aggregate gates, as in the earlier
+pipeline report. Summed job durations are not CPU use or billing estimates.

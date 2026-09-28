@@ -854,6 +854,10 @@ observation retained and an identical native coverage summary. See
       miss visible rather than presenting only the four faster runs.
       The follow-up also separates job completion delays from queue and step
       time, and removes redundant LLVM metapackage installation from coverage.
+      Five follow-up cold runs pass in 88/106/107/103/97 seconds (103s median),
+      with identical native coverage. This sample does not establish a hard
+      upper bound on hosted-runner scheduling or completion delays. See
+      [the reliability follow-up](tests/VALIDATION_PROFILE.md#pipeline-scheduling-and-coverage-setup--2026-09-28).
 
 The focused VM investigation at merged PR #76 records a 26.219-second local
 cached median and 36.338-second median after a test-source edit. Hosted cached

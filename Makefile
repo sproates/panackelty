@@ -13,7 +13,7 @@ PROBE := sh tests/run_probe.sh
 PROBES := sh tests/run_probes.sh
 export VALIDATION_JOBS ?= 2
 
-.NOTPARALLEL: check-phases ci-harness ci-compiler ci-runtime-phases ci-bootstrap
+.NOTPARALLEL: check-phases ci-compiler ci-runtime-phases ci-bootstrap
 
 BUILD_DIR ?= build
 PREFIX ?= /usr/local
@@ -111,7 +111,7 @@ unit-harness: native
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 
 unit-runtime: native native-module-build native-fault-build
-	@sh tests/runtime_checks.sh $(MAKE)
+	@sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes
 
 .PHONY: unit-runtime-native unit-runtime-probes
 unit-runtime-native:
@@ -382,10 +382,9 @@ check-no-interpreter:
 
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
-.PHONY: ci-harness ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
-ci-harness: policy unit-harness
-
-ci-compiler: unit-compiler
+.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
+ci-compiler: policy native
+	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 
 ci-runtime:
 	@sh tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases

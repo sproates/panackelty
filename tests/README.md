@@ -84,30 +84,32 @@ sanitizer and coverage targets retain their own complete corpus execution.
 
 CI runs a validation matrix per pull-request revision and again after a merge
 to `main`. It does not repeat focused developer targets before the full suite.
-Superseded PR runs are cancelled. Both packaging platforms run six clean
+Superseded PR runs are cancelled. Both packaging platforms run five clean
 `make check-no-interpreter CI_SUITE=…` partitions with an allowlisted command
 environment. The default command without `CI_SUITE` still performs the complete
 standalone proof. CI uses these shared targets:
 
 | Suite | Shared coverage |
 | --- | --- |
-| `harness` | Policy, full harness, report-capture and seed-failure controls |
-| `compiler` | All compiler probes and golden artifact contracts |
+| `compiler` | Policy, full harness, report-capture and seed-failure controls, all compiler probes |
 | `runtime` | Native VM/oracle contracts, host/bytecode probes, complete functional phase |
 | `bootstrap` | Fixed-point bootstrap, independent seed refresh, archive smoke and quick start |
 | `conformance-source` | Every native source conformance program |
 | `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
 
-Ubuntu validation runs the first four suites, three sanitizer partitions
+Ubuntu validation runs the first three suites, three sanitizer partitions
 (`sanitize-vm`, `sanitize-oracle`, `sanitize-runner`), and independent coverage.
 The sanitizer partitions execute VM contracts, oracle fixtures/programs excluding
 the nested functional runner, and that runner respectively. `SANITIZE_SUITE`
 selects a partition; its default `all` preserves the complete standalone proof.
 The coverage target calls the same complete sequence. Partition regression
 checks compare operation multiplicity and inject compilation, verification,
-execution, stderr and output failures. Each packaging platform runs all six
+execution, stderr and output failures. Each packaging platform runs all five
 ordinary suites. The canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
 `unit-compiler` targets, and `make check` remains the complete local command.
+CI compiler validation overlaps harness and compiler suites after native setup,
+using three workers: one for the harness and two for compiler probes. The
+macOS matrix retains five jobs to avoid a sixth job waiting for a runner.
 Runtime validation overlaps the native corpus with host/bytecode probes using
 two workers after building shared native prerequisites. Only the native corpus
 captures the functional runner report; probe artifacts are separate. A one-worker

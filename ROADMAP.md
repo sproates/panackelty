@@ -824,7 +824,7 @@ for suite ownership and commands.
 `make policy` enforces the source-tree dependency boundary.
 `make check-no-interpreter` starts from a clean build and validates unit and
 functional checks, bootstrap, conformance, packaging and release smoke with an
-allowlisted `PATH`. Both supported platforms run this proof across six clean
+allowlisted `PATH`. Both supported platforms run this proof across five clean
 CI partitions, sharing canonical test targets.
 
 ## Keep validation within development budgets — in progress
@@ -835,8 +835,9 @@ do not drop assertions, failure cases, sanitizer checks or platform gates,
 move required coverage out of canonical validation, or widen timing budgets.
 
 The current pipeline optimisation separates the sanitizer corpus into VM,
-oracle, and nested-runner jobs, separates harness validation, schedules long
-compiler probes first, and overlaps independent runtime probes.
+oracle, and nested-runner jobs, overlaps harness/compiler validation in one
+three-worker job, schedules long compiler probes first, and overlaps independent
+runtime probes. The macOS matrix retains five jobs to avoid runner queueing.
 The acceptance target is repeated cold full CI below two minutes, including
 classification, queue/setup and required result gates, with runner time and
 unchanged coverage recorded separately. Hosted measurements are pending.
@@ -870,7 +871,7 @@ repeated bootstrap work first, preserving all assertions.
       cached artifact digests, share one successful runner observation within
       each canonical check, and run independent probes with bounded workers
       while preserving assertions and instrumented corpus execution
-- [x] Partition CI across harness, compiler, runtime/functional, bootstrap and
+- [x] Partition CI across compiler/harness, runtime/functional, bootstrap and
       native conformance jobs on both packaging platforms; run sanitizers and
       coverage independently, retaining stable aggregate gates and every proof
 - [x] Demonstrate full cold CI below three minutes across repeated hosted runs,

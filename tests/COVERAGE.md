@@ -327,7 +327,7 @@ mismatches and unsafe archives. See `HARNESS_MIGRATION.md` for the complete inve
 The final 21 implementation-only methods retired with their implementation.
 `make policy` rejects source, shebang and command dependencies, with adversarial
 controls. Both platforms cover the complete check, native conformance and
-packaging through six clean `make check-no-interpreter CI_SUITE=…` partitions.
+packaging through five clean `make check-no-interpreter CI_SUITE=…` partitions.
 `tests/ci_partition.sh` checks dispatch, invalid selections, failure propagation
 and shared canonical targets. The stable gates require the entire matrix;
 sanitizer and coverage jobs retain their independent instrumented corpus.

@@ -489,12 +489,13 @@ the full harness; focused compiler checks include runner and corrupt-seed gates.
 Sanitizer validation uses three independent jobs for VM contracts, oracle
 programs, and the nested functional runner. Standalone sanitizer and coverage
 commands execute the same complete sequence. Compiler probe scheduling puts
-the longest independent checks first in the bounded worker pool. Harness checks
-run in a separate CI job. Runtime validation overlaps native corpus execution
+the longest independent checks first in the bounded worker pool. Harness and compiler checks
+run concurrently inside one CI job, keeping the macOS matrix at five jobs.
+CI assigns one worker to the harness and two to compiler probes. Runtime validation overlaps native corpus execution
 with independent host/bytecode probes, retaining a two-worker bound.
 
-Both platforms partition `make check-no-interpreter` into six clean suites:
-harness, compiler, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.
+Both platforms partition `make check-no-interpreter` into five clean suites:
+compiler/harness, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.
 Each suite has an allowlisted tool environment. Together they retain the full
 validation graph without repeating bootstrap after the complete check.
 

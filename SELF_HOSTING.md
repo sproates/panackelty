@@ -285,3 +285,8 @@ Both supported platforms run the five `make check-no-interpreter CI_SUITE=…`
 partitions on the full validation route, retaining the complete check, isolated
 bootstrap proof, native conformance and exact-archive checks. Informational-only edits use the documented lightweight
 checks and do not rebuild or package the toolchain.
+
+The ordinary bootstrap fixed-point check and native seed-refresh proof execute
+concurrently with two workers by default. They retain separate stage artifacts,
+digests, compiler/library comparisons and publication checks; neither proof
+substitutes artifacts from the other. A single-worker setting runs them serially.

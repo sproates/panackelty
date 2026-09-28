@@ -5,6 +5,11 @@ set -eu
 mode=${1:-all}
 case "$mode" in all|source|bytecode) ;; *) echo 'unknown conformance mode' >&2; exit 2 ;; esac
 
+jobs=${VALIDATION_JOBS:-2}
+case "$jobs" in ''|*[!0-9]*) echo 'invalid conformance worker count' >&2; exit 2 ;; esac
+while [ "${jobs#0}" != "$jobs" ] && [ "$jobs" != 0 ]; do jobs=${jobs#0}; done
+[ "$jobs" -ge 1 ] && [ "$jobs" -le 32 ] || exit 2
+
 project=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 panack="$project/panack"
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-native.XXXXXX")
@@ -16,28 +21,7 @@ fail() {
   exit 1
 }
 
-assert_program() {
-  label=$1
-  source=$2
-  expected=$3
-  artifact="$temporary/$label.bc"
-  actual="$temporary/$label.stdout"
-  errors="$temporary/$label.stderr"
-
-  if [ "$mode" != bytecode ]; then
-    sh "$project/tests/profile_command.sh" "conformance/$label/source" "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
-    test ! -s "$errors" || fail "$label wrote unexpected stderr"
-    cmp "$expected" "$actual" || fail "$label source output differs"
-  fi
-
-  if [ "$mode" != source ]; then
-    sh "$project/tests/profile_command.sh" "conformance/$label/compile" "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
-    test ! -s "$errors" || fail "$label compilation wrote unexpected stderr"
-    sh "$project/tests/profile_command.sh" "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
-    test ! -s "$errors" || fail "$label artifact wrote unexpected stderr"
-    cmp "$expected" "$actual" || fail "$label artifact output differs"
-  fi
-}
+: > "$temporary/programs"
 
 for case_directory in "$project"/tests/functional/cases/*; do
   label="case-$(basename "$case_directory")"
@@ -47,13 +31,17 @@ for case_directory in "$project"/tests/functional/cases/*; do
   else
     source="$case_directory/main.panack"
   fi
-  assert_program "$label" "$source" "$case_directory/expected.stdout"
+  printf '%s\0%s\0%s\0' "$label" "$source" "$case_directory/expected.stdout" >> "$temporary/programs"
 done
 
 for source in "$project"/examples/*.panack; do
   name=$(basename "$source" .panack)
-  assert_program "example-$name" "$source" "$project/tests/functional/expected/examples/$name.stdout"
+  printf '%s\0%s\0%s\0' "example-$name" "$source" "$project/tests/functional/expected/examples/$name.stdout" >> "$temporary/programs"
 done
+
+# NUL-delimited arguments preserve checkout and fixture paths containing spaces.
+# Every worker owns its artifact and captures; failures propagate through xargs.
+xargs -0 -n 3 -P "$jobs" sh "$project/tests/native_conformance_program.sh" "$mode" < "$temporary/programs"
 
 if [ "$mode" = source ]; then
   echo 'native source conformance: ok'

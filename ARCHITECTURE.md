@@ -492,7 +492,11 @@ commands execute the same complete sequence. Compiler probe scheduling puts
 the longest independent checks first in the bounded worker pool. Harness and compiler checks
 run concurrently inside one CI job, keeping the macOS matrix at five jobs.
 CI assigns one worker to the harness and two to compiler probes. Runtime validation overlaps native corpus execution
-with independent host/bytecode probes, retaining a two-worker bound.
+with independent host/bytecode probes, retaining a two-worker bound. Native
+conformance runs independent programs through two workers, each owning its
+artifacts and captured streams; negative and archive gates remain sequential.
+Bootstrap overlaps ordinary fixed-point verification with the independent
+seed-refresh proof; their stages and publication checks remain isolated.
 
 Both platforms partition `make check-no-interpreter` into five clean suites:
 compiler/harness, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.

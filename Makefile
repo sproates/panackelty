@@ -301,10 +301,16 @@ bootstrap: native $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_
 bootstrap-check: native
 	@$(TIMED) bootstrap $(BOOTSTRAP_BUDGET_SECONDS) $(MAKE) --no-print-directory bootstrap-check-impl
 
-bootstrap-check-impl: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)
+bootstrap-check-impl:
+	@sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh
+
+.PHONY: bootstrap-fixed-point bootstrap-seed-refresh
+bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)
 	cmp $(STAGE2_COMPILER) $(STAGE3_COMPILER)
 	cmp $(STAGE1_STDLIB) $(STAGE2_STDLIB)
 	cmp $(STAGE2_STDLIB) $(STAGE3_STDLIB)
+
+bootstrap-seed-refresh:
 	$(PROFILE) seed-refresh/native-staging sh tests/seed_refresh.sh --native
 
 native-check: bootstrap-check

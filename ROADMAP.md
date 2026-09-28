@@ -837,7 +837,9 @@ move required coverage out of canonical validation, or widen timing budgets.
 The current pipeline optimisation separates the sanitizer corpus into VM,
 oracle, and nested-runner jobs, overlaps harness/compiler validation in one
 three-worker job, schedules long compiler probes first, and overlaps independent
-runtime probes. The macOS matrix retains five jobs to avoid runner queueing.
+runtime probes. Native conformance runs independent programs through two
+isolated workers; ordinary fixed-point and isolated seed-refresh proofs overlap
+without sharing their stages. The macOS matrix retains five jobs to avoid runner queueing.
 The acceptance target is repeated cold full CI below two minutes, including
 classification, queue/setup and required result gates, with runner time and
 unchanged coverage recorded separately. Hosted measurements are pending.

@@ -338,7 +338,7 @@ failures; invalid selections fail before executing the VM. The standalone
 sanitizer and coverage targets execute all three shared implementations.
 Runtime scheduling controls inject failures into each concurrent branch and
 use a FIFO rendezvous to check overlap without relying on elapsed timing.
-`tests/ci_conformance.sh` proves that the source and bytecode partitions together
+`tests/ci_conformance.sh` proves that the source and bytecode partitions, with serial and parallel workers, together
 perform the standalone conformance observations. Controls reject failed commands,
 unexpected output/stderr, accepted negative cases and invalid mode selections.
 

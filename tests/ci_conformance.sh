@@ -4,10 +4,10 @@ set -eu
 work=$(mktemp -d "${TMPDIR:-/tmp}/panack-conformance-partition.XXXXXX")
 trap 'rm -rf "$work"' 0
 trap 'exit 1' HUP INT TERM
-tree="$work/tree"
+tree="$work/tree with spaces"
 mkdir -p "$tree/tests/functional/cases/one" "$tree/examples" \
     "$tree/tests/functional/expected/examples" "$tree/tests/functional/failures/bad"
-cp tests/native_conformance.sh tests/profile_command.sh "$tree/tests/"
+cp tests/native_conformance.sh tests/native_conformance_program.sh tests/profile_command.sh "$tree/tests/"
 printf 'source\n' > "$tree/tests/functional/cases/one/main.panack"
 printf 'source\n' > "$tree/examples/one.panack"
 printf 'hello\n' > "$tree/tests/functional/cases/one/expected.stdout"
@@ -50,19 +50,21 @@ fail() { echo "conformance partition: $*" >&2; exit 1; }
 run() {
     : > "$CI_CONFORMANCE_CALLS"
     result=0
-    sh "$tree/tests/native_conformance.sh" "$@" > "$work/output" 2>&1 || result=$?
+    VALIDATION_JOBS=${CI_CONFORMANCE_WORKERS:-1} sh "$tree/tests/native_conformance.sh" "$@" > "$work/output" 2>&1 || result=$?
 }
 run
 [ "$result" = 0 ] || fail 'standalone proof failed'
 sort "$CI_CONFORMANCE_CALLS" > "$work/all"
-: > "$work/partitioned"
-for mode in source bytecode; do
-    run "$mode"
-    [ "$result" = 0 ] || fail "$mode proof failed"
-    cat "$CI_CONFORMANCE_CALLS" >> "$work/partitioned"
+for CI_CONFORMANCE_WORKERS in 1 2; do
+    : > "$work/partitioned"
+    for mode in source bytecode; do
+        run "$mode"
+        [ "$result" = 0 ] || fail "$mode proof failed"
+        cat "$CI_CONFORMANCE_CALLS" >> "$work/partitioned"
+    done
+    sort "$work/partitioned" > "$work/sorted"
+    cmp "$work/all" "$work/sorted" || fail 'partitions or workers changed the standalone observations'
 done
-sort "$work/partitioned" > "$work/sorted"
-cmp "$work/all" "$work/sorted" || fail 'partitions changed the standalone observations'
 for mode in source bytecode; do
     for fault in "$mode" "$mode-stderr" "$mode-output"; do
         CI_CONFORMANCE_FAIL=$fault; export CI_CONFORMANCE_FAIL
@@ -80,4 +82,8 @@ run invalid
 [ "$result" = 2 ] && [ ! -s "$CI_CONFORMANCE_CALLS" ] || fail 'unknown mode performed work'
 run source bytecode
 [ "$result" = 2 ] && [ ! -s "$CI_CONFORMANCE_CALLS" ] || fail 'extra mode was ignored'
+for CI_CONFORMANCE_WORKERS in 0 33 invalid; do
+    run source
+    [ "$result" = 2 ] && [ ! -s "$CI_CONFORMANCE_CALLS" ] || fail 'invalid worker count performed work'
+done
 echo 'Conformance partition equivalence and failure controls passed.'

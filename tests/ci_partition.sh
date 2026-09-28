@@ -67,6 +67,9 @@ for contract in \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
     'ci-bootstrap: bootstrap-check quick-start' \
+    'sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh' \
+    'bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)' \
+    'seed-refresh/native-staging sh tests/seed_refresh.sh --native' \
     'native-conformance/source sh tests/native_conformance.sh source' \
     'native-conformance/bytecode sh tests/native_conformance.sh bytecode'; do
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"

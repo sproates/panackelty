@@ -84,18 +84,26 @@ contains site/index.html https://github.com/sproates/panackelty
 absent site/index.html 'are being prepared'
 absent site/index.html 'href="http://'
 absent site/index.html 'src="http://'
-contains .github/workflows/pages.yml 'push:
+contains .github/workflows/pages.yml 'workflow_run:
+    workflows: [Check]
+    types: [completed]
     branches: [main]'
 contains .github/workflows/pages.yml 'pull_request:
     branches: [main]'
 contains .github/workflows/pages.yml 'uses: actions/configure-pages@v5'
 contains .github/workflows/pages.yml 'uses: actions/upload-pages-artifact@v4'
-contains .github/workflows/pages.yml 'path: site'
+contains .github/workflows/pages.yml 'path: build/pages'
 contains .github/workflows/pages.yml 'if: github.event_name != '"'"'pull_request'"'"''
 contains .github/workflows/pages.yml 'needs: build'
 contains .github/workflows/pages.yml 'pages: write'
 contains .github/workflows/pages.yml 'id-token: write'
 contains .github/workflows/pages.yml 'uses: actions/deploy-pages@v4'
+contains .github/workflows/pages.yml "github.event.workflow_run.conclusion == 'success'"
+contains .github/workflows/pages.yml "github.event.workflow_run.event == 'push'"
+contains .github/workflows/pages.yml "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
+contains .github/workflows/pages.yml 'github.event.workflow_run.head_repository.full_name == github.repository'
+contains .github/workflows/pages.yml 'node --test tests/pages.test.cjs'
+sh tests/pages.sh
 pass
 case_name=layout-version-and-implementation
 sh tests/no_python.sh

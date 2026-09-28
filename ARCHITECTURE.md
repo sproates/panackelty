@@ -104,11 +104,18 @@ panackelty/
 └── SELF_HOSTING.md          bootstrap roadmap
 ```
 
-The project website is a dependency-free static artifact. Pull requests that
-touch `site/` or its workflow build and validate the complete Pages artifact;
-deployment is skipped for pull requests and runs only after protected `main`
-receives the change. The deploy job alone receives the narrow `pages: write`
-and `id-token: write` permissions required by GitHub Pages.
+The project website is a dependency-free static artifact. The Pages workflow
+tests assembly and source selection on relevant pull requests without deploying.
+After successful push validation on `main`, one serialized publisher combines
+the latest successfully validated website with the latest successful native VM
+coverage artifact. Documentation-only validation reuses the prior report. Both
+are deployed together, preventing either publication from erasing the other.
+The report landing page records separate website/coverage commits, the coverage
+artifact date and validation run. Missing or expired coverage fails publication
+instead of silently dropping it. Only the deploy job receives `pages: write`
+and `id-token: write`; PR and release workflows cannot publish coverage.
+Node is used only for Pages automation and its API/link regression tests; the
+native development, packaging and canonical validation toolchain is unchanged.
 
 ## Compiler pipeline
 

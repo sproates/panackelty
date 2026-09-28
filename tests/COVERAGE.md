@@ -271,7 +271,13 @@ argument construction, bigint temporaries and full-width unsigned conversion,
 allocation-dependent decimal comparison, and decimal division trailing zeros.
 
 CI runs `make native-sanitize` and `make native-coverage`, publishing native
-line/branch summaries and HTML. The initial local baseline is approximately 85%
+line/branch summaries and HTML. The [public report](https://panackelty.com/coverage/)
+is assembled with the website from successful `main` validation, with source
+commits and archive date. `tests/pages.sh` covers assembly/failure handling in
+the canonical harness; `tests/pages.test.cjs` covers trusted source selection,
+pagination, missing/expired artifacts and relative source links in Pages CI.
+This publication does not add language or native branch coverage.
+The initial local baseline is approximately 85%
 lines and 79% branches; this measures the native corpus, not every full-suite
 execution. Host error paths, rendering and nested execution retain gaps.
 Coverage-guided fuzzing, exhaustive syscall/errno combinations and unbounded

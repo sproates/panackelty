@@ -146,6 +146,39 @@ Set `VALIDATION_TIMINGS_FILE` to append tab-separated phase, duration, budget,
 and exit-status records. CI publishes those records in the workflow summary and
 retains them as a per-run artifact so timing regressions remain visible.
 
+### Public coverage publication
+
+[Public native VM coverage](https://panackelty.com/coverage/) includes a landing
+page, LLVM source navigation and `summary.txt`. The Check workflow continues to
+upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
+Only successful push validation on `main` is eligible for publication.
+
+The Pages workflow is the single writer for the website and coverage. It selects
+the latest successful `main` Check run for website content and the latest such
+run with coverage for the report, including across paginated API results.
+Documentation-only successes therefore refresh the site without erasing the
+report. Production runs serialize and select sources at execution time, so a
+delayed older trigger cannot restore its older site. PRs only test; release
+workflows do not deploy. Manual Pages dispatch is permitted only from `main`
+and applies the same successful-source selection.
+
+The landing page and `coverage/provenance.txt` identify both source commits,
+the report archive date (UTC) and Check run. A failed validation leaves that
+commit ineligible. Missing/expired artifacts, API errors or invalid reports
+fail the Pages build before deployment; the existing public site stays intact.
+If coverage has expired, run a full Check on `main` before retrying Pages.
+Publication failures are visible in the Pages workflow; freshness is explicit
+in the public date and commits, rather than implying every report is current.
+Post-deployment checks verify the public entry pages, a sample of LLVM source
+navigation and exact provenance. A verification failure is reported by Pages
+and requires investigation; it does not automatically roll back a deployment.
+
+`sh tests/pages.sh` exercises complete assembly and missing-report, symlink,
+invalid-provenance and stale-output failures within the canonical harness.
+`node --test tests/pages.test.cjs` tests API source selection and all local
+report links in the Pages PR job. Node is only a Pages automation dependency,
+not a dependency of the native compiler, packaging or `make check`.
+
 The specification-to-test map and prioritized coverage backlog live in
 [`COVERAGE.md`](COVERAGE.md). Update it when a language promise or its automated
 evidence changes.

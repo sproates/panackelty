@@ -7,33 +7,86 @@ are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 An item is complete only when its implementation, focused tests, end-to-end
 coverage, and affected documentation are complete and `make check` passes.
 
-## Priority order — reviewed 2026-09-28
+## Draft status and next task — updated 2026-09-29
 
-This is the authoritative ordering. A detailed checklist below is not a promise
-that the feature will be built next. Exploration means no implementation slot;
-completed sections and archived timings are evidence, not active tasks.
+**This roadmap remains a draft for discussion.** The agreed very next task is
+an effort-aware, holistic gap assessment. The implementation ordering below is
+provisional, including source coverage; no coverage-first sequence is approved.
 
-| Priority | Initiative | Next outcome / boundary |
+## Next task: holistic gap assessment and roadmap/process refresh
+
+Assess the whole project before selecting the next implementation initiative.
+Strong test coverage and an enjoyable, productive developer experience are both
+strategic goals. Neither substitutes for the other or automatically determines
+priority. Look for useful small improvements as well as large enabling projects.
+
+- [ ] Review purpose and real user workflows; language correctness and coherence;
+      everyday development and compiler assistance; libraries and integration;
+      reliability, security and resource handling; installation, upgrades and
+      releases; maintainability; testing/measurement; documentation and adoption
+- [ ] Distinguish observed defects, verified omissions, intentional limitations,
+      stale documentation and untested hypotheses; cite current repository evidence
+- [ ] For each finding, record benefit, affected users, urgency/risk, rough effort
+      (small/medium/large/unknown), confidence, dependencies, ongoing maintenance
+      cost and the smallest useful PR or feasibility experiment
+- [ ] Review roadmap documentation and planning process: ownership of status,
+      source of truth across documents, historical versus active evidence,
+      acceptance criteria, review cadence and when shipped work is reconciled
+- [ ] Compare developer-experience opportunities with infrastructure and test work
+      on their merits; avoid ranking purely by coverage percentages or a simplistic
+      benefit/effort score that ignores risk and dependencies
+- [ ] Produce a concise in-chat assessment and proposed ordering, identifying
+      quick wins, larger investments, prerequisite decisions and deliberate deferrals
+- [ ] Review the proposed ordering with the user before treating it as agreed;
+      retain this roadmap and PR as drafts until that review is complete
+
+### Developer experience: useful assistance from the compiler
+
+Make working in Panackelty enjoyable, with substantial attention to helping
+programmers understand and develop their programs. This goes beyond polished
+error messages. Assess assistance throughout writing, checking, exploring,
+changing and debugging code, including potential support for:
+
+- Explaining inferred types, effects and guard/proof obligations, including why
+  a program is accepted or rejected and what evidence would satisfy a requirement
+- Context-aware suggestions for names, imports and available operations, missing
+  match cases, and useful feedback for incomplete code
+- Detecting likely mistakes such as unused bindings or unreachable code, with
+  focused, low-noise guidance rather than indiscriminate warnings
+- Safe, actionable fixes and refactoring assistance whose effects can be checked;
+  keep proposed edits reviewable and preserve programmer intent
+- Source-aware runtime failures, discoverable compiler queries and structured
+  output that CLI/editor tooling can share without duplicating compiler knowledge
+
+These are assessment candidates, not promises of specific features or a required
+IDE, language server or REPL. Evaluate usefulness on representative tasks: time
+and friction to reach correct code, discoverability, precision, false positives,
+feedback latency and consistency. Consider approachable defaults and opt-in depth.
+
+### Provisional backlog grouping — not an agreed implementation order
+
+| Status | Initiative | Outcome to assess |
 | --- | --- | --- |
-| Now | `.panack` source coverage | Design and prove trustworthy source mapping and collection, then publish a baseline for compiler, bytecode tooling and standard library |
-| Now, supporting coverage | Reconcile test evidence | Replace stale test references and classify actual missing assertions; do not mistake migrated tests for missing tests |
-| Next | Close verified correctness and safety gaps | Small risk-ranked test PRs guided by the behavior matrix and new source coverage; no arbitrary percentage target |
-| Next | Codebase readability and refactoring | Audit first, then component-sized refactors protected by relevant tests and coverage evidence |
-| Non-blocking backlog | Validation performance | Retain 120s clean / 15s focused targets and warnings; resume optimisation when feedback delays warrant it |
-| Candidate follow-up | Runtime diagnostics and source locations | Assess source-aware runtime traps/call stacks alongside coverage metadata design, without expanding it into a debugger project |
-| Candidate follow-up | Practical language/library work | Choose a representative user workflow before scheduling JSON, richer diagnostics, recursive host operations or numeric rounding |
-| Unscheduled exploration | REPL and broader language ideas | Keep ideas and design notes; no priority over testing or maintainability |
-| Delivered | Public native C coverage | Live report and deployment verification completed; `.panack` measurement remains separate |
+| Agreed next task | Holistic assessment and roadmap/process refresh | Evidence-backed, effort-aware priorities reviewed in chat |
+| Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
+| Candidate | Developer experience and compiler assistance | Practical help for understanding, writing and changing programs; assess useful increments and cost |
+| Candidate | Reconcile test evidence and close verified gaps | Accurate matrix and bounded correctness/safety test PRs |
+| Candidate | Codebase readability and refactoring | Audit and component-sized improvements with relevant test protection |
+| Non-blocking backlog | Validation performance | Retain targets/warnings; weigh further work against developer impact |
+| Candidate | Language/library and runtime improvements | Assess JSON, host APIs, inference, numerics and source diagnostics against real workflows |
+| Low-priority exploration | REPL | Unscheduled idea, not a prerequisite for developer-experience improvements |
+| Unscheduled exploration | Broader language ideas | Preserve proposals without giving them automatic implementation slots |
+| Delivered | Public native C coverage | Live and verified; `.panack` measurement remains a separate gap |
 
-Known correctness or safety defects take precedence over this ordering. Coverage
-is evidence of execution, not proof of correct assertions; keep public-CLI,
-negative-input, sanitizer, fixed-point and cross-platform checks intact.
+Known correctness or safety defects should be considered promptly on their
+actual risk. Coverage is execution evidence, not proof of assertion quality;
+preserve the established validation gates while reviewing future priorities.
 
 ### How to turn the backlog into PRs
 
-- Keep one principal implementation initiative active: `.panack` measurement.
-  Documentation reconciliation and a readability audit can support it without
-  starting unrelated language features.
+- Complete the holistic assessment before choosing the principal implementation
+  initiative. Subsequent work must follow the reviewed priority order, not the
+  placement of a detailed proposal in this draft.
 - Before implementation, define scope, dependencies, explicit non-goals, failure
   cases and acceptance evidence. A design PR may finish with a decision or a
   bounded feasibility result rather than claiming an implemented feature.
@@ -45,7 +98,7 @@ negative-input, sanitizer, fixed-point and cross-platform checks intact.
   [the coverage matrix](tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](SELF_HOSTING.md).
 
-## Measure Panackelty source coverage — immediate priority
+## Measure Panackelty source coverage — candidate pending assessment
 
 The public LLVM report measures the native C VM only. Existing `.panack` tests
 exercise the compiler and libraries, but there is no measured source-line or
@@ -101,11 +154,14 @@ failed collection; partial collection must not appear as a complete green report
 
 ## Grooming gaps and decisions — newly explicit
 
-These are scoped follow-ups or decisions, not authorization for every feature.
+These are initial findings, not a completed holistic audit or authorization for
+every feature. The assessment must look beyond the testing-focused findings below.
 
 | Gap or ambiguity | Evidence / consequence | Treatment |
 | --- | --- | --- |
-| Source coverage and its denominator | C coverage says nothing about which `.panack` lines or branches execute; omitted files could inflate future reports | Immediate coverage initiative above |
+| Developer experience and compiler assistance | Existing ideas emphasise diagnostics; useful assistance throughout development needs deliberate assessment | Treat enjoyment and productivity as strategic goals alongside strong testing |
+| Roadmap documentation and process | Stale status and overlapping documents made the actual priorities unclear | Review document roles, acceptance criteria and the process for maintaining current evidence |
+| Source coverage and its denominator | C coverage says nothing about which `.panack` lines or branches execute; omitted files could inflate future reports | Evaluate coverage scope, effort and enabling value in the holistic assessment |
 | Test evidence has drifted | Matrix/backlog references include retired test paths, “both VMs”, a compiler “skeleton”, and already-implemented deterministic round trips | Audit current assertions against the matrix before declaring missing tests; retain historical fixture provenance |
 | Execution coverage versus test quality | A hit does not establish that a test would catch the wrong result | Keep an explicit assertion-quality backlog; evaluate bounded mutation or deliberately perturbed fixtures for selected high-risk behavior |
 | Runtime source diagnostics | Frontend positions exist but emitted instruction records lack source maps | Define a separate follow-up for source-aware runtime traps/call stacks; reuse coverage metadata only where semantics and validation agree |
@@ -139,7 +195,7 @@ localize while keeping `make check` the canonical validation command.
       driver probes; this is a foundation, not proof of exhaustive behavior
 - [ ] Audit remaining compiler/library assertions and source coverage by component
 - [x] Establish and publish a native C line/branch baseline
-- [ ] Establish the separate `.panack` baseline through the priority initiative
+- [ ] Establish the separate `.panack` baseline through the candidate measurement initiative
 - [ ] Review intentional exclusions and untested host-boundary behavior explicitly
 - [x] Organize the suite so focused failures remain fast and the full suite stays
       practical to run after every change

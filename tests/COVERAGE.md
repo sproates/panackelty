@@ -9,8 +9,8 @@ Planning a test does not change a coverage status.
 Measured source coverage currently exists only for the native C VM, at the
 [public report](https://panackelty.com/coverage/). The `.panack` compiler,
 bytecode tooling and standard library have tests but no measured source-line
-or branch baseline. Implementing that measurement is the next engineering
-priority in [the roadmap](../ROADMAP.md). Do not interpret this behavior matrix,
+or branch baseline. Measurement is a candidate initiative in the draft
+[roadmap](../ROADMAP.md); a holistic, effort-aware assessment comes first. Do not interpret this behavior matrix,
 test counts or C percentages as a `.panack` coverage percentage.
 
 The matrix is undergoing evidence reconciliation: older rows contain historical
@@ -154,9 +154,9 @@ traits, package management, bytecode compatibility guarantees, and concurrency
 remain deferred. Tests should be added when any of these become accepted
 language behavior.
 
-## Prioritized coverage backlog
+## Coverage backlog — provisional pending holistic assessment
 
-### P0 — source measurement and evidence reconciliation
+### Measurement and evidence reconciliation — candidate
 
 1. Design and implement `.panack` source mapping, instrumentation and report
    aggregation, including compiler execution, nested VMs and subprocesses.
@@ -182,7 +182,7 @@ are not an acceptance substitute for assertions, negative tests or invariants.
 - [x] Add text and binary file I/O round trips plus missing, denied, and invalid
       path failures.
 
-### P1 — compiler correctness
+### Compiler correctness — candidate
 
 1. Expand guarded-type, purity, name-resolution, and binding diagnostics.
 2. Cover record, enum, match, and generic failure cases.
@@ -192,7 +192,7 @@ are not an acceptance substitute for assertions, negative tests or invariants.
 5. Check assertion quality for selected high-risk cases; evaluate bounded
    mutation or perturbed fixtures, with cost measured before broader adoption.
 
-### P2 — further completeness and hardening
+### Further completeness and hardening — candidate
 
 1. Fill remaining numeric, string, collection, and control-flow edge cases.
 2. Extend existing deterministic-compilation and canonical bytecode round-trip

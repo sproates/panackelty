@@ -556,3 +556,84 @@ is a regression check, not a replacement five-run median or a guarantee about
 hosted queue latency. Timing uses attempt start through the last completed job,
 including classification, setup, uploads and aggregate gates, as in the earlier
 pipeline report. Summed job durations are not CPU use or billing estimates.
+
+
+## Pipeline scheduling and coverage setup — 2026-09-28
+
+The follow-up starts from merged `d24b8f2`. GitHub job timestamps distinguish
+three quantities: time from a dependency completing to a dependent job starting,
+step execution, and time from the last step completing to the job completing.
+The first includes scheduling/dispatch overhead and is not a direct measurement
+of runner queue time. The last is completion/reporting overhead, not test work.
+Overlapping jobs must not have these quantities added to obtain wall time.
+
+The earlier five-run sample at `8934654` remains 123/102/103/104/102 seconds.
+Its 123-second attempt had a Linux runtime job starting 39 seconds after the
+classifier completed. During the append profiling workflow, a macOS runtime job
+started 67 seconds after classification and the full run took 153 seconds.
+That overlap is evidence of contention, not proof of a specific account limit.
+The later idle attempts took 108 and 104 seconds.
+
+The [post-merge main run](https://github.com/sproates/panackelty/actions/runs/36416131575)
+took 125 seconds. Its package result step finished at 11:32:38 UTC, but the Linux
+package job completed at 11:33:17 UTC: a 39-second completion tail. Its latest
+heavy job started only nine seconds after classification. Treating this miss as
+slow tests or changing test parallelism would not address the observed delay.
+Required checks must still finish successfully before a merge.
+
+The same run spent ten seconds installing the unversioned `clang`, `llvm` and
+`llvm-runtime` metapackages. Its Ubuntu 24.04 image already contained LLVM 18;
+coverage compilation and reporting used that toolchain after installation.
+The follow-up pins the existing validation image to Ubuntu 24.04 and directly
+uses `/usr/bin/clang-18`, `/usr/bin/llvm-cov-18` and `/usr/bin/llvm-profdata-18`.
+All three version commands must succeed before coverage. There is no fallback
+installation, cache restoration, reduced corpus or changed result gate.
+The [runner image manifest](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md)
+documents the preinstalled compiler family; the hosted runs verify the actual
+binaries and retain the coverage summary for comparison.
+
+Five sequential cold full runs measure candidate `c681014` without deliberately
+overlapping profiling workflows. Every attempt, including a timing miss, belongs
+in the sample. This change removes avoidable package-network setup; it cannot
+guarantee a bound on hosted scheduling or completion reporting.
+
+Local clean `make check` passes in 104 seconds (unit 70s, functional 0s at the
+whole-second timer resolution, bootstrap 18s). The unit warning remains visible;
+this change does not address the separate 15-second focused-check target.
+The first hosted coverage summary is byte-for-byte identical to the main
+baseline: 87.43% lines, 80.65% branches and 100% functions. The workflow contract
+checks retain the complete native coverage command, pin the image/tool family,
+and reject a return to package installation in this validation job.
+
+All five [cold attempts](https://github.com/sproates/panackelty/actions/runs/36418279295)
+passed every required check on the same candidate commit:
+
+| Attempt | Full completion | Summed job time | Coverage job | Latest heavy-job start after classification | Final gate completion tail |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| [1](https://github.com/sproates/panackelty/actions/runs/36418279295/attempts/1) | 88s | 934s | 66s | 9s | 3s |
+| [2](https://github.com/sproates/panackelty/actions/runs/36418279295/attempts/2) | 106s | 880s | 44s | 10s | 2s |
+| [3](https://github.com/sproates/panackelty/actions/runs/36418279295/attempts/3) | 107s | 916s | 43s | 9s | 3s |
+| [4](https://github.com/sproates/panackelty/actions/runs/36418279295/attempts/4) | 103s | 955s | 65s | 10s | 2s |
+| [5](https://github.com/sproates/panackelty/actions/runs/36418279295/attempts/5) | 97s | 885s | 73s | 9s | 2s |
+
+Full completion is attempt start to the last job completion, including setup,
+uploads and required result gates. Every attempt used fresh hosted runners;
+there is no Actions cache or transferred build artifact. Summed job time is
+neither CPU time nor a billing estimate. Timing uses the same API timestamps as
+the earlier samples; `created_at` is not reused as the start of later attempts.
+
+The median is **103 seconds**, with all five below 120 seconds and a worst
+observation of 107 seconds. The median matches the earlier five-run sample;
+there is no demonstrated median pipeline speedup. The absence of a slow tail in
+five runs does not prove that queueing or reporting tails are fixed. The observed
+benefit is removal of a roughly ten-second package installation/network step;
+version verification took 0/1/0/1/1 seconds. Coverage execution itself varied
+from 36 to 64 seconds, so its entire time difference cannot be attributed to
+setup removal. macOS packaging determined completion in attempts 2–4.
+
+The first attempt reports Clang, llvm-cov and llvm-profdata **18.1.3**. All 174
+coverage-corpus PASS observations match the main baseline, as does the complete
+coverage summary. Canonical validation, all sanitizer partitions, both package
+platforms and all three stable required gates remain enabled. Future timing
+misses must still be recorded; do not increase job count or serialize independent
+PRs solely on the basis of these small samples.

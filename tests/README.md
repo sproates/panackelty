@@ -99,6 +99,9 @@ standalone proof. CI uses these shared targets:
 
 Ubuntu validation runs the first three suites, three sanitizer partitions
 (`sanitize-vm`, `sanitize-oracle`, `sanitize-runner`), and independent coverage.
+These jobs use Ubuntu 24.04. Coverage uses its preinstalled, explicitly versioned
+Clang, llvm-cov and llvm-profdata 18 tools, verifies their availability, and fails
+if any is missing. It does not install packages or restore cached coverage.
 The sanitizer partitions execute VM contracts, oracle fixtures/programs excluding
 the nested functional runner, and that runner respectively. `SANITIZE_SUITE`
 selects a partition; its default `all` preserves the complete standalone proof.

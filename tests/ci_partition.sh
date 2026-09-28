@@ -70,7 +70,7 @@ for contract in \
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"
 done
 grep -F 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]' .github/workflows/check.yml >/dev/null || fail 'missing package partition'
-grep -F 'suite: [compiler, runtime, bootstrap, sanitize, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing validation partition'
+grep -F 'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing validation partition'
 grep -F 'run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing isolated suite dispatch'
 grep -F 'run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing project suite dispatch'
 echo 'CI partition dispatch, failure propagation and shared coverage passed.'

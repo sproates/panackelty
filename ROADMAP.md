@@ -834,6 +834,12 @@ roadmap work. Strong coverage remains more important than speed;
 do not drop assertions, failure cases, sanitizer checks or platform gates,
 move required coverage out of canonical validation, or widen timing budgets.
 
+The current pipeline optimisation separates the sanitizer corpus into VM,
+oracle, and nested-runner jobs and schedules long compiler probes first.
+The acceptance target is repeated cold full CI below two minutes, including
+classification, queue/setup and required result gates, with runner time and
+unchanged coverage recorded separately. Hosted measurements are pending.
+
 The historical CI baseline from PR #64 is 275 seconds for `make check`:
 169 seconds for units, 42 for functional tests and 59 for bootstrap. Use fresh
 measurements of the current toolchain to guide validation improvements.

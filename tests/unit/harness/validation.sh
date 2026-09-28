@@ -81,3 +81,7 @@ printf '42\n' > "$work/expected.out"
 equal_files "$work/stdout" "$work/expected.out"
 test ! -s "$work/stderr" || fail 'profile polluted CLI stderr'
 pass
+
+case_name=sanitizer-partition-equivalence
+sh tests/ci_sanitize.sh
+pass

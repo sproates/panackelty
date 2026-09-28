@@ -486,6 +486,11 @@ Panackelty supervisor enforcing subprocess timeouts, signals and exact captured
 bytes. Each invocation compiles that supervisor once into a temporary directory;
 each shell group owns its isolated workspace and cleanup. `make unit` includes
 the full harness; focused compiler checks include runner and corrupt-seed gates.
+Sanitizer validation uses three independent jobs for VM contracts, oracle
+programs, and the nested functional runner. Standalone sanitizer and coverage
+commands execute the same complete sequence. Compiler probe scheduling puts
+the longest independent checks first in the bounded worker pool.
+
 Both platforms partition `make check-no-interpreter` into five clean suites:
 compiler/harness, runtime/functional, bootstrap, source conformance and bytecode conformance/packaging.
 Each suite has an allowlisted tool environment. Together they retain the full

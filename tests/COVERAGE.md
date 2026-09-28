@@ -331,6 +331,11 @@ packaging through five clean `make check-no-interpreter CI_SUITE=…` partitions
 `tests/ci_partition.sh` checks dispatch, invalid selections, failure propagation
 and shared canonical targets. The stable gates require the entire matrix;
 sanitizer and coverage jobs retain their independent instrumented corpus.
+Sanitizer CI partitions VM contracts, ordinary oracle cases, and the nested
+functional runner. `tests/ci_sanitize.sh` compares standalone and partitioned
+operation multiplicity and injects compile, verify, execution, stderr and output
+failures; invalid selections fail before executing the VM. The standalone
+sanitizer and coverage targets execute all three shared implementations.
 `tests/ci_conformance.sh` proves that the source and bytecode partitions together
 perform the standalone conformance observations. Controls reject failed commands,
 unexpected output/stderr, accepted negative cases and invalid mode selections.

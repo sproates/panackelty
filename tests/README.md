@@ -49,7 +49,8 @@ separate keys and build directories. `make clean` removes all cached bytecode.
 The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.
-Independent internal probes use two workers by default; set
+Compiler probes schedule integration and contract checks first to avoid a long
+final worker tail. Independent internal probes use two workers by default; set
 `VALIDATION_JOBS=1` for serial execution or choose a limit from 1 to 32. Setup
 and fixture mutation remain serial. The worker pool buffers stdout/stderr and prints
 results in the requested order, waits for every probe, and propagates failures.
@@ -96,8 +97,14 @@ standalone proof. CI uses these shared targets:
 | `conformance-source` | Every native source conformance program |
 | `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
 
-Ubuntu validation runs the first three suites plus independent sanitizer and
-coverage jobs. Each packaging platform runs all five ordinary suites. The
+Ubuntu validation runs the first three suites, three sanitizer partitions
+(`sanitize-vm`, `sanitize-oracle`, `sanitize-runner`), and independent coverage.
+The sanitizer partitions execute VM contracts, oracle fixtures/programs excluding
+the nested functional runner, and that runner respectively. `SANITIZE_SUITE`
+selects a partition; its default `all` preserves the complete standalone proof.
+The coverage target calls the same complete sequence. Partition regression
+checks compare operation multiplicity and inject compilation, verification,
+execution, stderr and output failures. Each packaging platform runs all five ordinary suites. The
 canonical `make unit` calls the same `unit-harness`, `unit-runtime` and
 `unit-compiler` targets, and `make check` remains the complete local command.
 The stable required checks aggregate all applicable jobs, including failures

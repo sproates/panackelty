@@ -59,7 +59,9 @@ Post-bootstrap language and engineering priorities are tracked in
 - [x] Binary file I/O end-to-end coverage, including failure cases
 - [x] Rich path operations and path normalization
 - [x] Diagnostic and source-position data model
-- [ ] Accurate line/column tracking and span-bearing tokens and AST nodes
+- [x] File-aware primary line/column tracking and token start/end positions
+- [ ] Audit full AST span fidelity and preserve mappings through lowering for
+      source coverage; frontend positions alone do not provide VM source maps
 - [x] Render existing positioned diagnostics with source excerpts and carets,
       including imported modules and deterministic tab/Unicode display
 - [ ] Rich multi-error recovery, secondary spans, and causal diagnostics

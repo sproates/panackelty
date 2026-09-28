@@ -6,6 +6,17 @@ line coverage. Update it whenever a language promise or its tests change.
 The [testing guide](README.md) describes suite ownership and validation commands.
 Planning a test does not change a coverage status.
 
+Measured source coverage currently exists only for the native C VM, at the
+[public report](https://panackelty.com/coverage/). The `.panack` compiler,
+bytecode tooling and standard library have tests but no measured source-line
+or branch baseline. Implementing that measurement is the next engineering
+priority in [the roadmap](../ROADMAP.md). Do not interpret this behavior matrix,
+test counts or C percentages as a `.panack` coverage percentage.
+
+The matrix is undergoing evidence reconciliation: older rows contain historical
+test names and runtime descriptions. Check the current probes and migrated
+fixtures before treating a “Gap” or “Partial” label as verified missing tests.
+
 The VM guide's `vm_arithmetic`, `vm_branch_call`, and `vm_loop` examples are
 discovered by the functional suite and checked from source and compiled bytecode
 against their expected stdout fixtures. They add readable success-path evidence
@@ -30,7 +41,7 @@ Status meanings:
 | Integer division produces `Rat` | `runner/vm_unit.panack`; shared VM corpus and fixed Fraction expectations | **Covered** for rational results, negative operands/remainders and division-by-zero traps. |
 | Proven-safe `Nat` subtraction | while-loop and guarded-fact tests in `runner/vm_unit.panack` and `fixtures/compiler_contracts/checker`; shared forged-runtime corpus | **Partial** — safe source behavior and cross-VM runtime underflow traps are covered; add direct compile rejection. |
 | `Bool` values | Broad unit and functional usage | **Partial** — add focused type-error and display cases. |
-| Local binding inference | `unit/compiler/test_local_inference.py`; parser and emitter tests; `functional/cases/local_inference`; `functional/failures/inference_*`; release smoke | **Covered** for both frontends, numeric defaults, strings/booleans/bytes, imported constructors and functions, nested collection evidence, complete-type requirements, fixed mutable types, guarded types, callable effects, scope/order/no-shadowing, Void rejection, exact CLI diagnostics, and identical inferred/annotated emission. |
+| Local binding inference | `runner/compiler_contracts_unit.panack`; `fixtures/compiler_contracts` local-inference cases; parser and emitter probes; `functional/cases/local_inference`; `functional/failures/inference_*`; release smoke | **Covered** by migrated frontend contracts for numeric defaults, strings/booleans/bytes, imported constructors and functions, nested collection evidence, complete-type requirements, fixed mutable types, guarded types, callable effects, scope/order/no-shadowing, Void rejection, exact CLI diagnostics, and identical inferred/annotated emission. |
 | Keyword-free functions, colon return types, local declarations, and block tails | `fixtures/compiler_contracts/syntax`; all functional programs | **Covered** for accepted syntax, rejection of legacy `fn`, `->`, and `let` forms, and trailing-semicolon value discard. |
 | Newline statement termination and explicit semicolons | Bootstrap syntax tests; self-hosted lexer/parser tests; `semicolonless` functional case; `same_line_without_separator` failure | **Covered** for bindings, assignments, calls, imports, guarded types, blank lines, comments, block tails, multiline operators/parentheses/brackets, same-line separators, and source/bytecode execution. |
 | Receiver-first method calls and callable values | Bootstrap syntax tests; self-hosted parser/resolver/checker/purity/emitter differential tests; callables and collections functional cases; public failures | **Covered** for explicit `@name` references, `PureFn`/`Fn` effects, indirect invocation, array `map`/`reduce`, lowering, chaining, typed Map/Set methods, record-field distinction, collision-free lookup, receiver/callback diagnostics, and source/bytecode execution. |
@@ -42,7 +53,7 @@ Status meanings:
 | --- | --- | --- |
 | Literal guard proof and rejection | `fixtures/compiler_contracts/checker`; `functional/failures/guard_not_proven` | **Covered** for a simple comparison guard through internal and public CLI paths. |
 | Facts introduced by `if` | `fixtures/compiler_contracts/checker` | **Partial** — cover compound `&&`/`||` guards, arithmetic guards, and false branches. |
-| Guards remain pure and decidable | Checker implementation only | **Gap** — add rejection tests for I/O, calls, and unsupported expressions in guards. |
+| Guards remain pure and decidable | `runner/compiler_purity_unit.panack`; `fixtures/compiler_purity` guard cases; checker contracts | **Partial** — guard I/O rejection is already tested. Audit supported/unsupported predicates and call cases before specifying the remaining rejection tests. |
 | Pure functions cannot call effects | `test_pure_function_cannot_print`, `test_pure_loop_cannot_hide_io`, and `functional/failures/pure_io` | **Partial** — `print` rejection reaches the public CLI; cover calls to user-defined impure functions and every effectful built-in. |
 | Local mutation is allowed in pure code | for/while accumulator tests in `runner/vm_unit.panack` | **Covered** for `mut`, assignment, `while`, and `for`. |
 | Immutable locals, parameters, and bindings | `test_assignment_requires_mut`, loop-shadowing test, and `functional/failures/immutable_assignment` | **Partial** — immutable-local rejection reaches the public CLI; add parameter assignment, ordinary shadowing, and match-binding mutation cases. |
@@ -145,7 +156,22 @@ language behavior.
 
 ## Prioritized coverage backlog
 
-### P0 — safety and public-contract risks
+### P0 — source measurement and evidence reconciliation
+
+1. Design and implement `.panack` source mapping, instrumentation and report
+   aggregation, including compiler execution, nested VMs and subprocesses.
+2. Establish line/function and branch baselines with explicit scope, eligible
+   unexecuted files, exclusions, source identity and collection-failure handling.
+3. Publish `.panack` results separately from native C coverage; define regression
+   policy only after validating the denominator and measurement correctness.
+4. Reconcile matrix rows against current probes and fixtures, including migrated
+   names, already-tested negative cases and retired-runtime references. Preserve
+   historical provenance in fixture inventories; do not relabel it as active code.
+
+Known correctness or safety defects preempt measurement work. High percentages
+are not an acceptance substitute for assertions, negative tests or invariants.
+
+### Delivered safety and public-contract foundation
 
 - [x] Add adversarial bytecode verifier tests for every documented structural
       rejection.
@@ -161,13 +187,19 @@ language behavior.
 1. Expand guarded-type, purity, name-resolution, and binding diagnostics.
 2. Cover record, enum, match, and generic failure cases.
 3. Cover module load-once behavior, duplicate declarations, and invalid imports.
-4. Expand focused parser coverage as blocks and declarations are implemented.
+4. Expand parser edge cases against the implemented grammar; blocks and
+   declarations already have direct probes.
+5. Check assertion quality for selected high-risk cases; evaluate bounded
+   mutation or perturbed fixtures, with cost measured before broader adoption.
 
-### P2 — completeness and measurement
+### P2 — further completeness and hardening
 
 1. Fill remaining numeric, string, collection, and control-flow edge cases.
-2. Add deterministic compilation and bytecode round-trip comparisons.
-3. Expand the Panackelty-hosted compiler corpus beyond its current skeleton program.
+2. Extend existing deterministic-compilation and canonical bytecode round-trip
+   comparisons only where new edge cases are identified.
+3. Expand the direct lexer/parser/resolver/checker/purity/emitter/driver probes
+   against measured and behavior-specific gaps; the compiler corpus is already
+   substantially broader than its historical skeleton program.
 4. Expand native branch coverage and keep this behavioral matrix as the
    primary completeness measure.
 

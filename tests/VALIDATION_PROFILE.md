@@ -637,3 +637,297 @@ coverage summary. Canonical validation, all sanitizer partitions, both package
 platforms and all three stable required gates remain enabled. Future timing
 misses must still be recorded; do not increase job count or serialize independent
 PRs solely on the basis of these small samples.
+
+## Archived roadmap performance history — 2026-09-28
+
+The following preserves earlier roadmap observations, milestones and proposed
+follow-ups. It is historical evidence across different revisions/environments,
+not the active priority order or a claim that all present budgets are met.
+See `ROADMAP.md` for current priorities and the condensed timing baseline.
+
+
+**Non-blocking backlog:** CI now has a 103-second median and the latest clean
+local check takes 107 seconds. Defer further focused-check optimisation while
+publishing public coverage reports, then progressing the REPL. Keep the
+15-second focused target, existing timing warnings and measured misses visible;
+revisit optimisation when feedback delays become disruptive.
+The public-coverage publication checkout passed a clean local `make check` in
+145 seconds (unit 99s, functional 1s, bootstrap 37s) on September 28. This
+environment still exceeds the clean and unit budgets; retain those warnings
+as backlog evidence, not a blocker for publishing existing coverage.
+Strong coverage remains more important than speed;
+do not drop assertions, failure cases, sanitizer checks or platform gates,
+move required coverage out of canonical validation, or widen timing budgets.
+
+The current pipeline optimisation separates the sanitizer corpus into VM,
+oracle, and nested-runner jobs, overlaps harness/compiler validation in one
+three-worker job, schedules long compiler probes first, and overlaps independent
+runtime probes. Native conformance runs independent programs through two
+isolated workers; ordinary fixed-point and isolated seed-refresh proofs overlap
+without sharing their stages. The macOS matrix retains five jobs to avoid runner queueing.
+Five cold full runs now have a 103-second median, down from 148 seconds,
+including classification, queue/setup and required result gates. Four finished
+below two minutes; the 123-second outlier included a Linux runtime job
+starting 52 seconds into the run. Median summed runner time fell 16.5%, with every baseline test
+observation retained and an identical native coverage summary. See
+[the complete profiling evidence](VALIDATION_PROFILE.md).
+
+- [x] Bring the median full cold pipeline below two minutes with all validation
+      and platform gates retained; record all five runs, including the outlier
+- [ ] Investigate hosted-runner queue tails before treating 120 seconds as an
+      upper bound: one of five runs still took 123 seconds. Keep that timing
+      miss visible rather than presenting only the four faster runs.
+      The follow-up also separates job completion delays from queue and step
+      time, and removes redundant LLVM metapackage installation from coverage.
+      Five follow-up cold runs pass in 88/106/107/103/97 seconds (103s median),
+      with identical native coverage. This sample does not establish a hard
+      upper bound on hosted-runner scheduling or completion delays. See
+      [the reliability follow-up](VALIDATION_PROFILE.md#pipeline-scheduling-and-coverage-setup--2026-09-28).
+
+The focused VM investigation at merged PR #76 records a 26.219-second local
+cached median and 36.338-second median after a test-source edit. Hosted cached
+checks took 45s on Linux and 52s on macOS in one profile pair per platform.
+The nested functional runner dominates, and a short compiler CPU sample points
+to collection copying and release work. Prioritize persistent array append
+allocation/copying while preserving aliases and failure behavior; keep the
+broad probe fingerprint intact until dependency completeness can be proved.
+See [the focused investigation](VALIDATION_PROFILE.md#focused-vm-check-investigation--2026-09-28)
+for all trials, measurement limits and the optimisation PR acceptance criteria.
+
+- [x] Refresh the focused VM baseline with repeated unchanged and source-edit
+      runs, component CPU measurements and a hosted platform cross-check
+- [ ] Reduce measured collection-copying costs in compiler execution; preserve
+      persistent values and add ownership/failure regressions before claiming
+      a focused-check improvement
+
+The historical CI baseline from PR #64 is 275 seconds for `make check`:
+169 seconds for units, 42 for functional tests and 59 for bootstrap. Use fresh
+measurements of the current toolchain to guide validation improvements.
+
+The initial isolated local check passed in 239 seconds: units took
+146 seconds, functional tests 37 seconds and bootstrap 50 seconds. This is a
+local baseline, not a comparison with CI hardware. Later work records a clean
+117-second local check; the full-unit warning and focused-VM timing follow-up
+remain open. Preserve every assertion when investigating the remaining cost.
+
+- [x] Profile clean and incremental validation on Linux and macOS, separating
+      native builds, probe compilation, subprocess overhead and bootstrap stages
+- [x] Make CI validation proportional to the change. Roadmap and other purely
+      informational documentation edits should run lightweight document/link
+      checks without rebuilding the compiler or running the full test,
+      packaging, sanitizer and coverage suites. Classify changes conservatively:
+      documents used as executable fixtures or packaged inputs (including the
+      README quick start), specification changes, mixed code/document changes,
+      and validation/workflow changes must retain the relevant behavioral and
+      release gates; unknown impact must fall back to full validation
+- [x] Keep a stable required CI result for both lightweight and full validation,
+      so documentation-only PRs can merge promptly without bypassing protection
+      or waiting for checks that do not apply. Test change classification,
+      including additions, deletions, renames and mixed changes, and document
+      which gates each class requires; retain full release validation
+- [x] Reuse compiled probes using complete source/toolchain content keys, verify
+      cached artifact digests, share one successful runner observation within
+      each canonical check, and run independent probes with bounded workers
+      while preserving assertions and instrumented corpus execution
+- [x] Partition CI across compiler/harness, runtime/functional, bootstrap and
+      native conformance jobs on both packaging platforms; run sanitizers and
+      coverage independently, retaining stable aggregate gates and every proof
+- [x] Demonstrate full cold CI below three minutes across repeated hosted runs,
+      tracking queue/setup overhead and total runner time as well as elapsed
+      duration: final runs took 2m20s and 2m28s versus 6m48s, with 3–8% more
+      raw runner time. Later September 28 work reaches a 103-second median
+      with lower runner time; the recorded queue-delay outlier remains a follow-up
+- [ ] Reduce the remaining standalone VM-runner and compiler-build costs. The
+      September 2026 macOS comparison reduced clean checks from 176s to 127s
+      with two workers (123s with four), still above the 120s target. The full
+      unit phase also retains its warning. Prioritize the measured remaining
+      work without weakening standalone targets or isolated bootstrap proofs;
+      see `tests/VALIDATION_PROFILE.md` for warm timings and coverage comparison
+- [ ] Demonstrate clean `make check` within 120 seconds and focused incremental
+      checks within 15 seconds on the reference environments; retain visible
+      per-phase timing, warnings and CI reports to catch future regressions
+
+Informational-only changes now use lightweight documentation/local-file-link
+checks through an explicit conservative allowlist. Existing named check results
+remain present and fail if routing or documentation checking fails. Full code,
+packaging, sanitizer, coverage and release gates remain for relevant changes.
+See [change-aware CI](README.md#change-aware-ci) for the exact boundary.
+
+Detailed opt-in profiling now separates native builds, harness groups, source
+probes and bootstrap stages. Both packaging platforms retain clean suite
+profiles, while a separate targeted workflow records focused warm checks.
+See [the profiling report](VALIDATION_PROFILE.md) for evidence and the
+next measured investigations. This instrumentation does not claim a speed fix.
+
+The persistent-array append optimisation reduces the measured local cached VM
+median from 26.219s to 25.598s and the test-source-edit median from 36.338s to
+32.993s. A clean full check passes in 107s. The focused 15-second target remains
+open; these measurements do not establish a hosted-runner target. See
+[the append experiment](VALIDATION_PROFILE.md#persistent-array-append-experiment--2026-09-28)
+for every trial, the ownership tradeoff and the unchanged validation corpus.
+
+Prioritize unit and bootstrap costs during this follow-up.
+The native harness preserves process bounds, archive/installation checks and
+runner fault injection; profile repeated compilation without dropping evidence.
+The initial isolated native harness passed in 33 seconds against its 15-second
+warning budget.
+The seed-refresh gate adds isolated compiler stages to the bootstrap phase;
+profile that cost separately and preserve its digest, fixed-point and failure
+evidence when reducing repeated compilation. Keep the existing phase and total
+budgets and record refresh-migration timings in its PR. The
+new native oracle target retains the full program corpus under sanitizers and
+coverage; profile its compilation work and reuse verified artifacts without
+removing observations. The 15-second unit and 120-second clean-check budgets
+remain unchanged. The first oracle-retirement check passed in 129 seconds
+(unit 94, functional 26, bootstrap 7); unit and total warnings remain. Record
+final ordinary and instrumented measurements in the migration PR.
+
+The resolver migration exposed the compiler fixture's 20-second subprocess
+limit on this environment: unchanged compiler source execution succeeded in
+21.8 seconds when measured separately, while the first full run failed its
+source and compile commands. These two compiler-building commands now use the
+existing compiler-driver build allowance of 90 seconds; ordinary fixture
+commands and phase warning budgets are unchanged. The failed run took 183
+seconds overall (unit 171). Profile compiler self-compilation as part of the
+prioritized timing work; increasing a command allowance is not a speed fix.
+
+The September 2026 clean local check after the lexer unit migration took 125
+seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
+Profile the native unit harness and build/bootstrap on this
+environment while retaining all compiler unit assertions. CI timings remain
+the reference for the cross-platform validation budget.
+The host milestone adds process and filesystem boundary cases without
+changing the 15/120-second budgets. Profile native oracle runs and
+byte-exact host process assertions if the warning persists; keep all failure
+cases and sanitizer coverage.
+The VM milestone adds portable execution/loader and native-wrapper probes.
+Its local focused `make check-vm` passed in 48 seconds against the 15-second
+budget in the historical measurement, which included the then-active
+differential tests. Keep process-launch and fixture-decoding costs in the same prioritized
+unit-budget investigation; the 120/15-second targets are unchanged.
+The bytecode milestone adds two portable codec/native command probes; a local
+focused check took 19 seconds against its 15-second warning budget. Profile
+fixture decoding, redundant process launches and native oracle work
+without dropping malformed inputs or changing the timing budgets.
+
+The unit timer now includes all seven Panackelty compiler probes as well as
+the native unit tests. Keep their compilation and execution cost visible
+when profiling the existing unit-budget warning. The final compiler migration
+adds a direct driver build, source/bytecode commands and snapshot checks; profile
+these separately from the native oracle before increasing allowances.
+
+Current environment follow-up: the September 2026 testing-library branch
+reported a 21-second unit phase against its 15-second warning threshold, also
+observed on the unmodified checkout in this environment. With the expanded
+fixture runner, clean checks observed 32–36 seconds for units and 79–84 seconds
+overall. Profile the unit phase here and address its dominant cost without
+reducing coverage; the earlier full check remained within its 120-second budget.
+The compiler `source.path` fixture raised one clean check to 177 seconds (unit
+97 seconds, functional 63 seconds). The cleanup failure unit test now selects
+one fixture, reducing the next clean unit phase to 68 seconds. Next, reuse the
+compiler result across the remaining integration checks
+without dropping the source, bytecode, or path containment assertions.
+The example migration adds twenty source and bytecode checks to each full runner
+invocation. Profile that added work as part of the same prioritized timing fix.
+The failure migration adds forty-one check and compile diagnostic pairs plus
+artifact assertions; measure the full runner and remove redundant invocations
+without weakening the new negative coverage.
+The final functional migration's first clean run took 251 seconds (unit 147,
+functional 86), with warnings at all three budgets. Its checkout-with-spaces
+unit regression redundantly reran the complete functional suite; that test now
+checks the stage-two compiler path and byte-identical output directly. Continue
+profiling the remaining sequential runner work and reuse verified artifacts
+to recover the 15/75/120-second budgets without removing assertions.
+The functional runner took 24.6 seconds and each smoke invocation repeated its
+full work (23.8 seconds for source). The functional recipe now captures one
+successful report and checks it byte-for-byte from the smoke source and saved
+bytecode; a focused run fell from about 73 to 25 seconds. Keep the standalone
+smoke path and the remaining unit/full-check timing follow-up.
+
+Validation speed is an internal nonfunctional requirement because slow feedback
+discourages frequent checking and compounds the cost of every implementation
+change. On the reference CI or development environment, a clean `make check`
+should finish within 120 seconds and a focused incremental check with an already
+built native toolchain should finish within 15 seconds. Exceeding a budget must
+produce a visible warning and a tracked follow-up rather than silently becoming
+the new baseline. Coverage must not be weakened to meet either budget.
+
+The suite reports stable per-phase and total wall-clock timings. A September
+2026 clean run after adding source locations completed its unit phase in 13
+seconds, functional phase in 80 seconds, and complete `make check` in 132
+seconds. The functional and complete phases therefore exceed their 75- and
+120-second budgets; the warnings remain visible until the regression is
+removed.
+A September 2026 macOS checkout baseline after fixing paths containing spaces
+passed 227 unit tests and 17 functional tests, but reported 322 seconds overall:
+12 seconds for unit tests, 71 for the functional phase, and 238 for bootstrap.
+Rebuilding stage 3 immediately afterwards took 37.31 seconds elapsed,
+36.55 seconds of user CPU time, and 0.60 seconds of system CPU time. The
+238-second result was not reproduced; the validation timer measures wall-clock
+time and can include host interruptions.
+
+Component-focused compiler, bytecode, and VM checks retain representative
+public-CLI coverage. CI publishes and archives each timing row.
+
+- [x] Add stable wall-clock timing for the complete suite and its unit,
+      functional, and bootstrap phases
+- [x] Emit a warning when a clean `make check` exceeds 120 seconds or a focused
+      incremental check exceeds 15 seconds
+- [x] Define fast, component-focused incremental targets that preserve the
+      relevant internal and end-to-end evidence for a change
+- [x] Run the fixed-point bootstrap proof exactly once per complete validation
+- [x] Compile the self-hosted compiler once per validation and safely reuse its
+      checked artifact across compatible functional cases
+- [x] Remove redundant semantic compilation while retaining representative
+      coverage of every public CLI workflow and failure behavior
+- [x] Record timing trends in CI so regressions are visible before they compound
+- [x] Reach both budgets without skipping, weakening, or relocating required
+      coverage outside the canonical validation workflow
+- [x] Restore the functional phase below its 75-second budget by running each
+      program's source and compiled forms in one balanced worker task,
+      parallelizing independent invalid cases, and reusing the already-verified
+      stage-2 artifact for the compiler program's compiled execution
+- [x] Recover the clean validation budgets after file-aware token and expression
+      positions increased self-hosted compiler build time, without reducing
+      fixed-point, functional, or diagnostic coverage; use repeated elapsed and
+      CPU measurements to distinguish compiler cost from host interruptions
+
+- [x] Recover the remaining Linux CI budgets after optimisation: the full
+      check fell from 134 to 38 seconds (budget 120), unit tests from 29 to 10
+      seconds (budget 15), and package bootstrap from 75 to 19 seconds (budget
+      60), retaining all coverage and cross-platform bootstrap evidence.
+
+### CI feedback improvements
+
+The Check workflow runs once per pull-request update, with pushes limited to
+`main`, and cancels superseded runs for the same PR. CI partitions the canonical
+check into shared suites without repeating focused developer checks.
+Both required platform packaging checks and their complete validation gates remain.
+
+The native VM now defaults to `-O2` with standard overridable build flags. A
+macOS compiler benchmark took 38.77 seconds without optimisation and 13.16
+seconds with `-O2`; the generated compiler artifacts were byte-identical. An
+optimised clean `make check` passed 229 unit tests and 17 functional tests in
+54 seconds, compared with the preceding 140-second local baseline. Full
+validation still includes the stage-2/stage-3 fixed-point proof. Cross-platform
+CI timings remain the measure of PR feedback speed; compiler-only benchmarks
+must not be presented as full-workflow savings.
+
+### Linux validation follow-up
+
+A unit-test profile found repeated compilation of self-hosted probes. The lexer,
+resolver, checker, purity, emitter, driver, and codec tests now compile each
+parameterised probe once per class and run every input in a fresh VM. Local unit
+validation fell from 13.50 seconds to 6.65 seconds, with all prior assertions
+retained and new regression coverage included.
+
+The native VM now records string code-point counts and ASCII metadata once,
+avoiding repeated scans for length and ASCII offsets. A paired compiler build
+measured 12.79 seconds before and 5.85 seconds after, producing byte-identical
+compiler artifacts. Hosted CI passed all three required jobs: tests in 43
+seconds, Linux packaging in 49 seconds, and macOS packaging in 63 seconds.
+The complete workflow finished in 73 seconds. Linux phase timings were 10
+seconds for units, 18 for functional validation, 9 for the remaining bootstrap
+phase, and 38 for the complete check; separate package bootstrap took 19
+seconds. Every measured phase met its budget, with no platform checks or
+fixed-point evidence skipped.

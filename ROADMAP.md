@@ -7,155 +7,286 @@ are recorded in [SELF_HOSTING.md](SELF_HOSTING.md).
 An item is complete only when its implementation, focused tests, end-to-end
 coverage, and affected documentation are complete and `make check` passes.
 
-## Deliver developer preview `0.1.0-alpha.1` — delivered
+## Priority order — reviewed 2026-09-28
 
-The immediate product goal is a public developer preview that lets a new user
-download Panackelty, put `panack` on `PATH`, and check, compile, and run a source
-file using the downloaded toolchain. The preview is
-an explicitly experimental release rather than a claim of language or bytecode
-stability.
+This is the authoritative ordering. A detailed checklist below is not a promise
+that the feature will be built next. Exploration means no implementation slot;
+completed sections and archived timings are evidence, not active tasks.
 
-The initial target matrix is Linux x86-64 and macOS arm64. Each target remains
-in the matrix only if its final downloadable artifact can be built and exercised
-on that platform in release automation. Windows, additional architectures, and
-package-manager distribution must not delay the preview.
+| Priority | Initiative | Next outcome / boundary |
+| --- | --- | --- |
+| Now | `.panack` source coverage | Design and prove trustworthy source mapping and collection, then publish a baseline for compiler, bytecode tooling and standard library |
+| Now, supporting coverage | Reconcile test evidence | Replace stale test references and classify actual missing assertions; do not mistake migrated tests for missing tests |
+| Next | Close verified correctness and safety gaps | Small risk-ranked test PRs guided by the behavior matrix and new source coverage; no arbitrary percentage target |
+| Next | Codebase readability and refactoring | Audit first, then component-sized refactors protected by relevant tests and coverage evidence |
+| Non-blocking backlog | Validation performance | Retain 120s clean / 15s focused targets and warnings; resume optimisation when feedback delays warrant it |
+| Candidate follow-up | Runtime diagnostics and source locations | Assess source-aware runtime traps/call stacks alongside coverage metadata design, without expanding it into a debugger project |
+| Candidate follow-up | Practical language/library work | Choose a representative user workflow before scheduling JSON, richer diagnostics, recursive host operations or numeric rounding |
+| Unscheduled exploration | REPL and broader language ideas | Keep ideas and design notes; no priority over testing or maintainability |
+| Delivered | Public native C coverage | Live report and deployment verification completed; `.panack` measurement remains separate |
 
-### 1. Freeze the preview contract
+Known correctness or safety defects take precedence over this ordering. Coverage
+is evidence of execution, not proof of correct assertions; keep public-CLI,
+negative-input, sanitizer, fixed-point and cross-platform checks intact.
 
-- [x] Declare the release version `0.1.0-alpha.1` and document what the `alpha`
-      stability level promises for source syntax, standard-library APIs, CLI
-      behavior, and bytecode compatibility
-- [x] Record Linux x86-64 and macOS arm64 as the initial supported targets,
-      including the oldest tested operating-system versions and the policy for
-      best-effort behavior elsewhere
-- [x] Publish the deliberately postponed language features and known test or
-      implementation limitations as preview limitations rather than implicit
-      promises
-- [x] Freeze unrelated language feature work until the preview release gates
-      below are satisfied
+### How to turn the backlog into PRs
 
-### 2. Establish the public project boundary
+- Keep one principal implementation initiative active: `.panack` measurement.
+  Documentation reconciliation and a readability audit can support it without
+  starting unrelated language features.
+- Before implementation, define scope, dependencies, explicit non-goals, failure
+  cases and acceptance evidence. A design PR may finish with a decision or a
+  bounded feasibility result rather than claiming an implemented feature.
+- Close a task only against its stated evidence. Record partial completion
+  explicitly and link follow-up work; do not infer completeness from test counts
+  or broad checklist wording such as “comprehensive”.
+- Update status when a PR ships. Keep performance experiments in
+  [the profiling report](tests/VALIDATION_PROFILE.md), behavioral evidence in
+  [the coverage matrix](tests/COVERAGE.md), and bootstrap history in
+  [the self-hosting record](SELF_HOSTING.md).
 
-- [x] Choose and add the source and binary distribution license
-- [x] Confirm that the project name, documentation, examples, and supplied
-      photograph may be published under the chosen terms
-- [x] Add concise security reporting, contribution, support, and release-notes
-      documents appropriate to an experimental compiler and native runtime
-- [x] Audit the publishable tree for secrets, personal data, local configuration,
-      generated output, accidental binaries, and material that should remain
-      private
-- [x] Ensure the license, release notes, and required notices are present in
-      both the source repository and every binary archive
+## Measure Panackelty source coverage — immediate priority
 
-### 3. Version the complete toolchain
+The public LLVM report measures the native C VM only. Existing `.panack` tests
+exercise the compiler and libraries, but there is no measured source-line or
+branch baseline for those files. Publishing C coverage did not close this gap.
 
-- [x] Define one canonical source of the Panackelty release version
-- [x] Add `panack --version` with focused and public-CLI tests, reporting the
-      release version, bytecode version, and enough build provenance to identify
-      a published artifact
-- [x] Keep version injection deterministic so the stage-2/stage-3 fixed-point
-      proof and reproducible package build remain meaningful
-- [x] Name artifacts with release, operating system, and architecture, for
-      example `panackelty-0.1.0-alpha.1-macos-arm64.tar.gz`
+The frontend already carries source positions; the emitted `FunctionCode` and
+version-8 bytecode contract currently do not carry an instruction-to-source map.
+Coverage therefore requires compiler/bytecode/VM design, not just an HTML export.
+Compare deterministic sidecar metadata with a versioned bytecode extension;
+do not assume a format change or a particular instrumentation scheme in advance.
 
-### 4. Produce download-and-run archives
+Provisional PR boundaries (split further if feasibility or review size requires):
 
-- [x] Make the installed toolchain self-contained, including the launcher,
-      native VM, compiler bytecode, standard-library modules, and resource
-      discovery outside a source checkout
-- [x] Replace the archive's installation-shaped `usr/local` root with a friendly,
-      relocatable top-level `panackelty/` directory containing `bin`, `libexec`,
-      `share`, documentation, and license files
-- [x] Build an archive independently for every supported target containing only
-      the runtime toolchain and user-facing files
-- [x] Verify that moving the extracted directory does not break compiler or
-      standard-library discovery
-- [x] Publish SHA-256 checksums and build provenance beside every archive
+1. **Coverage design and feasibility.** Inventory source-position fidelity and
+   lowering; define executable lines, functions and source branches, including
+   short-circuit expressions, match arms, loops, generated instructions, imports
+   and erased generics. Prove a small source-to-execution mapping. Decide metadata
+   identity, compatibility, validation and bootstrap implications; document
+   overhead and implementation scope before committing to an estimate.
+2. **Collection and correctness.** Implement opt-in measurement and a versioned
+   raw format, with exact expected results on small known programs. Preserve
+   ordinary outputs and semantics; test malformed/mismatched maps, disabled
+   instrumentation and traps. Aggregate across subprocesses and nested VM runs
+   without collisions, lost counts or double-counting cached test observations.
+3. **Suite integration and published baseline.** Measure the `.panack` compiler
+   while it compiles programs, bytecode tooling and standard-library execution,
+   including relevant compiler/functional/bootstrap paths. Account for unexecuted
+   eligible files, test infrastructure, generated code and intentional exclusions.
+   Publish separate source reports through the existing coordinated Pages flow,
+   with commit/source identity, suite scope, denominator and freshness visible.
+4. **Risk-ranked gap closure and regression policy.** Turn uncovered behaviors
+   into bounded test PRs; validate the assertions, not just execution counts.
+   Select per-component change/regression policy after a credible baseline exists,
+   with reviewed exclusions and no invented universal percentage requirement.
 
-### 5. Add exact-artifact release gates
+- [ ] Complete the design/feasibility decision and bound the initial scope
+- [ ] Establish independently checked source mapping and counter correctness
+- [ ] Record source-line/function coverage for the agreed `.panack` scope
+- [ ] Record source-branch coverage, or explicitly track it as unfinished if a
+      line-first increment is chosen; never substitute VM branch counts silently
+- [ ] Include subprocess/nested compiler execution and all eligible unexecuted
+      files in the aggregate, with reproducible source identities and exclusions
+- [ ] Publish separate native C and `.panack` baselines; never blend percentages
+- [ ] Demonstrate instrumented/uninstrumented semantic equivalence and record
+      runtime, memory and validation cost without weakening existing checks
+- [ ] Establish a documented regression policy and close the first verified gaps
 
-- [x] Add a release smoke test that starts from the final archive rather than
-      the source or staging installation tree
-- [x] On every supported target, unpack the archive into a fresh directory with
-      only runtime tools available and no repository checkout
-- [x] Require the unpacked toolchain to report its version and help, check a
-      source file, compile it, run source and bytecode, pass program arguments,
-      import the bundled standard library, and reject malformed bytecode
-- [x] Require `make check`, the fixed-point bootstrap proof, native conformance,
-      and the exact-artifact smoke test before a release tag can publish assets
-- [x] Make the tag-driven release workflow upload only artifacts and checksums
-      produced by successful matrix jobs
+An instrumented compiler must not accidentally change release artifacts or the
+ordinary bootstrap fixed-point contract. Decide source-map privacy/path handling,
+artifact retention and source-snapshot validation as part of the measurement
+format. A report must distinguish zero hits, excluded code, missing data and
+failed collection; partial collection must not appear as a complete green report.
 
-### 6. Make the first-user workflow usable
+## Grooming gaps and decisions — newly explicit
 
-- [x] Put a download-and-run quick start before build-from-source instructions
-      in `README.md`, covering archive selection, extraction, `PATH`, the first
-      program, checking, compilation, execution, upgrade, and removal
-- [x] Add a compact language tour that links each preview feature to a runnable
-      example and its relevant specification section
-- [x] Add at least a primary `file:line:column` location to lexer, parser, name,
-      and type diagnostics so a new user can find the reported error; richer
-      recovery across errors, stable codes, and automated fixes may
-      follow the preview
-- [x] Test the published quick start literally in a clean shell and require its
-      stated output to match
-- [x] Give preview users a clear place and template for actionable bug reports,
-      including `panack --version`, host platform, source input, and output
+These are scoped follow-ups or decisions, not authorization for every feature.
 
-### 7. Publish and verify
+| Gap or ambiguity | Evidence / consequence | Treatment |
+| --- | --- | --- |
+| Source coverage and its denominator | C coverage says nothing about which `.panack` lines or branches execute; omitted files could inflate future reports | Immediate coverage initiative above |
+| Test evidence has drifted | Matrix/backlog references include retired test paths, “both VMs”, a compiler “skeleton”, and already-implemented deterministic round trips | Audit current assertions against the matrix before declaring missing tests; retain historical fixture provenance |
+| Execution coverage versus test quality | A hit does not establish that a test would catch the wrong result | Keep an explicit assertion-quality backlog; evaluate bounded mutation or deliberately perturbed fixtures for selected high-risk behavior |
+| Runtime source diagnostics | Frontend positions exist but emitted instruction records lack source maps | Define a separate follow-up for source-aware runtime traps/call stacks; reuse coverage metadata only where semantics and validation agree |
+| Product direction and feature selection | The specification names Euler programs as its proving ground, while the roadmap explores dependable automation and many unrelated differentiators | Agree representative user programs and a next preview outcome before promoting experiments; reconcile product wording in a later scoped change |
+| Milestone exit criteria | Initial preview delivery is explicit; the next capability milestone is not | Define observable user outcomes, supported scope, compatibility implications and release evidence, rather than promising a date or a bundle of speculative features |
 
-- [x] Export the reviewed working tree into a new isolated repository without
-      the current `.git` directory, branches, tags, reflogs, remotes, or other
-      local history; keep this working repository and its history intact
-- [x] Configure publication identity and authenticate the separate personal
-      GitHub account only in that isolated repository, without changing global
-      Git configuration, the current GitHub login, or files under `~/.ssh`
-- [x] Create and inspect one clean initial commit, publish the repository, then
-      clone it into a fresh directory and run the documented contributor checks
-      plus `make package`
-- [x] Publish the annotated `0.1.0-alpha.1` tag and release only after its platform
-      matrix and exact-archive gates pass
-- [x] Download each public release asset by its published URL, verify its
-      checksum, repeat the quick start, and record the evidence in the release
-      notes
+Existing proposals already cover JSON, generic/inference extensions, host APIs,
+error quality, browser targets and contribution criteria. These are prioritisation
+choices, not newly discovered omissions. Missing package management, concurrency,
+module visibility and compatibility guarantees are explicitly deferred in the
+specification; do not promote them merely because other languages have them.
 
-The developer preview is delivered only when an unaffiliated user can follow
-the public quick start on a supported machine and reach this workflow using only
-the downloaded archive:
+## Harden and expand test coverage — in progress
 
-```sh
-panack --version
-panack check hello.panack
-panack compile hello.panack
-panack run hello.bc
-```
+The goal is to make regressions difficult to introduce and failures easy to
+localize while keeping `make check` the canonical validation command.
 
-The preview does not require Windows support, a single-file executable,
-package-manager installation, generic functions,
-new automation APIs, complete diagnostic rendering, or a backwards-compatibility
-guarantee. Those remain independent follow-up initiatives.
+- [x] Separate internal unit tests from black-box functional program tests
+- [x] Discover functional cases and example expectations without a central
+      manifest
+- [x] Inventory the behavior promised by `SPEC.md` and map it to existing tests
+- [ ] Audit success and failure assertions by language construct and runtime
+      built-in; turn verified omissions into bounded, risk-ranked test PRs
+- [x] Cover every CLI command and shorthand through end-to-end subprocess tests
+- [ ] Expand type, refinement, purity, and name-resolution diagnostic coverage
+- [ ] Exercise file, import, malformed-input, and operating-system failure paths
+- [ ] Expand malformed and adversarial bytecode verifier and VM coverage
+- [x] Establish deterministic compilation and canonical bytecode round-trip tests;
+      extend edge cases only against identified gaps
+- [x] Establish direct lexer, parser, resolver, checker, purity, emitter and
+      driver probes; this is a foundation, not proof of exhaustive behavior
+- [ ] Audit remaining compiler/library assertions and source coverage by component
+- [x] Establish and publish a native C line/branch baseline
+- [ ] Establish the separate `.panack` baseline through the priority initiative
+- [ ] Review intentional exclusions and untested host-boundary behavior explicitly
+- [x] Organize the suite so focused failures remain fast and the full suite stays
+      practical to run after every change
 
-## Interactive REPL — planned
+Testing work that is also a prerequisite for self-hosting should be reflected
+in both roadmaps when completed.
 
-Add a read-evaluate-print loop for exploring Panackelty expressions, trying
-standard-library APIs and learning the language without creating a source file
-for every experiment. Schedule this after public coverage publication
-and implement it with the existing toolchain.
+### Publish public native C coverage reports — complete
 
-- [ ] Specify the entry command (for example `panack repl`), expression result
-      display, multiline input and incomplete-input detection
-- [ ] Define session semantics for bindings, functions, imports, mutation and
-      redefinition, including what state survives compilation or runtime errors
-- [ ] Compile interactive input to bytecode and execute it through the existing
-      native VM, preserving exact numerics, static checks and purity/effect
-      boundaries; do not introduce a separate evaluation engine
-- [ ] Provide useful diagnostics and session commands for help, reset and exit;
-      define interrupt, EOF, history and noninteractive-input behavior
-- [ ] Add transcript and failure-recovery tests covering state across inputs,
-      multiline definitions, imports, type/purity errors, runtime traps and
-      interruption on both supported platforms
-- [ ] Document the workflow and ship the REPL in the standalone toolchain,
-      with packaging and release smoke coverage
+The native VM's LLVM line and branch coverage remains uploaded as a CI
+artifact. The coordinated Pages publisher makes the HTML report available at
+`https://panackelty.com/coverage/`, so readers can open it directly without
+visiting an Actions run or downloading and extracting an archive. PR #81 merged
+as `52fb0d7`; its main validation and Pages build, deployment and live verification
+all passed on 2026-09-28. The published report is native C coverage only: 87.43%
+lines, 80.65% branches and 100% functions; it is not a `.panack` baseline.
+
+- [x] Implement publication of the successful `main` build's native coverage HTML and summary
+      through the project's existing GitHub Pages site, with source commit,
+      generation date and an explicit label that this covers the native C VM,
+      not the self-hosted compiler or the entire language
+- [x] Keep the website and coverage deployment coordinated so a normal site
+      update cannot erase the latest report and a report update cannot replace
+      the site with stale content; publish only from trusted, successful builds
+- [x] Link the stable report from the site and README, add deployment checks for
+      its entry page and relative source-navigation links, and keep the existing
+      downloadable CI artifact for debugging
+- [x] Document how publication failures and stale results appear, and ensure
+      release and PR workflows cannot publish an unreviewed coverage site
+- [x] Confirm the first merged `main` run publishes successfully and passes the
+      live entry-page, source-navigation and provenance checks
+
+## Codebase-wide human readability and refactoring — planned
+
+Extend the native VM readability cleanup across all project code, including
+the compiler, bytecode tooling, runtime, standard library, bootstrap code,
+CLI, build and CI scripts, and test harnesses. Make the code straightforward
+for a human maintainer to read, navigate and change. Start with an audit, then
+refactor in component-sized PRs after establishing
+relevant test evidence and the source-coverage baseline. The REPL is not a
+prerequisite; do not mix feature changes into readability refactors.
+
+- [ ] Audit each component for dense or oversized functions, unclear names,
+      duplicated logic, hidden dependencies and obsolete code; record a scoped
+      refactoring sequence using the native VM cleanup as the model.
+- [ ] Split responsibilities into cohesive modules and small, clearly named
+      functions; make interfaces, data flow, ownership and error handling
+      explicit, with consistent formatting and comments explaining non-obvious
+      decisions and invariants.
+- [ ] Remove obsolete code and unnecessary duplication, keeping any required
+      bootstrap distinctions explicit; update architecture and component
+      documentation alongside each refactor.
+- [ ] Preserve observable behavior, exact numeric semantics, purity, bytecode
+      safety and bootstrap reproducibility. Retain all existing assertions,
+      add meaningful regression coverage where gaps are found, and validate
+      each scoped refactor with `make check` and applicable sanitizer/platform
+      gates; measure and avoid validation or runtime performance regressions.
+
+## Native VM readability and test hardening
+
+- [x] Decompose native decoding, verification, values, arithmetic, execution,
+      builtins and host services into separately compiled modules.
+- [x] Put shared declarations in self-contained headers, retain private local
+      types, name wire opcodes, and document ownership and formatting conventions.
+- [x] Add direct module ownership, cleanup, builtin registry and header checks,
+      deterministic decoder mutations, and an isolated sanitizer target.
+- [x] Sweep allocation failures across representative decoding, values, frames,
+      exact arithmetic, nested execution and host operations; assert cleanup.
+- [x] Add rich deterministic bytecode mutations, persistent ownership sequences,
+      numeric boundary properties and selected host syscall failures.
+- [x] Run native sanitizers in CI and publish LLVM line/branch coverage reports.
+- [ ] Extend coverage-guided decoder fuzzing, host syscall/errno combinations,
+      rendering and nested-execution branch coverage, and longer ownership runs;
+      retain exact arithmetic, purity and runtime trap conformance throughout.
+
+Manual release initiation retains the full validation gates. Keep its metadata
+controls in the existing harness; retain timing warnings and the non-blocking
+performance backlog without weakening release tests.
+## Keep validation within development budgets — non-blocking backlog
+
+Retain timing warnings and strong coverage. This work no longer blocks source
+coverage, test hardening or readability work; the REPL has no scheduled slot.
+
+| Measurement | Latest recorded evidence | Outstanding issue |
+| --- | --- | --- |
+| Full cold hosted CI | Five follow-up runs: 88/106/107/103/97s, median 103s | Hosted scheduling/completion has no proven hard upper bound |
+| Local clean check, append experiment | 107s | Environment-specific result, not a universal guarantee |
+| Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
+| Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
+
+- [ ] Revisit compiler/nested-runner and collection costs when the developer
+      feedback delay justifies it; use current measurements before changing code
+- [ ] Keep runner queue/completion tails distinct from actual execution time
+- [ ] Demonstrate the 120s clean and 15s focused budgets on named reference
+      environments; never remove tests, widen budgets or hide failing samples
+- [ ] Preserve per-phase timing, standalone target behavior, sanitizer evidence,
+      exact-artifact release checks and isolated bootstrap proofs
+
+The docs-only route, shared validated probes, bounded workers, CI partitioning
+and LLVM setup improvements are delivered. Earlier “budget reached” statements
+were true of their recorded snapshots, not completion of today's open targets.
+Historical observations and the detailed optimisation sequence are retained in
+[the profiling report](tests/VALIDATION_PROFILE.md#archived-roadmap-performance-history--2026-09-28).
+
+## Expand automation and host capabilities — foundation delivered; extensions unscheduled
+
+Panackelty should gain the general host capabilities needed by dependable
+automation programs. These APIs
+must be useful outside the test harness, remain visibly effectful, behave
+predictably across supported platforms, and expose structured failures rather
+than test-specific shortcuts. Logical standard-library imports are a
+prerequisite so programs can use these APIs without knowing repository paths.
+
+- [x] Specify a coherent process API for executable selection, arguments,
+      standard input, working directory, environment overrides, exit status,
+      and captured standard output and error
+- [x] Make process streams byte-oriented with explicit checked UTF-8 decoding,
+      define resource and output limits, and prevent deadlocks when both output
+      streams are active
+- [ ] Specify portable directory enumeration, directory creation, file metadata,
+      removal, and recursive operations with deterministic ordering and clear
+      symbolic-link and failure behavior; immediate enumeration, one-level
+      creation, metadata, and nonrecursive removal are implemented, while
+      recursive operations remain deferred
+- [x] Add collision-safe temporary-file and temporary-directory creation with
+      explicit ownership, cleanup, and failure semantics
+- [x] Separate wall-clock time from a monotonic elapsed-time API suitable for
+      validation budgets and performance measurements
+- [ ] Define the supported-platform and capability policy for behavior such as
+      permissions that cannot be represented consistently on every host; do not
+      add a universal operation solely for a platform-specific test
+- [x] Implement the accepted host boundary in the native VM; retain the fixed
+      independent expectations from the retired differential-validation workflow
+- [x] Add typed standard-library wrappers that keep all process, filesystem,
+      temporary-resource, and clock operations effectful
+- [ ] Extend focused, cross-platform, and public-CLI conformance coverage, including
+      large simultaneous process streams, invalid UTF-8, missing executables,
+      environment and working-directory isolation, cleanup failures, path
+      traversal, resource limits, and monotonic timing; the initial suite covers
+      streams, isolation, temporary cleanup, bounds, and failure categories;
+      exhaustive injected host failures and traversal coverage remain pending
+- [x] Build a small Panackelty testing library with assertions, structured test
+      results, fixture discovery, temporary isolation, command assertions, and
+      deterministic reporting for automated validation; the three
+      explicitly imported modules now cover pure assertions and ordered reports,
+      sorted immediate fixture directories and explicitly owned workspaces,
+      plus bounded byte-exact command assertions and expected host errors.
 
 ## Language direction and differentiation — exploration
 
@@ -684,6 +815,162 @@ representative program, a written semantics proposal, implementation and
 maintenance estimates, and evidence that it strengthens Panackelty's identity more
 than an ordinary library would.
 
+## Interactive REPL — low-priority exploration
+
+Add a read-evaluate-print loop for exploring Panackelty expressions, trying
+standard-library APIs and learning the language without creating a source file
+for every experiment. This is an idea with no implementation slot or dependency
+claim on other work. Reconsider only when a concrete user workflow justifies it;
+if accepted, use the existing toolchain.
+
+- [ ] Specify the entry command (for example `panack repl`), expression result
+      display, multiline input and incomplete-input detection
+- [ ] Define session semantics for bindings, functions, imports, mutation and
+      redefinition, including what state survives compilation or runtime errors
+- [ ] Compile interactive input to bytecode and execute it through the existing
+      native VM, preserving exact numerics, static checks and purity/effect
+      boundaries; do not introduce a separate evaluation engine
+- [ ] Provide useful diagnostics and session commands for help, reset and exit;
+      define interrupt, EOF, history and noninteractive-input behavior
+- [ ] Add transcript and failure-recovery tests covering state across inputs,
+      multiline definitions, imports, type/purity errors, runtime traps and
+      interruption on both supported platforms
+- [ ] Document the workflow and ship the REPL in the standalone toolchain,
+      with packaging and release smoke coverage
+
+## Delivered milestones — historical detail
+
+The sections below record completed scope. Unfinished extensions are scheduled
+only by the priority table above, not by their position in this history.
+
+## Deliver developer preview `0.1.0-alpha.1` — delivered
+
+The delivered initial product goal was a public developer preview that lets a new user
+download Panackelty, put `panack` on `PATH`, and check, compile, and run a source
+file using the downloaded toolchain. The preview is
+an explicitly experimental release rather than a claim of language or bytecode
+stability.
+
+The initial target matrix is Linux x86-64 and macOS arm64. Each target remains
+in the matrix only if its final downloadable artifact can be built and exercised
+on that platform in release automation. Windows, additional architectures, and
+package-manager distribution must not delay the preview.
+
+### 1. Freeze the preview contract
+
+- [x] Declare the release version `0.1.0-alpha.1` and document what the `alpha`
+      stability level promises for source syntax, standard-library APIs, CLI
+      behavior, and bytecode compatibility
+- [x] Record Linux x86-64 and macOS arm64 as the initial supported targets,
+      including the oldest tested operating-system versions and the policy for
+      best-effort behavior elsewhere
+- [x] Publish the deliberately postponed language features and known test or
+      implementation limitations as preview limitations rather than implicit
+      promises
+- [x] Freeze unrelated language feature work until the preview release gates
+      below are satisfied
+
+### 2. Establish the public project boundary
+
+- [x] Choose and add the source and binary distribution license
+- [x] Confirm that the project name, documentation, examples, and supplied
+      photograph may be published under the chosen terms
+- [x] Add concise security reporting, contribution, support, and release-notes
+      documents appropriate to an experimental compiler and native runtime
+- [x] Audit the publishable tree for secrets, personal data, local configuration,
+      generated output, accidental binaries, and material that should remain
+      private
+- [x] Ensure the license, release notes, and required notices are present in
+      both the source repository and every binary archive
+
+### 3. Version the complete toolchain
+
+- [x] Define one canonical source of the Panackelty release version
+- [x] Add `panack --version` with focused and public-CLI tests, reporting the
+      release version, bytecode version, and enough build provenance to identify
+      a published artifact
+- [x] Keep version injection deterministic so the stage-2/stage-3 fixed-point
+      proof and reproducible package build remain meaningful
+- [x] Name artifacts with release, operating system, and architecture, for
+      example `panackelty-0.1.0-alpha.1-macos-arm64.tar.gz`
+
+### 4. Produce download-and-run archives
+
+- [x] Make the installed toolchain self-contained, including the launcher,
+      native VM, compiler bytecode, standard-library modules, and resource
+      discovery outside a source checkout
+- [x] Replace the archive's installation-shaped `usr/local` root with a friendly,
+      relocatable top-level `panackelty/` directory containing `bin`, `libexec`,
+      `share`, documentation, and license files
+- [x] Build an archive independently for every supported target containing only
+      the runtime toolchain and user-facing files
+- [x] Verify that moving the extracted directory does not break compiler or
+      standard-library discovery
+- [x] Publish SHA-256 checksums and build provenance beside every archive
+
+### 5. Add exact-artifact release gates
+
+- [x] Add a release smoke test that starts from the final archive rather than
+      the source or staging installation tree
+- [x] On every supported target, unpack the archive into a fresh directory with
+      only runtime tools available and no repository checkout
+- [x] Require the unpacked toolchain to report its version and help, check a
+      source file, compile it, run source and bytecode, pass program arguments,
+      import the bundled standard library, and reject malformed bytecode
+- [x] Require `make check`, the fixed-point bootstrap proof, native conformance,
+      and the exact-artifact smoke test before a release tag can publish assets
+- [x] Make the tag-driven release workflow upload only artifacts and checksums
+      produced by successful matrix jobs
+
+### 6. Make the first-user workflow usable
+
+- [x] Put a download-and-run quick start before build-from-source instructions
+      in `README.md`, covering archive selection, extraction, `PATH`, the first
+      program, checking, compilation, execution, upgrade, and removal
+- [x] Add a compact language tour that links each preview feature to a runnable
+      example and its relevant specification section
+- [x] Add at least a primary `file:line:column` location to lexer, parser, name,
+      and type diagnostics so a new user can find the reported error; richer
+      recovery across errors, stable codes, and automated fixes may
+      follow the preview
+- [x] Test the published quick start literally in a clean shell and require its
+      stated output to match
+- [x] Give preview users a clear place and template for actionable bug reports,
+      including `panack --version`, host platform, source input, and output
+
+### 7. Publish and verify
+
+- [x] Export the reviewed working tree into a new isolated repository without
+      the current `.git` directory, branches, tags, reflogs, remotes, or other
+      local history; keep this working repository and its history intact
+- [x] Configure publication identity and authenticate the separate personal
+      GitHub account only in that isolated repository, without changing global
+      Git configuration, the current GitHub login, or files under `~/.ssh`
+- [x] Create and inspect one clean initial commit, publish the repository, then
+      clone it into a fresh directory and run the documented contributor checks
+      plus `make package`
+- [x] Publish the annotated `0.1.0-alpha.1` tag and release only after its platform
+      matrix and exact-archive gates pass
+- [x] Download each public release asset by its published URL, verify its
+      checksum, repeat the quick start, and record the evidence in the release
+      notes
+
+The developer preview is delivered only when an unaffiliated user can follow
+the public quick start on a supported machine and reach this workflow using only
+the downloaded archive:
+
+```sh
+panack --version
+panack check hello.panack
+panack compile hello.panack
+panack run hello.bc
+```
+
+The preview does not require Windows support, a single-file executable,
+package-manager installation, generic functions,
+new automation APIs, complete diagnostic rendering, or a backwards-compatibility
+guarantee. Those remain independent follow-up initiatives.
+
 ## Ergonomic control flow and collection APIs — complete
 
 The algorithm examples show several places where the language's surface syntax
@@ -770,50 +1057,6 @@ project root is the entry source file's directory.
       project-local imports, installed layouts, ambiguity and shadowing, missing
       modules, invalid paths, cycles, and source/bytecode execution
 
-## Expand automation and host capabilities — in progress
-
-Panackelty should gain the general host capabilities needed by dependable
-automation programs. These APIs
-must be useful outside the test harness, remain visibly effectful, behave
-predictably across supported platforms, and expose structured failures rather
-than test-specific shortcuts. Logical standard-library imports are a
-prerequisite so programs can use these APIs without knowing repository paths.
-
-- [x] Specify a coherent process API for executable selection, arguments,
-      standard input, working directory, environment overrides, exit status,
-      and captured standard output and error
-- [x] Make process streams byte-oriented with explicit checked UTF-8 decoding,
-      define resource and output limits, and prevent deadlocks when both output
-      streams are active
-- [ ] Specify portable directory enumeration, directory creation, file metadata,
-      removal, and recursive operations with deterministic ordering and clear
-      symbolic-link and failure behavior; immediate enumeration, one-level
-      creation, metadata, and nonrecursive removal are implemented, while
-      recursive operations remain deferred
-- [x] Add collision-safe temporary-file and temporary-directory creation with
-      explicit ownership, cleanup, and failure semantics
-- [x] Separate wall-clock time from a monotonic elapsed-time API suitable for
-      validation budgets and performance measurements
-- [ ] Define the supported-platform and capability policy for behavior such as
-      permissions that cannot be represented consistently on every host; do not
-      add a universal operation solely for a platform-specific test
-- [x] Implement the accepted host boundary in the native VM and every
-      transitional runtime still required for differential validation
-- [x] Add typed standard-library wrappers that keep all process, filesystem,
-      temporary-resource, and clock operations effectful
-- [ ] Add focused, cross-runtime, and public-CLI conformance coverage, including
-      large simultaneous process streams, invalid UTF-8, missing executables,
-      environment and working-directory isolation, cleanup failures, path
-      traversal, resource limits, and monotonic timing; the initial suite covers
-      streams, isolation, temporary cleanup, bounds, and failure categories;
-      exhaustive injected host failures and traversal coverage remain pending
-- [x] Build a small Panackelty testing library with assertions, structured test
-      results, fixture discovery, temporary isolation, command assertions, and
-      deterministic reporting for automated validation; the three
-      explicitly imported modules now cover pure assertions and ordered reports,
-      sorted immediate fixture directories and explicitly owned workspaces,
-      plus bounded byte-exact command assertions and expected host errors.
-
 ## Self-hosted development toolchain — complete
 
 The compiler and test probes run on the native VM. Shell harnesses cover build,
@@ -826,342 +1069,6 @@ for suite ownership and commands.
 functional checks, bootstrap, conformance, packaging and release smoke with an
 allowlisted `PATH`. Both supported platforms run this proof across five clean
 CI partitions, sharing canonical test targets.
-
-## Keep validation within development budgets — in progress
-
-**Non-blocking backlog:** CI now has a 103-second median and the latest clean
-local check takes 107 seconds. Defer further focused-check optimisation while
-publishing public coverage reports, then progressing the REPL. Keep the
-15-second focused target, existing timing warnings and measured misses visible;
-revisit optimisation when feedback delays become disruptive.
-The public-coverage publication checkout passed a clean local `make check` in
-145 seconds (unit 99s, functional 1s, bootstrap 37s) on September 28. This
-environment still exceeds the clean and unit budgets; retain those warnings
-as backlog evidence, not a blocker for publishing existing coverage.
-Strong coverage remains more important than speed;
-do not drop assertions, failure cases, sanitizer checks or platform gates,
-move required coverage out of canonical validation, or widen timing budgets.
-
-The current pipeline optimisation separates the sanitizer corpus into VM,
-oracle, and nested-runner jobs, overlaps harness/compiler validation in one
-three-worker job, schedules long compiler probes first, and overlaps independent
-runtime probes. Native conformance runs independent programs through two
-isolated workers; ordinary fixed-point and isolated seed-refresh proofs overlap
-without sharing their stages. The macOS matrix retains five jobs to avoid runner queueing.
-Five cold full runs now have a 103-second median, down from 148 seconds,
-including classification, queue/setup and required result gates. Four finished
-below two minutes; the 123-second outlier included a Linux runtime job
-starting 52 seconds into the run. Median summed runner time fell 16.5%, with every baseline test
-observation retained and an identical native coverage summary. See
-[the complete profiling evidence](tests/VALIDATION_PROFILE.md).
-
-- [x] Bring the median full cold pipeline below two minutes with all validation
-      and platform gates retained; record all five runs, including the outlier
-- [ ] Investigate hosted-runner queue tails before treating 120 seconds as an
-      upper bound: one of five runs still took 123 seconds. Keep that timing
-      miss visible rather than presenting only the four faster runs.
-      The follow-up also separates job completion delays from queue and step
-      time, and removes redundant LLVM metapackage installation from coverage.
-      Five follow-up cold runs pass in 88/106/107/103/97 seconds (103s median),
-      with identical native coverage. This sample does not establish a hard
-      upper bound on hosted-runner scheduling or completion delays. See
-      [the reliability follow-up](tests/VALIDATION_PROFILE.md#pipeline-scheduling-and-coverage-setup--2026-09-28).
-
-The focused VM investigation at merged PR #76 records a 26.219-second local
-cached median and 36.338-second median after a test-source edit. Hosted cached
-checks took 45s on Linux and 52s on macOS in one profile pair per platform.
-The nested functional runner dominates, and a short compiler CPU sample points
-to collection copying and release work. Prioritize persistent array append
-allocation/copying while preserving aliases and failure behavior; keep the
-broad probe fingerprint intact until dependency completeness can be proved.
-See [the focused investigation](tests/VALIDATION_PROFILE.md#focused-vm-check-investigation--2026-09-28)
-for all trials, measurement limits and the optimisation PR acceptance criteria.
-
-- [x] Refresh the focused VM baseline with repeated unchanged and source-edit
-      runs, component CPU measurements and a hosted platform cross-check
-- [ ] Reduce measured collection-copying costs in compiler execution; preserve
-      persistent values and add ownership/failure regressions before claiming
-      a focused-check improvement
-
-The historical CI baseline from PR #64 is 275 seconds for `make check`:
-169 seconds for units, 42 for functional tests and 59 for bootstrap. Use fresh
-measurements of the current toolchain to guide validation improvements.
-
-The initial isolated local check passed in 239 seconds: units took
-146 seconds, functional tests 37 seconds and bootstrap 50 seconds. This is a
-local baseline, not a comparison with CI hardware. Later work records a clean
-117-second local check; the full-unit warning and focused-VM timing follow-up
-remain open. Preserve every assertion when investigating the remaining cost.
-
-- [x] Profile clean and incremental validation on Linux and macOS, separating
-      native builds, probe compilation, subprocess overhead and bootstrap stages
-- [x] Make CI validation proportional to the change. Roadmap and other purely
-      informational documentation edits should run lightweight document/link
-      checks without rebuilding the compiler or running the full test,
-      packaging, sanitizer and coverage suites. Classify changes conservatively:
-      documents used as executable fixtures or packaged inputs (including the
-      README quick start), specification changes, mixed code/document changes,
-      and validation/workflow changes must retain the relevant behavioral and
-      release gates; unknown impact must fall back to full validation
-- [x] Keep a stable required CI result for both lightweight and full validation,
-      so documentation-only PRs can merge promptly without bypassing protection
-      or waiting for checks that do not apply. Test change classification,
-      including additions, deletions, renames and mixed changes, and document
-      which gates each class requires; retain full release validation
-- [x] Reuse compiled probes using complete source/toolchain content keys, verify
-      cached artifact digests, share one successful runner observation within
-      each canonical check, and run independent probes with bounded workers
-      while preserving assertions and instrumented corpus execution
-- [x] Partition CI across compiler/harness, runtime/functional, bootstrap and
-      native conformance jobs on both packaging platforms; run sanitizers and
-      coverage independently, retaining stable aggregate gates and every proof
-- [x] Demonstrate full cold CI below three minutes across repeated hosted runs,
-      tracking queue/setup overhead and total runner time as well as elapsed
-      duration: final runs took 2m20s and 2m28s versus 6m48s, with 3–8% more
-      raw runner time. Later September 28 work reaches a 103-second median
-      with lower runner time; the recorded queue-delay outlier remains a follow-up
-- [ ] Reduce the remaining standalone VM-runner and compiler-build costs. The
-      September 2026 macOS comparison reduced clean checks from 176s to 127s
-      with two workers (123s with four), still above the 120s target. The full
-      unit phase also retains its warning. Prioritize the measured remaining
-      work without weakening standalone targets or isolated bootstrap proofs;
-      see `tests/VALIDATION_PROFILE.md` for warm timings and coverage comparison
-- [ ] Demonstrate clean `make check` within 120 seconds and focused incremental
-      checks within 15 seconds on the reference environments; retain visible
-      per-phase timing, warnings and CI reports to catch future regressions
-
-Informational-only changes now use lightweight documentation/local-file-link
-checks through an explicit conservative allowlist. Existing named check results
-remain present and fail if routing or documentation checking fails. Full code,
-packaging, sanitizer, coverage and release gates remain for relevant changes.
-See [change-aware CI](tests/README.md#change-aware-ci) for the exact boundary.
-
-Detailed opt-in profiling now separates native builds, harness groups, source
-probes and bootstrap stages. Both packaging platforms retain clean suite
-profiles, while a separate targeted workflow records focused warm checks.
-See [the profiling report](tests/VALIDATION_PROFILE.md) for evidence and the
-next measured investigations. This instrumentation does not claim a speed fix.
-
-The persistent-array append optimisation reduces the measured local cached VM
-median from 26.219s to 25.598s and the test-source-edit median from 36.338s to
-32.993s. A clean full check passes in 107s. The focused 15-second target remains
-open; these measurements do not establish a hosted-runner target. See
-[the append experiment](tests/VALIDATION_PROFILE.md#persistent-array-append-experiment--2026-09-28)
-for every trial, the ownership tradeoff and the unchanged validation corpus.
-
-Prioritize unit and bootstrap costs during this follow-up.
-The native harness preserves process bounds, archive/installation checks and
-runner fault injection; profile repeated compilation without dropping evidence.
-The initial isolated native harness passed in 33 seconds against its 15-second
-warning budget.
-The seed-refresh gate adds isolated compiler stages to the bootstrap phase;
-profile that cost separately and preserve its digest, fixed-point and failure
-evidence when reducing repeated compilation. Keep the existing phase and total
-budgets and record refresh-migration timings in its PR. The
-new native oracle target retains the full program corpus under sanitizers and
-coverage; profile its compilation work and reuse verified artifacts without
-removing observations. The 15-second unit and 120-second clean-check budgets
-remain unchanged. The first oracle-retirement check passed in 129 seconds
-(unit 94, functional 26, bootstrap 7); unit and total warnings remain. Record
-final ordinary and instrumented measurements in the migration PR.
-
-The resolver migration exposed the compiler fixture's 20-second subprocess
-limit on this environment: unchanged compiler source execution succeeded in
-21.8 seconds when measured separately, while the first full run failed its
-source and compile commands. These two compiler-building commands now use the
-existing compiler-driver build allowance of 90 seconds; ordinary fixture
-commands and phase warning budgets are unchanged. The failed run took 183
-seconds overall (unit 171). Profile compiler self-compilation as part of the
-prioritized timing work; increasing a command allowance is not a speed fix.
-
-The September 2026 clean local check after the lexer unit migration took 125
-seconds (120-second budget); its unit phase took 71 seconds (15-second budget).
-Profile the native unit harness and build/bootstrap on this
-environment while retaining all compiler unit assertions. CI timings remain
-the reference for the cross-platform validation budget.
-The host milestone adds process and filesystem boundary cases without
-changing the 15/120-second budgets. Profile native oracle runs and
-byte-exact host process assertions if the warning persists; keep all failure
-cases and sanitizer coverage.
-The VM milestone adds portable execution/loader and native-wrapper probes.
-Its local focused `make check-vm` passed in 48 seconds against the 15-second
-budget in the historical measurement, which included the then-active
-differential tests. Keep process-launch and fixture-decoding costs in the same prioritized
-unit-budget investigation; the 120/15-second targets are unchanged.
-The bytecode milestone adds two portable codec/native command probes; a local
-focused check took 19 seconds against its 15-second warning budget. Profile
-fixture decoding, redundant process launches and native oracle work
-without dropping malformed inputs or changing the timing budgets.
-
-The unit timer now includes all seven Panackelty compiler probes as well as
-the native unit tests. Keep their compilation and execution cost visible
-when profiling the existing unit-budget warning. The final compiler migration
-adds a direct driver build, source/bytecode commands and snapshot checks; profile
-these separately from the native oracle before increasing allowances.
-
-Current environment follow-up: the September 2026 testing-library branch
-reported a 21-second unit phase against its 15-second warning threshold, also
-observed on the unmodified checkout in this environment. With the expanded
-fixture runner, clean checks observed 32–36 seconds for units and 79–84 seconds
-overall. Profile the unit phase here and address its dominant cost without
-reducing coverage; the earlier full check remained within its 120-second budget.
-The compiler `source.path` fixture raised one clean check to 177 seconds (unit
-97 seconds, functional 63 seconds). The cleanup failure unit test now selects
-one fixture, reducing the next clean unit phase to 68 seconds. Next, reuse the
-compiler result across the remaining integration checks
-without dropping the source, bytecode, or path containment assertions.
-The example migration adds twenty source and bytecode checks to each full runner
-invocation. Profile that added work as part of the same prioritized timing fix.
-The failure migration adds forty-one check and compile diagnostic pairs plus
-artifact assertions; measure the full runner and remove redundant invocations
-without weakening the new negative coverage.
-The final functional migration's first clean run took 251 seconds (unit 147,
-functional 86), with warnings at all three budgets. Its checkout-with-spaces
-unit regression redundantly reran the complete functional suite; that test now
-checks the stage-two compiler path and byte-identical output directly. Continue
-profiling the remaining sequential runner work and reuse verified artifacts
-to recover the 15/75/120-second budgets without removing assertions.
-The functional runner took 24.6 seconds and each smoke invocation repeated its
-full work (23.8 seconds for source). The functional recipe now captures one
-successful report and checks it byte-for-byte from the smoke source and saved
-bytecode; a focused run fell from about 73 to 25 seconds. Keep the standalone
-smoke path and the remaining unit/full-check timing follow-up.
-
-Validation speed is an internal nonfunctional requirement because slow feedback
-discourages frequent checking and compounds the cost of every implementation
-change. On the reference CI or development environment, a clean `make check`
-should finish within 120 seconds and a focused incremental check with an already
-built native toolchain should finish within 15 seconds. Exceeding a budget must
-produce a visible warning and a tracked follow-up rather than silently becoming
-the new baseline. Coverage must not be weakened to meet either budget.
-
-The suite reports stable per-phase and total wall-clock timings. A September
-2026 clean run after adding source locations completed its unit phase in 13
-seconds, functional phase in 80 seconds, and complete `make check` in 132
-seconds. The functional and complete phases therefore exceed their 75- and
-120-second budgets; the warnings remain visible until the regression is
-removed.
-A September 2026 macOS checkout baseline after fixing paths containing spaces
-passed 227 unit tests and 17 functional tests, but reported 322 seconds overall:
-12 seconds for unit tests, 71 for the functional phase, and 238 for bootstrap.
-Rebuilding stage 3 immediately afterwards took 37.31 seconds elapsed,
-36.55 seconds of user CPU time, and 0.60 seconds of system CPU time. The
-238-second result was not reproduced; the validation timer measures wall-clock
-time and can include host interruptions.
-
-Component-focused compiler, bytecode, and VM checks retain representative
-public-CLI coverage. CI publishes and archives each timing row.
-
-- [x] Add stable wall-clock timing for the complete suite and its unit,
-      functional, and bootstrap phases
-- [x] Emit a warning when a clean `make check` exceeds 120 seconds or a focused
-      incremental check exceeds 15 seconds
-- [x] Define fast, component-focused incremental targets that preserve the
-      relevant internal and end-to-end evidence for a change
-- [x] Run the fixed-point bootstrap proof exactly once per complete validation
-- [x] Compile the self-hosted compiler once per validation and safely reuse its
-      checked artifact across compatible functional cases
-- [x] Remove redundant semantic compilation while retaining representative
-      coverage of every public CLI workflow and failure behavior
-- [x] Record timing trends in CI so regressions are visible before they compound
-- [x] Reach both budgets without skipping, weakening, or relocating required
-      coverage outside the canonical validation workflow
-- [x] Restore the functional phase below its 75-second budget by running each
-      program's source and compiled forms in one balanced worker task,
-      parallelizing independent invalid cases, and reusing the already-verified
-      stage-2 artifact for the compiler program's compiled execution
-- [x] Recover the clean validation budgets after file-aware token and expression
-      positions increased self-hosted compiler build time, without reducing
-      fixed-point, functional, or diagnostic coverage; use repeated elapsed and
-      CPU measurements to distinguish compiler cost from host interruptions
-
-- [x] Recover the remaining Linux CI budgets after optimisation: the full
-      check fell from 134 to 38 seconds (budget 120), unit tests from 29 to 10
-      seconds (budget 15), and package bootstrap from 75 to 19 seconds (budget
-      60), retaining all coverage and cross-platform bootstrap evidence.
-
-### CI feedback improvements
-
-The Check workflow runs once per pull-request update, with pushes limited to
-`main`, and cancels superseded runs for the same PR. CI partitions the canonical
-check into shared suites without repeating focused developer checks.
-Both required platform packaging checks and their complete validation gates remain.
-
-The native VM now defaults to `-O2` with standard overridable build flags. A
-macOS compiler benchmark took 38.77 seconds without optimisation and 13.16
-seconds with `-O2`; the generated compiler artifacts were byte-identical. An
-optimised clean `make check` passed 229 unit tests and 17 functional tests in
-54 seconds, compared with the preceding 140-second local baseline. Full
-validation still includes the stage-2/stage-3 fixed-point proof. Cross-platform
-CI timings remain the measure of PR feedback speed; compiler-only benchmarks
-must not be presented as full-workflow savings.
-
-### Linux validation follow-up
-
-A unit-test profile found repeated compilation of self-hosted probes. The lexer,
-resolver, checker, purity, emitter, driver, and codec tests now compile each
-parameterised probe once per class and run every input in a fresh VM. Local unit
-validation fell from 13.50 seconds to 6.65 seconds, with all prior assertions
-retained and new regression coverage included.
-
-The native VM now records string code-point counts and ASCII metadata once,
-avoiding repeated scans for length and ASCII offsets. A paired compiler build
-measured 12.79 seconds before and 5.85 seconds after, producing byte-identical
-compiler artifacts. Hosted CI passed all three required jobs: tests in 43
-seconds, Linux packaging in 49 seconds, and macOS packaging in 63 seconds.
-The complete workflow finished in 73 seconds. Linux phase timings were 10
-seconds for units, 18 for functional validation, 9 for the remaining bootstrap
-phase, and 38 for the complete check; separate package bootstrap took 19
-seconds. Every measured phase met its budget, with no platform checks or
-fixed-point evidence skipped.
-
-## Harden and expand test coverage — in progress
-
-The goal is to make regressions difficult to introduce and failures easy to
-localize while keeping `make check` the canonical validation command.
-
-- [x] Separate internal unit tests from black-box functional program tests
-- [x] Discover functional cases and example expectations without a central
-      manifest
-- [x] Inventory the behavior promised by `SPEC.md` and map it to existing tests
-- [ ] Add focused success and failure tests for every language construct and
-      runtime built-in
-- [x] Cover every CLI command and shorthand through end-to-end subprocess tests
-- [ ] Expand type, refinement, purity, and name-resolution diagnostic coverage
-- [ ] Exercise file, import, malformed-input, and operating-system failure paths
-- [ ] Expand malformed and adversarial bytecode verifier and VM coverage
-- [ ] Add deterministic compilation and bytecode round-trip tests
-- [ ] Add comprehensive tests for the Panackelty-hosted compiler components
-- [ ] Establish a useful coverage baseline and record intentionally uncovered
-      host-boundary code
-- [x] Organize the suite so focused failures remain fast and the full suite stays
-      practical to run after every change
-
-Testing work that is also a prerequisite for self-hosting should be reflected
-in both roadmaps when completed.
-
-### Publish public coverage reports — awaiting deployment
-
-The native VM's LLVM line and branch coverage remains uploaded as a CI
-artifact. The coordinated Pages publisher makes the HTML report available at
-`https://panackelty.com/coverage/`, so readers can open it directly without
-visiting an Actions run or downloading and extracting an archive. Final public
-deployment verification follows merge and successful `main` validation.
-
-- [x] Implement publication of the successful `main` build's native coverage HTML and summary
-      through the project's existing GitHub Pages site, with source commit,
-      generation date and an explicit label that this covers the native C VM,
-      not the self-hosted compiler or the entire language
-- [x] Keep the website and coverage deployment coordinated so a normal site
-      update cannot erase the latest report and a report update cannot replace
-      the site with stale content; publish only from trusted, successful builds
-- [x] Link the stable report from the site and README, add deployment checks for
-      its entry page and relative source-navigation links, and keep the existing
-      downloadable CI artifact for debugging
-- [x] Document how publication failures and stale results appear, and ensure
-      release and PR workflows cannot publish an unreviewed coverage site
-- [ ] Confirm the first merged `main` run publishes successfully and passes the
-      live entry-page, source-navigation and provenance checks
 
 ## Change Panackelty syntax — complete
 
@@ -1187,48 +1094,3 @@ function return types, and distinguishes no-return functions with `Void`.
 - [x] Apply the same syntax to the Panackelty-hosted compiler sources
 - [x] Update every example and user-facing command snippet
 - [x] Advance the bytecode version for the `Void` value-tag change
-
-## Codebase-wide human readability and refactoring — planned
-
-Extend the native VM readability cleanup across all project code, including
-the compiler, bytecode tooling, runtime, standard library, bootstrap code,
-CLI, build and CI scripts, and test harnesses. Make the code straightforward
-for a human maintainer to read, navigate and change. This backlog item follows
-coverage publication and the REPL; further validation-speed work is non-blocking.
-
-- [ ] Audit each component for dense or oversized functions, unclear names,
-      duplicated logic, hidden dependencies and obsolete code; record a scoped
-      refactoring sequence using the native VM cleanup as the model.
-- [ ] Split responsibilities into cohesive modules and small, clearly named
-      functions; make interfaces, data flow, ownership and error handling
-      explicit, with consistent formatting and comments explaining non-obvious
-      decisions and invariants.
-- [ ] Remove obsolete code and unnecessary duplication, keeping any required
-      bootstrap distinctions explicit; update architecture and component
-      documentation alongside each refactor.
-- [ ] Preserve observable behavior, exact numeric semantics, purity, bytecode
-      safety and bootstrap reproducibility. Retain all existing assertions,
-      add meaningful regression coverage where gaps are found, and validate
-      each scoped refactor with `make check` and applicable sanitizer/platform
-      gates; measure and avoid validation or runtime performance regressions.
-
-## Native VM readability and test hardening
-
-- [x] Decompose native decoding, verification, values, arithmetic, execution,
-      builtins and host services into separately compiled modules.
-- [x] Put shared declarations in self-contained headers, retain private local
-      types, name wire opcodes, and document ownership and formatting conventions.
-- [x] Add direct module ownership, cleanup, builtin registry and header checks,
-      deterministic decoder mutations, and an isolated sanitizer target.
-- [x] Sweep allocation failures across representative decoding, values, frames,
-      exact arithmetic, nested execution and host operations; assert cleanup.
-- [x] Add rich deterministic bytecode mutations, persistent ownership sequences,
-      numeric boundary properties and selected host syscall failures.
-- [x] Run native sanitizers in CI and publish LLVM line/branch coverage reports.
-- [ ] Extend coverage-guided decoder fuzzing, host syscall/errno combinations,
-      rendering and nested-execution branch coverage, and longer ownership runs;
-      retain exact arithmetic, purity and runtime trap conformance throughout.
-
-Manual release initiation retains the full validation gates. Keep its metadata
-controls in the existing harness; retain timing warnings and the non-blocking
-performance backlog without weakening release tests.

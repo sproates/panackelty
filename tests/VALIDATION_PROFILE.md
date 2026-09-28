@@ -4,6 +4,145 @@ This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 
+## Focused VM check investigation — 2026-09-28
+
+Measured revision: `8e13d54` (merged PR #76). This investigation changes no
+validation behavior or budget. It identifies persistent collection copying in
+the compiler workload as the first optimisation candidate; it does not claim
+that a focused check already meets 15 seconds.
+
+### Repeated local measurements
+
+Environment: macOS 26.5 arm64, Apple Clang 21.0.0, default `-O2`, two validation
+workers. Commands ran sequentially with no other project benchmark running.
+Native prerequisites were built once after `make clean` (2.52s). The initial
+check had no probe/compiler cache. Subsequent unchanged checks kept that cache.
+Each edited run appended a different comment to
+`tests/runner/host_runtime_unit.panack`, then ran the complete check. Original
+source bytes were restored afterwards. This measures a test-source edit, not a
+native C edit or a compiler semantics change.
+
+| Scenario | Full `make check-vm` elapsed seconds | Result |
+| --- | ---: | --- |
+| Native prepared, initially empty probe cache | 36.156 | passed |
+| Unchanged rerun 1 | 26.219 | passed |
+| Unchanged rerun 2 | 26.137 | passed |
+| Unchanged rerun 3 | 26.325 | passed |
+| Test-source edit 1 | 35.588 | passed |
+| Test-source edit 2 | 37.051 | passed |
+| Test-source edit 3 | 36.338 | passed |
+
+The unchanged median is **26.219s**; the edited median is **36.338s**.
+All seven runs preserve the same 275 visible PASS observations, including
+multiplicity after normalizing temporary workspace names. The nested runner
+also checks its complete expected 273-test report internally. Every run warns
+about the unchanged 15-second focused-check budget.
+
+Totals above use an external monotonic subprocess timer around `make check-vm`,
+including prerequisite checks. Existing profile rows use whole wall-clock
+seconds; these inclusive observations overlap and must not be added together.
+
+| Profile label | Cached runs (seconds) | Edited runs (seconds) |
+| --- | --- | --- |
+| Native contracts, including bootstrap preparation | 24 / 23 / 24 | 32 / 33 / 32 |
+| Native oracle, within native contracts | 22 / 22 / 23 | 23 / 23 / 22 |
+| Nested functional runner, within native oracle | 17 / 17 / 17 | 17 / 18 / 18 |
+| Stage-2 compiler preparation, within native contracts | 0 / 0 / 0 | 7 / 8 / 8 |
+
+The probe fingerprint includes all Panackelty source files. Even this comment
+edit invalidates the compiler probe cache; the 7–8-second compiler rebuild
+explains most of the edited-run penalty. Narrowing that fingerprint would need
+proof of complete dependencies and is not part of this measurement change.
+
+### Compiler work versus runner overhead
+
+Separate unprofiled component runs kept the prepared stage-2 compiler available
+through `PANACK_TEST_COMPILER`. Each compiler-source command checked the exact
+expected usage output; each compiled runner execution passed all 273 tests.
+
+| Component | Elapsed seconds, three runs | Median user / system CPU seconds |
+| --- | --- | --- |
+| `./panack run src/compiler/main.panack` | 7.627 / 7.621 / 7.651 | 7.471 / 0.142 |
+| Compile `tests/runner/main.panack` | 0.305 / 0.314 / 0.317 | 0.297 / 0.008 |
+| Execute that runner bytecode | 17.139 / 16.950 / 17.580 | 13.373 / 1.288 |
+
+CPU figures include reaped child processes. They separate user execution and
+system work, but do not isolate fork/exec overhead from other system calls or
+attribute the entire elapsed-minus-CPU difference to process management.
+Compiler-source execution is already a fixture inside the runner, so those
+rows cannot be summed. Caching the runner's own compilation would save only
+about 0.31 seconds in this experiment. Skipping the compiler-source fixture
+would remove a required public-CLI observation and is not an optimisation.
+
+A separate three-second macOS `sample` capture, starting approximately 0.2s
+into native execution of the compiler-source command, collected 2,541 samples.
+Its largest exclusive stack leaves were `release` (595), `value_sequence`
+(591), and the platform `strcmp` implementation (462). The first two comprise
+46.7% of this short sample. It is an early execution window, not a whole-program
+allocation count or a promise of a 46.7% speedup.
+
+Source inspection explains a plausible avoidable cost: array `append` allocates
+and copies a temporary pointer array, `value_sequence` allocates another array
+and retains every element, and replacement later releases the previous array.
+Repeated growth therefore performs linear work per append. The next PR should
+first investigate reducing that copying while preserving persistent value
+semantics, aliases, iteration, failure handling and bytecode compatibility.
+Name lookup is a secondary candidate; the sample alone does not identify every
+`strcmp` caller or justify changing dispatch yet.
+
+### Hosted platform cross-check
+
+The existing [focused profiling workflow](https://github.com/sproates/panackelty/actions/runs/36395124883)
+passed on both platforms at the same revision. These are one initial/cached
+pair per platform, not repeated medians. The workflow measures compiler and
+bytecode checks before VM checks, so its cache state differs from the isolated
+local initial run. Do not compare absolute times across different hardware.
+
+| Hosted platform | Initial VM check | Cached VM check | Cached nested runner |
+| --- | ---: | ---: | ---: |
+| Ubuntu 22.04 x86-64 | 61s | 45s | 30s |
+| macOS 14 arm64 | 64s | 52s | 30s |
+
+The run's `focused-profile-*` artifacts contain the raw TSV observations,
+budget records, source revision, compiler version and runner image identity.
+Both confirm that the nested runner dominates. A single scheduling change
+cannot credibly promise a 15-second check when that block alone takes 30s.
+
+### Reproduction and next PR acceptance
+
+Use an otherwise idle checkout at the measured revision. Unset inherited
+`PANACK_CHECK_RUNNER_REPORT`, `PANACK_TEST_RUNNER_REPORT`, and
+`PANACK_TEST_CAPTURE_RUNNER_REPORT`. Set `VALIDATION_JOBS=2` and an absolute
+`VALIDATION_PROFILE_FILE` outside `build/`, then:
+
+1. Run `make clean` and `make native native-module-build native-fault-build`.
+2. Time `make check-vm` once as initial and three times unchanged, setting a
+   distinct `VALIDATION_PROFILE_RUN` for each. An external monotonic timer or
+   `/usr/bin/time -p` includes the complete command; the built-in phase timer
+   begins after the native prerequisites.
+3. Back up `tests/runner/host_runtime_unit.panack`. Before each of three further
+   runs, append a distinct comment to the original bytes. Restore the backup
+   even if a check fails. Retain every timing and failure rather than retrying
+   away slower observations.
+4. Time `./panack run src/compiler/main.panack` separately. Compile
+   `tests/runner/main.panack` to a temporary `.bc` path, then time its execution
+   with `PANACK_TEST_COMPILER` set to the absolute prepared stage-2 compiler.
+   Keep report-reuse variables unset and check status, stderr and expected output.
+5. For a CPU sample on macOS, start `./panack-vm run bootstrap/compiler-v8.bc run
+   src/compiler/main.panack` with an absolute `PANACKELTY_STDLIB_PATH`, then use
+   `sample <that-process-id> 3 1 -file <temporary-report>`. Keep this separate
+   from benchmark trials; sampling changes execution cost.
+6. Run `make clean` and confirm source restoration and a clean working tree.
+
+The optimisation PR must preserve every existing assertion, add aliasing and
+allocation-failure regressions for changed ownership paths, and pass full
+`make check`, sanitizers, coverage and both platform gates. Repeat unchanged
+and edited-source measurements against this baseline, retaining standalone
+compiler execution and all oracle compilation/verification/execution. Report
+remaining distance from 15 seconds rather than relaxing the target or claiming
+that the local result applies to hosted runners. Full-pipeline timing must also
+be checked for a regression.
+
 ## Pipeline critical-path improvements — 2026-09-28
 
 The final implementation at `8934654` partitions sanitizer work

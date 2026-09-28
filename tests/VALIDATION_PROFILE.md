@@ -556,3 +556,43 @@ is a regression check, not a replacement five-run median or a guarantee about
 hosted queue latency. Timing uses attempt start through the last completed job,
 including classification, setup, uploads and aggregate gates, as in the earlier
 pipeline report. Summed job durations are not CPU use or billing estimates.
+
+
+## Pipeline scheduling and coverage setup — 2026-09-28
+
+The follow-up starts from merged `d24b8f2`. GitHub job timestamps distinguish
+three quantities: time from a dependency completing to a dependent job starting,
+step execution, and time from the last step completing to the job completing.
+The first includes scheduling/dispatch overhead and is not a direct measurement
+of runner queue time. The last is completion/reporting overhead, not test work.
+Overlapping jobs must not have these quantities added to obtain wall time.
+
+The earlier five-run sample at `8934654` remains 123/102/103/104/102 seconds.
+Its 123-second attempt had a Linux runtime job starting 39 seconds after the
+classifier completed. During the append profiling workflow, a macOS runtime job
+started 67 seconds after classification and the full run took 153 seconds.
+That overlap is evidence of contention, not proof of a specific account limit.
+The later idle attempts took 108 and 104 seconds.
+
+The [post-merge main run](https://github.com/sproates/panackelty/actions/runs/36416131575)
+took 125 seconds. Its package result step finished at 11:32:38 UTC, but the Linux
+package job completed at 11:33:17 UTC: a 39-second completion tail. Its latest
+heavy job started only nine seconds after classification. Treating this miss as
+slow tests or changing test parallelism would not address the observed delay.
+Required checks must still finish successfully before a merge.
+
+The same run spent ten seconds installing the unversioned `clang`, `llvm` and
+`llvm-runtime` metapackages. Its Ubuntu 24.04 image already contained LLVM 18;
+coverage compilation and reporting used that toolchain after installation.
+The follow-up pins the existing validation image to Ubuntu 24.04 and directly
+uses `/usr/bin/clang-18`, `/usr/bin/llvm-cov-18` and `/usr/bin/llvm-profdata-18`.
+All three version commands must succeed before coverage. There is no fallback
+installation, cache restoration, reduced corpus or changed result gate.
+The [runner image manifest](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md)
+documents the preinstalled compiler family; the hosted runs verify the actual
+binaries and retain the coverage summary for comparison.
+
+Five sequential cold full runs will measure the candidate without deliberately
+overlapping profiling workflows. Every attempt, including a timing miss, belongs
+in the sample. This change removes avoidable package-network setup; it cannot
+guarantee a bound on hosted scheduling or completion reporting.

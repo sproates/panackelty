@@ -852,6 +852,8 @@ observation retained and an identical native coverage summary. See
 - [ ] Investigate hosted-runner queue tails before treating 120 seconds as an
       upper bound: one of five runs still took 123 seconds. Keep that timing
       miss visible rather than presenting only the four faster runs.
+      The follow-up also separates job completion delays from queue and step
+      time, and removes redundant LLVM metapackage installation from coverage.
 
 The focused VM investigation at merged PR #76 records a 26.219-second local
 cached median and 36.338-second median after a test-source edit. Hosted cached

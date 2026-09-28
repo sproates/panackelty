@@ -117,7 +117,8 @@ jobs:
         suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]
     needs: changes
     if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
-    runs-on: ubuntu-latest
+    # Pin coverage to the image providing the matching LLVM 18 toolchain.
+    runs-on: ubuntu-24.04
     env:
       VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}
       VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
@@ -137,13 +138,16 @@ jobs:
           SANITIZE_JOB: ${{ matrix.suite }}
         run: make native-sanitize CC=clang SANITIZE_SUITE="${SANITIZE_JOB#sanitize-}"
 
-      - name: Install matching LLVM coverage tools
+      - name: Verify preinstalled LLVM coverage tools
         if: matrix.suite == 'coverage'
-        run: sudo apt-get update && sudo apt-get install -y clang llvm
+        run: |
+          /usr/bin/clang-18 --version
+          /usr/bin/llvm-cov-18 --version
+          /usr/bin/llvm-profdata-18 --version
 
       - name: Measure native branch coverage
         if: matrix.suite == 'coverage'
-        run: make native-coverage LLVM_CC=/usr/bin/clang LLVM_COV=/usr/bin/llvm-cov LLVM_PROFDATA=/usr/bin/llvm-profdata
+        run: make native-coverage LLVM_CC=/usr/bin/clang-18 LLVM_COV=/usr/bin/llvm-cov-18 LLVM_PROFDATA=/usr/bin/llvm-profdata-18
 
       - name: Archive native coverage
         if: matrix.suite == 'coverage'

@@ -301,3 +301,79 @@ remain active until the optimization work demonstrates the existing targets.
 Rows with nonzero status can be expected failure-injection commands nested in a
 successful harness group; use the outer check result to determine suite success.
 Do not interpret every negative-control observation as a CI failure.
+
+## Persistent array append experiment — 2026-09-28
+
+The implementation reduces repeated array copying using at most two views of
+one backing store. A prefix and one extension retain separate visible lengths;
+branches, possible ownership cycles and exhausted inspection budgets copy.
+The [value model](../src/vm/VALUE_MODEL.md#persistent-array-append-storage)
+defines allocation, bounded ownership inspection and prompt suffix reclamation.
+No assertion, standalone validation stage, bytecode contract or timing budget
+is removed or relaxed.
+
+The comparison uses the same macOS 26.5 arm64 development environment, Apple
+Clang 21.0.0, `-O2`, and two workers as the focused baseline at merged `8e13d54`.
+Native prerequisites are prepared before the initial check; unchanged trials
+reuse valid artifacts. Each edited trial appends a distinct comment to the
+original host-runtime probe, then runs the complete check. Source bytes are
+restored after the experiment. Totals include the whole Make invocation and
+were measured by an external monotonic subprocess timer. Runs are sequential;
+these are local observations, not cross-platform speed guarantees.
+
+| Scenario | Before (seconds) | After (seconds) |
+| --- | --- | --- |
+| Initial, empty probe cache | 36.156 | 33.904 |
+| Unchanged run 1 | 26.219 | 25.598 |
+| Unchanged run 2 | 26.137 | 25.613 |
+| Unchanged run 3 | 26.325 | 25.595 |
+| Test-source edit 1 | 35.588 | 33.529 |
+| Test-source edit 2 | 37.051 | 32.993 |
+| Test-source edit 3 | 36.338 | 32.043 |
+
+The cached median changes from **26.219s to 25.598s** (2.4% lower); the edited
+median changes from **36.338s to 32.993s** (9.2% lower). All seven after runs
+pass and retain the same visible PASS observations. The cached improvement is
+small and should not be presented as a large general VM speedup. **The 15-second
+focused target remains unmet.** Compiler execution and the complete nested
+functional runner still need further measured work.
+
+A controlled append workload isolates the changed operation: compile a program
+that appends integers `0..20000` into an initially empty array, then prints its
+length and final element. Run the same bytecode on old and new `-O2` VMs,
+alternating version order across three trials. Both produce exactly `20000`
+and `19999`, with empty stderr and success status.
+
+| Append-only bytecode execution | Trial 1 | Trial 2 | Trial 3 | Median |
+| --- | ---: | ---: | ---: | ---: |
+| Before | 0.3667s | 0.3468s | 0.3473s | 0.3473s |
+| After | 0.0076s | 0.0077s | 0.0072s | 0.0076s |
+
+This approximately 46x result applies to repeated unbranched append, not the
+entire compiler or validation pipeline. Shared snapshots and large child graphs
+can deliberately take the copying path. The optimisation trades spare buffer
+capacity and a bounded ownership inspection for reduced repeated allocation
+and retention work; it does not promise constant-time append for every value.
+
+Validation before publication:
+
+- Clean `make check` passes in 107s (unit 72s, functional 1s, bootstrap 19s).
+  All 1,297 baseline PASS observations remain, including multiplicity after
+  normalizing temporary paths. The unit-phase warning remains recorded.
+- Complete standalone AddressSanitizer/UndefinedBehaviorSanitizer validation
+  passes, including the original 174 native observations and full oracle corpus.
+- Native regressions compare 256 deterministic branching updates with independent
+  copied arrays, retain snapshots in different release orders, check both
+  prefix/extension lifetimes and prompt hidden-child reclamation, reject direct
+  and indirect storage cycles (including a hidden suffix), exercise growth,
+  bounded inspection and overflow, and sweep every append allocation failure.
+- The public collections fixture covers aliases, nested arrays/records and append
+  during iteration in both source and bytecode modes. Its existing assertions
+  remain and the persistent-append check is added to its expected output.
+
+The initial conservative experiment allowed sharing only for sequence-free
+children and measured a 24.551s cached median. The final version admits small
+independent nested collections through bounded ownership inspection and measured
+25.598s. These experiments ran at different times, so the difference is not an
+isolated estimate of inspection overhead. The final measurements above are the
+reported result; the faster preliminary sample is not substituted for them.

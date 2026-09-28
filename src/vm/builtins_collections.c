@@ -10,16 +10,7 @@ Value *builtins_collections_call(VM *vm, const char *name, Value **a)
 {
     if (!strcmp(name, "append")) {
         REQUIRE(a[0]->kind == V_ARRAY, "VM trap: append requires Array");
-        size_t n = a[0]->as.sequence.count;
-        Value **items = malloc((n + 1) * sizeof(Value *));
-        if (!items) {
-            return NULL;
-        }
-        memcpy(items, a[0]->as.sequence.items, n * sizeof(Value *));
-        items[n] = a[1];
-        Value *v = value_sequence(V_ARRAY, items, n + 1);
-        free(items);
-        return v;
+        return value_array_append(a[0], a[1]);
     }
 
     if (!strcmp(name, "map") || !strcmp(name, "set") || !strcmp(name, "bytes")) {

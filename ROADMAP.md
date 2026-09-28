@@ -912,6 +912,13 @@ profiles, while a separate targeted workflow records focused warm checks.
 See [the profiling report](tests/VALIDATION_PROFILE.md) for evidence and the
 next measured investigations. This instrumentation does not claim a speed fix.
 
+The persistent-array append optimisation reduces the measured local cached VM
+median from 26.219s to 25.598s and the test-source-edit median from 36.338s to
+32.993s. A clean full check passes in 107s. The focused 15-second target remains
+open; these measurements do not establish a hosted-runner target. See
+[the append experiment](tests/VALIDATION_PROFILE.md#persistent-array-append-experiment--2026-09-28)
+for every trial, the ownership tradeoff and the unchanged validation corpus.
+
 Prioritize unit and bootstrap costs during this follow-up.
 The native harness preserves process bounds, archive/installation checks and
 runner fault injection; profile repeated compilation without dropping evidence.

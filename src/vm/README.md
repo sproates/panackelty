@@ -47,6 +47,13 @@ string-producing operation uses the same constructor, including concatenation,
 interpolation, slicing, reversal, decoding, and host inputs; bounds and UTF-8
 validation remain in place.
 
+Array append uses bounded sharing between an immutable prefix and its next
+version, amortizing eligible repeated growth while preserving retained snapshots.
+A bounded ownership check sends possible cycles and large object graphs to the
+independent-copy path.
+The [value model](VALUE_MODEL.md#persistent-array-append-storage) defines ownership,
+release order and allocation-failure behavior.
+
 Rational arithmetic uses normalized arbitrary-precision numerator/denominator
 pairs. `Unit` has its own runtime tag; `.nat()` and `.dec()` perform exact checked
 conversions and trap rather than discard precision.

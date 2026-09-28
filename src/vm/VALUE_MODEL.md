@@ -1,6 +1,6 @@
 # Native VM value and memory model
 
-This document freezes the representation used by the portable C11 seed VM. It
+This document describes the representation used by the portable C11 seed VM. It
 is an implementation contract beneath the language-level value semantics in
 `src/bytecode/FORMAT.md`; it does not change bytecode version 8.
 
@@ -28,8 +28,9 @@ sentinel.
   UTF-8 traversal. These immutable fields are internal metadata, not serialized
   bytecode, and do not change code-point semantics or bounds checks.
 - Arrays, maps, sets, records, variants, byte buffers, and ranges are immutable
-  heap objects. Persistent operations allocate a new container and retain the
-  referenced elements; they never mutate an input container.
+  heap objects. Persistent operations allocate a new value and preserve every
+  input's observable length and elements. Array append can share internal
+  backing storage as described below; other containers retain children directly.
 - Iterators are frame-owned cursors retaining the iterable they traverse. They
   never escape into bytecode constants or serialized artifacts.
 
@@ -41,7 +42,8 @@ values. Instructions refer to those immutable decoded names and operands.
 Heap objects use non-atomic reference counts because one VM invocation is
 single-threaded. Copying an owning `Value *` requires retaining its object;
 discarding an owning value releases it. Releasing the final reference walks and
-releases child values before freeing the object. Operand stacks, locals, call
+releases owned children or its shared array backing store before freeing the
+object. Operand stacks, locals, call
 arguments, returned values, containers, iterators, and decoded constants each
 have explicit ownership.
 
@@ -55,6 +57,39 @@ See the module headers for borrowing and ownership-transfer contracts.
 Allocation overflow and host memory exhaustion are fatal native-runner errors,
 which the bytecode contract deliberately places outside language-level traps.
 All size additions and multiplications are checked before allocation.
+
+## Persistent array append storage
+
+Ordinary array construction keeps its exact-size owned element buffer. Appended
+arrays use a separately reference-counted backing store with a count and
+capacity. A prefix and its one-element extension can share that store while
+each value keeps its own visible length. Only a store with one view and spare
+capacity can be extended; an additional branch or capacity growth allocates an
+independent buffer. Capacity grows geometrically for eligible elements, and
+size arithmetic is checked before allocation.
+
+The backing store retains each child once. At most two views share it. When
+the prefix dies first, the extension keeps its elements. When the extension
+dies first, its extra child is released immediately and the surviving prefix's
+storage count is restored. Thus keeping a snapshot does not pin an unbounded
+future suffix, and iteration, equality, rendering and indexing still use the
+value's visible count.
+
+Before sharing, a bounded inspection follows the appended item's ownership
+edges through arrays, maps, sets, iterators, records and variants. It includes
+any hidden suffix owned by a shared backing store, not just visible elements.
+Reaching the proposed store or exhausting the 64-value inspection budget takes
+the independent-copy path. This conservative rule prevents an appended element
+from retaining a prefix backed by its own store, which would otherwise create
+a reference cycle. Small independent nested collections can share safely. No language-visible mutation,
+bytecode layout change or tracing collector is introduced.
+
+Append allocates the result before modifying a shared store. The copying path
+allocates all storage before retaining children. Allocation failure therefore
+leaves both borrowed inputs unchanged; partial allocations are freed. Direct
+native tests cover both release orders, branching, growth, nested aliases,
+inspection fallback and size overflow. Fault sweeps cover each allocation site
+in empty, shared, growing and nested append operations.
 
 ## Limits and safety
 

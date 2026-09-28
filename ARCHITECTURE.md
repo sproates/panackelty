@@ -625,6 +625,13 @@ numerics, nested execution, and host services. One registry supplies arity, puri
 and handler selection to verification and execution. Nested execution intentionally
 calls back into the VM after decoding and verifying its child program.
 
+Array append can share a backing store between a prefix and one extension,
+with separate visible lengths. Branches, possible ownership cycles and large
+object graphs copy;
+dropping an extension releases its extra child immediately. This preserves
+persistent semantics while amortizing eligible growth. The value model records
+the bounded sharing and failure-cleanup invariants.
+
 The Makefile compiles each component once, tracks generated header dependencies,
 and reuses those objects for direct C contract tests. Native process tests reuse
 the production runner. Sanitizer and LLVM branch-coverage targets use separate

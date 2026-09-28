@@ -56,7 +56,23 @@ static void persistent_versions_keep_shared_children_alive(void)
         assert(versions[i - 1]->as.sequence.count == i - 1);
         assert(versions[i]->as.sequence.items[i - 1] == child);
     }
-    assert(child->refs == 1 + 32 * 33 / 2);
+    size_t owned = 1;
+    for (size_t i = 1; i < 33; i++) {
+        bool later_view = false;
+        for (size_t j = i + 1; j < 33; j++) {
+            if (versions[i]->as.sequence.items == versions[j]->as.sequence.items) {
+                later_view = true;
+            }
+        }
+        if (!later_view) {
+            owned += versions[i]->as.sequence.count;
+        }
+        for (size_t j = 0; j < i; j++) {
+            assert(versions[i]->as.sequence.items[j] == child);
+        }
+    }
+    /* Each backing store owns its children once, including shared prefix views. */
+    assert(child->refs == owned);
     /* Release in a different order from construction to expose aliasing mistakes. */
     for (size_t i = 0; i < 33; i += 2) {
         release(versions[i]);
@@ -66,6 +82,163 @@ static void persistent_versions_keep_shared_children_alive(void)
     }
     assert(child->refs == 1 && !memcmp(child->as.bytes.data, "shared", 6));
     release(child);
+}
+
+static void append_storage_preserves_branches_and_drops_hidden_children(void)
+{
+    Value *item = value_size(42), *other = value_size(7);
+    Value *empty = value_sequence(V_ARRAY, NULL, 0);
+    Value *base = value_array_append(empty, item);
+    release(empty);
+    assert(base && base->as.sequence.count == 1);
+    Value *extension = value_array_append(base, other);
+    assert(extension && extension->as.sequence.items == base->as.sequence.items);
+    assert(base->as.sequence.count == 1 && extension->as.sequence.count == 2);
+    Value *branch = value_array_append(base, item);
+    assert(branch && branch->as.sequence.items != base->as.sequence.items);
+    assert(branch->as.sequence.items[1] == item && extension->as.sequence.items[1] == other);
+    release(extension);
+    assert(other->refs == 1); /* A dropped extension must not pin an invisible child. */
+    extension = value_array_append(base, other);
+    assert(extension && extension->as.sequence.items == base->as.sequence.items);
+    release(base); /* The longer view must survive destruction of its prefix. */
+    assert(extension->as.sequence.count == 2 && extension->as.sequence.items[0] == item);
+    release(extension);
+    release(branch);
+    assert(item->refs == 1 && other->refs == 1);
+
+    base = value_sequence(V_ARRAY, NULL, 0);
+    for (size_t i = 0; i < 128; i++) {
+        Value *next = value_array_append(base, item);
+        assert(next && next->as.sequence.count == i + 1);
+        release(base);
+        base = next;
+    }
+    for (size_t i = 0; i < 128; i++) {
+        assert(base->as.sequence.items[i] == item);
+    }
+    assert(item->refs == 129);
+    release(base);
+    assert(item->refs == 1);
+    empty = value_sequence(V_ARRAY, NULL, 0);
+    base = value_array_append(empty, item);
+    release(empty);
+    assert(base);
+    size_t count = base->as.sequence.count;
+    base->as.sequence.count = SIZE_MAX / sizeof(Value *);
+    assert(!value_array_append(base, item));
+    base->as.sequence.count = count;
+    release(base);
+    release(item);
+    release(other);
+}
+
+static void append_container_children_do_not_form_storage_cycles(void)
+{
+    Value *number = value_size(1), *empty = value_sequence(V_ARRAY, NULL, 0);
+    Value *base = value_array_append(empty, number);
+    release(empty);
+    char *names[] = {"child"};
+    Value *record = named_value(V_RECORD, "Box", names, &base, 1);
+    Value *variant = named_value(V_VARIANT, "Some", NULL, &record, 1);
+    Value *map = value_sequence(V_MAP, (Value *[]){number, base}, 2);
+    Value *set = value_sequence(V_SET, &base, 1);
+    Value *iterator = value_new(V_ITER);
+    assert(base && record && variant && map && set && iterator);
+    iterator->as.iterator.iterable = retain(base);
+    Value *children[] = {base, record, variant, map, set, iterator};
+    for (size_t i = 0; i < sizeof(children) / sizeof(*children); i++) {
+        Value *result = value_array_append(base, children[i]);
+        assert(result && result->as.sequence.items != base->as.sequence.items);
+        assert(base->as.sequence.count == 1 && result->as.sequence.items[1] == children[i]);
+        release(result);
+    }
+    Value *deep = retain(number);
+    for (size_t i = 0; i < 80; i++) {
+        Value *next = named_value(V_VARIANT, "Some", NULL, &deep, 1);
+        assert(next);
+        release(deep);
+        deep = next;
+    }
+    Value *deep_result = value_array_append(base, deep);
+    assert(deep_result && deep_result->as.sequence.items != base->as.sequence.items);
+    release(deep_result);
+    release(deep);
+    Value *scalar_record = named_value(V_RECORD, "Token", names, &number, 1);
+    Value *scalar_result = value_array_append(base, scalar_record);
+    assert(scalar_result && scalar_result->as.sequence.items == base->as.sequence.items);
+    release(scalar_result);
+    assert(scalar_record->refs == 1);
+    release(scalar_record);
+    /* A prefix also owns the invisible suffix of its shared backing store. */
+    empty = value_sequence(V_ARRAY, NULL, 0);
+    Value *separate = value_array_append(empty, number);
+    release(empty);
+    Value *hidden_alias = value_array_append(separate, base);
+    assert(hidden_alias && hidden_alias->as.sequence.items == separate->as.sequence.items);
+    Value *indirect = value_array_append(base, separate);
+    assert(indirect && indirect->as.sequence.items != base->as.sequence.items);
+    release(indirect);
+    release(hidden_alias);
+    /* After the suffix is dropped this small independent collection is safe. */
+    Value *independent = value_array_append(base, separate);
+    assert(independent && independent->as.sequence.items == base->as.sequence.items);
+    release(independent);
+    release(separate);
+    release(iterator);
+    release(set);
+    release(map);
+    release(variant);
+    release(record);
+    release(base);
+    assert(number->refs == 1);
+    release(number);
+}
+
+static void append_branches_match_independent_copies(void)
+{
+    Value *values[16], *copies[16], *items[4];
+    for (size_t i = 0; i < 4; i++) {
+        items[i] = value_size(i);
+        assert(items[i]);
+    }
+    for (size_t i = 0; i < 16; i++) {
+        values[i] = value_sequence(V_ARRAY, NULL, 0);
+        copies[i] = value_sequence(V_ARRAY, NULL, 0);
+        assert(values[i] && copies[i]);
+    }
+    uint32_t state = 7;
+    for (size_t step = 0; step < 256; step++) {
+        state = state * UINT32_C(1664525) + UINT32_C(1013904223);
+        size_t source = (state >> 8) % 16, destination = (state >> 16) % 16;
+        Value *item = items[state % 4];
+        Value *result = value_array_append(values[source], item);
+        size_t count = copies[source]->as.sequence.count;
+        Value **children = malloc((count + 1) * sizeof(*children));
+        assert(result && children);
+        for (size_t i = 0; i < count; i++) {
+            children[i] = copies[source]->as.sequence.items[i];
+        }
+        children[count] = item;
+        Value *copy = value_sequence(V_ARRAY, children, count + 1);
+        free(children);
+        assert(copy);
+        release(values[destination]);
+        release(copies[destination]);
+        values[destination] = result;
+        copies[destination] = copy;
+        for (size_t i = 0; i < 16; i++) {
+            assert(value_equal(values[i], copies[i]));
+        }
+    }
+    for (size_t i = 0; i < 16; i++) {
+        release(values[i]);
+        release(copies[i]);
+    }
+    for (size_t i = 0; i < 4; i++) {
+        assert(items[i]->refs == 1);
+        release(items[i]);
+    }
 }
 
 static void exact_arithmetic_borrows_operands(void)
@@ -536,6 +709,9 @@ int main(int argc, char **argv)
     bigint_boundaries();
     values_own_copies_and_retain_children();
     persistent_versions_keep_shared_children_alive();
+    append_storage_preserves_branches_and_drops_hidden_children();
+    append_container_children_do_not_form_storage_cycles();
+    append_branches_match_independent_copies();
     exact_arithmetic_borrows_operands();
     utf8_offsets_preserve_code_points();
     opaque_host_values_keep_distinct_kinds();

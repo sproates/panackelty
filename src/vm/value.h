@@ -32,10 +32,12 @@ typedef enum {
 } ValueKind;
 
 typedef struct Value Value;
+typedef struct ArrayStorage ArrayStorage;
 
 typedef struct {
     size_t count;
     Value **items;
+    ArrayStorage *storage;
 } Sequence;
 
 typedef struct {
@@ -102,6 +104,9 @@ Value *value_data(ValueKind kind, const uint8_t *data, size_t length);
 
 /* Copies the container and retains each child; the input array stays caller-owned. */
 Value *value_sequence(ValueKind kind, Value **items, size_t count);
+
+/* Borrows both inputs and returns a new persistent array version. */
+Value *value_array_append(Value *array, Value *item);
 
 /* Copies names and retains fields/payloads. names is NULL for variants. */
 Value *named_value(ValueKind kind, const char *name, char **names, Value **values, size_t count);

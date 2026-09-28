@@ -1,0 +1,49 @@
+name: Roadmap proposal
+description: Propose a feature, investigation or maintenance task for assessment.
+title: "[Proposal] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read ROADMAP.md and docs/ROADMAP_PROCESS.md first and search existing issues.
+        Proposals are ideas, not implementation commitments. Keep agreed priorities
+        and decisions in the repository. Use Bug report for defects and SECURITY.md
+        for sensitive reports; do not include secrets or private data.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - Feature
+        - Investigation
+        - Maintenance
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem, evidence and affected users
+      description: Include developer or coding-agent workflows, current evidence and expected value.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Smallest useful outcome and acceptance evidence
+      description: Include non-goals and how success would be verified. Unknowns are welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: assessment
+    attributes:
+      label: Effort, risk, dependencies and confidence
+      description: Include tests, documentation and ongoing maintenance; say unknown where appropriate.
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: Roadmap and related work
+      description: Link the relevant roadmap section and related issues or PRs, or explain why this is new.
+    validations:
+      required: true

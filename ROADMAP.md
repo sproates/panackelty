@@ -9,55 +9,79 @@ assessment criteria, priorities, document ownership and review. Implementation
 items require their agreed scope, meaningful tests, affected documentation and
 canonical validation; documentation and design items use their applicable checks.
 
-## Draft status and next task — updated 2026-09-29
+## Ambition and adoption focus
 
-**The implementation roadmap remains a draft for discussion.** The lightweight
-prioritisation process was agreed in conversation on 2026-09-29 and is being
-documented for adoption. Adopt that process first, then conduct the holistic
-gap assessment, review its findings here with the user, and agree implementation
-priorities. No coverage-first sequence is approved.
+Panackelty aims to be a broadly useful general-purpose language that developers
+and AI coding agents choose to build real applications, with AI-assisted
+development as an explicit adoption focus. The ambition is to become a better
+choice for real development than Python or JavaScript/TypeScript on Node.js;
+this is a goal to demonstrate, not a claim of current superiority.
 
-## Now: adopt the roadmap decision process
+Intended applications include scripts, daemons, web and application servers,
+games, desktop GUIs (including the approachable experience of Tcl/Tk), browser
+applications and mobile apps. This breadth guides architectural assessment;
+it is not a claim of current support or a requirement to build every subsystem
+before anyone can use the language. Interoperability with existing libraries,
+runtimes and platform toolkits is a candidate enabling strategy.
 
-- [x] Agree the lightweight process in conversation
-- [x] Document states, assessment criteria, prioritisation, document roles and
-      review/completion rules in [the process document](docs/ROADMAP_PROCESS.md)
-- [ ] Validate and merge the process PR with explicit user permission
+Success means independent developers and coding agents can finish useful
+applications, maintain and change them, and choose Panackelty again. Prioritise
+reliability, useful compiler assistance, human-readable code, enjoyable tooling,
+installation, deployment and discoverable libraries alongside language features.
+Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
+agents remains a hypothesis to test.
 
-Acceptance: the agreed process is documented and adopted; no implementation
-priority is selected merely by adopting it.
+## Draft status and next tasks — updated 2026-09-29
 
-## Next: holistic gap assessment and roadmap refresh
+**The implementation roadmap remains a draft for discussion.** The decision
+process was adopted in PR #83. An initial repository review found useful leads,
+but the broader application and AI-agent adoption ambition requires a deeper
+assessment. No coverage-first or compiler-suggestions-first sequence is approved.
 
-After adopting the process, assess the whole project before selecting the next
-implementation initiative.
-Strong test coverage and an enjoyable, productive developer experience are both
-strategic goals. Neither substitutes for the other or automatically determines
-priority. Look for useful small improvements as well as large enabling projects.
+### Now: expanded holistic and architectural gap assessment
 
-- [ ] Review purpose and real user workflows; language correctness and coherence;
-      everyday development and compiler assistance; libraries and integration;
-      reliability, security and resource handling; installation, upgrades and
-      releases; maintainability; testing/measurement; documentation and adoption
-- [ ] Distinguish observed defects, verified omissions, intentional limitations,
-      stale documentation and untested hypotheses; cite current repository evidence
-- [ ] For each finding, record benefit, affected users, urgency/risk, rough effort
-      (small/medium/large/unknown), confidence, dependencies, ongoing maintenance
-      cost and the smallest useful PR or feasibility experiment
-- [ ] Review roadmap documentation and planning process: ownership of status,
-      source of truth across documents, historical versus active evidence,
-      acceptance criteria, review cadence and when shipped work is reconciled
-- [ ] Compare repository-only planning with GitHub Issues/Projects and a hybrid:
-      planning friction, portability, backup/export, source of truth and duplicate
-      status maintenance; agree the boundary before migrating any backlog
-- [ ] Compare developer-experience opportunities with infrastructure and test work
-      on their merits; avoid ranking purely by coverage percentages or a simplistic
-      benefit/effort score that ignores risk and dependencies
-- [ ] Produce a concise in-chat assessment and proposed ordering, identifying
-      quick wins, larger investments, prerequisite decisions and deliberate deferrals
-- [ ] Review the proposed ordering with the user before treating it as agreed;
-      keep the implementation roadmap and assessment proposals provisional until
-      that review is complete; this does not prevent adopting the process first
+- [ ] Assess execution targets, embedding/interoperability, concurrency and
+      cancellation, memory/resource management, modules/namespaces/packages,
+      networking, GUI/platform integration and development tooling against the
+      intended application range; identify decisions that could constrain it
+- [ ] Review correctness, security, testing/measurement, performance, libraries,
+      installation/releases, maintainability, documentation and adoption;
+      include repository settings/tooling and human-readable code refactoring
+- [ ] Distinguish observed defects, verified omissions, deliberate limitations,
+      stale documentation and hypotheses, citing current repository evidence
+- [ ] For each finding, record value, affected users/agents, effort including
+      tests/docs/maintenance, risk, dependencies, confidence and a smallest
+      useful PR or investigation; compare useful assistance with infrastructure
+- [ ] Reconcile stale roadmap/document claims and apply the repository-led
+      [Issues workflow](docs/ROADMAP_PROCESS.md#github-issues-workflow)
+- [ ] Present concise findings and a provisional Now / Next / Later comparison
+      in chat; identify prerequisite decisions and deliberate deferrals
+
+Acceptance: evidence-backed assessment across the intended application range,
+with effort and architectural uncertainty explicit. It does not promise all
+platforms or authorise implementation of every identified gap.
+
+### Next: bounded AI-assisted development experiment
+
+- [ ] Select a few small representative application/change tasks and define
+      independent acceptance tests before running agents; include a later
+      maintenance change and human readability review
+- [ ] Compare Panackelty with Python or JavaScript/TypeScript on Node.js using
+      recorded model/tool versions, equivalent resource budgets, task briefs
+      and access to documentation; record language-specific setup differences
+- [ ] Measure correctness, elapsed time, cost where observable, repair attempts,
+      human intervention, setup/library failures and subsequent-change success
+- [ ] Preserve prompts, revisions, commands and results sufficiently to reproduce
+      the experiment; disclose model familiarity, run variation and sample limits
+- [ ] Include unsupported tasks and failures; separate missing capabilities from
+      language/tooling friction, and do not generalise a small study to all models
+- [ ] Review results alongside the assessment and agree the first implementation
+      milestone with the user before scheduling feature work
+
+Acceptance: a reproducible feasibility report, limitations and proposed priority
+changes, not a predetermined win or a claim of mainstream adoption. Bound the
+experiment scope and budget before execution; do not introduce a Python runtime
+dependency into Panackelty's own development or validation workflow.
 
 ### Developer experience: useful assistance from the compiler
 
@@ -86,8 +110,9 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 
 | Status | Initiative | Outcome to assess |
 | --- | --- | --- |
-| In progress / Now | Adopt the roadmap decision process | Agreed process documented, validated and merged with permission |
-| Planned / Next | Holistic assessment and roadmap refresh | Apply the process; review effort-aware findings and priorities in chat |
+| Done | Adopt the roadmap decision process | Merged in PR #83; implementation ordering remains draft |
+| Planned / Now | Expanded holistic and architectural assessment | Compare real developer and AI-agent needs, effort and enabling foundations |
+| Planned / Next | Bounded AI-assisted development experiment | Test application delivery and maintenance; review evidence before implementation priorities |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -372,6 +397,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Full cold hosted CI | Five follow-up runs: 88/106/107/103/97s, median 103s | Hosted scheduling/completion has no proven hard upper bound |
 | Local clean check, append experiment | 107s | Environment-specific result, not a universal guarantee |
 | Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
+| Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

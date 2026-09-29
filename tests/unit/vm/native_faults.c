@@ -6,6 +6,7 @@
 #include "fault_injection.h"
 #include "numeric.h"
 #include "render.h"
+#include "tasks.h"
 #include "verify.h"
 #include "vm.h"
 
@@ -68,6 +69,69 @@ static void decode_program(void)
     }
     free_program(&program);
     free_program(&program);
+}
+
+static size_t task_finish_mode;
+
+static void task_lifetimes(void)
+{
+    char *params[] = {"value"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "value"},
+                          {.op = OP_CALL, .name = "print", .arity = 1},
+                          {.op = OP_STORE, .name = "first"},
+                          {.op = OP_LOAD, .name = "value"},
+                          {.op = OP_CALL, .name = "print", .arity = 1},
+                          {.op = OP_RETURN}};
+    Function function = {
+        .name = "main", .params = params, .param_count = 1, .ins = code, .ins_count = 6};
+    Program program = {.functions = &function, .count = 1};
+    VM vm = {.program = &program};
+    const char *error;
+    VMTasks *tasks = vm_tasks_create(&vm, 2, 2, &error);
+    if (tasks) {
+        VMTaskId parent =
+            vm_tasks_spawn(tasks, (VMTaskId){0}, &function, &operand, UINT64_MAX, &error);
+        if (parent.slot) {
+            VMTaskId child = vm_tasks_spawn(tasks, parent, &function, &operand, UINT64_MAX, &error);
+            if (child.slot) {
+                assert(vm_tasks_pump(tasks, 0, 100));
+                if (task_finish_mode != 3) {
+                    for (size_t round = 0; round < 2; round++) {
+                        VMTaskId ids[] = {parent, child};
+                        for (size_t i = 0; i < 2; i++) {
+                            VMOperationId operation;
+                            Value *input;
+                            if (vm_tasks_pending(tasks, ids[i], &operation, &input)) {
+                                assert(input == operand);
+                                assert(vm_tasks_complete(tasks, operation,
+                                                         task_finish_mode == 2 ? "fake failure"
+                                                                               : NULL));
+                            }
+                        }
+                        if (task_finish_mode == 1) {
+                            assert(vm_tasks_cancel(tasks, parent));
+                        }
+                        assert(vm_tasks_pump(tasks, 0, 100));
+                    }
+                    if (!fault_triggered()) {
+                        assert(vm_tasks_status(tasks, parent) ==
+                               (task_finish_mode == 0   ? TASK_COMPLETED
+                                : task_finish_mode == 1 ? TASK_CANCELLED
+                                                        : TASK_TRAPPED));
+                    }
+                    assert(vm_tasks_stats(tasks).registered == vm_tasks_stats(tasks).released);
+                }
+            } else {
+                assert(fault_triggered() && error);
+            }
+        } else {
+            assert(fault_triggered() && error);
+        }
+        assert(vm_tasks_destroy(tasks));
+    } else {
+        assert(fault_triggered() && error);
+    }
+    assert(operand->refs == 1);
 }
 
 static void construct_record(void)
@@ -514,6 +578,9 @@ int main(int argc, char **argv)
     resumable_stop = false;
     resumable_trap = true;
     sweep("resumable trap", resumable_frames);
+    for (task_finish_mode = 0; task_finish_mode < 4; task_finish_mode++) {
+        sweep("task lifecycle", task_lifetimes);
+    }
     release(operand);
 
     left = integer("999999999999999999999999999");

@@ -47,7 +47,7 @@ vm_case(name: Str, mode: Str, status: Nat, target: Path): TestResult {
     Error(problem) => test_expect(name, false, "fixture write failed"),
     Ok(done) => {
       result = test_run_command(if mode == "return-void" { "${name}/return kind" } else { name }, TestCommand(
-        if mode == "return-void" { vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules") }
+        if mode == "return-void" || mode == "tasks" { vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules") }
         else { vm_executable("PANACK_NATIVE_BINARY", "./panack-vm") }, [mode, vm_text(target)],
         bytes(), path_current(), vm_environment(), duration_seconds(30), 1048576),
         ProcessOutput(status, 0, read_bytes("${prefix}.stdout"), read_bytes("${prefix}.stderr")))
@@ -289,6 +289,9 @@ main(): Void {
       results = results.append(vm_fault("all operand mutations", "fault_operands", "mutate", true, target))
       results = results.append(vm_fault("ownership allocation failures", "ownership_execute", "execute", false, target))
       results = results.append(vm_fault("nested trap allocation failures", "ownership_trap", "trap", false, target))
+      results = results.append(vm_case("BytecodeContractTests-call_frames_have_isolated_locals_and_return_values-1", "tasks", 0, target))
+      results = results.append(vm_case("BytecodeContractTests-indirect_calls_validate_and_deliver_results-1", "tasks", 0, target))
+      results = results.append(vm_case("ExecutionTests-arrays_iteration_indexing_and_len-1", "tasks", 0, target))
       match test_workspace_remove_empty(workspace) {
         Error(problem) => { results = results.append(test_expect("VM workspace cleanup", false, "directory not empty")) },
         Ok(removed) => {}

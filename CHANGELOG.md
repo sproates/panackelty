@@ -6,6 +6,10 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Add an internal fake-host task/lifecycle experiment with scoped joins, bounded
+  completion queues, virtual deadlines and cancellation cleanup. CLI, source
+  syntax and bytecode remain unchanged; no OS networking is introduced.
+
 - Replace native-recursive Panackelty calls with owned resumable VM frames and
   add an internal budgeted execution API with a restricted host-controlled mode.
   Existing CLI and bytecode behavior remain compatible; source async syntax and

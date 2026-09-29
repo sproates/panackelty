@@ -255,8 +255,11 @@ by an instruction budget, preserve suspended state and release an unfinished
 invocation. The synchronous CLI uses the same dispatcher to completion.
 The experimental host-controlled profile intercepts process exit, rejects nested
 bytecode and requires trusted immediate adapters for effectful services; the CLI
-retains its existing host behavior. This is not a scheduler, pending-I/O API or
-public async language feature. Ownership and status contracts are in the
+retains its existing host behavior. `tasks.c` adds an internal bounded task session
+with parent/child joins, virtual deadlines and generation-qualified fake print
+acknowledgements. This proves pending-operation lifetimes without OS I/O or a
+public async language feature. Task slots remain reserved until session destruction.
+Ownership and status contracts are in the
 [VM guide](src/vm/README.md#internal-resumable-execution).
 
 The VM retains dynamic safety checks even when source checking should make a
@@ -672,7 +675,7 @@ their provenance is recorded in
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 177 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.

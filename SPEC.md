@@ -721,6 +721,10 @@ compiles `.panack` source to bytecode in memory before starting the VM. `panack
 compile program.panack` persists the same bytecode as `program.bc`, and `panack run
 program.bc` loads, verifies, and executes that artifact directly.
 
+The CLI executes synchronously. Internal C task/lifecycle experiments use a fake
+pending host service; they introduce no source concurrency syntax, networking API
+or change to version-8 call semantics.
+
 The compiler emits stack instructions with a named function table and purity
 metadata. Calls use isolated frames containing locals and an operand stack.
 Values retain runtime tags, and VM arithmetic checks `Nat` underflow even after

@@ -213,6 +213,13 @@ re-entry and suspended cleanup. The native allocation-failure suite sweeps
 resumable creation, deep completion, traps and destruction while suspended.
 The public `callables` fixture also executes 20,000 recursive calls through
 source and saved bytecode. Sanitizer and coverage gates include these contracts.
+`unit/vm/tasks.c` checks parent/child joins, failure propagation, cancellation
+around every wait/delivery transition, inherited virtual deadlines, fairness,
+queue saturation/retry, stale generations and cross-session identities. Three
+verified corpus programs replay through pending print acknowledgements with the
+original stdout expectations. Allocation sweeps include session admission,
+repeated wait/delivery, cancellation, host failure and destruction while pending.
+The fixed fake host has no OS producer; native cancellation is not yet tested.
 `fixtures/execution` holds fixed performance inputs; the optional native module
 command `resume FILE.bc BUDGET` captures `print` with a fake host to measure
 instruction-budget overhead. Reproduction and limitations are in
@@ -322,7 +329,7 @@ their provenance is recorded in
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 177 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.

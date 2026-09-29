@@ -282,6 +282,11 @@ dependency/license cost, Linux/macOS packaging, later Windows support and GUI
 loop integration. This report selects none. A browser adapter and real mobile
 ports remain separate feasibility work; a fake UI driver is not a shipped GUI.
 
+The first feasibility stage shipped in PR #94. On 2026-09-29 the user separately
+selected the second, fake-host task/lifecycle stage after comparison with compiler
+assistance and other candidates. [ROADMAP.md](../ROADMAP.md#now-task-and-lifecycle-feasibility)
+owns its current scope and evidence. Later stages remain proposals.
+
 ## Decisions requested and unresolved questions
 
 Request agreement on the **direction**, not syntax: one owning thread per VM,

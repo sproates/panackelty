@@ -18,6 +18,8 @@
 #include <string.h>
 
 void resumable_contracts(void);
+void task_contracts(void);
+void task_artifact(const char *path);
 void resumable_artifact(const char *path, size_t budget);
 
 static void values_own_copies_and_retain_children(void)
@@ -689,6 +691,10 @@ static void artifact_returns_void(const char *path)
 
 int main(int argc, char **argv)
 {
+    if (argc == 3 && !strcmp(argv[1], "tasks")) {
+        task_artifact(argv[2]);
+        return 0;
+    }
     if (argc == 4 && !strcmp(argv[1], "resume")) {
         char *end;
         unsigned long budget = strtoul(argv[3], &end, 10);
@@ -717,6 +723,7 @@ int main(int argc, char **argv)
         return 0;
     }
     resumable_contracts();
+    task_contracts();
     bigint_boundaries();
     values_own_copies_and_retain_children();
     persistent_versions_keep_shared_children_alive();

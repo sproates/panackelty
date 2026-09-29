@@ -28,7 +28,7 @@ typedef struct {
  * thread. VM/program/snapshots/context must outlive the execution. Functions
  * belong to a verified program; argument arrays match their parameter count.
  */
-typedef enum { VM_YIELDED, VM_COMPLETED, VM_TRAPPED, VM_EXITED, VM_BUSY } VMExecutionStatus;
+typedef enum { VM_YIELDED, VM_COMPLETED, VM_TRAPPED, VM_EXITED, VM_BUSY, VM_WAITING } VMExecutionStatus;
 
 /* Trusted immediate host adapter for existing effectful services only. Borrow
  * arguments, return an owned result or NULL with a static error. Must not block,
@@ -47,6 +47,17 @@ VMExecution *vm_execution_create(VM *vm, Function *fn, Value **arguments,
  * VM_BUSY without changing the active execution. Budget is not wall-clock time.
  */
 VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget);
+/* Fixed fake pending print service for lifecycle experiments only. The callback
+ * borrows the printed value and must retain it if needed while waiting. True
+ * registers a wait; false supplies a static error. No synchronous CLI change.
+ */
+typedef bool (*VMPrintWait)(void *context, Value *value, const char **error);
+VMExecution *vm_execution_create_pending(VM *vm, Function *fn, Value **arguments, VMPrintWait wait,
+                                         void *context, const char **error);
+/* Deliver a Void acknowledgement or static failure on the owning thread, outside
+ * advance. Returns false for re-entry/non-waiting state; never resumes inline.
+ * Allocation failure becomes a sticky trap. */
+bool vm_execution_complete_print(VMExecution *execution, const char *error);
 /* Borrowed result, valid until destroy; NULL unless completed. */
 Value *vm_execution_result(const VMExecution *execution);
 /* Valid only after VM_EXITED. */

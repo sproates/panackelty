@@ -31,7 +31,7 @@ installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
 
-## Draft status and next tasks — updated 2026-09-29
+## Draft status and next tasks — updated 2026-09-30
 
 **The implementation roadmap remains a draft for discussion.** The decision
 process was adopted in PR #83; the assessment was adopted in PR #87. The
@@ -44,8 +44,11 @@ merge review. PR #94 merged after all 21 CI jobs passed; issue #93 is closed. Th
 authorised the bounded task/lifecycle feasibility milestone, now merged in PR #96
 with all 21 hosted checks passed and issue #95 closed. The user subsequently
 selected an application-facing async design proposal. PR #98 is now merged,
-with all 21 hosted checks passed and issue #97 closed. The user subsequently selected the bounded source-to-VM await slice below.
-Networking, source spawning and resource scopes remain draft.
+with all 21 hosted checks passed and issue #97 closed. The bounded source-to-VM
+await slice shipped in PR #103, and the validation investigation shipped in
+PR #105; both passed all 21 hosted Check jobs. The user selected the content-led website expansion as the current task on
+2026-09-30. Incremental/modular builds remain a recorded future candidate. Networking, source spawning and resource
+scopes remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -306,7 +309,7 @@ and 358s. A harness isolation fix prevents corrupt-seed testing from relinking
 the shared VM while compiler checks run. Real networking, spawning and resource
 scopes remain outside this delivered slice.
 
-### In progress: bounded validation performance investigation
+### Completed: bounded validation performance investigation
 
 Work record: [issue #104](https://github.com/sproates/panackelty/issues/104).
 Approved on 2026-09-29 after the async slice: establish a same-host clean baseline,
@@ -316,7 +319,7 @@ wait takes priority over starting native TCP/timer or compiler-assistance work.
 
 The controlled Linux comparison passed at 341s before async (`30b584a`) and 362s
 after (`e71449f`): 21s / 6.2% longer, with most cost already present beforehand.
-The proposed bounded change overlaps independent harness/compiler suites within
+The delivered bounded change overlaps independent harness/compiler suites within
 the existing worker budget, using the pair already exercised by CI. Every suite,
 bootstrap proof and timing warning remains required. See the
 [measurement report](tests/VALIDATION_PROFILE.md#clean-validation-comparison--2026-09-29)
@@ -326,20 +329,105 @@ requires separate evidence and scope; this investigation does not promise 120s.
 The bounded overlap candidate passed in 346s (unit 224s), saving 16s / 4.4%
 against merged async in one clean sample, with all 1,390 PASS observations
 retained. The 120s full-check and 15s unit targets remain unmet; bootstrap also
-warned at 61s against 60s. Implementation and evidence are prepared for PR review.
+warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
+2026-09-30 (Europe/Gibraltar), after all 21 hosted Check jobs passed; issue #104
+is closed. The timing budgets remain open goals, not completed by this merge.
 
-Independent module builds were raised as a follow-up candidate. C objects already
-build incrementally and focused component checks exist, but Panackelty imports
-are combined into one program before checking/emission. Assess dependency-scoped
-probe caching and reusable frontend work before committing to compiled module
-artifacts/interfaces and a linker. Any design must preserve type/effect checks,
-invalidations, deterministic bytecode and bootstrap proofs. This is recorded for
-assessment, not approval of a compiler redesign.
+### Future candidate: incremental and modular builds
+
+Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
+State: Idea. The initial high-priority **Next** recommendation is superseded by
+the user's explicit website selection below. Reassess the bounded first slice
+after website delivery; full separate-compilation implementation remains
+**Later**, conditional on design evidence. On 2026-09-30 the user requested a backlog task and priority
+assessment, not implementation or a committed schedule. This section is the
+authoritative status; the issue contains detailed acceptance and failure cases.
+
+Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
+`tests`, `examples` and the selected standard library for each compiled probe.
+An unrelated edit can therefore invalidate otherwise reusable compiled tests.
+Native C objects already build incrementally and focused checks exist, but the
+Panackelty loader combines reachable modules before checking/emission. Separate
+source files do not yet provide independently compiled module artifacts.
+
+Bounded task:
+
+1. Measure clean, unchanged warm, unrelated-edit and dependency-edit workflows
+   on a named host/toolchain, separating compilation from test execution and
+   counting actual rebuilds. Existing 346s clean-check evidence does not quantify
+   incremental-cache savings.
+2. Deliver dependency-aware compiled-probe reuse if justified, using canonical
+   import resolution and retaining compiler/seed/VM identity and other inputs.
+   Unknown dependencies must conservatively invalidate reuse. Tests must prove
+   unrelated edits reuse artifacts, relevant edits rebuild, and corruption,
+   graph changes, relocation, concurrent publication and input races remain safe.
+   Every invocation still executes the tests; never cache their outcomes.
+3. Produce a separate-compilation design comparing reusable frontend work with
+   compiled module artifacts/interfaces and linking. Address names, generics,
+   guarded types, purity/async effects, compatibility, deterministic bytecode and
+   bootstrap. Recommend a bounded future prototype, or a reason not to proceed.
+
+Acceptance: reproducible before/after evidence, sound invalidation tests,
+unchanged validation coverage/budgets, canonical `make check` and relevant hosted
+gates for implementation changes, and a reviewed design with explicit open
+decisions. Stop at an evidence-backed recommendation if caching has negligible
+benefit or disproportionate cost. No linker, namespace/export syntax, package
+manager, stable module ABI or two-minute cold-check promise is included.
+
+Size: medium first slice, estimated **2–3 PRs** including tests and documentation:
+one or two for dependency evidence and safe reuse (depending on whether compiler
+dependency reporting/seed refresh is independently deliverable), then one design
+PR. Full separate compilation is large and must be re-estimated after design.
+
+Initial priority comparison — historical recommendation before website selection:
+
+| Candidate / bounded outcome | Why worthwhile and relative priority | Size / estimated PRs |
+| --- | --- | --- |
+| Dependency-aware reuse and modular-build design (#106) | Proposed Next: observed rebuild friction affects work across the project; bound the effort before committing to a compiler redesign | Medium / 2–3 |
+| Native TCP/timer feasibility | Strongest alternative: unlocks network applications blocked in the delivery pilot; choose first if a near-term network application becomes the main goal or cache measurements show poor value | Medium–large investigation / 1–2, not production networking |
+| Targeted compiler/API assistance | Addresses observed interpolation, numeric-proof and discovery friction; valuable but narrower than the current cross-project rebuild issue | Medium for one selected pain point / 1–2 |
+| Website assessment (#99) | Useful for onboarding, but concrete gaps remain unaudited and it does not shorten current development loops | Small assessment / 1; implementation separately estimated |
+
+Known correctness/security defects take precedence on risk. Reassess after the
+bounded build task; do not put networking or inexpensive useful features behind
+the whole modular-build programme. The goal is to rebuild the changed part and
+its dependents, not every unrelated part, while retaining full final validation.
+
+### Now: content-led website expansion
+
+Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
+Selected and authorised on 2026-09-30 ahead of further build infrastructure:
+useful public-facing work must not wait indefinitely behind infrastructure.
+Scope: current capabilities with examples; released versus unreleased versus
+proposed status; planned direction and vision; accessible explanations of the
+self-hosted compiler, reproducible bootstrap, runtime and testing evidence;
+on-site getting started; mobile navigation and preserved coverage access.
+Keep the established visual direction and existing Pages publication path.
+
+Acceptance: claims grounded in source/specification and the release boundary;
+displayed programs checked through the public CLI and saved bytecode, with the
+release-labelled greeting checked against alpha.9; working local links/anchors;
+desktop/mobile review; Pages regressions and canonical validation. Implementation
+is prepared for review on a feature branch. Issue #99 remains open until an
+explicitly approved merge deploys and the live website/coverage are verified.
+
+The website branch passed clean canonical validation in 339s on 2026-09-30
+(unit 220s), plus Pages assembly/navigation tests and the alpha.9 greeting.
+The 120s full-check and 15s unit budgets still warn; the bounded build candidate
+above remains the follow-up assessment. Browser permissions blocked rendered
+desktop/mobile inspection in this workspace; a self-contained HTML preview is
+available for review before approval.
+
+An embedded playground (edit a complete program, run, view output/diagnostics)
+is a separate follow-up investigation. The learning/onboarding use case is a
+concrete reason to reassess the previously low-priority REPL idea. Browser VM
+execution, limits and diagnostics need feasibility evidence; persistent REPL
+sessions add state/redefinition decisions. Neither blocks this content update.
 
 ### Remaining recommendations from the pilot — provisional
 
-1. Complete the authorised validation investigation, then reassess the native
-   TCP/timer investigation against the remaining alternatives.
+1. Complete the selected website task, then reassess bounded build improvements,
+   native TCP/timer feasibility and a browser playground against the alternatives.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 
@@ -382,8 +470,9 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
 | Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; bounded await implementation selected in #102 |
 | Done | [Bounded async/await (#102)](https://github.com/sproates/panackelty/issues/102) | PR #103 merged; v9 source-to-VM slice and all hosted gates passed |
-| In progress | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | Same-host before/after baseline and measured overlap improvement prepared for review |
-| Idea | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | Assess and improve panackelty.com content, navigation, onboarding and presentation; unscheduled |
+| Done | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | PR #105 merged; 346s clean sample, all 21 hosted Check jobs passed; issue closed |
+| Idea / future candidate | [Incremental and modular builds (#106)](https://github.com/sproates/panackelty/issues/106) | Bounded dependency-aware reuse plus separate-compilation design; reassess after website delivery |
+| In progress / Now | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | User-selected content expansion; capabilities, direction, vision, engineering evidence and onboarding; live verification after approved merge |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -392,7 +481,7 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Candidate | Codebase readability and refactoring | Audit and component-sized improvements with relevant test protection |
 | Non-blocking backlog | Validation performance | Retain targets/warnings; weigh further work against developer impact |
 | Candidate | Language/library and runtime improvements | Assess JSON, host APIs, inference, numerics and source diagnostics against real workflows |
-| Low-priority exploration | REPL | Unscheduled idea, not a prerequisite for developer-experience improvements |
+| Exploration | REPL / browser playground | Website learning use case identified; assess a complete-program playground separately; does not block website content |
 | Unscheduled exploration | Broader language ideas | Preserve proposals without giving them automatic implementation slots |
 | Delivered | Public native C coverage | Live and verified; `.panack` measurement remains a separate gap |
 
@@ -421,28 +510,11 @@ The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules
 ## Improve and expand the website
 
 Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
-State: Idea, unscheduled. Added at the user's request on 2026-09-29.
-
-Improve and expand [panackelty.com](https://panackelty.com) so prospective
-developers and coding agents can understand the language, get started and find
-useful documentation and examples. Specific gaps have not yet been audited.
-
-- [ ] Review the current site and propose a bounded content, navigation and
-      presentation plan, with clear user journeys and acceptance checks
-- [ ] Assess the language overview, installation/quick start, documentation,
-      examples, project/release information and discoverability
-- [ ] Assess mobile usability and accessibility, and keep shipped capabilities
-      distinct from proposed features
-- [ ] Agree and deliver the first improvement slice; verify links, examples,
-      responsive/accessibility behaviour and the live deployment
-- [ ] Preserve the coordinated website and native-coverage publishing flow,
-      including the existing `/coverage/` report
-
-Effort: S for an initial assessment; implementation unknown until scoped. Risks
-include stale feature claims, broken onboarding and coverage-publication
-regressions. No framework, hosting change, visual direction or implementation
-priority is selected. Recording this item does not complete the website work;
-the issue remains open after this backlog update merges.
+The [current decision and acceptance](#now-content-led-website-expansion) above
+owns the state and scope. The initial unscheduled idea was recorded on
+2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
+The existing static GitHub Pages and coverage flow remains in use. Live
+verification after an approved merge is required before closing the issue.
 
 ## Language namespaces — idea
 
@@ -1297,13 +1369,15 @@ representative program, a written semantics proposal, implementation and
 maintenance estimates, and evidence that it strengthens Panackelty's identity more
 than an ordinary library would.
 
-## Interactive REPL — low-priority exploration
+## Interactive REPL — exploration; website learning use case identified
 
 Add a read-evaluate-print loop for exploring Panackelty expressions, trying
 standard-library APIs and learning the language without creating a source file
 for every experiment. This is an idea with no implementation slot or dependency
-claim on other work. Reconsider only when a concrete user workflow justifies it;
-if accepted, use the existing toolchain.
+claim on other work. On 2026-09-30 the user identified trying the language on
+the website as a concrete learning workflow. Assess a complete-program browser
+playground first; stateful REPL semantics remain separately scoped. The website
+content update proceeds independently. If accepted, reuse the existing toolchain.
 
 - [ ] Specify the entry command (for example `panack repl`), expression result
       display, multiline input and incomplete-input detection

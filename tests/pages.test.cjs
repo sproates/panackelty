@@ -81,3 +81,19 @@ test('assembled real website and nested source links resolve; broken links fail'
   fs.writeFileSync(path.join(root, 'coverage/html/index.html'), '<a href="../../../outside.html">escape</a>');
   await assert.rejects(checkPages(root), /Escaping link/);
 });
+
+test('homepage section navigation and example references have unique targets', () => {
+  const html = fs.readFileSync('site/index.html', 'utf8');
+  const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(new Set(ids).size, ids.length, 'duplicate page anchor');
+  for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) {
+    assert(ids.includes(target), `missing anchor: ${target}`);
+  }
+  for (const [, labels] of html.matchAll(/aria-labelledby="([^"]+)"/g)) {
+    for (const label of labels.split(/\s+/)) assert(ids.includes(label), `missing accessible label: ${label}`);
+  }
+  for (const name of ['hello', 'guards', 'exact']) {
+    assert(ids.includes(`${name}-source`), `missing runnable example: ${name}`);
+    assert(ids.includes(`${name}-output`), `missing expected output: ${name}`);
+  }
+});

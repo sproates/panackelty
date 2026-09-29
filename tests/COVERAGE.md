@@ -451,3 +451,14 @@ queues, independent progress, wrong-session/generation/duplicate deliveries and
 cancellation before registration, during waits, after enqueue and after delivery.
 Allocation sweeps cover typed completion construction, delivery and destruction.
 This is fake-host evidence, not real network producer quiescence or source scopes.
+
+## Website content and examples
+
+The layout harness runs `tests/site_examples.sh`, extracting the displayed
+hello, guarded-type and exact-arithmetic programs and checking their stated
+output through the public CLI in source and saved-bytecode modes. The script
+can use an explicit released command with its `release` selection for the
+release-labelled greeting. Pages tests retain complete website/coverage assembly,
+source selection and nested report navigation, and reject unresolved homepage
+anchors or accessible-label references. Desktop/mobile presentation is reviewed
+separately; these checks do not claim automated visual or accessibility certification.

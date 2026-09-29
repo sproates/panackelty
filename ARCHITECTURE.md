@@ -104,7 +104,13 @@ panackelty/
 └── SELF_HOSTING.md          bootstrap roadmap
 ```
 
-The project website is a dependency-free static artifact. The Pages workflow
+The project website is a dependency-free static artifact. Its single-page
+navigation covers capabilities, executable examples, engineering evidence,
+direction, vision and installation. Release and development-source capabilities
+are labelled separately; a browser playground is only a future investigation.
+The canonical harness executes displayed examples through source and saved
+bytecode using `tests/site_examples.sh`; Pages tests also check section and
+accessible-label targets. The Pages workflow
 tests assembly and source selection on relevant pull requests without deploying.
 After successful push validation on `main`, one serialized publisher combines
 the latest successfully validated website with the latest successful native VM

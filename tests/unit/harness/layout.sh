@@ -155,6 +155,9 @@ equal_files "$work/files" "$work/expected"
 contains site/index.html "https://github.com/sproates/panackelty/releases/tag/v$version"
 contains site/index.html "Developer preview $version is available"
 pass
+case_name=website-examples-run-as-displayed
+capture 0 30 sh tests/site_examples.sh
+pass
 case_name=tour-example-and-specification-links
 awk '/^## A quick language tour$/ { active=1; next } /^## Language highlights/ { active=0 } active' README.md > "$work/tour"
 grep -o '(examples/[^)]*\.panack)' "$work/tour" | sed 's/^(examples\///;s/)$//' | sort -u > "$work/examples"

@@ -429,13 +429,20 @@ pure read_instruction(reader: ByteReader): ReadInstruction {
     target: ReadNat = read_u32(opcode.reader); ReadInstruction(target.reader, JumpFalseInstruction(target.value))
   } else { if opcode.value == 19 {
     target: ReadNat = read_u32(opcode.reader); ReadInstruction(target.reader, JumpInstruction(target.value))
+  } else { if opcode.value == 22 {
+    name: ReadText = read_name(opcode.reader)
+    arity: ReadNat = read_u8(name.reader)
+    ReadInstruction(arity.reader, AwaitCallInstruction(name.value, arity.value))
+  } else { if opcode.value == 23 {
+    arity: ReadNat = read_u8(opcode.reader)
+    ReadInstruction(arity.reader, AwaitValueInstruction(arity.value))
   } else { if opcode.value == 20 {
     ReadInstruction(opcode.reader, ReturnInstruction())
   } else { if opcode.value == 21 {
     arity: ReadNat = read_u8(opcode.reader); ReadInstruction(arity.reader, CallValueInstruction(arity.value))
   } else {
     ReadInstruction(invalid_reader(opcode.reader, "unknown bytecode opcode"), PopInstruction())
-  } } } } } } } } } } } } } } } } } } } } } }
+  } } } } } } } } } } } } } } } } } } } } } } } }
 }
 
 pure read_instructions(reader: ByteReader, count: Nat): ReadInstructions {
@@ -458,10 +465,10 @@ pure read_function(reader: ByteReader): ReadFunction {
   parameters: ReadNames = read_names(parameter_count.reader, parameter_count.value)
   instruction_count: ReadNat = read_u32(parameters.reader)
   mut current: ByteReader = instruction_count.reader
-  if flags.value > 1 { current = invalid_reader(current, "unknown function flags"); } else {}
+  if flags.value > 2 { current = invalid_reader(current, "unknown function flags"); } else {}
   if instruction_count.value > 1000000 { current = invalid_reader(current, "function exceeds instruction limit"); } else {}
   instructions: ReadInstructions = read_instructions(current, instruction_count.value)
-  value: FunctionCode = FunctionCode(name.value, parameters.values, flags.value == 1, instructions.values)
+  value: FunctionCode = FunctionCode(name.value, parameters.values, flags.value == 1, flags.value == 2, instructions.values)
   ReadFunction(instructions.reader, value)
 }
 
@@ -475,17 +482,12 @@ pure builtin_exists(name: Str): Bool {
 }
 
 pure builtin_is_pure(name: Str): Bool {
-  name != "instant_now" && name != "print" && name != "read_line" && name != "read_file" &&
-  name != "write_file" && name != "read_bytes" && name != "write_bytes" &&
-  name != "command_args" && name != "environment_has" &&
-  name != "environment_get" && name != "eprint" && name != "process_exit" &&
-  name != "path_resolve" && name != "file_exists" && name != "run_bytecode" &&
-  name != "run_bytecode_args"
+  !is_impure_builtin(name)
 }
 
 pure bytecode_function(program: BytecodeProgram, name: Str): FunctionCodeLookup {
   mut found: Bool = false
-  mut result: FunctionCode = FunctionCode("", [], false, [])
+  mut result: FunctionCode = FunctionCode("", [], false, false, [])
   for candidate in program.functions {
     if candidate.name == name {
       found = true
@@ -530,13 +532,17 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
       if !target.found && !builtin_exists(name) {
         "bytecode calls unknown function ${name}"
       } else {
-        expected: Nat = if target.found { len(target.value.parameters) } else { builtin_arity(name) }
-        target_pure: Bool = if target.found { target.value.is_pure } else { builtin_is_pure(name) }
-        if arity != expected { "bytecode call to ${name} has invalid arity" }
-        else { if function.is_pure && !target_pure { "pure bytecode function calls impure function ${name}" } else { "" } }
+        expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { len(target.value.parameters) }
+        target_pure: Bool = if builtin_exists(name) { builtin_is_pure(name) } else { target.value.is_pure }
+        if (!builtin_exists(name) && target.found && target.value.is_async) || name == "async_fake_read" { "ordinary call cannot enter async function" }
+        else { if function.is_async && !target_pure { "async function cannot call blocking function" }
+        else { if arity != expected { "bytecode call to ${name} has invalid arity" }
+        else { if function.is_pure && !target_pure { "pure bytecode function calls impure function ${name}" } else { "" } } } }
       }
     },
     CallValueInstruction(arity) => "",
+    AwaitCallInstruction(name, arity) => verify_await_call(name, arity, function, program),
+    AwaitValueInstruction(arity) => if function.is_async { "" } else { "await requires async function" },
     JumpFalseInstruction(target) => if target < count { "" } else { "invalid jump target" },
     JumpInstruction(target) => if target < count { "" } else { "invalid jump target" },
     PendingEndJumpInstruction() => "unresolved bytecode jump",
@@ -545,7 +551,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
 }
 
 pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
-  if len(function.name) == 0 || duplicate_names(function.parameters) {
+  if (function.is_pure && function.is_async) || len(function.name) == 0 || duplicate_names(function.parameters) {
     "invalid function signature"
   } else {
     if len(function.instructions) == 0 {
@@ -564,7 +570,7 @@ pure verify_function(function: FunctionCode, program: BytecodeProgram): Str {
           FieldGetInstruction(name) => {}, MakeVariantInstruction(enum_name, variant, count) => {},
           MatchVariantInstruction(variant, failure) => {}, MatchFailInstruction() => {},
           CallInstruction(name, arity) => {}, JumpFalseInstruction(target) => {},
-          CallValueInstruction(arity) => {},
+          CallValueInstruction(arity) => {}, AwaitCallInstruction(name, arity) => {}, AwaitValueInstruction(arity) => {},
           JumpInstruction(target) => {}, PendingEndJumpInstruction() => {}
         }
         if len(message) == 0 { message = verify_instruction(instruction, function, program); } else {}
@@ -612,7 +618,7 @@ pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
     initial: ByteReader = ByteReader(data, 9, true, "")
     version: ReadNat = read_u16(initial)
     if !version.reader.valid { BytecodeDecodeError(version.reader.message) }
-    else { if version.value != 8 {
+    else { if version.value != 9 {
       version_number: Nat = version.value
       BytecodeDecodeError("unsupported bytecode version ${version_number}")
     }
@@ -669,4 +675,13 @@ pure round_trip_bytecode(data: Bytes): Bytes {
     BytecodeDecoded(program) => serialize_bytecode(program),
     BytecodeDecodeError(message) => bytes()
   }
+}
+
+pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: BytecodeProgram): Str {
+  target: FunctionCodeLookup = bytecode_function(program, name)
+  if !function.is_async { "await requires async function" }
+  else { if name == "async_fake_read" {
+    if arity == 1 { "" } else { "async service arity mismatch" }
+  } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }
+  else { if arity != len(target.value.parameters) { "async call arity mismatch" } else { "" } } } }
 }

@@ -12,4 +12,7 @@
 /* Borrows a decoded program; failure does not free it. */
 bool verify(Program *p, const char **error);
 
+bool verify_call_edge(const Function *caller, const Function *callee,
+                      bool builtin_pure, bool builtin_async, bool awaited);
+
 #endif

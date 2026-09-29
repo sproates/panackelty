@@ -4,6 +4,7 @@ $method_has
 $method_put
 $unit
 append
+async_fake_read
 byte_append
 byte_get
 byte_len

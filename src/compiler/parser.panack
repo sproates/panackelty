@@ -48,8 +48,8 @@ enum TopLevel {
   TypeDeclaration(Str, Str, Expr),
   RecordDeclaration(Str, [Str], [RecordField]),
   EnumDeclaration(Str, [Str], [EnumVariant]),
-  // Name, value parameters, return type, purity, body, and scoped type parameters.
-  FunctionDeclaration(Str, [FunctionParameter], Str, Bool, Block, [Str])
+  // Name, value parameters, return type, purity, async effect, body, type parameters.
+  FunctionDeclaration(Str, [FunctionParameter], Str, Bool, Bool, Block, [Str])
 }
 
 record RecordField {
@@ -723,7 +723,7 @@ pure parse_postfix(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
 }
 
 pure parse_unary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
-  if index < len(tokens) && (tokens[index].text == "-" || tokens[index].text == "!") {
+  if index < len(tokens) && (tokens[index].text == "-" || tokens[index].text == "!" || tokens[index].text == "await") {
     operator: Str = tokens[index].text
     match parse_unary(tokens, index + 1) {
       Ok(operand) => Ok(ParsedExpr(UnaryExpr(operator, operand.value), operand.next)),
@@ -1254,7 +1254,8 @@ pure parse_function_parameters(tokens: [Token], index: Nat): Result[ParsedFuncti
 
 pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,Diagnostic] {
   is_pure: Bool = tokens[index].text == "pure"
-  name_index: Nat = if is_pure { index + 1 } else { index }
+  is_async: Bool = tokens[index].text == "async"
+  name_index: Nat = if is_pure || is_async { index + 1 } else { index }
   if name_index >= len(tokens) || tokens[name_index].kind != Identifier() {
     Error(parse_error("expected function name", token_position(tokens, name_index)))
   } else {
@@ -1276,7 +1277,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
                   Ok(return_type) => {
                     match parse_block(tokens, return_type.next) {
                       Ok(body) => {
-                        declaration: TopLevel = FunctionDeclaration(name, parameters.values, return_type.text, is_pure, body.value, generics.values)
+                        declaration: TopLevel = FunctionDeclaration(name, parameters.values, return_type.text, is_pure, is_async, body.value, generics.values)
                         Ok(ParsedTopLevel(declaration, body.next))
                       },
                       Error(error) => Error(error)
@@ -1423,7 +1424,7 @@ pure render_expr(expression: Expr): Str {
     },
     UnaryExpr(operator, operand) => {
       operand_text: Str = render_expr(operand)
-      "(${operator}${operand_text})"
+      if operator == "await" { "(await ${operand_text})" } else { "(${operator}${operand_text})" }
     },
     BinaryExpr(operator, left, right) => {
       left_text: Str = render_expr(left)
@@ -1615,9 +1616,10 @@ pure render_top_level(declaration: TopLevel): Str {
     },
     RecordDeclaration(name, parameters, fields) => render_record_declaration(name, parameters, fields),
     EnumDeclaration(name, parameters, variants) => render_enum_declaration(name, parameters, variants),
-    FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
+    FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
       types_text: Str = render_type_parameters(type_parameters)
-      render_function_declaration("${name}${types_text}", parameters, return_type, is_pure, body)
+      rendered: Str = render_function_declaration("${name}${types_text}", parameters, return_type, is_pure, body)
+      if is_async { "async ${rendered}" } else { rendered }
     }
   }
 }

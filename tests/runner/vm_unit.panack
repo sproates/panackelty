@@ -75,7 +75,7 @@ vm_fault(name: Str, file: Str, mode: Str, module: Bool, target: Path): TestResul
         }
       }
       if mode == "execute" || mode == "trap" {
-        match process_run(vm_executable("PANACK_NATIVE_BINARY", "./panack-vm"), ["run", "bootstrap/compiler-v8.bc", "disasm", vm_text(target)],
+        match process_run(vm_executable("PANACK_NATIVE_BINARY", "./panack-vm"), ["run", "bootstrap/compiler-v9.bc", "disasm", vm_text(target)],
           bytes(), path_current(), vm_environment(), duration_seconds(30), 1048576) {
           Error(problem) => { valid = false },
           Ok(listing) => {

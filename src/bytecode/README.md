@@ -11,7 +11,7 @@ limits in [FORMAT.md](FORMAT.md). The loader rejects legacy versions, truncation
 trailing bytes, invalid UTF-8, unknown codes, non-canonical numeric encodings,
 and reserved flags before semantic verification.
 
-The frozen execution contract and exact version-8 byte layout, including every
+The frozen execution contract and exact version-9 byte layout, including every
 instruction's stack effect and encoded operand, are specified in
 [FORMAT.md](FORMAT.md).
 
@@ -25,7 +25,7 @@ can all validate the exact same artifact bytes.
 
 ## Canonical ordering and deterministic artifacts
 
-Within bytecode version 8, serialization is canonical:
+Within bytecode version 9, serialization is canonical:
 
 - functions are ordered by ascending Unicode function name, independent of the
   insertion order of the in-memory function table;
@@ -44,13 +44,13 @@ bytecode version produces byte-identical artifacts. Loading and reserializing a
 canonical artifact also preserves every byte. Unit tests enforce repeated-build,
 function-order, and load/reserialize identity.
 
-The loader currently accepts version 8 only; backwards compatibility remains
+The loader currently accepts version 9 only; backwards compatibility remains
 deliberately postponed. Any semantic or encoding change requires a bytecode
 version increment.
 
 ## Self-hosted implementation
 
-[`codec.panack`](codec.panack) contains the Panackelty-hosted version-8
+[`codec.panack`](codec.panack) contains the Panackelty-hosted version-9
 serializer. It consumes the typed IR from `src/compiler/emitter.panack`, sorts
 functions canonically, and emits bytes checked against frozen independent
 bootstrap artifacts.
@@ -70,7 +70,7 @@ pure `$unit` call. Old artifacts must be recompiled.
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
-These share fixed version-8 and malformed artifact vectors and compare exact
+These share fixed version-9 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Fixture provenance and wire-format
 expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.

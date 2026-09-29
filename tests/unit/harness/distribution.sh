@@ -56,7 +56,7 @@ equal_files "$work/files" "$work/expected"
 mkdir "$work/relocated"
 mv "$work/extracted/panackelty" "$work/relocated/toolchain"
 version=$(cat "$root/VERSION")
-printf 'panack %s (bytecode 8)\n' "$version" > "$work/version"
+printf 'panack %s (bytecode 9)\n' "$version" > "$work/version"
 cat > "$work/logical-import.panack" <<'PROGRAM'
 import stdlib/option
 import stdlib/time
@@ -105,7 +105,7 @@ cp -R "$root/src" "$checkout/src"
 cp -R "$root/examples" "$checkout/examples"
 for stage in stage1 stage2; do
     mkdir -p "$checkout/build/bootstrap/$stage"
-    cp "$root/bootstrap/compiler-v8.bc" "$checkout/build/bootstrap/$stage/compiler.bc"
+    cp "$root/bootstrap/compiler-v9.bc" "$checkout/build/bootstrap/$stage/compiler.bc"
 done
 cd "$checkout"
 capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" ./panack run tests/runner/compiler_driver.panack

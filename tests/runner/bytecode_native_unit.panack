@@ -75,6 +75,17 @@ main(): Void {
     Ok(workspace) => {
       mut results: [TestResult] = []
       target = result_value_or(path_append(workspace.root, bytecode_native_path("input.bc")), workspace.root)
+      results = results.append(bytecode_native_case("async/shadowed-await", "tests/fixtures/bytecode/async/shadowed-await.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("async/shadowed-blocker", "tests/fixtures/bytecode/async/shadowed-blocker.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("async/ordinary-await", "tests/fixtures/bytecode/async/ordinary-await.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("async/async-ordinary-call", "tests/fixtures/bytecode/async/async-ordinary-call.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("async/ordinary-async-target", "tests/fixtures/bytecode/async/ordinary-async-target.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("async/await-pure-target", "tests/fixtures/bytecode/async/await-pure-target.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("async/await-arity", "tests/fixtures/bytecode/async/await-arity.hex", "call arity mismatch", target))
+      results = results.append(bytecode_native_case("async/ordinary-indirect-await", "tests/fixtures/bytecode/async/ordinary-indirect-await.hex", "invalid async instruction", target))
+      results = results.append(bytecode_native_case("async/reserved-combined-flags", "tests/fixtures/bytecode/async/reserved-combined-flags.hex", "invalid function flags", target))
+      results = results.append(bytecode_native_case("async/truncated-await-call", "tests/fixtures/bytecode/async/truncated-await-call.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("async/truncated-await-value", "tests/fixtures/bytecode/async/truncated-await-value.hex", "truncated data", target))
       results = results.append(bytecode_native_case("rejects_invalid_magic_and_version-1", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-1.hex", "not a Panackelty bytecode file", target))
       results = results.append(bytecode_native_case("rejects_invalid_magic_and_version-2", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-2.hex", "unsupported bytecode version", target))
       results = results.append(bytecode_native_case("rejects_invalid_magic_and_version-3", "tests/fixtures/bytecode/contract_cases/rejects_invalid_magic_and_version-3.hex", "unsupported bytecode version", target))
@@ -112,12 +123,13 @@ main(): Void {
       results = results.append(bytecode_native_case("minimal-v5", "tests/fixtures/bytecode/minimal-v5.hex", "unsupported bytecode version", target))
       results = results.append(bytecode_native_case("minimal-v6", "tests/fixtures/bytecode/minimal-v6.hex", "unsupported bytecode version", target))
       results = results.append(bytecode_native_case("minimal-v7", "tests/fixtures/bytecode/minimal-v7.hex", "unsupported bytecode version", target))
+      results = results.append(bytecode_native_case("minimal-v8", "tests/fixtures/bytecode/minimal-v8.hex", "unsupported bytecode version", target))
       results = results.append(bytecode_native_case("bad-magic", "tests/fixtures/bytecode/bad-magic.hex", "not a Panackelty bytecode file", target))
-      results = results.append(bytecode_native_case("unknown-opcode-v8", "tests/fixtures/bytecode/unknown-opcode-v8.hex", "unknown bytecode opcode", target))
-      results = results.append(bytecode_native_case("invalid-jump-v8", "tests/fixtures/bytecode/invalid-jump-v8.hex", "invalid jump target", target))
-      results = results.append(bytecode_native_case("nonminimal-integer-v8", "tests/fixtures/bytecode/nonminimal-integer-v8.hex", "non-minimal integer", target))
-      results = results.append(bytecode_native_case("truncated-v8", "tests/fixtures/bytecode/truncated-v8.hex", "truncated data", target))
-      results = results.append(bytecode_native_case("trailing-v8", "tests/fixtures/bytecode/trailing-v8.hex", "trailing data", target))
+      results = results.append(bytecode_native_case("unknown-opcode-v9", "tests/fixtures/bytecode/unknown-opcode-v9.hex", "unknown bytecode opcode", target))
+      results = results.append(bytecode_native_case("invalid-jump-v9", "tests/fixtures/bytecode/invalid-jump-v9.hex", "invalid jump target", target))
+      results = results.append(bytecode_native_case("nonminimal-integer-v9", "tests/fixtures/bytecode/nonminimal-integer-v9.hex", "non-minimal integer", target))
+      results = results.append(bytecode_native_case("truncated-v9", "tests/fixtures/bytecode/truncated-v9.hex", "truncated data", target))
+      results = results.append(bytecode_native_case("trailing-v9", "tests/fixtures/bytecode/trailing-v9.hex", "trailing data", target))
       results = results.append(bytecode_native_case("codec_structure-1", "tests/fixtures/bytecode/contract_cases/codec_structure-1.hex", "invalid UTF-8", target))
       results = results.append(bytecode_native_case("codec_structure-2", "tests/fixtures/bytecode/contract_cases/codec_structure-2.hex", "invalid function flags", target))
       results = results.append(bytecode_native_case("codec_structure-3", "tests/fixtures/bytecode/contract_cases/codec_structure-3.hex", "functions are not in canonical order", target))
@@ -139,7 +151,7 @@ main(): Void {
       results = results.append(bytecode_native_disasm("signed zero decimal",
         "tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.hex",
         read_file("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.disasm"), target))
-      minimal = bytecode_native_hex(read_file("tests/fixtures/bytecode/minimal-v8.hex"))
+      minimal = bytecode_native_hex(read_file("tests/fixtures/bytecode/minimal-v9.hex"))
       match fs_write(target, minimal) {
         Error(problem) => { results = results.append(test_expect("native minimal fixture", false, "write failed")) },
         Ok(done) => {

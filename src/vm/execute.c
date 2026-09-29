@@ -6,6 +6,7 @@
 #include "utf8.h"
 #include "value.h"
 #include "vm.h"
+#include "verify.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +34,8 @@ struct VMExecution {
     size_t exit_status;
     bool running, embedded;
     VMHostCall host_call;
-    VMPrintWait print_wait;
+    VMServiceWait print_wait, read_wait;
+    bool waiting_read, fake_fail;
     void *host_context;
 };
 
@@ -194,6 +196,20 @@ static void frames_clear(VMExecution *execution)
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
 {
     VM *vm = execution->vm;
+    if (!strcmp(entry->name, "async_fake_read")) {
+        if (arguments[0]->kind != V_BOOL) {
+            vm->error = "VM trap: fake read requires Bool";
+        } else if (!execution->embedded ||
+                   (execution->read_wait &&
+                    execution->read_wait(execution->host_context, arguments[0], &vm->error))) {
+            execution->waiting_read = true;
+            execution->fake_fail = arguments[0]->as.boolean;
+            execution->status = VM_WAITING;
+        } else if (!vm->error) {
+            vm->error = "VM trap: async service is unavailable";
+        }
+        return NULL;
+    }
     if (!execution->embedded || entry->pure) {
         return builtin_call(vm, entry->name, arguments);
     }
@@ -593,6 +609,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
         case OP_MATCH_FAIL:
             vm->error = "VM trap: enum match was not exhaustive";
             break;
+        case OP_AWAIT_CALL:
         case OP_CALL: {
             Value **args = calloc(instruction->arity, sizeof(Value *));
             if (instruction->arity && !args) {
@@ -609,10 +626,17 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 break;
             }
             const Builtin *built = builtin(instruction->name);
-            if (built) {
+            Function *called = built ? NULL : program_function(vm->program, instruction->name);
+            if ((!built && !called) ||
+                instruction->arity != (built ? built->arity : called->param_count) ||
+                !verify_call_edge(function, called, built && built->pure,
+                                  built && !strcmp(built->name, "async_fake_read"),
+                                  instruction->op == OP_AWAIT_CALL)) {
+                vm->error = "VM trap: invalid async call effect or signature";
+            } else if (built) {
                 v = execution_builtin(execution, built, args);
             } else {
-                frame_push(execution, program_function(vm->program, instruction->name), args);
+                frame_push(execution, called, args);
             }
             for (size_t i = 0; i < instruction->arity; i++) {
                 release(args[i]);
@@ -644,6 +668,11 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             if (!v) {
                 break;
             }
+            if (function->is_async && !strcmp(function->name, "main") && v->kind != V_UNIT) {
+                release(v);
+                vm->error = "VM trap: async main must return Unit";
+                break;
+            }
             frame_free(frame);
             execution->frame_count--;
             if (!execution->frame_count) {
@@ -653,6 +682,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 goto oom;
             }
             break;
+        case OP_AWAIT_VALUE:
         case OP_CALL_VALUE: {
             bool called_function = false;
             Value **args = calloc(instruction->arity, sizeof(Value *));
@@ -691,9 +721,13 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                     vm->error = "VM trap: indirect call target was not found";
                 } else if (instruction->arity != (built ? built->arity : called->param_count)) {
                     vm->error = "VM trap: indirect call arity mismatch";
-                } else if (function->pure &&
-                           !((built && built->pure) || (called && called->pure))) {
-                    vm->error = "VM trap: pure function invokes impure callable";
+                } else if (memchr(callable->as.bytes.data, 0, callable->as.bytes.length) ||
+                           !verify_call_edge(function, built ? NULL : called, built && built->pure,
+                                             built && !strcmp(built->name, "async_fake_read"),
+                                             instruction->op == OP_AWAIT_VALUE)) {
+                    vm->error = function->pure
+                        ? "VM trap: pure function invokes impure callable"
+                        : "VM trap: invalid async callable effect";
                 } else {
                     if (built) {
                         v = execution_builtin(execution, built, args);
@@ -762,7 +796,7 @@ VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
 }
 
 VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arguments,
-                                         VMPrintWait wait, void *context, const char **error)
+                                         VMServiceWait wait, void *context, const char **error)
 {
     VMExecution *execution = vm_execution_create(vm, function, arguments, NULL, context, error);
     if (execution) {
@@ -773,7 +807,7 @@ VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arg
 
 bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
-    if (execution->running || execution->status != VM_WAITING) {
+    if (execution->running || execution->status != VM_WAITING || execution->waiting_read) {
         return false;
     }
     VM *vm = execution->vm;
@@ -829,11 +863,72 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     VMExecution execution = {.vm = vm, .status = VM_YIELDED};
     vm->execution = &execution;
     if (frame_push(&execution, function, arguments)) {
-        while (vm_execution_advance(&execution, SIZE_MAX) == VM_YIELDED) {
+        for (;;) {
+            VMExecutionStatus status = vm_execution_advance(&execution, SIZE_MAX);
+            if (status == VM_YIELDED) {
+                continue;
+            }
+            if (status != VM_WAITING || !execution.waiting_read) {
+                break;
+            }
+            Value *result = vm_fake_read_result(execution.fake_fail);
+            vm_execution_complete_read(&execution, result);
+            release(result);
         }
     }
     frames_clear(&execution);
     free(execution.frames);
     vm->execution = NULL;
     return execution.result;
+}
+
+VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,
+                                       VMServiceWait wait, void *context, const char **error)
+{
+    VMExecution *execution = vm_execution_create(vm, fn, arguments, NULL, context, error);
+    if (execution) {
+        execution->read_wait = wait;
+    }
+    return execution;
+}
+
+bool vm_fake_read_result_valid(const Value *result)
+{
+    if (!result || result->kind != V_VARIANT || result->as.named.count != 1 ||
+        !result->as.named.values[0]) {
+        return false;
+    }
+    const Value *payload = result->as.named.values[0];
+    return (!strcmp(result->as.named.name, "Ok") && payload->kind == V_BYTES) ||
+           (!strcmp(result->as.named.name, "Error") && payload->kind == V_STR);
+}
+
+Value *vm_fake_read_result(bool fail)
+{
+    const char *text = fail ? "fake I/O error" : "fake bytes";
+    Value *payload = value_data(fail ? V_STR : V_BYTES, (const uint8_t *)text, strlen(text));
+    if (!payload) {
+        return NULL;
+    }
+    Value *result = named_value(V_VARIANT, fail ? "Error" : "Ok", NULL, &payload, 1);
+    release(payload);
+    return result;
+}
+
+bool vm_execution_complete_read(VMExecution *execution, Value *result)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->waiting_read) {
+        return false;
+    }
+    execution->waiting_read = false;
+    if (!vm_fake_read_result_valid(result)) {
+        execution->vm->error = result ? "VM trap: invalid async completion type" : "native VM out of memory";
+    } else if (!stack_push(&execution->frames[execution->frame_count - 1], retain(result))) {
+        execution->vm->error = "native VM out of memory";
+    }
+    execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (execution->vm->error) {
+        frames_clear(execution);
+    }
+    return true;
 }

@@ -38,7 +38,7 @@ PACKAGE_ROOT := $(PACKAGE_STAGE)/$(PACKAGE_ROOT_NAME)
 PACKAGE_ARCHIVE := $(abspath $(BUILD_DIR))/$(PACKAGE_NAME).tar.gz
 PACKAGE_CHECKSUM := $(PACKAGE_ARCHIVE).sha256
 BOOTSTRAP_DIR := $(BUILD_DIR)/bootstrap
-SEED_COMPILER ?= bootstrap/compiler-v8.bc
+SEED_COMPILER ?= bootstrap/compiler-v9.bc
 SEED_DIGEST ?= $(SEED_COMPILER).sha256
 COMPILER_SOURCE := src/compiler/main.panack
 STDLIB_CONFORMANCE := tests/functional/cases/stdlib/main.panack
@@ -171,8 +171,8 @@ $(BUILD_DIR)/vm/%.o: src/vm/%.c
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/tasks.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/tasks.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)
@@ -326,7 +326,7 @@ install: native
 	install -m 755 panack "$(DESTDIR)$(PREFIX)/bin/panack"
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
-	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v8.bc"
+	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
 	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
 	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 

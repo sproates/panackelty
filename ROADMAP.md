@@ -44,8 +44,8 @@ merge review. PR #94 merged after all 21 CI jobs passed; issue #93 is closed. Th
 authorised the bounded task/lifecycle feasibility milestone, now merged in PR #96
 with all 21 hosted checks passed and issue #95 closed. The user subsequently
 selected an application-facing async design proposal. PR #98 is now merged,
-with all 21 hosted checks passed and issue #97 closed. Syntax adoption,
-implementation and networking remain draft.
+with all 21 hosted checks passed and issue #97 closed. The user subsequently selected the bounded source-to-VM await slice below.
+Networking, source spawning and resource scopes remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -283,10 +283,26 @@ cover repository regressions, not execution of the invented examples. No usabili
 trial or native networking experiment is claimed. Merge adopts an investigation
 report, not automatic permission to implement its recommendation.
 
+### In progress: bounded source-to-VM async/await slice
+
+Work record: [issue #102](https://github.com/sproates/panackelty/issues/102).
+Selected on 2026-09-29 after comparing real TCP/timer investigation, targeted
+compiler assistance and website assessment. M–L, estimated one cohesive PR (two
+only if migration can be independently delivered). This prioritises proving the
+application interface through the compiler/runtime; real backend cleanup remains
+a required later gate before freezing resource/cancellation semantics.
+
+Scope: async main returning Unit, direct/indirect awaited helpers, typed fixed
+fake reads, source and bytecode effect checks, cancellation, v9 migration and seed
+refresh. No networking, spawn, resources or stable ABI. Acceptance before review:
+meaningful source/CLI and forged-runtime tests, success/error and wrong-completion
+cases, cancellation races, independent progress, allocation-failure cleanup,
+canonical validation, sanitizer gates and paired performance evidence.
+
 ### Remaining recommendations from the pilot — provisional
 
-1. Review the async-interface proposal and agree a next implementation scope, or
-   select the native TCP/timer investigation first. Neither is scheduled.
+1. Complete the authorised bounded async/await slice, then reassess the native
+   TCP/timer investigation against the remaining alternatives.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 
@@ -327,7 +343,7 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Report merged in PR #92; later implementation stages remain proposals |
 | Done | [Resumable VM feasibility (#93)](https://github.com/sproates/panackelty/issues/93) | PR #94 merged; all 21 hosted gates passed; issue closed |
 | Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
-| Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; implementation remains unscheduled |
+| Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; bounded await implementation selected in #102 |
 | Idea | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | Assess and improve panackelty.com content, navigation, onboarding and presentation; unscheduled |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
@@ -652,6 +668,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local task/lifecycle validation sample (2026-09-29; macOS arm64, clean build) | 103s; unit 69s; canonical checks passed | Full check within 120s; unit warning persists; cross-host timings are not directly comparable |
 | Local async-interface proposal validation (2026-09-29; macOS arm64, clean build) | 106s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
 | Local shared-skill validation (2026-09-29; macOS arm64, clean build) | 104s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
+| Local async implementation validation (2026-09-29; Linux workspace) | Full check passed in 370s, unit 263s; concurrent sanitizer work affected this sample; final isolated outcome in PR | Prioritize compiler/nested-runner costs; retain all coverage and timing warnings |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

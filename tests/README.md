@@ -198,7 +198,7 @@ CLI. Make orchestrates shell, C and Panackelty checks.
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
-These share fixed version-8 and malformed artifact vectors and compare exact
+These share fixed version-9 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Fixture provenance and wire-format
 expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.

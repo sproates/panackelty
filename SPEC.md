@@ -174,7 +174,7 @@ origin remain valid arithmetic values; they do not change that origin.
 
 There is no public epoch, tick accessor, wall-clock conversion, integer
 constructor, serialization, or cross-execution comparison. Printing an instant
-produces `<Instant>`. The bytecode container remains version 8: new calls use
+produces `<Instant>`. These calls were introduced in version 8; version 9 retains
 existing verified `CALL` instructions, and older VMs reject unknown calls.
 Runtime operand checks reject forged records and wrong types even when bytecode
 bypasses source checking.
@@ -394,7 +394,7 @@ not permit an effectful call from a pure body.
 
 Generic functions may recurse and call other generic functions. They compile to
 one ordinary function body with type arguments erased; tagged runtime values
-and the existing version-8 call instructions supply execution. No specialisation,
+and the existing ordinary call instructions supply execution. No specialisation,
 new opcode, or bytecode version is required. Taking a generic function reference
 with `@name` is deferred; use a non-generic wrapper when a concrete callback is
 needed. Constraints, traits, higher-rank polymorphism, partial type arguments,
@@ -441,8 +441,8 @@ bindings without `mut` are immutable.
 
 Function names become first-class callable values only through an explicit
 reference expression, `@name`. A declared function with parameters `A, B` and
-result `R` has type `PureFn[A,B,R]` when declared `pure`, otherwise
-`Fn[A,B,R]`. The final type argument is always the result, so a zero-argument
+result `R` has type `AsyncFn[A,B,R]` when declared `async`,
+`PureFn[A,B,R]` when declared `pure`, otherwise `Fn[A,B,R]`. The final type argument is always the result, so a zero-argument
 function uses `PureFn[R]` or `Fn[R]`. `PureFn` is assignable to the corresponding
 `Fn`, but not conversely. Constructors and built-ins are not referenceable in
 this initial model, and callable values do not capture local state.
@@ -721,9 +721,9 @@ compiles `.panack` source to bytecode in memory before starting the VM. `panack
 compile program.panack` persists the same bytecode as `program.bc`, and `panack run
 program.bc` loads, verifies, and executes that artifact directly.
 
-The CLI executes synchronously. Internal C task/lifecycle experiments use a fake
-pending host service; they introduce no source concurrency syntax, networking API
-or change to version-8 call semantics.
+The CLI drives ordinary main synchronously and async main through the same VM's
+suspend/complete loop. The only async host service is a deterministic fake read;
+there is no networking API or source task-spawning syntax.
 
 The compiler emits stack instructions with a named function table and purity
 metadata. Calls use isolated frames containing locals and an operand stack.
@@ -918,3 +918,32 @@ negative or larger values return `negative_duration` or `out_of_range` before an
 sleep or process launch. Duration arithmetic itself remains arbitrary precision.
 System-suspension accounting follows the host clock and sleep implementations;
 no portable across-suspension deadline promise is made.
+
+## Bounded async/await interface
+
+An `async` declaration marks a function that may suspend. `await helper(args)`
+activates that helper in the current task, preserving locals and call frames
+until it returns. Arguments are evaluated once, left to right. There is no dormant
+operation value. Bare async calls, awaiting ordinary calls, awaiting a non-call,
+and await outside an async function are errors. `pure async` is not a declaration.
+
+Async bodies may call pure functions and await async functions; ordinary impure
+functions (including print, files, sleep, process and clock services) are rejected,
+both directly and through callable values or helper bodies. Named async references
+have `AsyncFn[A,...,R]` type and are invoked with `await callback.call(args)`.
+There is no conversion between AsyncFn and Fn/PureFn. Async functions must return
+a value; use Unit for no data. Async main takes no parameters and returns Unit.
+A directly discarded non-Unit await expression must be bound, matched or returned.
+This is a limited result-use check, not proof that every computed value is used.
+
+Import `stdlib/result` to use `async_fake_read(fail: Bool): Result[Bytes,Str]`.
+It is an experimental fixed service, available only via await. The CLI suspends
+then completes it with `Ok(utf8_encode("fake bytes"))` for false or
+`Error("fake I/O error")` for true. No file or socket is opened. Hosts may deliver
+other bytes/errors within this exact schema. Wrong completion tags, variant names
+or payload arities trap before source execution resumes. Runtime task cancellation
+is terminal, not a source Result error; late completions cannot restart the task.
+
+The source slice includes no spawn, scopes, task/resource values, real timers,
+network transport or stable embedding ABI. Existing ordinary programs preserve
+their behavior when recompiled to v9. See the [executable contract](tests/functional/cases/async_await/main.panack).

@@ -1,5 +1,5 @@
 *.bc
-!/bootstrap/compiler-v8.bc
+!/bootstrap/compiler-v9.bc
 /panack-vm
 /build/
 /output/

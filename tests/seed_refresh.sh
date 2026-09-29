@@ -40,10 +40,10 @@ reject() {
 }
 
 if [ "${1:-}" = --native ]; then
-    seed=$work/seed\ dir/compiler-v8.bc
+    seed=$work/seed\ dir/compiler-v9.bc
     manifest=$seed.sha256
-    cp bootstrap/compiler-v8.bc "$seed"
-    cp bootstrap/compiler-v8.bc.sha256 "$manifest"
+    cp bootstrap/compiler-v9.bc "$seed"
+    cp bootstrap/compiler-v9.bc.sha256 "$manifest"
     # Only POSIX utilities and a hash tool are visible; no Python executable.
     mkdir "$work/bin"
     for utility in sh awk cmp cp mkdir rm mv chmod; do
@@ -52,7 +52,7 @@ if [ "${1:-}" = --native ]; then
     if command -v sha256sum >/dev/null 2>&1; then utility=sha256sum; else utility=shasum; fi
     ln -s "$(command -v "$utility")" "$work/bin/$utility"
     PATH="$work/bin" sh "$script" "$root/panack-vm" "$seed" "$manifest" src/compiler/main.panack tests/functional/cases/stdlib/main.panack
-    test "$(hash "$seed")  compiler-v8.bc" = "$(cat "$manifest")"
+    test "$(hash "$seed")  compiler-v9.bc" = "$(cat "$manifest")"
     test ! -e "$seed.refresh-lock"
     echo 'seed refresh: native staging passed with a Python-free PATH'
     exit

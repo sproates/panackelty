@@ -28,6 +28,7 @@ record FunctionLookup {
   parameters: [FunctionParameter],
   return_type: Str,
   is_pure: Bool,
+  is_async: Bool,
   type_parameters: [Str]
 }
 
@@ -194,7 +195,7 @@ pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
       ImportDeclaration(path) => {},
       RecordDeclaration(declared, parameters, fields) => {},
       EnumDeclaration(declared, parameters, variants) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
   result
@@ -212,7 +213,7 @@ pure record_type(program: Program, name: Str): RecordLookup {
       },
       ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
       EnumDeclaration(declared, parameters, variants) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
   result
@@ -230,19 +231,19 @@ pure enum_type(program: Program, name: Str): EnumLookup {
       },
       ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
   result
 }
 
 pure function_type(program: Program, name: Str): FunctionLookup {
-  mut result: FunctionLookup = FunctionLookup(false, [], "", false, [])
+  mut result: FunctionLookup = FunctionLookup(false, [], "", false, false, [])
   for declaration in program.declarations {
     match declaration {
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {
+      FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         if declared == name {
-          result = FunctionLookup(true, parameters, return_type, is_pure, type_parameters)
+          result = FunctionLookup(true, parameters, return_type, is_pure, is_async, type_parameters)
         } else {
         }
       },
@@ -268,7 +269,7 @@ pure variant_type(program: Program, name: Str): VariantLookup {
       },
       ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, body, type_parameters) => {}
+      FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
   result
@@ -313,7 +314,7 @@ pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bo
           known = true
           expected = 2
         } else {
-          if shape.base == "Fn" || shape.base == "PureFn" {
+          if shape.base == "Fn" || shape.base == "PureFn" || shape.base == "AsyncFn" {
             known = true
             expected = len(shape.arguments)
             if expected == 0 { callable_name: Str = shape.base; diagnostics = append(diagnostics, checker_diagnostic("${callable_name} expects at least a return type")); } else {}
@@ -361,7 +362,7 @@ pure assignable(program: Program, source: Str, target: Str): Bool {
   } else {
     source_shape: TypeShape = type_shape(source)
     target_shape: TypeShape = type_shape(target)
-    if source_shape.base == "Fn" || source_shape.base == "PureFn" || target_shape.base == "Fn" || target_shape.base == "PureFn" {
+    if source_shape.base == "Fn" || source_shape.base == "PureFn" || source_shape.base == "AsyncFn" || target_shape.base == "Fn" || target_shape.base == "PureFn" || target_shape.base == "AsyncFn" {
       compatible_effect: Bool = source_shape.base == target_shape.base || (source_shape.base == "PureFn" && target_shape.base == "Fn")
       mut compatible_signature: Bool = len(source_shape.arguments) == len(target_shape.arguments) && len(source_shape.arguments) > 0
       mut callable_index: Nat = 0
@@ -514,7 +515,7 @@ pure merge_types(program: Program, left: Str, right: Str): Str {
   else {
     left_shape: TypeShape = type_shape(left)
     right_shape: TypeShape = type_shape(right)
-    callable: Bool = left_shape.base == "Fn" || left_shape.base == "PureFn" || right_shape.base == "Fn" || right_shape.base == "PureFn"
+    callable: Bool = left_shape.base == "Fn" || left_shape.base == "PureFn" || left_shape.base == "AsyncFn" || right_shape.base == "Fn" || right_shape.base == "PureFn" || right_shape.base == "AsyncFn"
     if callable {
       if assignable(program, left, right) { right }
       else { if assignable(program, right, left) { left } else { "Unknown" } }
@@ -572,6 +573,7 @@ pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
+  if name == "async_fake_read" { "Result[Bytes,Str]" } else {
   if name == "fs_read" { "Result[Bytes,HostError]" } else {
   if name == "fs_write" { "Result[Unit,HostError]" } else {
   if name == "fs_metadata" { "Result[FileMetadata,HostError]" } else {
@@ -607,7 +609,10 @@ pure builtin_return(name: Str): Str {
 } } } } } } } } } } } }
 } } } } } } } } } } } } }
 
+}
+
 pure builtin_arity(name: Str): Nat {
+  if name == "async_fake_read" { 1 } else {
   if name == "fs_read" { 2 } else {
   if name == "fs_write" { 2 } else {
   if name == "fs_metadata" { 1 } else {
@@ -632,7 +637,10 @@ pure builtin_arity(name: Str): Nat {
 } } }
 } } } } } } } } } } } } }
 
+}
+
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "async_fake_read" { "Bool" } else {
   if name == "fs_read" { if index == 0 { "Path" } else { if index == 1 { "Nat" } else { "Any" }} } else {
   if name == "fs_write" { if index == 0 { "Path" } else { if index == 1 { "Bytes" } else { "Any" }} } else {
   if name == "fs_metadata" { if index == 0 { "Path" } else { "Any" } } else {
@@ -671,6 +679,8 @@ pure builtin_parameter(name: Str, index: Nat): Str {
 } }
 } } } } } } } } }
 } } } } } } } } } } } } }
+
+}
 
 pure method_operation(name: Str): Str {
   mut result: Str = name
@@ -793,7 +803,7 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
         mut signature: [Str] = []
         for parameter in function.parameters { signature = append(signature, parameter.type_name); }
         signature = append(signature, function.return_type)
-        info = plain_type(render_type(if function.is_pure { "PureFn" } else { "Fn" }, signature))
+        info = plain_type(render_type(if function.is_async { "AsyncFn" } else { if function.is_pure { "PureFn" } else { "Fn" } }, signature))
       }
     },
     ArrayExpr(items) => {
@@ -817,9 +827,10 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
       checked: CheckedExpression = check_expression_scoped(operand, environment, facts, program, scope_types)
       diagnostics = checked.diagnostics
       base: Str = base_type(program, checked.info.name)
-      if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
+      if operator == "await" { info = checked.info; }
+      else { if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
       else { if operator == "-" && (base == "Nat" || base == "Int" || base == "Dec" || base == "Rat") { info = plain_type(if base == "Dec" || base == "Rat" { base } else { "Int" }); }
-      else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } }
+      else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } } }
     },
     BinaryExpr(operator, left, right) => {
       checked_left: CheckedExpression = check_expression_scoped(left, environment, facts, program, scope_types)
@@ -922,7 +933,7 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
       if is_builtin(name) && len(argument_infos) == expected_count {
         if operation == "call" {
           callable: TypeShape = type_shape(argument_infos[0].name)
-          if (callable.base != "Fn" && callable.base != "PureFn") || len(callable.arguments) == 0 {
+          if (callable.base != "Fn" && callable.base != "PureFn" && callable.base != "AsyncFn") || len(callable.arguments) == 0 {
             actual_callable: Str = argument_infos[0].name
             diagnostics = append(diagnostics, checker_diagnostic("call expects a callable, got ${actual_callable}"))
           } else {
@@ -1242,15 +1253,17 @@ pure check_program_types(program: Program): [Diagnostic] {
           if len(variants) == 0 { diagnostics = append(diagnostics, checker_diagnostic("enum ${name} must contain at least one variant")); } else {}
           for variant in variants { for payload in variant.payload { diagnostics = concat(diagnostics, require_type(program, payload, parameters, false)); } }
         },
-        FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
+        FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
           mut seen_type_parameters: Set[Str] = set()
           for parameter in type_parameters {
             if seen_type_parameters.has(parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in function ${name}")); }
             seen_type_parameters = seen_type_parameters.add(parameter)
-            if is_scalar_base(parameter) || parameter == "Void" || parameter == "Bytes" || parameter == "Path" || parameter == "Duration" || parameter == "Instant" || parameter == "Array" || parameter == "Map" || parameter == "Set" || parameter == "Fn" || parameter == "PureFn" || parameter == "Any" || parameter == "Unknown" || parameter == "Range" || parameter == "Iterator" || record_type(program, parameter).found || enum_type(program, parameter).found || guarded_type(program, parameter).found {
+            if is_scalar_base(parameter) || parameter == "Void" || parameter == "Bytes" || parameter == "Path" || parameter == "Duration" || parameter == "Instant" || parameter == "Array" || parameter == "Map" || parameter == "Set" || parameter == "Fn" || parameter == "PureFn" || parameter == "AsyncFn" || parameter == "Any" || parameter == "Unknown" || parameter == "Range" || parameter == "Iterator" || record_type(program, parameter).found || enum_type(program, parameter).found || guarded_type(program, parameter).found {
               diagnostics = append(diagnostics, checker_diagnostic("type parameter ${parameter} conflicts with a type name"))
             }
           }
+          if is_async && return_type == "Void" { diagnostics = append(diagnostics, checker_diagnostic("async functions return a value; use Unit instead of Void")); }
+          if is_async && name == "main" && return_type != "Unit" { diagnostics = append(diagnostics, checker_diagnostic("async main must return Unit")); }
           if name == "main" && len(type_parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot have type parameters")); }
           if name == "main" { has_main = true; if len(parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters")); } else {} } else {}
           environment: Map[Str,TypeInfo] = map(); mut values: Map[Str,TypeInfo] = environment

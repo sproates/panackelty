@@ -6,6 +6,11 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Add a bounded async/await source interface, AsyncFn references and typed fake
+  read completions, with host cancellation and strict call-effect checks. Refresh
+  the compiler seed to bytecode v9; saved v8 artifacts require recompilation.
+  No real networking, source spawning or resource scopes are included.
+
 - Add an internal fake-host task/lifecycle experiment with scoped joins, bounded
   completion queues, virtual deadlines and cancellation cleanup. CLI, source
   syntax and bytecode remain unchanged; no OS networking is introduced.

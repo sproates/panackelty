@@ -112,7 +112,7 @@ main(): Void {
           if size > 0 {
             release = text_slice(value, 0, size - 1)
             results = results.append(test_run_command("version", command(["--version"]),
-              ProcessOutput(0, 0, utf8_encode("panack ${release} (bytecode 8)\n"), bytes())))
+              ProcessOutput(0, 0, utf8_encode("panack ${release} (bytecode 9)\n"), bytes())))
           } else {
             results = results.append(test_expect("version", false, "empty version"))
           }

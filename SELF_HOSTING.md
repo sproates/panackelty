@@ -4,6 +4,14 @@ The compiler and standard library build on the native VM and reach a
 reproducible compiler fixed point. A milestone is complete only when its behavior
 has end-to-end and focused failure-case coverage in `make check`.
 
+## Bytecode v9 migration
+
+The async/await slice refreshes the self-hosted seed to `bootstrap/compiler-v9.bc`.
+The historical v8 seed built the migrating compiler without using new source
+syntax in the compiler itself. Repeated v9 compiler/stdlib builds and the seed
+refresh transaction verify convergence; v8 support is retired after that bridge.
+The historical milestones below retain their original version numbers.
+
 ## Bootstrap status
 
 The self-hosting critical path is complete. The compiler is written in
@@ -165,7 +173,7 @@ Portable Panackelty definitions are separated from deterministic VM primitives
 and from the effectful named-call ABI in `src/runtime/ABI.md`. Environment and
 argument inputs are snapshotted per VM and inherited by nested execution. The
 standard-library conformance graph compiles with both currently available
-compiler stages, and their version-8 artifacts must be byte-identical.
+compiler stages, and their current-version artifacts must be byte-identical.
 
 ## Milestone 8: Native seed VM — complete
 

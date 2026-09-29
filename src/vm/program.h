@@ -29,7 +29,7 @@ typedef struct {
 
 typedef struct {
     char *name;
-    bool pure;
+    bool pure, is_async;
     size_t param_count, ins_count;
     char **params;
     Instruction *ins;
@@ -64,6 +64,8 @@ typedef enum {
     OP_JUMP = 19,
     OP_RETURN = 20,
     OP_CALL_VALUE = 21,
+    OP_AWAIT_CALL = 22,
+    OP_AWAIT_VALUE = 23,
 } Opcode;
 
 Function *program_function(Program *p, const char *name);

@@ -177,7 +177,7 @@ its instruction streams and absolute jump targets to match the bootstrap
 emitter.
 
 The Panackelty-hosted serializer in `src/bytecode/codec.panack` consumes that
-typed IR and writes canonical version-8 artifacts using only portable byte
+typed IR and writes canonical version-9 artifacts using only portable byte
 buffer operations. Complete artifacts are compared byte-for-byte with the
 bootstrap serializer.
 
@@ -198,7 +198,7 @@ root `VERSION` file in a checkout or the installed copy and handles
 checked program then crosses back into the pure emitter and serializer.
 
 `src/compiler/driver.panack` implements all four public compiler operations.
-Source `run` compiles to version-8 bytes and invokes the runtime's verified
+Source `run` compiles to version-9 bytes and invokes the runtime's verified
 nested-bytecode boundary; saved bytecode follows the same decoder and verifier.
 The executable `src/compiler/main.panack` obtains program arguments and forwards
 nonzero status through the runtime boundary.
@@ -225,7 +225,7 @@ portable library functions; they introduce no compiler or VM primitives.
 Generic source functions are checked with abstract type parameters. Calls infer
 or explicitly supply a complete substitution, then validate their arguments and
 result. Emission erases type arguments and retains one body per function, using
-the existing tagged values and version-8 calls. Collection storage and lexical
+the existing tagged values and version-9 calls. Collection storage and lexical
 path transforms remain deterministic VM primitives; array map/reduce retain
 compiler lowering. Generic library helpers build on those operations. Stage tests
 compile the complete prelude graph with both the bootstrap and self-hosted
@@ -257,8 +257,9 @@ The experimental host-controlled profile intercepts process exit, rejects nested
 bytecode and requires trusted immediate adapters for effectful services; the CLI
 retains its existing host behavior. `tasks.c` adds an internal bounded task session
 with parent/child joins, virtual deadlines and generation-qualified fake print
-acknowledgements. This proves pending-operation lifetimes without OS I/O or a
-public async language feature. Task slots remain reserved until session destruction.
+acknowledgements. This proves pending-operation lifetimes without OS I/O,
+public spawning or resource scopes. Source async functions now reuse its typed
+fake-read completion path. Task slots remain reserved until session destruction.
 Ownership and status contracts are in the
 [VM guide](src/vm/README.md#internal-resumable-execution).
 
@@ -267,9 +268,10 @@ failure impossible. These include collection bounds, `Nat` underflow, invalid
 matches, and missing returns. This keeps execution safe when bytecode did not
 originate from the current compiler.
 
-Bytecode version 8 uses the compact typed binary payload introduced by version
+Bytecode version 9 uses the compact typed binary payload introduced by version
 5, retains version-6 method/string semantics and version-7 indirect calls, and
-adds exact rational division, conversions, and first-class Unit values.
+retains exact rational division, conversions, and first-class Unit values.
+Version 9 adds an async function flag and direct/indirect await opcodes.
 Functions are serialized
 in ascending Unicode name order; opcodes, constant tags, count widths, and
 operand layouts are fixed; strings are length-prefixed UTF-8; and numeric
@@ -278,7 +280,7 @@ identical inputs and load/reserialize round trips must therefore be
 byte-identical. Semantic or encoding changes still require a bytecode version
 increment.
 
-The complete value model, frame rules, instruction stack effects, version-8
+The complete value model, frame rules, instruction stack effects, version-9
 binary layout, control flow, verification boundary, and trap conditions are frozen in
 [`src/bytecode/FORMAT.md`](src/bytecode/FORMAT.md). Structurally valid but
 dynamically invalid bytecode traps at the VM boundary instead of exposing a
@@ -294,7 +296,7 @@ while non-ASCII offsets traverse UTF-8. This removes repeated scanning during
 compiler lexing without changing bytecode or language semantics.
 
 The portable C11 seed VM under `src/vm/` independently decodes, verifies,
-and executes version-8 artifacts. Its reference-counted values and
+and executes version-9 artifacts. Its reference-counted values and
 arbitrary-precision numerics use no third-party libraries. Fixed-expectation
 tests run the complete program corpus and execute the Panackelty-hosted compiler
 on the native VM. An adversarial instruction corpus also requires the VM to trap
@@ -556,7 +558,8 @@ implements checked construction, lexical path operations, exact tick storage,
 and clock reads in `src/vm/host_types.c`, declared by `host_types.h`.
 Only `instant_now` crosses the host boundary. Both verifiers enforce its effect
 and builtin arity; runtime tags prevent forged records from acting as opaque
-values. No constant tags or instructions are added to bytecode version 8.
+values. These opaque types retain their original call-based representation;
+the separate async extension adds the version-9 await instructions.
 
 ## Typed host capabilities
 
@@ -601,7 +604,7 @@ harness tests inject report/fixture errors and assert failure and cleanup.
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
-These share fixed version-8 and malformed artifact vectors and compare exact
+These share fixed version-9 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Fixture provenance and wire-format
 expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.

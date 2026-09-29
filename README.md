@@ -61,6 +61,16 @@ The [API specification](SPEC.md#paths-and-monotonic-time) and
 [executable example](tests/functional/cases/host_types/main.panack) show their
 contracts and use.
 
+## Experimental async source support
+
+The current source checkout supports `async` functions, explicit `await` and
+`AsyncFn` references with a fixed fake read service. The
+[executable example](tests/functional/cases/async_await/main.panack) checks typed
+success/error results and nested suspension. This is a bounded language/runtime
+slice, not networking support; source spawning and resource scopes remain future
+work. It uses bytecode v9, so saved v8 programs need recompilation. The published
+alpha.9 download below predates this unreleased feature.
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. The
@@ -163,11 +173,13 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The complete output is:
+The current source-built toolchain produces the output below. The published
+alpha.9 download reports `bytecode 8` on the first line; the other lines are
+identical.
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.9 (bytecode 8)
+panack 0.1.0-alpha.9 (bytecode 9)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc
@@ -557,7 +569,7 @@ published report visible. See [publication details](tests/README.md#public-cover
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.
-These share fixed version-8 and malformed artifact vectors and compare exact
+These share fixed version-9 and malformed artifact vectors and compare exact
 canonical artifacts and disassemblies. Fixture provenance and wire-format
 expectations are documented in
 `tests/fixtures/bytecode/contract_cases/README.md`.

@@ -429,3 +429,19 @@ clean up on success/failure and preserve command status.
 optional destinations, stdout/status/signal/stderr mismatches, host errors,
 write failures and cleanup. Existing smoke-report and fixture-runner fault
 injection remains in place. Reuse does not change any language coverage status.
+
+
+## Async/await slice (issue #102)
+
+Compiler effect contracts cover direct/indirect activation, bare calls, ordinary
+and pure contexts, blocking helpers/callbacks, AsyncFn conversions, nested awaited
+arguments, generic helpers and entry-point results. The public CLI case covers
+source and saved bytecode success/error branches and 128 nested async frames;
+negative CLI fixtures reject bare calls and blocking effects.
+
+Native async contracts enumerate all caller/callee/activation combinations,
+including forged indirect edges, and exercise typed completion schemas, bounded
+queues, independent progress, wrong-session/generation/duplicate deliveries and
+cancellation before registration, during waits, after enqueue and after delivery.
+Allocation sweeps cover typed completion construction, delivery and destruction.
+This is fake-host evidence, not real network producer quiescence or source scopes.

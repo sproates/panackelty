@@ -36,8 +36,10 @@ agents remains a hypothesis to test.
 **The implementation roadmap remains a draft for discussion.** The decision
 process was adopted in PR #83; the assessment was adopted in PR #87. The
 12-trial delivery pilot was adopted in PR #88; issue #86 is closed.
-On 2026-09-29 the user selected sorting and literal suffix helpers as the next
-bounded implementation item. The remaining implementation order stays draft.
+Sorting and literal suffix helpers shipped in PR #90. On 2026-09-29 the user
+authorised an execution, concurrency and host-integration design investigation
+before networking APIs. Its recommended model and implementation sequence remain
+proposals for review; the remaining implementation roadmap stays draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -102,11 +104,11 @@ changes, not a predetermined win or a claim of mainstream adoption. Bound the
 experiment scope and budget before execution; do not introduce a Python runtime
 dependency into Panackelty's own development or validation workflow.
 
-### Now: sorting and literal suffix helpers
+### Completed: sorting and literal suffix helpers
 
 Work record: [issue #89](https://github.com/sproates/panackelty/issues/89).
-State: implementation and local acceptance complete; awaiting PR review and
-CI before merge.
+State: Done. PR #90 merged after all 21 CI jobs passed, including the three
+sanitizer partitions and Linux/macOS packages; issue #89 is closed.
 
 The user selected this S–M item on 2026-09-29 because both ledger trials wrote
 sorting helpers and both inventory trials wrote suffix helpers. It offers a
@@ -128,13 +130,43 @@ compile and saved-bytecode execution. The new stdlib artifact matches the
 unmodified historical compiler; existing disassembled functions are unchanged.
 Canonical `make check` passed in 148s (unit 102s), including bootstrap and
 packaged quick-start validation. The existing timing warnings remain recorded
-in the non-blocking performance backlog. Local sanitizer execution was blocked by LeakSanitizer being unable to inspect
-process threads in this workspace; full sanitizer CI remains required.
+in the non-blocking performance backlog. Local sanitizer execution was blocked
+by LeakSanitizer being unable to inspect process threads in this workspace;
+the full sanitizer CI checks subsequently passed before merge.
+
+### Now: execution, concurrency and host integration design
+
+Work record: [issue #91](https://github.com/sproates/panackelty/issues/91).
+State: Assessing; [design proposal](docs/EXECUTION_CONCURRENCY_DESIGN.md) prepared
+for review. The user authorised this investigation, not feature implementation.
+
+Reason: networking was absent in both HTTP pilot trials, but the VM's synchronous
+execution and host ownership make a concurrency decision a prerequisite to
+coherent public networking APIs. Compare blocking calls, callback/event loops,
+cooperative tasks with explicit suspension, and threads against server, daemon,
+GUI, game, browser and mobile workflows. Weigh effort, safety and readable code
+for developers and AI agents rather than selecting syntax by familiarity alone.
+
+The proposal recommends one VM-owning thread, resumable cooperative tasks,
+structured task/resource lifetime and host-driven event pumping, with an eventual
+explicit-await interface and named callbacks for event adapters. This is not an
+accepted model. First suggested implementation: a fake-host resumable-execution
+feasibility PR without sockets or public async syntax, subject to user approval.
+
+Acceptance for this M-sized design investigation: source-backed alternatives,
+clearly hypothetical server/GUI examples, cancellation/error/cleanup/backpressure
+contracts, compatibility constraints, staged PRs with failure-oriented gates,
+unresolved decisions and concise chat review. Implementation is likely L across
+multiple PRs; no toolkit, network backend, ABI change or delivery date is selected.
+Review and merge of the design report remain outstanding.
+Design-PR validation: `make check` passed in 148s (unit 102s); documentation
+links and whitespace checks passed. These are regression checks, not evidence
+that the proposed scheduler or platform adapters have been implemented.
 
 ### Remaining recommendations from the pilot — provisional
 
-1. Host/network integration design (S–M investigation; large delivery), grounded
-   in the blocked service task and shared lifecycle/ownership requirements.
+1. Execution/host foundations and networking, only after review of the active
+   design investigation and approval of a bounded implementation milestone.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 
@@ -171,7 +203,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | Adopt the roadmap decision process | Merged in PR #83; implementation ordering remains draft |
 | Done | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report adopted in PR #87; issue closed |
 | Done | [Delivery pilot (#86)](https://github.com/sproates/panackelty/issues/86) | Report adopted in PR #88; issue closed |
-| In progress | [Sorting and suffix helpers (#89)](https://github.com/sproates/panackelty/issues/89) | First bounded implementation selected; acceptance and PR review in progress |
+| Done | [Sorting and suffix helpers (#89)](https://github.com/sproates/panackelty/issues/89) | Shipped in PR #90; all 21 CI jobs passed; issue closed |
+| Assessing | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Design investigation authorised; proposed execution model and implementation sequence await review |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -464,6 +497,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local assessment validation (2026-09-29; native build already present) | 144s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Local delivery-pilot report validation (2026-09-29; native build already present) | 148s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Local sorting/suffix validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
+| Local execution-design validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

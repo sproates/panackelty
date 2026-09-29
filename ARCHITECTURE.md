@@ -734,3 +734,139 @@ certify the other suites, so consumers must also require the stable package gate
 from staying alive and blocking new PR updates. The `validation-...` concurrency
 group isolates the rollout from earlier unconditional jobs. Releases remain fully
 validated independently of this classifier.
+
+## VM/compiler boundary audit — 2026-09-30
+
+Work record: [modularity task #106](https://github.com/sproates/panackelty/issues/106).
+Audited revision: `5b508e7704380c46ce233339d12bd4408333609b` (website PR #108).
+This is an investigation, not a new execution ABI or an implementation change.
+
+**Finding: the VM already builds and executes independently of the compiler.**
+Self-hosting creates a compiler-to-VM runtime dependency, not a VM-to-compiler
+implementation dependency. Separate source-module compilation is a different
+problem and is not required to preserve this component boundary.
+
+### Dependency and contract map
+
+| Component or workflow | Actual dependency | Meaning |
+| --- | --- | --- |
+| `make native` | `src/vm/*.c`, their headers, C toolchain, Makefile, VERSION and profiling shell helper | No compiler source, seed or standard library is needed |
+| `native-unit`, `native-fault`, native bigint and header checks | C VM objects and C test sources | A useful compiler-independent test layer already exists |
+| `native-vm-contracts`, `check-vm` | Panackelty test runner compiled by `tests/run_probe.sh`; broader targets also use compiler oracles | Test orchestration introduces compiler dependencies; the fixed bytecode subjects do not require compilation |
+| Compiler | Compiler bytecode executed by VM; source imports and standard library while compiling | Expected self-hosting dependency; compiled applications need only their required runtime services |
+| `panack` launcher | Checks VM, compiler seed, stdlib directory and VERSION before dispatching even a `.bc` input | Runtime-only installation is rejected before its direct VM execution branch |
+| `install`, `package-archive` | Full launcher, VM, compiler seed, stdlib and documentation bundle | No dedicated runtime-only package target currently exists |
+| Browser target | VM core plus an appropriate host implementation | Compiler separation alone does not provide browser compatibility |
+
+The versioned contract is [FORMAT.md](src/bytecode/FORMAT.md): byte encoding,
+version rejection, opcode semantics, calling/effect rules, validation and runtime
+traps. Observable builtin names, argument/result kinds, effects and host behaviour
+also matter; consult [SPEC.md](SPEC.md), the VM builtin registry and the compiler's
+corresponding declarations. Compatibility tests must compare both implementations
+against independent expectations, rather than merely checking they agree.
+
+Private C layouts and ownership mechanics in
+[VALUE_MODEL.md](src/vm/VALUE_MODEL.md) are implementation contracts, not a reason
+to freeze every internal representation in the bytecode ABI. The experimental
+C resumable/task APIs are explicitly not a stable embedding ABI. Nested-bytecode
+services in `builtins_vm.c` execute supplied bytecode; they do not load a compiler
+implementation implicitly.
+
+### Reproduced evidence
+
+On Linux x86_64 with Ubuntu GCC 13.3.0, create an empty temporary directory and
+copy only `Makefile`, `VERSION`, `src/vm/`, `tests/unit/vm/`,
+`tests/profile_command.sh` and `tests/native_headers.sh`, preserving paths.
+There must be no `bootstrap/`, `src/compiler/`, `src/stdlib/` or `panack` launcher.
+From that isolated directory run:
+
+```sh
+make native native-unit native-fault build/vm/test_bigint
+./build/vm/test_bigint
+sh tests/native_headers.sh
+```
+
+All commands passed. Native module tests include resumable execution, task and
+async contracts, decoder mutations, verification, values and ownership. The
+fault suite reported **1,903 allocation failures checked**. The bigint probe
+printed `8999999999999999999999999999991`,
+`999999999999999999999999999999`, and `1`. The unstripped VM executable was
+106,208 bytes on this host and linked libc; this is not a portable distribution
+size estimate or a WebAssembly size prediction.
+
+Next copy `tests/fixtures/vm_contracts/` into the isolated tree. A temporary Node
+harness decoded each manifest entry's hexadecimal artifact, invoked
+`./panack-vm <mode> <artifact>` with a 30-second timeout and 1 MiB output bound,
+and compared exit status and raw stdout/stderr with the checked-in expectations.
+**All 145 manifest cases passed**, including successful execution, runtime traps
+and invalid artifacts. No Panackelty compiler was used to produce these inputs.
+The temporary harness adds no project dependency and does not replace the
+canonical Panackelty runner or its additional wrapper assertions.
+
+For reproducibility, the harness algorithm is:
+
+```js
+const fs = require('node:fs'), cp = require('node:child_process');
+const assert = require('node:assert');
+const dir = 'tests/fixtures/vm_contracts/';
+for (const c of JSON.parse(fs.readFileSync(dir + 'manifest.json'))) {
+  const p = dir + c.name;
+  const hex = fs.readFileSync(p + '.hex', 'utf8').replace(/\s/g, '');
+  assert(/^(?:[0-9a-f]{2})*$/i.test(hex));
+  fs.writeFileSync('case.bc', Buffer.from(hex, 'hex'));
+  const r = cp.spawnSync('./panack-vm', [c.mode, 'case.bc'], {
+    timeout: 30000, maxBuffer: 1048576
+  });
+  assert.ifError(r.error);
+  assert.strictEqual(r.status, c.status, c.name);
+  assert.deepStrictEqual(r.stdout, fs.readFileSync(p + '.stdout'), c.name);
+  assert.deepStrictEqual(r.stderr, fs.readFileSync(p + '.stderr'), c.name);
+}
+fs.unlinkSync('case.bc');
+```
+
+Changing the version field of a successful fixture to v8 was rejected with
+`unsupported bytecode version`. Copying the unchanged `panack` launcher into this
+runtime-only tree and asking it to run a valid artifact returned status 127 and
+`native toolchain not found`, confirming the launcher prerequisite above.
+Some corpus descriptions and source comments still say v8, reflecting historical
+origins; the decoder enforces v9. Future fixture work must distinguish historical
+capture metadata from current bytes and expected semantics.
+
+### Recommendation and bounded follow-ups
+
+Keep the existing component architecture and repository. Do not introduce a
+linker, separate repository, new bytecode version or stable C embedding ABI to
+solve a separation that already exists.
+
+A **small-to-medium implementation slice, estimated one PR**, could expose a
+clearly named compiler-independent native test aggregate and a runtime-only
+package. Choose explicitly between documenting `panack-vm` as the runtime command
+and allowing bytecode-only `panack` dispatch without compiler files. Preserve the
+full developer installation and public source commands. Include relocated archive
+execution, missing compiler/stdlib, valid and incompatible bytecode, arguments,
+exit/trap behaviour, checksum/provenance and supported Linux/macOS tests. Retain
+all existing source/bytecode integration, bootstrap, sanitizer and coverage gates.
+This slice is recommended for assessment, not yet authorised implementation.
+
+For compiler-independent execution of the full fixed corpus, prefer a reviewed
+precompiled Panackelty harness with version/digest and reproducible regeneration,
+or a bounded native fixture driver. Evaluate stale-fixture and duplicated-runner
+risk before selecting either. Maintain source/bytecode parity in integration CI;
+independent VM tests must not silently replace compiler-to-runtime compatibility.
+
+A browser experiment can proceed without waiting for that packaging slice.
+The concrete portability concern is host integration: `host_capabilities.c`
+uses POSIX processes, descriptors, `poll`, signals, `waitpid` and sleeping;
+`host_types.c` uses monotonic clock access; `host.c` supplies synchronous file I/O.
+The current wildcard VM build links these host implementations. A browser port
+must select/adapt services and explicitly reject unavailable operations while
+preserving bytecode verification and observable supported semantics. Resumable
+instruction budgets do not bound expensive builtins, allocation or cleanup in
+wall-clock time. No WebAssembly build, browser timing, iPhone test or resource
+isolation claim was established by this audit.
+
+Dependency-aware probe caching and separate compilation retain their original
+scope in #106. This audit neither measures incremental-cache savings nor promises
+a reduction in full validation time. The next choice should compare browser
+feasibility, runtime packaging and cache evidence on their own user value.

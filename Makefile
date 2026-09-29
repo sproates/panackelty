@@ -118,7 +118,8 @@ unit-runtime-native:
 	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 
 unit-runtime-probes:
-	@$(PROBES) tests/runner/host_runtime_unit.panack \
+	@$(PROBES) tests/runner/stdlib_unit.panack \
+		tests/runner/host_runtime_unit.panack \
 		tests/runner/bytecode_unit.panack \
 		tests/runner/bytecode_native_unit.panack
 

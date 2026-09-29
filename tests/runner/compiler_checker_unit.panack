@@ -25,6 +25,14 @@ checker_unit_source(name: Str, expected: Str): TestResult {
   checker_unit_compare(name, check_source_types(read_file(filename)), expected)
 }
 
+checker_sort_contract(source: Str): Str {
+  check_loaded_source_types([
+    LoadedSource("main.panack", "import \"collections.panack\"; " + source),
+    LoadedSource("collections.panack", read_file("src/stdlib/collections.panack")),
+    LoadedSource("option.panack", read_file("src/stdlib/option.panack"))
+  ], "main.panack")
+}
+
 main(): Void {
   mut results: [TestResult] = []
   // Former test_accepts_core_types_records_enums_and_control_flow
@@ -85,5 +93,11 @@ main(): Void {
       LoadedSource("main.panack", "import \"broken.panack\"; main(): Void { broken(); }"),
       LoadedSource("broken.panack", "broken(): Void {\n  invalid: Nat = \"bad\";\n}")
     ], "main.panack"), "broken.panack:2:18: cannot assign Str to Nat; guard is not proven"))
+  results = results.append(checker_unit_compare("sort accepts pure comparator",
+    checker_sort_contract("pure less(a: Nat, b: Nat): Bool { a < b } main(): Void { print(array_sort_by([2, 1], @less)); }"), "ok"))
+  results = results.append(checker_unit_compare("sort rejects effectful comparator",
+    checker_sort_contract("less(a: Nat, b: Nat): Bool { print(a); a < b } main(): Void { print(array_sort_by([2, 1], @less)); }"), "expected PureFn"))
+  results = results.append(checker_unit_compare("sort rejects nonboolean comparator",
+    checker_sort_contract("pure less(a: Nat, b: Nat): Nat { a } main(): Void { print(array_sort_by([2, 1], @less)); }"), "expected PureFn"))
   if test_report(results) > 0 { process_exit(1) }
 }

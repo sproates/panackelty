@@ -35,8 +35,9 @@ agents remains a hypothesis to test.
 
 **The implementation roadmap remains a draft for discussion.** The decision
 process was adopted in PR #83; the assessment was adopted in PR #87. The
-12-trial delivery pilot is complete and [reported for review](docs/AGENT_DELIVERY_PILOT.md).
-Its proposed implementation priorities are not yet agreed.
+12-trial delivery pilot was adopted in PR #88; issue #86 is closed.
+On 2026-09-29 the user selected sorting and literal suffix helpers as the next
+bounded implementation item. The remaining implementation order stays draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -72,13 +73,13 @@ platforms or authorise implementation of every identified gap.
 
 <a id="next-bounded-ai-assisted-development-experiment"></a>
 
-### Now: review completed AI-assisted delivery pilot
+### Completed: AI-assisted delivery pilot
 
 Work record: [issue #86](https://github.com/sproates/panackelty/issues/86).
 The [pilot report and evidence](docs/AGENT_DELIVERY_PILOT.md) record 12 fresh-context
 trials: Panackelty passed four of six initial and maintained tasks, with HTTP
 blocked twice; Python passed six of six. Token usage/cost were unavailable.
-The bounded delivery arm is complete; review and merge of the report remain.
+The bounded delivery arm and report review are complete; PR #88 is merged.
 The free-choice arm, TypeScript comparison and human onboarding were not run.
 
 - [x] Select a few small representative application/change tasks and define
@@ -93,7 +94,7 @@ The free-choice arm, TypeScript comparison and human onboarding were not run.
       the experiment; disclose model familiarity, run variation and sample limits
 - [x] Include unsupported tasks and failures; separate missing capabilities from
       language/tooling friction, and do not generalise a small study to all models
-- [ ] Review results alongside the assessment and agree the first implementation
+- [x] Review results alongside the assessment and agree the first implementation
       milestone with the user before scheduling feature work
 
 Acceptance: a reproducible feasibility report, limitations and proposed priority
@@ -101,16 +102,43 @@ changes, not a predetermined win or a claim of mainstream adoption. Bound the
 experiment scope and budget before execution; do not introduce a Python runtime
 dependency into Panackelty's own development or validation workflow.
 
-### Proposed next work from the pilot — awaiting agreement
+### Now: sorting and literal suffix helpers
 
-1. A bounded library-ergonomics PR for sorting and literal suffix support (S–M),
-   replacing repeated trial helpers with documented, tested APIs.
-2. Host/network integration design (S–M investigation; large delivery), grounded
+Work record: [issue #89](https://github.com/sproates/panackelty/issues/89).
+State: implementation and local acceptance complete; awaiting PR review and
+CI before merge.
+
+The user selected this S–M item on 2026-09-29 because both ledger trials wrote
+sorting helpers and both inventory trials wrote suffix helpers. It offers a
+small, directly evidenced reduction in application code before broader host
+architecture work. Additive portable APIs keep compatibility risk low.
+
+Scope: stable generic `array_sort_by` with a pure strict-order comparator and
+literal, case-sensitive `text_ends_with`; tests, contracts and an executable
+example. No syntax, VM, namespace, networking or diagnostics changes. Acceptance
+requires `make check`, comparator/Unicode edge cases, unchanged input and equal-key
+order, and replay of the four affected maintained pilot applications after
+replacing their local helpers. Private pilot sources remain private.
+
+Focused evidence: 24 direct library assertions and three comparator type/effect
+contracts pass. Both maintained inventory programs pass 9/9 original checks
+after suffix replacement; both ledgers pass 14/14 after sort replacement
+(46 checks total, unchanged evaluator). The collections case passes source,
+compile and saved-bytecode execution. The new stdlib artifact matches the
+unmodified historical compiler; existing disassembled functions are unchanged.
+Canonical `make check` passed in 148s (unit 102s), including bootstrap and
+packaged quick-start validation. The existing timing warnings remain recorded
+in the non-blocking performance backlog. Local sanitizer execution was blocked by LeakSanitizer being unable to inspect
+process threads in this workspace; full sanitizer CI remains required.
+
+### Remaining recommendations from the pilot — provisional
+
+1. Host/network integration design (S–M investigation; large delivery), grounded
    in the blocked service task and shared lifecycle/ownership requirements.
-3. Targeted compiler/API assistance for observed interpolation, numeric proof
+2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 
-These are recommendations, not implementation authorisation. Source coverage,
+These remaining items are recommendations, not implementation authorisation. Source coverage,
 namespaces, security tooling and other backlog work remain visible for comparison.
 
 ### Developer experience: useful assistance from the compiler
@@ -142,7 +170,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | --- | --- | --- |
 | Done | Adopt the roadmap decision process | Merged in PR #83; implementation ordering remains draft |
 | Done | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report adopted in PR #87; issue closed |
-| In progress / review | [Delivery pilot (#86)](https://github.com/sproates/panackelty/issues/86) | 12 trials complete; results PR and priority review pending |
+| Done | [Delivery pilot (#86)](https://github.com/sproates/panackelty/issues/86) | Report adopted in PR #88; issue closed |
+| In progress | [Sorting and suffix helpers (#89)](https://github.com/sproates/panackelty/issues/89) | First bounded implementation selected; acceptance and PR review in progress |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -434,6 +463,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
 | Local assessment validation (2026-09-29; native build already present) | 144s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Local delivery-pilot report validation (2026-09-29; native build already present) | 148s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
+| Local sorting/suffix validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

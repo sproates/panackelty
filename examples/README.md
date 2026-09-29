@@ -60,7 +60,7 @@ The other programs focus on individual language features:
 - `decimal.panack` — exact decimal arithmetic
 - `guards.panack` — guarded domain types
 - `callables.panack` — named pure function values and array `map`/`reduce`
-- `collections_and_bytes.panack` — persistent arrays, maps, sets, and byte buffers
+- `collections_and_bytes.panack` — persistent arrays, maps, sets, byte buffers, stable sorting and suffix filtering
 - `lexer_foundation.panack` — records, enums, strings, and lexer-style scanning
 - `option_result.panack` — generic tagged unions and exhaustive matching
 - `strings.panack` — Unicode indexing and interpolation

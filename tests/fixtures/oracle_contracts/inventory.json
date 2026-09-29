@@ -27,6 +27,14 @@
     "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
     "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
     "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
-    "stdlib.hex": "62daca4bcc1be77fcde38789040bdf3dc7ee88b15ed40addbf08a3f46777fb9d"
+    "stdlib.hex": "d6bf7df2047c55f78087d0bb63d36d7cdad812e2531088d05f5416948f59ac33"
+  },
+  "artifact_updates": {
+    "stdlib": {
+      "date": "2026-09-29",
+      "reason": "Add array_sort_by and text_ends_with to the imported module graph",
+      "generator": "Unmodified historical stage-0 compiler at origin_commit, run separately outside the repository against the updated stdlib",
+      "review": "Only the two new function blocks were added to disassembly; all previous function blocks unchanged. Historical compiler bytes equal native seed compiler bytes."
+    }
   }
 }

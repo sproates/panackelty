@@ -1,5 +1,7 @@
 import stdlib/prelude
 
+pure name_before(left: Str, right: Str): Bool { left < right }
+
 main(): Void {
   original: [Nat] = [1, 2]
   extended: [Nat] = original.append(3)
@@ -17,4 +19,10 @@ main(): Void {
   message: Bytes = bytes_push(text_encode_utf8("Panack"), 33)
   print(bytes_length(message))
   print(text_decode_utf8(message))
+
+  // Use an ordinary pure function to choose the ordering.
+  files = array_sort_by(["z.txt", "a.panack", "b.panack"], @name_before)
+  for file in files {
+    if text_ends_with(file, ".panack") { print(file) }
+  }
 }

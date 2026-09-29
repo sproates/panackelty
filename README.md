@@ -466,6 +466,10 @@ surface, or logical imports such as `import stdlib/option`,
 `import stdlib/result`, and `import stdlib/text`. These names work from a source
 checkout and an installed toolchain without exposing its directory layout. See the
 [standard-library guide](src/stdlib/README.md) for the available APIs.
+Use `array_sort_by(values, @comparator)` from `stdlib/collections` for stable
+sorting with a pure comparator, and `text_ends_with(value, suffix)` from
+`stdlib/text` for literal suffix matching. The
+[collections example](examples/collections_and_bytes.panack) demonstrates both.
 The separately imported `stdlib/testing` module provides pure assertions and
 ordered result reporting for Panackelty test programs.
 `stdlib/testing_files` adds sorted fixture-directory discovery and explicitly

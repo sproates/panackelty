@@ -25,7 +25,12 @@ Python; the captured data retains the independence of its original calculation.
 - `builtin.names/stdout`: All 82 stage-0 builtin names, arities and purity flags.
   The native C lookup must also find a non-null handler for each name.
 - `driver-*.hex`, `stdlib.hex`, `euler001.hex`: Bytes produced by the independent
-  stage-0 compiler before retirement; original sources are listed in the inventory.
+  stage-0 compiler; original sources are listed in the inventory.
+  The stdlib fixture was extended on 2026-09-29 using that unmodified historical
+  compiler outside the repository, against the updated library. The reviewed
+  disassembly adds only `array_sort_by` and `text_ends_with`; all existing function
+  blocks are unchanged. Its bytes also match the native seed compiler. This
+  one-time fixture provenance adds no interpreter dependency to validation.
   Native compilation must reproduce them exactly. Direct compiler integration
   also compares the driver and public command for all three module graphs.
 - `codec-disassembly.stdout`: Original stage-0 emitter listing for the codec

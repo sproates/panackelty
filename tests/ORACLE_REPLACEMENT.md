@@ -22,6 +22,12 @@ artifact before retirement. Wrong expected arithmetic output is rejected; decima
 normalization preserves integers beyond binary64 precision and rejects malformed
 output. The native command wrapper rejects timeout, nonzero status and stderr.
 
+The stdlib golden was extended on 2026-09-29 for sorting and suffix helpers.
+The unmodified historical stage-0 compiler produced the new expected artifact
+outside the repository; reviewed disassembly preserves every existing function
+and adds only the two helpers. See the fixture inventory for updated provenance
+and digest. No retired compiler source or interpreter dependency was restored.
+
 Nothing in the native test path generates its expected result from the compiler
 or VM being tested. Updating a golden requires independent review of the source,
 expected semantics and bytecode, not merely accepting current program output.

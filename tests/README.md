@@ -206,6 +206,12 @@ expectations are documented in
 Add new behavioral tests to the owning native/Panackelty probe;
 `make unit` includes all these checks.
 
+`runner/stdlib_unit.panack` directly checks stable generic sorting, immutable
+inputs, large exact values and literal Unicode suffix boundaries. It runs in
+`unit-runtime-probes`; the checker probe rejects effectful/nonboolean sorting
+callbacks. The collections functional case and example exercise the public
+CLI in source and saved-bytecode modes.
+
 `tests/unit/harness/distribution.sh` covers both conventional staged
 installation and the download archive. Its archive test builds the packaging
 layout, validates the complete file set, relocates the extracted
@@ -254,7 +260,8 @@ similarly covers the eight direct lexer contracts.
 expectations in 12 groups, including diagnostic paths and positions. All run in `make unit` and
 `make check-compiler`; each reports failures and exits nonzero on a mismatch.
 The checker probe, `runner/compiler_checker_unit.panack`, also runs in both
-targets. It checks 31 source fixtures and three module graphs, requiring `ok`
+targets. It checks 31 source fixtures, three module graphs and three sorting
+callback contracts, requiring `ok`
 for success and preserving diagnostic substrings for failures.
 Read `fixtures/compiler_checker/README.md` when adding
 a checker case. `runner/compiler_purity_unit.panack` follows the same pattern

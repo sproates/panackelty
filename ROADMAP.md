@@ -283,7 +283,7 @@ cover repository regressions, not execution of the invented examples. No usabili
 trial or native networking experiment is claimed. Merge adopts an investigation
 report, not automatic permission to implement its recommendation.
 
-### In progress: bounded source-to-VM async/await slice
+### Completed: bounded source-to-VM async/await slice
 
 Work record: [issue #102](https://github.com/sproates/panackelty/issues/102).
 Selected on 2026-09-29 after comparing real TCP/timer investigation, targeted
@@ -299,9 +299,46 @@ meaningful source/CLI and forged-runtime tests, success/error and wrong-completi
 cases, cancellation races, independent progress, allocation-failure cleanup,
 canonical validation, sanitizer gates and paired performance evidence.
 
+Delivered in [PR #103](https://github.com/sproates/panackelty/pull/103), merged
+at `e71449f` on 2026-09-29. All 21 Check jobs and both profiling jobs passed,
+including the hosted sanitizer gates. The final local clean checks took 360s
+and 358s. A harness isolation fix prevents corrupt-seed testing from relinking
+the shared VM while compiler checks run. Real networking, spawning and resource
+scopes remain outside this delivered slice.
+
+### In progress: bounded validation performance investigation
+
+Work record: [issue #104](https://github.com/sproates/panackelty/issues/104).
+Approved on 2026-09-29 after the async slice: establish a same-host clean baseline,
+identify dominant costs and make a bounded improvement only where measurements
+support it. Medium, estimated one or two PRs. The developer's repeated six-minute
+wait takes priority over starting native TCP/timer or compiler-assistance work.
+
+The controlled Linux comparison passed at 341s before async (`30b584a`) and 362s
+after (`e71449f`): 21s / 6.2% longer, with most cost already present beforehand.
+The proposed bounded change overlaps independent harness/compiler suites within
+the existing worker budget, using the pair already exercised by CI. Every suite,
+bootstrap proof and timing warning remains required. See the
+[measurement report](tests/VALIDATION_PROFILE.md#clean-validation-comparison--2026-09-29)
+for phase evidence, method and limits. Further compiler/runtime optimisation
+requires separate evidence and scope; this investigation does not promise 120s.
+
+The bounded overlap candidate passed in 346s (unit 224s), saving 16s / 4.4%
+against merged async in one clean sample, with all 1,390 PASS observations
+retained. The 120s full-check and 15s unit targets remain unmet; bootstrap also
+warned at 61s against 60s. Implementation and evidence are prepared for PR review.
+
+Independent module builds were raised as a follow-up candidate. C objects already
+build incrementally and focused component checks exist, but Panackelty imports
+are combined into one program before checking/emission. Assess dependency-scoped
+probe caching and reusable frontend work before committing to compiled module
+artifacts/interfaces and a linker. Any design must preserve type/effect checks,
+invalidations, deterministic bytecode and bootstrap proofs. This is recorded for
+assessment, not approval of a compiler redesign.
+
 ### Remaining recommendations from the pilot — provisional
 
-1. Complete the authorised bounded async/await slice, then reassess the native
+1. Complete the authorised validation investigation, then reassess the native
    TCP/timer investigation against the remaining alternatives.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
@@ -344,6 +381,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Resumable VM feasibility (#93)](https://github.com/sproates/panackelty/issues/93) | PR #94 merged; all 21 hosted gates passed; issue closed |
 | Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
 | Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; bounded await implementation selected in #102 |
+| Done | [Bounded async/await (#102)](https://github.com/sproates/panackelty/issues/102) | PR #103 merged; v9 source-to-VM slice and all hosted gates passed |
+| In progress | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | Same-host before/after baseline and measured overlap improvement prepared for review |
 | Idea | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | Assess and improve panackelty.com content, navigation, onboarding and presentation; unscheduled |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
@@ -668,7 +707,9 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local task/lifecycle validation sample (2026-09-29; macOS arm64, clean build) | 103s; unit 69s; canonical checks passed | Full check within 120s; unit warning persists; cross-host timings are not directly comparable |
 | Local async-interface proposal validation (2026-09-29; macOS arm64, clean build) | 106s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
 | Local shared-skill validation (2026-09-29; macOS arm64, clean build) | 104s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
-| Local async implementation validation (2026-09-29; Linux workspace) | Full check passed in 370s, unit 263s; concurrent sanitizer work affected this sample; final isolated outcome in PR | Prioritize compiler/nested-runner costs; retain all coverage and timing warnings |
+| Local async implementation validation (2026-09-29; Linux workspace) | Final isolated checks passed in 360s and 358s; initial 370s sample overlapped sanitizer work | Existing full-check/unit warnings persist |
+| Controlled clean comparison (#104; same Linux workspace) | Pre-async 341s / unit 231s; merged async 362s / unit 245s; both passed | Most cost predates async; prioritise bounded scheduling and retain all coverage |
+| Bounded local overlap (#104; same Linux workspace) | 346s / unit 224s; all checks passed; 16s (4.4%) faster in one sample | Full/unit budgets still exceeded; bootstrap warned at 61s / 60s |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

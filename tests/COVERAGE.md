@@ -381,6 +381,12 @@ Distribution regressions also retain the shared VM inode and bytes while
 building and installing from an isolated checkout, detecting accidental relinks
 that can disrupt concurrent compiler commands.
 
+`tests/ci_partition.sh` executes the actual canonical unit recipe with stubbed
+suites at one, two and three workers. It checks exact suite multiplicity, worker
+allocation, concurrent harness/compiler starts, runtime ordering after both
+succeed, and failure propagation from each suite. Bounded marker waits reject
+a serial regression without hanging the test.
+
 Runtime scheduling controls inject failures into each concurrent branch and
 use a FIFO rendezvous to check overlap without relying on elapsed timing.
 `tests/ci_conformance.sh` proves that the source and bytecode partitions, with serial and parallel workers, together

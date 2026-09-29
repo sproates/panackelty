@@ -56,11 +56,78 @@ run unknown
 run compiler runtime
 [ "$result" = 2 ] && [ ! -s "$CI_TEST_CALLS" ] || fail 'extra suite was ignored'
 cd "$root"
+# Exercise the actual unit recipe: preserve all suites, bounded workers,
+# successful-pair-before-runtime ordering and failure propagation.
+mkdir "$work/unit"
+cat > "$work/unit/make" <<'UNIT_MAKE'
+#!/bin/sh
+set -eu
+group=$2
+printf '%s\n' "$group" >> "$UNIT_CALLS"
+: > "$UNIT_CONTROL/$group.started"
+await_peer() {
+    attempts=0
+    while [ ! -f "$UNIT_CONTROL/$1.started" ]; do
+        attempts=$((attempts + 1))
+        [ "$attempts" -lt 50 ] || exit 9
+        sleep 0.1
+    done
+}
+case "$group" in
+    unit-harness)
+        [ "$VALIDATION_JOBS" = 1 ] || exit 9
+        if [ "$UNIT_WORKERS" -gt 1 ]; then await_peer unit-compiler; fi ;;
+    unit-compiler)
+        expected=1
+        if [ "$UNIT_WORKERS" -gt 1 ]; then expected=$((UNIT_WORKERS - 1)); fi
+        [ "$VALIDATION_JOBS" = "$expected" ] || exit 9
+        if [ "$UNIT_WORKERS" -gt 1 ]; then
+            await_peer unit-harness
+        fi ;;
+    unit-runtime)
+        [ "$VALIDATION_JOBS" = "$UNIT_WORKERS" ] || exit 9
+        test -f "$UNIT_CONTROL/unit-harness.done"
+        test -f "$UNIT_CONTROL/unit-compiler.done" ;;
+    *) exit 9 ;;
+esac
+if [ "$UNIT_FAIL" = "$group" ]; then exit 7; fi
+: > "$UNIT_CONTROL/$group.done"
+UNIT_MAKE
+chmod +x "$work/unit/make"
+export UNIT_CONTROL="$work/unit" UNIT_CALLS="$work/unit/calls"
+for workers in 1 2 3; do
+    for fault in none unit-harness unit-compiler unit-runtime; do
+        rm -f "$work/unit/"*.done "$work/unit/"*.started
+        : > "$UNIT_CALLS"
+        UNIT_WORKERS=$workers UNIT_FAIL=$fault
+        export UNIT_WORKERS UNIT_FAIL
+        result=0
+        (unset MAKEFLAGS MFLAGS MAKELEVEL
+         make --no-print-directory -f "$root/Makefile" unit-impl \
+             MAKE="$work/unit/make" VALIDATION_JOBS="$workers") > "$work/unit/output" 2>&1 || result=$?
+        if [ "$fault" = none ]; then
+            [ "$result" = 0 ] || { cat "$work/unit/output"; fail 'unit recipe rejected success'; }
+        else
+            [ "$result" != 0 ] || fail "unit recipe lost failure: $fault"
+        fi
+        printf 'unit-harness\n' > "$work/unit/expected"
+        if [ "$workers" -gt 1 ] || [ "$fault" != unit-harness ]; then
+            printf 'unit-compiler\n' >> "$work/unit/expected"
+        fi
+        if [ "$fault" = none ] || [ "$fault" = unit-runtime ]; then
+            printf 'unit-runtime\n' >> "$work/unit/expected"
+            [ "$(tail -n 1 "$UNIT_CALLS")" = unit-runtime ] || fail 'runtime did not follow successful pair'
+        fi
+        sort "$work/unit/expected" > "$work/unit/expected.sorted"
+        sort "$UNIT_CALLS" > "$work/unit/actual.sorted"
+        cmp "$work/unit/expected.sorted" "$work/unit/actual.sorted" || fail "unit coverage changed: $workers/$fault"
+    done
+done
+unset UNIT_CONTROL UNIT_CALLS UNIT_WORKERS UNIT_FAIL
+
 # The canonical unit path and CI must call the same suite implementations.
 for contract in \
-    '$(MAKE) --no-print-directory unit-harness' \
     '$(MAKE) --no-print-directory unit-runtime' \
-    '$(MAKE) --no-print-directory unit-compiler' \
     'ci-compiler: policy native' \
     'sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler' \
     'sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes' \

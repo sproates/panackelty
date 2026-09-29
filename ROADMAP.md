@@ -46,8 +46,10 @@ with all 21 hosted checks passed and issue #95 closed. The user subsequently
 selected an application-facing async design proposal. PR #98 is now merged,
 with all 21 hosted checks passed and issue #97 closed. The bounded source-to-VM
 await slice shipped in PR #103, and the validation investigation shipped in
-PR #105; both passed all 21 hosted Check jobs. The user selected the content-led website expansion as the current task on
-2026-09-30. Incremental/modular builds remain a recorded future candidate. Networking, source spawning and resource
+PR #105; both passed all 21 hosted Check jobs. The website expansion shipped in PR #108 with live verification on
+2026-09-30. The user then selected the bounded VM/compiler boundary audit;
+its findings are prepared for review. Remaining incremental/modular build work
+is unscheduled. Networking, source spawning and resource
 scopes remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
@@ -336,9 +338,10 @@ is closed. The timing budgets remain open goals, not completed by this merge.
 ### Future candidate: incremental and modular builds
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
-State: Idea. The initial high-priority **Next** recommendation is superseded by
-the user's explicit website selection below. Reassess the bounded first slice
-after website delivery; full separate-compilation implementation remains
+State: VM/compiler boundary audit selected and prepared for review below;
+remaining cache/design implementation is unscheduled. The initial high-priority
+**Next** recommendation was superseded by the user's website selection. Reassess
+the bounded cache slice alongside the audit follow-ups; full separate-compilation implementation remains
 **Later**, conditional on design evidence. On 2026-09-30 the user requested a backlog task and priority
 assessment, not implementation or a committed schedule. This section is the
 authoritative status; the issue contains detailed acceptance and failure cases.
@@ -393,7 +396,21 @@ bounded build task; do not put networking or inexpensive useful features behind
 the whole modular-build programme. The goal is to rebuild the changed part and
 its dependents, not every unrelated part, while retaining full final validation.
 
-### Now: content-led website expansion
+### In review: VM/compiler boundary audit
+
+The user selected this bounded investigation on 2026-09-30, within
+[issue #106](https://github.com/sproates/panackelty/issues/106), before choosing
+browser or build implementation. The [audit evidence](ARCHITECTURE.md#vmcompiler-boundary-audit--2026-09-30)
+shows that the VM already builds and passes native tests and 145 fixed bytecode
+cases without compiler source, seed or stdlib. Launcher/package prerequisites
+and broader test orchestration are the remaining practical coupling.
+
+No compiler/VM redesign is recommended. A runtime-only packaging/test entry point
+could be a small-to-medium one-PR slice; browser feasibility can proceed without
+waiting for it, but must address POSIX host integration. Neither is selected yet.
+The audit does not complete #106's caching or separate-compilation work.
+
+### Completed: content-led website expansion
 
 Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
 Selected and authorised on 2026-09-30 ahead of further build infrastructure:
@@ -407,16 +424,17 @@ Keep the established visual direction and existing Pages publication path.
 Acceptance: claims grounded in source/specification and the release boundary;
 displayed programs checked through the public CLI and saved bytecode, with the
 release-labelled greeting checked against alpha.9; working local links/anchors;
-desktop/mobile review; Pages regressions and canonical validation. Implementation
-is prepared for review on a feature branch. Issue #99 remains open until an
-explicitly approved merge deploys and the live website/coverage are verified.
+desktop/mobile review; Pages regressions and canonical validation. PR #108 merged with explicit user approval at `5b508e7`. All 21 hosted Check
+jobs passed, followed by main validation and Pages build/deploy/live verification.
+The published homepage exactly matched the merged source; website and coverage
+provenance identified the same commit. Issue #99 is closed.
 
 The website branch passed clean canonical validation in 339s on 2026-09-30
 (unit 220s), plus Pages assembly/navigation tests and the alpha.9 greeting.
 The 120s full-check and 15s unit budgets still warn; the bounded build candidate
 above remains the follow-up assessment. Browser permissions blocked rendered
-desktop/mobile inspection in this workspace; a self-contained HTML preview is
-available for review before approval.
+desktop/mobile inspection in this workspace; a private hosted preview was subsequently supplied for iPhone review and
+approved by the user before merging.
 
 An embedded playground (edit a complete program, run, view output/diagnostics)
 is a separate follow-up investigation. The learning/onboarding use case is a
@@ -426,7 +444,7 @@ sessions add state/redefinition decisions. Neither blocks this content update.
 
 ### Remaining recommendations from the pilot — provisional
 
-1. Complete the selected website task, then reassess bounded build improvements,
+1. Following website delivery and the VM/compiler boundary audit, reassess bounded build improvements,
    native TCP/timer feasibility and a browser playground against the alternatives.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
@@ -471,8 +489,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; bounded await implementation selected in #102 |
 | Done | [Bounded async/await (#102)](https://github.com/sproates/panackelty/issues/102) | PR #103 merged; v9 source-to-VM slice and all hosted gates passed |
 | Done | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | PR #105 merged; 346s clean sample, all 21 hosted Check jobs passed; issue closed |
-| Idea / future candidate | [Incremental and modular builds (#106)](https://github.com/sproates/panackelty/issues/106) | Bounded dependency-aware reuse plus separate-compilation design; reassess after website delivery |
-| In progress / Now | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | User-selected content expansion; capabilities, direction, vision, engineering evidence and onboarding; live verification after approved merge |
+| Audit in review; remaining work unscheduled | [Incremental and modular builds (#106)](https://github.com/sproates/panackelty/issues/106) | VM/compiler audit evidence below; dependency-aware reuse and separate-compilation design remain candidates |
+| Done | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | PR #108 merged; content expansion and coordinated website/coverage deployment verified |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -510,11 +528,10 @@ The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules
 ## Improve and expand the website
 
 Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
-The [current decision and acceptance](#now-content-led-website-expansion) above
+The [current decision and acceptance](#completed-content-led-website-expansion) above
 owns the state and scope. The initial unscheduled idea was recorded on
 2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
-The existing static GitHub Pages and coverage flow remains in use. Live
-verification after an approved merge is required before closing the issue.
+The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
 ## Language namespaces — idea
 

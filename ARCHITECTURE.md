@@ -248,6 +248,17 @@ sentinel so the VM keeps one uniform calling convention even though `Void` is
 not a source value. Branch and iteration instructions change the current
 frame's program counter.
 
+The native dispatcher keeps Panackelty call frames in an explicitly owned heap
+array. Direct and indirect calls push frames; returns transfer results and pop
+frames without recursive C execution. An internal resumable handle can advance
+by an instruction budget, preserve suspended state and release an unfinished
+invocation. The synchronous CLI uses the same dispatcher to completion.
+The experimental host-controlled profile intercepts process exit, rejects nested
+bytecode and requires trusted immediate adapters for effectful services; the CLI
+retains its existing host behavior. This is not a scheduler, pending-I/O API or
+public async language feature. Ownership and status contracts are in the
+[VM guide](src/vm/README.md#internal-resumable-execution).
+
 The VM retains dynamic safety checks even when source checking should make a
 failure impossible. These include collection bounds, `Nat` underflow, invalid
 matches, and missing returns. This keeps execution safe when bytecode did not

@@ -28,6 +28,41 @@ multi-value stack underflow against both VM implementations.
 The native representation, ownership, allocation, and reclamation rules are
 specified in [`VALUE_MODEL.md`](VALUE_MODEL.md).
 
+## Internal resumable execution
+
+`vm.h` exposes an experimental C execution handle, not a stable embedding ABI or
+source-language concurrency feature. `vm_execution_create` retains arguments
+and borrows the VM, verified program, snapshots and host context until destruction.
+One handle owns that VM context until `vm_execution_destroy`; independent VM
+contexts can be interleaved on the same thread. Neither context nor values may
+be shared concurrently across threads.
+
+`vm_execution_advance(handle, budget)` dispatches at most that many instructions,
+including calls and returns. Zero does no work. It returns `VM_YIELDED`,
+`VM_COMPLETED`, `VM_TRAPPED` or `VM_EXITED`; terminal states are sticky. A
+re-entrant advance returns `VM_BUSY`, a second create fails without changing the
+first invocation, and destruction refuses while the handle is running.
+`vm_execution_result` borrows the completed result until destruction; retain it
+to keep it longer. `vm_execution_exit_status` is meaningful only after `VM_EXITED`.
+Destroying a yielded execution releases all frames, locals, iterators and stack
+references. Destruction invalidates the handle and allows reuse of its VM.
+
+This mode intercepts `process_exit` as an outcome, rejects both nested-bytecode
+services, and rejects other effectful services unless a trusted immediate host
+adapter supplies them. The adapter borrows arguments, returns an owned result
+(or a static error), and must remain bounded and nonblocking. It is not a
+security boundary: native adapter code must not bypass these rules. There are
+no pending host requests, scheduler, timers, sockets or async source syntax.
+An instruction budget does not bound a long numeric operation, destructor or
+native callback in wall-clock time.
+
+The synchronous `execute` adapter runs the same dispatcher to completion with
+legacy host behavior, including CLI process exit and synchronous nested bytecode.
+It rejects re-entry on an occupied VM without modifying that invocation's error.
+Bytecode version 8, purity checks and the compiler seed remain unchanged.
+See the [design proposal](../../docs/EXECUTION_CONCURRENCY_DESIGN.md) for later
+stages and [measured overhead](../../tests/VALIDATION_PROFILE.md) for this step.
+
 `main.c` is the entry point for the portable C11 seed executable. Its `check` command performs
 bounded version-8 decoding and independent semantic verification; `run`
 executes verified artifacts with the reference-counted value model, exact

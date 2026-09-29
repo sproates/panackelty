@@ -23,6 +23,7 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             return NULL;
         }
         VM child = *vm;
+        child.execution = NULL;
         child.program = &nested;
         child.error = NULL;
         Value *result = execute(&child, program_function(&nested, "main"), NULL);
@@ -63,6 +64,7 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             arguments[i] = (char *)argument->as.bytes.data;
         }
         VM child = *vm;
+        child.execution = NULL;
         child.program = &nested;
         child.argc = (int)a[1]->as.sequence.count;
         child.argv = arguments;

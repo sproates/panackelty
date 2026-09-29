@@ -457,6 +457,11 @@ program.panack  ->  compiler and type checker  ->  bytecode  ->  Panackelty VM
 program.bc      ->  bytecode verifier          ->  bytecode  ->  Panackelty VM
 ```
 
+The CLI remains synchronous. An experimental
+[internal VM execution API](src/vm/README.md#internal-resumable-execution) supports
+instruction-budgeted pause/resume for host-integration experiments; it does not
+add source-language tasks, networking or `async/await`.
+
 The loader treats bytecode as untrusted input. Before execution it validates the
 format version, function and purity metadata, operands, calls, arities, and
 control-flow targets.

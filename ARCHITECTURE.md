@@ -220,6 +220,8 @@ rejection before host APIs can silently truncate a path.
 The standard library under `src/stdlib` is an explicit module graph with a
 convenience `prelude.panack`. Canonical `Option` and `Result` are portable enum
 definitions; text, byte, and checked-environment helpers are Panackelty source.
+Stable comparator-driven array sorting and literal text suffix matching are
+portable library functions; they introduce no compiler or VM primitives.
 Generic source functions are checked with abstract type parameters. Calls infer
 or explicitly supply a complete substitution, then validate their arguments and
 result. Emission erases type arguments and retains one body per function, using

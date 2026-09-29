@@ -546,6 +546,12 @@ spellings of their built-ins. `reverse` operates on Unicode code points, so it
 preserves each code point while reversing their order; it does not attempt
 grapheme-cluster segmentation. The VM traps on an out-of-bounds string index.
 
+The explicit `stdlib/text` module also provides
+`pure text_ends_with(value: Str, suffix: Str): Bool`. It tests a literal,
+case-sensitive suffix on Unicode code-point boundaries. Empty suffixes always
+match; suffixes longer than the value never match. No normalization, locale
+collation or wildcard interpretation is performed.
+
 ## Ranges, arrays, and loops
 
 Ranges are half-open and currently use natural-number bounds:
@@ -557,6 +563,14 @@ for value in 0..10 {
 ```
 
 Range expressions may be bound to inferred locals for later iteration.
+
+The explicit `stdlib/collections` module provides
+`pure array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T]`.
+It returns a stable sorted array, leaving the input unchanged. The pure
+comparator must define a strict weak ordering (true means strictly before);
+these ordering laws are not checked. Equivalent elements keep their original
+order. Empty and singleton inputs need no comparisons; comparator traps
+propagate. No implicit natural-order comparator or locale collation is supplied.
 
 Arrays are immutable, homogeneous values. Their type is written `[T]`. Indexes
 are `Nat`, and the VM traps with a useful message if an index is out of bounds.

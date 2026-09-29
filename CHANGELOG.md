@@ -4,6 +4,11 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Add stable `array_sort_by` with pure comparators and literal, case-sensitive
+  `text_ends_with`, with Unicode-aware contracts and executable examples.
+
 ## 0.1.0-alpha.9 — 2026-09-26
 
 - Add `stdlib/testing` assertions and ordered reports, `stdlib/testing_files`

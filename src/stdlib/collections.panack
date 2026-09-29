@@ -11,3 +11,44 @@ pure array_first[T](values: [T]): Option[T] {
     Some(values[0])
   }
 }
+
+// Stable merge sort. less(a, b) must describe a strict weak ordering.
+// Equal elements come from the left half first, preserving input order.
+pure array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] {
+  if values.len() < 2 {
+    values
+  } else {
+    middle = quotient(values.len(), 2)
+    mut left_input: [T] = []
+    mut right_input: [T] = []
+    for index in 0..middle {
+      left_input = left_input.append(values[index])
+    }
+    for index in middle..values.len() {
+      right_input = right_input.append(values[index])
+    }
+    left = array_sort_by(left_input, less)
+    right = array_sort_by(right_input, less)
+    mut result: [T] = []
+    mut left_index: Nat = 0
+    mut right_index: Nat = 0
+    while left_index < left.len() && right_index < right.len() {
+      if less.call(right[right_index], left[left_index]) {
+        result = result.append(right[right_index])
+        right_index = right_index + 1
+      } else {
+        result = result.append(left[left_index])
+        left_index = left_index + 1
+      }
+    }
+    while left_index < left.len() {
+      result = result.append(left[left_index])
+      left_index = left_index + 1
+    }
+    while right_index < right.len() {
+      result = result.append(right[right_index])
+      right_index = right_index + 1
+    }
+    result
+  }
+}

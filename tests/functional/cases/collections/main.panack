@@ -1,3 +1,8 @@
+import stdlib/collections
+import stdlib/text
+
+pure number_before(left: Nat, right: Nat): Bool { left < right }
+
 pure numbers(): [Nat] {
   [2, 3].concat([5, 7])
 }
@@ -44,4 +49,7 @@ main(): Void {
   print(names.has("Panackelty"))
   print(encoded().utf8_decode())
   print(persistent_append())
+  print(array_sort_by([3, 1, 2, 1], @number_before))
+  print(text_ends_with("café.panack", ".panack"))
+  print(text_ends_with("café.panack", ".PANACK"))
 }

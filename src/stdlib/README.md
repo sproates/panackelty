@@ -14,8 +14,8 @@ program-wide namespace, so public functions use descriptive prefixes.
 | `testing.panack` | `TestOutcome`, `TestResult`, `test_expect`, `test_equal_str`, `test_equal_nat`, `test_report` | Pure assertions and explicit ordered reporting; imported separately from the prelude |
 | `testing_commands.panack` | `TestCommand`, `test_run_command`, `test_expect_command_error`, `test_command_output`, `test_command_result` | Bounded command execution with byte-exact output and structured host-error assertions; imported separately from the prelude |
 | `testing_files.panack` | `TestWorkspace`, `test_workspace_create`, `test_workspace_remove_empty`, `test_discover_fixtures` | Effectful sorted fixture discovery and explicitly owned temporary isolation; imported separately from the prelude |
-| `collections.panack` | `array_first[T]` returning `Option[T]`; array methods `append`/`concat`/`map`/`reduce`, Map methods `put`/`has`/`get`, Set methods `add`/`has`, plus legacy compatibility spellings | Portable generic helper plus compiler-known operations and VM primitives |
-| `text.panack` | `text_length`, `text_slice`, `text_starts_with`, `text_starts_with_at`, `text_reverse`, `text_is_digit`, `text_is_letter`, `text_is_whitespace`, `text_parse_nat` | Portable wrappers over deterministic VM primitives |
+| `collections.panack` | `array_first[T]` returning `Option[T]`, `array_sort_by[T]`; array methods `append`/`concat`/`map`/`reduce`, Map methods `put`/`has`/`get`, Set methods `add`/`has`, plus legacy compatibility spellings | Portable generic helper plus compiler-known operations and VM primitives |
+| `text.panack` | `text_length`, `text_slice`, `text_starts_with`, `text_starts_with_at`, `text_ends_with`, `text_reverse`, `text_is_digit`, `text_is_letter`, `text_is_whitespace`, `text_parse_nat` | Portable wrappers over deterministic VM primitives |
 | `bytes.panack` | `bytes_empty`, `bytes_push`, `bytes_join`, `bytes_length`, `bytes_at`, `text_encode_utf8`, `text_decode_utf8` | Portable wrappers over immutable byte-buffer primitives |
 | `time.panack` | `Duration`, `Instant`, checked construction, arithmetic, ratios, monotonic clock reads | Opaque VM values, clock ABI, and portable helpers |
 | `path.panack` | `Path`, `PathError`, checked construction and lexical operations; compatibility APIs: `path_parent`, `path_join`, `path_suffix`, `path_with_suffix`, `path_is_absolute`, `path_resolve`, `file_exists` | Lexical VM primitives plus explicit host queries |
@@ -40,6 +40,28 @@ The library conformance program is compiled by the audited seed and fresh
 self-hosted stages. Tests require byte-identical artifacts, compare against
 frozen independent bytes and execute the result, so every compiler stage
 checks this module graph.
+
+## Sorting and suffix matching
+
+Import `stdlib/collections` for
+`array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T]`.
+It returns a stable sorted array without changing its input. The comparator
+must return true only when the first element belongs strictly before the second,
+with a consistent strict weak ordering. Equivalent elements retain their input
+order. Empty and singleton arrays require no comparisons. Comparators must be
+pure; their ordering laws are the caller's responsibility and are not checked.
+Comparator traps propagate. Merge sort uses O(n log n) comparisons and O(log n)
+recursive depth; it builds temporary immutable arrays rather than sorting in place.
+
+Import `stdlib/text` for `text_ends_with(value: Str, suffix: Str): Bool`.
+This pure helper matches a literal, case-sensitive suffix. An empty suffix
+matches every value, including empty text; a longer suffix returns false.
+Matching respects Unicode code-point boundaries, without normalization,
+locale rules or glob expansion. A combining code point can itself be a suffix.
+
+Both helpers are also in `stdlib/prelude`. See the executable
+[collections example](../../examples/collections_and_bytes.panack) for sorting
+filenames with a named pure comparator and filtering by suffix.
 
 ## Typed paths and time
 

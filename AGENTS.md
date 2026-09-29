@@ -14,6 +14,14 @@ Keep accepted decisions and completion summaries in the repository as described
 there. Use feature branches and PRs; never push directly to main. Obtain explicit
 user permission for each PR merge; agreement on scope is not merge permission.
 
+When asked "what's next", "what's the next item", or a similar prioritisation
+question, read and follow the repository's
+[Next Item skill](.agents/skills/next-item/SKILL.md). Compare viable candidates,
+explain the recommendation over the alternatives, estimate task size and PR
+count, and give an ELI5 explanation. Use this repository copy for Panackelty if
+a personal copy is also available. Agents without automatic skill discovery
+should read the linked file directly; no personal skill installation is needed.
+
 ## Definition of done
 
 For every implementation change:

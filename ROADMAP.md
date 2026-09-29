@@ -41,8 +41,10 @@ authorised an execution, concurrency and host-integration design investigation
 before networking APIs. The report merged in PR #92. The user then authorised the first resumable-VM
 feasibility step, with correctness and performance evidence required before
 merge review. PR #94 merged after all 21 CI jobs passed; issue #93 is closed. The user then
-authorised the bounded task/lifecycle feasibility milestone below. Public syntax
-and networking remain draft.
+authorised the bounded task/lifecycle feasibility milestone, now merged in PR #96
+with all 21 hosted checks passed and issue #95 closed. The user subsequently
+selected an application-facing async design proposal. The investigation is
+complete in this PR; syntax adoption, implementation and networking remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -205,9 +207,9 @@ The subsequent milestone was separately authorised in the decision below.
 ### Completed: task and lifecycle feasibility
 
 Work record: [issue #95](https://github.com/sproates/panackelty/issues/95).
-State: Done in this change; the user selected the bounded implementation on
-2026-09-29 following the completed resumable-VM gate and an explicit comparison
-of alternatives. PR merge requires separate approval.
+State: Done. PR #96 merged with explicit approval on 2026-09-29 after all 21
+hosted checks passed, including sanitizer partitions and Linux/macOS packages;
+issue #95 is closed.
 
 Decision: prioritise enabling network services and host-driven applications. Both
 HTTP pilot attempts were blocked by missing capability; targeted compiler/API
@@ -237,13 +239,52 @@ Evidence: direct lifecycle contracts, 177 VM probe assertions and 1,844 native
 allocation-failure injections pass, together with local VM/oracle/runner sanitizer
 suites. A clean validation sample took 103s (unit 69s); the existing unit-budget
 warning remains non-blocking. The [feasibility record](tests/VALIDATION_PROFILE.md#tasklifecycle-feasibility--2026-09-29)
-records reproduction commands, evidence scope and limitations. This closes the
-bounded fake-host investigation on merge, not production concurrency support.
+records reproduction commands, evidence scope and limitations. Final clean
+validation passed in 103s (unit 68s). The bounded fake-host investigation is
+complete; production concurrency support remains separate.
+
+### Async programming interface: proposal for review
+
+Work record: [issue #97](https://github.com/sproates/panackelty/issues/97).
+State: design investigation complete in this PR; its implementation recommendation
+is ready for prioritisation, not scheduled. The user authorised the investigation
+on 2026-09-29 after PR #96 merged and the alternatives were discussed.
+
+The [proposal](docs/ASYNC_PROGRAMMING_DESIGN.md) compares a finite 16-client
+request/reply server in callback and explicit-await forms, with a UI refresh/close
+cross-check. It recommends explicit async activation, named owning scopes and a
+restricted first callable/effect contract. Scope-owned results and resources,
+shutdown, cancellation races and negative compiler/runtime examples are explicit.
+All code is hypothetical. No language, VM, bytecode or ABI contract changes here.
+
+Reason: define how someone writes the intended application before committing to a
+public concurrency interface. A native TCP/timer C-harness spike would test real
+backend cleanup sooner; targeted compiler assistance would benefit existing
+programs sooner. Both remain credible alternatives. Prefer the source interface
+investigation for this decision, while retaining a real-backend gate before
+freezing resource/cancellation semantics. Effort M for design; a minimal awaited
+source-to-VM fake-service slice is estimated M–L, full scope/resource delivery L.
+
+Findings: prefer await for sequential application I/O and named callbacks at host
+event boundaries. Reject bare async calls and ordinary impure calls from async
+bodies initially. Expected per-client cancellation needs an explicit collect
+policy; the shipped prototype instead fails the parent when a child independently
+cancels. Resource escape checks, that policy, source syntax and typed async
+completions are proposals, not tested capabilities. A new bytecode version and
+coordinated compiler/verifier/bootstrap migration are required for public async.
+
+Acceptance: equivalent bounded server flows, activation/type/effect and ownership
+rules, failure/shutdown behaviour, a source-gap assessment, a staged compatibility
+plan, negative examples and a bounded implementation recommendation. The report
+provides those outcomes for review; documentation checks and canonical validation
+cover repository regressions, not execution of the invented examples. No usability
+trial or native networking experiment is claimed. Merge adopts an investigation
+report, not automatic permission to implement its recommendation.
 
 ### Remaining recommendations from the pilot — provisional
 
-1. Review the completed task/lifecycle evidence before choosing further
-   execution/host foundations, public syntax/effects or networking work.
+1. Review the async-interface proposal and agree a next implementation scope, or
+   select the native TCP/timer investigation first. Neither is scheduled.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 
@@ -283,7 +324,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Sorting and suffix helpers (#89)](https://github.com/sproates/panackelty/issues/89) | Shipped in PR #90; all 21 CI jobs passed; issue closed |
 | Done | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Report merged in PR #92; later implementation stages remain proposals |
 | Done | [Resumable VM feasibility (#93)](https://github.com/sproates/panackelty/issues/93) | PR #94 merged; all 21 hosted gates passed; issue closed |
-| Done in this change | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | Fake-host scoped joins, deadlines and cancellation validated; issue closes on merge |
+| Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
+| Proposal for review | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | Application-facing comparison and bounded source-await recommendation; no implementation scheduled |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -579,6 +621,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local execution-design validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Local resumable-VM validation (2026-09-29; clean rebuild, native prerequisites prepared first) | 150s; unit 105s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Local task/lifecycle validation sample (2026-09-29; macOS arm64, clean build) | 103s; unit 69s; canonical checks passed | Full check within 120s; unit warning persists; cross-host timings are not directly comparable |
+| Local async-interface proposal validation (2026-09-29; macOS arm64, clean build) | 106s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

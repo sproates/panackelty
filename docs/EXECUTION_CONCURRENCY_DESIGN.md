@@ -10,6 +10,12 @@ Merging this report does not authorise the implementation sequence below.
 The [specification](../SPEC.md), [bytecode contract](../src/bytecode/FORMAT.md)
 and [host ABI](../src/runtime/ABI.md) remain unchanged.
 
+Subsequent work: PR #94 proved resumable execution and PR #96 proved bounded
+fake-host task lifetimes. The [async programming proposal](ASYNC_PROGRAMMING_DESIGN.md)
+now compares application-facing forms and identifies which rules still need
+implementation and real-backend evidence. The observations and initial decisions
+below describe this report's original baseline.
+
 ## Recommendation for review
 
 Build toward **structured cooperative tasks on one VM-owning thread**, with
@@ -285,15 +291,19 @@ ports remain separate feasibility work; a fake UI driver is not a shipped GUI.
 The first feasibility stage shipped in PR #94. On 2026-09-29 the user separately
 selected the second, fake-host task/lifecycle stage after comparison with compiler
 assistance and other candidates. [ROADMAP.md](../ROADMAP.md#now-task-and-lifecycle-feasibility)
-owns its current scope and evidence. Later stages remain proposals.
+owns its current scope and evidence. PR #96 is now merged. The separately
+authorised [async interface investigation](ASYNC_PROGRAMMING_DESIGN.md) covers
+stage 3's design questions; implementing its recommendations and later transport
+stages still needs a new decision.
 
-## Decisions requested and unresolved questions
+## Original review questions and subsequent work
 
-Request agreement on the **direction**, not syntax: one owning thread per VM,
+The original PR #92 review requested agreement on the direction: one owning thread per VM,
 resumable tasks, structured lifetime, host-driven pumping and explicit application
-suspension. Recommend authorising only PR 1 after that review, with a stop/go
-decision before adding a scheduler. If it proves too costly, retain the callback
-adapter alternative and reassess, rather than quietly delivering blocking APIs.
+suspension. It recommended authorising only PR 1, with a new decision before
+adding a scheduler. Both bounded fake-host gates have since shipped. The current
+[proposal](ASYNC_PROGRAMMING_DESIGN.md) contains the application-facing recommendation
+and remaining review choices; it doesn't authorise a backend or implementation.
 
 Still unresolved: async declaration/call syntax and types; exact scope/resource
 escape diagnostics; task-failure representation; host-service registration and

@@ -459,8 +459,9 @@ program.bc      ->  bytecode verifier          ->  bytecode  ->  Panackelty VM
 
 The CLI remains synchronous. An experimental
 [internal VM execution API](src/vm/README.md#internal-resumable-execution) supports
-instruction-budgeted pause/resume for host-integration experiments; it does not
-add source-language tasks, networking or `async/await`.
+instruction-budgeted pause/resume. A bounded internal task experiment adds scoped
+joins, cancellation and virtual deadlines using fake pending operations. These
+experiments do not add source-language tasks, networking or `async/await`.
 
 The loader treats bytecode as untrusted input. Before execution it validates the
 format version, function and purity metadata, operands, calls, arities, and
@@ -656,7 +657,7 @@ their provenance is recorded in
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 177 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.

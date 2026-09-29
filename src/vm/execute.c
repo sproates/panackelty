@@ -33,6 +33,7 @@ struct VMExecution {
     size_t exit_status;
     bool running, embedded;
     VMHostCall host_call;
+    VMPrintWait print_wait;
     void *host_context;
 };
 
@@ -208,12 +209,20 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         vm->error = "VM trap: nested execution is unavailable in resumable mode";
         return NULL;
     }
+    if (execution->print_wait && !strcmp(entry->name, "print")) {
+        if (execution->print_wait(execution->host_context, arguments[0], &vm->error)) {
+            execution->status = VM_WAITING;
+        } else if (!vm->error) {
+            vm->error = "VM trap: pending print registration failed";
+        }
+        return NULL;
+    }
     if (!execution->host_call) {
         vm->error = "VM trap: host service is unavailable in resumable mode";
         return NULL;
     }
-    return execution->host_call(execution->host_context, entry->name, arguments,
-                               entry->arity, &vm->error);
+    return execution->host_call(execution->host_context, entry->name, arguments, entry->arity,
+                                &vm->error);
 }
 
 VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
@@ -714,7 +723,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
     if (vm->error) {
         execution->status = VM_TRAPPED;
     }
-    if (execution->status != VM_YIELDED) {
+    if (execution->status != VM_YIELDED && execution->status != VM_WAITING) {
         frames_clear(execution);
     }
     execution->running = false;
@@ -750,6 +759,37 @@ VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
         return NULL;
     }
     return execution;
+}
+
+VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arguments,
+                                         VMPrintWait wait, void *context, const char **error)
+{
+    VMExecution *execution = vm_execution_create(vm, function, arguments, NULL, context, error);
+    if (execution) {
+        execution->print_wait = wait;
+    }
+    return execution;
+}
+
+bool vm_execution_complete_print(VMExecution *execution, const char *error)
+{
+    if (execution->running || execution->status != VM_WAITING) {
+        return false;
+    }
+    VM *vm = execution->vm;
+    vm->error = error;
+    if (!error) {
+        Value *acknowledgement = value_void();
+        if (!acknowledgement ||
+            !stack_push(&execution->frames[execution->frame_count - 1], acknowledgement)) {
+            vm->error = "native VM out of memory";
+        }
+    }
+    execution->status = vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (vm->error) {
+        frames_clear(execution);
+    }
+    return true;
 }
 
 Value *vm_execution_result(const VMExecution *execution)

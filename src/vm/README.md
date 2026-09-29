@@ -52,7 +52,9 @@ services, and rejects other effectful services unless a trusted immediate host
 adapter supplies them. The adapter borrows arguments, returns an owned result
 (or a static error), and must remain bounded and nonblocking. It is not a
 security boundary: native adapter code must not bypass these rules. There are
-no pending host requests, scheduler, timers, sockets or async source syntax.
+no pending host requests in this immediate-adapter API. The separate fixed-service
+experiment below adds waiting and internal task lifetimes; neither API supplies
+OS timers, sockets or async source syntax.
 An instruction budget does not bound a long numeric operation, destructor or
 native callback in wall-clock time.
 
@@ -99,6 +101,60 @@ in `host_capabilities.c`, including descriptor ownership, concurrent stream
 collection, resource limits, and structured host failures. See `VALUE_MODEL.md` and
 `../../SPEC.md` for ownership, signatures, error behavior, and clock scope.
 
+## Internal task lifecycle experiment
+
+`tasks.h` / `tasks.c` build a bounded session around the same dispatcher. Each
+task owns a VM context and execution. The session borrows a verified program and
+argument/environment snapshots; these must outlive it. All session APIs, including
+creation/destruction across sessions, run on one thread. This is experimental
+internal C infrastructure, with no public ABI or language task syntax.
+
+A host creates roots and children explicitly. Children can be added while a
+parent is ready or waiting, never after its body finishes. Successful bodies join
+all children before exposing their result. A child trap, exit or independent
+cancellation fails its parent and cancels siblings, propagating through ancestors.
+Parent cancellation cancels unfinished descendants. Completed children and their
+results remain inspectable. Task records retain static errors and exit outcomes
+in creation order; cancellation cannot overwrite a completed terminal outcome.
+There is no detached work or user finalizer execution.
+
+`vm_execution_create_pending` uses a deliberately narrow fake service: `print`
+registers a borrowed input and suspends with `VM_WAITING`; the session retains the
+input until acknowledgement or cancellation. Direct and indirect calls share this
+path. Completion produces only `Void` or a static error, so arbitrary values cannot
+violate the service's return type. `vm_execution_complete_print` changes readiness
+without running bytecode inline. Other host effects remain unavailable, with
+`process_exit` intercepted and nested bytecode rejected. Ordinary CLI printing
+and the immediate host API retain their existing behavior.
+
+Operations carry a session-qualified task id and per-task generation. Duplicate,
+late, forged and cross-session completions are rejected. A full FIFO queue rejects
+enqueue without consuming the wait; the host can pump and retry. Cancellation
+before delivery invalidates even an already queued completion. Cancellation after
+delivery can still cancel the unfinished task, but releases no request twice.
+
+Pumping drains queued events, expires deadlines, then dispatches ready tasks in
+round-robin order, one instruction per turn, within the supplied total budget.
+Zero budget processes events/timeouts only. The host supplies virtual monotonic
+ticks; backwards time is rejected. Children inherit the earlier ancestor deadline;
+`UINT64_MAX` means no deadline. Deadlines include joining scopes: a queued result
+delivered at the deadline does not make an unfinished task immune to cancellation.
+The next deadline is exposed for a future host adapter; no OS clock is read.
+
+Limits bound total admitted tasks and queued completions, with one pending request
+per task. Task slots/results remain reserved until session destruction; this
+prototype is unsuitable for an indefinitely running service. Task/ancestor scans
+and joins are linear or quadratic in the configured task bound, and a pump's
+instruction budget excludes event delivery/cleanup. Numeric operations, allocation
+and reference destruction also have unbounded wall-clock cost. No latency claim,
+production default limits, general resource registry or task trace is supplied.
+
+Destroying a session releases frames, results, queued metadata and retained fake
+requests. The fake service has no external producer. A real backend must prove
+producer quiescence before freeing its session; identity validation does not make
+calls through a freed session pointer safe. The experiment proves synchronous
+runtime-owned cleanup, not cancellation of native OS operations.
+
 ## Finding the implementation
 
 Read `main.c` for the complete load → decode → verify → execute path. Each C file
@@ -115,6 +171,7 @@ belong to `execute.c`. No implementation is included through a header.
 | Numerics | `numeric.h`, `numeric.c`, `bigint.h`, `bigint.c` | Exact arithmetic and checked conversions |
 | Text support | `buffer.*`, `render.*`, `utf8.*` | Byte buffers, value formatting, UTF-8 traversal |
 | Execution | `vm.h`, `execute.c` | Invocation context, frames, stack, locals, opcode dispatch |
+| Task experiment | `tasks.h`, `tasks.c` | Scoped task ownership, fake waits, virtual deadlines, bounded host pumping |
 | Builtins | `builtins.h`, `builtins.c`, `builtins_internal.h` | Shared arity/purity/handler registry |
 | Builtin domains | `builtins_text.c`, `builtins_collections.c`, `builtins_numeric.c`, `builtins_vm.c` | Operations and nested bytecode execution |
 | Host boundary | `host.*`, `host_types.*`, `host_capabilities.*` | Invocation snapshots, legacy I/O, paths, clocks and typed services |
@@ -160,7 +217,7 @@ fuzzing remain follow-up work.
 
 
 Direct VM execution and loader contracts run in `tests/runner/vm_unit.panack`
-against the portable corpus in `tests/fixtures/vm_contracts`. Its 174 assertions
+against the portable corpus in `tests/fixtures/vm_contracts`. Its 177 assertions
 include native module, bigint and allocation-failure wrappers; header isolation
 runs in `tests/native_headers.sh`. `make native-vm-contracts` runs this group,
 and `make unit`, `make check-vm`, sanitizer and coverage gates include it.

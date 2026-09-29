@@ -54,6 +54,13 @@ leave cached pointers into the old allocation. Partial frames are registered
 before argument binding so allocation failures release every installed reference.
 Returns transfer one value to the caller, or to the execution's completed result;
 traps, embedded exit and destruction release the remaining frame chain.
+The internal task session owns each task execution and retains successful results
+while joining children. Failed/cancelled scopes release those results. A fake
+pending print owns one retained input until delivery or cancellation; stale queued
+metadata owns no VM values. Session destruction releases every outstanding request,
+frame and result. Program and invocation snapshots remain borrowed. There is no
+external native producer in this experiment; real backend teardown is separate.
+
 The synchronous adapter transfers its final result to its C caller. The resumable
 API lends its result until handle destruction. Programs and host snapshots are
 borrowed, must outlive the handle, and are not implicitly copied or freed by it.

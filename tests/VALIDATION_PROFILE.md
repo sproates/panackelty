@@ -4,6 +4,51 @@ This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 
+## Task/lifecycle feasibility — 2026-09-29
+
+Baseline: merged resumable-execution PR #94 (`d6988b6`). This change adds an
+internal fake-host session; ordinary CLI execution still uses the same synchronous
+dispatcher, source syntax and bytecode v8. It is a lifecycle correctness experiment,
+not a throughput or OS-I/O benchmark. Environment: macOS arm64, Apple Clang,
+default `-O2`; sanitizer builds use `-O1 -g` with AddressSanitizer/UBSan.
+
+The independent contracts cover nested scope joins, retained results, failure and
+sibling cancellation, cancellation around wait/enqueue/delivery/join transitions,
+virtual deadline inheritance, CPU-task fairness, bounded queues with retry, stale
+operation generations, wrong-session ids and destruction while pending. A nested
+bytecode call and an indirect builtin call both suspend while retaining frames.
+Three verified corpus programs replay through queued acknowledgements and retain
+the original independently expected stdout. The VM probe now has 177 assertions.
+
+Allocation sweeps cover session/task creation, repeated completion, host failure,
+queued cancellation and pending destruction, asserting balanced live allocations
+and input references. The complete native fault suite reports 1,844 injected
+allocation failures; this total includes existing VM/numeric/host contracts, not
+1,844 new scheduler cases. Native unit, full sanitizer VM/oracle/runner suites and
+final instrumented module contracts passed locally. Compiler and stdlib bootstrap
+identity, ordinary source/bytecode functional behavior and packaged quick-start
+remain part of canonical validation.
+
+A clean development `make check` sample completed in 103s (unit 69s), below the
+120s full-check budget but above the unit target of 15s. This sample preceded the
+last focused admission/nested-call test refinements; final canonical validation is
+required after those edits and recorded in the PR. The unit warning remains in
+[the non-blocking backlog](../ROADMAP.md#keep-validation-within-development-budgets--non-blocking-backlog).
+No earlier Linux measurement is directly comparable to this macOS sample.
+
+Reproduce with `make clean && make check`, `make native-fault` and
+`make native-sanitize`. `make native-unit` runs the direct lifecycle contracts;
+`make native-vm-contracts` additionally runs the three queued-host corpus replays.
+
+Limits: task slots/results remain reserved until session destruction; task and
+ancestor scans are intentionally simple, with no production-scale performance
+claim. Budgets bound bytecode dispatch only. The fixed service returns a typed
+Void acknowledgement or static error and has no external producer. Real sockets,
+producer quiescence, thread handoff, reusable task slots, arbitrary resources,
+async finalisers and public syntax/ABI remain separate work. No successor stage
+is authorised by these results. See the
+[precise lifecycle contract](../src/vm/README.md#internal-task-lifecycle-experiment).
+
 ## Resumable VM feasibility — 2026-09-29
 
 Baseline: `a66ef9a89c21eb39f1ed2268a068d6c87a6d6656` (merged design PR #92).

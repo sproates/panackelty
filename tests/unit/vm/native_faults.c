@@ -218,6 +218,51 @@ static void frames(void)
     assert(operand->refs == 1);
 }
 
+static bool resumable_stop, resumable_trap;
+
+static void resumable_frames(void)
+{
+    enum { DEPTH = 20 };
+    Function functions[DEPTH];
+    Instruction code[DEPTH][3];
+    char names[DEPTH][16];
+    char *params[] = {"value"};
+    for (size_t i = 0; i < DEPTH; i++) {
+        snprintf(names[i], sizeof(names[i]), "fn%zu", i);
+        code[i][0] = (Instruction){.op = OP_LOAD, .name = "value"};
+        code[i][1] = (Instruction){.op = OP_CALL, .name = names[i + (i + 1 < DEPTH)], .arity = 1};
+        code[i][2] = (Instruction){.op = OP_RETURN};
+        functions[i] = (Function){.name = names[i], .params = params, .param_count = 1,
+                                  .ins = code[i], .ins_count = 3};
+    }
+    code[DEPTH - 1][1].op = resumable_trap ? OP_MATCH_FAIL : OP_RETURN;
+    Program program = {.functions = functions, .count = DEPTH};
+    VM vm = {.program = &program};
+    const char *error;
+    VMExecution *run = vm_execution_create(&vm, functions, &operand, NULL, NULL, &error);
+    if (run) {
+        VMExecutionStatus status = VM_YIELDED;
+        size_t steps = 0;
+        while (status == VM_YIELDED && (!resumable_stop || steps < 2 * (DEPTH - 1))) {
+            status = vm_execution_advance(run, 1);
+            steps++;
+        }
+        if (fault_triggered()) {
+            assert(status == VM_TRAPPED && vm.error);
+        } else if (resumable_stop) {
+            assert(status == VM_YIELDED && operand->refs == DEPTH + 1);
+        } else if (resumable_trap) {
+            assert(status == VM_TRAPPED && vm.error);
+        } else {
+            assert(status == VM_COMPLETED && vm_execution_result(run) == operand);
+        }
+        assert(vm_execution_destroy(run));
+    } else {
+        assert(fault_triggered() && error);
+    }
+    assert(!vm.execution && operand->refs == 1);
+}
+
 static Value *decimal(const char *digits, int exponent)
 {
     PnBigInt coefficient = {0};
@@ -463,6 +508,12 @@ int main(int argc, char **argv)
     append_failures();
     sweep("text", construct_text);
     sweep("frames", frames);
+    sweep("resumable completion", resumable_frames);
+    resumable_stop = true;
+    sweep("resumable suspended destruction", resumable_frames);
+    resumable_stop = false;
+    resumable_trap = true;
+    sweep("resumable trap", resumable_frames);
     release(operand);
 
     left = integer("999999999999999999999999999");

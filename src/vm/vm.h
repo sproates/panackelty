@@ -12,6 +12,8 @@
  * error points to a static diagnostic; callees never allocate an error string.
  */
 
+typedef struct VMExecution VMExecution;
+
 typedef struct {
     Program *program;
     int argc;
@@ -19,7 +21,40 @@ typedef struct {
     size_t env_count;
     char **environment;
     const char *error;
+    VMExecution *execution;
 } VM;
+
+/* Experimental internal API, not a stable embedder ABI. All calls stay on one
+ * thread. VM/program/snapshots/context must outlive the execution. Functions
+ * belong to a verified program; argument arrays match their parameter count.
+ */
+typedef enum { VM_YIELDED, VM_COMPLETED, VM_TRAPPED, VM_EXITED, VM_BUSY } VMExecutionStatus;
+
+/* Trusted immediate host adapter for existing effectful services only. Borrow
+ * arguments, return an owned result or NULL with a static error. Must not block,
+ * destroy the active VM or invoke builtin_call to bypass the embedded profile.
+ * No pending I/O is supported. process_exit/nested bytecode are intercepted.
+ */
+typedef Value *(*VMHostCall)(void *context, const char *name, Value **arguments,
+                           size_t arity, const char **error);
+
+/* Create retains arguments. NULL + error on failure; a busy VM is unchanged.
+ * error is a required out-parameter. One execution per VM until destroyed.
+ */
+VMExecution *vm_execution_create(VM *vm, Function *fn, Value **arguments,
+                                VMHostCall host_call, void *context, const char **error);
+/* Zero budget does no work. Terminal outcomes are sticky. Re-entry returns
+ * VM_BUSY without changing the active execution. Budget is not wall-clock time.
+ */
+VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget);
+/* Borrowed result, valid until destroy; NULL unless completed. */
+Value *vm_execution_result(const VMExecution *execution);
+/* Valid only after VM_EXITED. */
+size_t vm_execution_exit_status(const VMExecution *execution);
+/* Release frames/results, including a suspended invocation. Refuses re-entry.
+ * On success the pointer is invalid; the VM may then be used again.
+ */
+bool vm_execution_destroy(VMExecution *execution);
 
 Value *execute(VM *vm, Function *fn, Value **arguments);
 

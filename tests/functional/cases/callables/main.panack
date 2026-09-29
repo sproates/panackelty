@@ -8,10 +8,15 @@ pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat {
   callback.call(value)
 }
 
+pure deep_count(value: Nat): Nat {
+  if value == 0 { 0 } else { deep_count(value - 1) + 1 }
+}
+
 main(): Void {
   callback: PureFn[Nat,Nat] = @twice
   values: [Nat] = [1, 2, 3]
   print(values.map(callback))
   print(values.reduce(0, @total))
   print(apply(callback, 4))
+  print(deep_count(20000))
 }

@@ -17,6 +17,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+void resumable_contracts(void);
+void resumable_artifact(const char *path, size_t budget);
+
 static void values_own_copies_and_retain_children(void)
 {
     uint8_t bytes[] = {'a', 0, 'b'};
@@ -686,6 +689,13 @@ static void artifact_returns_void(const char *path)
 
 int main(int argc, char **argv)
 {
+    if (argc == 4 && !strcmp(argv[1], "resume")) {
+        char *end;
+        unsigned long budget = strtoul(argv[3], &end, 10);
+        assert(*argv[3] && !*end && budget > 0);
+        resumable_artifact(argv[2], (size_t)budget);
+        return 0;
+    }
     if (argc == 3 && strcmp(argv[1], "return-void") == 0) {
         artifact_returns_void(argv[2]);
         return 0;
@@ -706,6 +716,7 @@ int main(int argc, char **argv)
         }
         return 0;
     }
+    resumable_contracts();
     bigint_boundaries();
     values_own_copies_and_retain_children();
     persistent_versions_keep_shared_children_alive();

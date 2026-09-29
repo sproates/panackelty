@@ -4,6 +4,100 @@ This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).
 
+## Resumable VM feasibility — 2026-09-29
+
+Baseline: `a66ef9a89c21eb39f1ed2268a068d6c87a6d6656` (merged design PR #92).
+Candidate: this PR's owned-frame dispatcher and internal execution API, with
+unchanged bytecode v8 and synchronous CLI. Measurements preceded PR review.
+Environment: Linux x86-64, GCC 13.3.0, default `-O2`, shared development host.
+These are small feasibility workloads, not a claim about all applications.
+
+Each CLI workload received one warm-up per binary, then five baseline/candidate
+pairs, alternating which binary ran first. An external monotonic subprocess
+timer included launch, decoding, verification and execution. No other project
+benchmark/build ran concurrently. Every sample checked successful exit, exact
+stdout and empty stderr. Fixed bytecode files were shared between binaries.
+
+| CLI workload | Baseline median ms (range) | Candidate median ms (range) | Change |
+| --- | ---: | ---: | ---: |
+| Recursive Fibonacci(24) | 88.930 (85.454–89.354) | 88.716 (86.675–90.399) | -0.24% |
+| 100,000 indirect calls in a range loop | 61.783 (58.906–65.692) | 62.859 (57.151–65.337) | +1.74% |
+| Compile the compiler using the v8 seed | 11902.091 (11811.118–12286.262) | 11961.911 (11804.149–12217.326) | +0.50% |
+
+All three CLI medians are below the predeclared 10% investigation threshold;
+the small differences do not establish a speedup or a statistically significant
+regression. The same unit-test executable also ran the two runtime workloads
+through its fake immediate host, with one warm-up and five samples per budget.
+These budget samples were collected sequentially after the paired CLI trials.
+
+| Workload | Budget 1 median ms | Budget 1,000 median ms | Budget 1 versus 1,000 |
+| --- | ---: | ---: | ---: |
+| Recursive Fibonacci(24) | 99.357 | 96.254 | +3.22% |
+| 100,000 indirect calls in a range loop | 68.579 | 64.371 | +6.54% |
+
+Budget 1 is about 11–12% slower than the baseline CLI. This crosses the
+investigation threshold, but is not an isolated measurement of yield overhead:
+the driver uses a different executable and captures printing in memory. Within
+that same driver, returning after every instruction is 3–7% slower than after
+1,000 instructions. Each return repeats the caller/advance/status checks; this
+stress mode deliberately maximizes those transitions. Use larger budgets for
+throughput experiments. No wall-clock responsiveness guarantee follows from an
+instruction count: a pure builtin or trusted host callback may take arbitrarily
+long. Pending I/O and scheduling remain future work.
+
+### Reproduction and raw observations
+
+Build baseline and candidate with the same `CC`/`CFLAGS` in separate checkouts.
+Run `make native native-module-build` in the candidate. Compile the two sources
+under `tests/fixtures/execution/` once using the preserved baseline VM:
+`panack-vm run bootstrap/compiler-v8.bc compile SOURCE -o ARTIFACT`.
+Set `PANACKELTY_STDLIB_PATH` to the absolute `src/stdlib` directory for compiler
+commands. Time each binary's `run ARTIFACT` command in alternating pairs as
+above; expected output is `46368` for calls and `100000` for iteration, each with
+a final newline. The compiler workload is
+`panack-vm run bootstrap/compiler-v8.bc compile src/compiler/main.panack -o OUTPUT`.
+For budget trials use `build/vm/test_modules resume ARTIFACT 1` and then `1000`.
+An external monotonic timer or `/usr/bin/time -p` suffices; the latter reports
+coarser precision. The timing harness is not a project runtime/build dependency.
+
+All recorded samples below are milliseconds, in observation order within each
+series. They include slower samples; no outliers were removed.
+
+| Workload | Mode | Five samples (ms) |
+| --- | --- | --- |
+| calls | before | 89.120 / 86.964 / 85.454 / 89.354 / 88.930 |
+| calls | after | 90.399 / 89.132 / 88.716 / 86.675 / 87.553 |
+| calls | budget1 | 98.179 / 99.357 / 104.798 / 99.055 / 103.443 |
+| calls | budget1000 | 94.807 / 96.254 / 94.638 / 101.261 / 98.411 |
+| iteration | before | 60.500 / 58.906 / 65.692 / 63.264 / 61.783 |
+| iteration | after | 57.151 / 63.581 / 62.859 / 65.337 / 59.350 |
+| iteration | budget1 | 65.871 / 69.522 / 68.579 / 66.937 / 73.256 |
+| iteration | budget1000 | 62.555 / 64.371 / 64.772 / 67.353 / 62.624 |
+| compiler | before | 11902.091 / 11892.323 / 11811.118 / 12286.262 / 12212.327 |
+| compiler | after | 11804.149 / 11877.342 / 12131.195 / 12217.326 / 11961.911 |
+
+Correctness evidence includes forced yields through direct/indirect calls and
+array/bytes/range iteration, independent interleaved sessions, frame growth,
+suspended destruction, sticky terminal states, fake-host re-entry rejection,
+exit interception, unsupported-service traps, and allocation-failure cleanup.
+The public CLI fixture also exercises 20,000 recursive calls. Allocation-failure
+sweeps check 1,776 failures across the native suite.
+
+Canonical `make check` passed in 150s (unit 105s, functional 1s, bootstrap 37s),
+including release smoke and quick-start validation. Native prerequisites were
+prepared immediately after `make clean`; their build time is outside that
+150s. Existing full/unit budget warnings remain tracked in the roadmap.
+Two earlier full attempts stopped with launch failures because the generated
+`test_modules` executable had mode 0644; a clean rebuild produced mode 0755,
+passed its direct contracts and passed the complete suite without source changes
+or assertion overrides. The permission change's cause was not established;
+local syscall tracing is also blocked by ptrace restrictions.
+
+Local GCC LeakSanitizer cannot inspect `/proc/.../task` in this environment and
+terminates with its ptrace limitation; Clang is not installed locally. This is
+not a sanitizer pass. The existing unmodified hosted sanitizer, coverage and
+cross-platform gates must pass before merging.
+
 ## Focused VM check investigation — 2026-09-28
 
 Measured revision: `8e13d54` (merged PR #76). This investigation changes no

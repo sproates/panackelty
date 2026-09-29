@@ -1,0 +1,7 @@
+pure increment(value: Nat): Nat { value + 1 }
+main(): Void {
+  callback = @increment
+  mut total: Nat = 0
+  for index in 0..100000 { total = callback.call(total) }
+  print(total)
+}

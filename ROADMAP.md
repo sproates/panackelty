@@ -38,8 +38,9 @@ process was adopted in PR #83; the assessment was adopted in PR #87. The
 12-trial delivery pilot was adopted in PR #88; issue #86 is closed.
 Sorting and literal suffix helpers shipped in PR #90. On 2026-09-29 the user
 authorised an execution, concurrency and host-integration design investigation
-before networking APIs. Its recommended model and implementation sequence remain
-proposals for review; the remaining implementation roadmap stays draft.
+before networking APIs. The report merged in PR #92. The user then authorised the first resumable-VM
+feasibility step, with correctness and performance evidence required before
+merge review. Later scheduler, syntax and networking work remains draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -134,11 +135,12 @@ in the non-blocking performance backlog. Local sanitizer execution was blocked
 by LeakSanitizer being unable to inspect process threads in this workspace;
 the full sanitizer CI checks subsequently passed before merge.
 
-### Now: execution, concurrency and host integration design
+### Completed: execution, concurrency and host integration design
 
 Work record: [issue #91](https://github.com/sproates/panackelty/issues/91).
-State: Assessing; [design proposal](docs/EXECUTION_CONCURRENCY_DESIGN.md) prepared
-for review. The user authorised this investigation, not feature implementation.
+State: Done. The [design report](docs/EXECUTION_CONCURRENCY_DESIGN.md) merged in
+PR #92 after all 21 CI jobs passed; issue #91 is closed. The report remains a
+proposal for later stages rather than a frozen public language contract.
 
 Reason: networking was absent in both HTTP pilot trials, but the VM's synchronous
 execution and host ownership make a concurrency decision a prerequisite to
@@ -150,18 +152,50 @@ for developers and AI agents rather than selecting syntax by familiarity alone.
 The proposal recommends one VM-owning thread, resumable cooperative tasks,
 structured task/resource lifetime and host-driven event pumping, with an eventual
 explicit-await interface and named callbacks for event adapters. This is not an
-accepted model. First suggested implementation: a fake-host resumable-execution
-feasibility PR without sockets or public async syntax, subject to user approval.
+accepted model. The user subsequently approved the fake-host resumable-execution
+feasibility step below; sockets and public async syntax remain unapproved.
 
 Acceptance for this M-sized design investigation: source-backed alternatives,
 clearly hypothetical server/GUI examples, cancellation/error/cleanup/backpressure
 contracts, compatibility constraints, staged PRs with failure-oriented gates,
 unresolved decisions and concise chat review. Implementation is likely L across
 multiple PRs; no toolkit, network backend, ABI change or delivery date is selected.
-Review and merge of the design report remain outstanding.
+Report review and merge are complete.
 Design-PR validation: `make check` passed in 148s (unit 102s); documentation
 links and whitespace checks passed. These are regression checks, not evidence
 that the proposed scheduler or platform adapters have been implemented.
+
+### Now: resumable VM execution feasibility
+
+Work record: [issue #93](https://github.com/sproates/panackelty/issues/93).
+State: In progress; user authorised this bounded implementation on 2026-09-29.
+
+Replace recursive native calls with owned VM frames; expose an internal budgeted
+advance handle, explicit terminal outcomes and safe destruction. Use a fake,
+immediate host adapter to verify re-entry, exit and unsupported service policy.
+Keep the synchronous CLI, bytecode v8 and bootstrap behavior compatible. The
+experimental host-controlled profile rejects nested execution rather than
+allowing it to bypass budgets. No task scheduler, pending I/O, sockets, threads,
+public embedder ABI or async source syntax is included.
+
+Effort M–L, with ownership and performance as the main risks. Preserve the
+baseline VM before edits. Acceptance is required **before PR review/merge**:
+forced yields across calls/iterators, interleaved sessions, terminal/lifetime
+contracts, allocation-failure cleanup, public CLI recursion, full validation and
+paired performance measurements. Investigate median overhead above 10% on fixed
+workloads; this is an investigation threshold, not a universal latency promise.
+Record all regressions and sanitizer/environment limitations. Subsequent task
+scheduling requires a separate decision based on this evidence.
+
+Implementation evidence (awaiting PR/hosted gate review): the owned-frame API,
+fake-host policy, forced-yield contracts and 20,000-call CLI regression are in
+place. Canonical `make check` passed in 150s (unit 105s) after a clean rebuild
+with native prerequisites prepared first. The existing timing warnings remain
+non-blocking. Paired CLI median changes are −0.24% for recursive calls, +1.74%
+for indirect iteration and +0.50% for compiler compilation. See the
+[full feasibility report](tests/VALIDATION_PROFILE.md#resumable-vm-feasibility--2026-09-29)
+for samples, frequent-yield overhead and local sanitizer/permission limitations.
+No subsequent concurrency milestone is authorised by these results.
 
 ### Remaining recommendations from the pilot — provisional
 
@@ -204,7 +238,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report adopted in PR #87; issue closed |
 | Done | [Delivery pilot (#86)](https://github.com/sproates/panackelty/issues/86) | Report adopted in PR #88; issue closed |
 | Done | [Sorting and suffix helpers (#89)](https://github.com/sproates/panackelty/issues/89) | Shipped in PR #90; all 21 CI jobs passed; issue closed |
-| Assessing | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Design investigation authorised; proposed execution model and implementation sequence await review |
+| Done | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Report merged in PR #92; later implementation stages remain proposals |
+| In progress | [Resumable VM feasibility (#93)](https://github.com/sproates/panackelty/issues/93) | First implementation authorised; correctness/performance evidence required before merge review |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -498,6 +533,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local delivery-pilot report validation (2026-09-29; native build already present) | 148s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Local sorting/suffix validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Local execution-design validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
+| Local resumable-VM validation (2026-09-29; clean rebuild, native prerequisites prepared first) | 150s; unit 105s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer

@@ -62,7 +62,8 @@ int main(int argc, char **argv)
         free_program(&p);
         return 1;
     }
-    VM vm = {&p, argc - 3, argv + 3, env_count, environment, NULL};
+    VM vm = {.program = &p, .argc = argc - 3, .argv = argv + 3,
+             .env_count = env_count, .environment = environment};
     Value *result = execute(&vm, program_function(&p, "main"), NULL);
     if (!result) {
         fprintf(stderr, "error: %s\n", vm.error ? vm.error : "native VM failure");

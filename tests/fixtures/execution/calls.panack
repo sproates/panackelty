@@ -1,0 +1,4 @@
+pure fibonacci(n: Nat): Nat {
+  if n < 2 { n } else { fibonacci(n - 1) + fibonacci(n - 2) }
+}
+main(): Void { print(fibonacci(24)) }

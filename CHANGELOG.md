@@ -6,6 +6,11 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Replace native-recursive Panackelty calls with owned resumable VM frames and
+  add an internal budgeted execution API with a restricted host-controlled mode.
+  Existing CLI and bytecode behavior remain compatible; source async syntax and
+  networking are not introduced.
+
 - Add stable `array_sort_by` with pure comparators and literal, case-sensitive
   `text_ends_with`, with Unicode-aware contracts and executable examples.
 

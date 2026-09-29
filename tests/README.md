@@ -206,6 +206,18 @@ expectations are documented in
 Add new behavioral tests to the owning native/Panackelty probe;
 `make unit` includes all these checks.
 
+`unit/vm/resumable.c`, linked into the native module contracts, checks exact
+instruction-budget boundaries, direct/indirect calls, interleaved independent
+VMs, array/byte/range iterators, deep frame growth, terminal outcomes, fake-host
+re-entry and suspended cleanup. The native allocation-failure suite sweeps
+resumable creation, deep completion, traps and destruction while suspended.
+The public `callables` fixture also executes 20,000 recursive calls through
+source and saved bytecode. Sanitizer and coverage gates include these contracts.
+`fixtures/execution` holds fixed performance inputs; the optional native module
+command `resume FILE.bc BUDGET` captures `print` with a fake host to measure
+instruction-budget overhead. Reproduction and limitations are in
+[VALIDATION_PROFILE.md](VALIDATION_PROFILE.md).
+
 `runner/stdlib_unit.panack` directly checks stable generic sorting, immutable
 inputs, large exact values and literal Unicode suffix boundaries. It runs in
 `unit-runtime-probes`; the checker probe rejects effectful/nonboolean sorting

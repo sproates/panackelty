@@ -43,8 +43,9 @@ feasibility step, with correctness and performance evidence required before
 merge review. PR #94 merged after all 21 CI jobs passed; issue #93 is closed. The user then
 authorised the bounded task/lifecycle feasibility milestone, now merged in PR #96
 with all 21 hosted checks passed and issue #95 closed. The user subsequently
-selected an application-facing async design proposal. The investigation is
-complete in this PR; syntax adoption, implementation and networking remain draft.
+selected an application-facing async design proposal. PR #98 is now merged,
+with all 21 hosted checks passed and issue #97 closed. Syntax adoption,
+implementation and networking remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -246,9 +247,10 @@ complete; production concurrency support remains separate.
 ### Async programming interface: proposal for review
 
 Work record: [issue #97](https://github.com/sproates/panackelty/issues/97).
-State: design investigation complete in this PR; its implementation recommendation
-is ready for prioritisation, not scheduled. The user authorised the investigation
-on 2026-09-29 after PR #96 merged and the alternatives were discussed.
+State: Done. The investigation report merged in PR #98 with explicit approval
+after all 21 hosted checks passed; issue #97 is closed. Its implementation
+recommendation is ready for prioritisation, not scheduled. The user authorised
+the investigation on 2026-09-29 after PR #96 merged and alternatives were discussed.
 
 The [proposal](docs/ASYNC_PROGRAMMING_DESIGN.md) compares a finite 16-client
 request/reply server in callback and explicit-await forms, with a UI refresh/close
@@ -325,7 +327,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Report merged in PR #92; later implementation stages remain proposals |
 | Done | [Resumable VM feasibility (#93)](https://github.com/sproates/panackelty/issues/93) | PR #94 merged; all 21 hosted gates passed; issue closed |
 | Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
-| Proposal for review | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | Application-facing comparison and bounded source-await recommendation; no implementation scheduled |
+| Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; implementation remains unscheduled |
+| Idea | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | Assess and improve panackelty.com content, navigation, onboarding and presentation; unscheduled |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
 | Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
@@ -359,6 +362,32 @@ The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules
   [the profiling report](tests/VALIDATION_PROFILE.md), behavioral evidence in
   [the coverage matrix](tests/COVERAGE.md), and bootstrap history in
   [the self-hosting record](SELF_HOSTING.md).
+
+## Improve and expand the website
+
+Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
+State: Idea, unscheduled. Added at the user's request on 2026-09-29.
+
+Improve and expand [panackelty.com](https://panackelty.com) so prospective
+developers and coding agents can understand the language, get started and find
+useful documentation and examples. Specific gaps have not yet been audited.
+
+- [ ] Review the current site and propose a bounded content, navigation and
+      presentation plan, with clear user journeys and acceptance checks
+- [ ] Assess the language overview, installation/quick start, documentation,
+      examples, project/release information and discoverability
+- [ ] Assess mobile usability and accessibility, and keep shipped capabilities
+      distinct from proposed features
+- [ ] Agree and deliver the first improvement slice; verify links, examples,
+      responsive/accessibility behaviour and the live deployment
+- [ ] Preserve the coordinated website and native-coverage publishing flow,
+      including the existing `/coverage/` report
+
+Effort: S for an initial assessment; implementation unknown until scoped. Risks
+include stale feature claims, broken onboarding and coverage-publication
+regressions. No framework, hosting change, visual direction or implementation
+priority is selected. Recording this item does not complete the website work;
+the issue remains open after this backlog update merges.
 
 ## Language namespaces — idea
 

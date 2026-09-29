@@ -1,5 +1,88 @@
 # Validation profiling baseline
 
+## Clean validation comparison — 2026-09-29
+
+Investigation: [issue #104](https://github.com/sproates/panackelty/issues/104).
+Two clean checks ran serially on the same Linux x86-64 workspace, with GCC
+13.3.0, `CFLAGS=-O2` and `VALIDATION_JOBS=2`. The container exposed nine online
+processors with an eight-CPU quota (`cpu.max` = `800000 100000`); no other builds
+or validation ran alongside these samples. Baseline `30b584a` predates async;
+current `e71449f` is merged PR #103. Each checkout used `make clean` first.
+
+| Inclusive measurement | Before async (s) | Merged async (s) | Bounded overlap (s) |
+| --- | ---: | ---: | ---: |
+| Complete `make check` | 341 | 362 | 346 |
+| Unit phase | 231 | 245 | 224 |
+| Functional phase | 2 | 2 | 3 |
+| Bootstrap phase | 54 | 60 | 61 |
+| Final quick-start phase | 1 | 1 | 1 |
+| Harness within unit | 73 | 75 | 80 |
+| Native contracts within unit | 105 | 113 | 115 |
+| Nested functional runner within native contracts | 48 | 53 | 54 |
+| Compiler integration probe within unit | 39 | 43 | 48 |
+| Isolated seed-refresh proof within bootstrap | 53 | 60 | 61 |
+
+Every top-level phase passed. The complete check increased by 21s (6.2%);
+most of the six-minute cost existed before async. This is one paired sample,
+not a statistical estimate or proof that all 21s are caused by async machinery:
+PR #103 also adds compiler/runtime tests and changes harness isolation. Earlier
+macOS samples around 104s are a different environment and cannot establish a
+regression of that size. The merged Linux checks at 358s and 360s corroborate
+that the current wait is repeatable on this workspace, not a universal duration.
+
+Rows are whole wall-clock seconds and include nested/overlapping work: do not
+add them together. The functional phase reuses the successful complete runner
+transcript produced inside native contracts; it is not a two-second standalone
+functional suite. Policy, native prerequisites and packaging outside the named
+top-level phases account for the remaining check time. Nonzero nested profile
+rows deliberately injected by harness controls do not denote a failed check.
+
+The bounded candidate reuses CI's existing harness/compiler overlap in canonical
+`unit-impl`. With two workers each branch gets one worker; runtime follows only
+after both succeed. With one worker execution stays serial. No tests, bootstrap
+proofs, sanitizers or budgets are removed or relaxed. The existing isolation
+checks protect the shared VM from harness relinks. A real-recipe regression
+checks suite multiplicity, worker allocation, overlap, ordering and each failure
+at one, two and three workers.
+
+The candidate (merged async plus this PR's scheduling and regression changes)
+passed a clean full check in 346s, 16s (4.4%) below the merged baseline. Unit time fell from 245s to 224s
+(8.6%). All 1,390 reported PASS observations matched after normalising temporary
+cleanup paths; the new recipe failure controls also passed. This is one clean
+candidate sample, not a guaranteed saving. Concurrent compiler/harness work
+increased some individual probe durations; total improvement is modest. The
+bootstrap sample of 61s also exceeded its 60s warning budget, alongside the
+existing full-check and unit warnings. No budget was widened. Subsequent edits
+to this result report and roadmap are informational and use `make docs`.
+
+Independent module builds are a follow-up candidate raised during review of
+these results. Native C objects already rebuild separately and focused compiler,
+bytecode and VM targets exist. Panackelty source modules, however, are loaded and
+combined into one program before checking/emission; source organisation is not
+separate compilation. First measure the payoff from dependency-scoped probe
+cache keys and cached frontend work. Separately compiled module artifacts would
+then need explicit interface/signature rules, dependency invalidation, linking,
+type/effect preservation and deterministic bootstrap evidence. Neither approach
+is implemented or authorised by this timing investigation.
+
+Reproduce each revision in a separate Git checkout/worktree, serially, using an
+absolute report directory outside either build tree:
+
+```sh
+make clean
+export CFLAGS=-O2 VALIDATION_JOBS=2
+export VALIDATION_PROFILE_FILE=/absolute/report-dir/variant-profile.tsv
+export VALIDATION_TIMINGS_FILE=/absolute/report-dir/variant-budgets.tsv
+export VALIDATION_PROFILE_RUN=variant-clean
+sh tests/profile_command.sh variant/check make check
+```
+
+Use distinct empty report files for each variant. Preserve the host/toolchain,
+revision, exit status and phase rows, and compare measurements with matching
+parent labels. The 120s clean and 15s focused targets remain open; deeper
+compiler/nested-runner or isolated seed-refresh optimisation needs its own
+bounded investigation rather than weakening those proofs.
+
 ## Async source-to-VM slice — 2026-09-29
 
 Baseline: `30b584a`, preserved before implementation. Candidate: issue #102's

@@ -100,9 +100,8 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
-	@$(MAKE) --no-print-directory unit-harness
+	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 	@$(MAKE) --no-print-directory unit-runtime
-	@$(MAKE) --no-print-directory unit-compiler
 
 .PHONY: unit-harness unit-runtime unit-compiler
 unit-harness: native

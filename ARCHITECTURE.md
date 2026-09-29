@@ -515,7 +515,9 @@ Sanitizer validation uses three independent jobs for VM contracts, oracle
 programs, and the nested functional runner. Standalone sanitizer and coverage
 commands execute the same complete sequence. Compiler probe scheduling puts
 the longest independent checks first in the bounded worker pool. Harness and compiler checks
-run concurrently inside one CI job, keeping the macOS matrix at five jobs.
+run concurrently in canonical unit validation and inside one CI job, keeping the
+macOS matrix at five jobs. The local default assigns one worker to each suite;
+runtime checks follow only after both succeed. One worker preserves serial execution.
 Distribution checks build and install inside their temporary checkout with a
 copied VM, retaining the shared executable unchanged for compiler commands.
 CI assigns one worker to the harness and two to compiler probes. Runtime validation overlaps native corpus execution

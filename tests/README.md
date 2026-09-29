@@ -114,9 +114,11 @@ Distribution builds own a copied VM in their temporary checkout and assert that
 the shared VM inode and bytes remain unchanged, so concurrent compiler commands
 cannot observe a relink.
 
-CI compiler validation overlaps harness and compiler suites after native setup,
-using three workers: one for the harness and two for compiler probes. The
-macOS matrix retains five jobs to avoid a sixth job waiting for a runner.
+Canonical unit validation overlaps harness and compiler suites after native setup,
+then runs the runtime suite only if both succeed. The default two-worker budget
+assigns one worker to each; one worker retains serial execution and stops at the
+first failure. CI compiler validation uses the same pair with three workers: one
+for the harness and two for compiler probes. The macOS matrix retains five jobs to avoid a sixth job waiting for a runner.
 Native conformance also uses bounded workers (two by default). Each program
 keeps its source/compile/bytecode assertions together in an isolated temporary
 directory; NUL-delimited arguments preserve paths containing spaces. Negative

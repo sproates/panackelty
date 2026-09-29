@@ -54,7 +54,7 @@ static void decode_program(void)
      * Names, parameters, instructions, decimal digits and bigint limbs allocate.
      */
     const uint8_t bytes[] = {
-        'P', 'A',      'N',       'A', 'C',  'K',  'B', 'C', 0,       0,    8,        0,   2,   0,
+        'P', 'A',      'N',       'A', 'C',  'K',  'B', 'C', 0,       0,    9,        0,   2,   0,
         8,   'i',      'd',       'e', 'n',  't',  'i', 't', 'y',     1,    1,        0,   5,   'v',
         'a', 'l',      'u',       'e', 0,    0,    0,   2,   OP_LOAD, 0,    5,        'v', 'a', 'l',
         'u', 'e',      OP_RETURN, 0,   4,    'm',  'a', 'i', 'n',     0,    0,        0,   0,   0,
@@ -132,6 +132,54 @@ static void task_lifetimes(void)
         assert(fault_triggered() && error);
     }
     assert(operand->refs == 1);
+}
+
+static void async_lifetimes(void)
+{
+    Instruction code[] = {{.op = OP_CONST, .constant = {.tag = 4}},
+                          {.op = OP_AWAIT_CALL, .name = "async_fake_read", .arity = 1},
+                          {.op = OP_STORE, .name = "first"},
+                          {.op = OP_CONST, .constant = {.tag = 4}},
+                          {.op = OP_AWAIT_CALL, .name = "async_fake_read", .arity = 1},
+                          {.op = OP_RETURN}};
+    Function function = {.name = "read", .is_async = true, .ins = code, .ins_count = 6};
+    Program program = {.functions = &function, .count = 1};
+    VM vm = {.program = &program};
+    const char *error;
+    VMTasks *tasks = vm_tasks_create(&vm, 1, 1, &error);
+    if (tasks) {
+        VMTaskId task = vm_tasks_spawn(tasks, (VMTaskId){0}, &function, NULL, UINT64_MAX, &error);
+        if (task.slot) {
+            assert(vm_tasks_pump(tasks, 0, 100));
+            for (size_t round = 0; round < 2; round++) {
+                VMOperationId operation;
+                Value *input;
+                if (vm_tasks_pending(tasks, task, &operation, &input)) {
+                    Value *result = task_finish_mode == 2 ? value_size(42) : vm_fake_read_result(false);
+                    if (result) {
+                        assert(vm_tasks_complete_read(tasks, operation, result));
+                        release(result);
+                        if (task_finish_mode == 1) {
+                            assert(vm_tasks_cancel(tasks, task));
+                        }
+                        if (task_finish_mode != 3) {
+                            assert(vm_tasks_pump(tasks, 0, 100));
+                        }
+                    } else { assert(fault_triggered()); break; }
+                }
+                if (task_finish_mode == 3) {
+                    break;
+                }
+            }
+            if (!fault_triggered()) {
+                assert(vm_tasks_status(tasks, task) ==
+                       (task_finish_mode == 0 ? TASK_COMPLETED :
+                        task_finish_mode == 1 ? TASK_CANCELLED :
+                        task_finish_mode == 2 ? TASK_TRAPPED : TASK_WAITING));
+            }
+        } else { assert(fault_triggered() && error); }
+        assert(vm_tasks_destroy(tasks));
+    } else { assert(fault_triggered() && error); }
 }
 
 static void construct_record(void)
@@ -487,7 +535,7 @@ static void nested_call(void)
 static void nested_failures(void)
 {
     /* Child main returns command_args(), exercising borrowed argument lifetimes. */
-    const uint8_t bytes[] = {'P', 'A', 'N', 'A',     'C', 'K', 'B', 'C', 0,        0,   8,
+    const uint8_t bytes[] = {'P', 'A', 'N', 'A',     'C', 'K', 'B', 'C', 0,        0,   9,
                              0,   1,   0,   4,       'm', 'a', 'i', 'n', 0,        0,   0,
                              0,   0,   2,   OP_CALL, 0,   12,  'c', 'o', 'm',      'm', 'a',
                              'n', 'd', '_', 'a',     'r', 'g', 's', 0,   OP_RETURN};
@@ -580,6 +628,7 @@ int main(int argc, char **argv)
     sweep("resumable trap", resumable_frames);
     for (task_finish_mode = 0; task_finish_mode < 4; task_finish_mode++) {
         sweep("task lifecycle", task_lifetimes);
+        sweep("async typed lifecycle", async_lifetimes);
     }
     release(operand);
 

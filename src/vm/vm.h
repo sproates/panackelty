@@ -51,13 +51,21 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget);
  * borrows the printed value and must retain it if needed while waiting. True
  * registers a wait; false supplies a static error. No synchronous CLI change.
  */
-typedef bool (*VMPrintWait)(void *context, Value *value, const char **error);
-VMExecution *vm_execution_create_pending(VM *vm, Function *fn, Value **arguments, VMPrintWait wait,
+typedef bool (*VMServiceWait)(void *context, Value *value, const char **error);
+VMExecution *vm_execution_create_pending(VM *vm, Function *fn, Value **arguments, VMServiceWait wait,
                                          void *context, const char **error);
 /* Deliver a Void acknowledgement or static failure on the owning thread, outside
  * advance. Returns false for re-entry/non-waiting state; never resumes inline.
  * Allocation failure becomes a sticky trap. */
 bool vm_execution_complete_print(VMExecution *execution, const char *error);
+/* Fixed typed fake read. Its callback borrows a Bool input; completion borrows
+ * Result[Bytes,Str] and retains it on successful delivery. Wrong schemas trap.
+ * Print acknowledgement and read completion APIs cannot complete each other. */
+VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,
+                                       VMServiceWait wait, void *context, const char **error);
+bool vm_execution_complete_read(VMExecution *execution, Value *result);
+bool vm_fake_read_result_valid(const Value *result);
+Value *vm_fake_read_result(bool fail);
 /* Borrowed result, valid until destroy; NULL unless completed. */
 Value *vm_execution_result(const VMExecution *execution);
 /* Valid only after VM_EXITED. */

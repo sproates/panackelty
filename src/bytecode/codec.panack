@@ -230,6 +230,8 @@ pure encode_instruction(instruction: Instruction): Bytes {
     JumpInstruction(target) => bytes_concat(encode_u8(19), encode_u32(target)),
     PendingEndJumpInstruction() => bytes(),
     ReturnInstruction() => encode_u8(20),
+    AwaitCallInstruction(name, arity) => bytes_concat(bytes_concat(encode_u8(22), encode_name(name)), encode_u8(arity)),
+    AwaitValueInstruction(arity) => bytes_concat(encode_u8(23), encode_u8(arity)),
     CallValueInstruction(arity) => bytes_concat(encode_u8(21), encode_u8(arity))
   }
 }
@@ -258,7 +260,7 @@ pure sort_functions(functions: [FunctionCode]): [FunctionCode] {
 
 pure encode_function(function: FunctionCode): Bytes {
   mut output: Bytes = encode_name(function.name)
-  output = bytes_concat(output, encode_u8(if function.is_pure { 1 } else { 0 }))
+  output = bytes_concat(output, encode_u8(if function.is_async { 2 } else { if function.is_pure { 1 } else { 0 } }))
   output = bytes_concat(output, encode_u8(len(function.parameters)))
   output = bytes_concat(output, encode_names(function.parameters))
   output = bytes_concat(output, encode_u32(len(function.instructions)))
@@ -271,7 +273,7 @@ pure encode_function(function: FunctionCode): Bytes {
 pure serialize_bytecode(program: BytecodeProgram): Bytes {
   mut output: Bytes = utf8_encode("PANACKBC")
   output = byte_append(output, 0)
-  output = bytes_concat(output, encode_u16(8))
+  output = bytes_concat(output, encode_u16(9))
   functions: [FunctionCode] = sort_functions(program.functions)
   output = bytes_concat(output, encode_u16(len(functions)))
   for function in functions {

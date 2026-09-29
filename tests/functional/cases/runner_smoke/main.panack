@@ -8,7 +8,7 @@ pure runner_path(text: Str): Path {
 }
 
 main(): Void {
-  names = ["callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "hello_world",
+  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",
     "semicolonless", "stdlib", "string_boundaries", "testing_commands",
@@ -27,7 +27,7 @@ main(): Void {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
   }
   expected_text = "${expected_text}PASS selected example count\n"
-  failure_names = ["callable_effect", "constructor_arity", "duplicate_function",
+  failure_names = ["async_bare", "async_blocking", "callable_effect", "constructor_arity", "duplicate_function",
     "for_iterable_type", "function_arity", "generic_ambiguous", "generic_body",
     "generic_conflict", "generic_main", "generic_purity", "generic_type_arity",
     "guard_not_proven", "if_without_else_value", "immutable_assignment",
@@ -49,7 +49,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 273, failures: 0\n")
+  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 282, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],

@@ -4,6 +4,7 @@ $method_has 2 1
 $method_put 3 1
 $unit 0 1
 append 2 1
+async_fake_read 1 0
 byte_append 2 1
 byte_get 2 1
 byte_len 1 1

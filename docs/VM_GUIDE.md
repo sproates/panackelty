@@ -5,7 +5,8 @@ an arithmetic expression, then follow a function call and a loop. Each example
 is a runnable program in `examples/`, with expected output checked by the
 functional suite from both source and compiled bytecode.
 
-The guide describes bytecode version 8. [FORMAT.md](../src/bytecode/FORMAT.md)
+The synchronous examples also apply to bytecode version 9; its async extension
+is documented separately in the format contract. [FORMAT.md](../src/bytecode/FORMAT.md)
 is the authoritative instruction and binary-format contract;
 [VALUE_MODEL.md](../src/vm/VALUE_MODEL.md) describes native memory ownership.
 

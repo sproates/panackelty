@@ -33,7 +33,7 @@ case "$operation" in
         if [ "${CI_CONFORMANCE_FAIL:-}" = accepted ]; then exit 0; fi
         printf 'bad\n' >&2; exit 1 ;;
     --help) printf 'usage: panack command\n' ;;
-    --version) printf 'panack 0.0.0-test.1 (bytecode 8)\n' ;;
+    --version) printf 'panack 0.0.0-test.1 (bytecode 9)\n' ;;
     *) exit 9 ;;
 esac
 CLI

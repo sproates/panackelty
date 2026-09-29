@@ -1,10 +1,12 @@
 # Bootstrap seed
 
-`compiler-v8.bc` is the audited stage-1 compiler seed for bytecode format 8.
-Its SHA-256 is recorded in [`compiler-v8.bc.sha256`](compiler-v8.bc.sha256).
-It was originally produced by the transitional Python compiler; the self-hosted
-compiler reproduces those same bytes. The seed includes Path, Duration, Instant,
-and the existing non-value `Void` argument rule. The format remains version 8.
+`compiler-v9.bc` is the stage-1 compiler seed for bytecode format 9.
+Its SHA-256 is recorded in [`compiler-v9.bc.sha256`](compiler-v9.bc.sha256).
+The historical v8 seed compiled the updated compiler in the old accepted source
+subset. A temporary native decoder bridge ran that compiler to emit v9; repeated
+v9 compiler builds converged. The bridge and v8 seed have been removed. This seed
+includes async declarations, awaited calls, AsyncFn effects and typed fake reads.
+No Python compiler or new development runtime was used for this migration.
 
 The seed passes through the bounded native loader and verifier like every other
 bytecode artifact. Normal bootstrap uses it to produce stage 2, then stage 3.

@@ -18,6 +18,7 @@
 #include <string.h>
 
 void resumable_contracts(void);
+void async_contracts(void);
 void task_contracts(void);
 void task_artifact(const char *path);
 void resumable_artifact(const char *path, size_t budget);
@@ -488,7 +489,7 @@ static void decode_mutations_release_partial_programs(void)
 {
     /* Version 8: main() { CONST Void; RETURN }. Mutations never execute. */
     const uint8_t valid[] = {0x50, 0x41, 0x4e, 0x41, 0x43, 0x4b,     0x42, 0x43,     0,   0,
-                             8,    0,    1,    0,    4,    'm',      'a',  'i',      'n', 0,
+                             9,    0,    1,    0,    4,    'm',      'a',  'i',      'n', 0,
                              0,    0,    0,    0,    2,    OP_CONST, 5,    OP_RETURN};
     for (size_t length = 0; length < sizeof(valid); length++) {
         Program program;
@@ -520,7 +521,7 @@ static void nested_bytecode_releases_rejected_programs(void)
 {
     /* Structurally valid, but the function is named fail rather than main. */
     const uint8_t invalid[] = {0x50, 0x41, 0x4e, 0x41, 0x43, 0x4b,     0x42, 0x43,     0,   0,
-                               8,    0,    1,    0,    4,    'f',      'a',  'i',      'l', 0,
+                               9,    0,    1,    0,    4,    'f',      'a',  'i',      'l', 0,
                                0,    0,    0,    0,    2,    OP_CONST, 5,    OP_RETURN};
     Value *bytes = value_data(V_BYTES, invalid, sizeof(invalid));
     Value *arguments = value_sequence(V_ARRAY, NULL, 0);
@@ -723,6 +724,7 @@ int main(int argc, char **argv)
         return 0;
     }
     resumable_contracts();
+    async_contracts();
     task_contracts();
     bigint_boundaries();
     values_own_copies_and_retain_children();

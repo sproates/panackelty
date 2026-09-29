@@ -6,7 +6,7 @@ unset PANACK_TEST_RUNNER_REPORT PANACK_TEST_CAPTURE_RUNNER_REPORT
 
 vm=${PANACK_NATIVE_BINARY:-./panack-vm}
 modules=${PANACK_NATIVE_MODULE_TEST:-./build/vm/test_modules}
-seed=${SEED_COMPILER:-bootstrap/compiler-v8.bc}
+seed=${SEED_COMPILER:-bootstrap/compiler-v9.bc}
 fixtures=tests/fixtures/oracle_contracts
 [ "$#" -le 1 ] || { echo "expected at most one oracle group" >&2; exit 2; }
 mode=${1:-all}
@@ -48,8 +48,8 @@ if [ "$mode" = all ] || [ "$mode" = without-runner ]; then
     rows decimal.stdin 422
     rows decimal.stdout 422
     rows rational.stdout 96
-    rows builtin.names 82
-    rows builtin.stdout 82
+    rows builtin.names 83
+    rows builtin.stdout 83
 
     compile tests/runner/oracle_command.panack
     cp "$temporary/program.bc" "$temporary/command.bc"

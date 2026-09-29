@@ -62,9 +62,10 @@ is in alpha:
   surface. Incompatible CLI changes require release notes and a new preview
   version.
 - Bytecode is an exchange format within one toolchain release, not a durable
-  distribution format. The VM currently accepts bytecode version 8 only, and
+  distribution format. The VM currently accepts bytecode version 9 only, and
   compatibility with bytecode produced by another Panackelty release is not
-  promised.
+  promised. Version 8 artifacts must be recompiled from source; loaders reject
+  them explicitly. The unreleased v9 seed replaces the v8 seed.
 - Patch releases in the same preview series should correct defects without
   deliberately changing accepted source programs.
 

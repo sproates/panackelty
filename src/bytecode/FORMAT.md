@@ -6,19 +6,20 @@ JSON payload. Version 5 retained those semantics and replaced only the artifact
 encoding with the compact binary layout specified here. Version 6 retained that
 layout and added internal collection-method call targets plus Unicode
 code-point string reversal. Version 7 added indirect callable invocation.
-Version 8 changes integer `/` to exact rational division and adds first-class
+Version 8 changed integer `/` to exact rational division and added first-class
 `Unit`, rational conversions, and explicit natural quotient division.
+Version 9 adds explicit async activation and typed fake-service completions.
 Changing executable behavior or encoding requires another bytecode version
 increment.
 
-## Version 8 binary layout
+## Version 9 binary layout
 
 Every artifact starts with the nine bytes `PANACKBC\0`, followed by an unsigned
-16-bit big-endian version. Version 8 then contains one payload with no padding
+16-bit big-endian version. Version 9 then contains one payload with no padding
 or trailing bytes:
 
 ```text
-u16 version = 8
+u16 version = 9
 u16 function_count
 function[function_count]
 
@@ -27,8 +28,8 @@ function = name, u8 flags, u8 parameter_count,
            instruction[instruction_count]
 ```
 
-Functions are sorted by ascending Unicode function name. Bit zero of `flags`
-is the purity flag; every other bit must be zero. `main` is the implicit entry
+Functions are sorted by ascending Unicode function name. Flags are exactly
+0 (ordinary), 1 (pure) or 2 (async); all other values are invalid. `main` is the implicit entry
 point and is not repeated in the payload.
 
 The primitive encodings are:
@@ -75,6 +76,8 @@ in this table:
 | `13` | `JUMP` | target `u32` |
 | `14` | `RETURN` | none |
 | `15` | `CALL_VALUE` | arity `u8` |
+| `16` | `AWAIT_CALL` | callee `name`, arity `u8` |
+| `17` | `AWAIT_VALUE` | arity `u8` |
 
 The `CONST` tags are `0` `Nat`, `1` `Int`, `2` `Dec`, `3` `Str`, `4` `Bool`,
 and `5` `Void`. `Nat` uses a natural magnitude, `Int` a signed integer, `Dec`
@@ -90,7 +93,7 @@ verifier.
 
 A program is a uniquely named function table with `main` as its entry point.
 `main` takes no parameters. Each function records its ordered parameter names,
-purity flag, and instruction sequence. Instruction offsets are zero-based.
+effect flags, and instruction sequence. Instruction offsets are zero-based.
 
 Every active call owns an isolated frame containing:
 
@@ -211,11 +214,11 @@ and missing map keys. I/O failures are reported as Panackelty errors. Resource
 exhaustion and process termination are outside the language-level trap model.
 
 Trap wording may gain context without a version change, but the condition that
-causes a trap is part of the version-8 contract.
+causes a trap is part of the version-9 contract.
 
 ## Resource limits
 
-Version-8 loaders and verifiers enforce these limits before execution. They
+Version-9 loaders and verifiers enforce these limits before execution. They
 apply equally to serialized artifacts and in-memory function tables produced by
 a compiler.
 
@@ -240,3 +243,30 @@ arbitrary precision within the resources admitted by an artifact.
 Tightening a limit requires a bytecode version change. Implementations may
 reject execution earlier for unavailable process memory, which remains outside
 the language-level trap model.
+
+## Version 9 async activation and completions
+
+Version 9 implements the bounded source-to-VM await slice (issue #102).
+The function layout is unchanged: flags are exactly 0 (ordinary), 1 (pure), or
+2 (async); combining effects or setting reserved bits is invalid. Opcodes `16`
+and `17` (hex) are `AWAIT_CALL name,u8 arity` and `AWAIT_VALUE u8 arity`.
+Only async functions may execute them, and their targets must be async. Ordinary
+calls cannot enter async functions. Async ordinary calls must target pure code.
+These rules apply to direct verification and dynamic indirect invocation.
+
+The fixed async intrinsic `async_fake_read(Bool)` has the completion schema
+`Result[Bytes,Str]`: exactly one `Bytes` payload named `Ok`, or one `Str` payload
+named `Error`. Its name identifies this schema in bytecode; it is not a generic
+host callback or a user-supplied type claim. Wrong kinds, variants and arities
+trap before resumption. The Bool selects the deterministic CLI fake success or
+error; hosts may deliver other values within that exact schema. Await preserves
+owned frames and returns the result in the current task. No dormant operation
+value, spawning, scope or resource instruction is introduced. Async `main`
+returns Unit; the runtime validates this entry-point result as well.
+
+The completed migration used a temporary v8 bridge and the historical seed to
+build v9 and prove a fixed point. The bridge is removed; the toolchain rejects v8
+with an explicit version diagnostic. Recompile saved v8 artifacts from source.
+Cancellation remains a host-owned terminal task outcome; queued or late delivery
+cannot revive a cancelled task. Fake requests have no external producer, so this
+contract makes no claim about real network cancellation or producer quiescence.

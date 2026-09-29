@@ -17,7 +17,7 @@ The VM trusts neither source compilation nor bytecode files. Serialized
 artifacts are verified before execution, and safety checks such as bounds
 checking and `Nat` underflow remain enforced at runtime.
 
-The frozen version-8 execution semantics and instruction stack effects live in
+The frozen version-9 execution semantics and instruction stack effects live in
 [`../bytecode/FORMAT.md`](../bytecode/FORMAT.md). The VM converts invalid dynamic
 bytecode state into a Panackelty trap so host-language indexing, lookup, type,
 and arithmetic exceptions do not cross the runtime boundary. A shared forged
@@ -54,19 +54,19 @@ adapter supplies them. The adapter borrows arguments, returns an owned result
 security boundary: native adapter code must not bypass these rules. There are
 no pending host requests in this immediate-adapter API. The separate fixed-service
 experiment below adds waiting and internal task lifetimes; neither API supplies
-OS timers, sockets or async source syntax.
+OS timers or sockets. Source async awaits use the typed service below.
 An instruction budget does not bound a long numeric operation, destructor or
 native callback in wall-clock time.
 
 The synchronous `execute` adapter runs the same dispatcher to completion with
 legacy host behavior, including CLI process exit and synchronous nested bytecode.
 It rejects re-entry on an occupied VM without modifying that invocation's error.
-Bytecode version 8, purity checks and the compiler seed remain unchanged.
+The source async slice uses bytecode version 9 and a refreshed compiler seed.
 See the [design proposal](../../docs/EXECUTION_CONCURRENCY_DESIGN.md) for later
 stages and [measured overhead](../../tests/VALIDATION_PROFILE.md) for this step.
 
 `main.c` is the entry point for the portable C11 seed executable. Its `check` command performs
-bounded version-8 decoding and independent semantic verification; `run`
+bounded version-9 decoding and independent semantic verification; `run`
 executes verified artifacts with the reference-counted value model, exact
 numerics, persistent collections, UTF-8 operations, and stable host ABI. It
 accepts and runs the complete compiler and standard-library artifacts and
@@ -165,7 +165,7 @@ belong to `execute.c`. No implementation is included through a header.
 | Component | Files | Responsibility |
 | --- | --- | --- |
 | Program model | `program.h`, `program.c` | Decoded constants, named functions, instructions, cleanup |
-| Loader | `decode.h`, `decode.c` | Bounded version-8 decoding and format checks |
+| Loader | `decode.h`, `decode.c` | Bounded version-9 decoding and format checks |
 | Verifier | `verify.h`, `verify.c` | Canonical order, jumps, call arity and purity |
 | Values | `value.h`, `value.c` | Tagged values, constructors, equality, reference counting |
 | Numerics | `numeric.h`, `numeric.c`, `bigint.h`, `bigint.c` | Exact arithmetic and checked conversions |
@@ -176,7 +176,7 @@ belong to `execute.c`. No implementation is included through a header.
 | Builtin domains | `builtins_text.c`, `builtins_collections.c`, `builtins_numeric.c`, `builtins_vm.c` | Operations and nested bytecode execution |
 | Host boundary | `host.*`, `host_types.*`, `host_capabilities.*` | Invocation snapshots, legacy I/O, paths, clocks and typed services |
 
-`program.h` names every opcode with an explicit version-8 wire value. The decoder
+`program.h` names every opcode with an explicit version-9 wire value. The decoder
 and executor share those names. Numeric operations report through an error pointer
 and do not depend on VM state. The verifier and executor use one builtin registry,
 so effects, arities and implementation routing are kept together.
@@ -234,3 +234,19 @@ The [migration inventory](../../tests/fixtures/host_runtime/README.md) maps all 
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+## Typed async fake read
+
+The v9 async flag and AWAIT_CALL/AWAIT_VALUE distinguish activation from ordinary
+calls. Verification and dispatch share the effect-edge rule, and indirect calls
+check it against the resolved target. Async code cannot enter ordinary impure
+helpers or blocking builtins. Async main's final value is checked as Unit.
+
+`vm_execution_create_async` registers the fixed pending Bool read input;
+`vm_execution_complete_read` accepts only Ok(Bytes) or Error(Str). It borrows the
+completion and retains an accepted result. Print acknowledgements cannot complete
+a read, or vice versa. The CLI supplies deterministic fake completions outside
+advance. Task sessions retain queued values, discard stale/cancelled delivery,
+and release values even when destroyed with completions queued. Cancellation and
+operation identities retain the task experiment's bounds and ownership rules.
+These APIs remain internal and single-threaded; no external producer exists.

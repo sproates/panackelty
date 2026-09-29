@@ -30,6 +30,8 @@ enum Instruction {
   MatchFailInstruction,
   CallInstruction(Str, Nat),
   CallValueInstruction(Nat),
+  AwaitCallInstruction(Str, Nat),
+  AwaitValueInstruction(Nat),
   JumpFalseInstruction(Nat),
   JumpInstruction(Nat),
   PendingEndJumpInstruction,
@@ -40,6 +42,7 @@ record FunctionCode {
   name: Str,
   parameters: [Str],
   is_pure: Bool,
+  is_async: Bool,
   instructions: [Instruction]
 }
 
@@ -157,6 +160,8 @@ pure resolve_pending_jumps(instructions: [Instruction], target: Nat): [Instructi
       MatchFailInstruction() => { result = append(result, instruction); },
       CallInstruction(name, arity) => { result = append(result, instruction); },
       CallValueInstruction(arity) => { result = append(result, instruction); },
+      AwaitCallInstruction(name, arity) => { result = append(result, instruction); },
+      AwaitValueInstruction(arity) => { result = append(result, instruction); },
       JumpFalseInstruction(jump_target) => { result = append(result, instruction); },
       JumpInstruction(jump_target) => { result = append(result, instruction); },
       ReturnInstruction() => { result = append(result, instruction); }
@@ -226,6 +231,8 @@ pure render_instruction(instruction: Instruction): Str {
     MatchFailInstruction() => "MATCH_FAIL",
     CallInstruction(name, arity) => "CALL|${name}|${arity}",
     CallValueInstruction(arity) => "CALL_VALUE|${arity}",
+    AwaitCallInstruction(name, arity) => "AWAIT_CALL|${name}|${arity}",
+    AwaitValueInstruction(arity) => "AWAIT_VALUE|${arity}",
     JumpFalseInstruction(target) => "JUMP_FALSE|${target}",
     JumpInstruction(target) => "JUMP|${target}",
     PendingEndJumpInstruction() => "PENDING_END_JUMP",
@@ -236,7 +243,7 @@ pure render_instruction(instruction: Instruction): Str {
 pure render_bytecode(program: BytecodeProgram): Str {
   mut output: Str = ""
   for function in program.functions {
-    purity: Str = if function.is_pure { "pure" } else { "impure" }
+    purity: Str = if function.is_async { "async" } else { if function.is_pure { "pure" } else { "impure" } }
     function_name: Str = function.name
     parameters_text: Str = render_string_items(function.parameters)
     output = output + "FUNCTION|${function_name}|${purity}|${parameters_text}\n"
@@ -501,7 +508,17 @@ pure emit_expression(expression: Expr, program: Program, next_temporary: Nat, of
     },
     UnaryExpr(operator, operand) => {
       emitted: EmittedCode = emit_expression(operand, program, next_temporary, offset)
-      instructions: [Instruction] = append(emitted.instructions, UnaryInstruction(operator))
+      mut instructions: [Instruction] = []
+      if operator == "await" {
+        // Only the terminal invocation is awaited; argument calls keep their effects.
+        mut index: Nat = 0
+        for instruction in emitted.instructions {
+          if index + 1 == len(emitted.instructions) {
+            instructions = append(instructions, awaited_instruction(instruction))
+          } else { instructions = append(instructions, instruction); }
+          index = index + 1
+        }
+      } else { instructions = append(emitted.instructions, UnaryInstruction(operator)); }
       EmittedCode(instructions, emitted.next_temporary)
     },
     BinaryExpr(operator, left, right) => {
@@ -567,10 +584,10 @@ pure compile_program(program: Program): BytecodeProgram {
   mut functions: [FunctionCode] = []
   for declaration in program.declarations {
     match declaration {
-      FunctionDeclaration(name, parameters, return_type, is_pure, body, type_parameters) => {
+      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         emitted: EmittedCode = emit_block(body, program, 0, 0)
         instructions: [Instruction] = append(emitted.instructions, ReturnInstruction())
-        functions = append(functions, FunctionCode(name, parameter_names(parameters), is_pure, instructions))
+        functions = append(functions, FunctionCode(name, parameter_names(parameters), is_pure, is_async, instructions))
       },
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {},
@@ -597,5 +614,35 @@ pure compile_source_disassembly(source: Str): Str {
       }
     },
     Error(errors) => "lexing failed"
+  }
+}
+
+pure awaited_instruction(instruction: Instruction): Instruction {
+  match instruction {
+    ConstInstruction(a0) => instruction,
+    LoadInstruction(a0) => instruction,
+    StoreInstruction(a0) => instruction,
+    PopInstruction() => instruction,
+    UnaryInstruction(a0) => instruction,
+    BinaryInstruction(a0) => instruction,
+    MakeRangeInstruction() => instruction,
+    MakeArrayInstruction(a0) => instruction,
+    IndexGetInstruction() => instruction,
+    InterpolateInstruction(a0) => instruction,
+    IterInitInstruction(a0) => instruction,
+    IterNextInstruction(a0, a1, a2) => instruction,
+    MakeRecordInstruction(a0, a1) => instruction,
+    FieldGetInstruction(a0) => instruction,
+    MakeVariantInstruction(a0, a1, a2) => instruction,
+    MatchVariantInstruction(a0, a1) => instruction,
+    MatchFailInstruction() => instruction,
+    CallInstruction(a0, a1) => AwaitCallInstruction(a0, a1),
+    CallValueInstruction(a0) => AwaitValueInstruction(a0),
+    AwaitCallInstruction(a0, a1) => instruction,
+    AwaitValueInstruction(a0) => instruction,
+    JumpFalseInstruction(a0) => instruction,
+    JumpInstruction(a0) => instruction,
+    PendingEndJumpInstruction() => instruction,
+    ReturnInstruction() => instruction
   }
 }

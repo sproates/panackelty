@@ -1,0 +1,2 @@
+async child(): Nat { 42 }
+async main(): Unit { n = child(); () }

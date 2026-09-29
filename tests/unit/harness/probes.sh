@@ -3,7 +3,7 @@
 checkout=$work/'probe checkout (spaces)'
 mkdir -p "$checkout/src/stdlib" "$checkout/tests" "$checkout/examples" "$checkout/bootstrap"
 cp tests/run_probe.sh tests/run_probes.sh tests/profile_command.sh tests/check.sh "$checkout/tests/"
-printf 'seed\n' > "$checkout/bootstrap/compiler-v8.bc"
+printf 'seed\n' > "$checkout/bootstrap/compiler-v9.bc"
 printf 'source output\n' > "$checkout/tests/probe.panack"
 printf 'imported source\n' > "$checkout/src/stdlib/import.panack"
 cat > "$checkout/vm" <<'VM'
@@ -87,7 +87,7 @@ rm src/added.panack
 probe
 # The previous content-addressed entry is valid again.
 count 3
-printf 'new seed\n' >> bootstrap/compiler-v8.bc
+printf 'new seed\n' >> bootstrap/compiler-v9.bc
 probe
 count 4
 printf '\n# different instrumented VM\n' >> vm
@@ -129,7 +129,7 @@ test -z "$(find "$PANACK_PROBE_CACHE" -name '.compile.*' -print)" || fail 'tempo
 pass
 
 case_name=probe-cache-missing-input-is-not-reused
-rm bootstrap/compiler-v8.bc
+rm bootstrap/compiler-v9.bc
 if probe 2> errors; then fail 'missing compiler seed was accepted'; fi
 count 12
 pass

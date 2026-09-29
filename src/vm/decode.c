@@ -292,6 +292,7 @@ static bool instruction(Reader *r, Instruction *in)
     case OP_MATCH_FAIL:
     case OP_RETURN:
         return true;
+    case OP_AWAIT_VALUE:
     case OP_CALL_VALUE:
         return u8(r, &in->arity);
     case OP_UNARY:
@@ -342,6 +343,7 @@ static bool instruction(Reader *r, Instruction *in)
     case OP_MATCH_VARIANT:
         in->name = text(r, true);
         return in->name && u32(r, &in->target);
+    case OP_AWAIT_CALL:
     case OP_CALL:
         in->name = text(r, true);
         return in->name && u8(r, &in->arity);
@@ -373,7 +375,7 @@ bool decode(const uint8_t *data, size_t length, Program *p, const char **error)
         *error = r.error;
         return false;
     }
-    if (version != 8) {
+    if (version != 9) {
         *error = "unsupported bytecode version";
         return false;
     }
@@ -397,13 +399,14 @@ bool decode(const uint8_t *data, size_t length, Program *p, const char **error)
         uint8_t flags, params;
         uint32_t ins;
         f->name = text(&r, true);
-        if (!f->name || !u8(&r, &flags) || flags > 1 || !u8(&r, &params)) {
+        if (!f->name || !u8(&r, &flags) || flags > 2 || !u8(&r, &params)) {
             if (!r.error) {
                 fail(&r, "invalid function flags");
             }
             break;
         }
         f->pure = flags == 1;
+        f->is_async = flags == 2;
         f->param_count = params;
         f->params = calloc(params, sizeof(char *));
         if (params && !f->params) {

@@ -63,7 +63,7 @@ This directory contains the compiler being implemented in Panackelty:
   retains each source snapshot for diagnostic rendering, and hands one combined
   program to the pure frontend and emitter.
 - `driver.panack` implements `check`, `compile`, `run`, and `disasm` for source
-  and version-8 bytecode, including default output paths and primary positioned
+  and version-9 bytecode, including default output paths and primary positioned
   lexer, parser, name, and type diagnostics.
 - `main.panack` is the executable self-hosted compiler entry point.
 
@@ -110,3 +110,9 @@ rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. The probes use fixed expectations;
 their provenance is recorded in
 `tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.
+
+
+Async declarations carry a separate AST effect flag. Await uses a unary AST node
+whose operand must be a call; emission rewrites only that call's final invocation,
+leaving argument calls unchanged. The effect pass checks ordinary, pure and async
+contexts, including inferred callable targets. AsyncFn never coerces to Fn/PureFn.

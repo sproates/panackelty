@@ -1,6 +1,9 @@
 # Writing asynchronous programs in Panackelty
 
-Proposal for review, 2026-09-29. Baseline: `a7577eb` (merged PR #96).
+Proposal recorded 2026-09-29. The bounded await implementation was subsequently
+authorised in [issue #102](https://github.com/sproates/panackelty/issues/102);
+[SPEC.md](../SPEC.md#bounded-asyncawait-interface) defines that implemented subset.
+The server, spawning and resource examples here remain hypothetical. Baseline: `a7577eb` (merged PR #96).
 Work record: [issue #97](https://github.com/sproates/panackelty/issues/97).
 [ROADMAP.md](../ROADMAP.md) owns priority and agreed decisions.
 

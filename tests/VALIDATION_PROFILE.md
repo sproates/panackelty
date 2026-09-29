@@ -1,5 +1,60 @@
 # Validation profiling baseline
 
+## Async source-to-VM slice — 2026-09-29
+
+Baseline: `30b584a`, preserved before implementation. Candidate: issue #102's
+v9 compiler/VM with direct and indirect await and typed fake-read completions.
+Both VMs use the same C compiler and `-O2`; measurements ran serially without
+other validation jobs. One warm-up per variant preceded five alternating runtime
+pairs and three alternating compiler pairs. These are local samples, not a
+throughput or wall-clock responsiveness guarantee.
+
+| Workload | Baseline median ms | Candidate median ms | Change |
+| --- | ---: | ---: | ---: |
+| calls | 155.406 | 163.327 | 5.10% |
+| iteration | 109.534 | 106.031 | -3.20% |
+| compiler | 17887.878 | 19064.506 | 6.58% |
+
+
+Runtime sources are `tests/fixtures/execution/calls.panack` (Fibonacci 24,
+expected stdout 46368) and `iteration.panack` (100,000 indirect calls, stdout
+100000). Each compiler emitted its own supported-format artifact from the same
+source; their execution semantics are unchanged. Time `VM run ARTIFACT` with a
+monotonic clock around each child process and check stdout on every sample.
+The compiler workload compiles the baseline checkout's complete compiler source
+with each seed, keeping source and library inputs identical. Run with that
+checkout as cwd and its absolute src/stdlib as PANACKELTY_STDLIB_PATH:
+`VM run SEED compile src/compiler/main.panack -o OUTPUT`.
+
+All three medians remain below the 10% investigation threshold. Extra effect
+checks and metadata add work; these samples do not establish a significant
+speedup for the small negative iteration difference. Validation's existing
+15-second unit budget remains a separate non-blocking concern.
+
+Raw measured milliseconds (warm-ups excluded):
+
+```text
+calls baseline: 173.992, 149.093, 155.406, 147.782, 161.293
+calls candidate: 165.552, 156.086, 169.487, 163.327, 152.702
+iteration baseline: 95.747, 95.601, 114.303, 128.285, 109.534
+iteration candidate: 97.790, 106.031, 128.923, 104.847, 124.247
+compiler baseline: 17928.145, 17887.878, 17859.829
+compiler candidate: 19064.506, 19126.477, 19019.967
+```
+
+Correctness evidence is in the compiler effect contracts, public CLI async case,
+fixed v9 malformed vectors, native async call matrix/completion tests and typed
+allocation-failure sweeps. Real OS I/O, resource scopes and producer quiescence
+remain outside this evidence. Full validation and hosted platform/sanitizer gates
+remain required before merge; local command outcomes are reported in the PR.
+The local full sanitizer invocation is blocked by LeakSanitizer failing to read
+`/proc`. A supplemental ASan/UBSan VM run with `detect_leaks=0` passed 176 of
+177 contracts; the native-module command exceeded its 20-second harness limit.
+Running that instrumented module executable directly passed, including the new
+async lifecycle tests. This is partial local evidence, not a substitute for the
+unmodified hosted sanitizer gates.
+
+
 This report measures validation performance for the self-hosted toolchain.
 No assertions, validation stages or timing budgets are removed or relaxed.
 See [the reproduction procedure](README.md#detailed-validation-profiling).

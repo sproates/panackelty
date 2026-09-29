@@ -12,7 +12,7 @@ else
     shift
 fi
 vm=${PANACK_PROBE_VM:-./panack-vm}
-seed=${PANACK_PROBE_SEED:-bootstrap/compiler-v8.bc}
+seed=${PANACK_PROBE_SEED:-bootstrap/compiler-v9.bc}
 cache=${PANACK_PROBE_CACHE:-build/probes}
 stdlib=${PANACKELTY_STDLIB_PATH:-src/stdlib}
 export PANACKELTY_STDLIB_PATH="$stdlib"

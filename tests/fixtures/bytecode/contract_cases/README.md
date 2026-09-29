@@ -3,15 +3,16 @@
 All `.hex` files contain lowercase complete artifact bytes, with whitespace
 ignored by the Panackelty test readers. `contract_cases/manifest.json` names
 each expanded Python serialization rejection, its original test method, and
-its original diagnostic substring. There are 33 exact original artifacts:
+its original diagnostic substring. There are 33 original behavior cases, with headers migrated to v9:
 18 prefixes and a trailing-byte case from the truncation method, plus malformed
 header/version, function records, opcodes and constants. The original method
 `test_rejects_every_truncation_and_trailing_data` expands to 18 fixtures.
 `contract_cases/codec_manifest.json` retains all nine further structural
 call, arity, purity, ordering, UTF-8, flag and constant cases from the
-self-hosted decoder tests. Five `limit-*.hex` vectors exercise actual v8
+self-hosted decoder tests. Five `limit-*.hex` vectors exercise actual v9
 limits for function count, name, text, integer digits and instruction count.
-The existing 26 versioned vectors remain unchanged.
+Named historical version vectors remain unchanged. Reserved flag rejection now
+uses 3 (pure plus async), because flag 2 is the valid async effect.
 
 `valid_contracts/` contains five reviewed Python-encoded artifact bytes and
 canonical disassemblies: all scalar constants (including 100-digit Nat,

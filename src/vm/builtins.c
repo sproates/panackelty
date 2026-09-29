@@ -10,7 +10,16 @@
 
 /* One registry supplies arity, purity, and implementation selection. */
 
+static Value *async_service_only(VM *vm, const char *name, Value **arguments)
+{
+    (void)name;
+    (void)arguments;
+    vm->error = "VM trap: async service requires await";
+    return NULL;
+}
+
 static const Builtin BUILTINS[] = {
+    {"async_fake_read", 1, false, async_service_only},
     {"fs_read", 2, false, host_capability_call},
     {"fs_write", 2, false, host_capability_call},
     {"fs_metadata", 1, false, host_capability_call},

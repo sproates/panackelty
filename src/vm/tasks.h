@@ -4,7 +4,8 @@
 #include "vm.h"
 
 /* Experimental, single-thread, fake-host lifecycle harness. No stable ABI,
- * source task syntax, OS callbacks or network service is implied. The template
+ * source spawning, OS callbacks or network service is implied. Async functions
+ * use fixed typed read completions; ordinary functions retain fake print waits. The template
  * VM's verified program and snapshots must outlive the session. */
 typedef struct VMTasks VMTasks;
 
@@ -58,12 +59,15 @@ VMTaskStatus vm_tasks_status(const VMTasks *tasks, VMTaskId task);
 Value *vm_tasks_result(const VMTasks *tasks, VMTaskId task);
 const char *vm_tasks_error(const VMTasks *tasks, VMTaskId task);
 size_t vm_tasks_exit_status(const VMTasks *tasks, VMTaskId task);
-/* Exposes the one pending fake print and its retained input. Complete is a typed
+/* Exposes the pending fake print or read and its retained input. Complete is a typed
  * Void acknowledgement or a static error, never arbitrary VM data. Enqueue
  * rejects stale/wrong-session/duplicate operations and a full queue without
  * changing the wait; retry after pumping. No VM execution occurs inline. */
 bool vm_tasks_pending(const VMTasks *tasks, VMTaskId task, VMOperationId *operation, Value **input);
 bool vm_tasks_complete(VMTasks *tasks, VMOperationId operation, const char *error);
+/* Typed async completion is retained only if enqueued, including invalid data
+ * whose delivery must trap. Cancellation discards queued results safely. */
+bool vm_tasks_complete_read(VMTasks *tasks, VMOperationId operation, Value *result);
 uint64_t vm_tasks_next_deadline(const VMTasks *tasks);
 VMTaskStats vm_tasks_stats(const VMTasks *tasks);
 /* Cancels all remaining work and releases each fake request once. Fake requests

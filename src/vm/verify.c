@@ -8,6 +8,17 @@
 
 /* Semantic verification is independent of source compilation and runtime checks. */
 
+bool verify_call_edge(const Function *caller, const Function *callee,
+                      bool builtin_pure, bool builtin_async, bool awaited)
+{
+    bool async = callee ? callee->is_async : builtin_async;
+    bool pure = callee ? callee->pure : builtin_pure;
+    if (awaited) {
+        return caller->is_async && !caller->pure && async;
+    }
+    return !async && (!(caller->pure || caller->is_async) || pure);
+}
+
 bool verify(Program *p, const char **error)
 {
     Function *main = program_function(p, "main");
@@ -21,7 +32,7 @@ bool verify(Program *p, const char **error)
     }
     for (size_t i = 0; i < p->count; i++) {
         Function *function = &p->functions[i];
-        if (!function->name[0]) {
+        if ((function->pure && function->is_async) || !function->name[0]) {
             *error = "invalid function signature";
             return false;
         }
@@ -57,7 +68,12 @@ bool verify(Program *p, const char **error)
                 *error = "invalid jump target";
                 return false;
             }
-            if (instruction->op == OP_CALL) {
+            if (instruction->op > OP_AWAIT_VALUE ||
+                (instruction->op == OP_AWAIT_VALUE && !function->is_async)) {
+                *error = "invalid async instruction";
+                return false;
+            }
+            if (instruction->op == OP_CALL || instruction->op == OP_AWAIT_CALL) {
                 const Builtin *b = builtin(instruction->name);
                 Function *called = program_function(p, instruction->name);
                 if (!b && !called) {
@@ -69,8 +85,10 @@ bool verify(Program *p, const char **error)
                     *error = "call arity mismatch";
                     return false;
                 }
-                if (function->pure && !((b && b->pure) || (called && called->pure))) {
-                    *error = "pure function calls impure function";
+                if (!verify_call_edge(function, b ? NULL : called, b && b->pure,
+                                      b && !strcmp(b->name, "async_fake_read"),
+                                      instruction->op == OP_AWAIT_CALL)) {
+                    *error = function->pure ? "pure function calls impure function" : "invalid async call effect";
                     return false;
                 }
             }

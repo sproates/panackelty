@@ -1,0 +1,24 @@
+import stdlib/result
+
+// A failed assertion traps, so a silent successful exit verifies the values.
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+async read(fail: Bool): Result[Bytes,Str] { await async_fake_read(fail) }
+async nested(depth: Nat): Result[Bytes,Str] {
+  if depth > 0 { await nested(depth - 1) } else { await read(false) }
+}
+async main(): Unit {
+  reader: AsyncFn[Bool,Result[Bytes,Str]] = @read
+  match await reader.call(false) {
+    Ok(data) => expect(utf8_decode(data) == "fake bytes"),
+    Error(problem) => expect(false)
+  }
+  match await read(true) {
+    Ok(data) => expect(false),
+    Error(problem) => expect(problem == "fake I/O error")
+  }
+  match await nested(128) {
+    Ok(data) => expect(byte_len(data) == 10),
+    Error(problem) => expect(false)
+  }
+  ()
+}

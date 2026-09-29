@@ -32,7 +32,7 @@ set -eu
 if [ "$1" = check ]; then
     if [ -f "$2" ]; then source=$(cat "$2"); else source=seed; fi
     operation=verify
-elif [ "$2" = bootstrap/compiler-v8.bc ]; then
+elif [ "$2" = bootstrap/compiler-v9.bc ]; then
     operation=$3; source=$4
 else
     operation=execute; source=$(cat "$2")

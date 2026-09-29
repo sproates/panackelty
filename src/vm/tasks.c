@@ -12,12 +12,13 @@ typedef struct {
     Value *result, *input;
     const char *error;
     size_t exit_status;
-    bool pending, queued;
+    bool pending, queued, async_read;
 } Task;
 
 typedef struct {
     VMOperationId operation;
     const char *error;
+    Value *result;
 } Completion;
 
 struct VMTasks {
@@ -63,7 +64,7 @@ static void release_request(Task *task)
     }
 }
 
-static bool register_print(void *context, Value *value, const char **error)
+static bool register_request(void *context, Value *value, const char **error)
 {
     Task *task = context;
     if (task->pending || task->generation == UINT64_MAX || task->owner->registered == SIZE_MAX) {
@@ -132,8 +133,10 @@ VMTaskId vm_tasks_spawn(VMTasks *tasks, VMTaskId parent, Function *function, Val
                    .parent = parent.slot,
                    .deadline = deadline,
                    .status = TASK_READY};
-    task->execution =
-        vm_execution_create_pending(&task->vm, function, arguments, register_print, task, error);
+    task->async_read = function->is_async;
+    task->execution = function->is_async
+        ? vm_execution_create_async(&task->vm, function, arguments, register_request, task, error)
+        : vm_execution_create_pending(&task->vm, function, arguments, register_request, task, error);
     if (!task->execution) {
         *task = (Task){0};
         return (VMTaskId){0};
@@ -248,15 +251,15 @@ bool vm_tasks_pending(const VMTasks *tasks, VMTaskId id, VMOperationId *operatio
     return true;
 }
 
-bool vm_tasks_complete(VMTasks *tasks, VMOperationId operation, const char *error)
+static bool complete(VMTasks *tasks, VMOperationId operation, const char *error, Value *result, bool read)
 {
     Task *task = mutable_task(tasks, operation.task);
-    if (!task || tasks->pumping || !task->pending || task->queued ||
+    if (!task || tasks->pumping || task->async_read != read || !task->pending || task->queued ||
         task->generation != operation.generation || tasks->event_count == tasks->event_capacity) {
         return false;
     }
     size_t tail = (tasks->event_head + tasks->event_count) % tasks->event_capacity;
-    tasks->events[tail] = (Completion){operation, error};
+    tasks->events[tail] = (Completion){operation, error, retain(result)};
     tasks->event_count++;
     task->queued = true;
     return true;
@@ -270,9 +273,15 @@ static void deliver_completions(VMTasks *tasks)
         tasks->event_count--;
         Task *task = mutable_task(tasks, event.operation.task);
         if (!task || !task->pending || task->generation != event.operation.generation) {
+            release(event.result);
             continue;
         }
-        vm_execution_complete_print(task->execution, event.error);
+        if (task->async_read) {
+            vm_execution_complete_read(task->execution, event.result);
+        } else {
+            vm_execution_complete_print(task->execution, event.error);
+        }
+        release(event.result);
         release_request(task);
         if (task->vm.error) {
             finish_body(task, TASK_TRAPPED);
@@ -386,8 +395,23 @@ bool vm_tasks_destroy(VMTasks *tasks)
         release_request(task);
         release(task->result);
     }
+    while (tasks->event_count) {
+        release(tasks->events[tasks->event_head].result);
+        tasks->event_head = (tasks->event_head + 1) % tasks->event_capacity;
+        tasks->event_count--;
+    }
     free(tasks->events);
     free(tasks->tasks);
     free(tasks);
     return true;
+}
+
+bool vm_tasks_complete(VMTasks *tasks, VMOperationId operation, const char *error)
+{
+    return complete(tasks, operation, error, NULL, false);
+}
+
+bool vm_tasks_complete_read(VMTasks *tasks, VMOperationId operation, Value *result)
+{
+    return complete(tasks, operation, NULL, result, true);
 }

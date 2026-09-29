@@ -31,7 +31,7 @@ installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
 
-## Draft status and next tasks — updated 2026-09-29
+## Draft status and next tasks — updated 2026-09-30
 
 **The implementation roadmap remains a draft for discussion.** The decision
 process was adopted in PR #83; the assessment was adopted in PR #87. The
@@ -44,8 +44,12 @@ merge review. PR #94 merged after all 21 CI jobs passed; issue #93 is closed. Th
 authorised the bounded task/lifecycle feasibility milestone, now merged in PR #96
 with all 21 hosted checks passed and issue #95 closed. The user subsequently
 selected an application-facing async design proposal. PR #98 is now merged,
-with all 21 hosted checks passed and issue #97 closed. The user subsequently selected the bounded source-to-VM await slice below.
-Networking, source spawning and resource scopes remain draft.
+with all 21 hosted checks passed and issue #97 closed. The bounded source-to-VM
+await slice shipped in PR #103, and the validation investigation shipped in
+PR #105; both passed all 21 hosted Check jobs. The proposed next priority is the
+bounded incremental/modular-build task below, recorded at the user's request;
+implementation is not yet scheduled. Networking, source spawning and resource
+scopes remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -306,7 +310,7 @@ and 358s. A harness isolation fix prevents corrupt-seed testing from relinking
 the shared VM while compiler checks run. Real networking, spawning and resource
 scopes remain outside this delivered slice.
 
-### In progress: bounded validation performance investigation
+### Completed: bounded validation performance investigation
 
 Work record: [issue #104](https://github.com/sproates/panackelty/issues/104).
 Approved on 2026-09-29 after the async slice: establish a same-host clean baseline,
@@ -316,7 +320,7 @@ wait takes priority over starting native TCP/timer or compiler-assistance work.
 
 The controlled Linux comparison passed at 341s before async (`30b584a`) and 362s
 after (`e71449f`): 21s / 6.2% longer, with most cost already present beforehand.
-The proposed bounded change overlaps independent harness/compiler suites within
+The delivered bounded change overlaps independent harness/compiler suites within
 the existing worker budget, using the pair already exercised by CI. Every suite,
 bootstrap proof and timing warning remains required. See the
 [measurement report](tests/VALIDATION_PROFILE.md#clean-validation-comparison--2026-09-29)
@@ -326,20 +330,73 @@ requires separate evidence and scope; this investigation does not promise 120s.
 The bounded overlap candidate passed in 346s (unit 224s), saving 16s / 4.4%
 against merged async in one clean sample, with all 1,390 PASS observations
 retained. The 120s full-check and 15s unit targets remain unmet; bootstrap also
-warned at 61s against 60s. Implementation and evidence are prepared for PR review.
+warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
+2026-09-30 (Europe/Gibraltar), after all 21 hosted Check jobs passed; issue #104
+is closed. The timing budgets remain open goals, not completed by this merge.
 
-Independent module builds were raised as a follow-up candidate. C objects already
-build incrementally and focused component checks exist, but Panackelty imports
-are combined into one program before checking/emission. Assess dependency-scoped
-probe caching and reusable frontend work before committing to compiled module
-artifacts/interfaces and a linker. Any design must preserve type/effect checks,
-invalidations, deterministic bytecode and bootstrap proofs. This is recorded for
-assessment, not approval of a compiler redesign.
+### Proposed Next: incremental and modular builds
+
+Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
+State: Idea. Priority recommendation: high, proposed **Next** for the bounded
+first slice; full separate-compilation implementation is **Later**, conditional
+on design evidence. On 2026-09-30 the user requested a backlog task and priority
+assessment, not implementation or a committed schedule. This section is the
+authoritative status; the issue contains detailed acceptance and failure cases.
+
+Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
+`tests`, `examples` and the selected standard library for each compiled probe.
+An unrelated edit can therefore invalidate otherwise reusable compiled tests.
+Native C objects already build incrementally and focused checks exist, but the
+Panackelty loader combines reachable modules before checking/emission. Separate
+source files do not yet provide independently compiled module artifacts.
+
+Bounded task:
+
+1. Measure clean, unchanged warm, unrelated-edit and dependency-edit workflows
+   on a named host/toolchain, separating compilation from test execution and
+   counting actual rebuilds. Existing 346s clean-check evidence does not quantify
+   incremental-cache savings.
+2. Deliver dependency-aware compiled-probe reuse if justified, using canonical
+   import resolution and retaining compiler/seed/VM identity and other inputs.
+   Unknown dependencies must conservatively invalidate reuse. Tests must prove
+   unrelated edits reuse artifacts, relevant edits rebuild, and corruption,
+   graph changes, relocation, concurrent publication and input races remain safe.
+   Every invocation still executes the tests; never cache their outcomes.
+3. Produce a separate-compilation design comparing reusable frontend work with
+   compiled module artifacts/interfaces and linking. Address names, generics,
+   guarded types, purity/async effects, compatibility, deterministic bytecode and
+   bootstrap. Recommend a bounded future prototype, or a reason not to proceed.
+
+Acceptance: reproducible before/after evidence, sound invalidation tests,
+unchanged validation coverage/budgets, canonical `make check` and relevant hosted
+gates for implementation changes, and a reviewed design with explicit open
+decisions. Stop at an evidence-backed recommendation if caching has negligible
+benefit or disproportionate cost. No linker, namespace/export syntax, package
+manager, stable module ABI or two-minute cold-check promise is included.
+
+Size: medium first slice, estimated **2–3 PRs** including tests and documentation:
+one or two for dependency evidence and safe reuse (depending on whether compiler
+dependency reporting/seed refresh is independently deliverable), then one design
+PR. Full separate compilation is large and must be re-estimated after design.
+
+Priority comparison — recommendation, not an agreed sequence:
+
+| Candidate / bounded outcome | Why worthwhile and relative priority | Size / estimated PRs |
+| --- | --- | --- |
+| Dependency-aware reuse and modular-build design (#106) | Proposed Next: observed rebuild friction affects work across the project; bound the effort before committing to a compiler redesign | Medium / 2–3 |
+| Native TCP/timer feasibility | Strongest alternative: unlocks network applications blocked in the delivery pilot; choose first if a near-term network application becomes the main goal or cache measurements show poor value | Medium–large investigation / 1–2, not production networking |
+| Targeted compiler/API assistance | Addresses observed interpolation, numeric-proof and discovery friction; valuable but narrower than the current cross-project rebuild issue | Medium for one selected pain point / 1–2 |
+| Website assessment (#99) | Useful for onboarding, but concrete gaps remain unaudited and it does not shorten current development loops | Small assessment / 1; implementation separately estimated |
+
+Known correctness/security defects take precedence on risk. Reassess after the
+bounded build task; do not put networking or inexpensive useful features behind
+the whole modular-build programme. The goal is to rebuild the changed part and
+its dependents, not every unrelated part, while retaining full final validation.
 
 ### Remaining recommendations from the pilot — provisional
 
-1. Complete the authorised validation investigation, then reassess the native
-   TCP/timer investigation against the remaining alternatives.
+1. Review the proposed bounded build task above, then reassess native TCP/timer
+   feasibility against the remaining alternatives; neither is newly authorised.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 
@@ -382,7 +439,8 @@ feedback latency and consistency. Consider approachable defaults and opt-in dept
 | Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
 | Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; bounded await implementation selected in #102 |
 | Done | [Bounded async/await (#102)](https://github.com/sproates/panackelty/issues/102) | PR #103 merged; v9 source-to-VM slice and all hosted gates passed |
-| In progress | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | Same-host before/after baseline and measured overlap improvement prepared for review |
+| Done | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | PR #105 merged; 346s clean sample, all 21 hosted Check jobs passed; issue closed |
+| Idea / proposed Next | [Incremental and modular builds (#106)](https://github.com/sproates/panackelty/issues/106) | Bounded dependency-aware reuse plus separate-compilation design; high-priority recommendation, not scheduled implementation |
 | Idea | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | Assess and improve panackelty.com content, navigation, onboarding and presentation; unscheduled |
 | Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
 | Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |

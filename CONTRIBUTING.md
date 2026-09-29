@@ -23,6 +23,17 @@ These conventions apply to new and substantially changed work. Preserve existing
 public names and keep unrelated formatting or renaming out of focused changes.
 Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
 
+### Shared agent skills
+
+Repository skills live in `.agents/skills/` and travel with a clone. The
+[Next Item skill](.agents/skills/next-item/SKILL.md) guides answers to "what's
+next?", including alternatives, recommendation rationale, size, PR estimates
+and a simple explanation. Codex supports this repository skill location;
+other agents can follow the file directly through the link in `AGENTS.md`.
+See the [official skill documentation](https://learn.chatgpt.com/docs/build-skills)
+for discovery details. Maintain the repository copy through normal PR review;
+personal copies are independent and do not update it automatically.
+
 ### Branches, commits and pull requests
 
 - Branch from current `main` using `<kind>/<short-kebab-case-description>`.

@@ -8,12 +8,26 @@ import {spawnSync} from 'node:child_process';
 import {compileAndRun,execute,sourceBytes,SOURCE_LIMIT} from '../../build/playground/runtime.mjs';
 import {File} from '../../build/playground/vendor/index.js';
 import {Playground} from '../../src/playground/controller.mjs';
+import {examples} from '../../src/playground/examples.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const module=await WebAssembly.compile(fs.readFileSync(path.join(root,'build/playground/vm.wasm')));
 const compiler=fs.readFileSync(path.join(root,'bootstrap/compiler-v9.bc'));
 const stdlib=JSON.parse(fs.readFileSync(path.join(root,'build/playground/stdlib.json')));
 const run=source=>compileAndRun(module,compiler,stdlib,source);
+
+test('every website example matches expected output through browser and native public CLI',async t=>{
+  const work=fs.mkdtempSync(path.join(os.tmpdir(),'panack-browser-examples-'));
+  t.after(()=>fs.rmSync(work,{recursive:true,force:true}));
+  const expected={hello:'Hello, browser!\n',exact:'10\n0.125\n',pure:'144\n',text:'true\n'};
+  for(const [name,source] of Object.entries(examples)){
+    const result=await run(source);
+    assert.equal(result.status,0,name);assert.equal(result.stdout,expected[name],name);
+    const file=path.join(work,name+'.panack');fs.writeFileSync(file,source);
+    const native=spawnSync(path.join(root,'panack'),['run',file],{cwd:root,encoding:'utf8'});
+    assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,expected[name],name);
+  }
+});
 
 test('existing compiler, exact numbers, Unicode and stdlib work',async()=>{
   const result=await run('import "stdlib/text"\nmain(): Void { print("λ🙂"); print((1/3 * 30).nat()); print((1/8).dec()); print(999999999999999999999999999999 + 1); print(text_ends_with("hello.panack", ".panack")) }');

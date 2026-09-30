@@ -22,7 +22,7 @@ const result = spawnSync(clang, [...sources, path.join(here, 'host_capabilities.
   '-Wl,-z,stack-size=2097152', '-Wl,--max-memory=268435456', '-Wl,--strip-all',
   '-o', path.join(out, 'vm.wasm')], {stdio:'inherit', env:{...process.env, PATH:path.join(sdk, 'bin')}});
 if (result.status !== 0) throw new Error('WASI compilation failed.');
-for (const name of ['runtime.mjs','worker.mjs','controller.mjs','app.mjs','index.html','style.css']) {
+for (const name of ['runtime.mjs','worker.mjs','controller.mjs','app.mjs','examples.mjs','index.html','style.css']) {
   fs.copyFileSync(path.join(here, name), path.join(out, name));
 }
 const vendor = path.join(out, 'vendor');
@@ -43,3 +43,8 @@ fs.writeFileSync(path.join(out, 'provenance.json'), JSON.stringify({toolchain:ve
   inputs:Object.fromEntries(inputs.map(file => [path.relative(root,file),hash(file)])),
   artifacts:Object.fromEntries(['vm.wasm','compiler.bc','stdlib.json'].map(name => [name,hash(path.join(out,name))]))}, null, 2)+'\n');
 console.log('Built '+out+' with SDK-only compiler PATH.');
+// Browser tests exercise the real website-relative paths, not a root-only demo.
+const website = path.join(root, 'build/website');
+fs.rmSync(website, {recursive:true, force:true});
+fs.cpSync(path.join(root, 'site'), website, {recursive:true});
+fs.cpSync(out, path.join(website, 'playground'), {recursive:true});

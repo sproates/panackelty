@@ -12,6 +12,12 @@ on:
       - "scripts/*pages*"
       - "tests/pages*"
       - ".github/workflows/pages.yml"
+      - "src/playground/**"
+      - "src/vm/**"
+      - "src/stdlib/**"
+      - "bootstrap/**"
+      - "tests/playground/**"
+      - "scripts/install_wasi_sdk.sh"
   workflow_dispatch:
 
 permissions:
@@ -33,6 +39,9 @@ jobs:
        github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      SITE_SOURCE: ${{ github.event_name == 'pull_request' && '.' || 'validated-site' }}
     permissions:
       contents: read
       actions: read
@@ -81,6 +90,19 @@ jobs:
           path: validated-site
           persist-credentials: false
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Build the selected website's playground
+        run: |
+          cd "$SITE_SOURCE"
+          sh scripts/install_wasi_sdk.sh "$RUNNER_TEMP/playground-sdk"
+          export WASI_SDK_PATH="$RUNNER_TEMP/playground-sdk/wasi-sdk-34.0-x86_64-linux"
+          npm run setup --prefix src/playground
+          npm run build --prefix src/playground
+          node build/playground-tools/node_modules/@playwright/test/cli.js install --with-deps chromium firefox webkit
+
       - name: Assemble complete Pages artifact
         if: github.event_name != 'pull_request'
         env:
@@ -92,8 +114,20 @@ jobs:
           mkdir "$RUNNER_TEMP/coverage"
           unzip -q "$RUNNER_TEMP/coverage.zip" -d "$RUNNER_TEMP/coverage"
           sh scripts/build_pages.sh validated-site/site "$RUNNER_TEMP/coverage" build/pages \
-            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA"
+            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA" validated-site/build/playground
           node scripts/check_pages.cjs build/pages
+
+      - name: Test browser execution before publishing
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        run: |
+          if [ "$IS_PR" = true ]; then
+            export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/website"
+          else
+            export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/pages"
+          fi
+          cd "$SITE_SOURCE"
+          npm run test:browser --prefix src/playground
 
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request'

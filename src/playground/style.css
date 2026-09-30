@@ -1,1 +1,24 @@
-:root{color-scheme:dark}body{margin:0;background:#151518;color:#eeebe5;font:17px/1.6 system-ui,sans-serif}main{max-width:850px;margin:auto;padding:28px 18px}h1{font:normal 42px Georgia,serif}label{display:block}textarea{box-sizing:border-box;width:100%;min-height:290px;margin:10px 0;padding:14px;border:1px solid #777;border-radius:8px;background:#202025;color:inherit;font:16px/1.6 monospace}button{min-height:46px;margin:0 10px 12px 0;padding:10px 20px;border:0;border-radius:8px;background:#c7aff5;color:#231b30;font:inherit}button:disabled{opacity:.4}pre{padding:18px;background:#202025;min-height:90px;max-height:400px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}a{color:#c7aff5}#status{font-size:14px;color:#9ce0cc}p{color:#bbb}*:focus-visible{outline:2px solid #9ce0cc;outline-offset:3px}
+.playground { max-width: 1200px; margin: auto; padding: 40px 24px; }
+.playground h1 { font: 400 clamp(2.5rem, 6vw, 4rem)/1.12 var(--serif); margin: 12px 0 24px; }
+.playground h1 em { color: var(--accent); font-weight: 400; }
+.intro { max-width: 760px; font-size: 1.15rem; }
+.version-note, #editor-help, .limits p, footer { color: var(--muted); }
+.version-note, #editor-help { font-size: .9rem; }
+.example-picker, .run-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.example-picker { margin: 28px 0; }
+.workspace { display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; }
+.workspace section { min-width: 0; }
+.workspace h2 { font: 600 1rem var(--sans); margin: 0 0 12px; }
+.playground textarea, .playground pre { box-sizing: border-box; width: 100%; padding: 18px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: 16px/1.6 var(--mono); }
+.playground textarea { min-height: 330px; resize: vertical; tab-size: 2; }
+.playground pre { min-height: 330px; max-height: 600px; margin: 0; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.playground button, .playground select { min-height: 46px; max-width: 100%; padding: 10px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); font: inherit; }
+.playground button { cursor: pointer; }
+#run { background: var(--accent); color: var(--ground); font-weight: 650; }
+.playground button:disabled { opacity: .45; cursor: default; }
+#status { font-size: .9rem; color: var(--signal); }
+.limits { margin-top: 36px; padding: 20px 0; border-top: 1px solid var(--line); }
+.limits summary { cursor: pointer; min-height: 44px; }
+.playground footer { padding: 24px 0; font-size: .85rem; }
+.playground :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+@media (max-width: 760px) { .workspace { grid-template-columns: 1fr; } .playground { padding: 24px 18px; } .playground pre { min-height: 140px; max-height: 350px; } }

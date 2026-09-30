@@ -14,6 +14,12 @@ async function checkPages(root, base) {
     }
   }
   walk(root);
+  for (const asset of ['vm.wasm', 'compiler.bc', 'stdlib.json', 'worker.mjs', 'provenance.json']) {
+    const file = path.join(root, 'playground', asset);
+    if (!fs.statSync(file).isFile() || fs.statSync(file).size === 0) {
+      throw new Error(`Missing playground asset: ${asset}`);
+    }
+  }
   const targets = new Set(['index.html', 'coverage/index.html', 'coverage/summary.txt']);
   for (const file of files.filter(f => f.endsWith('.html'))) {
     const html = fs.readFileSync(file, 'utf8');
@@ -37,6 +43,19 @@ async function checkPages(root, base) {
       if (!response.ok) throw new Error(`Published URL failed (${response.status}): ${file}`);
       if (await response.text() !== fs.readFileSync(path.join(root, file), 'utf8')) {
         throw new Error(`Published content does not match: ${file}`);
+      }
+    }
+    // Compare every playground asset, including worker imports and binary inputs.
+    // A successful HTML response alone does not establish a usable playground.
+    for (const absolute of files.filter(file => path.relative(root, file).startsWith('playground/'))) {
+      const file = path.relative(root, absolute);
+      const response = await fetch(new URL(file, base), {signal: AbortSignal.timeout(15000)});
+      if (!response.ok) throw new Error(`Published playground failed (${response.status}): ${file}`);
+      if (file.endsWith('.wasm') && !response.headers.get('content-type')?.startsWith('application/wasm')) {
+        throw new Error('Published Wasm MIME type is incorrect');
+      }
+      if (!Buffer.from(await response.arrayBuffer()).equals(fs.readFileSync(absolute))) {
+        throw new Error(`Published playground content does not match: ${file}`);
       }
     }
     const response = await fetch(new URL('coverage/provenance.txt', base), {signal: AbortSignal.timeout(15000)});

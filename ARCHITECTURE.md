@@ -104,10 +104,12 @@ panackelty/
 └── SELF_HOSTING.md          bootstrap roadmap
 ```
 
-The project website is a dependency-free static artifact. Its single-page
+The project website is a static artifact with an optional WebAssembly playground. Its homepage
 navigation covers capabilities, executable examples, engineering evidence,
 direction, vision and installation. Release and development-source capabilities
-are labelled separately; a browser playground is only a future investigation.
+are labelled separately; `/playground/` runs the development compiler and VM
+on-device using the maintained WASI profile described below. No compilation server
+or persistent REPL is involved.
 The canonical harness executes displayed examples through source and saved
 bytecode using `tests/site_examples.sh`; Pages tests also check section and
 accessible-label targets. The Pages workflow
@@ -115,12 +117,16 @@ tests assembly and source selection on relevant pull requests without deploying.
 After successful push validation on `main`, one serialized publisher combines
 the latest successfully validated website with the latest successful native VM
 coverage artifact. Documentation-only validation reuses the prior report. Both
-are deployed together, preventing either publication from erasing the other.
+are deployed together with the playground, preventing partial publication.
+The publisher builds the selected revision's WASI assets and runs browser tests
+against the complete assembled tree before uploading it. Missing assets or failed
+browser tests stop publication. Post-deployment checks compare every playground
+asset with that tree and verify the Wasm content type.
 The report landing page records separate website/coverage commits, the coverage
 artifact date and validation run. Missing or expired coverage fails publication
 instead of silently dropping it. Only the deploy job receives `pages: write`
 and `id-token: write`; PR and release workflows cannot publish coverage.
-Node is used only for Pages automation and its API/link regression tests; the
+Node is used for Pages/browser automation and its regression tests; the
 native development, packaging and canonical validation toolchain is unchanged.
 
 ## Compiler pipeline
@@ -879,7 +885,8 @@ limits and commands. It uses WASI SDK 34.0's native Clang/linker and a locked
 JavaScript WASI shim, replacing the isolated Emscripten prototype below for
 further delivery work. The C build subprocess has an SDK-only PATH. Native
 builds, canonical validation, the compiler seed and bytecode format are unchanged.
-No generated Wasm is committed and the Pages publisher does not deploy this build.
+No generated Wasm is committed. The Pages publisher builds these assets from
+the same validated revision as the website and deploys them at `/playground/`.
 
 `build.mjs` selects the existing VM modules plus a browser-profile replacement
 for the native typed capability dispatcher. It emits verified compiler/stdlib
@@ -896,10 +903,12 @@ error, timeout or Stop and ignores stale worker messages. UTF-8 source/output
 bounds, artifact-write bounds and linear-memory maximum are separate controls;
 they do not bound total JavaScript memory or background scheduling delay.
 
-The narrow test page and static loopback test server are preparation tools, not
-the final public website UX. Automated Chromium/Firefox/WebKit tests are defined
+The page uses the shared site styling and editable examples; its loopback server
+serves `build/website` or the publisher's complete artifact for tests.
+Automated Chromium/Firefox/WebKit tests are defined
 in `tests/playground`; actual run results and remaining physical-device checks
-must be reported separately. See [issue #112](https://github.com/sproates/panackelty/issues/112).
+must be reported separately. Preparation passed in PR #113; website delivery is
+tracked in [issue #114](https://github.com/sproates/panackelty/issues/114).
 The historical experiment below retains its original measurements and caveats.
 
 ## Browser-playground feasibility — 2026-09-30

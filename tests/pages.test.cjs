@@ -52,6 +52,11 @@ test('assembled real website and nested source links resolve; broken links fail'
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pages-links-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.cpSync('site', root, {recursive: true});
+  fs.mkdirSync(path.join(root, 'playground'));
+  fs.writeFileSync(path.join(root, 'playground/index.html'), '<a href="../">home</a>');
+  for (const name of ['vm.wasm', 'compiler.bc', 'stdlib.json', 'worker.mjs', 'provenance.json']) {
+    fs.writeFileSync(path.join(root, 'playground', name), 'fixture');
+  }
   fs.mkdirSync(path.join(root, 'coverage/html/coverage/src'), {recursive: true});
   fs.writeFileSync(path.join(root, 'coverage/index.html'), '<a href="html/index.html">report</a>');
   fs.writeFileSync(path.join(root, 'coverage/summary.txt'), 'summary');
@@ -59,19 +64,33 @@ test('assembled real website and nested source links resolve; broken links fail'
   fs.writeFileSync(path.join(root, 'coverage/html/coverage/src/vm.c.html'), '<a href="../../index.html">back</a>');
   const targets = await checkPages(root);
   assert(targets.has('coverage/html/coverage/src/vm.c.html'));
+  assert(targets.has('playground/index.html'));
   fs.writeFileSync(path.join(root, 'coverage/provenance.txt'), 'coverage_commit=abc\n');
   const visited = [];
   let stale = false;
   let broken = false;
+  let wrongMime = false;
+  let staleWasm = false;
   t.mock.method(global, 'fetch', async url => {
     const file = url.pathname.slice(1);
     visited.push(file);
     if (broken) return {ok: false, status: 404};
-    return {ok: true, text: async () => stale && file === 'coverage/provenance.txt'
+    return {ok: true,
+      headers: new Map([['content-type', wrongMime ? 'text/html' : 'application/wasm']]),
+      arrayBuffer: async () => staleWasm && file === 'playground/vm.wasm'
+        ? Buffer.from('stale') : fs.readFileSync(path.join(root, file)),
+      text: async () => stale && file === 'coverage/provenance.txt'
       ? 'old provenance' : fs.readFileSync(path.join(root, file), 'utf8')};
   });
   await checkPages(root, 'https://example.test/');
   assert(visited.includes('coverage/html/coverage/src/vm.c.html'));
+  assert(visited.includes('playground/vm.wasm'));
+  assert(visited.includes('playground/worker.mjs'));
+  wrongMime = true;
+  await assert.rejects(checkPages(root, 'https://example.test/'), /MIME/);
+  wrongMime = false; staleWasm = true;
+  await assert.rejects(checkPages(root, 'https://example.test/'), /playground content/);
+  staleWasm = false;
   stale = true;
   await assert.rejects(checkPages(root, 'https://example.test/'), /provenance/);
   stale = false; broken = true;

@@ -454,10 +454,13 @@ policy decision. No new interpreter dependency was added to this repository.
 The 256 MiB cap is per Wasm instance, not total browser memory. A persistent REPL,
 production host adapter and public-site integration remain separate work.
 
-### Now: playground delivery preparation
+### Completed: playground delivery preparation
 
 Work record: [issue #112](https://github.com/sproates/panackelty/issues/112).
-State: In progress. Selected on 2026-09-30 after reviewing the alternatives.
+State: Done. PR #113 merged on 2026-09-30 at `149d7d5` with explicit approval.
+Local `make check` passed in 297s; Check and Playground preparation workflows
+passed, including Chromium, Firefox and WebKit. Physical iPhone evidence is separate.
+Selected on 2026-09-30 after reviewing the alternatives.
 Medium, estimated one preparation PR; public-site integration remains a later
 separately reviewed step. Establish a reproducible build without adding a Python
 dependency, then verify loading, compilation, execution, diagnostics, limits and
@@ -476,10 +479,31 @@ The WASI SDK route now builds the existing VM with its native Clang/linker and
 an SDK-only subprocess PATH, without the Emscripten tooling. Maintained build,
 host, worker and lifecycle sources are under `src/playground`; locked dependencies
 and all generated outputs remain under `build`. Local compatibility and limit
-tests pass; the separate browser workflow still needs hosted results. Native
+tests pass; the separate browser workflow passed on the merged PR head. Native
 `make check`, browser CI and physical iPhone evidence must be reported distinctly.
 The existing clean-check/unit timing-budget backlog remains open; this browser
 task does not change those targets or claim improved native validation speed.
+
+### Now: website playground integration
+
+Work record: [issue #114](https://github.com/sproates/panackelty/issues/114).
+State: In progress. Authorised on 2026-09-30 after PR #113.
+Medium, estimated 1–2 PRs for the page, deployment integration, tests and review.
+Deliver an editable `/playground/` page with selectable examples, Run/Stop,
+output and diagnostics, using the existing site design and coordinated Pages/
+coverage publication. Supply an iPhone-accessible private preview before merge.
+
+Reason: the build/browser prerequisites now pass; complete the useful website
+experience ahead of further infrastructure. Dependency-aware caching (#106) is
+the strongest alternative if development latency becomes the immediate priority.
+Native networking remains valuable but requires further design and investigation.
+
+Acceptance: pinned build; actual browser example/navigation/error/cancellation
+tests; complete artifact assembly and failure handling; canonical validation;
+phone review reported separately; live artifact verification after approved merge.
+No persistent REPL, new host capabilities, network backend or bytecode change.
+Keep #114 open until live verification. The existing validation budget warnings
+remain applicable; no speed improvement is claimed.
 
 ### Completed: content-led website expansion
 

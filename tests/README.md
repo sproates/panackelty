@@ -163,13 +163,18 @@ upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
 Only successful push validation on `main` is eligible for publication.
 
 The Pages workflow is the single writer for the website and coverage. It selects
-the latest successful `main` Check run for website content and the latest such
-run with coverage for the report, including across paginated API results.
+the current `main` commit at selection time and requires a successful trusted
+Check for that exact SHA across paginated API results. Missing validation fails
+closed, including when the API returns only older successes. Coverage comes
+from the highest Check run number at or before that selected run with a report;
+API result order and old rerun completion times do not determine freshness.
 Documentation-only successes therefore refresh the site without erasing the
 report. Production runs serialize and select sources at execution time, so a
 delayed older trigger cannot restore its older site. PRs only test; release
 workflows do not deploy. Manual Pages dispatch is permitted only from `main`
-and applies the same successful-source selection.
+and applies the same exact-commit validation. If current main is pending or
+failed, wait for a successful Check and retry Pages; no older site is substituted.
+A main advance during selection does not change the pinned source.
 
 The landing page and `coverage/provenance.txt` identify both source commits,
 the report archive date (UTC) and Check run. A failed validation leaves that
@@ -184,7 +189,8 @@ and requires investigation; it does not automatically roll back a deployment.
 
 `sh tests/pages.sh` exercises complete assembly and missing-report, symlink,
 invalid-provenance and stale-output failures within the canonical harness.
-`node --test tests/pages.test.cjs` tests API source selection and all local
+`node --test tests/pages.test.cjs` tests stale/unordered history, exact-main validation, pagination, API failures
+and all local
 report links in the Pages PR job. Node is only a Pages automation dependency,
 not a dependency of the native compiler, packaging or `make check`.
 

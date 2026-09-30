@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 # One production writer for both website and coverage. Queued runs select the
-# latest successful sources when they start, not the triggering run's old tree.
+# current main commit and require its successful Check, not the trigger's old tree.
 concurrency:
   group: pages-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -61,7 +61,7 @@ jobs:
       - name: Test complete site assembly
         run: sh tests/pages.sh
 
-      - name: Select successful main website and coverage sources
+      - name: Select validated current main and coverage sources
         if: github.event_name != 'pull_request'
         id: source
         uses: actions/github-script@v8

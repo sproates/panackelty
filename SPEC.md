@@ -620,12 +620,12 @@ Enums are nominal tagged unions. Every variant is a pure constructor, including
 zero-payload variants, which are called with `()`:
 
 ```panackelty
-enum OptionNat { None, Some(Nat) }
+enum OptionNat { NoNat, SomeNat(Nat) }
 
 pure value_or(option: OptionNat, fallback: Nat): Nat {
   match option {
-    Some(value) => value,
-    None() => fallback
+    SomeNat(value) => value,
+    NoNat() => fallback
   }
 }
 ```

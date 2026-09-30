@@ -86,8 +86,14 @@ It sends the request, closes the sending side, waits for the peer's response EOF
 and returns bytes or an error. See the [runnable echo-client example](examples/network/tcp_exchange.panack)
 and [TCP contract](SPEC.md#native-tcp-exchange-development-toolchain).
 This feature is not in the alpha.10 downloads. It supports numeric IPv4 on
-Linux/macOS, with response limits and timeouts; DNS, TLS, listening and source
-spawning remain future work. The browser cannot open raw TCP sockets.
+Linux/macOS, with response limits and timeouts. The development checkout also
+supports [finite concurrent TCP servers](examples/network/tcp_serve.panack):
+import `stdlib/tcp`, supply explicit `TcpServerLimits`, and await `tcp_serve`
+with a named async byte-request handler. The runtime owns accepted connections,
+schedules handlers and drains or cancels clients on shutdown. See the
+[server contract](SPEC.md#native-tcp-server-development-toolchain).
+DNS, TLS, HTTP and general source spawning remain future work. Neither native
+networking feature is in alpha.10; the browser cannot open raw TCP sockets.
 
 ## Start writing Panackelty
 

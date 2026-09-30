@@ -34,6 +34,9 @@ bytecode_case(name: Str, file: Str, expected: Str): TestResult {
 }
 main(): Void {
   mut results: [TestResult] = []
+  results = results.append(bytecode_case("TCP server arity", "tests/fixtures/tcp/server-arity.hex", "async service arity mismatch"))
+  results = results.append(bytecode_case("TCP server ordinary call", "tests/fixtures/tcp/server-ordinary.hex", "ordinary call cannot enter async function"))
+  results = results.append(bytecode_case("TCP server pure await", "tests/fixtures/tcp/server-pure-await.hex", "await requires async function"))
   results = results.append(bytecode_case("async/shadowed-await", "tests/fixtures/bytecode/async/shadowed-await.hex", "await target must be async"))
   results = results.append(bytecode_case("async/shadowed-blocker", "tests/fixtures/bytecode/async/shadowed-blocker.hex", "async function cannot call blocking function"))
   results = results.append(bytecode_case("async/ordinary-await", "tests/fixtures/bytecode/async/ordinary-await.hex", "await requires async function"))

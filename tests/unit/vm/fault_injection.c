@@ -270,3 +270,37 @@ int fault_socket(int domain, int type, int protocol)
     }
     return fd;
 }
+
+int fault_accept(int fd, struct sockaddr *address, socklen_t *length)
+{
+    if (syscall_fails("accept")) {
+        return -1;
+    }
+    int peer = accept(fd, address, length);
+    if (peer >= 0) {
+        assert((size_t)peer < sizeof(descriptors) && !descriptors[peer]);
+        descriptors[peer] = true;
+        descriptor_count++;
+    }
+    return peer;
+}
+
+int fault_bind(int fd, const struct sockaddr *address, socklen_t length)
+{
+    return syscall_fails("bind") ? -1 : bind(fd, address, length);
+}
+
+int fault_listen(int fd, int backlog)
+{
+    return syscall_fails("listen") ? -1 : listen(fd, backlog);
+}
+
+ssize_t fault_recv(int fd, void *data, size_t size, int flags)
+{
+    return syscall_fails("recv") ? -1 : recv(fd, data, size, flags);
+}
+
+ssize_t fault_send(int fd, const void *data, size_t size, int flags)
+{
+    return syscall_fails("send") ? -1 : send(fd, data, size, flags);
+}

@@ -279,3 +279,22 @@ memory limit does not impose a process-wide connection limit. This internal API
 is not a security sandbox or a stable embedding ABI. Native tests interleave a
 fast and stalled connection, exercise fragmented binary completion and repeat
 cancel/destruction; the source harness runs against a separate loopback peer.
+
+
+## Finite TCP server owner
+
+`tcp_server.h` exposes the internal owner over a borrowed verified program and
+snapshots. `tcp_server_start` owns a listener and bounded clients;
+`tcp_server_poll` performs socket work, and `tcp_server_advance` dispatches a
+bounded number of child instructions. Stop closes admission and drains;
+destroy cancels synchronously. A terminal owner returns either its borrowed
+result or a static trap diagnostic. Every child and socket is released before
+normal completion or failure.
+
+At the execution boundary, `vm_execution_enable_server` is separate from
+outbound `vm_execution_enable_tcp`. `vm_execution_pump_server` combines polling
+and bounded child execution; `vm_execution_stop_server` requests graceful stop.
+External fake read/print completions cannot complete a server wait. Handler
+children inherit outbound opt-in but cannot listen recursively. The CLI uses
+this same pump. See the [architecture](../../ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
+and [source contract](../../SPEC.md#native-tcp-server-development-toolchain).

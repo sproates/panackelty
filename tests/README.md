@@ -487,3 +487,10 @@ The network example lives under `examples/network` because it requires a peer;
 The native bytecode suite checks, runs (expecting `7`) and disassembles it, proving
 the new reserved intrinsic does not shadow old saved user functions.
 All networking fixtures bind only loopback and own their cleanup.
+
+
+Finite TCP server coverage uses `unit/vm/tcp_server.c` for owner/host contracts,
+`unit/vm/native_faults.c` for allocation and descriptor cleanup, and
+`tcp_serve.sh` with independent `tcp_client.c` peers for public source and saved
+bytecode. These run through canonical unit/functional targets. Loopback binding
+must be permitted. Playground runtime tests assert explicit WASI rejection.

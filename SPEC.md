@@ -744,7 +744,8 @@ program.bc` loads, verifies, and executes that artifact directly.
 
 The CLI drives ordinary main synchronously and async main through the same VM's
 suspend/complete loop. Async services include a deterministic fake read and a
-bounded native TCP exchange. There is no source task-spawning syntax.
+bounded native TCP exchange and finite concurrent TCP servers. There is no
+source task-spawning syntax.
 
 The compiler emits stack instructions with a named function table and purity
 metadata. Calls use isolated frames containing locals and an operand stack.
@@ -1003,10 +1004,87 @@ Native hosts can explicitly enable it and interleave zero-wait polls with other
 executions. Destroying the execution closes its socket and releases buffers;
 there are no native callbacks or producer threads left to quiesce.
 
-No source socket handles, listening, connection reuse, DNS, TLS or HTTP framing
-are included. Source `await` activates work in the current execution; it does
+This exchange operation includes no source socket handles, connection reuse,
+DNS, TLS or HTTP framing. The separate server operation below supports listening. Source `await` activates work in the current execution; it does
 not create parallel tasks. This is an unreleased development feature, absent
 from alpha.10. The bytecode encoding remains v9; older runtimes reject the new
 reserved intrinsic `$tcp_exchange` as unknown rather than reinterpret old
 bytecode. Previously saved user functions named `tcp_exchange` remain callable.
 The development compiler reserves the new source builtin name.
+
+
+### Native TCP server (development toolchain)
+
+Import `stdlib/tcp` for the ordinary `TcpServerLimits` record, then call:
+
+```panack
+await tcp_serve(address, port, handler, limits)
+```
+
+The async builtin takes `Str`, `Nat`, `AsyncFn[Bytes,Result[Bytes,Str]]` and
+`TcpServerLimits`, and returns `Result[[Result[Unit,Str]],Str]`. It binds a numeric
+IPv4 address on port 1–65535 on Linux/macOS. The development compiler reserves
+`tcp_serve`; saved v9 user functions with that name retain their behavior.
+This is unreleased functionality, absent from alpha.10 downloads.
+
+Record constructor fields, in order:
+
+| Field | Allowed values |
+| --- | --- |
+| `clients` | 1–256 total admissions |
+| `concurrency` | 1–32, no greater than `clients` |
+| `request_limit` | 0–1,048,576 bytes per request |
+| `response_limit` | 0–1,048,576 bytes per response |
+| `client_timeout_ms` | 1–60,000 ms from acceptance through response completion |
+| `admission_timeout_ms` | 1–60,000 ms from successful listen |
+| `drain_ms` | 0–60,000 ms after admission stops |
+
+Each connection sends one request terminated by a write-half close. The owner
+reads until EOF, runs the named handler once, writes its returned bytes completely,
+then closes the socket. Binary and empty data are valid; an extra request byte
+fails before handler activation. An oversized response fails before sending.
+There are no added framing bytes, streaming handles, HTTP, DNS, TLS or IPv6.
+`tcp_exchange` is a compatible client. A client that withholds EOF reaches its
+deadline. The [finite echo example](examples/network/tcp_serve.panack) pairs with
+[the client example](examples/network/tcp_exchange.panack).
+
+Handlers are independent resumable executions scheduled round robin. They can
+call pure functions and await cooperative functions, including outbound TCP.
+They cannot invoke ordinary blocking effects or recursively start another server,
+including through an indirect call. Runtime ownership needs no source `spawn`
+syntax. Instruction budgets are not wall-clock preemption or a total memory cap.
+I/O payload capacity is bounded by concurrent request/response limits; VM values,
+transient copies and allocations performed by handlers are additional memory.
+
+Admission stops on the total-client limit, admission deadline or a host stop
+request. The listener closes immediately. Existing clients drain until the
+sooner of their own deadline and the drain deadline; zero grace cancels them
+immediately, including the last admitted client if the admission limit triggered
+stop. The operation returns only after children and sockets are released.
+Execution destruction cancels immediately without user finalizers or graceful
+waiting. A client deadline also cancels its nested outbound operation. Deadlines
+observed before completion delivery win; cancellation cannot undo sent bytes.
+The CLI's finite limits provide shutdown; no signal-driven shutdown API is added.
+
+Outer `Ok` contains one report per accepted client, in acceptance order. A report
+is `Ok(())` after a complete response write, or `Error(Str)` for a client failure.
+Handler `Error` text is preserved exactly. Other client messages are `TCP client
+socket failed`, `TCP request limit exceeded`, `TCP client read failed`, `TCP
+response limit exceeded`, `TCP client write failed`, `TCP client timed out`, and
+`TCP server drain cancelled client`. Expected client failures do not cancel others.
+
+Outer `Error` reports invalid bounds/address or listener/clock/poll failures after
+closing all clients: `invalid TCP server arguments`, `invalid IPv4 address`,
+`TCP server socket failed`, `TCP server bind failed`, `TCP server listen failed`,
+`TCP server accept failed`, `TCP server listener failed`, `TCP server clock failed`,
+or `TCP server poll failed`. Partial reports are discarded on this path; earlier
+network effects are not rolled back. Allocation failure, malformed dynamic
+argument/record/callable/result shapes, and handler traps fail the execution and
+cancel children. Forged bytecode is not trusted merely because a name has a source
+type. Record field names/order and every natural-number conversion are checked.
+
+WASI/browser execution returns `Error("TCP server is unavailable on this host")`
+for otherwise valid arguments. Embedded listening is denied by default and needs
+its own native opt-in, separate from outbound TCP. Handler children inherit the
+outbound permission, never listening permission. These internal host APIs are
+experimental, not a stable embedding ABI.

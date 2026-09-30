@@ -6,6 +6,12 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Add finite concurrent TCP servers through `await tcp_serve`, named async
+  handlers and `TcpServerLimits` from `stdlib/tcp`. Native Linux/macOS execution
+  owns connections, deadlines and drain/cancellation cleanup; embedded listening
+  is separately opt-in and browsers return unavailable. This unreleased API
+  retains bytecode v9 and is not part of alpha.10 downloads.
+
 - Add `await tcp_exchange(...)` for bounded native IPv4 request/response, with
   nonblocking partial I/O, total timeout, response limits and owned cleanup.
   Source and saved-bytecode clients work on Linux/macOS; WASI returns an explicit

@@ -17,6 +17,7 @@ share/panackelty/stdlib/path.panack
 share/panackelty/stdlib/prelude.panack
 share/panackelty/stdlib/process.panack
 share/panackelty/stdlib/result.panack
+share/panackelty/stdlib/tcp.panack
 share/panackelty/stdlib/testing.panack
 share/panackelty/stdlib/testing_commands.panack
 share/panackelty/stdlib/testing_files.panack

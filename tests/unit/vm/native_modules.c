@@ -20,6 +20,7 @@
 void resumable_contracts(void);
 void async_contracts(void);
 void tcp_contracts(void);
+void tcp_server_contracts(void);
 void task_contracts(void);
 void task_artifact(const char *path);
 void resumable_artifact(const char *path, size_t budget);
@@ -727,6 +728,7 @@ int main(int argc, char **argv)
     resumable_contracts();
     async_contracts();
     tcp_contracts();
+    tcp_server_contracts();
     task_contracts();
     bigint_boundaries();
     values_own_copies_and_retain_children();

@@ -1,0 +1,10 @@
+// Finite TCP server limits. See SPEC.md for bounds, framing and shutdown.
+record TcpServerLimits {
+  clients: Nat,
+  concurrency: Nat,
+  request_limit: Nat,
+  response_limit: Nat,
+  client_timeout_ms: Nat,
+  admission_timeout_ms: Nat,
+  drain_ms: Nat
+}

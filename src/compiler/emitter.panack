@@ -443,7 +443,7 @@ pure emit_call(name: Str, arguments: [Expr], program: Program, next_temporary: N
     if variant.found {
       instructions = append(instructions, MakeVariantInstruction(variant.enum_name, name, len(arguments)))
     } else {
-      instructions = append(instructions, CallInstruction(if name == "tcp_exchange" { "$tcp_exchange" } else { name }, len(arguments)))
+      instructions = append(instructions, CallInstruction(if name == "tcp_exchange" { "$tcp_exchange" } else { if name == "tcp_serve" { "$tcp_serve" } else { name } }, len(arguments)))
     }
   }
   EmittedCode(instructions, emitted.next_temporary)

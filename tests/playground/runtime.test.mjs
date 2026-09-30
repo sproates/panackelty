@@ -162,3 +162,20 @@ test('native TCP is explicitly unavailable in WASI', async()=>{
   assert.equal(result.status,0,result.stderr);
   assert.equal(result.stdout,'');
 });
+
+test('TCP listening is explicitly unavailable in WASI', async()=>{
+  const result=await run(`
+    import stdlib/tcp
+    pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+    async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }
+    async main(): Unit {
+      limits = TcpServerLimits(1, 1, 32, 32, 10, 10, 10)
+      match await tcp_serve("127.0.0.1", 9000, @reply, limits) {
+        Ok(reports) => expect(false),
+        Error(problem) => expect(problem == "TCP server is unavailable on this host")
+      }
+      ()
+    }`);
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.stdout,'');
+});

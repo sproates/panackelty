@@ -70,8 +70,8 @@ bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestR
     }
   }
 }
-bytecode_native_legacy_tcp(target: Path): TestResult {
-  data = bytecode_native_hex(read_file("tests/fixtures/tcp/legacy-name.hex"))
+bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
+  data = bytecode_native_hex(read_file(fixture))
   match fs_write(target, data) {
     Error(problem) => test_expect("legacy tcp name", false, "fixture write failed"),
     Ok(done) => {
@@ -99,7 +99,11 @@ main(): Void {
     Ok(workspace) => {
       mut results: [TestResult] = []
       target = result_value_or(path_append(workspace.root, bytecode_native_path("input.bc")), workspace.root)
-      results = results.append(bytecode_native_legacy_tcp(target))
+      results = results.append(bytecode_native_case("TCP server arity", "tests/fixtures/tcp/server-arity.hex", "call arity mismatch", target))
+      results = results.append(bytecode_native_case("TCP server ordinary call", "tests/fixtures/tcp/server-ordinary.hex", "invalid async call effect", target))
+      results = results.append(bytecode_native_case("TCP server pure await", "tests/fixtures/tcp/server-pure-await.hex", "pure function calls impure function", target))
+      results = results.append(bytecode_native_legacy_tcp(target, "tests/fixtures/tcp/legacy-name.hex"))
+      results = results.append(bytecode_native_legacy_tcp(target, "tests/fixtures/tcp/legacy-server-name.hex"))
       results = results.append(bytecode_native_case("async/shadowed-await", "tests/fixtures/bytecode/async/shadowed-await.hex", "invalid async call effect", target))
       results = results.append(bytecode_native_case("async/shadowed-blocker", "tests/fixtures/bytecode/async/shadowed-blocker.hex", "invalid async call effect", target))
       results = results.append(bytecode_native_case("async/ordinary-await", "tests/fixtures/bytecode/async/ordinary-await.hex", "invalid async call effect", target))

@@ -39,6 +39,11 @@ ssize_t fault_write(int fd, const void *buffer, size_t count);
 int fault_nanosleep(const struct timespec *requested, struct timespec *remaining);
 int fault_close(int fd);
 int fault_socket(int domain, int type, int protocol);
+int fault_accept(int fd, struct sockaddr *address, socklen_t *length);
+int fault_bind(int fd, const struct sockaddr *address, socklen_t length);
+int fault_listen(int fd, int backlog);
+ssize_t fault_recv(int fd, void *data, size_t size, int flags);
+ssize_t fault_send(int fd, const void *data, size_t size, int flags);
 int fault_open(const char *path, int flags, ...);
 int fault_fstat(int fd, struct stat *info);
 int fault_ftruncate(int fd, off_t size);
@@ -59,6 +64,11 @@ pid_t fault_waitpid(pid_t child, int *status, int options);
 #define nanosleep fault_nanosleep
 #define close fault_close
 #define socket fault_socket
+#define accept fault_accept
+#define bind fault_bind
+#define listen fault_listen
+#define recv fault_recv
+#define send fault_send
 #define open fault_open
 #define fstat fault_fstat
 #define ftruncate fault_ftruncate

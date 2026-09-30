@@ -675,13 +675,15 @@ build-cache improvements remain independently scoped follow-ups.
 ## Bounded async TCP server
 
 Work record: [issue #128](https://github.com/sproates/panackelty/issues/128).
-State: Planned; contract prepared for review. Priority: Now. On 2026-09-30 the
+State: In progress; contract merged in PR #129, source/native implementation
+prepared for review.
+Priority: Now. On 2026-09-30 the
 user selected finishing the bounded networking stage, followed by proper
 roadmap grooming. This authorizes server implementation; each merge still needs
 separate approval. Broad roadmap reprioritization follows this stage.
 
 The [server contract](ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
-proposes an awaited finite server owner with named async byte-request handlers,
+defines an awaited finite server owner with named async byte-request handlers,
 bounded concurrent admission, EOF request/reply framing, monotonic deadlines and
 graceful draining. The runtime owns sockets and handler lifetimes. Expected
 client failures are isolated; runtime traps cancel the owner. Listening is a

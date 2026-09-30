@@ -53,8 +53,9 @@ Each loaded example has an explanation, an expected-output disclosure and a
 suggested edit. The expanded programs cover exact invoices, guarded values,
 collection processing, Option/Result handling and a combined order summary.
 Expected output retains decimal scale; it is not a currency formatter.
-Below the editor, an accessible, responsive flow diagram explains compilation
-to bytecode and execution by the WebAssembly-hosted VM, entirely in the browser.
+Below the editor, an accessible, responsive visual pairs the runtime layers
+(browser WebAssembly engine and Panackelty VM) with the source-to-output flow.
+Compilation and execution are both labelled as running on the VM.
 
 Runtime dependencies are locked to `@bjorn3/browser_wasi_shim` 0.4.2; Playwright
 1.63.0 is test-only. The shim's MIT notice accompanies generated assets. We use

@@ -45,18 +45,26 @@
       <h2 id="how-title">How does this work?</h2>
       <p>When you press <strong>Run program</strong>, Panackelty checks your code and compiles it into bytecode: instructions for the Panackelty virtual machine (VM). The VM then executes those instructions and displays the output above.</p>
       <figure class="execution-diagram">
-        <figcaption>All inside your browser</figcaption>
-        <ol class="execution-flow">
-          <li class="flow-file"><span class="flow-step">Source</span><strong>Your code</strong><code>print("Hello!")</code></li>
-          <li><span class="flow-step">Check &amp; compile</span><strong>Compiler</strong><span>Runs on the VM</span></li>
-          <li class="flow-file"><span class="flow-step">Instructions</span><strong>Bytecode</strong><span>For the Panackelty VM</span></li>
-          <li class="flow-vm"><span class="flow-step">Execute</span><strong>Panackelty VM</strong><span class="wasm-badge">WebAssembly</span></li>
-          <li class="flow-output"><span class="flow-step">Result</span><strong>Your output</strong><code>Hello!</code></li>
-        </ol>
-        <div class="wasm-engine">
-          <span class="engine-icon" aria-hidden="true">Wasm</span>
-          <div><strong>WebAssembly is what makes the VM run in your browser.</strong><p>The browser loads a WebAssembly build of the Panackelty VM. That VM runs both the compiler and your compiled program.</p></div>
+        <figcaption>Inside your browser</figcaption>
+        <div class="execution-views">
+          <div class="runtime-stack">
+            <h3>What runs where</h3>
+            <div class="runtime-card"><span class="layer-label">Built into the browser</span><strong>WebAssembly engine</strong><p>Executes WebAssembly modules.</p></div>
+            <div class="layer-link"><span aria-hidden="true">↓</span> runs</div>
+            <div class="runtime-card vm-card"><span class="layer-label">Loaded by this page</span><strong>Panackelty VM</strong><p>A WebAssembly module that executes Panackelty bytecode.</p></div>
+          </div>
+          <div class="program-flow">
+            <h3>What happens when you press Run</h3>
+            <ol>
+              <li><strong>Your source code</strong><span>The text you enter in the editor.</span></li>
+              <li class="vm-operation"><strong>Compile <span class="run-location">on the VM</span></strong><span>The compiler checks your source.</span></li>
+              <li><strong>Panackelty bytecode</strong><span>The instructions produced by the compiler.</span></li>
+              <li class="vm-operation"><strong>Execute <span class="run-location">on the VM</span></strong><span>A fresh VM instance runs those instructions.</span></li>
+              <li><strong>Your output</strong><span>Results appear above.</span></li>
+            </ol>
+          </div>
         </div>
+        <p class="diagram-key">The compiler is itself a Panackelty bytecode program. Both compilation and execution use the same Panackelty VM implementation.</p>
       </figure>
       <p class="execution-note">Compilation and execution happen on your device; your source code is not sent to a server. Each run starts fresh.</p>
     </section>

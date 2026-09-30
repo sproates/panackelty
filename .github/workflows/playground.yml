@@ -1,10 +1,10 @@
 name: Playground preparation
 on:
   pull_request:
-    paths: ['src/vm/**', 'src/playground/**', 'src/stdlib/**', 'bootstrap/**', 'tests/playground/**', '.github/workflows/playground.yml']
+    paths: ['site/**', 'src/vm/**', 'src/playground/**', 'src/stdlib/**', 'bootstrap/**', 'tests/playground/**', 'scripts/install_wasi_sdk.sh', '.github/workflows/playground.yml']
   push:
     branches: [main]
-    paths: ['src/vm/**', 'src/playground/**', 'src/stdlib/**', 'bootstrap/**', 'tests/playground/**', '.github/workflows/playground.yml']
+    paths: ['site/**', 'src/vm/**', 'src/playground/**', 'src/stdlib/**', 'bootstrap/**', 'tests/playground/**', 'scripts/install_wasi_sdk.sh', '.github/workflows/playground.yml']
 permissions:
   contents: read
 jobs:
@@ -20,10 +20,8 @@ jobs:
           node-version: '24'
       - name: Install pinned native WASI toolchain
         run: |
-          curl --fail --location --retry 3 https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz -o "$RUNNER_TEMP/wasi.tar.gz"
-          echo "b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4  $RUNNER_TEMP/wasi.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/wasi.tar.gz" -C "$RUNNER_TEMP"
-          echo "WASI_SDK_PATH=$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux" >> "$GITHUB_ENV"
+          sh scripts/install_wasi_sdk.sh "$RUNNER_TEMP/playground-sdk"
+          echo "WASI_SDK_PATH=$RUNNER_TEMP/playground-sdk/wasi-sdk-34.0-x86_64-linux" >> "$GITHUB_ENV"
       - name: Install locked JavaScript dependencies without lifecycle scripts
         run: npm run setup --prefix src/playground
       - name: Build and prove deterministic Wasm output

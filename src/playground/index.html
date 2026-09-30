@@ -1,15 +1,52 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panackelty playground preparation</title><link rel="stylesheet" href="style.css"></head>
-<body><main><h1>Try Panackelty</h1><p>WASI delivery-preparation build. Each run uses a fresh worker. Not yet integrated into the public website.</p>
-<label for="source">Program</label><textarea id="source" spellcheck="false" autocapitalize="off">import "stdlib/text"
-
-main(): Void {
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Write and run Panackelty in your browser. Explore exact arithmetic, pure functions and the standard library without installing anything.">
+  <title>Try Panackelty — browser playground</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to editor</a>
+  <header class="site-header">
+    <a class="brand" href="../"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a>
+    <nav aria-label="Primary navigation"><a href="../#capabilities">Capabilities</a><a href="../#examples">Examples</a><a href="../#start">Install locally</a></nav>
+  </header>
+  <main id="main" class="playground">
+    <p class="eyebrow">No installation needed</p>
+    <h1>Try <em>Panackelty.</em></h1>
+    <p class="intro">Start with an example, change a value, and run it. Your program compiles and runs on your device; its source is not sent to a server.</p>
+    <p class="version-note">Experimental browser edition · current development compiler · bytecode v9. This may differ from the downloadable alpha.9 release.</p>
+    <div class="example-picker"><label for="example">Start with</label><select id="example"></select><button id="load" type="button">Load example</button></div>
+    <aside class="example-guide" aria-labelledby="example-title">
+      <h2 id="example-title">Hello, browser</h2>
+      <p id="example-description"></p>
+      <p><strong>Try changing it:</strong> <span id="example-edit"></span></p>
+      <details><summary>Expected output for the original example</summary><pre id="expected-output"></pre></details>
+    </aside>
+    <div class="workspace">
+      <section aria-labelledby="program-title">
+        <h2 id="program-title"><label for="source">Program</label></h2>
+        <textarea id="source" spellcheck="false" autocapitalize="off" autocorrect="off" aria-describedby="editor-help">main(): Void {
   print("Hello, browser!")
-  print((1/3 * 30).nat())
-  print(text_ends_with("hello.panack", ".panack"))
 }
-</textarea><div><button id="run">Run program</button><button id="stop" disabled>Stop</button><span id="status" role="status">Ready</span></div>
-<h2>Output</h2><pre id="output" tabindex="0"></pre>
-<p>32 KiB source/output, 15-second foreground timeout, 256 MiB linear memory per instance (not total tab memory). Standard input is empty. Native processes, typed host capabilities and runtime file writes are unavailable. No persistent session. Background timers may be delayed.</p>
-<p><a href="LICENSE">Panackelty license</a> · <a href="vendor/LICENSE-MIT">WASI adapter license</a> · <a href="provenance.json">Build inputs</a></p>
-</main><script type="module" src="app.mjs"></script></body></html>
+</textarea>
+        <p id="editor-help">Edit freely. Loading an example replaces the editor. Each run starts fresh; keep a copy of code you want to save.</p>
+        <div class="run-controls"><button id="run" type="button">Run program</button><button id="stop" type="button" disabled>Stop</button><span id="status" role="status">Ready</span></div>
+        <noscript><p>Enable JavaScript to run programs, or <a href="../#start">install the command-line toolchain</a>.</p></noscript>
+      </section>
+      <section aria-labelledby="output-title"><h2 id="output-title">Output &amp; diagnostics</h2><pre id="output" tabindex="0" aria-label="Program output">Run a program to see its output here.</pre></section>
+    </div>
+    <details class="limits"><summary>What can I run here?</summary>
+      <p>Complete programs using exact numbers, types, pure functions, collections and supported standard-library operations. Compiler errors appear above, with source positions where available.</p>
+      <p>Programs cannot access your device files, start processes or use networking. Runtime file writes and typed native host services are unavailable; standard input is empty. This is not a persistent REPL.</p>
+      <p>Limits: 32 KiB UTF-8 source and output, a 15-second foreground timeout and 256 MiB of linear memory per VM instance. The browser uses additional memory. Background timers may be delayed; Stop ends the worker.</p>
+    </details>
+    <footer><a href="../">Back to Panackelty</a> · <a href="https://github.com/sproates/panackelty/blob/main/SPEC.md">Language reference</a> · <a href="provenance.json">Build inputs</a> · <a href="LICENSE">License</a> · <a href="vendor/LICENSE-MIT">WASI adapter license</a></footer>
+  </main>
+  <script type="module" src="app.mjs"></script>
+</body>
+</html>

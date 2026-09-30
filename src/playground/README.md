@@ -1,9 +1,9 @@
-# Playground delivery preparation
+# Browser playground
 
-This optional browser build is **not deployed by Pages**. It replaces the isolated
+This optional browser build supplies the website's `/playground/` page. It replaces the isolated
 Emscripten experiment with a pinned native WASI SDK compiler and a JavaScript
 WASI host. The ordinary native CLI, seed, bytecode v9 and `make check` remain
-independent of these tools. Public-site integration is a separate step.
+independent of these tools. Public deployment follows the normal reviewed Pages flow.
 
 ## Build and test
 
@@ -32,8 +32,27 @@ generated assets; rerun setup/build afterward. No generated Wasm is committed.
 The build executes the native compiler/linker with an SDK-only PATH and records
 source/seed/artifact hashes in `build/playground/provenance.json`. CI builds twice
 and compares the Wasm bytes. `server.mjs` is a loopback-only static test server.
-The generated directory can later be integrated into the existing Pages build;
-this task intentionally does not change that publisher or the public website.
+The build also assembles `build/website` for browser tests and review, using
+the actual homepage, shared styles and `/playground/` paths. Run
+`node src/playground/server.mjs` to serve it at http://127.0.0.1:4174 locally.
+The review tree does not contain a coverage report; production assembly adds
+the separately validated report.
+
+The Pages workflow builds the playground from the selected validated website
+revision, assembles it with website and coverage assets, and runs real-browser
+tests against that complete artifact before upload/deployment. PR runs test the
+website preview without deploying. Build or browser failures prevent publication.
+The separate playground workflow retains deterministic-build and native-compatibility
+checks. The SDK installer is optional and never a native `make check` prerequisite.
+
+The example selector replaces the editor only when Load example is pressed;
+it never executes automatically. Source/output use text controls, and code stays
+on the device. Each run starts fresh. The nine selectable examples are executed
+by all three browser test projects, with navigation, recovery and narrow-layout checks.
+Each loaded example has an explanation, an expected-output disclosure and a
+suggested edit. The expanded programs cover exact invoices, guarded values,
+collection processing, Option/Result handling and a combined order summary.
+Expected output retains decimal scale; it is not a currency formatter.
 
 Runtime dependencies are locked to `@bjorn3/browser_wasi_shim` 0.4.2; Playwright
 1.63.0 is test-only. The shim's MIT notice accompanies generated assets. We use

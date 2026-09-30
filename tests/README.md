@@ -2,6 +2,8 @@
 
 The optional [playground preparation suite](../src/playground/README.md) adds
 WASI/native compatibility and actual browser worker checks in its own CI workflow.
+Pages also runs the browser tests on the selected assembled website before
+deployment. These tests include the homepage links and selectable playground examples.
 Its locked JavaScript packages and WASI SDK are not prerequisites of native
 `make check`. Browser tests supplement, never replace, the canonical suites below.
 

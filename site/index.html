@@ -21,6 +21,7 @@
         <a href="#direction">Direction</a>
         <a href="#vision">Vision</a>
         <a href="#start">Get started</a>
+        <a href="playground/">Try it online</a>
       </nav>
     </header>
     <main id="main">
@@ -30,7 +31,7 @@
           <h1 id="hero-title">Exact values.<br><em>Clear intent.</em></h1>
           <p class="lede">Small programs should be easy to write. Growing programs should remain easy to reason about. Panackelty brings exact numbers, checked domain types and explicit effects to a compact compiled language.</p>
           <div class="actions">
-            <a class="button primary" href="#start">Write your first program <span aria-hidden="true">→</span></a>
+            <a class="button primary" href="playground/">Try it in your browser <span aria-hidden="true">→</span></a>
             <a class="button secondary" href="#engineering">Explore the engineering</a>
           </div>
           <p class="availability">Developer preview 0.1.0-alpha.9 is available for Linux x86-64 and Apple silicon.</p>
@@ -131,7 +132,7 @@ main(): Void {
           <article><span class="badge">Candidates for assessment</span><h3>Make real work easier</h3><ul><li>Real TCP and timer integration, with careful cancellation and cleanup.</li><li>More useful compiler assistance and clearer development feedback.</li><li>Dependency-aware builds and a design for separate compilation.</li><li>Coverage measurement for Panackelty source itself.</li></ul><p>These are candidates, not a committed implementation sequence.</p></article>
           <article><span class="badge">Longer-term exploration</span><h3>Broaden where it can go</h3><p>Namespaces, richer libraries, interoperability and additional execution targets remain open areas. Browser, GUI, game and mobile applications are part of the ambition, not platforms supported by the current download.</p></article>
         </div>
-        <div class="development-note"><span class="badge">Future investigation</span><h3>Try it here, without installing anything</h3><p>A browser playground could let visitors edit a complete example and run it, with output and compiler diagnostics alongside. A later REPL could retain definitions between inputs. Neither is available yet: browser execution, resource limits and session behaviour need investigation. Until then, the downloadable toolchain runs the examples above.</p></div>
+        <div class="development-note"><span class="badge">Experimental browser edition</span><h3>Try it here, without installing anything</h3><p>Edit a complete program and run it on your device, with output and compiler diagnostics alongside. Each run starts fresh. The playground uses the development compiler; files, processes and networking are unavailable. A persistent REPL remains future work.</p><a href="playground/">Open the playground →</a></div>
       </section>
 
       <section class="content-section vision" id="vision" aria-labelledby="vision-title">

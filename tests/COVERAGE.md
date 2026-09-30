@@ -440,13 +440,20 @@ existing validation or change its timing budgets.
 
 CI routing and documentation regressions in `tests/ci_scope.sh` cover the entire
 PR delta, merge-base divergence, additions/deletions/renames, unknown/packaged/
-policy paths, mixed changes, executable/symlink documents, unusual filenames,
+audited process and unlisted policy paths, mixed changes, executable/symlink documents, unusual filenames,
 missing revisions, valid and broken local links, incoming deleted-file links,
 conflict markers, NUL bytes, incomplete links, and failed/cancelled/skipped
 classifier outcomes. Workflow contracts retain both named package checks and
 the test check, ensure their bounded result guards run unconditionally, reject failed/cancelled
 execution results, and require cancellable full-route execution jobs. These tests need only shell, Git
 and the existing native command allowlist; no compiler bootstrap is needed.
+Independent component cases assert retention of compiler, bytecode, runtime/TCP,
+bootstrap, package and browser consumers. Local/committed-plan parity, staged
+reversals, untracked inputs, missing refs and committed whitespace are covered.
+The real local entry point and Makefile run in a fixture without compiler sources
+and with compiler/network commands forbidden, asserting no native artifacts,
+read-only planning and propagation of document failures. Workflow contracts
+require the shared selector in all three validation consumers.
 
 ## Validation reuse contracts
 

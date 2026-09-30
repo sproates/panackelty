@@ -67,7 +67,7 @@ ln -s ARCHITECTURE.md ROADMAP.md
 commit; route full
 reject_docs 'symlink document'
 # Unknown, packaged, executable, specification and policy changes stay full.
-for path in README.md SPEC.md AGENTS.md VERSION CHANGELOG.md RELEASE_POLICY.md \
+for path in README.md SPEC.md VERSION CHANGELOG.md RELEASE_POLICY.md \
     .github/workflows/check.yml tests/functional/input.md docs/new.md \
     'notes with spaces.md' $'notes\nnewline.md'; do
     fixture
@@ -75,6 +75,76 @@ for path in README.md SPEC.md AGENTS.md VERSION CHANGELOG.md RELEASE_POLICY.md \
     printf '\nchange\n' >> "$path"
     commit; route full
 done
+# Reviewed process prose is not consumed by builds, packages or fixtures.
+for path in AGENTS.md CONTRIBUTING.md docs/ROADMAP_PROCESS.md .agents/skills/next-item/SKILL.md .github/pull_request_template.md; do
+    fixture
+    mkdir -p "$(dirname "$path")"
+    printf '# Process\n' > "$path"
+    commit; route docs
+    plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+    [[ "$plan" == $'route=docs\ncomponents=process\nchecks=documents,links,whitespace' ]] || fail 'process plan'
+done
+fixture
+mkdir -p .github docs tests
+for path in .github/pull_request_template.md AGENTS.md ROADMAP.md docs/ROADMAP_PROCESS.md tests/COVERAGE.md; do
+    printf '\nProcess handover update\n' >> "$path"
+done
+commit; route docs
+# Expected ownership examples are deliberately independent of classifier patterns.
+while read -r path component; do
+    fixture
+    mkdir -p "$(dirname "$path")"
+    printf 'changed\n' > "$path"
+    commit; route full
+    plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+    [[ "$plan" == *"components=$component"* ]] || fail "component: $path"
+    [[ "$plan" == *'compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages,playground,pages' ]] || fail "lost integrations: $path"
+done <<'CASES'
+src/compiler/checker.panack compiler
+src/bytecode/reader.panack bytecode
+src/vm/vm.c runtime
+src/runtime/host.panack runtime
+src/vm/host_tcp.c tcp
+tests/tcp_serve.sh tcp
+src/stdlib/array.panack stdlib
+src/playground/worker.mjs playground
+site/index.html website
+VERSION package
+examples/hello.panack examples
+SPEC.md shared
+bootstrap/compiler-v9.bc shared
+Makefile shared
+.github/workflows/check.yml shared
+unrecognised/input.data unknown
+CASES
+# Local classification includes staged, unstaged and untracked changes, with the
+# same plan after commit. Index-only changes cannot disappear behind a reversal.
+fixture
+printf '\nprose\n' >> ROADMAP.md
+local_plan=$(bash "$root/scripts/ci_scope.sh" --plan --worktree "$base")
+commit
+[[ "$local_plan" == "$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")" ]] || fail 'local/CI disagreement'
+printf 'new code\n' > 'untracked input.c'
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored untracked file'
+rm 'untracked input.c'
+printf 'staged code\n' >> src/main.c
+git add src/main.c
+git show "$base:src/main.c" > src/main.c
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored index-only change'
+fixture
+chmod +x ROADMAP.md
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored local executable mode'
+fixture
+rm ROADMAP.md
+ln -s ARCHITECTURE.md ROADMAP.md
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored local symlink'
+fixture
+mkdir docs
+printf '# Process\n\n[bad](missing.md)\n' > docs/ROADMAP_PROCESS.md
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == docs ]] || fail 'untracked process doc'
+reject_docs 'missing local link'
+rm docs/ROADMAP_PROCESS.md
+bash "$root/scripts/check_docs.sh" >/dev/null || fail 'local unreferenced deletion'
 fixture
 head=$base; route full
 [[ $(bash "$root/scripts/ci_scope.sh" unknown "$base") == full ]] || fail 'unknown base'
@@ -87,6 +157,57 @@ git checkout -q "$base"
 printf '\nbase only code change\n' >> src/main.c
 commit; base=$head; head=$feature
 route docs
+# Exercise the public local entry point with the actual Makefile and no compiler
+# tree. Forbidden tools fail if a prose edit accidentally invokes native/network
+# work. This also proves failures propagate and planning does not execute checks.
+fixture
+mkdir scripts
+cp "$root"/scripts/{ci_docs.sh,ci_scope.sh,validation_components.sh,validate_change.sh,check_docs.sh,doc_links.awk} scripts/
+cp "$root/Makefile" .
+printf '0.0.0-test\n' > VERSION
+commit; base=$head
+printf '\nlocal prose\n' >> ROADMAP.md
+mkdir "$work/forbidden"
+for tool in cc gcc clang panack panack-vm curl nc node npm; do
+    printf '#!/bin/sh\necho forbidden-tool >&2\nexit 93\n' > "$work/forbidden/$tool"
+    chmod +x "$work/forbidden/$tool"
+done
+PATH="$work/forbidden:$PATH" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || { cat "$work/output"; fail 'local docs execution'; }
+[[ ! -e build && ! -e panack-vm ]] || fail 'documentation created native artifacts'
+printf '\n[broken](absent.md)\n' >> ROADMAP.md
+bash scripts/validate_change.sh --plan "$base" >/dev/null || fail 'plan executed checks'
+if bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1; then fail 'local ignored docs failure'; fi
+git restore ROADMAP.md
+printf '\ntrailing whitespace  \n' >> ROADMAP.md
+commit
+if bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1; then fail 'ignored committed whitespace'; fi
+if bash scripts/validate_change.sh --plan missing-ref > "$work/output" 2>&1; then fail 'accepted missing local base'; fi
+if bash scripts/validate_change.sh --invalid "$base" > "$work/output" 2>&1; then fail 'accepted invalid local mode'; fi
+# Full-route execution keeps its canonical check and propagates failures.
+fixture
+mkdir scripts
+cp "$root"/scripts/{ci_docs.sh,ci_scope.sh,validation_components.sh,validate_change.sh} scripts/
+commit; base=$head
+printf '\ncode\n' >> src/main.c
+mkdir "$work/local-bin"
+cat > "$work/local-bin/make" <<'MAKE'
+#!/bin/sh
+printf '%s\n' "$*" >> "$LOCAL_CHECK_CALLS"
+if [ "$*" = "${LOCAL_CHECK_FAIL:-}" ]; then exit 7; fi
+MAKE
+chmod +x "$work/local-bin/make"
+export LOCAL_CHECK_CALLS="$work/local-calls"
+for failure in none docs check; do
+    : > "$LOCAL_CHECK_CALLS"
+    result=0
+    PATH="$work/local-bin:$PATH" LOCAL_CHECK_FAIL="$failure" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || result=$?
+    if [[ "$failure" == none ]]; then [[ "$result" == 0 ]] || fail 'full local route';
+    else [[ "$result" == 7 ]] || fail "local failure lost: $failure"; fi
+    printf 'docs\n' > "$work/expected"
+    if [[ "$failure" != docs ]]; then printf 'check\n' >> "$work/expected"; fi
+    cmp "$LOCAL_CHECK_CALLS" "$work/expected" || fail 'incorrect local check execution'
+done
+unset LOCAL_CHECK_CALLS
 # Link forms, fences, spaces, nesting and parent-directory resolution.
 fixture
 mkdir tests assets
@@ -162,6 +283,14 @@ test "$(grep -c 'run: sh scripts/ci_gate.sh' .github/workflows/check.yml)" = 2 |
 grep -F 'CI_VALIDATION_RESULT: ${{ needs.package_build.result }}' .github/workflows/check.yml >/dev/null || fail 'missing package result'
 grep -F 'CI_VALIDATION_RESULT: ${{ needs.test_run.result }}' .github/workflows/check.yml >/dev/null || fail 'missing test result'
 grep -F 'name: Package (${{ matrix.target }})' .github/workflows/check.yml >/dev/null || fail 'package check names changed'
+# Every consumer must use the same selection. No path filter may silently omit
+# an unknown/shared dependency, and docs must not enter browser build jobs.
+for workflow in check playground pages; do
+    grep -F 'bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA"' ".github/workflows/$workflow.yml" >/dev/null || fail "selector missing: $workflow"
+    if grep -E '^[[:space:]]+paths(-ignore)?:' ".github/workflows/$workflow.yml" >/dev/null; then fail "independent filter: $workflow"; fi
+done
+grep -F "if: needs.changes.outputs.route == 'full'" .github/workflows/playground.yml >/dev/null || fail 'docs enter playground'
+grep -F "github.event_name == 'pull_request' && needs.changes.outputs.route == 'full'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
 echo 'CI workflow routing and cancellation contracts passed.'
 sh tests/ci_partition.sh
 sh tests/ci_conformance.sh

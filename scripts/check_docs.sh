@@ -20,10 +20,13 @@ documents=$(mktemp)
 links=$(mktemp)
 text_copy=$(mktemp)
 trap 'rm "$documents" "$links" "$text_copy"' EXIT
-git ls-files -z -- '*.md' > "$documents"
+git ls-files --cached --others --exclude-standard -z -- '*.md' > "$documents"
 
 failed=0
 while IFS= read -r -d '' document; do
+    # A working-tree deletion is allowed; incoming links below still catch
+    # references to it, matching the committed deletion route.
+    [[ -e "$document" || -L "$document" ]] || continue
     selected=0
     if ci_informational_doc "$document"; then
         selected=1

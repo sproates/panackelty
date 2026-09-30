@@ -425,24 +425,72 @@ in place. Findings and next investigations live in
 
 ## Change-aware CI
 
-`make docs` checks informational documentation locally without building native
-tools. `make ci-check` exercises change classification, routing failures and
-link-checking fixtures. The latter is also part of `make check` through the
-policy stage and runs before CI selects a route.
+Use the same selector locally and in CI:
+
+```sh
+bash scripts/validate_change.sh --plan origin/main
+bash scripts/validate_change.sh --run origin/main
+```
+
+The plan reports `route`, affected `components` and required `checks`. Local
+selection compares the merge base with the working tree and index and includes
+untracked, non-ignored files. The run checks branch/index/worktree whitespace,
+then executes `make docs` alone for `docs`, or `make docs` and canonical
+`make check` for `full`. CI runs the same route with its additional platform,
+sanitizer, coverage and browser gates. No route caches test outcomes.
+Use a different base ref when appropriate. Invalid local refs fail visibly;
+missing CI history and empty diffs conservatively select full validation.
+`make docs` remains available for a focused document check; it does not itself
+classify changes. `make ci-check` exercises selection and execution regressions
+without building the compiler, and remains part of `make check` through policy.
 
 | Changes | Check workflow |
 | --- | --- |
-| Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` as regular non-executable files | Document checks and local file links; no builds, packaging, sanitizer or coverage work |
-| README, specification, packaged inputs, instructions, workflows, code, other paths or mixed changes | Full existing validation and both platform packages |
+| Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
+| Only `AGENTS.md`, `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.agents/skills/next-item/SKILL.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Any component, shared contract, unlisted path or mixture with code | Full existing validation, both platform packages and browser consumers |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
-The classifier compares the complete PR diff from its merge base, not only the
-last commit; main pushes compare the prior commit to the pushed head. It inspects
-both sides of additions, deletions, renames and mode changes. Symlinks and
-executable Markdown never select the fast path. `scripts/ci_docs.sh` is the
-single allowlist; expanding it requires evidence that the document is neither
-an executable fixture nor a packaged/behavioral input.
+All document inputs must be regular non-executable files on both sides. The
+classifier compares the complete PR diff from its merge base. Renames expand
+into old-path deletion/new-path addition; symlinks, executable Markdown and
+unmerged local indexes cannot use the fast path. `scripts/ci_docs.sh` owns the
+explicit allowlist. New entries require an audit of build, package and test
+consumers, not just a Markdown extension. In particular `README.md` supplies the
+packaged quick start, `SPEC.md` defines executable behavior, and workflow files
+control execution; these retain full checks.
+
+### Component dependencies and retained coupling
+
+`scripts/validation_components.sh` records ownership for explanation; ownership
+alone does not prove that unrelated integration checks can be removed.
+
+| Input owner | Dependencies and consumers that must retain evidence |
+| --- | --- |
+| Compiler | Compiler/harness probes, emitted bytecode, source/bytecode functional cases, self-hosting fixed point, installed toolchain |
+| Bytecode contract | Compiler emitter, native verifier/VM, malformed fixtures, conformance, embedded/Wasm execution, package compatibility |
+| VM/runtime and TCP | Native modules, fault tests, host probes, source/bytecode functional cases including real TCP peers, sanitizer and coverage runs; compiler itself runs on VM |
+| Standard library | Compiler and runtime probes, bootstrap library identity, source examples, installed and browser libraries |
+| Examples | Functional expected outputs, source/bytecode conformance, packaged examples |
+| Playground and website | WASI VM, pinned compiler seed, bundled standard library, browser workers and Pages assembly |
+| Package inputs | Installed documents/version, native toolchain, quick-start extraction, both supported platform archives |
+| Shared or unknown | Conservative union of all consumers, including Makefile, seed, specifications, selectors and workflows |
+
+This first slice retains the full integration envelope for every non-document
+component. Existing focused `check-compiler`, `check-bytecode` and `check-vm`
+targets help during development but do not replace acceptance checks. The
+launcher builds the native VM, Panackelty probes execute on it, and packaging and
+bootstrap combine components; the earlier independent VM audit does not prove
+safe omission of those integrations. Separate compilation and dependency-aware
+artifact reuse remain later work under #106.
+
+Check, Playground and Pages PR validation consume the same selector rather than
+independent path filters. Documentation-only PRs do not install browser tools or
+build Wasm. Full changes conservatively run both browser consumers, including
+shared/unknown inputs previously omitted by path filters. Production Pages
+publication still follows successful Check runs and validates current main;
+that separate publication policy and release gates are unchanged.
 
 The fast path checks changed whitespace, empty/NUL-containing documents,
 conflict markers, and local inline/image/reference link destinations outside

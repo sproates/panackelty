@@ -113,12 +113,17 @@ Perform a cleanup audit after every change and before final validation:
 For changes limited to regular, non-executable files in the explicit
 `scripts/ci_docs.sh` allowlist, run `make docs` and review the edited content.
 These informational edits do not require rebuilding the compiler or running
-`make check`. The allowlist currently covers the roadmap, architecture,
-self-hosting status and three test/report documents. Additions, deletions and
+`make check`. The allowlist covers the roadmap, architecture, self-hosting status, three
+test/report documents and the five explicitly listed process documents. These
+process files are not build, package or executable-fixture inputs. Use
+`bash scripts/validate_change.sh --run origin/main` for selection across the
+branch and local staged, unstaged and untracked edits. Additions, deletions and
 renames must keep local links valid.
 
-README quick-start content, specifications, packaged documents, instructions,
-workflows, code, mixed changes and unknown impact require full validation.
+README quick-start content, specifications, packaged documents, unlisted
+instructions, workflows, code, mixed changes and unknown impact require full
+validation. The reviewed process files still need content review; Markdown
+syntax alone never establishes that a new file is informational.
 Changes to the routing/checking implementation require its regression suite
 and the canonical `make check`. CI preserves the existing check names on both
 routes; routing failures must fail those checks.

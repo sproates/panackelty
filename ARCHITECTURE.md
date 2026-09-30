@@ -723,11 +723,18 @@ and bytecode cases verify public behaviour on both supported platforms.
 The Check workflow always starts on PR updates and main pushes. Its `changes`
 job tests the routing/checking scripts, compares the complete merge-base-to-head
 diff, and selects `docs` only when every old/new path is an allowlisted regular,
-non-executable informational file. Unknown paths/history, executable documents,
+non-executable informational or audited process file. The local
+`scripts/validate_change.sh` entry point consumes the same selector with staged,
+unstaged and untracked inputs; its plan reports owners from
+`scripts/validation_components.sh`. The
+[component dependency map](tests/README.md#component-dependencies-and-retained-coupling)
+explains why every non-document owner still selects the full integration envelope.
+Unknown paths/history, executable documents,
 symlinks, specifications, packaged inputs and mixed changes select `full`.
 Renames are expanded to deletion/addition so neither path is hidden.
 
-On the documentation route it checks whitespace in the change, document
+On both routes it checks documentation and local links; the documentation route
+requires no native build or sockets. It checks whitespace in the change, document
 conflict markers/NUL bytes, local inline/image/reference link destinations and
 incoming links to informational files. It performs no network link requests
 and does not validate heading fragments or implement a full Markdown parser.
@@ -740,6 +747,9 @@ Cancellable `test_run` and `package_build` matrices retain every original
 test, sanitizer, coverage and supported-platform packaging proof on the full
 route. Ordinary validation uses the same unit subtargets as `make check`;
 runtime and functional checks share a fresh session-local runner report.
+Playground and Pages PR validation use the same selector, so shared and unknown
+inputs reach browser consumers while documentation-only PRs skip their builds.
+Production Pages publication remains a separate validated-current-main workflow.
 Sanitizers and coverage run independently with their own complete instrumented
 corpus. Bootstrap retains independent seed-refresh staging. Each job builds
 its own native prerequisites: cross-job transfers would introduce a dependency

@@ -634,13 +634,33 @@ owns the state and scope. The initial unscheduled idea was recorded on
 2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
 The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
+## Playground deployment cache consistency
+
+Work record: [issue #119](https://github.com/sproates/panackelty/issues/119).
+State: In progress. Priority: Now. Selected on 2026-09-30 after the browser kept
+an obsolete imported text example following the core-method deployment.
+
+Version the entire playground asset set together and test normal reload from a
+warm HTTP cache across deployments. Acceptance includes deterministic identities,
+new example/library execution in all three browser projects, publishing checks,
+canonical validation and live verification after separately approved merge.
+Cached entry HTML and already open tabs are not automatically refreshed; missing
+old assets must fail visibly rather than silently mixing versions.
+
+Small, one implementation PR. This observed onboarding defect takes priority over
+the separate alpha.10 release, dependency-aware probe reuse and TCP/timer discovery.
+No language, bytecode or downloadable release-version change is included.
+
 ## Core types and discoverable text/collection methods
 
 Work record: [issue #116](https://github.com/sproates/panackelty/issues/116).
-State: In progress. Priority: Now.
+State: Done. Completed in PR #118, merged and deployed on 2026-09-30.
+Canonical checks, browser suites and live import-free core/method execution passed;
+issue #116 is closed. The cached-example defect discovered afterwards is tracked
+separately below. The following scope records the accepted implementation.
 Recorded and groomed on 2026-09-30 following hands-on website playground feedback.
 The user selected implementation on 2026-09-30 as one cohesive PR covering core
-types, text/collection methods and migration. Merge approval remains separate.
+types, text/collection methods and migration. The user approved the merge.
 
 `Option[T]` and `Result[T,E]` should be usable without stdlib imports, and
 ordinary text/collection operations should be discoverable as methods on values
@@ -650,17 +670,17 @@ is `print("hello.panack".ends_with(".panack"))`, preserving the literal suffix.
 Most current dot calls still resolve global functions; the proposal must settle
 receiver-type lookup rather than merely shorten prefixed function names.
 
-- [ ] Define minimal implicit availability for Option/Result and their
+- [x] Define minimal implicit availability for Option/Result and their
       constructors, including canonical definitions, removal of obsolete imports and name
       collisions; decide helper exposure separately from core types
-- [ ] Inventory text and collection APIs and select concise, type-appropriate
+- [x] Inventory text and collection APIs and select concise, type-appropriate
       methods, beginning with `Str.ends_with`; cover literals, variables and
       chaining, global receiver-first calls, fields, generics, purity and useful
       wrong-receiver/unknown-method diagnostics
-- [ ] Apply the agreed breaking preview migration for existing helpers,
+- [x] Apply the agreed breaking preview migration for existing helpers,
       imports and user names; coordinate with the namespace proposals below
       without assuming full namespaces must ship first
-- [ ] Deliver independently scoped slices with meaningful compiler and public-CLI
+- [x] Deliver independently scoped slices with meaningful compiler and public-CLI
       tests, source/saved-bytecode parity, installed-package/bootstrap checks,
       browser integration and updated language/library examples and contracts
 
@@ -770,8 +790,7 @@ after implicit loading; investigate material regressions rather than assuming
 all-module loading is free. Final acceptance includes running import-free
 Option/Result examples, the exact suffix example above and array first/sort
 examples in the published playground after separately approved merge/deployment.
-The proposal issue remains open until the implementation and live acceptance are
-complete. The release version remains unchanged during implementation; prepare the next
+Implementation and live acceptance are complete. The release version remains unchanged during implementation; prepare the next
 alpha (currently expected `0.1.0-alpha.10`) and breaking-change notes in a separate
 release PR. The bytecode format stays v9.
 

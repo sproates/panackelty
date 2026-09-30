@@ -30,7 +30,7 @@ Setup uses `npm ci --ignore-scripts` with the committed lockfile and puts all
 packages under `build/playground-tools`. `make clean` removes dependencies and
 generated assets; rerun setup/build afterward. No generated Wasm is committed.
 The build executes the native compiler/linker with an SDK-only PATH and records
-source/seed/artifact hashes in `build/playground/provenance.json`. CI builds twice
+source/seed/artifact hashes in `build/playground/assets/<sha256>/provenance.json`. CI builds twice
 and compares the Wasm bytes. `server.mjs` is a loopback-only static test server.
 The build also assembles `build/website` for browser tests and review, using
 the actual homepage, shared styles and `/playground/` paths. Run
@@ -94,3 +94,22 @@ actual result; having test code alone is not evidence that engines passed.
 ## Core-library integration
 
 The text, collections and result examples use import-free core types and methods. The browser uses the same compiler seed and core module as native execution; no browser-only source rewriting is involved. Direct compiler filesystem fixtures must supply the bundled stdlib, including core.panack. Rebuild both compiler and stdlib browser assets together.
+
+## Deployment caching
+
+The build hashes the complete staged asset set, including the entry template,
+examples, module graph, worker, VM, compiler, stdlib, shared styles and notices.
+It publishes assets under `assets/<sha256>/` and rewrites the entry document's
+local asset links. Relative imports and worker fetches remain within that version.
+`asset-version.txt` identifies the directory for packaging and validation; runtime
+code does not fetch a mutable manifest. Rebuilding clears the generated output,
+so obsolete unversioned files are not published alongside the replacement.
+
+A new entry document therefore selects one matching dependency set even when a
+browser retains the previous deployment in its HTTP cache. The browser regression
+uses a real caching server, warms the cache, switches deployments and verifies new
+examples and library execution in Chromium, Firefox and WebKit. Assets are not
+rewritten in place under an existing hash. Pages can still cache the entry HTML;
+this does not force an already open tab to update or preserve every old asset set.
+An old page whose dependencies are no longer available fails visibly and needs a
+reload after the entry document refreshes. No service worker is installed.

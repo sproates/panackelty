@@ -6,6 +6,10 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Publish playground dependencies under a shared content-hashed directory so
+  refreshed pages use matching examples, worker, compiler and standard library
+  even when the browser has cached a previous deployment.
+
 - Breaking source/API change: Option/Result and their constructors are implicit.
   Replace imported `text_*`, `array_first` and `array_sort_by` calls with text/array
   methods; remove `stdlib/text` and `stdlib/collections` imports. Option/result

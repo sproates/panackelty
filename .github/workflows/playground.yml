@@ -27,9 +27,11 @@ jobs:
       - name: Build and prove deterministic Wasm output
         run: |
           npm run build --prefix src/playground
-          cp build/playground/vm.wasm "$RUNNER_TEMP/first.wasm"
+          cp build/playground/assets/*/vm.wasm "$RUNNER_TEMP/first.wasm"
+          cp build/playground/asset-version.txt "$RUNNER_TEMP/first-version.txt"
           npm run build --prefix src/playground
-          cmp "$RUNNER_TEMP/first.wasm" build/playground/vm.wasm
+          cmp "$RUNNER_TEMP/first.wasm" build/playground/assets/*/vm.wasm
+          cmp "$RUNNER_TEMP/first-version.txt" build/playground/asset-version.txt
       - name: Native CLI comparison and runtime contracts
         run: |
           make native

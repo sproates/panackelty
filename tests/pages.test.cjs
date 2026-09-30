@@ -54,8 +54,12 @@ test('assembled real website and nested source links resolve; broken links fail'
   fs.cpSync('site', root, {recursive: true});
   fs.mkdirSync(path.join(root, 'playground'));
   fs.writeFileSync(path.join(root, 'playground/index.html'), '<a href="../">home</a>');
+  const version = 'a'.repeat(64);
+  const assets = `playground/assets/${version}`;
+  fs.mkdirSync(path.join(root, assets), {recursive:true});
+  fs.writeFileSync(path.join(root, 'playground/asset-version.txt'), version + '\n');
   for (const name of ['vm.wasm', 'compiler.bc', 'stdlib.json', 'worker.mjs', 'provenance.json']) {
-    fs.writeFileSync(path.join(root, 'playground', name), 'fixture');
+    fs.writeFileSync(path.join(root, assets, name), 'fixture');
   }
   fs.mkdirSync(path.join(root, 'coverage/html/coverage/src'), {recursive: true});
   fs.writeFileSync(path.join(root, 'coverage/index.html'), '<a href="html/index.html">report</a>');
@@ -77,15 +81,15 @@ test('assembled real website and nested source links resolve; broken links fail'
     if (broken) return {ok: false, status: 404};
     return {ok: true,
       headers: new Map([['content-type', wrongMime ? 'text/html' : 'application/wasm']]),
-      arrayBuffer: async () => staleWasm && file === 'playground/vm.wasm'
+      arrayBuffer: async () => staleWasm && file === `${assets}/vm.wasm`
         ? Buffer.from('stale') : fs.readFileSync(path.join(root, file)),
       text: async () => stale && file === 'coverage/provenance.txt'
       ? 'old provenance' : fs.readFileSync(path.join(root, file), 'utf8')};
   });
   await checkPages(root, 'https://example.test/');
   assert(visited.includes('coverage/html/coverage/src/vm.c.html'));
-  assert(visited.includes('playground/vm.wasm'));
-  assert(visited.includes('playground/worker.mjs'));
+  assert(visited.includes(`${assets}/vm.wasm`));
+  assert(visited.includes(`${assets}/worker.mjs`));
   wrongMime = true;
   await assert.rejects(checkPages(root, 'https://example.test/'), /MIME/);
   wrongMime = false; staleWasm = true;

@@ -12,6 +12,9 @@ follow homepage/return links, check literal output and narrow layout, and exerci
 stop, timeout, diagnostics and failure recovery. Pages assembly rejects missing
 playground assets and symlinks before publishing. Deployment tests check the
 selected complete artifact, including playground bytes and Wasm MIME type.
+Asset identity tests cover every staged file and deterministic ordering. Real
+browser tests warm an HTTP cache, switch deployments, reload and verify matching
+example/library execution with versioned module, worker and binary requests.
 The guides' expected output is checked through WASI and the native public CLI.
 Suggested invoice edits must recalculate correctly and an invalid guarded value
 must fail. Browser checks ensure each loaded program's guide matches its selection.

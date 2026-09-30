@@ -148,3 +148,17 @@ test('core methods share native lookup and generic behaviour without imports', a
   assert.equal(missing.status,1);
   assert.match(missing.stderr,/missing source module.*core.panack/);
 });
+
+test('native TCP is explicitly unavailable in WASI', async()=>{
+  const result=await run(`
+    pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+    async main(): Unit {
+      match await tcp_exchange("127.0.0.1", 9000, bytes(), 32, 10) {
+        Ok(data) => expect(false),
+        Error(problem) => expect(problem == "TCP is unavailable on this host")
+      }
+      ()
+    }`);
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.stdout,'');
+});

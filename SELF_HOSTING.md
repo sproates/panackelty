@@ -12,6 +12,10 @@ syntax in the compiler itself. Repeated v9 compiler/stdlib builds and the seed
 refresh transaction verify convergence; v8 support is retired after that bridge.
 The historical milestones below retain their original version numbers.
 
+The subsequent TCP service refresh keeps format v9 and rebuilds the compiler
+seed with the additive builtin signature, effect checking and decoder validation.
+The seed refresh transaction checks compiler and stdlib fixed points.
+
 ## Bootstrap status
 
 The self-hosting critical path is complete. The compiler is written in

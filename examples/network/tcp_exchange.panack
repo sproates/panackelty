@@ -1,0 +1,20 @@
+// Development toolchain only. Run against an EOF-delimited echo peer on
+// 127.0.0.1:9000 (change the port to match your peer). Success exits silently;
+// the assertion traps if the peer is unavailable or returns different bytes.
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+async echo(request: Bytes): Result[Bytes,Str] {
+  await tcp_exchange("127.0.0.1", 9000, request, 4096, 2000)
+}
+
+async main(): Unit {
+  request = utf8_encode("Hello from async Panackelty!")
+  match await echo(request) {
+    Ok(response) => expect(response == request),
+    Error(problem) => expect(false)
+  }
+  ()
+}

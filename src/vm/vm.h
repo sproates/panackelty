@@ -64,6 +64,12 @@ bool vm_execution_complete_print(VMExecution *execution, const char *error);
 VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,
                                        VMServiceWait wait, void *context, const char **error);
 bool vm_execution_complete_read(VMExecution *execution, Value *result);
+/* Native TCP is opt-in for embedded executions. Poll runs bounded socket work
+ * on the owner thread, never bytecode. Zero wait interleaves independent VMs.
+ * Destroying an execution cancels and closes its pending connection. External
+ * read/print completions cannot complete a TCP wait. */
+bool vm_execution_enable_tcp(VMExecution *execution);
+bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms);
 bool vm_fake_read_result_valid(const Value *result);
 Value *vm_fake_read_result(bool fail);
 /* Borrowed result, valid until destroy; NULL unless completed. */

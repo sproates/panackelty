@@ -70,12 +70,36 @@ bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestR
     }
   }
 }
+bytecode_native_legacy_tcp(target: Path): TestResult {
+  data = bytecode_native_hex(read_file("tests/fixtures/tcp/legacy-name.hex"))
+  match fs_write(target, data) {
+    Error(problem) => test_expect("legacy tcp name", false, "fixture write failed"),
+    Ok(done) => {
+      mut valid = true
+      for operation in ["check", "run", "disasm"] {
+        match process_run(bytecode_native_path("./panack"), [operation, bytecode_native_text(target)],
+          bytes(), path_current(), [], duration_seconds(30), 1048576) {
+          Error(problem) => { valid = false },
+          Ok(command) => {
+            valid = valid && command.exit_code == 0 && command.signal == 0 && command.stderr == bytes()
+            if operation == "run" { valid = valid && utf8_decode(command.stdout) == "7\n" }
+          }
+        }
+      }
+      match fs_remove_file(target) {
+        Error(problem) => test_expect("legacy tcp name", false, "fixture cleanup failed"),
+        Ok(removed) => test_expect("legacy tcp name", valid, "old user function changed meaning")
+      }
+    }
+  }
+}
 main(): Void {
   match test_workspace_create(bytecode_native_path("/tmp")) {
     Error(problem) => { eprint("native bytecode workspace creation failed"); process_exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
       target = result_value_or(path_append(workspace.root, bytecode_native_path("input.bc")), workspace.root)
+      results = results.append(bytecode_native_legacy_tcp(target))
       results = results.append(bytecode_native_case("async/shadowed-await", "tests/fixtures/bytecode/async/shadowed-await.hex", "invalid async call effect", target))
       results = results.append(bytecode_native_case("async/shadowed-blocker", "tests/fixtures/bytecode/async/shadowed-blocker.hex", "invalid async call effect", target))
       results = results.append(bytecode_native_case("async/ordinary-await", "tests/fixtures/bytecode/async/ordinary-await.hex", "invalid async call effect", target))

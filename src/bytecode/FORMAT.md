@@ -270,3 +270,15 @@ with an explicit version diagnostic. Recompile saved v8 artifacts from source.
 Cancellation remains a host-owned terminal task outcome; queued or late delivery
 cannot revive a cancelled task. Fake requests have no external producer, so this
 contract makes no claim about real network cancellation or producer quiescence.
+
+### Additive native TCP service
+
+The development runtime recognises `$tcp_exchange(Str,Nat,Bytes,Nat,Nat)` as an
+async-only named builtin with `Result[Bytes,Str]` completion. Ordinary CALL is
+rejected and AWAIT_CALL requires arity five in both verifiers. Its completion
+uses the same bytes/error schema as fake read. No flags, opcodes or layouts
+change; source `tcp_exchange` lowers to this reserved intrinsic. Existing v9
+user functions named `tcp_exchange` keep their behavior; old v9 runtimes reject
+the new reserved intrinsic as unknown. See the
+[source service contract](../../SPEC.md#native-tcp-exchange-development-toolchain)
+for argument bounds, host availability and EOF framing.

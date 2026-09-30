@@ -53,8 +53,9 @@ adapter supplies them. The adapter borrows arguments, returns an owned result
 (or a static error), and must remain bounded and nonblocking. It is not a
 security boundary: native adapter code must not bypass these rules. There are
 no pending host requests in this immediate-adapter API. The separate fixed-service
-experiment below adds waiting and internal task lifetimes; neither API supplies
-OS timers or sockets. Source async awaits use the typed service below.
+experiment below adds waiting and internal task lifetimes. Native TCP is a
+separate explicit opt-in described below; fake task sessions do not enable it.
+Source async awaits use the typed service below.
 An instruction budget does not bound a long numeric operation, destructor or
 native callback in wall-clock time.
 
@@ -171,6 +172,7 @@ belong to `execute.c`. No implementation is included through a header.
 | Numerics | `numeric.h`, `numeric.c`, `bigint.h`, `bigint.c` | Exact arithmetic and checked conversions |
 | Text support | `buffer.*`, `render.*`, `utf8.*` | Byte buffers, value formatting, UTF-8 traversal |
 | Execution | `vm.h`, `execute.c` | Invocation context, frames, stack, locals, opcode dispatch |
+| Native TCP | `tcp.h`, `tcp.c` | Owned nonblocking request/response, bounded buffers, monotonic timeout |
 | Task experiment | `tasks.h`, `tasks.c` | Scoped task ownership, fake waits, virtual deadlines, bounded host pumping |
 | Builtins | `builtins.h`, `builtins.c`, `builtins_internal.h` | Shared arity/purity/handler registry |
 | Builtin domains | `builtins_text.c`, `builtins_collections.c`, `builtins_numeric.c`, `builtins_vm.c` | Operations and nested bytecode execution |
@@ -250,3 +252,30 @@ advance. Task sessions retain queued values, discard stale/cancelled delivery,
 and release values even when destroyed with completions queued. Cancellation and
 operation identities retain the task experiment's bounds and ownership rules.
 These APIs remain internal and single-threaded; no external producer exists.
+
+## Bounded native TCP
+
+`tcp.h`/`tcp.c` own the connection state for `tcp_exchange`; limits and source
+semantics are in [SPEC.md](../../SPEC.md#native-tcp-exchange-development-toolchain).
+The implementation uses POSIX [nonblocking connect](https://pubs.opengroup.org/onlinepubs/009695399/functions/connect.html)
+and [poll readiness](https://pubs.opengroup.org/onlinepubs/9799919799/functions/poll.html),
+with per-socket/per-send SIGPIPE suppression on macOS/Linux. No external runtime
+library, background thread or callback queue is required.
+
+`vm_execution_enable_tcp` grants an embedded execution the native service while
+it is yielded. Existing executions deny it by default. On `VM_WAITING`, call
+`vm_execution_poll_tcp(handle, max_wait_ms)` on the owning thread; zero performs
+bounded nonblocking work, allowing another execution to progress. A poll performs
+at most one 16 KiB send and receive, checks the total monotonic deadline, and may
+install a typed completion; it never executes source instructions inline. Call
+`vm_execution_advance` to resume. A false poll result means no TCP operation is
+waiting or the execution is busy. Read/print completion APIs cannot inject a
+result into a TCP wait. `vm_execution_destroy` cancels the operation and closes
+its descriptor before invalidating the execution, including before first poll.
+The synchronous CLI drives this same state machine, waiting only in its adapter.
+
+The host owns the number of simultaneously enabled executions; the per-operation
+memory limit does not impose a process-wide connection limit. This internal API
+is not a security sandbox or a stable embedding ABI. Native tests interleave a
+fast and stalled connection, exercise fragmented binary completion and repeat
+cancel/destruction; the source harness runs against a separate loopback peer.

@@ -18,5 +18,6 @@ typedef struct {
 
 Value *builtin_call(VM *vm, const char *name, Value **arguments);
 const Builtin *builtin(const char *name);
+bool builtin_is_async(const Builtin *entry);
 
 #endif

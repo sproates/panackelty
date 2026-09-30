@@ -573,7 +573,7 @@ pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
-  if name == "async_fake_read" { "Result[Bytes,Str]" } else {
+  if name == "async_fake_read" || name == "tcp_exchange" { "Result[Bytes,Str]" } else {
   if name == "fs_read" { "Result[Bytes,HostError]" } else {
   if name == "fs_write" { "Result[Unit,HostError]" } else {
   if name == "fs_metadata" { "Result[FileMetadata,HostError]" } else {
@@ -612,7 +612,7 @@ pure builtin_return(name: Str): Str {
 }
 
 pure builtin_arity(name: Str): Nat {
-  if name == "async_fake_read" { 1 } else {
+  if name == "async_fake_read" || name == "tcp_exchange" || name == "$tcp_exchange" { if name == "tcp_exchange" || name == "$tcp_exchange" { 5 } else { 1 } } else {
   if name == "fs_read" { 2 } else {
   if name == "fs_write" { 2 } else {
   if name == "fs_metadata" { 1 } else {
@@ -640,7 +640,11 @@ pure builtin_arity(name: Str): Nat {
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
-  if name == "async_fake_read" { "Bool" } else {
+  if name == "async_fake_read" || name == "tcp_exchange" {
+    if name == "async_fake_read" { "Bool" } else {
+      if index == 0 { "Str" } else { if index == 2 { "Bytes" } else { "Nat" } }
+    }
+  } else {
   if name == "fs_read" { if index == 0 { "Path" } else { if index == 1 { "Nat" } else { "Any" }} } else {
   if name == "fs_write" { if index == 0 { "Path" } else { if index == 1 { "Bytes" } else { "Any" }} } else {
   if name == "fs_metadata" { if index == 0 { "Path" } else { "Any" } } else {

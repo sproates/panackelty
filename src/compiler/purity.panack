@@ -1,7 +1,7 @@
 import "checker.panack"
 
 pure is_impure_builtin(name: Str): Bool {
-  name == "async_fake_read" || name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" || name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" || name == "host_sleep" || name == "process_run" ||
+  (name == "async_fake_read" || name == "tcp_exchange") || name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" || name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" || name == "host_sleep" || name == "process_run" ||
   name == "instant_now" || name == "print" || name == "read_line" || name == "read_file" ||
   name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
   name == "command_args" || name == "environment_has" ||
@@ -47,7 +47,7 @@ pure check_expression_effects(expression: Expr, program: Program, environment: M
     CallExpr(name, arguments, type_arguments) => {
       await_call = true
       function: FunctionLookup = function_type(program, name)
-      mut async_call: Bool = name == "async_fake_read" || (function.found && function.is_async)
+      mut async_call: Bool = (name == "async_fake_read" || name == "tcp_exchange") || (function.found && function.is_async)
       mut impure: Bool = is_impure_builtin(name) || (function.found && !function.is_pure)
       if name == "$method_call" && len(arguments) > 0 {
         target: CheckedExpression = check_expression(arguments[0], environment, map(), program)

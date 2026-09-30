@@ -74,6 +74,21 @@ success/error results and nested suspension. This is a bounded language/runtime
 slice, not networking support; source spawning and resource scopes remain future
 work. It uses bytecode v9, so saved v8 programs need recompilation.
 
+The development checkout additionally supports a bounded native TCP client:
+
+```panack
+async request(): Result[Bytes,Str] {
+  await tcp_exchange("127.0.0.1", 9000, utf8_encode("hello"), 4096, 2000)
+}
+```
+
+It sends the request, closes the sending side, waits for the peer's response EOF,
+and returns bytes or an error. See the [runnable echo-client example](examples/network/tcp_exchange.panack)
+and [TCP contract](SPEC.md#native-tcp-exchange-development-toolchain).
+This feature is not in the alpha.10 downloads. It supports numeric IPv4 on
+Linux/macOS, with response limits and timeouts; DNS, TLS, listening and source
+spawning remain future work. The browser cannot open raw TCP sockets.
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. The

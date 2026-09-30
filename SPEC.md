@@ -743,8 +743,8 @@ compile program.panack` persists the same bytecode as `program.bc`, and `panack 
 program.bc` loads, verifies, and executes that artifact directly.
 
 The CLI drives ordinary main synchronously and async main through the same VM's
-suspend/complete loop. The only async host service is a deterministic fake read;
-there is no networking API or source task-spawning syntax.
+suspend/complete loop. Async services include a deterministic fake read and a
+bounded native TCP exchange. There is no source task-spawning syntax.
 
 The compiler emits stack instructions with a named function table and purity
 metadata. Calls use isolated frames containing locals and an operand stack.
@@ -965,6 +965,48 @@ other bytes/errors within this exact schema. Wrong completion tags, variant name
 or payload arities trap before source execution resumes. Runtime task cancellation
 is terminal, not a source Result error; late completions cannot restart the task.
 
-The source slice includes no spawn, scopes, task/resource values, real timers,
-network transport or stable embedding ABI. Existing ordinary programs preserve
+The source slice includes no spawn, scopes, task/resource values, general timer
+service or stable embedding ABI. Existing ordinary programs preserve
 their behavior when recompiled to v9. See the [executable contract](tests/functional/cases/async_await/main.panack).
+
+### Native TCP exchange (development toolchain)
+
+`tcp_exchange(address: Str, port: Nat, request: Bytes, response_limit: Nat,
+timeout_ms: Nat): Result[Bytes,Str]` is an async builtin. Use `await` inside an
+async function. It opens one native IPv4 TCP connection, sends the request,
+shuts down its write side after all request bytes are sent, reads until peer EOF,
+and closes the connection. Reads may progress while the request is being sent.
+The successful result is the entire response; partial data is discarded on error.
+This is EOF-delimited request/response, not a general stream or HTTP client.
+
+The address must be a numeric dotted IPv4 address without a NUL; DNS names and
+IPv6 are unsupported. Port is 1–65535. Request and response limit are each at
+most 1 MiB (1,048,576 bytes); zero-length requests and response limits are valid.
+Timeout is 1–60,000 milliseconds for the entire operation, measured with the
+host monotonic clock. A deadline observed together with readiness wins. Peers
+that keep the response stream open reach the timeout even if they have sent data.
+Host suspension follows the platform clock; no hard scheduling deadline is promised.
+
+Errors are explicit `Error(Str)` values: `invalid TCP arguments`,
+`invalid IPv4 address`, `TCP clock failed`, `TCP socket failed`,
+`TCP connect failed`, `TCP poll failed`, `TCP write failed`,
+`TCP shutdown failed`, `TCP read failed`, `TCP timed out`,
+`TCP response limit exceeded`, or `TCP peer closed before request completed`.
+Malformed dynamic argument kinds also return `invalid TCP arguments` before I/O.
+Allocation failure retains the VM's existing trap behavior. Native error numbers
+are deliberately not part of this initial API.
+
+Linux and macOS CLI execution support the operation. WASI/browser execution
+returns `Error("TCP is unavailable on this host")` for otherwise valid arguments;
+it never opens a socket. Existing embedded executions deny TCP by default.
+Native hosts can explicitly enable it and interleave zero-wait polls with other
+executions. Destroying the execution closes its socket and releases buffers;
+there are no native callbacks or producer threads left to quiesce.
+
+No source socket handles, listening, connection reuse, DNS, TLS or HTTP framing
+are included. Source `await` activates work in the current execution; it does
+not create parallel tasks. This is an unreleased development feature, absent
+from alpha.10. The bytecode encoding remains v9; older runtimes reject the new
+reserved intrinsic `$tcp_exchange` as unknown rather than reinterpret old
+bytecode. Previously saved user functions named `tcp_exchange` remain callable.
+The development compiler reserves the new source builtin name.

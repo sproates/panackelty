@@ -4,6 +4,16 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
+## Unreleased
+
+- Add `await tcp_exchange(...)` for bounded native IPv4 request/response, with
+  nonblocking partial I/O, total timeout, response limits and owned cleanup.
+  Source and saved-bytecode clients work on Linux/macOS; WASI returns an explicit
+  unavailable error. Embedded native execution requires opt-in. DNS, TLS,
+  listening, stream handles and source spawning are not included.
+- Refresh the v9 compiler seed and both verifiers for the additive async builtin;
+  existing v9 artifacts keep their meaning. Alpha.10 lacks the new builtin.
+
 ## 0.1.0-alpha.10 — 2026-09-30
 
 ### Breaking changes and migration

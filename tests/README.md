@@ -465,3 +465,25 @@ unconditional jobs. No branch-protection settings need changing. Workflow-wide p
 are avoided so required check results are never left pending due to filtering.
 Release validation and the separate profiling/Pages workflows retain their
 existing triggers and gates.
+
+## Native async TCP
+
+`tests/tcp.sh` is part of `make functional` and hosted runtime validation. It
+runs complete source and saved-bytecode programs through `panack` against the
+independent C loopback fixture `tests/tcp_server.c`. It verifies exact binary
+response content (including fragmented transfers and NUL), empty/exact-limit
+responses, limit errors, stalled-peer timeout, refusal, and source type/effect
+rejection. The refusal fixture releases an ephemeral loopback port before the
+attempt; tests do not use a fixed service port or external network.
+
+`tests/unit/vm/tcp.c` runs with native module, sanitizer and coverage suites:
+concurrent independent fast/stalled executions, capability denial, external
+completion rejection, timeout, cancellation, invalid inputs and forged call
+metadata. Allocation sweeps include socket tracking and typed completion cleanup.
+The network example lives under `examples/network` because it requires a peer;
+`tests/tcp.sh` executes that exact example with its ephemeral port substituted.
+`tests/fixtures/tcp/legacy-name.hex` was compiled by the alpha.10 seed from
+`pure tcp_exchange(): Nat { 7 }` and `main(): Void { print(tcp_exchange()) }`.
+The native bytecode suite checks, runs (expecting `7`) and disassembles it, proving
+the new reserved intrinsic does not shadow old saved user functions.
+All networking fixtures bind only loopback and own their cleanup.

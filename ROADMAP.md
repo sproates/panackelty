@@ -646,10 +646,34 @@ successfully with alpha.10 download instructions and migration notes.
 The release aligns downloads with the playground's core language APIs and v9
 bytecode. Real networking and broader build-cache work remain separate.
 
+## Real async TCP from Panackelty
+
+Work record: [issue #126](https://github.com/sproates/panackelty/issues/126).
+State: In progress. Priority: Now. Selected on 2026-09-30 after deployment
+reliability, explicitly ahead of build-cache work and a C-only networking spike.
+The user wants real source programs to benefit from async/await.
+
+Bounded scope: `await tcp_exchange` owns one numeric-IPv4 request/response
+connection, half-closes after sending, reads to EOF, and returns bytes/error.
+Bound memory and total time; use nonblocking sockets with owner-thread polling
+and close on every outcome. Native embedded execution is opt-in; WASI remains
+without raw networking. No source handles, spawning, listening, DNS, TLS or HTTP
+framing. This is an additive development feature, not an alpha.10 release claim.
+
+Medium–large, one PR including compiler/decoder effects, seed refresh, native
+backend, source/bytecode tests, fault/sanitizer evidence and documentation.
+Acceptance requires partial/binary/empty I/O, response limits, timeout/refusal,
+independent progress, cancellation cleanup, explicit host restrictions,
+canonical `make check` and Linux/macOS/browser CI. The full server design and
+build-cache improvements remain independently scoped follow-ups.
+
 ## Website deployment source selection
 
 Work record: [issue #123](https://github.com/sproates/panackelty/issues/123).
-State: In progress. Priority: Now. Selected on 2026-09-30 after alpha.10 release.
+State: Done. PR #124 merged after all 23 checks passed. Production Pages run
+36723094458 passed build, deployment and live verification; public provenance
+reported merge commit `cdff3ef04ca40952934b6f3e5768306ce9474ca5`.
+Selected on 2026-09-30 after alpha.10 release.
 An earlier Pages attempt selected historical content and failed on a missing
 playground SDK installer; retry succeeded. The original API response was not
 retained, so the upstream cause is unproven. The selector's reliance on the first

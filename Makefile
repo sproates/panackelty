@@ -135,7 +135,12 @@ unit-compiler: native
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl
 
-functional-impl: $(STAGE2_COMPILER)
+$(BUILD_DIR)/vm/tcp_server: tests/tcp_server.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@
+
+functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server
+	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"
 	@report=$$(mktemp); artifact="$(abspath $(BUILD_DIR))/runner-smoke.bc"; \
@@ -170,8 +175,8 @@ $(BUILD_DIR)/vm/%.o: src/vm/%.c
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)

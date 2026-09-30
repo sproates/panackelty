@@ -486,3 +486,13 @@ separately; these checks do not claim automated visual or accessibility certific
 ## Implicit core and method migration
 
 The `core_methods` functional case exercises import-free Option/Result construction and matching across modules, method chaining, explicit empty-array element types and unrelated global names. Parser/checker unit contracts cover private dispatch, wrong receivers and comparator purity/type errors. Existing stdlib assertions retain stable-sort and Unicode suffix edge cases. The migrated playground examples are compared through native CLI and browser execution. Existing fixed bytecode oracles remain independent: unused core algorithms must not alter their artifacts.
+
+## Native async TCP request/response
+
+The bounded `tcp_exchange` contract is covered by `tests/unit/vm/tcp.c`, the
+TCP allocation sweep in `native_faults.c` and public-CLI `tests/tcp.sh`.
+Evidence covers binary/fragmented and empty transfers, response bounds, refusal,
+timeouts, independent progress, destruction cleanup, embedded opt-in and source
+and forged-bytecode effect checking. The WASI runtime test requires explicit
+unavailability. These checks do not establish DNS/TLS, server APIs, source
+spawning, arbitrary network stress or exhaustive kernel-error coverage.

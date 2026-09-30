@@ -212,3 +212,15 @@ footer { color: var(--muted); }
 }
 
 .feature-number { color: var(--signal); font-family: var(--mono); font-size: .72rem; }
+
+/* Compact contributor profiles above the site footer. */
+.contributors { padding: 2.25rem 0; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 3rem; }
+.contributors h2 { margin: 0; color: var(--muted); font: 500 .85rem/1.6 var(--sans); letter-spacing: 0; }
+.contributors ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 1rem 3rem; }
+.contributors li { display: flex; align-items: center; flex-wrap: wrap; gap: 1.5rem; }
+.contributor-link { display: inline-flex; align-items: center; gap: .5rem; min-height: 40px; border-radius: 4px; color: var(--muted); font-size: .78rem; text-decoration: none; }
+.contributor-link svg { flex-shrink: 0; width: 18px; height: 18px; }
+.contributor-link:hover { background: var(--panel); color: var(--ink); text-decoration: underline; text-underline-offset: .22em; }
+@media (max-width: 600px) {
+  .contributors { align-items: flex-start; gap: .75rem; flex-direction: column; padding-block: 1.75rem; }
+}

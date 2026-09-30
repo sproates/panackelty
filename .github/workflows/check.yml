@@ -31,18 +31,19 @@ jobs:
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
-          route=$(bash scripts/ci_scope.sh "$CI_BASE_SHA" "$CI_HEAD_SHA")
-          echo "route=$route" >> "$GITHUB_OUTPUT"
-          echo "Validation route: $route" >> "$GITHUB_STEP_SUMMARY"
+          plan=$(bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA")
+          printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$plan" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check informational documents
-        if: steps.scope.outputs.route == 'docs'
         env:
           CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         shell: bash
         run: |
-          git diff --check "$(git merge-base "$CI_BASE_SHA" "$CI_HEAD_SHA")" "$CI_HEAD_SHA" --
+          if base=$(git merge-base "$CI_BASE_SHA" "$CI_HEAD_SHA" 2>/dev/null); then
+            git diff --check "$base" "$CI_HEAD_SHA" --
+          fi
           bash scripts/check_docs.sh
 
   package_build:

@@ -94,8 +94,11 @@ policy, formatting and validation tools cover only their documented scope.
 
 ## Validate a change
 
-For changes limited to the informational files listed in `scripts/ci_docs.sh`,
-run `make docs` and review the content. CI checks those documents and local file
+Run `bash scripts/validate_change.sh --plan origin/main` to inspect the affected
+components and required checks, then use `--run` to execute the selected local
+route. It includes branch changes plus staged, unstaged and untracked edits.
+For changes limited to the informational/process files in `scripts/ci_docs.sh`,
+this runs `make docs`; review the content as well. CI checks those documents and local file
 links without building the toolchain. See
 [change-aware CI](tests/README.md#change-aware-ci) for the exact boundary.
 

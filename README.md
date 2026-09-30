@@ -663,8 +663,11 @@ available for local work; `make check` still runs the complete local suite. Chan
 to the explicit informational-document allowlist receive quick document/local-link
 checks, without compiler builds, packaging, sanitizers or coverage. The existing
 check names remain present and reject routing failures. See
-[change-aware CI](tests/README.md#change-aware-ci) and use `make docs` locally
-for those informational edits.
+[change-aware CI](tests/README.md#change-aware-ci). Run
+`bash scripts/validate_change.sh --plan origin/main` to inspect the shared
+selection, or replace `--plan` with `--run` to execute its local route. Reviewed
+process documents also use the informational route; other changes retain full
+validation. CI additionally executes platform, instrumentation and browser gates.
 Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profiling)
 separates native builds, harness groups, probes and bootstrap costs.
 

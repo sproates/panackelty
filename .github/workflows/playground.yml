@@ -1,14 +1,28 @@
 name: Playground preparation
 on:
   pull_request:
-    paths: ['site/**', 'src/vm/**', 'src/playground/**', 'src/stdlib/**', 'bootstrap/**', 'tests/playground/**', 'scripts/install_wasi_sdk.sh', '.github/workflows/playground.yml']
   push:
     branches: [main]
-    paths: ['site/**', 'src/vm/**', 'src/playground/**', 'src/stdlib/**', 'bootstrap/**', 'tests/playground/**', 'scripts/install_wasi_sdk.sh', '.github/workflows/playground.yml']
 permissions:
   contents: read
 jobs:
+  changes:
+    runs-on: ubuntu-22.04
+    outputs:
+      route: ${{ steps.scope.outputs.route }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA" >> "$GITHUB_OUTPUT"
   browsers:
+    needs: changes
+    if: needs.changes.outputs.route == 'full'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:

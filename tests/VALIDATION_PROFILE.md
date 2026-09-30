@@ -1,5 +1,49 @@
 # Validation profiling baseline
 
+## Modular validation route — 2026-09-30
+
+The bounded slice of [#106](https://github.com/sproates/panackelty/issues/106)
+separates audited process prose from native validation. On the local macOS arm64
+host, an isolated archive of baseline `574e41b` received the new selector/runner
+and an `AGENTS.md` prose edit. Each sample ran
+`bash scripts/validate_change.sh --run BASE_SHA` under the normal restricted
+sandbox, with no prior build directory. Three sequential `/usr/bin/time -p`
+samples measured **0.81, 0.81 and 0.80 seconds**. Each printed `route=docs`,
+`components=process`, `checks=documents,links,whitespace`, passed local links and
+whitespace, and left no `build` directory or `panack-vm` artifact. No compiler,
+package download or socket permission was required.
+
+| Representative change | Previous selection | Current selection |
+| --- | --- | --- |
+| Roadmap prose | Docs | Docs |
+| AGENTS/contribution/roadmap-process/Next Item/PR-template prose | Full | Docs |
+| Compiler, bytecode, VM/TCP, library or examples | Full native validation | Full native and browser integration envelope |
+| Playground/package/shared/unknown inputs | Full Check; separate browser path filters | Full Check and both browser consumers via the shared selector |
+| Mixed prose/code, executable or symlink documents | Full | Full |
+
+Replaying the complete five-file diff of grooming PR #143 with the new selector
+now selects `docs`, including its PR template; the previous selector chose full.
+The earlier process-document change had taken 94 seconds with socket access
+and failed native contracts under restriction. That is historical context,
+not a controlled speedup ratio. The development full check for this slice
+passed in **103 seconds**, including unit, functional, bootstrap and packaged
+quick-start evidence. Its unit phase still exceeded the 15-second target;
+full-validation optimization remains a recorded follow-up, not a claim made by
+this change. Final-head validation is recorded in the delivery PR.
+
+`make ci-check` tests independent expected components, conservative integrations,
+local/committed parity, staged reversals, untracked changes, failure propagation,
+renames/deletions and stable result gates. A fixture executes the actual local
+runner and Makefile without compiler sources and with compiler/network commands
+forbidden. Browser workflows use the shared selector for PR validation; existing
+production Pages publication is separate and can still build after a docs merge.
+
+No per-component code-test savings or incremental-cache benefit was measured.
+The [dependency map](README.md#component-dependencies-and-retained-coupling)
+records remaining compiler/VM, probe, bootstrap and packaging coupling. Full code
+validation keeps all existing checks and now conservatively reaches browser
+consumers for shared/unknown changes as well.
+
 ## Clean validation comparison — 2026-09-29
 
 Investigation: [issue #104](https://github.com/sproates/panackelty/issues/104).

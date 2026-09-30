@@ -47,13 +47,18 @@
       <figure class="execution-diagram">
         <figcaption>All inside your browser</figcaption>
         <ol class="execution-flow">
-          <li><span class="flow-step">01 / Write</span><strong>Your code</strong><span>The Panackelty source you enter.</span></li>
-          <li><span class="flow-step">02 / Compile</span><strong>Compiler</strong><span>Checks the code and generates bytecode.</span></li>
-          <li><span class="flow-step">03 / Execute</span><strong>Bytecode → VM</strong><span>The virtual machine runs the compiled instructions.</span></li>
-          <li><span class="flow-step">04 / Read</span><strong>Your output</strong><span>Results appear in Output &amp; diagnostics.</span></li>
+          <li class="flow-file"><span class="flow-step">Source</span><strong>Your code</strong><code>print("Hello!")</code></li>
+          <li><span class="flow-step">Check &amp; compile</span><strong>Compiler</strong><span>Runs on the VM</span></li>
+          <li class="flow-file"><span class="flow-step">Instructions</span><strong>Bytecode</strong><span>For the Panackelty VM</span></li>
+          <li class="flow-vm"><span class="flow-step">Execute</span><strong>Panackelty VM</strong><span class="wasm-badge">WebAssembly</span></li>
+          <li class="flow-output"><span class="flow-step">Result</span><strong>Your output</strong><code>Hello!</code></li>
         </ol>
+        <div class="wasm-engine">
+          <span class="engine-icon" aria-hidden="true">Wasm</span>
+          <div><strong>WebAssembly is what makes the VM run in your browser.</strong><p>The browser loads a WebAssembly build of the Panackelty VM. That VM runs both the compiler and your compiled program.</p></div>
+        </div>
       </figure>
-      <p class="execution-note">The VM runs in your browser using WebAssembly. Compilation and execution happen on your device; your source code is not sent to a server. Each run starts fresh.</p>
+      <p class="execution-note">Compilation and execution happen on your device; your source code is not sent to a server. Each run starts fresh.</p>
     </section>
     <details class="limits"><summary>What can I run here?</summary>
       <p>Complete programs using exact numbers, types, pure functions, collections and supported standard-library operations. Compiler errors appear above, with source positions where available.</p>

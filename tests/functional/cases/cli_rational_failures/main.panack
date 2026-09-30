@@ -1,7 +1,7 @@
+import stdlib/result
 import stdlib/testing
 import stdlib/testing_commands
 import stdlib/testing_files
-import stdlib/text
 
 pure path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
@@ -13,8 +13,8 @@ pure child(root: Path, name: Str): Path {
 
 pure contains(value: Str, fragment: Str): Bool {
   mut found = false
-  for index in 0..text_length(value) {
-    if text_starts_with_at(value, fragment, index) { found = true }
+  for index in 0..value.len() {
+    if value.starts_with_at(fragment, index) { found = true }
   }
   found
 }

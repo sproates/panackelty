@@ -19,7 +19,7 @@ pass
 case_name=incremental-failure-corpus
 capture 0 45 ./panack run "$runner" --failures-only
 contains "$work/stdout" 'PASS failure/while_condition_type/no artifact'
-contains "$work/stdout" 'tests: 143, failures: 0'
+contains "$work/stdout" 'tests: 155, failures: 0'
 pass
 for fixture in cli_environment_files cli_commands cli_check_disasm stdlib; do
     case_name=runner-$fixture

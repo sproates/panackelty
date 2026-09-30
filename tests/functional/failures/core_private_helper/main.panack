@@ -1,0 +1,1 @@
+main(): Void { print(core_ends_with("a", "a")) }

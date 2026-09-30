@@ -696,6 +696,9 @@ pure method_operation(name: Str): Str {
 
 pure method_display_name(name: Str): Str {
   mut result: Str = name
+  if name == "$core_ends_with" { result = "ends_with"; }
+  if name == "$core_first" { result = "first"; }
+  if name == "$core_sort_by" { result = "sort_by"; }
   if name == "$method_put" { result = "put"; }
   if name == "$method_get" { result = "get"; }
   if name == "$method_add" { result = "add"; }
@@ -1043,7 +1046,7 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], f
         result = render_type(result, concrete)
       } else {}
       if function.found && len(function.type_parameters) > 0 {
-        generic: CheckedExpression = check_generic_call(name, function, type_arguments, arguments, argument_infos, scope_types, facts, program)
+        generic: CheckedExpression = check_generic_call(display_name, function, type_arguments, arguments, argument_infos, scope_types, facts, program)
         diagnostics = concat(diagnostics, generic.diagnostics)
         result = generic.info.name
       }

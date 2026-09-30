@@ -3,21 +3,21 @@ record Pair[A, B] {
   second: B
 }
 
-enum Option[T] {
-  None,
-  Some(T)
+enum Maybe[T] {
+  Absent,
+  Present(T)
 }
 
-pure value_or(value: Option[Nat], fallback: Nat): Nat {
+pure value_or(value: Maybe[Nat], fallback: Nat): Nat {
   match value {
-    Some(found) => found,
-    None() => fallback
+    Present(found) => found,
+    Absent() => fallback
   }
 }
 
 main(): Void {
   pair: Pair[Str,Nat] = Pair("answer", 42)
   print(pair.first)
-  print(value_or(Some(pair.second), 0))
-  print(value_or(None(), 7))
+  print(value_or(Present(pair.second), 0))
+  print(value_or(Absent(), 7))
 }

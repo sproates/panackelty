@@ -6,6 +6,12 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+- Breaking source/API change: Option/Result and their constructors are implicit.
+  Replace imported `text_*`, `array_first` and `array_sort_by` calls with text/array
+  methods; remove `stdlib/text` and `stdlib/collections` imports. Option/result
+  modules retain only explicit value-or helpers. Core names cannot be redeclared.
+  Compiler, examples and playground migrate together; bytecode remains v9.
+
 - Add a bounded async/await source interface, AsyncFn references and typed fake
   read completions, with host cancellation and strict call-effect checks. Refresh
   the compiler seed to bytecode v9; saved v8 artifacts require recompilation.

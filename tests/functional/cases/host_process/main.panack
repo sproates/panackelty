@@ -1,3 +1,4 @@
+import stdlib/result
 import stdlib/prelude
 pure path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
 pure code(value: Result[ProcessOutput,HostError]): Str {

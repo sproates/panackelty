@@ -1,3 +1,4 @@
+import stdlib/result
 import "report_capture.panack"
 import stdlib/testing_files
 

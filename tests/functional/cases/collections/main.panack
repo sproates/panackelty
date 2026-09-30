@@ -1,5 +1,3 @@
-import stdlib/collections
-import stdlib/text
 
 pure number_before(left: Nat, right: Nat): Bool { left < right }
 
@@ -49,7 +47,7 @@ main(): Void {
   print(names.has("Panackelty"))
   print(encoded().utf8_decode())
   print(persistent_append())
-  print(array_sort_by([3, 1, 2, 1], @number_before))
-  print(text_ends_with("café.panack", ".panack"))
-  print(text_ends_with("café.panack", ".PANACK"))
+  print([3, 1, 2, 1].sort_by(@number_before))
+  print("café.panack".ends_with(".panack"))
+  print("café.panack".ends_with(".PANACK"))
 }

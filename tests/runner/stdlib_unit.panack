@@ -1,5 +1,3 @@
-import stdlib/collections
-import stdlib/text
 import stdlib/testing
 
 record SortEntry { key: Nat, label: Str }
@@ -24,33 +22,33 @@ main(): Void {
     descending = descending.append(remaining)
   }
   results = [
-    test_expect("empty sort", array_sort_by[Nat]([], @nat_less) == [], "expected empty"),
-    test_expect("singleton sort", array_sort_by([7], @nat_less) == [7], "expected singleton"),
-    test_expect("duplicates and zero", array_sort_by(original, @nat_less) == [0, 1, 1, 2, 3], "wrong order"),
+    test_expect("empty sort", [].sort_by[Nat](@nat_less) == [], "expected empty"),
+    test_expect("singleton sort", [7].sort_by(@nat_less) == [7], "expected singleton"),
+    test_expect("duplicates and zero", original.sort_by(@nat_less) == [0, 1, 1, 2, 3], "wrong order"),
     test_expect("input unchanged", original == [3, 1, 2, 1, 0], "input mutated"),
-    test_expect("descending comparator", array_sort_by(original, @nat_greater) == [3, 2, 1, 1, 0], "wrong order"),
-    test_expect("record stability", array_sort_by(entries, @entry_less) ==
+    test_expect("descending comparator", original.sort_by(@nat_greater) == [3, 2, 1, 1, 0], "wrong order"),
+    test_expect("record stability", entries.sort_by(@entry_less) ==
       [SortEntry(1, "a"), SortEntry(1, "b"), SortEntry(2, "first"),
        SortEntry(2, "second"), SortEntry(2, "third")], "equal keys reordered"),
-    test_expect("all equivalent", array_sort_by(original, @never_less) == original, "equivalents reordered"),
-    test_expect("odd sized reverse input", array_sort_by(descending, @nat_less) == ascending, "lost or misplaced values"),
-    test_expect("already sorted", array_sort_by(ascending, @nat_less) == ascending, "sorted input changed"),
-    test_expect("exact large naturals", array_sort_by([9007199254740993, 9007199254740992], @nat_less) ==
+    test_expect("all equivalent", original.sort_by(@never_less) == original, "equivalents reordered"),
+    test_expect("odd sized reverse input", descending.sort_by(@nat_less) == ascending, "lost or misplaced values"),
+    test_expect("already sorted", ascending.sort_by(@nat_less) == ascending, "sorted input changed"),
+    test_expect("exact large naturals", [9007199254740993, 9007199254740992].sort_by(@nat_less) ==
       [9007199254740992, 9007199254740993], "lost precision"),
-    test_expect("Unicode string ordering", array_sort_by(["🙂", "λ", "a", ""], @str_less) == ["", "a", "λ", "🙂"], "wrong string order"),
-    test_expect("empty suffix", text_ends_with("abc", ""), "empty suffix must match"),
-    test_expect("both empty", text_ends_with("", ""), "empty strings must match"),
-    test_expect("empty value", !text_ends_with("", "a"), "unexpected match"),
-    test_expect("whole value", text_ends_with("abc", "abc"), "whole value must match"),
-    test_expect("long suffix", !text_ends_with("ab", "cab"), "unexpected match"),
-    test_expect("literal punctuation", text_ends_with("file.*", ".*"), "not literal"),
-    test_expect("no glob expansion", !text_ends_with("file.txt", ".*"), "wildcard expanded"),
-    test_expect("case sensitive", !text_ends_with("file.TXT", ".txt"), "case folded"),
-    test_expect("prefix is not suffix", !text_ends_with("abca", "abc"), "matched prefix"),
-    test_expect("Unicode boundary", text_ends_with("aλ🙂", "λ🙂"), "wrong code-point offset"),
-    test_expect("Unicode mismatch", !text_ends_with("aλ🙂", "a🙂"), "unexpected match"),
-    test_expect("combining code point", text_ends_with("é", "́"), "expected code-point match"),
-    test_expect("no normalization", !text_ends_with("é", "é"), "unexpected normalization")
+    test_expect("Unicode string ordering", ["🙂", "λ", "a", ""].sort_by(@str_less) == ["", "a", "λ", "🙂"], "wrong string order"),
+    test_expect("empty suffix", "abc".ends_with(""), "empty suffix must match"),
+    test_expect("both empty", "".ends_with(""), "empty strings must match"),
+    test_expect("empty value", !"".ends_with("a"), "unexpected match"),
+    test_expect("whole value", "abc".ends_with("abc"), "whole value must match"),
+    test_expect("long suffix", !"ab".ends_with("cab"), "unexpected match"),
+    test_expect("literal punctuation", "file.*".ends_with(".*"), "not literal"),
+    test_expect("no glob expansion", !"file.txt".ends_with(".*"), "wildcard expanded"),
+    test_expect("case sensitive", !"file.TXT".ends_with(".txt"), "case folded"),
+    test_expect("prefix is not suffix", !"abca".ends_with("abc"), "matched prefix"),
+    test_expect("Unicode boundary", "aλ🙂".ends_with("λ🙂"), "wrong code-point offset"),
+    test_expect("Unicode mismatch", !"aλ🙂".ends_with("a🙂"), "unexpected match"),
+    test_expect("combining code point", "é".ends_with("́"), "expected code-point match"),
+    test_expect("no normalization", !"é".ends_with("é"), "unexpected normalization")
   ]
   if test_report(results) > 0 { process_exit(1) }
 }

@@ -1,4 +1,3 @@
-import stdlib/result
 
 // A failed assertion traps, so a silent successful exit verifies the values.
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }

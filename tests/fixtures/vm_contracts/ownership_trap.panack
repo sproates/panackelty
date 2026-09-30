@@ -1,5 +1,4 @@
 
-import stdlib/option
 record Holder { label: Str, values: [Nat] }
 pure identity(value: Nat): Nat { [value][9] }
 main(): Nat {

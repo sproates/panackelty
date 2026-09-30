@@ -17,9 +17,9 @@ pure describe_result(value: Result[Nat,Str]): Str {
 main(): Void {
   print(describe_option(Some("ready")))
   print(describe_result(Ok(42)))
-  print(text_length("Panackelty"))
-  print(text_slice("portable", 0, 4))
-  print(text_reverse("Aλ🙂"))
+  print("Panackelty".len())
+  print("portable".slice(0, 4))
+  print("Aλ🙂".reverse())
   encoded: Bytes = text_encode_utf8("λ")
   print(bytes_length(encoded))
   print(text_decode_utf8(bytes_push(encoded, 33)))

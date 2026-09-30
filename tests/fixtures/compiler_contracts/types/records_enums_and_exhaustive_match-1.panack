@@ -1,14 +1,14 @@
 
 record Position { line: Nat, column: Nat }
-enum MaybeNat { None, Some(Nat) }
+enum MaybeNat { Nada, Just(Nat) }
 
 pure value_or(value: MaybeNat, fallback: Nat): Nat {
-  match value { Some(found) => found, None() => fallback }
+  match value { Just(found) => found, Nada() => fallback }
 }
 
 main(): Void {
   position: Position = Position(3, 14);
   print(position.line + position.column);
-  print(value_or(Some(25), 0));
-  print(value_or(None(), 7));
+  print(value_or(Just(25), 0));
+  print(value_or(Nada(), 7));
 }

@@ -16,8 +16,8 @@ main(): Void {
   print(price + 1.5)
   groups = [[], [name]]
   print(groups[1][0])
-  selected = if true { None() } else { Some(name) }
-  match selected { Some(value) => print(value), None() => print("none") }
+  selected = if true { Absent() } else { Present(name) }
+  match selected { Present(value) => print(value), Absent() => print("none") }
   person = Person(name, true)
   print(person.name)
   counts = map().put(name, 2)

@@ -40,10 +40,3 @@ pure diagnostic_text(diagnostic: Diagnostic): Str {
     diagnostic.message
   }
 }
-
-// Kept private to the compiler module graph until imports support namespacing.
-// User programs should import the canonical definition from src/stdlib.
-enum Result[T, E] {
-  Ok(T),
-  Error(E)
-}

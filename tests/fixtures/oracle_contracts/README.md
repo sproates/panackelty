@@ -31,6 +31,13 @@ Python; the captured data retains the independence of its original calculation.
   disassembly adds only `array_sort_by` and `text_ends_with`; all existing function
   blocks are unchanged. Its bytes also match the native seed compiler. This
   one-time fixture provenance adds no interpreter dependency to validation.
+  On 2026-09-30, the core-method migration removed precisely the twelve
+  superseded array/text blocks from this fixture. The reviewed disassembly
+  changes only three main call targets (`text_length`/`text_slice`/`text_reverse`
+  to `len`/`slice`/`reverse`); all other function blocks and expected stdout are
+  unchanged. The new native bytes were accepted only after this constrained
+  comparison with the previous independent fixture; the inventory records its
+  digest and transformation provenance.
   Native compilation must reproduce them exactly. Direct compiler integration
   also compares the driver and public command for all three module graphs.
 - `codec-disassembly.stdout`: Original stage-0 emitter listing for the codec

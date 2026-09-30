@@ -1,21 +1,20 @@
 # Panackelty standard library
 
-The standard library is an explicit logical module namespace. There is no
-implicit prelude: programs import either the modules they use, such as
-`import stdlib/option`, or the complete surface with
-`import stdlib/prelude`. Logical names are independent of the source checkout
-or installed toolchain layout. Imports currently combine declarations into one
-program-wide namespace, so public functions use descriptive prefixes.
+Every source program automatically receives the core types `Option[T]` and
+`Result[T,E]`, their constructors, and standard text/collection methods.
+Other APIs require explicit imports, or `import stdlib/prelude` for the combined
+surface. `stdlib/option` and `stdlib/result` contain value-or helpers only.
+Logical names are independent of checkout and installed layouts. Ordinary
+imports still combine declarations into one program-wide namespace.
 
 | Module | Public API | Implementation |
 | --- | --- | --- |
-| `option.panack` | `Option[T]`, `None`, `Some`, `option_value_or[T]` | Portable enum and generic helper |
-| `result.panack` | `Result[T,E]`, `Ok`, `Error`, `result_value_or[T,E]` | Portable enum and generic helper |
+| `core.panack` | Implicit Option/Result types and constructors; text and array methods | Source-defined types and private method algorithms, loaded once |
+| `option.panack` | `option_value_or[T]` | Explicit generic helper |
+| `result.panack` | `result_value_or[T,E]` | Explicit generic helper |
 | `testing.panack` | `TestOutcome`, `TestResult`, `test_expect`, `test_equal_str`, `test_equal_nat`, `test_report` | Pure assertions and explicit ordered reporting; imported separately from the prelude |
 | `testing_commands.panack` | `TestCommand`, `test_run_command`, `test_expect_command_error`, `test_command_output`, `test_command_result` | Bounded command execution with byte-exact output and structured host-error assertions; imported separately from the prelude |
 | `testing_files.panack` | `TestWorkspace`, `test_workspace_create`, `test_workspace_remove_empty`, `test_discover_fixtures` | Effectful sorted fixture discovery and explicitly owned temporary isolation; imported separately from the prelude |
-| `collections.panack` | `array_first[T]` returning `Option[T]`, `array_sort_by[T]`; array methods `append`/`concat`/`map`/`reduce`, Map methods `put`/`has`/`get`, Set methods `add`/`has`, plus legacy compatibility spellings | Portable generic helper plus compiler-known operations and VM primitives |
-| `text.panack` | `text_length`, `text_slice`, `text_starts_with`, `text_starts_with_at`, `text_ends_with`, `text_reverse`, `text_is_digit`, `text_is_letter`, `text_is_whitespace`, `text_parse_nat` | Portable wrappers over deterministic VM primitives |
 | `bytes.panack` | `bytes_empty`, `bytes_push`, `bytes_join`, `bytes_length`, `bytes_at`, `text_encode_utf8`, `text_decode_utf8` | Portable wrappers over immutable byte-buffer primitives |
 | `time.panack` | `Duration`, `Instant`, checked construction, arithmetic, ratios, monotonic clock reads | Opaque VM values, clock ABI, and portable helpers |
 | `path.panack` | `Path`, `PathError`, checked construction and lexical operations; compatibility APIs: `path_parent`, `path_join`, `path_suffix`, `path_with_suffix`, `path_is_absolute`, `path_resolve`, `file_exists` | Lexical VM primitives plus explicit host queries |
@@ -25,7 +24,7 @@ program-wide namespace, so public functions use descriptive prefixes.
 The portable generic helpers are ordinary Panackelty source. The raw storage
 primitives and functional array methods retain their compiler-known signatures
 and lowering; introducing source generics does not replace their VM operations.
-For an empty array, use `array_first[Str]([])` or a typed array binding. For
+For an empty array, use `[].first[Str]()` or a typed array binding. For
 `result_value_or`, both success and error types must be known from the argument
 or supplied explicitly, for example `result_value_or[Nat,Str](Ok(42), 0)`.
 They are still distinct from operating-system intrinsics. Pure primitives are
@@ -34,17 +33,25 @@ implemented inside each VM; only the services listed in
 
 The concise collection operations are method-only and type-directed, so they
 do not reserve `put`, `has`, `get`, or `add` in the global source namespace.
-Legacy prefixed free functions remain available for bootstrap compatibility.
+Existing compiler-known storage primitives remain available; the removed
+stdlib text/collection wrappers have no compatibility aliases.
 
 The library conformance program is compiled by the audited seed and fresh
 self-hosted stages. Tests require byte-identical artifacts, compare against
 frozen independent bytes and execute the result, so every compiler stage
 checks this module graph.
 
+The loader internalises the three `core_*` algorithm names before parsing the
+canonical core module. These are not callable source globals. The emitter keeps
+only core algorithms reachable from ordinary functions, including recursive
+dependencies; ordinary user functions are never pruned. Removed `text_*`,
+`array_first` and `array_sort_by` wrappers have no compatibility aliases. The
+byte-buffer `text_encode_utf8` and `text_decode_utf8` helpers remain explicit.
+
 ## Sorting and suffix matching
 
-Import `stdlib/collections` for
-`array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T]`.
+Use `values.sort_by(@less)` without imports, where
+`less: PureFn[T,T,Bool]` and `values: [T]`.
 It returns a stable sorted array without changing its input. The comparator
 must return true only when the first element belongs strictly before the second,
 with a consistent strict weak ordering. Equivalent elements retain their input
@@ -53,13 +60,13 @@ pure; their ordering laws are the caller's responsibility and are not checked.
 Comparator traps propagate. Merge sort uses O(n log n) comparisons and O(log n)
 recursive depth; it builds temporary immutable arrays rather than sorting in place.
 
-Import `stdlib/text` for `text_ends_with(value: Str, suffix: Str): Bool`.
+Use `value.ends_with(suffix): Bool` without imports.
 This pure helper matches a literal, case-sensitive suffix. An empty suffix
 matches every value, including empty text; a longer suffix returns false.
 Matching respects Unicode code-point boundaries, without normalization,
 locale rules or glob expansion. A combining code point can itself be a suffix.
 
-Both helpers are also in `stdlib/prelude`. See the executable
+Both methods are available without the prelude. See the executable
 [collections example](../../examples/collections_and_bytes.panack) for sorting
 filenames with a named pure comparator and filtering by suffix.
 

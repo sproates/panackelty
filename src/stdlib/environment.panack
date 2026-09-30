@@ -1,4 +1,3 @@
-import "option.panack"
 
 environment(name: Str): Option[Str] {
   if environment_has(name) {

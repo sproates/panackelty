@@ -229,11 +229,12 @@ no operating-system authority. File-I/O conformance covers UTF-8 text, arbitrary
 bytes, missing and denied paths, missing parents, invalid text, and embedded-NUL
 rejection before host APIs can silently truncate a path.
 
-The standard library under `src/stdlib` is an explicit module graph with a
-convenience `prelude.panack`. Canonical `Option` and `Result` are portable enum
-definitions; text, byte, and checked-environment helpers are Panackelty source.
-Stable comparator-driven array sorting and literal text suffix matching are
-portable library functions; they introduce no compiler or VM primitives.
+The standard library under `src/stdlib` has an implicit core and explicit
+modules with a convenience `prelude.panack`. Canonical `Option` and `Result`
+are portable enums loaded by every source compilation. Sorting and literal
+suffix matching use private source-defined core functions selected by method
+syntax; they add no VM primitives. Byte and checked-environment helpers remain
+explicit Panackelty modules.
 Generic source functions are checked with abstract type parameters. Calls infer
 or explicitly supply a complete substitution, then validate their arguments and
 result. Emission erases type arguments and retains one body per function, using
@@ -1036,3 +1037,7 @@ unmeasured. The hosted page is supplied for user review, not labelled certified
 for iOS. Persistent definitions, redefinition and state recovery remain separate
 REPL design work. Public-site integration is unscheduled; estimate one or two
 implementation PRs only after the toolchain/browser gates are resolved.
+
+## Implicit core and standard methods
+
+The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. It internalises only the core algorithm tokens (`$core_ends_with`, `$core_first`, `$core_sort_by`), retaining source positions. The parser selects these identities for standard dot calls; generic checking and purity use their ordinary source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.

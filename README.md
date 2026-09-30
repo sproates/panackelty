@@ -421,13 +421,11 @@ Tagged unions and exhaustive matching make success and failure part of a
 function's signature:
 
 ```panackelty
-enum Result[T, E] { Ok(T), Error(E) }
-
 pure safe_divide(numerator: Nat, denominator: Nat): Result[Nat,Str] {
   if denominator == 0 {
     Error("division by zero")
   } else {
-    Ok(numerator / denominator)
+    Ok(quotient(numerator, denominator))
   }
 }
 
@@ -483,15 +481,14 @@ The loader treats bytecode as untrusted input. Before execution it validates the
 format version, function and purity metadata, operands, calls, arities, and
 control-flow targets.
 
-The standard library is explicit: use `import stdlib/prelude` for the complete
-surface, or logical imports such as `import stdlib/option`,
-`import stdlib/result`, and `import stdlib/text`. These names work from a source
-checkout and an installed toolchain without exposing its directory layout. See the
-[standard-library guide](src/stdlib/README.md) for the available APIs.
-Use `array_sort_by(values, @comparator)` from `stdlib/collections` for stable
-sorting with a pure comparator, and `text_ends_with(value, suffix)` from
-`stdlib/text` for literal suffix matching. The
-[collections example](examples/collections_and_bytes.panack) demonstrates both.
+`Option[T]`, `Result[T,E]` and their constructors are available without imports.
+Text and collection operations use methods: `"hello.panack".ends_with(".panack")`,
+`values.first()` and `values.sort_by(@comparator)`. Sorting is stable and requires
+a pure comparator. Other library APIs remain explicit: import a module such as
+`stdlib/path`, or `stdlib/prelude` for the combined surface. Logical imports work
+from a checkout and an installed toolchain. See the
+[standard-library guide](src/stdlib/README.md) and
+[collections example](examples/collections_and_bytes.panack).
 The separately imported `stdlib/testing` module provides pure assertions and
 ordered result reporting for Panackelty test programs.
 `stdlib/testing_files` adds sorted fixture-directory discovery and explicitly
@@ -499,8 +496,7 @@ owned temporary workspaces for test isolation.
 `stdlib/testing_commands` compares bounded child-process results and expected
 host failures without requiring a shell or decoding binary output.
 During development, `make functional` uses the Panackelty-hosted runner for
-twenty-five selected success cases, twenty examples, and forty-one failure
-cases, plus a self-hosted compiler check and the runner smoke case from source
+the selected success cases, examples and failure cases, plus a self-hosted compiler check and the runner smoke case from source
 and bytecode.
 
 ## Explore further

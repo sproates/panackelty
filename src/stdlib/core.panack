@@ -1,10 +1,32 @@
-import "option.panack"
+// Automatically loaded core types and method implementations.
+// The loader gives core_* functions internal, source-inaccessible identities.
 
-// Persistent storage operations remain VM primitives. The array map/reduce
-// methods retain compiler lowering; ordinary helpers can use source generics.
-// Legacy prefixed free functions remain bootstrap compatibility spellings.
+enum Option[T] {
+  None,
+  Some(T)
+}
 
-pure array_first[T](values: [T]): Option[T] {
+enum Result[T, E] {
+  Ok(T),
+  Error(E)
+}
+
+// Lengths and offsets use Unicode code points, like starts_with_at.
+pure core_ends_with(value: Str, suffix: Str): Bool {
+  value_length = len(value)
+  suffix_length = len(suffix)
+  if value_length >= suffix_length {
+    // The checker proves constant bounds, not relations between two lengths.
+    // Use exact signed arithmetic and a checked natural-number projection.
+    length: Int = value_length
+    offset = ((length - suffix_length) / 1).nat()
+    starts_with_at(value, suffix, offset)
+  } else {
+    false
+  }
+}
+
+pure core_first[T](values: [T]): Option[T] {
   if values.len() == 0 {
     None()
   } else {
@@ -14,7 +36,7 @@ pure array_first[T](values: [T]): Option[T] {
 
 // Stable merge sort. less(a, b) must describe a strict weak ordering.
 // Equal elements come from the left half first, preserving input order.
-pure array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] {
+pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] {
   if values.len() < 2 {
     values
   } else {
@@ -27,8 +49,8 @@ pure array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] {
     for index in middle..values.len() {
       right_input = right_input.append(values[index])
     }
-    left = array_sort_by(left_input, less)
-    right = array_sort_by(right_input, less)
+    left = core_sort_by(left_input, less)
+    right = core_sort_by(right_input, less)
     mut result: [T] = []
     mut left_index: Nat = 0
     mut right_index: Nat = 0

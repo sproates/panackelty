@@ -57,6 +57,26 @@ whose claims, examples, paths, diagrams, or status are affected:
 If no documentation change is necessary, state in the final response that the
 documentation was reviewed and why it remains accurate.
 
+## Completion handover
+
+Before requesting merge approval, follow the
+[completion handover](docs/ROADMAP_PROCESS.md#completion-handover) and identify
+whether the PR finishes its task, delivers an intermediate slice, or leaves
+post-merge acceptance pending. Treat missing status updates as unfinished PR work.
+
+- The final delivery PR must include the roadmap's Done summary, supported by
+  acceptance evidence, and `Closes #...` for each completed issue. The summary
+  takes effect on merge; do not describe an unmerged PR as already delivered.
+- If acceptance needs deployment or other post-merge verification, keep the issue
+  open and record the exact remaining checks and who will perform them. Use
+  `Refs #...`, not an automatic closing keyword.
+- After an authorised merge, verify the merged roadmap and issue state. Complete
+  any authorised post-merge checks and promptly prepare the completion update;
+  do not leave bookkeeping for the next grooming pass. Further PR merges still
+  require explicit approval.
+- Include completion state and any remaining acceptance in the final handover.
+  If a task has no issue, say so rather than creating one solely to close it.
+
 ## Repository hygiene
 
 Perform a cleanup audit after every change and before final validation:

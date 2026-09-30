@@ -18,6 +18,7 @@ which implementation should come next.
 | Ready for prioritisation | Enough evidence to compare with other work |
 | Planned | Priority, scope and completion criteria agreed with the user |
 | In progress | Actively being implemented |
+| Verification pending | Implementation merged; specified post-merge acceptance remains |
 | Done | Acceptance criteria and required verification complete |
 | Deferred | Deliberately postponed, with a reason and revisit trigger |
 
@@ -121,11 +122,12 @@ decisions must not exist only in a chat, issue comment or GitHub Project.
    roadmap PR. A linked issue need not duplicate the authoritative priority.
    If records conflict, resolve against the repository and document any newly
    agreed change; do not silently promote a discussion into a commitment.
-5. Link implementation PRs to their issue and roadmap item. Define verification
-   and reflect completion evidence in the PR and affected repository documents.
-   Do not auto-close on merge when deployment or other acceptance remains open.
-6. Close an issue after its acceptance evidence is complete and the repository
-   completion summary is merged. For duplicates or rejected proposals, record
+5. Link implementation PRs to their issue and roadmap item. Apply the
+   [completion handover](#completion-handover) before requesting merge approval:
+   the final delivery PR includes its completion summary and closing keywords
+   unless specified post-merge acceptance remains.
+6. Verify issue closure after the acceptance evidence is complete and the
+   repository completion summary merges. For duplicates or rejected proposals, record
    the reason and canonical link; preserve significant decisions in the repo.
    Deferred work keeps a reason and revisit trigger, not an implied deadline.
 
@@ -158,10 +160,44 @@ Finish against that scope, not broad wording such as "comprehensive". Follow
 repository validation requirements; informational documentation uses its
 applicable checks, while implementation work retains canonical validation.
 
-Update shipped status once the required verification completes. If live release
-or deployment verification is part of acceptance, a merged PR alone is not
-completion. Mark partial results and outstanding verification explicitly, and
-record a follow-up without implying it has already been delivered.
+### Completion handover
+
+Completion bookkeeping belongs to the delivery work. Before requesting merge
+approval, identify the PR's outcome and reconcile its issue, roadmap entry and
+acceptance evidence. The PR template prompts this review; it cannot determine
+whether semantic acceptance is actually complete.
+
+| PR outcome | Required roadmap update | Issue linkage |
+| --- | --- | --- |
+| Final delivery; acceptance can be verified before merge | Include Done status, delivered scope and verified acceptance in this PR, effective when merged | Use `Closes #...` in the PR body for each completed issue |
+| Implementation complete; acceptance requires deployment or another post-merge check | Include Verification pending, the exact remaining checks and the person or agent responsible | Use `Refs #...`; keep the issue open |
+| Intermediate slice | Record delivered scope and concrete remaining work; retain In progress only while implementation is active | Use `Refs #...`; do not close the parent task |
+
+For a final delivery PR, ensure all required checks have passed on the reviewed
+head before merge approval. Write the completion summary as the resulting state
+of the merged repository; the PR remains in review until it merges. Do not invent
+a merge SHA or date in advance, and do not make a routine second bookkeeping PR
+a prerequisite when acceptance is already complete. Optional future extensions
+do not keep an otherwise completed, bounded task open.
+
+After an explicitly authorised merge, the agent handling delivery must verify
+the merged roadmap state and linked issue closure before its final handover.
+If automatic closure did not occur, close the issue once acceptance and the
+merged completion summary are confirmed. Keep released, implemented-unreleased
+and proposed capability distinct.
+
+Where post-merge acceptance is required, perform the authorised checks in the
+same delivery session where possible. Once they pass, promptly prepare the
+completion-summary PR with the evidence and closing keyword. That PR still needs
+separate merge approval. If verification is blocked, retain Verification pending
+with the concrete blocker, next action and responsible person or agent; do not
+claim completion or defer an unexplained status to future grooming.
+
+Every final handover states the task's completion status and any remaining
+acceptance. For work without a linked issue, record that fact; do not create an
+issue solely for closure. These rules apply to investigations and documentation
+tasks as well as implementation. An investigation closes against its agreed
+decision or evidence, not delivery of the feature it investigated.
 
 ## Adoption sequence
 

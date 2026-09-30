@@ -9,7 +9,7 @@ mkdir -p "$out/vm" "$out/stdlib"
 # The browser consumer needs the portable VM implementation but supplies its own
 # host-capability adapter. Native networking and CLI entry points are not part of
 # this dependency bundle.
-vm_files='bigint.c bigint.h buffer.c buffer.h builtins.c builtins.h builtins_collections.c builtins_internal.h builtins_numeric.c builtins_text.c builtins_vm.c decode.c decode.h execute.c host.c host.h host_capabilities.h host_types.c host_types.h numeric.c numeric.h platform.h program.c program.h render.c render.h tasks.c tasks.h utf8.c utf8.h value.c value.h verify.c verify.h vm.h'
+vm_files='bigint.c bigint.h buffer.c buffer.h builtins.c builtins.h builtins_collections.c builtins_internal.h builtins_numeric.c builtins_text.c builtins_vm.c decode.c decode.h execute.c host.c host.h host_capabilities.h host_types.c host_types.h main.c numeric.c numeric.h platform.h program.c program.h render.c render.h tasks.c tasks.h tcp.c tcp.h tcp_server.c tcp_server.h utf8.c utf8.h value.c value.h verify.c verify.h vm.h'
 for file in $vm_files; do cp "$root/src/vm/$file" "$out/vm/$file"; done
 cp "$root/bootstrap/compiler-v9.bc" "$out/compiler-v9.bc"
 cp "$root"/src/stdlib/*.panack "$out/stdlib/"
@@ -36,10 +36,10 @@ hash_file() {
   printf 'sha256 %s %s\n' "$(hash_file "$out/BYTECODE_FORMAT.md")" BYTECODE_FORMAT.md
 } > "$out/MANIFEST"
 
-# Consumer contract: no native host-capability implementation, networking or CLI.
-for forbidden in host_capabilities.c tcp.c tcp.h tcp_server.c tcp_server.h main.c; do
-  [ ! -e "$out/vm/$forbidden" ]
-done
+# Consumer contract: the browser supplies the host-capability implementation.
+[ ! -e "$out/vm/host_capabilities.c" ]
+[ -e "$out/vm/host_capabilities.h" ]
+[ -e "$out/vm/main.c" ]
 grep -qx 'format=1' "$out/MANIFEST"
 grep -qx "panackelty_version=$version" "$out/MANIFEST"
 grep -qx 'bytecode_version=9' "$out/MANIFEST"

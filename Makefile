@@ -1,4 +1,4 @@
-.PHONY: all check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
+.PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
 
 CFLAGS ?= -O2
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
@@ -52,6 +52,9 @@ export PANACK_PROBE_CACHE := $(abspath $(BUILD_DIR))/probes
 export PANACK_PROBE_SEED := $(abspath $(SEED_COMPILER))
 
 all: native
+
+browser-runtime-bundle:
+	@sh scripts/browser_runtime_bundle.sh
 
 check:
 	@$(TIMED) check $(CHECK_BUDGET_SECONDS) sh tests/check.sh $(MAKE) --no-print-directory check-phases

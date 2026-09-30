@@ -31,6 +31,19 @@ installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
 
+## Browser/WASM boundary investigation — 2026-10-01
+
+Issue #151 records new evidence that browser-specific CI is imposing material
+feedback latency on unrelated core changes. The bounded investigation recommends
+a separate browser/playground repository **after one explicit core dependency
+boundary is prepared**, rather than copying the current source-tree coupling
+across repositories. See [the investigation](docs/BROWSER_WASM_BOUNDARY.md).
+
+This is an evidence-triggered early grooming decision. It does not itself count
+as an accepted implementation deliverable or reset the three-deliverable
+checkpoint. The proposed implementation sequence remains subject to review and
+merge approval.
+
 ## Current status and grooming, 2026-09-30
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,

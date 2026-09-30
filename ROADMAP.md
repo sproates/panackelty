@@ -632,6 +632,52 @@ owns the state and scope. The initial unscheduled idea was recorded on
 2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
 The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
+## Core types and discoverable text/collection methods
+
+Work record: [issue #116](https://github.com/sproates/panackelty/issues/116).
+State: Idea, unscheduled. Recorded on 2026-09-30 following hands-on feedback
+from the website playground. The user requested this roadmap proposal;
+implementation scope and priority remain to be agreed.
+
+`Option[T]` and `Result[T,E]` should be usable without stdlib imports, and
+ordinary text/collection operations should be discoverable as methods on values
+of the appropriate type. Existing import-free `.starts_with()` and `.reverse()`
+make the imported `text_ends_with` helper inconsistent. The proposed equivalent
+is `print("hello.panack".ends_with(".panack"))`, preserving the literal suffix.
+Most current dot calls still resolve global functions; the proposal must settle
+receiver-type lookup rather than merely shorten prefixed function names.
+
+- [ ] Define minimal implicit availability for Option/Result and their
+      constructors, including canonical definitions, legacy imports and name
+      collisions; decide helper exposure separately from core types
+- [ ] Inventory text and collection APIs and select concise, type-appropriate
+      methods, beginning with `Str.ends_with`; cover literals, variables and
+      chaining, global receiver-first calls, fields, generics, purity and useful
+      wrong-receiver/unknown-method diagnostics
+- [ ] Agree compatibility or explicit preview migration for existing helpers,
+      imports and user names; coordinate with the namespace proposals below
+      without assuming full namespaces must ship first
+- [ ] Deliver independently scoped slices with meaningful compiler and public-CLI
+      tests, source/saved-bytecode parity, installed-package/bootstrap checks,
+      browser integration and updated language/library examples and contracts
+
+Value: less import ceremony and a more consistent API for developers and coding
+agents. Estimated M for core availability and M–L for methods and migration,
+including tests, docs and integration; provisionally one bounded design PR and
+2–3 implementation PRs. Confidence in the friction is high; lookup rules and
+migration cost need assessment. Risks are name capture, duplicate definitions,
+inference/effect regressions and differences between native and browser builds.
+Delay prolongs learning friction rather than a known correctness defect.
+
+Acceptance includes import-free construction and matching of both core types,
+legacy import coexistence, name-resolution failures, unchanged purity and
+persistent collection semantics, suffix edge cases and real playground usage.
+Implementation must pass `make check` and relevant browser checks. Keep one
+coherent contract across the compiler, stdlib, packages and browser assets.
+Full namespaces, classes, inheritance, dynamic dispatch and general user-defined
+extension methods are outside this proposal. A minimal core prelude is a candidate
+mechanism; implicitly importing the entire stdlib is not the proposed outcome.
+
 ## Language namespaces — idea
 
 Assess first-class language support for namespaces separately from the existing

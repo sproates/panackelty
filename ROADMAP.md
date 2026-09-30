@@ -634,10 +634,24 @@ owns the state and scope. The initial unscheduled idea was recorded on
 2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
 The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
+## Developer preview alpha.10 release
+
+State: In progress. Priority: Now. Selected on 2026-09-30 after the website and
+core-library changes shipped. One release PR updates the version, migration
+notes, download instructions and website labels. Provide a website preview before
+merge approval. Publication follows the approved merge, using the exact validated
+main commit. Completion requires Linux x86-64 and macOS arm64 release gates,
+checksums/provenance and downloaded-archive quick-start verification.
+
+The release aligns downloads with the playground's core language APIs and v9
+bytecode. Real networking and broader build-cache work remain separate.
+
 ## Playground deployment cache consistency
 
 Work record: [issue #119](https://github.com/sproates/panackelty/issues/119).
-State: In progress. Priority: Now. Selected on 2026-09-30 after the browser kept
+State: Done. PR #120 merged and deployed on 2026-09-30. All 23 hosted checks
+passed; live reload loaded versioned assets and the import-free text example
+ran successfully. Selected on 2026-09-30 after the browser kept
 an obsolete imported text example following the core-method deployment.
 
 Version the entire playground asset set together and test normal reload from a

@@ -1,6 +1,6 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.9` is a developer preview. It is intended for learning,
+Panackelty `0.1.0-alpha.10` is a developer preview. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 
@@ -65,7 +65,7 @@ is in alpha:
   distribution format. The VM currently accepts bytecode version 9 only, and
   compatibility with bytecode produced by another Panackelty release is not
   promised. Version 8 artifacts must be recompiled from source; loaders reject
-  them explicitly. The unreleased v9 seed replaces the v8 seed.
+  them explicitly. The alpha.10 v9 seed replaces the alpha.9 v8 seed.
 - Patch releases in the same preview series should correct defects without
   deliberately changing accepted source programs.
 

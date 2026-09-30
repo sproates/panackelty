@@ -4,34 +4,48 @@ Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
 in `RELEASE_POLICY.md`.
 
-## Unreleased
+## 0.1.0-alpha.10 — 2026-09-30
 
-- Publish playground dependencies under a shared content-hashed directory so
-  refreshed pages use matching examples, worker, compiler and standard library
-  even when the browser has cached a previous deployment.
+### Breaking changes and migration
 
-- Breaking source/API change: Option/Result and their constructors are implicit.
-  Replace imported `text_*`, `array_first` and `array_sort_by` calls with text/array
-  methods; remove `stdlib/text` and `stdlib/collections` imports. Option/result
-  modules retain only explicit value-or helpers. Core names cannot be redeclared.
-  Compiler, examples and playground migrate together; bytecode remains v9.
+- Saved bytecode moves from v8 to v9. Recompile existing `.bc` files from source;
+  the VM rejects v8 artifacts. Source checking, the compiler seed and runtime
+  are packaged together.
+- `Option[T]`, `Result[T,E]` and their constructors are implicit. Remove imports
+  used only for these types; their names can no longer be redeclared.
+- Remove `stdlib/text` and `stdlib/collections` imports. Replace imported
+  `text_*` helpers with methods on strings, `array_first(values)` with
+  `values.first()`, and `array_sort_by(values, @compare)` with
+  `values.sort_by(@compare)`. The option/result modules retain explicitly
+  imported `option_value_or` and `result_value_or` helpers.
 
-- Add a bounded async/await source interface, AsyncFn references and typed fake
-  read completions, with host cancellation and strict call-effect checks. Refresh
-  the compiler seed to bytecode v9; saved v8 artifacts require recompilation.
-  No real networking, source spawning or resource scopes are included.
+### Language and runtime
 
-- Add an internal fake-host task/lifecycle experiment with scoped joins, bounded
-  completion queues, virtual deadlines and cancellation cleanup. CLI, source
-  syntax and bytecode remain unchanged; no OS networking is introduced.
+- Text and collection methods are available without imports, including
+  `.ends_with()`, `.first()` and stable `.sort_by()`. Standard method names
+  cannot be captured by unrelated global functions. Suffix matching is literal
+  and case-sensitive; sorting requires a pure comparator.
+- Add experimental `async`/`await`, `AsyncFn` references and typed fake-read
+  completions, with checked effects and nested suspension. This is a bounded
+  experiment: no real networking, source spawning or resource scopes.
+- Replace native-recursive calls with owned resumable VM frames and an internal
+  budgeted execution API. Add fake-host task/lifecycle experiments with scoped
+  joins, bounded completion queues, virtual deadlines and cancellation cleanup.
+- Amortise persistent array append while preserving immutable value semantics.
 
-- Replace native-recursive Panackelty calls with owned resumable VM frames and
-  add an internal budgeted execution API with a restricted host-controlled mode.
-  Existing CLI and bytecode behavior remain compatible; source async syntax and
-  networking are not introduced.
+### Website and development
 
-- Add stable `array_sort_by` with pure comparators and literal, case-sensitive
-  `text_ends_with`, with Unicode-aware contracts and executable examples.
+- Add a browser playground using the existing compiler and VM through
+  WebAssembly, with nine editable examples and a visual explanation of execution.
+  Source compilation and execution stay on the user's device. Host capabilities
+  remain more limited than the downloadable native toolchain.
+- Version the complete playground asset set together to avoid mixing cached
+  examples, workers, compiler and standard library across deployments.
+- Expand the website's examples, installation guide and engineering information;
+  publish native C coverage reports alongside it.
+- Reduce duplicated validation work, reuse safe build artifacts, overlap suites
+  and partition hosted checks. Keep unit, functional, bootstrap and exact-package
+  gates, with additional browser checks in Chromium, Firefox and WebKit.
 
 ## 0.1.0-alpha.9 — 2026-09-26
 

@@ -72,3 +72,11 @@ test('homepage navigation and every selectable example work at website paths',as
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('link',{name:'Try it online',exact:true})).toBeVisible();
 });
+
+test('core types and chained methods need no imports',async({page})=>{
+  await page.goto('/playground/');
+  await run(page,'pure less(a: Nat,b: Nat): Bool { a < b } main(): Void { value: Result[Nat,Str] = Ok(42); print(value); print([3,1,2].sort_by(@less).first()); print("hello.panack".ends_with(".panack")); print("42".parse_nat()) }');
+  await expect(page.locator('#output')).toHaveText('Ok(42)\nSome(1)\ntrue\n42\n');
+  await run(page,'main(): Void { print(1.ends_with("x")) }');
+  await expect(page.locator('#output')).toContainText('expected Str');
+});

@@ -664,6 +664,10 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
 
 pure lowered_method_name(name: Str): Str {
   mut result: Str = name
+  if name == "ends_with" { result = "$core_ends_with"; }
+  if name == "first" { result = "$core_first"; }
+  if name == "sort_by" { result = "$core_sort_by"; }
+  if name == "parse_nat" { result = "nat_from_str"; }
   if name == "put" { result = "$method_put"; }
   if name == "has" { result = "$method_has"; }
   if name == "get" { result = "$method_get"; }
@@ -1682,4 +1686,18 @@ pure parse_type_source(source: Str): Str {
     },
     Error(errors) => "lexing failed"
   }
+}
+
+// Preserve token positions while hiding implementation function identities.
+pure core_tokens(tokens: [Token]): [Token] {
+  mut result: [Token] = []
+  for token in tokens {
+    name: Str = if token.kind == Identifier() &&
+      (token.text == "core_ends_with" || token.text == "core_first" || token.text == "core_sort_by") {
+      "$" + token.text
+    } else { token.text }
+    result = result.append(Token(token.kind, name, token.start, token.end,
+      token.position, token.end_line, token.end_column))
+  }
+  result
 }

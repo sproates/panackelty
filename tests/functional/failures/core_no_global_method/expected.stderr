@@ -1,0 +1,3 @@
+error: <case>/main.panack:1:22: unknown function ends_with
+  1 | main(): Void { print(ends_with("a", "a")) }
+    |                      ^

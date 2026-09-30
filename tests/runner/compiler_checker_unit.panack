@@ -26,15 +26,33 @@ checker_unit_source(name: Str, expected: Str): TestResult {
 }
 
 checker_sort_contract(source: Str): Str {
-  check_loaded_source_types([
-    LoadedSource("main.panack", "import \"collections.panack\"; " + source),
-    LoadedSource("collections.panack", read_file("src/stdlib/collections.panack")),
-    LoadedSource("option.panack", read_file("src/stdlib/option.panack"))
-  ], "main.panack")
+  match lex(read_file("src/stdlib/core.panack")) {
+    Error(errors) => "core lexing failed",
+    Ok(tokens) => { match parse_program_complete(core_tokens(tokens)) {
+      Error(error) => error.message,
+      Ok(core) => { match lex(source) {
+        Error(errors) => "test lexing failed",
+        Ok(input) => { match parse_program_complete(input) {
+          Error(error) => error.message,
+          Ok(program) => render_resolver_diagnostics(check_program_types(
+            Program(concat(core.declarations, program.declarations))))
+        } }
+      } }
+    } }
+  }
 }
 
 main(): Void {
   mut results: [TestResult] = []
+  results = results.append(checker_unit_compare("core/wrong-text-receiver",
+    checker_sort_contract("main(): Void { print(42.ends_with(\"x\")); }"), "expected Str"))
+  results = results.append(checker_unit_compare("core/wrong-array-receiver",
+    checker_sort_contract("main(): Void { print(42.first()); }"), "argument 1"))
+  results = results.append(checker_unit_compare("core/empty-first-needs-type",
+    checker_sort_contract("main(): Void { print([].first()); }"), "cannot infer type parameter T"))
+  results = results.append(checker_unit_compare("core/empty-first-explicit-type",
+    checker_sort_contract("main(): Void { print([].first[Str]()); }"), "ok"))
+
   // Former test_accepts_core_types_records_enums_and_control_flow
   results = results.append(checker_unit_source("accepts_core_types_records_enums_and_control_flow-1", "ok"))
   // Former test_accepts_if_without_else_in_void_position
@@ -94,10 +112,10 @@ main(): Void {
       LoadedSource("broken.panack", "broken(): Void {\n  invalid: Nat = \"bad\";\n}")
     ], "main.panack"), "broken.panack:2:18: cannot assign Str to Nat; guard is not proven"))
   results = results.append(checker_unit_compare("sort accepts pure comparator",
-    checker_sort_contract("pure less(a: Nat, b: Nat): Bool { a < b } main(): Void { print(array_sort_by([2, 1], @less)); }"), "ok"))
+    checker_sort_contract("pure less(a: Nat, b: Nat): Bool { a < b } main(): Void { print([2, 1].sort_by(@less)); }"), "ok"))
   results = results.append(checker_unit_compare("sort rejects effectful comparator",
-    checker_sort_contract("less(a: Nat, b: Nat): Bool { print(a); a < b } main(): Void { print(array_sort_by([2, 1], @less)); }"), "expected PureFn"))
+    checker_sort_contract("less(a: Nat, b: Nat): Bool { print(a); a < b } main(): Void { print([2, 1].sort_by(@less)); }"), "expected PureFn"))
   results = results.append(checker_unit_compare("sort rejects nonboolean comparator",
-    checker_sort_contract("pure less(a: Nat, b: Nat): Nat { a } main(): Void { print(array_sort_by([2, 1], @less)); }"), "expected PureFn"))
+    checker_sort_contract("pure less(a: Nat, b: Nat): Nat { a } main(): Void { print([2, 1].sort_by(@less)); }"), "expected PureFn"))
   if test_report(results) > 0 { process_exit(1) }
 }

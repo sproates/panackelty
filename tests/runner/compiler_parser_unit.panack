@@ -773,6 +773,9 @@ pure parser_unit_reports_malformed_type_references(): [TestResult] {
 
 main(): Void {
   mut results: [TestResult] = []
+  results = results.append(test_equal_str("parser/core-method-private-identity",
+    parse_source("items.sort_by(@less).first()"), "$core_first($core_sort_by(items, @less))"))
+
   results = results.concat(parser_unit_binary_operators_are_left_associative())
   results = results.concat(parser_unit_generic_function_syntax_and_explicit_calls_round_trip())
   results = results.concat(parser_unit_match_expressions_participate_in_precedence_and_blocks())

@@ -1,6 +1,6 @@
+import stdlib/result
 import stdlib/testing_files
 import stdlib/testing_commands
-import stdlib/text
 
 pure path(value: Str): Path {
   result_value_or(path_from_text(value), path_current())
@@ -12,8 +12,8 @@ pure child(root: Path, name: Str): Path {
 
 pure contains(value: Str, fragment: Str): Bool {
   mut found = false
-  for index in 0..text_length(value) {
-    if text_starts_with_at(value, fragment, index) { found = true }
+  for index in 0..value.len() {
+    if value.starts_with_at(fragment, index) { found = true }
   }
   found
 }
@@ -108,9 +108,9 @@ main(): Void {
         },
         Ok(content) => {
           value = utf8_decode(content)
-          size = text_length(value)
+          size = value.len()
           if size > 0 {
-            release = text_slice(value, 0, size - 1)
+            release = value.slice(0, size - 1)
             results = results.append(test_run_command("version", command(["--version"]),
               ProcessOutput(0, 0, utf8_encode("panack ${release} (bytecode 9)\n"), bytes())))
           } else {

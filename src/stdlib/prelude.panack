@@ -1,7 +1,5 @@
 import "option.panack"
 import "result.panack"
-import "collections.panack"
-import "text.panack"
 import "bytes.panack"
 import "path.panack"
 import "environment.panack"

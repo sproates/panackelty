@@ -1,5 +1,3 @@
-import stdlib/option
-import stdlib/result
 
 pure value_or(option: Option[Nat], fallback: Nat): Nat {
   match option {

@@ -580,6 +580,58 @@ pure emit_expression(expression: Expr, program: Program, next_temporary: Nat, of
   }
 }
 
+// Core routines are implicit but emitted only when reachable from user code.
+// Keep all ordinary functions: only compiler-owned implementation names are pruned.
+pure core_call_name(instruction: Instruction): Str {
+  match instruction {
+    ConstInstruction(a0) => "",
+    LoadInstruction(a0) => "",
+    StoreInstruction(a0) => "",
+    PopInstruction() => "",
+    UnaryInstruction(a0) => "",
+    BinaryInstruction(a0) => "",
+    MakeRangeInstruction() => "",
+    MakeArrayInstruction(a0) => "",
+    IndexGetInstruction() => "",
+    InterpolateInstruction(a0) => "",
+    IterInitInstruction(a0) => "",
+    IterNextInstruction(a0, a1, a2) => "",
+    MakeRecordInstruction(a0, a1) => "",
+    FieldGetInstruction(a0) => "",
+    MakeVariantInstruction(a0, a1, a2) => "",
+    MatchVariantInstruction(a0, a1) => "",
+    MatchFailInstruction() => "",
+    CallInstruction(a0, a1) => a0,
+    CallValueInstruction(a0) => "",
+    AwaitCallInstruction(a0, a1) => a0,
+    AwaitValueInstruction(a0) => "",
+    JumpFalseInstruction(a0) => "",
+    JumpInstruction(a0) => "",
+    PendingEndJumpInstruction() => "",
+    ReturnInstruction() => ""
+  }
+}
+
+pure used_core_functions(functions: [FunctionCode]): Set[Str] {
+  mut used: Set[Str] = set()
+  mut changed: Bool = true
+  while changed {
+    changed = false
+    for function in functions {
+      if !function.name.starts_with("$core_") || used.has(function.name) {
+        for instruction in function.instructions {
+          name: Str = core_call_name(instruction)
+          if name.starts_with("$core_") && !used.has(name) {
+            used = used.add(name)
+            changed = true
+          }
+        }
+      }
+    }
+  }
+  used
+}
+
 pure compile_program(program: Program): BytecodeProgram {
   mut functions: [FunctionCode] = []
   for declaration in program.declarations {
@@ -595,7 +647,14 @@ pure compile_program(program: Program): BytecodeProgram {
       EnumDeclaration(name, parameters, variants) => {}
     }
   }
-  BytecodeProgram(functions)
+  used: Set[Str] = used_core_functions(functions)
+  mut selected: [FunctionCode] = []
+  for function in functions {
+    if !function.name.starts_with("$core_") || used.has(function.name) {
+      selected = selected.append(function)
+    }
+  }
+  BytecodeProgram(selected)
 }
 
 pure compile_source_disassembly(source: Str): Str {

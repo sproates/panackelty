@@ -1,5 +1,3 @@
-import "result.panack"
-import "option.panack"
 
 enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
 

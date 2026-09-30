@@ -224,7 +224,20 @@ chained from left to right. Because constructor calls share the global callable
 namespace, the same lowering applies to them, although normal arity and type
 rules still govern whether such a call is useful.
 
-Four collection names are method-only exceptions to global lookup. `put` and
+Standard core methods are available without imports. `Str` provides `len`,
+`slice`, `starts_with`, `starts_with_at`, `ends_with`, `reverse`, `is_digit`,
+`is_letter`, `is_whitespace` and `parse_nat`. Arrays provide `len`, `append`,
+`concat`, `map`, `reduce`, `first` and `sort_by`. `first()` returns `Option[T]`;
+use `[].first[Str]()` when an empty receiver provides no element-type evidence.
+`parse_nat()` has the same checked parsing/trap contract as `nat_from_str`.
+Standard method names select their compiler/core operation, with the receiver
+checked against its signature; unrelated global functions named `ends_with`,
+`first`, `sort_by` or `parse_nat` cannot capture those calls. Other names retain
+the ordinary receiver-first rule. These methods do not introduce unqualified
+functions of the same name. Existing globally reserved VM primitives remain
+reserved. Record field access without parentheses is unchanged.
+
+Four collection names are additional method-only exceptions to global lookup. `put` and
 `get` require a `Map[K,V]` receiver, `add` requires a `Set[T]` receiver, and
 `has` accepts either a map/key pair or a set/element pair. These names are
 resolved from the receiver type and do not reserve the corresponding global
@@ -490,14 +503,14 @@ and trap before any filesystem operation rather than being truncated.
 The canonical library is an explicit module graph imported as
 `stdlib/prelude`; no module is imported implicitly. It defines
 `Option[T]` with `None`/`Some` and `Result[T,E]` with `Ok`/`Error`. Portable
-source wrappers provide the `text_*`, `bytes_*`, and checked
+source wrappers provide the `bytes_*` and checked
 `environment(name): Option[Str]` APIs listed in `src/stdlib/README.md`.
 
 Persistent array, map, and set operations and the `path_*` operations retain
 their compiler-known polymorphic signatures. They are part of the standard
 library surface: storage operations still execute as VM primitives, while array
 `map` and `reduce` retain their compiler lowering. Source generics provide
-`option_value_or[T]`, `result_value_or[T,E]`, and `array_first[T]` without new
+`option_value_or[T]`, `result_value_or[T,E]`, and array `first[T]()` without new
 primitives. Host access remains limited to the ABI calls identified above.
 
 `len` also accepts arrays and byte buffers.
@@ -546,8 +559,7 @@ spellings of their built-ins. `reverse` operates on Unicode code points, so it
 preserves each code point while reversing their order; it does not attempt
 grapheme-cluster segmentation. The VM traps on an out-of-bounds string index.
 
-The explicit `stdlib/text` module also provides
-`pure text_ends_with(value: Str, suffix: Str): Bool`. It tests a literal,
+The import-free `value.ends_with(suffix): Bool` method is pure. It tests a literal,
 case-sensitive suffix on Unicode code-point boundaries. Empty suffixes always
 match; suffixes longer than the value never match. No normalization, locale
 collation or wildcard interpretation is performed.
@@ -564,8 +576,8 @@ for value in 0..10 {
 
 Range expressions may be bound to inferred locals for later iteration.
 
-The explicit `stdlib/collections` module provides
-`pure array_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T]`.
+The import-free array method `values.sort_by(less)` accepts
+`less: PureFn[T,T,Bool]` for `values: [T]` and returns `[T]`.
 It returns a stable sorted array, leaving the input unchanged. The pure
 comparator must define a strict weak ordering (true means strictly before);
 these ordering laws are not checked. Equivalent elements keep their original
@@ -627,8 +639,7 @@ Records and enums may declare type parameters:
 
 ```panackelty
 record Pair[A, B] { first: A, second: B }
-enum Option[T] { None, Some(T) }
-enum Result[T, E] { Ok(T), Error(E) }
+enum Choice[T] { EmptyChoice, Chosen(T) }
 ```
 
 Constructor arguments infer type parameters. A constructor with no evidence,
@@ -685,12 +696,22 @@ bounds checks in lexers and parsers.
 
 ## Modules
 
+`Option[T]`, `Result[T,E]` and the constructors `None`, `Some`, `Ok` and
+`Error` are implicitly available in every source program and imported module.
+They are defined once in the bundled `core.panack`; redeclaring their names is
+an error. The loader requires a configured stdlib root containing this core,
+including when `PANACKELTY_STDLIB_PATH` is overridden. The public launcher
+configures the bundled root. No host, testing or value-or helpers are implicitly
+imported. `stdlib/option` and `stdlib/result` now contain only the explicitly
+imported `option_value_or` and `result_value_or` helpers. `stdlib/text` and
+`stdlib/collections` and their prefixed wrappers have been removed; use methods.
+
 Modules support quoted file-relative imports and logical imports:
 
 ```panackelty
 import "token.panack"
 import project/shared/diagnostic
-import stdlib/option
+import stdlib/path
 ```
 
 Quoted paths without a reserved logical prefix are resolved relative to the
@@ -936,7 +957,7 @@ a value; use Unit for no data. Async main takes no parameters and returns Unit.
 A directly discarded non-Unit await expression must be bound, matched or returned.
 This is a limited result-use check, not proof that every computed value is used.
 
-Import `stdlib/result` to use `async_fake_read(fail: Bool): Result[Bytes,Str]`.
+Use `async_fake_read(fail: Bool): Result[Bytes,Str]`.
 It is an experimental fixed service, available only via await. The CLI suspends
 then completes it with `Ok(utf8_encode("fake bytes"))` for false or
 `Error("fake I/O error")` for true. No file or socket is opened. Hosts may deliver

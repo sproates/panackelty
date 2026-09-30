@@ -90,3 +90,7 @@ viewport, real module workers, asset loading, stdlib/exactness/Unicode, diagnost
 literal output, stop/restart, timeout, input/output limits and load errors.
 WebKit on Linux is not physical iPhone/Safari validation. Review the workflow's
 actual result; having test code alone is not evidence that engines passed.
+
+## Core-library integration
+
+The text, collections and result examples use import-free core types and methods. The browser uses the same compiler seed and core module as native execution; no browser-only source rewriting is involved. Direct compiler filesystem fixtures must supply the bundled stdlib, including core.panack. Rebuild both compiler and stdlib browser assets together.

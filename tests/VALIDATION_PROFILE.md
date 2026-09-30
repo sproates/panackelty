@@ -1287,3 +1287,38 @@ browser latency promises. Phone performance, cold network loading, background
 cancellation, peak total memory and cross-browser compatibility still need
 measurement before public-site integration. The existing native validation
 performance backlog and 120s/15s budgets remain unchanged by this experiment.
+
+## Implicit core methods: 2026-09-30
+
+Local macOS/Apple silicon comparison against the previous v9 seed at main
+73e0e8f, using the same native VM and pinned WASI SDK 34.0 build. Seven warm
+samples per variant followed one warm-up, alternating old/new order. Programs
+print a greeting or test the same literal suffix; the older suffix source
+imports stdlib/text, the new source calls `.ends_with()`. These are small local
+compilation measurements, not end-to-end browser/network or phone timings.
+
+| Workload | Old native median | New native median | Old WASI median | New WASI median |
+| --- | ---: | ---: | ---: | ---: |
+| hello | 4.67 ms | 21.67 ms | 2.05 ms | 15.00 ms |
+| suffix | 15.60 ms | 24.66 ms | 9.02 ms | 14.50 ms |
+
+Implicit loading parses and checks the source-defined core even for tiny
+programs. The measured regression is roughly 17 ms native / 13 ms WASI for the
+greeting, and 9 ms / 5 ms for suffix matching. This is an explicit latency cost,
+not a speed improvement. Emitting only reachable core algorithms keeps greeting
+bytecode unchanged at 46 bytes and reduces suffix bytecode from 886 to 350 bytes.
+If larger programs or slower devices make the fixed core cost material, assess
+cached/prevalidated core frontend work in the existing incremental-build backlog;
+do not skip checking user code or silently expand implicit library loading.
+
+| Asset | Old bytes | New bytes | Old gzip-9 bytes | New gzip-9 bytes |
+| --- | ---: | ---: | ---: | ---: |
+| compiler | 261561 | 265217 | 50078 | 50902 |
+| stdlib_json | 12420 | 11349 | 3551 | 3358 |
+
+VM/Wasm sources and the bytecode format are unchanged. Gzip values are local
+compression measurements, not verified CDN transfer sizes. Browser runtime
+contracts pass 13/13; real Chromium, Firefox and WebKit tests pass 18/18,
+including import-free construction, chained methods and wrong-receiver errors.
+The full functional runner passes 297 assertions. These results precede the
+final clean canonical check; its result is recorded in the PR validation summary.

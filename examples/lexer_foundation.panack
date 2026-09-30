@@ -22,10 +22,7 @@ record Diagnostic {
   position: SourcePos
 }
 
-enum Result[T, E] {
-  Ok(T),
-  Error(E)
-}
+
 
 pure scan_number(source: Str, start: Nat): Nat {
   mut cursor: Nat = start

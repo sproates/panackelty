@@ -116,3 +116,7 @@ Async declarations carry a separate AST effect flag. Await uses a unary AST node
 whose operand must be a call; emission rewrites only that call's final invocation,
 leaving argument calls unchanged. The effect pass checks ordinary, pure and async
 contexts, including inferred callable targets. AsyncFn never coerces to Fn/PureFn.
+
+## Implicit core loading
+
+The project loader requires the bundled `core.panack` and loads it once before entry/import traversal. Core function tokens receive internal identities while preserving locations. Standard `ends_with`, `first`, `sort_by` and `parse_nat` dot calls select fixed implementations; signatures enforce receiver types and existing generic/purity rules. Ordinary user receiver-first calls remain supported outside that method set. The emitter omits unreachable core algorithms only; it does not remove user functions. Pure parser/checker test helpers still accept explicit AST/module inputs and do not perform filesystem-based implicit loading.

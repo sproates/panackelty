@@ -123,7 +123,8 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
               ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources)
             },
             Ok(tokens) => {
-              match parse_program_complete(tokens) {
+              selected: [Token] = if path == path_join(stdlib_root, "core.panack") { core_tokens(tokens) } else { tokens }
+              match parse_program_complete(selected) {
                 Error(error) => {
                   diagnostics: [Diagnostic] = append(state.diagnostics, error)
                   ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources)
@@ -193,7 +194,15 @@ load_project(entry: Str): LoadedProject {
   empty: Set[Str] = set()
   initial: ProjectLoadState = ProjectLoadState([], empty, [], map())
   stack: [Str] = []
-  loaded: ProjectLoadState = load_project_module(resolved, initial, stack, project_root, stdlib_root)
+  mut core: ProjectLoadState = initial
+  if len(stdlib_root) == 0 {
+    core = ProjectLoadState([], empty, [loader_diagnostic("standard library root is not configured; core types require the bundled standard library")], map())
+  } else {
+    core = load_project_module(path_join(stdlib_root, "core.panack"), initial, stack, project_root, stdlib_root)
+  }
+  loaded: ProjectLoadState = if len(core.diagnostics) == 0 {
+    load_project_module(resolved, core, stack, project_root, stdlib_root)
+  } else { core }
   program: Program = append_program_declarations(loaded.programs)
   mut diagnostics: [Diagnostic] = loaded.diagnostics
   if len(diagnostics) == 0 {

@@ -1,7 +1,7 @@
-enum MaybeNat { None, Some(Nat) }
+enum MaybeNat { Nada, Just(Nat) }
 
 unwrap(value: MaybeNat): Nat {
-  match value { Some(found) => found }
+  match value { Just(found) => found }
 }
 
 main(): Void {}

@@ -6,7 +6,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {compileAndRun,execute,sourceBytes,SOURCE_LIMIT} from '../../build/playground/runtime.mjs';
-import {File} from '../../build/playground/vendor/index.js';
+import {File,Directory} from '../../build/playground/vendor/index.js';
 import {Playground} from '../../src/playground/controller.mjs';
 import {examples, exampleGuides} from '../../src/playground/examples.mjs';
 
@@ -39,7 +39,7 @@ test('suggested domain edits reject invalid values and exact invoice edits recal
 });
 
 test('existing compiler, exact numbers, Unicode and stdlib work',async()=>{
-  const result=await run('import "stdlib/text"\nmain(): Void { print("λ🙂"); print((1/3 * 30).nat()); print((1/8).dec()); print(999999999999999999999999999999 + 1); print(text_ends_with("hello.panack", ".panack")) }');
+  const result=await run('main(): Void { print("λ🙂"); print((1/3 * 30).nat()); print((1/8).dec()); print(999999999999999999999999999999 + 1); print("hello.panack".ends_with(".panack")) }');
   assert.equal(result.status,0);assert.equal(result.stderr,'');
   assert.equal(result.stdout,'λ🙂\n10\n0.125\n1000000000000000000000000000000\ntrue\n');
 });
@@ -65,6 +65,7 @@ test('compiler output filesystem has a hard artifact byte bound',async()=>{
   const source='main(): Void { mut text: Str = "a"; mut i: Nat = 0; while i < 21 { text = text + text; i = i + 1; } write_file("/target", text) }';
   const program=new File([]);
   const compiled=await execute(module,['run','/compiler.bc','compile','/main.panack','-o','/main.bc'],new Map([
+    ['stdlib',new Directory(new Map(Object.entries(stdlib).map(([name,text])=>[name,new File(new TextEncoder().encode(text),{readonly:true})])))],
     ['compiler.bc',new File(compiler,{readonly:true})],['main.panack',new File(new TextEncoder().encode(source),{readonly:true})],['main.bc',program]
   ]),{writable:program});
   assert.equal(compiled.status,0,compiled.stderr);
@@ -114,7 +115,8 @@ test('native public CLI and WASI compiler emit identical bytecode',async()=>{
     assert.equal(cli.status,0,cli.stderr);assert.equal(cli.stdout,'10\nλ🙂\n');
     const output=new File([]);
     const compiled=await execute(module,['run','/compiler.bc','compile','/main.panack','-o','/main.bc'],new Map([
-      ['compiler.bc',new File(compiler,{readonly:true})],['main.panack',new File(new TextEncoder().encode(source),{readonly:true})],['main.bc',output]
+      ['stdlib',new Directory(new Map(Object.entries(stdlib).map(([name,text])=>[name,new File(new TextEncoder().encode(text),{readonly:true})])))],
+    ['compiler.bc',new File(compiler,{readonly:true})],['main.panack',new File(new TextEncoder().encode(source),{readonly:true})],['main.bc',output]
     ]),{writable:output});
     assert.equal(compiled.status,0,compiled.stderr);
     assert.deepEqual(Buffer.from(output.data),fs.readFileSync(path.join(dir,'main.bc')));
@@ -132,4 +134,15 @@ test('controller cancellation, stale messages, errors and timeout',async()=>{
   workers[1].onmessage({data:{type:'done',status:0,stdout:'fresh'}});assert(workers[1].terminated);assert.equal(events.at(-1).stdout,'fresh');
   p.run('timeout');await new Promise(resolve=>setTimeout(resolve,30));assert(workers[2].terminated);assert.match(events.at(-1).stderr,/Time limit/);
   p.run('error');workers[3].onerror({message:'load failed'});assert(workers[3].terminated);assert.equal(events.at(-1).stderr,'load failed');
+});
+
+test('core methods share native lookup and generic behaviour without imports', async()=>{
+  const main=fs.readFileSync(path.join(root,'tests/functional/cases/core_methods/main.panack'),'utf8');
+  const helper=fs.readFileSync(path.join(root,'tests/functional/cases/core_methods/helpers.panack'),'utf8');
+  const result=await run(helper+main.replace('import "helpers.panack"',''));
+  assert.equal(result.status,0,result.stderr);
+  assert.equal(result.stdout,fs.readFileSync(path.join(root,'tests/functional/cases/core_methods/expected.stdout'),'utf8'));
+  const missing=await compileAndRun(module,compiler,{},'main(): Void { print(1) }');
+  assert.equal(missing.status,1);
+  assert.match(missing.stderr,/missing source module.*core.panack/);
 });

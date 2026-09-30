@@ -1,6 +1,4 @@
 import "filesystem.panack"
-import "option.panack"
-import "result.panack"
 
 // The caller owns this unique temporary directory and all files created in it.
 record TestWorkspace { root: Path }

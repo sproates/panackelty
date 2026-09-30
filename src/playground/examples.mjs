@@ -17,10 +17,8 @@ main(): Void {
   print(square(12))
 }
 `,
-  text: `import "stdlib/text"
-
-main(): Void {
-  print(text_ends_with("hello.panack", ".panack"))
+  text: `main(): Void {
+  print("hello.panack".ends_with(".panack"))
 }
 `,
   invoice: `// Exact decimals keep every cent in this calculation.
@@ -53,9 +51,7 @@ main(): Void {
   print("Ticket total: \${total}")
 }
 `,
-  collections: `import stdlib/collections
-
-pure add_bonus(score: Nat): Nat { score + 5 }
+  collections: `pure add_bonus(score: Nat): Nat { score + 5 }
 pure lower_first(left: Nat, right: Nat): Bool { left < right }
 
 main(): Void {
@@ -65,15 +61,12 @@ main(): Void {
     if score >= 50 { passing = passing.append(score) }
   }
   boosted = passing.map(@add_bonus)
-  ordered = array_sort_by(boosted, @lower_first)
+  ordered = boosted.sort_by(@lower_first)
   print("Passing scores with bonus:")
   for score in ordered { print(score) }
 }
 `,
-  results: `import stdlib/option
-import stdlib/result
-
-pure greeting(name: Option[Str]): Str {
+  results: `pure greeting(name: Option[Str]): Str {
   match name {
     Some(value) => "Hello, \${value}",
     None() => "Hello, guest"
@@ -161,7 +154,7 @@ export const exampleGuides = {
   },
   "text": {
     "title": "Standard library",
-    "description": "Import a portable text helper and check a filename suffix.",
+    "description": "Text values provide methods directly. Check a filename suffix without an import.",
     "edit": "Change hello.panack to hello.txt and run again.",
     "expected": "true\n"
   },

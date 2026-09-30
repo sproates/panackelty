@@ -484,13 +484,15 @@ tests pass; the separate browser workflow passed on the merged PR head. Native
 The existing clean-check/unit timing-budget backlog remains open; this browser
 task does not change those targets or claim improved native validation speed.
 
-### Now: website playground integration
+### Completed: website playground integration
 
 Work record: [issue #114](https://github.com/sproates/panackelty/issues/114).
-State: In progress. Authorised on 2026-09-30 after PR #113.
+State: Done. Delivered in PR #115; issue #114 is closed. The user subsequently
+tried the live playground and requested the core-library ergonomics work below.
+Authorised on 2026-09-30 after PR #113.
 The user reviewed the private preview successfully on their phone and requested
 expanded examples before merge. Nine examples now include explanations, expected
-output and suggested edits; the expanded preview still requires review.
+output and suggested edits; the expanded implementation is merged.
 Medium, estimated 1–2 PRs for the page, deployment integration, tests and review.
 Deliver an editable `/playground/` page with selectable examples, Run/Stop,
 output and diagnostics, using the existing site design and coordinated Pages/
@@ -505,7 +507,7 @@ Acceptance: pinned build; actual browser example/navigation/error/cancellation
 tests; complete artifact assembly and failure handling; canonical validation;
 phone review reported separately; live artifact verification after approved merge.
 No persistent REPL, new host capabilities, network backend or bytecode change.
-Keep #114 open until live verification. The existing validation budget warnings
+Issue #114 is closed following delivery. The existing validation budget warnings
 remain applicable; no speed improvement is claimed.
 
 ### Completed: content-led website expansion
@@ -635,10 +637,10 @@ The existing static GitHub Pages and coverage flow remains in use. PR #108 was a
 ## Core types and discoverable text/collection methods
 
 Work record: [issue #116](https://github.com/sproates/panackelty/issues/116).
-State: Ready for prioritisation. Recommended priority: Next, pending selection.
+State: In progress. Priority: Now.
 Recorded and groomed on 2026-09-30 following hands-on website playground feedback.
-The user favours doing this sooner and requested grooming; this records the
-recommended delivery scope, not authorisation to implement or merge.
+The user selected implementation on 2026-09-30 as one cohesive PR covering core
+types, text/collection methods and migration. Merge approval remains separate.
 
 `Option[T]` and `Result[T,E]` should be usable without stdlib imports, and
 ordinary text/collection operations should be discoverable as methods on values
@@ -664,8 +666,7 @@ receiver-type lookup rather than merely shorten prefixed function names.
 
 Value: less import ceremony and a more consistent API for developers and coding
 agents. Estimated M for core availability and M–L for methods and migration,
-including tests, docs and integration; provisionally three delivery PRs, with
-a fourth only if bootstrap migration needs an independently reviewable step.
+including tests, docs and integration; one cohesive implementation PR, as selected by the user.
 Resolve the bounded design decisions within the relevant PR rather than requiring
 a separate design report up front. Confidence in the friction is high; lookup rules and
 migration cost need assessment. Risks are name capture, duplicate definitions,
@@ -690,7 +691,7 @@ is a reasoned expectation, not a measured adoption result.
 
 | Candidate | Value and trade-off | Size / estimated PRs |
 | --- | --- | --- |
-| Core types and standard methods (#116) | Recommended Next: direct user feedback, immediate benefit in ordinary programs, and existing method machinery to build on | M–L overall / 3, possibly 4 |
+| Core types and standard methods (#116) | Recommended Next: direct user feedback, immediate benefit in ordinary programs, and existing method machinery to build on | M–L overall / 1 |
 | Dependency-aware probe reuse (#106), excluding separate compilation | Strongest alternative: slow validation affects every change, but savings from narrower invalidation remain unmeasured | M / 1–2 |
 | Native TCP/timer feasibility | Enables applications blocked in the pilot, but carries greater lifecycle uncertainty and does not resolve basic API friction | M–L investigation / 1–2 |
 
@@ -699,9 +700,9 @@ choose transport feasibility first if a concrete network application becomes the
 immediate objective. Full namespaces and separate compilation remain broader
 follow-ups, not prerequisites for this bounded initiative.
 
-Proposed delivery contract, to settle before each slice is implemented:
+Delivery scope, combined in one implementation PR:
 
-1. **Core availability (M, one PR).** Provide `Option[T]`, `Result[T,E]`, `None`,
+1. **Core availability (M component).** Provide `Option[T]`, `Result[T,E]`, `None`,
    `Some`, `Ok` and `Error` by default. Prefer one source-defined core loaded once
    through the existing loader; settle behaviour when the stdlib root is missing
    or overridden. Remove obsolete core imports from maintained sources. Conflicting user
@@ -710,7 +711,7 @@ Proposed delivery contract, to settle before each slice is implemented:
    public surface. Verify annotations, inference and pattern matching without
    imports, nested imports and collision failures. Preserve existing inference
    limits; this slice does not promise inference for an unconstrained `None()`.
-2. **Text methods (M, one PR).** Make `len`, `slice`, `starts_with`,
+2. **Text methods (M component).** Make `len`, `slice`, `starts_with`,
    `starts_with_at`, `ends_with`, `reverse`, `is_digit`, `is_letter`,
    `is_whitespace` and `parse_nat` available on `Str` without imports. Preserve
    existing Unicode/code-point, ASCII classification and parse-failure contracts.
@@ -720,10 +721,11 @@ Proposed delivery contract, to settle before each slice is implemented:
    reserved-name boundary and wrong-receiver behaviour explicitly, including
    names shared by supported types such as `len`. Reuse library algorithms and
    existing runtime primitives where possible; a new VM opcode is not assumed.
-3. **Collection methods and migration (M, one PR).** Provide import-free array
+3. **Collection methods and migration (M component).** Provide import-free array
    `first()` and `sort_by(comparator)` alongside `len`, `append`, `concat`, `map`
    and `reduce`; retain Map `put`/`has`/`get` and Set `add`/`has`, and make their
-   existing length operations consistent with the same receiver lookup rules.
+   existing operations consistent with the same receiver lookup rules. Map/Set
+   length is not currently supported and is not added in this change.
    Preserve stable sorting, pure callback requirements and immutable updates.
    Keep current missing-key behaviour; safe optional Map lookup is separate.
    Inventory Bytes explicitly and defer new byte-buffer method names to a
@@ -761,16 +763,17 @@ this in the shared compiler/library path, without browser-only source rewriting.
 An implicit prelude must not leak extra helper declarations simply because the
 current option/result source files contain them alongside their enums.
 
-Each delivery PR needs unit and public-CLI positive/negative cases, canonical
+The implementation PR needs unit and public-CLI positive/negative cases, canonical
 `make check`, bootstrap/package evidence and rebuilt playground assets with
 relevant browser tests. Compare compilation latency and asset size before and
 after implicit loading; investigate material regressions rather than assuming
 all-module loading is free. Final acceptance includes running import-free
 Option/Result examples, the exact suffix example above and array first/sort
 examples in the published playground after separately approved merge/deployment.
-The proposal issue remains open until all agreed slices and live acceptance are
-complete. Specifications and implementation documentation stay unchanged during
-grooming because none of these proposed contracts has shipped.
+The proposal issue remains open until the implementation and live acceptance are
+complete. The release version remains unchanged during implementation; prepare the next
+alpha (currently expected `0.1.0-alpha.10`) and breaking-change notes in a separate
+release PR. The bytecode format stays v9.
 
 ## Language namespaces — idea
 

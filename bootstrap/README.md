@@ -60,3 +60,11 @@ it. Restore inputs rather than blessing an unexpected digest mismatch.
 This process requires a seed that can compile the current compiler source and
 a native VM that can load its bytecode. A future incompatible format or language
 transition needs an explicit, reviewed bridge from the existing seed.
+
+## Implicit core transition
+
+The current v9 seed loads the canonical Option/Result core and standard methods.
+The previous v9 seed compiled a temporary source copy with an explicit core
+import in compiler/types.panack; that bridge compiled the final import-free
+compiler. The final seed is verified through the ordinary compiler and stdlib
+fixed-point checks. No bridge source or compatibility aliases are retained.

@@ -1,0 +1,1 @@
+main(): Void { print(42.ends_with("x")) }

@@ -168,7 +168,8 @@ before it crosses this pure emitter boundary.
 - [x] Document the stable VM-to-host ABI for terminal, file, environment, and
       process operations
 
-`src/stdlib` now contains the explicit public module graph and complete prelude.
+`src/stdlib` contains the implicit core and explicit public modules, with a
+combined prelude for the latter.
 Portable Panackelty definitions are separated from deterministic VM primitives
 and from the effectful named-call ABI in `src/runtime/ABI.md`. Environment and
 argument inputs are snapshotted per VM and inherited by nested execution. The
@@ -300,3 +301,7 @@ The ordinary bootstrap fixed-point check and native seed-refresh proof execute
 concurrently with two workers by default. They retain separate stage artifacts,
 digests, compiler/library comparisons and publication checks; neither proof
 substitutes artifacts from the other. A single-worker setting runs them serially.
+
+## Core-library migration
+
+The compiler now uses the canonical implicit Option/Result definitions. To cross from the previous v9 seed, a temporary source copy explicitly imported the new core from compiler/types.panack. The old seed compiled that bridge; the bridge compiled the final sources with implicit loading. No staging imports or public compatibility aliases remain in the repository. The final v9 seed and digest are refreshed through the existing three-stage compiler and stdlib fixed-point proof. Bytecode stays v9.

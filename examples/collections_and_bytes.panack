@@ -21,8 +21,8 @@ main(): Void {
   print(text_decode_utf8(message))
 
   // Use an ordinary pure function to choose the ordering.
-  files = array_sort_by(["z.txt", "a.panack", "b.panack"], @name_before)
+  files = ["z.txt", "a.panack", "b.panack"].sort_by(@name_before)
   for file in files {
-    if text_ends_with(file, ".panack") { print(file) }
+    if file.ends_with(".panack") { print(file) }
   }
 }

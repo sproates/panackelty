@@ -40,6 +40,21 @@
       </section>
       <section aria-labelledby="output-title"><h2 id="output-title">Output &amp; diagnostics</h2><pre id="output" tabindex="0" aria-label="Program output">Run a program to see its output here.</pre></section>
     </div>
+    <section class="how-it-works" aria-labelledby="how-title">
+      <p class="eyebrow">From source to output</p>
+      <h2 id="how-title">How does this work?</h2>
+      <p>When you press <strong>Run program</strong>, Panackelty checks your code and compiles it into bytecode: instructions for the Panackelty virtual machine (VM). The VM then executes those instructions and displays the output above.</p>
+      <figure class="execution-diagram">
+        <figcaption>All inside your browser</figcaption>
+        <ol class="execution-flow">
+          <li><span class="flow-step">01 / Write</span><strong>Your code</strong><span>The Panackelty source you enter.</span></li>
+          <li><span class="flow-step">02 / Compile</span><strong>Compiler</strong><span>Checks the code and generates bytecode.</span></li>
+          <li><span class="flow-step">03 / Execute</span><strong>Bytecode → VM</strong><span>The virtual machine runs the compiled instructions.</span></li>
+          <li><span class="flow-step">04 / Read</span><strong>Your output</strong><span>Results appear in Output &amp; diagnostics.</span></li>
+        </ol>
+      </figure>
+      <p class="execution-note">The VM runs in your browser using WebAssembly. Compilation and execution happen on your device; your source code is not sent to a server. Each run starts fresh.</p>
+    </section>
     <details class="limits"><summary>What can I run here?</summary>
       <p>Complete programs using exact numbers, types, pure functions, collections and supported standard-library operations. Compiler errors appear above, with source positions where available.</p>
       <p>Programs cannot access your device files, start processes or use networking. Runtime file writes and typed native host services are unavailable; standard input is empty. This is not a persistent REPL.</p>

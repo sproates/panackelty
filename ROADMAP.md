@@ -211,9 +211,9 @@ when a concrete session workflow justifies the additional semantics. Broader
 platform and language explorations retain their existing proposals. Known
 correctness or safety defects are considered promptly on their actual risk.
 
-The open website contributor-links PR #125 is separate review work and is not
-superseded or approved by this grooming pass. No website appearance changes are
-included here.
+Website contributor links from PR #125 were delivered in the squash merge of
+PR #127. The original PR #125 is now closed as redundant; its two website files
+match main. No website appearance changes are included in this validation slice.
 
 For each proposed design, assess the concrete guarantee or workflow it improves,
 its fit with existing semantics, the evidence required and maintenance cost.

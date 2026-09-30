@@ -88,6 +88,20 @@ post-merge acceptance pending. Treat missing status updates as unfinished PR wor
   and state when the three-deliverable review is due. Status maintenance remains
   part of every delivery; it must not wait for the grooming checkpoint.
 
+## Repository health after major tasks
+
+After the final PR for a major or principal task is merged and any post-merge
+acceptance is completed or explicitly recorded, run the repository
+[Repository Health skill](.agents/skills/repository-health/SKILL.md). Check open
+PRs, issue/completion bookkeeping, default-branch health and merged branch
+clutter. Keep this automatic post-task audit lightweight unless it finds an
+inconsistency. It is not required after minor documentation edits, typo fixes,
+intermediate PRs or routine bookkeeping changes.
+
+Agents without automatic skill discovery should read the linked file directly.
+The audit does not grant authority to close issues, delete branches, change
+repository settings or merge PRs; existing approval rules still apply.
+
 ## Repository hygiene
 
 Perform a cleanup audit after every change and before final validation:

@@ -43,15 +43,17 @@ source coverage, component refactoring, development workflows, compiler
 explanations, invariant testing, runtime diagnostics, documentation, editor
 support, runnable demonstrations, resource baselines and a bounded independent
 contract exercise. These are candidates for assessment, not blanket feature
-authorisation. No next implementation initiative has been selected.
+authorisation. The user selected modular validation and component boundaries
+under #106 as the next bounded task; the other candidates remain unscheduled.
 
 The sections below retain earlier decisions and completion evidence. Current
-candidate state and the proposed comparison are recorded in the grooming table;
+candidate state and the agreed next task are recorded in the grooming table;
 historical recommendations do not create competing implementation queues.
 
 ### Groomed candidates
 
-All entries below are **Idea**, with implementation unscheduled. The user agreed
+The twelve entries below remain **Idea**, with implementation unscheduled. #106
+is separately **Planned / Next** as recorded below. The user agreed
 the assessment scope; the estimates describe each first useful outcome, including
 tests, documentation and integration. They are not estimates for completing every
 extension. Linked issues hold acceptance detail; this table owns current state.
@@ -71,41 +73,48 @@ extension. Linked issues hold acceptance detail; this table owns current state.
 | [Runtime and resource baselines](#runtime-and-resource-baselines) ([#141](https://github.com/sproates/panackelty/issues/141)) | Record repeatable compile/run, memory and artifact-size observations for a small representative workload set. | M / 1–2 for initial baseline |
 | [Independent contract implementation](#independent-contract-implementation) ([#142](https://github.com/sproates/panackelty/issues/142)) | Attempt a narrowly scoped independent implementation from the written bytecode contract and record ambiguities. | M / 1 bounded assessment |
 
-### Proposed first step
+<a id="proposed-first-step"></a>
 
-**Recommendation: source-coverage feasibility (#131).** The missing `.panack`
-baseline is verified, and reliable attribution supports test-gap decisions and
-larger source refactors. The first PR should prove mapping with independently
-specified expected hits, compare metadata designs, measure overhead and bound the
-collection work. It may conclude that a proposed design is unsuitable; it does
-not need to publish a complete coverage report to finish the investigation.
+### Agreed next task: modular validation and component boundaries
 
-| Viable alternative | Why now and trade-off against coverage | First-slice size / PRs |
+**Planned / Next: the bounded validation slice of [#106](https://github.com/sproates/panackelty/issues/106).**
+The user selected this after the completion-workflow documentation changes
+triggered full validation and native TCP tests. The restricted run failed native
+contracts; a rerun with local socket access passed in 94s. The unit phase still
+warned at 57s against 15s. This is direct evidence of excessive validation scope
+for that change, not a measurement of incremental-cache savings.
+
+First outcome: a documented local and CI validation route for non-executable
+documentation/process changes that needs neither a compiler build nor socket
+access, backed by explicit component dependencies and selection regression tests.
+Keep executable examples, runtime contracts and workflow changes on their relevant
+checks. Unknown or mixed changes must select a conservative superset. Runtime and
+networking edits must still trigger TCP and required integration evidence.
+
+Estimate: **medium, 1–2 implementation PRs**, including selection contracts,
+documentation and validation. Combine dependency mapping and routing in one PR
+if reviewable; split a component-target change only if it is independently useful.
+Full source-module compilation and dependency-aware artifact reuse are later
+slices, not prerequisites. Detailed acceptance is in #106 and its section below.
+
+| Alternative | Why the selected task comes first | First-slice size / PRs |
 | --- | --- | --- |
-| Basic editor support (#139) | Strongest smaller alternative: directly requested and independent of compiler mapping, but the editor and grammar approach still need choosing | S–M / 1–2 |
-| One compiler explanation (#134) | Makes checked guarantees understandable and addresses proof friction; the useful query and retained checker evidence need investigation | M / 1–2 |
-| One component refactor (#132) | Improves maintenance without waiting for full coverage; select a specific hotspot and adequate tests before estimating broader work | S–M / 1 |
-| Dependency-aware probe reuse (#106) | Can shorten repeated work, but current conservative invalidation is not a measured estimate of savings; first compare warm and edited builds | M / 1–2, excluding separate-compilation design |
+| Source-coverage feasibility (#131) | Strongest engineering alternative: the missing baseline is verified, but it does not fix the observed unnecessary validation dependencies | M / 1 feasibility; then provisionally 2–3 |
+| Basic editor support (#139) | Smaller daily-use improvement, but the editor still needs choosing and it does not separate component checks | S–M / 1–2 |
+| One compiler explanation (#134) | Makes checked guarantees understandable; useful scope and retained checker evidence need investigation | M / 1–2 |
+| One component refactor (#132) | Remains useful once a hotspot is identified; validation selection has a concrete demonstrated problem already | S–M / 1 |
 
-Choose editor basics first if a short daily-use improvement is preferred. Choose
-the cache slice first if measured rebuild cost is obstructing current work, or a
-specific refactor if inspection finds a maintenance or correctness risk. Coverage
-outranks speculative broad cleanup because its gap is established; it outranks
-the explanation query as the initial recommendation because its correctness
-evidence benefits several subsequent initiatives. This does not put all tooling
-and documentation behind the full coverage programme.
+In practical terms, editing process prose should check the prose and its links,
+not start a TCP server. Editing networking must still check networking. The work
+makes those dependencies explicit and tests that the right checks are selected.
 
-In practical terms, the tests already run programs, but we cannot yet tell which
-parts of the compiler's own Panackelty source they execute. The first step checks
-that this measurement can be trusted before using a report to decide where tests
-are missing.
-
-After feasibility, compare collection/publication with editor basics and the
-first invariant-testing slice. Documentation and executable-example work can
-share a first tutorial; they need separate acceptance for content and checking.
-Runtime diagnostics should review the mapping decision but do not wait for report
-publication. Showcase programs can use current capabilities. Keep one principal
-implementation initiative unless a reason to overlap is explicitly agreed.
+After the bounded slice, reassess source coverage, editor basics and invariant
+testing against the resulting evidence. Choose a different task sooner if a
+known correctness defect takes precedence or the routing investigation finds the
+safe first slice disproportionately costly. Do not place all development behind
+full modular compilation. Documentation and executable-example work can share a
+first tutorial; runtime diagnostics can assess coverage metadata independently of
+report publication. Keep one principal implementation initiative.
 
 ### Scope retained outside this grooming batch
 
@@ -416,16 +425,43 @@ warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
 2026-09-30 (Europe/Gibraltar), after all 21 hosted Check jobs passed; issue #104
 is closed. The timing budgets remain open goals, not completed by this merge.
 
-### Future candidate: incremental and modular builds
+### Incremental and modular builds
+
+<a id="future-candidate-incremental-and-modular-builds"></a>
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
-State: VM/compiler boundary audit completed in PR #109 below;
-remaining cache/design implementation is unscheduled. The initial high-priority
-**Next** recommendation was superseded by the user's website selection. Reassess
-the bounded cache slice alongside the audit follow-ups; full separate-compilation implementation remains
-**Later**, conditional on design evidence. On 2026-09-30 the user requested a backlog task and priority
-assessment, not implementation or a committed schedule. This section is the
-authoritative status; the issue contains detailed acceptance and failure cases.
+The VM/compiler boundary audit completed in PR #109. The bounded validation and
+component-boundary slice is **Planned / Next**, selected during this grooming pass.
+Dependency-aware probe reuse and separate-compilation design remain unscheduled.
+Completing the selected slice does not close the broader issue while those agreed
+investigations remain; record each slice's outcome explicitly.
+
+Selected first slice:
+
+1. Map validation dependencies for prose/process documents, executable examples,
+   compiler, bytecode, VM, TCP, playground and packaging. Reuse existing focused
+   targets and the VM/compiler audit; identify shared contracts that require
+   wider checks. Keep the supported native/Panackelty/POSIX tooling.
+2. Provide matching documented local and CI selection for changes. Prove pure
+   documentation/process changes run relevant content/link checks without building
+   the compiler or opening sockets. Do not classify executable snippets, protocol
+   specifications or workflow changes as harmless merely by file extension.
+3. Add selection regressions for documentation-only, component-specific, shared,
+   mixed, unknown, renamed and deleted paths. Prove runtime/TCP changes retain
+   TCP tests, compiler/bytecode changes retain their integration checks, and
+   playground/package inputs reach their consumers. Selection failures must fail
+   visibly or choose full validation; preserve required CI check names.
+4. Record selected jobs, actual commands and before/after cost for representative
+   edits. Preserve the canonical full `make check`, bootstrap, sanitizer and
+   release gates where applicable. Every selected test still executes. Run full
+   validation for the routing implementation itself under current rules.
+
+Acceptance: independently expected selection cases, a socket-restricted passing
+prose/process route, component and shared-dependency checks, meaningful routing
+regressions and canonical validation. No test weakening, cached test outcomes,
+blanket exclusions or automatic bypass for unknown inputs. Medium, estimated
+1–2 PRs for this first slice; cache reuse and full separate compilation are not
+included in that estimate. The existing broad-invalidation concern follows.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.
@@ -434,7 +470,7 @@ Native C objects already build incrementally and focused checks exist, but the
 Panackelty loader combines reachable modules before checking/emission. Separate
 source files do not yet provide independently compiled module artifacts.
 
-Bounded task:
+Later cache/design slices, separately selected:
 
 1. Measure clean, unchanged warm, unrelated-edit and dependency-edit workflows
    on a named host/toolchain, separating compilation from test execution and
@@ -458,7 +494,7 @@ decisions. Stop at an evidence-backed recommendation if caching has negligible
 benefit or disproportionate cost. No linker, namespace/export syntax, package
 manager, stable module ABI or two-minute cold-check promise is included.
 
-Size: medium first slice, estimated **2–3 PRs** including tests and documentation:
+Later cache/design estimate: medium, **2–3 PRs** including tests and documentation:
 one or two for dependency evidence and safe reuse (depending on whether compiler
 dependency reporting/seed refresh is independently deliverable), then one design
 PR. Full separate compilation is large and must be re-estimated after design.

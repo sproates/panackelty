@@ -14,6 +14,14 @@ Keep accepted decisions and completion summaries in the repository as described
 there. Use feature branches and PRs; never push directly to main. Obtain explicit
 user permission for each PR merge; agreement on scope is not merge permission.
 
+Respect the [three-deliverable grooming checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint).
+Before starting a principal task, check the review baseline and completed-outcome
+ledger in `ROADMAP.md`. After three accepted deliverables, review priorities with
+the user and record the decision before starting the next principal task. Count
+task outcomes, not PRs; update the ledger during each completion handover. Review
+sooner when new evidence warrants it. Urgent fixes may proceed with the reason
+recorded, but must not silently reset or discard a due review.
+
 When asked "what's next", "what's the next item", or a similar prioritisation
 question, read and follow the repository's
 [Next Item skill](.agents/skills/next-item/SKILL.md). Compare viable candidates,
@@ -56,6 +64,29 @@ whose claims, examples, paths, diagrams, or status are affected:
 
 If no documentation change is necessary, state in the final response that the
 documentation was reviewed and why it remains accurate.
+
+## Completion handover
+
+Before requesting merge approval, follow the
+[completion handover](docs/ROADMAP_PROCESS.md#completion-handover) and identify
+whether the PR finishes its task, delivers an intermediate slice, or leaves
+post-merge acceptance pending. Treat missing status updates as unfinished PR work.
+
+- The final delivery PR must include the roadmap's Done summary, supported by
+  acceptance evidence, and `Closes #...` for each completed issue. The summary
+  takes effect on merge; do not describe an unmerged PR as already delivered.
+- If acceptance needs deployment or other post-merge verification, keep the issue
+  open and record the exact remaining checks and who will perform them. Use
+  `Refs #...`, not an automatic closing keyword.
+- After an authorised merge, verify the merged roadmap and issue state. Complete
+  any authorised post-merge checks and promptly prepare the completion update;
+  do not leave bookkeeping for the next grooming pass. Further PR merges still
+  require explicit approval.
+- Include completion state and any remaining acceptance in the final handover.
+  If a task has no issue, say so rather than creating one solely to close it.
+- Update the roadmap's deliverable ledger when an accepted outcome completes,
+  and state when the three-deliverable review is due. Status maintenance remains
+  part of every delivery; it must not wait for the grooming checkpoint.
 
 ## Repository hygiene
 

@@ -28,8 +28,9 @@ Planning a test does not change a coverage status.
 Measured source coverage currently exists only for the native C VM, at the
 [public report](https://panackelty.com/coverage/). The `.panack` compiler,
 bytecode tooling and standard library have tests but no measured source-line
-or branch baseline. Measurement is a candidate initiative in the draft
-[roadmap](../ROADMAP.md); a holistic, effort-aware assessment comes first. Do not interpret this behavior matrix,
+or branch baseline. The groomed [source-coverage candidate](../ROADMAP.md#measure-panackelty-source-coverage--candidate-pending-assessment)
+starts with trustworthy mapping and measurement feasibility; implementation is
+unscheduled. Do not interpret this behavior matrix,
 test counts or C percentages as a `.panack` coverage percentage.
 
 The matrix is undergoing evidence reconciliation: older rows contain historical
@@ -171,12 +172,14 @@ helpers in its stage-2/stage-3 compiler and library identity checks.
 
 ## Deliberately postponed behavior
 
-Mutable collection elements, generic constraints and function references, explicit checked construction,
-traits, package management, bytecode compatibility guarantees, and concurrency
-remain deferred. Tests should be added when any of these become accepted
-language behavior.
+Mutable collection elements, generic constraints, explicit checked construction,
+traits, package management and bytecode compatibility guarantees remain deferred.
+Named function references, async/await and finite concurrent TCP servers are
+implemented; general source spawning, resource scopes and parallel execution
+remain outside that delivered scope. Extend tests when a postponed feature
+becomes accepted language behaviour.
 
-## Coverage backlog — provisional pending holistic assessment
+## Coverage backlog: groomed candidates
 
 ### Measurement and evidence reconciliation — candidate
 
@@ -192,6 +195,11 @@ language behavior.
 
 Known correctness or safety defects preempt measurement work. High percentages
 are not an acceptance substitute for assertions, negative tests or invariants.
+The [systematic invariant-testing candidate](../ROADMAP.md#systematic-invariant-testing)
+extends existing deterministic, source/bytecode and bootstrap checks with one
+bounded generated-input or semantics-preserving transformation family. It does
+not depend on source-coverage publication. Planning adds no new test evidence;
+individual matrix rows retain their evidence status until verified.
 
 ### Delivered safety and public-contract foundation
 

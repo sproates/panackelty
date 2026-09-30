@@ -31,28 +31,134 @@ installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
 
-## Draft status and next tasks — updated 2026-09-30
+## Current status and grooming, 2026-09-30
 
-**The implementation roadmap remains a draft for discussion.** The decision
-process was adopted in PR #83; the assessment was adopted in PR #87. The
-12-trial delivery pilot was adopted in PR #88; issue #86 is closed.
-Sorting and literal suffix helpers shipped in PR #90. On 2026-09-29 the user
-authorised an execution, concurrency and host-integration design investigation
-before networking APIs. The report merged in PR #92. The user then authorised the first resumable-VM
-feasibility step, with correctness and performance evidence required before
-merge review. PR #94 merged after all 21 CI jobs passed; issue #93 is closed. The user then
-authorised the bounded task/lifecycle feasibility milestone, now merged in PR #96
-with all 21 hosted checks passed and issue #95 closed. The user subsequently
-selected an application-facing async design proposal. PR #98 is now merged,
-with all 21 hosted checks passed and issue #97 closed. The bounded source-to-VM
-await slice shipped in PR #103, and the validation investigation shipped in
-PR #105; both passed all 21 hosted Check jobs. The website expansion shipped in PR #108 with live verification on
-2026-09-30. The user then selected the bounded VM/compiler boundary audit;
-its findings merged in PR #109. The user selected the browser-playground
-feasibility experiment below. Remaining incremental/modular build work
-is unscheduled. Client TCP shipped in PR #127. The user then selected completion
-of the bounded TCP server stage (#128), followed by broader roadmap grooming.
-General source spawning and resource scopes remain draft.
+The finite TCP client/server stage is implemented on `main`: client PR #127,
+server contract PR #129 and server implementation PR #130. Both operations remain
+unreleased and are absent from alpha.10 downloads. The server completion evidence
+is recorded [below](#bounded-async-tcp-server).
+
+The user selected backlog grooming after this milestone. The agreed scope covers
+source coverage, component refactoring, development workflows, compiler
+explanations, invariant testing, runtime diagnostics, documentation, editor
+support, runnable demonstrations, resource baselines and a bounded independent
+contract exercise. These are candidates for assessment, not blanket feature
+authorisation. The user selected modular validation and component boundaries
+under #106 as the next bounded task; the other candidates remain unscheduled.
+
+The sections below retain earlier decisions and completion evidence. Current
+candidate state and the agreed next task are recorded in the grooming table;
+historical recommendations do not create competing implementation queues.
+
+### Grooming checkpoint ledger
+
+Baseline: the 2026-09-30 post-networking review, effective when
+[PR #143](https://github.com/sproates/panackelty/pull/143) merges. This review
+considered the completed finite TCP client/server stage and selected the bounded
+modular-validation slice of #106 as Next. It also recorded the twelve unscheduled
+candidates and the completion-handover rules. This review and its bookkeeping do
+not count as a new deliverable.
+
+Accepted deliverables since this baseline: **0 of 3; review not yet due**.
+No subsequent accepted outcomes are recorded. Add each completed outcome and its
+evidence here during delivery handover. The independently accepted validation
+slice of #106 will count once even if its broader cache/design issue stays open.
+
+Follow the [three-deliverable checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint):
+review before starting the principal task after the third accepted outcome, or
+sooner if new evidence warrants it. Keep the decision and reset baseline explicit.
+
+### Groomed candidates
+
+The twelve entries below remain **Idea**, with implementation unscheduled. #106
+is separately **Planned / Next** as recorded below. The user agreed
+the assessment scope; the estimates describe each first useful outcome, including
+tests, documentation and integration. They are not estimates for completing every
+extension. Linked issues hold acceptance detail; this table owns current state.
+
+| Candidate and work record | First useful outcome | Size / estimated PRs |
+| --- | --- | --- |
+| [.panack source coverage](#measure-panackelty-source-coverage--candidate-pending-assessment) ([#131](https://github.com/sproates/panackelty/issues/131)) | Prove exact source/execution attribution before collecting and publishing compiler/library baselines. Source branches, denominator correctness and collection failure remain explicit. | M / 1 feasibility; then provisionally 2–3 |
+| [Component readability and refactoring](#codebase-wide-human-readability-and-refactoring--candidate) ([#132](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
+| [Development workflow assessment](#development-workflow-assessment) ([#133](https://github.com/sproates/panackelty/issues/133)) | Observe installation, API discovery, checking, testing, debugging and a maintenance change against the current toolchain. | S–M / 1 assessment |
+| [Compiler explanations](#compiler-explanations) ([#134](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
+| [Systematic invariant testing](#systematic-invariant-testing) ([#135](https://github.com/sproates/panackelty/issues/135)) | Extend existing equivalence tests with one bounded, reproducible generated-input or semantics-preserving transformation family. | M / 1–2 for one family |
+| [Source-aware runtime errors](#source-aware-runtime-errors) ([#136](https://github.com/sproates/panackelty/issues/136)) | Map a bounded set of traps and call context to source, with safe fallback for missing or mismatched metadata. | M–L / 1–2 after mapping design |
+| [Learning path and technical documentation](#learning-path-and-technical-documentation) ([#137](https://github.com/sproates/panackelty/issues/137)) | Deliver one complete tutorial and a navigable path into practical guides, library reference and technical explanations. | M / 1–2 for first tutorial |
+| [Executable documentation](#executable-documentation) ([#138](https://github.com/sproates/panackelty/issues/138)) | Inventory existing checks and verify one additional documentation surface with expected commands, outputs and version scope. | M / 1–2 for one surface |
+| [Editor support](#editor-support) ([#139](https://github.com/sproates/panackelty/issues/139)) | Provide highlighting and basic editing in one selected editor; assess compiler-backed features separately. | S–M / 1–2 for one editor |
+| [Technical showcase programs](#technical-showcase-programs) ([#140](https://github.com/sproates/panackelty/issues/140)) | Deliver one complete, tested demonstration combining existing language capabilities and explicit failure boundaries. | M / 1–2 for one demonstration |
+| [Runtime and resource baselines](#runtime-and-resource-baselines) ([#141](https://github.com/sproates/panackelty/issues/141)) | Record repeatable compile/run, memory and artifact-size observations for a small representative workload set. | M / 1–2 for initial baseline |
+| [Independent contract implementation](#independent-contract-implementation) ([#142](https://github.com/sproates/panackelty/issues/142)) | Attempt a narrowly scoped independent implementation from the written bytecode contract and record ambiguities. | M / 1 bounded assessment |
+
+<a id="proposed-first-step"></a>
+
+### Agreed next task: modular validation and component boundaries
+
+**Planned / Next: the bounded validation slice of [#106](https://github.com/sproates/panackelty/issues/106).**
+The user selected this after the completion-workflow documentation changes
+triggered full validation and native TCP tests. The restricted run failed native
+contracts; a rerun with local socket access passed in 94s. The unit phase still
+warned at 57s against 15s. This is direct evidence of excessive validation scope
+for that change, not a measurement of incremental-cache savings.
+
+First outcome: a documented local and CI validation route for non-executable
+documentation/process changes that needs neither a compiler build nor socket
+access, backed by explicit component dependencies and selection regression tests.
+Keep executable examples, runtime contracts and workflow changes on their relevant
+checks. Unknown or mixed changes must select a conservative superset. Runtime and
+networking edits must still trigger TCP and required integration evidence.
+
+Estimate: **medium, 1–2 implementation PRs**, including selection contracts,
+documentation and validation. Combine dependency mapping and routing in one PR
+if reviewable; split a component-target change only if it is independently useful.
+Full source-module compilation and dependency-aware artifact reuse are later
+slices, not prerequisites. Detailed acceptance is in #106 and its section below.
+
+| Alternative | Why the selected task comes first | First-slice size / PRs |
+| --- | --- | --- |
+| Source-coverage feasibility (#131) | Strongest engineering alternative: the missing baseline is verified, but it does not fix the observed unnecessary validation dependencies | M / 1 feasibility; then provisionally 2–3 |
+| Basic editor support (#139) | Smaller daily-use improvement, but the editor still needs choosing and it does not separate component checks | S–M / 1–2 |
+| One compiler explanation (#134) | Makes checked guarantees understandable; useful scope and retained checker evidence need investigation | M / 1–2 |
+| One component refactor (#132) | Remains useful once a hotspot is identified; validation selection has a concrete demonstrated problem already | S–M / 1 |
+
+In practical terms, editing process prose should check the prose and its links,
+not start a TCP server. Editing networking must still check networking. The work
+makes those dependencies explicit and tests that the right checks are selected.
+
+After the bounded slice, reassess source coverage, editor basics and invariant
+testing against the resulting evidence. Choose a different task sooner if a
+known correctness defect takes precedence or the routing investigation finds the
+safe first slice disproportionately costly. Do not place all development behind
+full modular compilation. Documentation and executable-example work can share a
+first tutorial; runtime diagnostics can assess coverage metadata independently of
+report publication. Keep one principal implementation initiative.
+
+### Scope retained outside this grooming batch
+
+Existing namespace and standard-library organisation ideas, broader inference,
+JSON/library work, host integration and repository tooling remain unscheduled.
+The finite server does not provide DNS, TLS, HTTP, indefinite services, general
+source spawning or public resource scopes. Revisit those against a concrete
+application and its ownership requirements; no automatic next networking phase
+is selected. Alpha.10 remains the downloadable release; a networking release
+requires its own release scope and gates.
+
+Full separate compilation remains conditional on design evidence under #106;
+bounded probe reuse is independently assessable. The stateful REPL remains
+unscheduled now that the complete-program playground is available. Revisit it
+when a concrete session workflow justifies the additional semantics. Broader
+platform and language explorations retain their existing proposals. Known
+correctness or safety defects are considered promptly on their actual risk.
+
+The open website contributor-links PR #125 is separate review work and is not
+superseded or approved by this grooming pass. No website appearance changes are
+included here.
+
+For each proposed design, assess the concrete guarantee or workflow it improves,
+its fit with existing semantics, the evidence required and maintenance cost.
+Ask what can be simplified or removed while preserving the capability. These
+questions should produce bounded outcomes rather than more prerequisites.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -337,16 +443,43 @@ warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
 2026-09-30 (Europe/Gibraltar), after all 21 hosted Check jobs passed; issue #104
 is closed. The timing budgets remain open goals, not completed by this merge.
 
-### Future candidate: incremental and modular builds
+### Incremental and modular builds
+
+<a id="future-candidate-incremental-and-modular-builds"></a>
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
-State: VM/compiler boundary audit completed in PR #109 below;
-remaining cache/design implementation is unscheduled. The initial high-priority
-**Next** recommendation was superseded by the user's website selection. Reassess
-the bounded cache slice alongside the audit follow-ups; full separate-compilation implementation remains
-**Later**, conditional on design evidence. On 2026-09-30 the user requested a backlog task and priority
-assessment, not implementation or a committed schedule. This section is the
-authoritative status; the issue contains detailed acceptance and failure cases.
+The VM/compiler boundary audit completed in PR #109. The bounded validation and
+component-boundary slice is **Planned / Next**, selected during this grooming pass.
+Dependency-aware probe reuse and separate-compilation design remain unscheduled.
+Completing the selected slice does not close the broader issue while those agreed
+investigations remain; record each slice's outcome explicitly.
+
+Selected first slice:
+
+1. Map validation dependencies for prose/process documents, executable examples,
+   compiler, bytecode, VM, TCP, playground and packaging. Reuse existing focused
+   targets and the VM/compiler audit; identify shared contracts that require
+   wider checks. Keep the supported native/Panackelty/POSIX tooling.
+2. Provide matching documented local and CI selection for changes. Prove pure
+   documentation/process changes run relevant content/link checks without building
+   the compiler or opening sockets. Do not classify executable snippets, protocol
+   specifications or workflow changes as harmless merely by file extension.
+3. Add selection regressions for documentation-only, component-specific, shared,
+   mixed, unknown, renamed and deleted paths. Prove runtime/TCP changes retain
+   TCP tests, compiler/bytecode changes retain their integration checks, and
+   playground/package inputs reach their consumers. Selection failures must fail
+   visibly or choose full validation; preserve required CI check names.
+4. Record selected jobs, actual commands and before/after cost for representative
+   edits. Preserve the canonical full `make check`, bootstrap, sanitizer and
+   release gates where applicable. Every selected test still executes. Run full
+   validation for the routing implementation itself under current rules.
+
+Acceptance: independently expected selection cases, a socket-restricted passing
+prose/process route, component and shared-dependency checks, meaningful routing
+regressions and canonical validation. No test weakening, cached test outcomes,
+blanket exclusions or automatic bypass for unknown inputs. Medium, estimated
+1–2 PRs for this first slice; cache reuse and full separate compilation are not
+included in that estimate. The existing broad-invalidation concern follows.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.
@@ -355,7 +488,7 @@ Native C objects already build incrementally and focused checks exist, but the
 Panackelty loader combines reachable modules before checking/emission. Separate
 source files do not yet provide independently compiled module artifacts.
 
-Bounded task:
+Later cache/design slices, separately selected:
 
 1. Measure clean, unchanged warm, unrelated-edit and dependency-edit workflows
    on a named host/toolchain, separating compilation from test execution and
@@ -379,7 +512,7 @@ decisions. Stop at an evidence-backed recommendation if caching has negligible
 benefit or disproportionate cost. No linker, namespace/export syntax, package
 manager, stable module ABI or two-minute cold-check promise is included.
 
-Size: medium first slice, estimated **2–3 PRs** including tests and documentation:
+Later cache/design estimate: medium, **2–3 PRs** including tests and documentation:
 one or two for dependency evidence and safe reuse (depending on whether compiler
 dependency reporting/seed refresh is independently deliverable), then one design
 PR. Full separate compilation is large and must be re-estimated after design.
@@ -537,24 +670,25 @@ above remains the follow-up assessment. Browser permissions blocked rendered
 desktop/mobile inspection in this workspace; a private hosted preview was subsequently supplied for iPhone review and
 approved by the user before merging.
 
-An embedded playground (edit a complete program, run, view output/diagnostics)
-is a separate follow-up investigation. The learning/onboarding use case is a
-concrete reason to reassess the previously low-priority REPL idea. Browser VM
-execution, limits and diagnostics need feasibility evidence; persistent REPL
-sessions add state/redefinition decisions. Neither blocks this content update.
+The subsequent embedded playground shipped in PR #115 after feasibility and
+real-browser preparation in PRs #111 and #113. Persistent REPL sessions remain
+independently scoped; the completed website work does not select them.
 
-### Remaining recommendations from the pilot — provisional
+### Remaining findings from the delivery pilot
 
-1. After reviewing the browser experiment, compare resolving its toolchain and
-   real-browser gates with bounded build improvements and native TCP/timer
-   feasibility; no follow-up implementation is automatically scheduled.
-2. Targeted compiler/API assistance for observed interpolation, numeric proof
-   and discovery friction; retain broader diagnostics as an assessed candidate.
-
-These remaining items are recommendations, not implementation authorisation. Source coverage,
-namespaces, security tooling and other backlog work remain visible for comparison.
+Core library ergonomics shipped in PR #118, and finite TCP client/server support
+shipped in PRs #127 and #130. HTTP framing and indefinite services remain absent;
+the blocked HTTP pilot tasks have not been rerun or declared successful.
+Interpolation, numeric-proof and API discovery friction feed the current workflow
+and compiler-explanation candidates. Compare these against the changed baseline,
+not the pilot's earlier implementation recommendations.
 
 ### Developer experience: useful assistance from the compiler
+
+The [workflow assessment](#development-workflow-assessment) and
+[compiler explanations](#compiler-explanations) now give these ideas bounded
+first outcomes. Runtime diagnostics have their [own scope](#source-aware-runtime-errors).
+The following list remains the broader assistance context.
 
 Make working in Panackelty enjoyable, with substantial attention to helping
 programmers understand and develop their programs. This goes beyond polished
@@ -577,45 +711,21 @@ IDE, language server or REPL. Evaluate usefulness on representative tasks: time
 and friction to reach correct code, discoverability, precision, false positives,
 feedback latency and consistency. Consider approachable defaults and opt-in depth.
 
-### Provisional backlog grouping — not an agreed implementation order
+### Backlog navigation
 
-| Status | Initiative | Outcome to assess |
-| --- | --- | --- |
-| Done | Adopt the roadmap decision process | Merged in PR #83; implementation ordering remains draft |
-| Done | [Expanded assessment (#85)](https://github.com/sproates/panackelty/issues/85) | Report adopted in PR #87; issue closed |
-| Done | [Delivery pilot (#86)](https://github.com/sproates/panackelty/issues/86) | Report adopted in PR #88; issue closed |
-| Done | [Sorting and suffix helpers (#89)](https://github.com/sproates/panackelty/issues/89) | Shipped in PR #90; all 21 CI jobs passed; issue closed |
-| Done | [Execution/concurrency/host design (#91)](https://github.com/sproates/panackelty/issues/91) | Report merged in PR #92; later implementation stages remain proposals |
-| Done | [Resumable VM feasibility (#93)](https://github.com/sproates/panackelty/issues/93) | PR #94 merged; all 21 hosted gates passed; issue closed |
-| Done | [Task/lifecycle feasibility (#95)](https://github.com/sproates/panackelty/issues/95) | PR #96 merged; all 21 hosted checks passed; issue closed |
-| Done | [Async interface investigation (#97)](https://github.com/sproates/panackelty/issues/97) | PR #98 merged; all 21 hosted checks passed; bounded await implementation selected in #102 |
-| Done | [Bounded async/await (#102)](https://github.com/sproates/panackelty/issues/102) | PR #103 merged; v9 source-to-VM slice and all hosted gates passed |
-| Done | [Validation performance investigation (#104)](https://github.com/sproates/panackelty/issues/104) | PR #105 merged; 346s clean sample, all 21 hosted Check jobs passed; issue closed |
-| Audit in review; remaining work unscheduled | [Incremental and modular builds (#106)](https://github.com/sproates/panackelty/issues/106) | VM/compiler audit evidence below; dependency-aware reuse and separate-compilation design remain candidates |
-| Done | [Website improvement and expansion (#99)](https://github.com/sproates/panackelty/issues/99) | PR #108 merged; content expansion and coordinated website/coverage deployment verified |
-| Idea / assess in holistic review | GitHub repository settings and tooling | Inventory current settings and evaluate useful security/quality features, effort and maintenance |
-| Idea / assess in holistic review | Language namespaces and standard-library namespacing | Assess language semantics separately from library organisation, then plan dependencies and migration |
-| Candidate | `.panack` source coverage | Trustworthy mapping/collection and published compiler, bytecode-tooling and library baselines |
-| Candidate | Developer experience and compiler assistance | Practical help for understanding, writing and changing programs; assess useful increments and cost |
-| Candidate | Reconcile test evidence and close verified gaps | Accurate matrix and bounded correctness/safety test PRs |
-| Candidate | Codebase readability and refactoring | Audit and component-sized improvements with relevant test protection |
-| Non-blocking backlog | Validation performance | Retain targets/warnings; weigh further work against developer impact |
-| Candidate | Language/library and runtime improvements | Assess JSON, host APIs, inference, numerics and source diagnostics against real workflows |
-| Exploration | REPL / browser playground | Website learning use case identified; assess a complete-program playground separately; does not block website content |
-| Unscheduled exploration | Broader language ideas | Preserve proposals without giving them automatic implementation slots |
-| Delivered | Public native C coverage | Live and verified; `.panack` measurement remains a separate gap |
-
-Known correctness or safety defects should be considered promptly on their
-actual risk. Coverage is execution evidence, not proof of assertion quality;
-preserve the established validation gates while reviewing future priorities.
+The [current grooming table](#groomed-candidates) owns candidate state and the
+[comparison](#proposed-first-step) records the recommendation. Existing namespace,
+host/library, build and language explorations remain visible in their sections;
+none becomes scheduled through its position in this document. Completed milestones
+retain their evidence below and in the historical sections.
 
 ### How to turn the backlog into PRs
 
 The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules.
 
-- Complete the holistic assessment before choosing the principal implementation
-  initiative. Subsequent work must follow the reviewed priority order, not the
-  placement of a detailed proposal in this draft.
+- The assessment and delivery pilot are complete. Choose the next principal
+  initiative from the current comparison after reviewing its scope and evidence;
+  the placement of a detailed proposal does not assign priority.
 - Before implementation, define scope, dependencies, explicit non-goals, failure
   cases and acceptance evidence. A design PR may finish with a decision or a
   bounded feasibility result rather than claiming an implemented feature.
@@ -654,6 +764,7 @@ State: Done. PR #127 merged on 2026-09-30 after all 23 hosted checks passed.
 Canonical validation passed in 117s, with native sanitizer, independent-peer
 source/bytecode tests, bootstrap and browser rejection evidence in the PR.
 This remains unreleased development functionality, not part of alpha.10.
+Issue #126 was closed during the subsequent grooming pass.
 Selected on 2026-09-30 after deployment
 reliability, explicitly ahead of build-cache work and a C-only networking spike.
 The user wants real source programs to benefit from async/await.
@@ -669,18 +780,21 @@ Medium–large, one PR including compiler/decoder effects, seed refresh, native
 backend, source/bytecode tests, fault/sanitizer evidence and documentation.
 Acceptance requires partial/binary/empty I/O, response limits, timeout/refusal,
 independent progress, cancellation cleanup, explicit host restrictions,
-canonical `make check` and Linux/macOS/browser CI. The full server design and
-build-cache improvements remain independently scoped follow-ups.
+canonical `make check` and Linux/macOS/browser CI. The finite server subsequently
+shipped below; broader server capabilities and build-cache improvements remain
+independently scoped follow-ups.
 
 ## Bounded async TCP server
 
 Work record: [issue #128](https://github.com/sproates/panackelty/issues/128).
-State: In progress; contract merged in PR #129, source/native implementation
-prepared for review.
-Priority: Now. On 2026-09-30 the
-user selected finishing the bounded networking stage, followed by proper
-roadmap grooming. This authorizes server implementation; each merge still needs
-separate approval. Broad roadmap reprioritization follows this stage.
+State: Done. Contract PR #129 and implementation PR #130 merged on 2026-09-30;
+implementation merge commit `43c09b947ead3e62a7aa3a4cd18b98f1c64d44ee`.
+All 23 hosted validation/build/browser checks passed; deployment-only jobs were
+skipped for the PR. The implementation records a passing 110s `make check`, native
+ASan/UBSan, 16 WASI runtime/asset tests and identical compiler/stdlib bootstrap
+fixed points. The existing unit-phase budget warning remains. This completes the
+selected finite server stage and allows backlog grooming to proceed. Issue #128
+can close when this repository completion summary merges. No release is included.
 
 The [server contract](ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
 defines an awaited finite server owner with named async byte-request handlers,
@@ -690,19 +804,13 @@ client failures are isolated; runtime traps cancel the owner. Listening is a
 separate embedded capability; WASI remains unavailable. General source spawning,
 resource handles, HTTP, DNS, TLS and indefinite service operation are excluded.
 
-Reason: client TCP now works, but source applications cannot accept connections
-or serve multiple clients. Completing the finite client/server stage yields a
-coherent usable outcome before broader grooming. Build caching and compiler
-assistance remain alternatives; the user selected networking first.
-
-Estimated large, 2–3 PRs total: contract and acceptance plan, then 1–2 implementation
-PRs covering native ownership/scheduling and source integration. A contract merge
-does not complete this issue. Acceptance requires real source and saved-bytecode
-echo servers with independent peers, fast-client progress beside stalled clients,
-bounded admission and reuse, every-phase stop/deadline/cancellation tests,
-allocation/descriptor and forged-bytecode evidence, canonical checks, bootstrap,
-Linux/macOS packages, sanitizer CI and browser rejection. Provide runnable
-examples and exact limitations. No release/tag is selected by this decision.
+Delivered in two PRs: contract, then source/native implementation. Independent
+source and saved-bytecode peers exercise binary, fragmented and empty transfers,
+request/response limits, stalled-reader and busy-handler fairness, nested outbound
+waits and connection reuse. Tests cover capabilities, forged bytecode, allocation
+and descriptor failures, pending-phase shutdown and final-admission cancellation.
+The runnable finite echo example and documented limits are included. General
+spawning, DNS, TLS, HTTP and indefinite services remain separate proposals.
 
 ## Website deployment source selection
 
@@ -710,6 +818,7 @@ Work record: [issue #123](https://github.com/sproates/panackelty/issues/123).
 State: Done. PR #124 merged after all 23 checks passed. Production Pages run
 36723094458 passed build, deployment and live verification; public provenance
 reported merge commit `cdff3ef04ca40952934b6f3e5768306ce9474ca5`.
+Issue #123 was closed during the subsequent grooming pass.
 Selected on 2026-09-30 after alpha.10 release.
 An earlier Pages attempt selected historical content and failed on a missing
 playground SDK installer; retry succeeded. The original API response was not
@@ -799,12 +908,12 @@ Full namespaces, classes, inheritance, dynamic dispatch and general user-defined
 extension methods are outside this proposal. A minimal core prelude is a candidate
 mechanism; implicitly importing the entire stdlib is not the proposed outcome.
 
-### Groomed scope and recommended order
+### Historical scope and recommendation before PR #118
 
-Recommend this as the next principal initiative. The public playground now makes
-basic API inconsistencies visible to new users. Fixing them before more libraries
-and examples depend on the current spellings should reduce migration cost; that
-is a reasoned expectation, not a measured adoption result.
+This comparison records the recommendation before PR #118 shipped. The public
+playground had made basic API inconsistencies visible to new users. The rationale
+was to reduce migration cost before more libraries and examples depended on the
+earlier spellings; this was a reasoned expectation, not a measured adoption result.
 
 | Candidate | Value and trade-off | Size / estimated PRs |
 | --- | --- | --- |
@@ -957,12 +1066,16 @@ its own verification; do not turn on every available feature by default.
 
 ## Measure Panackelty source coverage — candidate pending assessment
 
+Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131). State: Idea; implementation
+unscheduled. See the [current comparison](#proposed-first-step) for first-slice
+estimates and recommendation.
+
 The public LLVM report measures the native C VM only. Existing `.panack` tests
 exercise the compiler and libraries, but there is no measured source-line or
 branch baseline for those files. Publishing C coverage did not close this gap.
 
 The frontend already carries source positions; the emitted `FunctionCode` and
-version-8 bytecode contract currently do not carry an instruction-to-source map.
+current v9 bytecode contract do not carry an instruction-to-source map.
 Coverage therefore requires compiler/bytecode/VM design, not just an HTML export.
 Compare deterministic sidecar metadata with a versioned bytecode extension;
 do not assume a format change or a particular instrumentation scheme in advance.
@@ -1009,9 +1122,129 @@ artifact retention and source-snapshot validation as part of the measurement
 format. A report must distinguish zero hits, excluded code, missing data and
 failed collection; partial collection must not appear as a complete green report.
 
-## Grooming gaps and decisions — newly explicit
+## Groomed development and engineering work
 
-These earlier findings are retained as supporting context. The broader
+The [candidate table](#groomed-candidates) owns state and estimates. Linked issues
+hold detailed acceptance, risks and first-slice boundaries.
+
+### Development workflow assessment
+
+Work record: [#133](https://github.com/sproates/panackelty/issues/133).
+
+The earlier delivery pilot predates core-method and networking delivery. Observe
+a fixed installation-to-maintenance task, including API discovery, errors and
+focused tests. Record reproducible obstacles and feedback latency, with human
+and fresh-context agent evidence where available. Distinguish release and
+development toolchains. Produce bounded fixes rather than assuming a project
+generator, formatter or package manager is needed.
+
+### Compiler explanations
+
+Work record: [#134](https://github.com/sproates/panackelty/issues/134).
+
+Start with one query explaining an actual checker decision, such as accepted or
+rejected guarded subtraction. Acceptance requires checked facts, source
+locations, honest unknowns and agreement with positive and negative checker
+cases. Retained evidence and cost need investigation. Types and effects can
+follow; runtime value provenance, new inference rules and automatic fixes remain
+separate.
+
+### Systematic invariant testing
+
+Work record: [#135](https://github.com/sproates/panackelty/issues/135).
+
+Extend existing source/bytecode comparisons, deterministic round trips and
+bootstrap fixed points with one bounded invariant family. Use reproducible
+generation or justified source transformations, an independently reviewed oracle
+and useful reduced failures. Demonstrate detection of an isolated deliberate
+perturbation. Shared implementation bugs and invalid transformations are risks;
+full random-language generation and a second execution engine are outside scope.
+
+### Source-aware runtime errors
+
+Work record: [#136](https://github.com/sproates/panackelty/issues/136).
+
+Source positions exist in the frontend, but emitted instruction/source mapping
+is missing. Assess reuse of coverage metadata for one bounded trap and
+call-context slice. Acceptance includes imported/generic code, nested calls, an
+async boundary and safe fallback for absent or mismatched source snapshots.
+Preserve error meaning and bytecode safety. A debugger and full async history
+are separate; report publication is not a prerequisite.
+
+### Learning path and technical documentation
+
+Work record: [#137](https://github.com/sproates/panackelty/issues/137).
+
+Build on the README, examples, specification, VM guide and playground. Start
+with one complete tutorial from clean installation through testing and a
+maintenance change, linked to discoverable library/reference material. Run its
+commands against the declared version and keep development-only networking
+distinct from alpha.10. Subsequent practical and technical guides follow
+demonstrated gaps. Website visual changes require a working review preview.
+
+### Executable documentation
+
+Work record: [#138](https://github.com/sproates/panackelty/issues/138).
+
+Quick-start, website, functional-example and playground checks already execute
+documentation. Inventory checked, illustrative and uncovered content, then
+verify one additional guide through the existing toolchain. Incorrect commands
+or expected output must fail visibly. Preserve negative examples, clean
+setup/cleanup and version boundaries. Coordinate with the first tutorial without
+introducing a competing harness or silently skipping platform-dependent
+examples.
+
+### Editor support
+
+Work record: [#139](https://github.com/sproates/panackelty/issues/139).
+
+No dedicated editor extension or grammar package was found in the tracked tree
+during grooming. Select one editor before implementation, then deliver file
+recognition, highlighting, comments, bracket pairing and indentation with
+installation instructions. Validate current lexical examples and incomplete
+code. Compiler-backed diagnostics, navigation, hover and completion follow
+separate assessment; a language server, formatter and marketplace release are
+not prerequisites.
+
+### Technical showcase programs
+
+Work record: [#140](https://github.com/sproates/panackelty/issues/140).
+
+Choose one complete demonstration combining existing capabilities, such as an
+exact ledger with checked domain rules or a finite concurrent service with
+independent clients. Provide deterministic inputs, expected source/bytecode
+results and both success and failure boundaries. Explain guarantees and
+platform/release limits. Reuse existing examples and checks; no new language
+feature or production HTTP claim is required.
+
+### Runtime and resource baselines
+
+Work record: [#141](https://github.com/sproates/panackelty/issues/141).
+
+Existing validation profiles and paired experiments are useful evidence but do
+not form a general maintained resource baseline. Select a small representative
+workload set and record correctness-checked compilation, execution, memory and
+artifact size. Separate cold/warm costs, report environment and variability, and
+label unavailable metrics. Set policy after understanding baseline noise;
+universal thresholds and cross-language superiority claims are outside the
+initial scope.
+
+### Independent contract implementation
+
+Work record: [#142](https://github.com/sproates/panackelty/issues/142).
+
+The bytecode format, fixed fixtures and VM/compiler audit already establish
+substantial contract evidence. Test one small stable subset by implementing a
+disposable probe from the written contract before consulting implementation
+details. Record ambiguities, independently derived malformed/valid vectors and
+any prior knowledge limiting independence. Use the supported toolchain. This
+assesses specification precision without adding a second execution engine or
+claiming full-language conformance.
+
+## Historical grooming gaps and decisions
+
+These earlier findings are retained as supporting context, not a fresh audit.
+The broader
 [2026-09-29 assessment](docs/ADOPTION_ASSESSMENT.md) now covers application
 architecture and adoption as well as testing. Neither report authorises every
 feature or settles implementation priorities.
@@ -1034,6 +1267,10 @@ module visibility and compatibility guarantees are explicitly deferred in the
 specification; do not promote them merely because other languages have them.
 
 ## Harden and expand test coverage — candidate; foundation delivered
+
+The [invariant-testing item](#systematic-invariant-testing) scopes generated inputs
+and equivalence checks separately from [source measurement](#measure-panackelty-source-coverage--candidate-pending-assessment).
+Both extend existing evidence; neither changes coverage status by being planned.
 
 The goal is to make regressions difficult to introduce and failures easy to
 localize while keeping `make check` the canonical validation command.
@@ -1088,6 +1325,10 @@ lines, 80.65% branches and 100% functions; it is not a `.panack` baseline.
       live entry-page, source-navigation and provenance checks
 
 ## Codebase-wide human readability and refactoring — candidate
+
+Work record: [Component readability and refactoring](https://github.com/sproates/panackelty/issues/132). State: Idea; implementation
+unscheduled. See the [current comparison](#proposed-first-step) for first-slice
+estimates and recommendation.
 
 Extend the native VM readability cleanup across all project code, including
 the compiler, bytecode tooling, runtime, standard library, bootstrap code,
@@ -1729,11 +1970,11 @@ source-file workflow, with an explicit boundary between partial and runnable cod
 
 ### Data and target-platform experiments
 
-- [ ] Investigate an optional browser target, including VM portability, DOM and
-      Web API bindings, sandboxing, asynchronous effects, artifact size, and
-      source-level debugging
-- [ ] Compare a WebAssembly-hosted Panackelty VM with direct code generation before
-      selecting a browser execution model
+- [x] Establish a bounded WebAssembly-hosted VM profile for the complete-program
+      playground; PRs #111, #113 and #115 record feasibility and delivery
+- [ ] Assess broader browser application integration, including DOM/Web APIs,
+      asynchronous effects and source debugging separately from the playground;
+      direct code generation remains an alternative only if evidence warrants it
 - [ ] Keep browser execution optional so terminal programs and the native seed VM
       do not inherit unnecessary platform complexity
 - [ ] Define ecosystem and standard-library contribution criteria around API
@@ -1750,9 +1991,10 @@ Add a read-evaluate-print loop for exploring Panackelty expressions, trying
 standard-library APIs and learning the language without creating a source file
 for every experiment. This is an idea with no implementation slot or dependency
 claim on other work. On 2026-09-30 the user identified trying the language on
-the website as a concrete learning workflow. Assess a complete-program browser
-playground first; stateful REPL semantics remain separately scoped. The website
-content update proceeds independently. If accepted, reuse the existing toolchain.
+the website as a concrete learning workflow. The complete-program browser
+playground now provides that starting point; stateful REPL semantics remain
+separately scoped. The website content update shipped in PR #108 and the complete-program playground shipped
+in PR #115. Stateful REPL work remains unscheduled and should reuse the toolchain.
 
 - [ ] Specify the entry command (for example `panack repl`), expression result
       display, multiline input and incomplete-input detection

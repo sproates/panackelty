@@ -5,15 +5,17 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {compileAndRun,execute,sourceBytes,SOURCE_LIMIT} from '../../build/playground/runtime.mjs';
-import {File,Directory} from '../../build/playground/vendor/index.js';
+const version = fs.readFileSync(new URL('../../build/playground/asset-version.txt', import.meta.url), 'utf8').trim();
+const assets = new URL(`../../build/playground/assets/${version}/`, import.meta.url);
+const {compileAndRun,execute,sourceBytes,SOURCE_LIMIT} = await import(new URL('runtime.mjs', assets));
+const {File,Directory} = await import(new URL('vendor/index.js', assets));
 import {Playground} from '../../src/playground/controller.mjs';
 import {examples, exampleGuides} from '../../src/playground/examples.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
-const module=await WebAssembly.compile(fs.readFileSync(path.join(root,'build/playground/vm.wasm')));
-const compiler=fs.readFileSync(path.join(root,'bootstrap/compiler-v9.bc'));
-const stdlib=JSON.parse(fs.readFileSync(path.join(root,'build/playground/stdlib.json')));
+const module=await WebAssembly.compile(fs.readFileSync(new URL('vm.wasm', assets)));
+const compiler=fs.readFileSync(new URL('compiler.bc', assets));
+const stdlib=JSON.parse(fs.readFileSync(new URL('stdlib.json', assets)));
 const run=source=>compileAndRun(module,compiler,stdlib,source);
 
 test('every website example matches expected output through browser and native public CLI',async t=>{

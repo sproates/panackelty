@@ -891,7 +891,11 @@ the same validated revision as the website and deploys them at `/playground/`.
 
 `build.mjs` selects the existing VM modules plus a browser-profile replacement
 for the native typed capability dispatcher. It emits verified compiler/stdlib
-assets and source/artifact hashes under `build/playground`. `setup.mjs` installs
+assets and source/artifact hashes under `build/playground`. The complete asset set
+lives in a content-hashed subdirectory; the entry HTML selects that set, and
+relative module/worker/binary URLs stay within it. The build replaces its output
+rather than retaining obsolete assets. Cached old entry pages may need a reload;
+the deployment does not keep historical asset sets. `setup.mjs` installs
 locked JavaScript dependencies without lifecycle scripts under `build`, preserving
 the native source-policy boundary and existing cleanup behavior. Browser-only
 tests run in their own unprivileged workflow, not instead of native checks.

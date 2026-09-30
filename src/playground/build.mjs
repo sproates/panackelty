@@ -3,6 +3,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {versionAssets} from './assets.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -14,6 +15,7 @@ if (version.status !== 0 || !version.stdout.includes('23.1.0-wasi-sdk')) {
   throw new Error('Expected WASI SDK 34.0 / Clang 23.1.0-wasi-sdk.');
 }
 const out = path.join(root, 'build/playground');
+fs.rmSync(out, {recursive:true, force:true});
 fs.mkdirSync(out, {recursive:true});
 const sources = fs.readdirSync(path.join(root, 'src/vm')).filter(n => n.endsWith('.c') && n !== 'host_capabilities.c').sort().map(n => path.join(root, 'src/vm', n));
 // The compiler/linker subprocess has only SDK binaries in PATH: no interpreter.
@@ -42,6 +44,9 @@ const hash = file => createHash('sha256').update(fs.readFileSync(file)).digest('
 fs.writeFileSync(path.join(out, 'provenance.json'), JSON.stringify({toolchain:version.stdout.trim(),
   inputs:Object.fromEntries(inputs.map(file => [path.relative(root,file),hash(file)])),
   artifacts:Object.fromEntries(['vm.wasm','compiler.bc','stdlib.json'].map(name => [name,hash(path.join(out,name))]))}, null, 2)+'\n');
+fs.copyFileSync(path.join(root, 'site/styles.css'), path.join(out, 'site.css'));
+fs.copyFileSync(path.join(root, 'site/favicon.svg'), path.join(out, 'favicon.svg'));
+versionAssets(out);
 console.log('Built '+out+' with SDK-only compiler PATH.');
 // Browser tests exercise the real website-relative paths, not a root-only demo.
 const website = path.join(root, 'build/website');

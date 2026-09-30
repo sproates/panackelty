@@ -14,8 +14,10 @@ async function checkPages(root, base) {
     }
   }
   walk(root);
+  const version = fs.readFileSync(path.join(root, 'playground/asset-version.txt'), 'utf8').trim();
+  if (!/^[0-9a-f]{64}$/.test(version)) throw new Error('Invalid playground asset version');
   for (const asset of ['vm.wasm', 'compiler.bc', 'stdlib.json', 'worker.mjs', 'provenance.json']) {
-    const file = path.join(root, 'playground', asset);
+    const file = path.join(root, 'playground/assets', version, asset);
     if (!fs.statSync(file).isFile() || fs.statSync(file).size === 0) {
       throw new Error(`Missing playground asset: ${asset}`);
     }

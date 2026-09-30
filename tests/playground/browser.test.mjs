@@ -80,3 +80,65 @@ test('core types and chained methods need no imports',async({page})=>{
   await run(page,'main(): Void { print(1.ends_with("x")) }');
   await expect(page.locator('#output')).toContainText('expected Str');
 });
+
+test('a cached deployment reloads a matching new example, worker and library', async({page}) => {
+  // Real HTTP caching: Playwright route interception would disable the cache.
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const os = await import('node:os');
+  const http = await import('node:http');
+  const {versionAssets} = await import('../../src/playground/assets.mjs');
+  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'panack-upgrade-'));
+  const built = new URL('../../build/playground/', import.meta.url);
+  const oldVersion = fs.readFileSync(new URL('asset-version.txt', built), 'utf8').trim();
+  const previous = path.join(work, 'previous');
+  const next = path.join(work, 'next');
+  fs.cpSync(built, previous, {recursive:true});
+  fs.cpSync(new URL(`assets/${oldVersion}/`, built), next, {recursive:true});
+  fs.copyFileSync(new URL('../../src/playground/index.html', import.meta.url), path.join(next, 'index.html'));
+  const examplesFile = path.join(next, 'examples.mjs');
+  fs.writeFileSync(examplesFile, fs.readFileSync(examplesFile, 'utf8').replace('print("Hello, browser!")', 'print(cache_revision())'));
+  const libraryFile = path.join(next, 'stdlib.json');
+  const library = JSON.parse(fs.readFileSync(libraryFile, 'utf8'));
+  library['core.panack'] += '\npure cache_revision(): Str { "Updated library!" }\n';
+  fs.writeFileSync(libraryFile, JSON.stringify(library));
+  const nextVersion = versionAssets(next);
+  let active = previous;
+  const requests = [];
+  const types = {'.html':'text/html', '.mjs':'text/javascript', '.js':'text/javascript', '.wasm':'application/wasm', '.json':'application/json', '.css':'text/css'};
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url, 'http://localhost');
+    requests.push(url.pathname);
+    const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+    const file = path.resolve(active, name);
+    if (!file.startsWith(active + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {res.writeHead(404).end();return;}
+    res.writeHead(200, {'Content-Type':types[path.extname(file)] || 'application/octet-stream',
+      'Cache-Control':name === 'index.html' ? 'no-cache' : 'public, max-age=3600, immutable'});
+    res.end(fs.readFileSync(file));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.getByRole('button', {name:'Run program', exact:true}).click();
+    await expect(page.locator('#output')).toHaveText('Hello, browser!\n');
+    requests.length = 0;
+    await page.reload();
+    await page.getByRole('button', {name:'Run program', exact:true}).click();
+    await expect(page.locator('#output')).toHaveText('Hello, browser!\n');
+    expect(requests.filter(name => name.endsWith('/examples.mjs'))).toEqual([]);
+    active = next;
+    requests.length = 0;
+    await page.reload();
+    await page.getByRole('button', {name:'Load example', exact:true}).click();
+    await expect(page.locator('#source')).toHaveValue(/print\(cache_revision\(\)\)/);
+    await page.getByRole('button', {name:'Run program', exact:true}).click();
+    await expect(page.locator('#output')).toHaveText('Updated library!\n');
+    for (const name of ['app.mjs', 'examples.mjs', 'controller.mjs', 'worker.mjs', 'runtime.mjs', 'vendor/index.js', 'compiler.bc', 'stdlib.json', 'vm.wasm', 'style.css', 'site.css']) {
+      expect(requests).toContain(`/assets/${nextVersion}/${name}`);
+    }
+    expect(requests.some(name => name.includes(oldVersion))).toBe(false);
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+    fs.rmSync(work, {recursive:true, force:true});
+  }
+});

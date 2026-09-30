@@ -34,7 +34,7 @@
             <a class="button primary" href="playground/">Try it in your browser <span aria-hidden="true">→</span></a>
             <a class="button secondary" href="#engineering">Explore the engineering</a>
           </div>
-          <p class="availability">Developer preview 0.1.0-alpha.9 is available for Linux x86-64 and Apple silicon.</p>
+          <p class="availability">Developer preview 0.1.0-alpha.10 is available for Linux x86-64 and Apple silicon.</p>
         </div>
         <div class="code-card" aria-label="An exact arithmetic example">
           <div class="code-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>exact.panack</span><span class="code-status">current source</span></div>
@@ -56,13 +56,13 @@ main(): Void {
 
       <aside class="release-note" aria-labelledby="versions-title">
         <h2 id="versions-title">Know which version you’re exploring.</h2>
-        <p><strong>Download:</strong> alpha.9, using bytecode v8. <strong>Current source:</strong> newer development work, using bytecode v9, including experimental async/await. Not every feature below is in the download. Saved v8 programs must be recompiled for v9.</p>
-        <p><a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.9">Download alpha.9</a> · <a href="https://github.com/sproates/panackelty/blob/main/README.md#experimental-async-source-support">Read the development notes</a></p>
+        <p><strong>Download:</strong> alpha.10, using bytecode v9. It includes import-free <code>Option</code>/<code>Result</code>, text and collection methods, and experimental async/await. Upgrading from alpha.9? Recompile saved v8 programs and replace obsolete text/collection imports with methods.</p>
+        <p><a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">Download alpha.10</a> · <a href="https://github.com/sproates/panackelty/blob/main/README.md#experimental-async-source-support">Read the async notes</a></p>
       </aside>
 
       <section class="content-section" id="capabilities" aria-labelledby="capabilities-title">
         <div class="section-heading"><p class="eyebrow">What you can use today</p><h2 id="capabilities-title">Small syntax.<br>Substantial semantics.</h2></div>
-        <p class="section-intro">These capabilities describe the current source toolchain. For the downloadable preview’s exact contract, use the <a href="https://github.com/sproates/panackelty/blob/v0.1.0-alpha.9/SPEC.md">alpha.9 specification</a>. Panackelty is ready for exploration and feedback; interfaces and compatibility are still evolving.</p>
+        <p class="section-intro">These capabilities describe the current source toolchain. For the downloadable preview’s exact contract, use the <a href="https://github.com/sproates/panackelty/blob/v0.1.0-alpha.10/SPEC.md">alpha.10 specification</a>. Panackelty is ready for exploration and feedback; interfaces and compatibility are still evolving.</p>
         <div class="capability-grid">
           <article><span class="feature-number">01 / Values</span><h3>Numbers that stay exact</h3><p>Arbitrary-precision <code>Nat</code> and <code>Int</code>, exact base-10 <code>Dec</code> and rational <code>Rat</code> values let you work without silently substituting floating-point approximations. Conversions make representability explicit.</p><a href="https://github.com/sproates/panackelty/blob/main/SPEC.md#rational-arithmetic-and-exact-conversions">Explore numeric semantics →</a></article>
           <article><span class="feature-number">02 / Domain modelling</span><h3>Rules belong with the type</h3><p>Guarded types attach constraints to values: a positive count, a bounded port, a valid domain value. Records, enums, generics, <code>Option</code> and <code>Result</code> help describe both successful values and failure cases.</p><a href="#guard-example">See a guarded type →</a></article>
@@ -71,13 +71,13 @@ main(): Void {
           <article><span class="feature-number">05 / The host</span><h3>Work with files and processes</h3><p>Typed paths, filesystem and process APIs, structured errors, byte streams, output limits and timeouts support terminal tools. Exact durations and monotonic instants make elapsed-time calculations explicit.</p><a href="https://github.com/sproates/panackelty/blob/main/SPEC.md#typed-filesystem-process-and-sleep-apis">Explore the host APIs →</a></article>
           <article><span class="feature-number">06 / Development</span><h3>Check, run, compile, test</h3><p>The <code>panack</code> command checks source, runs programs, saves bytecode and disassembles it. Logical imports organise source; the testing library supports assertions, fixtures and captured command results.</p><a href="https://github.com/sproates/panackelty/blob/main/src/stdlib/README.md">Browse the standard library →</a></article>
         </div>
-        <div class="development-note"><span class="badge">Implemented · unreleased experiment</span><h3>Async/await has a first working slice</h3><p>The current compiler and VM support async functions, awaited helpers and typed completions through a fixed fake-read service. This proves a language/runtime path; it does <strong>not</strong> provide real networking, source-level spawning or resource scopes.</p><a href="https://github.com/sproates/panackelty/blob/main/tests/functional/cases/async_await/main.panack">Read the executable async example →</a></div>
+        <div class="development-note"><span class="badge">Included in alpha.10 · experimental</span><h3>Async/await has a first working slice</h3><p>The current compiler and VM support async functions, awaited helpers and typed completions through a fixed fake-read service. This proves a language/runtime path; it does <strong>not</strong> provide real networking, source-level spawning or resource scopes.</p><a href="https://github.com/sproates/panackelty/blob/main/tests/functional/cases/async_await/main.panack">Read the executable async example →</a></div>
       </section>
 
       <section class="content-section" id="examples" aria-labelledby="examples-title">
         <div class="section-heading"><p class="eyebrow">Read a little. Try a little.</p><h2 id="examples-title">Ideas you can run.</h2></div>
         <div class="example-grid">
-          <article id="hello-example"><span class="badge">Works with alpha.9 and current source</span><h3>A pure calculation, an effectful entry point</h3><p>The greeting produces a value. <code>main</code> prints it. String interpolation keeps the result readable.</p>
+          <article id="hello-example"><span class="badge">Works with alpha.10 and current source</span><h3>A pure calculation, an effectful entry point</h3><p>The greeting produces a value. <code>main</code> prints it. String interpolation keeps the result readable.</p>
             <pre id="hello-source"><code>
 pure greeting(name: Str, answer: Nat): Str {
   "Hello, ${name}. The answer is ${answer}."
@@ -144,18 +144,18 @@ main(): Void {
 
       <section class="content-section" id="start" aria-labelledby="start-title">
         <div class="section-heading"><p class="eyebrow">Your first program</p><h2 id="start-title">From download<br>to “Hello, Ada.”</h2></div>
-        <p class="section-intro">Start with developer preview <strong>0.1.0-alpha.9</strong>. It includes the command, VM, compiler and standard library. Initial downloads support Linux x86-64 and macOS on Apple silicon; Windows is not part of this preview.</p>
+        <p class="section-intro">Start with developer preview <strong>0.1.0-alpha.10</strong>. It includes the command, VM, compiler and standard library. Initial downloads support Linux x86-64 and macOS on Apple silicon; Windows is not part of this preview.</p>
         <ol class="steps">
-          <li><h3>Download and verify</h3><p>Get the archive for your platform and its matching <code>.sha256</code> file from the <a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.9">release page</a>. In your download directory, verify the checksum. It must report <code>OK</code>.</p>
-            <details open><summary>Linux x86-64</summary><pre><code>sha256sum -c panackelty-0.1.0-alpha.9-linux-x86_64.tar.gz.sha256
-tar -xzf panackelty-0.1.0-alpha.9-linux-x86_64.tar.gz</code></pre></details>
-            <details><summary>macOS Apple silicon</summary><pre><code>shasum -a 256 -c panackelty-0.1.0-alpha.9-macos-arm64.tar.gz.sha256
-tar -xzf panackelty-0.1.0-alpha.9-macos-arm64.tar.gz</code></pre></details>
+          <li><h3>Download and verify</h3><p>Get the archive for your platform and its matching <code>.sha256</code> file from the <a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">release page</a>. In your download directory, verify the checksum. It must report <code>OK</code>.</p>
+            <details open><summary>Linux x86-64</summary><pre><code>sha256sum -c panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz.sha256
+tar -xzf panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz</code></pre></details>
+            <details><summary>macOS Apple silicon</summary><pre><code>shasum -a 256 -c panackelty-0.1.0-alpha.10-macos-arm64.tar.gz.sha256
+tar -xzf panackelty-0.1.0-alpha.10-macos-arm64.tar.gz</code></pre></details>
           </li>
           <li><h3>Save the greeting</h3><p>Copy the <a href="#hello-example">complete greeting example above</a> into a file named <code>hello.panack</code> beside the extracted <code>panackelty</code> directory. Keep the extracted directory together: it contains the whole toolchain.</p></li>
           <li><h3>Check it, then run it</h3><pre><code>./panackelty/bin/panack --version
 ./panackelty/bin/panack check hello.panack
-./panackelty/bin/panack run hello.panack</code></pre><p>The version reports <code>panack 0.1.0-alpha.9 (bytecode 8)</code>. The program prints <code>Hello, Ada. The answer is 42.</code></p></li>
+./panackelty/bin/panack run hello.panack</code></pre><p>The version reports <code>panack 0.1.0-alpha.10 (bytecode 9)</code>. The program prints <code>Hello, Ada. The answer is 42.</code></p></li>
           <li><h3>Save a compiled program</h3><pre><code>./panackelty/bin/panack compile hello.panack -o hello.bc
 ./panackelty/bin/panack run hello.bc</code></pre><p>You get the same greeting through saved bytecode. For a permanent installation or a build of the newer source, follow the <a href="https://github.com/sproates/panackelty/blob/main/README.md">full setup guide</a>.</p></li>
         </ol>

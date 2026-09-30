@@ -67,13 +67,12 @@ contracts and use.
 
 ## Experimental async source support
 
-The current source checkout supports `async` functions, explicit `await` and
+The alpha.10 toolchain supports `async` functions, explicit `await` and
 `AsyncFn` references with a fixed fake read service. The
 [executable example](tests/functional/cases/async_await/main.panack) checks typed
 success/error results and nested suspension. This is a bounded language/runtime
 slice, not networking support; source spawning and resource scopes remain future
-work. It uses bytecode v9, so saved v8 programs need recompilation. The published
-alpha.9 download below predates this unreleased feature.
+work. It uses bytecode v9, so saved v8 programs need recompilation.
 
 ## Start writing Panackelty
 
@@ -81,10 +80,21 @@ The developer preview is designed to be downloaded and run directly. The
 download contains everything needed to check, compile, and run programs: the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives for `0.1.0-alpha.9` are available from the
-[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.9).
+Developer-preview archives for `0.1.0-alpha.10` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10).
 The [release policy](RELEASE_POLICY.md) defines the preview's support and
 compatibility boundaries.
+
+### Upgrading from alpha.9
+
+This preview deliberately changes source APIs and saved bytecode. Recompile v8
+bytecode from source with alpha.10; the VM accepts bytecode v9 only.
+
+`Option`, `Result` and their constructors are now available without imports.
+Remove `stdlib/text` and `stdlib/collections` imports and use methods such as
+`text.ends_with(suffix)`, `values.first()` and `values.sort_by(@comparator)`.
+The option/result modules remain available for explicitly imported value-or
+helpers. See the [migration notes](CHANGELOG.md#010-alpha10--2026-09-30).
 
 ### System requirements
 
@@ -100,8 +110,8 @@ adjacent `.sha256` file from the Releases page:
 
 | System | Archive |
 | --- | --- |
-| Linux x86-64 | `panackelty-0.1.0-alpha.9-linux-x86_64.tar.gz` |
-| macOS arm64 | `panackelty-0.1.0-alpha.9-macos-arm64.tar.gz` |
+| Linux x86-64 | `panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz` |
+| macOS arm64 | `panackelty-0.1.0-alpha.10-macos-arm64.tar.gz` |
 
 Windows and other architectures are not part of the initial preview.
 
@@ -111,24 +121,24 @@ In the directory containing both downloaded files, verify the archive. On
 Linux, run:
 
 ```sh
-sha256sum -c panackelty-0.1.0-alpha.9-linux-x86_64.tar.gz.sha256
+sha256sum -c panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz.sha256
 ```
 
 On macOS, run:
 
 ```sh
-shasum -a 256 -c panackelty-0.1.0-alpha.9-macos-arm64.tar.gz.sha256
+shasum -a 256 -c panackelty-0.1.0-alpha.10-macos-arm64.tar.gz.sha256
 ```
 
 The command must report the archive as `OK`. Then unpack the matching archive;
 the macOS name is shown here:
 
 ```sh
-tar -xzf panackelty-0.1.0-alpha.9-macos-arm64.tar.gz
+tar -xzf panackelty-0.1.0-alpha.10-macos-arm64.tar.gz
 ./panackelty/bin/panack --version
 ```
 
-The version command prints `panack 0.1.0-alpha.9 (bytecode 8)`. The Linux
+The version command prints `panack 0.1.0-alpha.10 (bytecode 9)`. The Linux
 archive follows the same layout and uses `linux-x86_64` in its name. To make
 `panack` available in future terminal sessions, keep the whole extracted
 directory together and link its command into a directory on `PATH`:
@@ -177,13 +187,11 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The current source-built toolchain produces the output below. The published
-alpha.9 download reports `bytecode 8` on the first line; the other lines are
-identical.
+The alpha.10 toolchain produces the output below.
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.9 (bytecode 9)
+panack 0.1.0-alpha.10 (bytecode 9)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc

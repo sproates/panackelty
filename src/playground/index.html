@@ -20,7 +20,13 @@
     <h1>Try <em>Panackelty.</em></h1>
     <p class="intro">Start with an example, change a value, and run it. Your program compiles and runs on your device; its source is not sent to a server.</p>
     <p class="version-note">Experimental browser edition · current development compiler · bytecode v9. This may differ from the downloadable alpha.9 release.</p>
-    <div class="example-picker"><label for="example">Start with</label><select id="example"><option value="hello">Hello, browser</option><option value="exact">Exact arithmetic</option><option value="pure">Pure functions</option><option value="text">Standard library</option></select><button id="load" type="button">Load example</button></div>
+    <div class="example-picker"><label for="example">Start with</label><select id="example"></select><button id="load" type="button">Load example</button></div>
+    <aside class="example-guide" aria-labelledby="example-title">
+      <h2 id="example-title">Hello, browser</h2>
+      <p id="example-description"></p>
+      <p><strong>Try changing it:</strong> <span id="example-edit"></span></p>
+      <details><summary>Expected output for the original example</summary><pre id="expected-output"></pre></details>
+    </aside>
     <div class="workspace">
       <section aria-labelledby="program-title">
         <h2 id="program-title"><label for="source">Program</label></h2>

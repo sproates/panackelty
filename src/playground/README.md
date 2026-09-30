@@ -47,8 +47,12 @@ checks. The SDK installer is optional and never a native `make check` prerequisi
 
 The example selector replaces the editor only when Load example is pressed;
 it never executes automatically. Source/output use text controls, and code stays
-on the device. Each run starts fresh. The four selectable examples are executed
+on the device. Each run starts fresh. The nine selectable examples are executed
 by all three browser test projects, with navigation, recovery and narrow-layout checks.
+Each loaded example has an explanation, an expected-output disclosure and a
+suggested edit. The expanded programs cover exact invoices, guarded values,
+collection processing, Option/Result handling and a combined order summary.
+Expected output retains decimal scale; it is not a currency formatter.
 
 Runtime dependencies are locked to `@bjorn3/browser_wasi_shim` 0.4.2; Playwright
 1.63.0 is test-only. The shim's MIT notice accompanies generated assets. We use

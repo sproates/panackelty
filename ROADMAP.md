@@ -488,6 +488,9 @@ task does not change those targets or claim improved native validation speed.
 
 Work record: [issue #114](https://github.com/sproates/panackelty/issues/114).
 State: In progress. Authorised on 2026-09-30 after PR #113.
+The user reviewed the private preview successfully on their phone and requested
+expanded examples before merge. Nine examples now include explanations, expected
+output and suggested edits; the expanded preview still requires review.
 Medium, estimated 1–2 PRs for the page, deployment integration, tests and review.
 Deliver an editable `/playground/` page with selectable examples, Run/Stop,
 output and diagnostics, using the existing site design and coordinated Pages/

@@ -1,4 +1,5 @@
 import {test,expect} from '../../build/playground-tools/node_modules/@playwright/test/index.mjs';
+import {exampleGuides} from '../../src/playground/examples.mjs';
 
 async function run(page,source){
   await page.locator('#source').fill(source);
@@ -47,14 +48,23 @@ test('homepage navigation and every selectable example work at website paths',as
   await page.goto('/');
   await page.getByRole('link',{name:'Try it online',exact:true}).click();
   await expect(page).toHaveURL(/\/playground\/$/);
-  for(const [name,output] of [['hello','Hello, browser!\n'],['exact','10\n0.125\n'],['pure','144\n'],['text','true\n']]){
+  await expect(page.locator('#example option')).toHaveCount(9);
+  for(const [name,guide] of Object.entries(exampleGuides)){
     await page.locator('#example').selectOption(name);
     await page.getByRole('button',{name:'Load example',exact:true}).click();
     await expect(page.locator('#source')).toBeFocused();
+    await expect(page.locator('#example-title')).toHaveText(guide.title);
+    await expect(page.locator('#example-description')).toHaveText(guide.description);
+    await expect(page.locator('#example-edit')).toHaveText(guide.edit);
+    await expect(page.locator('#expected-output')).toHaveText(guide.expected);
     await page.getByRole('button',{name:'Run program',exact:true}).click();
     await expect(page.locator('#status')).toHaveText('Finished');
-    await expect(page.locator('#output')).toHaveText(output);
+    await expect(page.locator('#output')).toHaveText(guide.expected);
   }
+  const edited = await page.locator('#source').inputValue();
+  await page.locator('#example').selectOption('hello');
+  await expect(page.locator('#source')).toHaveValue(edited);
+  await expect(page.locator('#example-title')).toHaveText(exampleGuides.order.title);
   await page.getByText('What can I run here?',{exact:true}).click();
   await expect(page.getByText('This is not a persistent REPL.',{exact:false})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

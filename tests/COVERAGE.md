@@ -7,11 +7,14 @@ hosts, UTF-8 input/output bounds, memory growth rejection and worker lifecycle.
 Its declared host restrictions are not new native language semantics. Browser
 engine checks supplement the native evidence below; physical iPhone validation
 remains distinct from automated WebKit tests.
-Website integration tests execute all four selectable examples at `/playground/`,
+Website integration tests execute all nine selectable examples at `/playground/`,
 follow homepage/return links, check literal output and narrow layout, and exercise
 stop, timeout, diagnostics and failure recovery. Pages assembly rejects missing
 playground assets and symlinks before publishing. Deployment tests check the
 selected complete artifact, including playground bytes and Wasm MIME type.
+The guides' expected output is checked through WASI and the native public CLI.
+Suggested invoice edits must recalculate correctly and an invalid guarded value
+must fail. Browser checks ensure each loaded program's guide matches its selection.
 
 This matrix maps the behavior promised by `SPEC.md` to the automated evidence
 in the unit and functional suites. It tracks behavioral protection, not merely

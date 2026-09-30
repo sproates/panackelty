@@ -8,7 +8,7 @@ import {spawnSync} from 'node:child_process';
 import {compileAndRun,execute,sourceBytes,SOURCE_LIMIT} from '../../build/playground/runtime.mjs';
 import {File} from '../../build/playground/vendor/index.js';
 import {Playground} from '../../src/playground/controller.mjs';
-import {examples} from '../../src/playground/examples.mjs';
+import {examples, exampleGuides} from '../../src/playground/examples.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const module=await WebAssembly.compile(fs.readFileSync(path.join(root,'build/playground/vm.wasm')));
@@ -19,14 +19,23 @@ const run=source=>compileAndRun(module,compiler,stdlib,source);
 test('every website example matches expected output through browser and native public CLI',async t=>{
   const work=fs.mkdtempSync(path.join(os.tmpdir(),'panack-browser-examples-'));
   t.after(()=>fs.rmSync(work,{recursive:true,force:true}));
-  const expected={hello:'Hello, browser!\n',exact:'10\n0.125\n',pure:'144\n',text:'true\n'};
+  assert.equal(Object.keys(examples).length,9);
   for(const [name,source] of Object.entries(examples)){
     const result=await run(source);
-    assert.equal(result.status,0,name);assert.equal(result.stdout,expected[name],name);
+    assert.equal(result.status,0,name+': '+result.stderr);assert.equal(result.stdout,exampleGuides[name].expected,name);
     const file=path.join(work,name+'.panack');fs.writeFileSync(file,source);
     const native=spawnSync(path.join(root,'panack'),['run',file],{cwd:root,encoding:'utf8'});
-    assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,expected[name],name);
+    assert.equal(native.status,0,native.stderr);assert.equal(native.stdout,exampleGuides[name].expected,name);
   }
+});
+
+test('suggested domain edits reject invalid values and exact invoice edits recalculate',async()=>{
+  const invalid=await run(examples.guards.replace('seats: Seats = 4','seats: Seats = 0'));
+  assert.notEqual(invalid.status,0);
+  assert.notEqual(invalid.stderr,'');
+  const invoice=await run(examples.invoice.replace('3.0 * 19.95','4.0 * 19.95'));
+  assert.equal(invoice.status,0,invoice.stderr);
+  assert.equal(invoice.stdout,'Subtotal: 87.300\nTax: 17.46000\nTotal: 104.76000\n');
 });
 
 test('existing compiler, exact numbers, Unicode and stdlib work',async()=>{

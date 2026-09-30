@@ -133,6 +133,67 @@ socket/build dependencies were directly observed during process editing.
 Source-coverage feasibility (#131), editor basics (#139) and invariant testing
 (#135) should be reassessed next; none is automatically scheduled by completion.
 
+### Additional platform and distribution ideas
+
+Recorded at the user's request on 2026-09-30 for future grooming. All four
+items are **Idea**, with implementation unscheduled; this adds no priority,
+release commitment or completed deliverable to the grooming ledger. Relate
+installation friction to the [development workflow assessment](#development-workflow-assessment)
+(#133) when comparing these with other candidates.
+
+Linux arm64 enables native arm64 containers and packages. Docker can first ship
+amd64 independently; Homebrew on the existing macOS arm64 target is independent.
+A downloadable Debian package and a hosted apt repository are separate stages.
+These proposals do not change the current release support policy.
+
+<a id="linux-arm64-support"></a>
+
+#### Support Linux arm64 release artifacts
+
+Work record: [#145](https://github.com/sproates/panackelty/issues/145).
+
+Linux x86-64 and macOS arm64 releases exist; Linux arm64 is missing. Native ARM containers, ARM cloud hosts and compatible Raspberry Pi systems would benefit. macOS arm64 binaries cannot run in Linux containers.
+
+Add a native Linux arm64 CI runner, validate bootstrap, VM, networking and exact packaged installation, then publish a checksummed release archive with an explicit OS baseline. Run meaningful compiler/unit/functional and release gates on that target. Exclude Windows, other architectures and a promise to support every ARM board.
+
+M / provisionally 1–2 PRs including tests, release integration and documentation. Portability failures, runner availability and ongoing CI cost remain uncertain. Enables native arm64 Docker images; amd64-only images can proceed independently.
+
+<a id="container-distribution"></a>
+
+#### Publish versioned Panackelty Docker images
+
+Work record: [#146](https://github.com/sproates/panackelty/issues/146).
+
+The self-contained release archives are suitable inputs for repeatable CI and agent environments, but no maintained container image is currently provided.
+
+Publish a toolchain image to GHCR from validated release artifacts. Verify version/checksum provenance, check/compile/run workflows, bind-mounted projects and output ownership. Use explicit version tags and document digest pinning and base-image maintenance. Publish amd64/arm64 manifests only after both Linux targets pass release gates. Exclude application hosting and runtime-only images.
+
+M / provisionally 1–2 PRs. Depends on existing release gates; native multi-architecture delivery depends on the Linux arm64 proposal. Registry permissions, base-image updates and partial publication recovery need assessment. No urgency or implementation order is agreed.
+
+<a id="homebrew-distribution"></a>
+
+#### Provide Panackelty installation through a Homebrew tap
+
+Work record: [#147](https://github.com/sproates/panackelty/issues/147).
+
+Manual archive installation is supported; a maintained Homebrew tap would simplify installation and upgrades for developers and coding agents.
+
+Create a project-owned tap with pinned release/checksum inputs and an explicit supported-platform policy. Assess source builds versus binary packaging, then verify clean installation, check/compile/run, upgrades and removal. Automate or document release updates. Exclude homebrew/core admission while the project remains an alpha.
+
+S–M / provisionally 1–2 PRs including integration and documentation. Independent of Docker and Linux arm64 for the existing macOS arm64 target. Formula layout/relocation, Homebrew policy and ongoing release maintenance require validation.
+
+<a id="debian-package-distribution"></a>
+
+#### Assess Debian packages and apt distribution
+
+Work record: [#148](https://github.com/sproates/panackelty/issues/148).
+
+Linux users currently unpack archives manually. Native package installation could simplify removal and upgrades; demand for a hosted apt repository remains unmeasured. Existing PREFIX/DESTDIR installation provides a starting point.
+
+First assess and deliver a downloadable .deb for an explicitly supported Debian/Ubuntu baseline. Verify dependencies, installation, check/compile/run, upgrade and removal on that baseline. Consider a signed apt repository separately when demand justifies hosting, scoped signing keys and key rotation. Exclude official Debian/Ubuntu archive inclusion and blanket distro support.
+
+M / provisionally 1–2 PRs for a downloadable package; hosted apt repository effort remains unknown. Validate ABI compatibility rather than assuming an Ubuntu-built archive works on every Debian release. arm64 packages depend on Linux arm64 support; amd64 packaging is independent. Ongoing repository/security maintenance is a material cost.
+
 ### Scope retained outside this grooming batch
 
 Existing namespace and standard-library organisation ideas, broader inference,

@@ -70,6 +70,11 @@ bool vm_execution_complete_read(VMExecution *execution, Value *result);
  * read/print completions cannot complete a TCP wait. */
 bool vm_execution_enable_tcp(VMExecution *execution);
 bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms);
+/* Listening is a separate opt-in. Pump dispatches at most budget child steps;
+ * stop closes admission then drains. Destroy cancels synchronously. */
+bool vm_execution_enable_server(VMExecution *execution);
+bool vm_execution_pump_server(VMExecution *execution, size_t budget, unsigned max_wait_ms);
+bool vm_execution_stop_server(VMExecution *execution);
 bool vm_fake_read_result_valid(const Value *result);
 Value *vm_fake_read_result(bool fail);
 /* Borrowed result, valid until destroy; NULL unless completed. */

@@ -142,3 +142,10 @@ The [migration inventory](../../tests/fixtures/host_runtime/README.md) maps all 
 former methods: 31 migrated to direct native evidence and the final six replaced
 by fixed oracle fixtures and native/bootstrap cross-checks. Functional source and bytecode cases still verify
 public behaviour on both supported platforms.
+
+
+`import stdlib/tcp` supplies the ordinary `TcpServerLimits` record for finite
+native servers. The compiler builtin `tcp_serve` checks its named async handler
+and returns ordered per-client outcomes. See the [TCP server contract](../../SPEC.md#native-tcp-server-development-toolchain)
+for field order, bounds, EOF framing and shutdown. Raw TCP is unavailable in the
+browser and absent from alpha.10 downloads.

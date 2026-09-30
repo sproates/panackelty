@@ -478,11 +478,11 @@ record FunctionCodeLookup {
 }
 
 pure builtin_exists(name: Str): Bool {
-  name != "tcp_exchange" && (name == "$tcp_exchange" || is_builtin(name))
+  name != "tcp_exchange" && name != "tcp_serve" && (name == "$tcp_exchange" || name == "$tcp_serve" || is_builtin(name))
 }
 
 pure builtin_is_pure(name: Str): Bool {
-  name != "$tcp_exchange" && !is_impure_builtin(name)
+  name != "$tcp_exchange" && name != "$tcp_serve" && !is_impure_builtin(name)
 }
 
 pure bytecode_function(program: BytecodeProgram, name: Str): FunctionCodeLookup {
@@ -534,7 +534,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
       } else {
         expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { len(target.value.parameters) }
         target_pure: Bool = if builtin_exists(name) { builtin_is_pure(name) } else { target.value.is_pure }
-        if (!builtin_exists(name) && target.found && target.value.is_async) || name == "async_fake_read" || name == "$tcp_exchange" { "ordinary call cannot enter async function" }
+        if (!builtin_exists(name) && target.found && target.value.is_async) || name == "async_fake_read" || (name == "$tcp_exchange" || name == "$tcp_serve") { "ordinary call cannot enter async function" }
         else { if function.is_async && !target_pure { "async function cannot call blocking function" }
         else { if arity != expected { "bytecode call to ${name} has invalid arity" }
         else { if function.is_pure && !target_pure { "pure bytecode function calls impure function ${name}" } else { "" } } } }
@@ -680,7 +680,7 @@ pure round_trip_bytecode(data: Bytes): Bytes {
 pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: BytecodeProgram): Str {
   target: FunctionCodeLookup = bytecode_function(program, name)
   if !function.is_async { "await requires async function" }
-  else { if name == "async_fake_read" || name == "$tcp_exchange" {
+  else { if name == "async_fake_read" || (name == "$tcp_exchange" || name == "$tcp_serve") {
     if arity == builtin_arity(name) { "" } else { "async service arity mismatch" }
   } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }
   else { if arity != len(target.value.parameters) { "async call arity mismatch" } else { "" } } } }

@@ -496,3 +496,24 @@ timeouts, independent progress, destruction cleanup, embedded opt-in and source
 and forged-bytecode effect checking. The WASI runtime test requires explicit
 unavailability. These checks do not establish DNS/TLS, server APIs, source
 spawning, arbitrary network stress or exhaustive kernel-error coverage.
+
+
+## Bounded TCP server
+
+`unit/vm/tcp_server.c` covers fast progress beside a stalled reader or outbound
+await, slot reuse, request/response limits, empty data, client/admission expiry,
+stop/drain and destruction (including final admission racing writable clients
+with zero grace), handler traps/malformed results, finite computation
+budgets, bind conflict, foreign handlers and separate embedded capabilities.
+`native_faults.c` sweeps successful server allocations and cancellation lifetimes;
+injected socket/bind/listen/accept/poll/read/write/clock failures track all server
+and accepted descriptors. `tcp_serve.sh` runs source and saved-bytecode programs
+against independent binary/fragmented/empty peers, checks ordered success/error
+reports, and exercises busy-handler fairness and source typing/effect rejection.
+Both bytecode verifiers reject the independent server arity/effect fixtures.
+The pre-server seed's `legacy-server-name.hex` preserves old user-function behavior.
+Browser runtime tests check explicit listening rejection.
+
+Evidence concerns finite EOF-framed TCP only: no TLS/HTTP/IPv6, general source
+spawning, unbounded service operation or large-scale reactor performance claim.
+Platform and sanitizer validation results belong in the implementation PR.

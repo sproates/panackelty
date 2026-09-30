@@ -26,6 +26,7 @@ bool builtin_is_async(const Builtin *entry)
 static const Builtin BUILTINS[] = {
     {"async_fake_read", 1, false, async_service_only},
     {"$tcp_exchange", 5, false, async_service_only},
+    {"$tcp_serve", 4, false, async_service_only},
     {"fs_read", 2, false, host_capability_call},
     {"fs_write", 2, false, host_capability_call},
     {"fs_metadata", 1, false, host_capability_call},

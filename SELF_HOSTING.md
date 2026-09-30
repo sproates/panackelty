@@ -1,5 +1,11 @@
 # Self-hosting roadmap
 
+The bounded TCP server addition retains v9 and refreshes the compiler seed for
+`tcp_serve`, its handler signature, limits record and reserved builtin lowering.
+The seed was regenerated with identical stage 2/3/4 compiler and standard-library
+artifacts. The VM itself remains independent of compiler source; the new server
+owner executes ordinary verified handler bytecode through resumable frames.
+
 The compiler and standard library build on the native VM and reach a
 reproducible compiler fixed point. A milestone is complete only when its behavior
 has end-to-end and focused failure-case coverage in `make check`.

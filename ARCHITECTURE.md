@@ -1050,139 +1050,48 @@ for iOS. Persistent definitions, redefinition and state recovery remain separate
 REPL design work. Public-site integration is unscheduled; estimate one or two
 implementation PRs only after the toolchain/browser gates are resolved.
 
-## Bounded TCP server contract — proposed implementation
+<a id="bounded-tcp-server-contract--proposed-implementation"></a>
 
-The user selected completion of the bounded networking stage on 2026-09-30,
-followed by broader roadmap grooming. This is a proposed implementation contract,
-not a shipped API. The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns status.
-The client operation delivered in PR #127 remains unchanged.
+## Bounded TCP server
 
-### Source interface
+The [source contract](SPEC.md#native-tcp-server-development-toolchain) implements
+one finite awaited owner with named async handlers. `stdlib/tcp` supplies an
+ordinary limits record; the compiler lowers `tcp_serve` to reserved `$tcp_serve`.
+Encoding stays v9. Both verifiers require an async call and arity four. Runtime
+checks validate record fields, integer ranges, actual handler ownership/kind and
+completion shapes, preserving old saved user functions with the public name.
 
-Provide one awaited `tcp_serve` operation taking a numeric IPv4 bind address,
-nonzero port, named `AsyncFn[Bytes,Result[Bytes,Str]]` handler and explicit limits.
-Each handler receives a complete request and returns a response or client error.
-It may call pure helpers and await existing cooperative operations, including
-`tcp_exchange`; ordinary blocking effects remain forbidden. An echo handler
-returns `Ok(request)`.
+`tcp_server.c` owns a nonblocking listener and at most 32 reusable connection
+slots. It retains at most 256 outcomes in acceptance order. Each connection
+moves through read, handler-start, handler-run, write and free states. Poll
+snapshots include the unique admission index as well as the descriptor: an
+expired slot and reused descriptor cannot receive stale readiness. There are
+no externally queued server completions or native producer callbacks.
 
-The operation owns its listener, accepted sockets and child handler executions.
-Source programs receive bytes and reports, never live socket handles. This is a
-specialized structured owner for finite services, not general source spawning
-or the hypothetical resource syntax in the earlier async proposal.
+`tcp_server_poll` performs bounded socket work, never user bytecode.
+`tcp_server_advance` dispatches at most the supplied instruction budget, one
+instruction at a time in rotating handler order. Each handler owns a child VM
+context over the parent's borrowed verified program and snapshots. Ordinary
+async effect checks remain active. Handler outbound TCP uses the existing
+execution-owned exchange; the server rechecks these waits at most 1 ms apart
+rather than exposing child descriptors. Ready handlers force a zero-wait poll.
+This bounded polling adapter is not a scalable general-purpose reactor.
 
-Supply limits through an ordinary source record in an explicit `stdlib/tcp`
-import. Settle its exact spelling and builtin lowering in the implementation
-specification before source exposure. Required fields and validation:
+Per-client deadlines are checked before polling, after readiness and around
+handler steps, including nested outbound awaits. Stopping closes admission and
+begins bounded drain; destruction synchronously tears down child executions and
+sockets. Expected client errors are reports, while handler traps/allocation
+failure fail the owner. Separate embedded listening opt-in prevents existing
+outbound permission from authorizing a server; children do not receive listening
+permission, so recursive server invocation traps. WASI returns unavailable.
 
-| Limit | Contract |
-| --- | --- |
-| Total clients | 1–256 admissions per invocation. |
-| Concurrent clients | 1–32, no greater than total clients; reserve capacity before accept. |
-| Request/response bytes | Independently 0–1 MiB per client; check size arithmetic. |
-| Client timeout | 1–60,000 ms from acceptance through final write, using monotonic time. |
-| Admission timeout | 1–60,000 ms from successful listen. |
-| Drain grace | 0–60,000 ms from admission stop; client deadlines still apply. |
-
-Validate limits before opening the listener. Simultaneous I/O payload capacity
-is at most `concurrency * (request_limit + response_limit)`, hence 64 MiB under
-these bounds. This excludes VM values and handler allocations; do not claim a
-total memory limit. Instruction budgets permit cooperative progress, not
-preemption or a wall-clock guarantee within an individual instruction.
-
-One connection carries one request/reply: read until client write-half EOF,
-invoke the handler once, write the complete response, then close. Partial I/O,
-binary/empty messages and exact limits are valid. An extra request byte fails
-before handler invocation. An oversized response fails before sending it.
-Clients must half-close after sending, as `tcp_exchange` does; otherwise they
-reach the client deadline. No framing bytes are added. This is not HTTP or a
-streaming protocol.
-
-Return `Result[[Result[Unit,Str]],Str]`. Successful server completion contains
-one client outcome in acceptance order: `Ok(())` for a fully written response,
-or `Error` for read/write failures, handler errors, timeout or drain cancellation.
-Expected client failures do not cancel siblings. Listener/setup failure returns
-the outer `Error` after cleanup; partial reports are not returned on that path,
-and earlier response side effects are not rolled back. Unexpected handler traps
-or allocation failures trap the owner and cancel its children after cleanup.
-
-### Ownership, scheduling and shutdown
-
-Each connection progresses through read, handler, write and terminal states.
-The owner retains its socket, buffers and child VM through terminal cleanup.
-Completed capacity is reusable; bounded report slots remain until return.
-Generation-qualified connection identities reject stale completions after reuse.
-Never run a handler inline from acceptance or a socket callback.
-
-Reuse resumable execution and task-lifetime invariants. The existing `VMTasks`
-harness uses fake services, virtual deadlines and fixed admissions; it is not
-already a native network scheduler. Integrate native polling explicitly and
-retain its lifecycle coverage. Ready handlers receive round-robin bytecode
-budgets; socket work per connection is bounded, with a rotating start index.
-Include handler-initiated outbound TCP in polling. Do not wait for a slow socket
-while another handler is ready. A zero-wait host pump never waits for readiness;
-socket polling itself never executes bytecode.
-
-Stop accepting when the total-client limit or admission deadline is reached,
-or on an explicit host stop request. Close the listener immediately, drain until
-the earlier of each client's deadline and the grace deadline, then cancel
-leftovers. Normal return releases every child and descriptor. The CLI example
-stops through finite limits; signal handling is separate. Execution destruction
-is immediate cancellation: synchronously close sockets and destroy children,
-without running user finalizers or waiting for graceful drain.
-
-Nested operations inherit the earlier client deadline. Cancellation/deadlines
-observed before completion delivery win; already sent bytes cannot be undone.
-Setup, acceptance-to-activation and allocation failures release each owned
-descriptor exactly once. The POSIX polling backend needs no worker threads or
-external producer callbacks.
-
-### Host and compatibility boundaries
-
-Support source and saved bytecode on Linux/macOS. Embedded listening requires
-its own explicit capability; existing outbound TCP opt-in must not grant it.
-Children inherit only permitted capabilities and deadlines. Reject nested server
-creation inside handlers, including indirect attempts, so nested owners cannot
-defeat admission bounds. WASI/browser returns an explicit unavailable error.
-
-Check async callable signatures, limit types and effect rules in the compiler.
-Use a reserved builtin identity to preserve old user functions named `tcp_serve`.
-Both verifiers and native dispatch validate actual callable targets and runtime
-argument/result shapes; source typing is not a trust boundary. Keep bytecode v9
-only if encoding and existing semantics are unchanged. Otherwise follow the
-release policy's migration. Update SPEC, bytecode contracts, seed and examples
-with implementation; this proposal changes no supported language behavior.
-
-### Delivery and acceptance
-
-After the contract PR, deliver the native owner and source interface in one
-cohesive PR, or separate backend and source integration when independently
-testable. Remaining implementation is large, estimated 1–2 PRs including tests,
-documentation, bootstrap and platform integration.
-
-- Independent peers exercise real source and saved-bytecode servers: fragmented,
-  binary, empty and exact-limit transfers, partial writes, disconnect/reset,
-  bind conflicts and invalid arguments.
-- A fast client completes while another stalls in reading, handler computation,
-  outbound await or writing. Saturation cannot accumulate accepted sockets;
-  subsequent admissions reuse released capacity.
-- Client errors are isolated; traps fail the owner. Deadlines cover all phases.
-  Deterministic host tests cover stop during accept/read/handler/write, grace
-  expiry, destruction, late delivery and connection-slot reuse.
-- Allocation-failure and descriptor accounting cover setup, admission, handler
-  activation, buffers/results and cancellation. Sanitizers cover pending socket
-  and handler teardown.
-- Compiler and public-CLI negatives cover handler kinds, indirect effects and
-  limits. Forged bytecode exercises malformed shapes, invalid targets,
-  capability denial and recursive listening. Browser tests verify rejection.
-- Canonical `make check`, bootstrap fixed points, Linux/macOS packages, sanitizer
-  CI and relevant browser checks pass. Record timing and limitations. Provide
-  a runnable finite echo server/client example and precise shutdown/error docs.
-
-Completion means the selected finite TCP client/server stage works. DNS, IPv6,
-TLS, HTTP, arbitrary streaming handles, general source spawning and indefinitely
-running servers remain separately assessed work. Groom the broader roadmap
-after this stage's implementation and acceptance evidence.
+The CLI drives the same resumable dispatcher and owner pump. This does not
+extend the fake-host `VMTasks` experiment into a public source scheduler or add
+resource handles, general spawning, threads, indefinite servers, HTTP or TLS.
+The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns delivery state and the
+subsequent broader grooming decision. Tests cover native ownership, source and
+saved-bytecode peers, allocation/descriptor faults, capabilities and browser
+rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records limits.
 
 ## Implicit core and standard methods
 

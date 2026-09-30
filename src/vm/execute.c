@@ -3,11 +3,12 @@
 #include "numeric.h"
 #include "program.h"
 #include "render.h"
-#include "utf8.h"
 #include "tcp.h"
+#include "tcp_server.h"
+#include "utf8.h"
 #include "value.h"
-#include "vm.h"
 #include "verify.h"
+#include "vm.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,8 @@ struct VMExecution {
     VMServiceWait print_wait, read_wait;
     bool waiting_read, fake_fail, network_enabled;
     VMTcpExchange *tcp;
+    VMTcpServer *server;
+    bool server_enabled;
     void *host_context;
 };
 
@@ -195,9 +198,63 @@ static void frames_clear(VMExecution *execution)
     }
 }
 
+/* Source types do not survive in v9; check the full limits schema and resolve
+ * the actual named handler against this execution's verified program. */
+static Value *server_call(VMExecution *execution, Value **arguments)
+{
+    VM *vm = execution->vm;
+    if (execution->embedded && !execution->server_enabled) {
+        vm->error = "VM trap: TCP server is unavailable in this execution";
+        return NULL;
+    }
+    const char *fields[] = {"clients",        "concurrency",       "request_limit",
+                            "response_limit", "client_timeout_ms", "admission_timeout_ms",
+                            "drain_ms"};
+    Value *record = arguments[3];
+    size_t values[7], port;
+    if (arguments[0]->kind != V_STR || arguments[1]->kind != V_NAT ||
+        !value_index(arguments[1], &port) || record->kind != V_RECORD ||
+        strcmp(record->as.named.name, "TcpServerLimits") || record->as.named.count != 7) {
+        vm->error = "VM trap: invalid TCP server arguments";
+        return NULL;
+    }
+    for (size_t i = 0; i < 7; i++) {
+        Value *value = record->as.named.values[i];
+        if (strcmp(record->as.named.names[i], fields[i]) || value->kind != V_NAT ||
+            !value_index(value, &values[i])) {
+            vm->error = "VM trap: invalid TCP server limits";
+            return NULL;
+        }
+    }
+    Function *handler = NULL;
+    Value *callable = arguments[2];
+    if (callable->kind == V_STR) {
+        for (size_t i = 0; i < vm->program->count; i++) {
+            Function *candidate = &vm->program->functions[i];
+            if (!builtin(candidate->name) && strlen(candidate->name) == callable->as.bytes.length &&
+                !memcmp(candidate->name, callable->as.bytes.data, callable->as.bytes.length)) {
+                handler = candidate;
+            }
+        }
+    }
+    VMTcpServerLimits limits = {values[0], values[1], values[2], values[3],
+                                values[4], values[5], values[6]};
+    execution->server = tcp_server_start(vm, handler, arguments[0], port, limits,
+                                         !execution->embedded || execution->network_enabled);
+    if (!execution->server) {
+        vm->error = "native VM out of memory";
+    } else {
+        execution->status = VM_WAITING;
+    }
+    return NULL;
+}
+
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
 {
     VM *vm = execution->vm;
+    if (!strcmp(entry->name, "$tcp_serve")) {
+        return server_call(execution, arguments);
+    }
     if (!strcmp(entry->name, "$tcp_exchange")) {
         if (execution->embedded && !execution->network_enabled) {
             vm->error = "VM trap: TCP service is unavailable in this execution";
@@ -822,7 +879,8 @@ VMExecution *vm_execution_create_pending(VM *vm, Function *function, Value **arg
 
 bool vm_execution_complete_print(VMExecution *execution, const char *error)
 {
-    if (execution->running || execution->status != VM_WAITING || execution->waiting_read) {
+    if (execution->running || execution->status != VM_WAITING || execution->waiting_read ||
+        execution->server) {
         return false;
     }
     VM *vm = execution->vm;
@@ -860,6 +918,7 @@ bool vm_execution_destroy(VMExecution *execution)
         return false;
     }
     tcp_exchange_destroy(execution->tcp);
+    tcp_server_destroy(execution->server);
     frames_clear(execution);
     free(execution->frames);
     release(execution->result);
@@ -884,6 +943,10 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             if (status == VM_YIELDED) {
                 continue;
             }
+            if (status == VM_WAITING && execution.server) {
+                vm_execution_pump_server(&execution, 1024, 10);
+                continue;
+            }
             if (status != VM_WAITING || !execution.waiting_read) {
                 break;
             }
@@ -897,6 +960,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
         }
     }
     tcp_exchange_destroy(execution.tcp);
+    tcp_server_destroy(execution.server);
     frames_clear(&execution);
     free(execution.frames);
     vm->execution = NULL;
@@ -972,5 +1036,53 @@ bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms)
         vm_execution_complete_read(execution, tcp_exchange_result(tcp));
         tcp_exchange_destroy(tcp);
     }
+    return true;
+}
+
+/* Server pumping is separate from socket-only TCP polling because it dispatches
+ * bounded child bytecode. No nested synchronous interpreter is used. */
+bool vm_execution_enable_server(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) {
+        return false;
+    }
+    execution->server_enabled = true;
+    return true;
+}
+
+bool vm_execution_stop_server(VMExecution *execution)
+{
+    if (execution->running || !execution->server) {
+        return false;
+    }
+    tcp_server_stop(execution->server);
+    return true;
+}
+
+bool vm_execution_pump_server(VMExecution *execution, size_t budget, unsigned max_wait_ms)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->server) {
+        return false;
+    }
+    execution->running = true;
+    tcp_server_poll(execution->server, max_wait_ms);
+    tcp_server_advance(execution->server, budget);
+    if (tcp_server_done(execution->server)) {
+        execution->vm->error = tcp_server_error(execution->server);
+        if (!execution->vm->error) {
+            Value *result = tcp_server_result(execution->server);
+            if (!result ||
+                !stack_push(&execution->frames[execution->frame_count - 1], retain(result))) {
+                execution->vm->error = "native VM out of memory";
+            }
+        }
+        tcp_server_destroy(execution->server);
+        execution->server = NULL;
+        execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (execution->vm->error) {
+            frames_clear(execution);
+        }
+    }
+    execution->running = false;
     return true;
 }

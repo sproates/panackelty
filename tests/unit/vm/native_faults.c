@@ -8,9 +8,11 @@
 #include "render.h"
 #include "tasks.h"
 #include "tcp.h"
+#include "tcp_server.h"
 #include "verify.h"
 #include "vm.h"
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
@@ -626,6 +628,74 @@ static void tcp_allocations(void)
     assert(fault_descriptors() == 0);
 }
 
+/* Sweep through real admission, handler activation and final report ownership. */
+static size_t server_port;
+static int server_peer;
+static size_t server_cancel;
+static const char *server_syscall;
+
+static void server_allocations(void)
+{
+    char *params[] = {"request"};
+    Instruction code[] = {{.op = OP_LOAD, .name = "request"},
+                          {.op = OP_MAKE_VARIANT, .name = "Result", .name2 = "Ok", .count = 1},
+                          {.op = OP_RETURN}};
+    Function fn = {.name = "reply",
+                   .is_async = true,
+                   .param_count = 1,
+                   .params = params,
+                   .ins = code,
+                   .ins_count = 3};
+    Program program = {.functions = &fn, .count = 1};
+    VM vm = {.program = &program};
+    Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
+    if (!address) {
+        return;
+    }
+    struct sockaddr_in peer_address = {.sin_family = AF_INET,
+                                       .sin_addr.s_addr = htonl(INADDR_LOOPBACK)};
+    int reservation = socket(AF_INET, SOCK_STREAM, 0);
+    if (reservation < 0) {
+        release(address);
+        return;
+    }
+    assert(!bind(reservation, (struct sockaddr *)&peer_address, sizeof(peer_address)));
+    socklen_t length = sizeof(peer_address);
+    assert(!getsockname(reservation, (struct sockaddr *)&peer_address, &length));
+    server_port = ntohs(peer_address.sin_port);
+    close(reservation);
+    if (server_syscall) {
+        fault_syscall(server_syscall, 1, EIO);
+    }
+    VMTcpServerLimits limits = {1, 1, 64, 64, 100, 100, 100};
+    VMTcpServer *server = tcp_server_start(&vm, &fn, address, server_port, limits, false);
+    release(address);
+    if (server && !tcp_server_done(server)) {
+        server_peer = socket(AF_INET, SOCK_STREAM, 0);
+        assert(server_peer >= 0);
+        assert(!connect(server_peer, (struct sockaddr *)&peer_address, sizeof(peer_address)));
+        /* use write, leaving injected send for the server response */
+        assert(write(server_peer, "x", 1) == 1);
+        assert(!shutdown(server_peer, SHUT_WR));
+        for (size_t i = 0; i < 500 && !tcp_server_done(server); i++) {
+            tcp_server_poll(server, 1);
+            if (server_cancel == 1) {
+                break; /* pending input */
+            }
+            tcp_server_advance(server, server_cancel == 2 ? 1 : 64);
+            if (server_cancel == 2) {
+                break; /* handler frames */
+            }
+        }
+        if (!server_cancel) {
+            assert(tcp_server_done(server));
+        }
+        close(server_peer);
+    }
+    tcp_server_destroy(server);
+    assert(fault_descriptors() == 0);
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 3) {
@@ -633,6 +703,20 @@ int main(int argc, char **argv)
         return 0;
     }
     sweep("TCP request and completion", tcp_allocations);
+    for (server_cancel = 0; server_cancel < 3; server_cancel++) {
+        sweep("TCP server ownership", server_allocations);
+    }
+    server_cancel = 0;
+    const char *server_failures[] = {"socket", "bind", "listen", "accept",
+                                     "poll",   "recv", "send",   "clock_gettime"};
+    for (size_t i = 0; i < sizeof(server_failures) / sizeof(*server_failures); i++) {
+        fault_reset(0);
+        server_syscall = server_failures[i];
+        server_allocations();
+        assert(fault_live() == 0 && fault_descriptors() == 0);
+    }
+    server_syscall = NULL;
+    fault_reset(0);
     sweep("decode", decode_program);
     operand = value_size(42);
     assert(operand);

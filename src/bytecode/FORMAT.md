@@ -282,3 +282,19 @@ user functions named `tcp_exchange` keep their behavior; old v9 runtimes reject
 the new reserved intrinsic as unknown. See the
 [source service contract](../../SPEC.md#native-tcp-exchange-development-toolchain)
 for argument bounds, host availability and EOF framing.
+
+
+### Additive finite TCP server service
+
+`$tcp_serve` is an async-only builtin of arity four. Its operands are numeric
+IPv4 `Str`, port `Nat`, a named async callable taking one argument, and a
+`TcpServerLimits` record. Completion is `Result[[Result[Unit,Str]],Str]`; see
+[the source contract](../../SPEC.md#native-tcp-server-development-toolchain).
+The seven record names/order and Nat conversions are checked dynamically.
+The callable is resolved against the current program, requires async/non-pure
+kind and one parameter, and must return `Result[Bytes,Str]`. Parameter types are
+not serialized in v9, so dynamic execution and result checks remain necessary.
+Ordinary CALL, non-async AWAIT and wrong arity fail verification; runtime repeats
+call-effect checks. Source `tcp_serve` lowers to the reserved identity; previously
+saved user functions called `tcp_serve` keep their meaning. Older v9 runtimes
+reject the new intrinsic. No wire encoding or existing opcode changed.

@@ -9,7 +9,7 @@ mkdir -p "$out/vm" "$out/stdlib"
 # The browser consumer needs the portable VM implementation but supplies its own
 # host-capability adapter. Native networking and CLI entry points are not part of
 # this dependency bundle.
-vm_files='bigint.c bigint.h buffer.c buffer.h builtins.c builtins.h builtins_collections.c builtins_internal.h builtins_numeric.c builtins_text.c builtins_vm.c decode.c decode.h execute.c host.c host.h host_types.c host_types.h numeric.c numeric.h platform.h program.c program.h render.c render.h tasks.c tasks.h utf8.c utf8.h value.c value.h verify.c verify.h vm.h'
+vm_files='bigint.c bigint.h buffer.c buffer.h builtins.c builtins.h builtins_collections.c builtins_internal.h builtins_numeric.c builtins_text.c builtins_vm.c decode.c decode.h execute.c host.c host.h host_capabilities.h host_types.c host_types.h numeric.c numeric.h platform.h program.c program.h render.c render.h tasks.c tasks.h utf8.c utf8.h value.c value.h verify.c verify.h vm.h'
 for file in $vm_files; do cp "$root/src/vm/$file" "$out/vm/$file"; done
 cp "$root/bootstrap/compiler-v9.bc" "$out/compiler-v9.bc"
 cp "$root"/src/stdlib/*.panack "$out/stdlib/"
@@ -37,7 +37,7 @@ hash_file() {
 } > "$out/MANIFEST"
 
 # Consumer contract: no native host-capability implementation, networking or CLI.
-for forbidden in host_capabilities.c host_capabilities.h tcp.c tcp.h tcp_server.c tcp_server.h main.c; do
+for forbidden in host_capabilities.c tcp.c tcp.h tcp_server.c tcp_server.h main.c; do
   [ ! -e "$out/vm/$forbidden" ]
 done
 grep -qx 'format=1' "$out/MANIFEST"

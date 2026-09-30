@@ -6,6 +6,10 @@ exact numerical work.**
 [Website](https://panackelty.com) · [Native VM coverage](https://panackelty.com/coverage/) · [Specification](SPEC.md) ·
 [Releases](../../releases) · [Contributing](CONTRIBUTING.md)
 
+For the optional, not-yet-published browser build, see
+[playground delivery preparation](src/playground/README.md). Native development
+does not require its WASI SDK or JavaScript test dependencies.
+
 Panackelty combines arbitrary-precision numbers, checked domain types, explicit
 effects, and a portable bytecode VM. Its syntax stays compact enough for a quick
 script while its compiler catches the mistakes that become expensive when a

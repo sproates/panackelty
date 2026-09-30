@@ -1,5 +1,10 @@
 # Tests
 
+The optional [playground preparation suite](../src/playground/README.md) adds
+WASI/native compatibility and actual browser worker checks in its own CI workflow.
+Its locked JavaScript packages and WASI SDK are not prerequisites of native
+`make check`. Browser tests supplement, never replace, the canonical suites below.
+
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
 selected success cases, twenty examples, and forty-one expected failures.

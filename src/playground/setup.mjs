@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {spawnSync} from 'node:child_process';
+const here=path.dirname(fileURLToPath(import.meta.url));
+const out=path.resolve(here,'../../build/playground-tools');
+fs.mkdirSync(out,{recursive:true});
+for(const name of ['package.json','package-lock.json'])fs.copyFileSync(path.join(here,name),path.join(out,name));
+const result=spawnSync('npm',['ci','--prefix',out,'--ignore-scripts','--no-audit','--no-fund'],{stdio:'inherit'});
+if(result.status!==0)throw new Error('Locked playground dependency installation failed.');

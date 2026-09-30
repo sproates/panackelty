@@ -1,5 +1,13 @@
 # Specification coverage
 
+The optional [browser preparation profile](../src/playground/README.md) has
+additional tests in `tests/playground`: unchanged bytecode compatibility, native
+compiler equivalence, exact values, Unicode, source errors, explicit unavailable
+hosts, UTF-8 input/output bounds, memory growth rejection and worker lifecycle.
+Its declared host restrictions are not new native language semantics. Browser
+engine checks supplement the native evidence below; physical iPhone validation
+remains distinct from automated WebKit tests.
+
 This matrix maps the behavior promised by `SPEC.md` to the automated evidence
 in the unit and functional suites. It tracks behavioral protection, not merely
 line coverage. Update it whenever a language promise or its tests change.

@@ -15,9 +15,7 @@ translation units and headers required by the browser build, the matching
 self-hosted compiler seed, standard-library sources, bytecode contract, license
 and a SHA-256 manifest.
 
-The browser consumer supplies its own host-capability adapter. Native CLI,
-filesystem/process host capabilities and TCP client/server implementations are
-deliberately absent.
+The browser consumer supplies its own host-capability adapter. The native POSIX host-capability implementation is deliberately absent; the browser supplies that adapter. The VM command entry point and networking translation units remain bundled because they are part of the current portable build and preserve the browser profile's explicit unsupported-service behavior.
 
 ## Compatibility identity
 

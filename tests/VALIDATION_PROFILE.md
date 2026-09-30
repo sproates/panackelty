@@ -1208,3 +1208,82 @@ seconds for units, 18 for functional validation, 9 for the remaining bootstrap
 phase, and 38 for the complete check; separate package bootstrap took 19
 seconds. Every measured phase met its budget, with no platform checks or
 fixed-point evidence skipped.
+
+## Browser-playground feasibility — 2026-09-30
+
+Issue [#110](https://github.com/sproates/panackelty/issues/110), native baseline
+`a35e4e11da9412a7ede03d0c12e826d9428cb2ff`. See the
+[architecture and reproduction record](../ARCHITECTURE.md#browser-playground-feasibility--2026-09-30)
+for the pinned toolchain, private source snapshot, adapter and exact build flags.
+This is an isolated research profile; the repository's build/test targets,
+compiler seed, VM sources and fixed fixtures are unchanged.
+
+### Execution evidence
+
+Linux x86_64, Node 24.19.0, Emscripten 6.0.10, `-O2`, 256 MiB maximum linear
+memory per instance and 2 MiB C stack. Node runs the actual generated Wasm;
+the worker harness substitutes local-file reads for browser fetch/importScripts.
+
+- Of 145 existing fixed bytecode cases, **131 match native exit status, stdout
+  and stderr exactly**. Fourteen forged host-operand cases still exit 1 with
+  empty stdout, but deliberately report unavailable host capability instead of
+  the native path/duration/UTF-8/process operand diagnostic. Both groups of
+  seven cases are preserved individually in the experiment's evidence file;
+  original fixtures and their expected results were not changed.
+- The unchanged v9 compiler seed compiles new source on the Wasm VM. One
+  exact-arithmetic program produces byte-for-byte identical output bytecode to
+  the native CLI compiler. This is one cross-target compiler sample, not a
+  full Wasm bootstrap fixed-point proof.
+- Actual worker tests pass for greeting output, rational/decimal/large-natural
+  exactness, a logical stdlib import, a typed source diagnostic, unsupported
+  host rejection, output overflow, overlong source and empty output.
+- An infinite program is terminated after reaching execution; a fresh worker
+  subsequently compiles and runs a greeting. The final local sample took
+  7.19 ms to terminate after the request, excluding the prior 50 ms test delay.
+  This is Node worker evidence, not an iPhone cancellation measurement.
+- Memory growth beyond 256 MiB throws `RangeError`; a version-8 header mutation
+  is rejected with status 1 and the unsupported-bytecode-version diagnostic.
+  No total-browser-memory, allocation-exhaustion or full async-host proof is
+  claimed.
+- DOM-stub tests pass for start, duplicate-start prevention, stop, stale-response
+  rejection, literal text output, the 15-second timeout, worker-load errors,
+  source bounds and example selection. JavaScript syntax checks pass. Actual
+  rendering, browser asset loading and browser-specific timer behavior remain
+  unverified because browser automation was unavailable.
+
+The initial output-limit design threw from the output callback. A real infinite
+printing test timed out because that did not reliably abort the C runtime. The
+corrected protocol posts one terminal response and has the owner terminate the
+worker; the repeated overflow test passes. The first stdlib test also exposed
+late environment initialization; setting its path in `preRun` fixes the test.
+These are experiment findings, not native-toolchain regressions.
+
+### Size and latency observations
+
+| Asset | Uncompressed bytes | Local gzip level 9 bytes |
+| --- | ---: | ---: |
+| VM WebAssembly | 70,743 | 29,870 |
+| Generated JavaScript runtime | 63,041 | 17,876 |
+| Existing compiler seed | 261,561 | 50,149 |
+| Standard-library source JSON | 12,420 | 3,533 |
+| Initial page, scripts, styles and all runtime assets | 418,513 | 106,064 |
+
+Totals exclude optional license/source downloads. Gzip sizes are measurements
+of local files, **not** a verified CDN transfer policy or cold-download timing.
+The native audit's executable size is not a like-for-like packaging comparison.
+
+Final local worker sample, milliseconds; each case has a fresh worker and VM
+instances, but the OS caches local files and no HTTP request occurs:
+
+| Program | Compilation | Execution | Total worker request |
+| --- | ---: | ---: | ---: |
+| Greeting | 29.85 | 0.43 | 76.12 |
+| Exact arithmetic | 31.21 | 0.74 | 57.77 |
+| Standard-library suffix helper | 73.48 | 0.63 | 94.94 |
+| Type error | 26.17 | Not executed | 40.13 |
+
+These are individual feasibility samples, not medians, speedup comparisons or
+browser latency promises. Phone performance, cold network loading, background
+cancellation, peak total memory and cross-browser compatibility still need
+measurement before public-site integration. The existing native validation
+performance backlog and 120s/15s budgets remain unchanged by this experiment.

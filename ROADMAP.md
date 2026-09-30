@@ -48,7 +48,8 @@ with all 21 hosted checks passed and issue #97 closed. The bounded source-to-VM
 await slice shipped in PR #103, and the validation investigation shipped in
 PR #105; both passed all 21 hosted Check jobs. The website expansion shipped in PR #108 with live verification on
 2026-09-30. The user then selected the bounded VM/compiler boundary audit;
-its findings are prepared for review. Remaining incremental/modular build work
+its findings merged in PR #109. The user selected the browser-playground
+feasibility experiment below. Remaining incremental/modular build work
 is unscheduled. Networking, source spawning and resource
 scopes remain draft.
 
@@ -338,7 +339,7 @@ is closed. The timing budgets remain open goals, not completed by this merge.
 ### Future candidate: incremental and modular builds
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
-State: VM/compiler boundary audit selected and prepared for review below;
+State: VM/compiler boundary audit completed in PR #109 below;
 remaining cache/design implementation is unscheduled. The initial high-priority
 **Next** recommendation was superseded by the user's website selection. Reassess
 the bounded cache slice alongside the audit follow-ups; full separate-compilation implementation remains
@@ -396,7 +397,7 @@ bounded build task; do not put networking or inexpensive useful features behind
 the whole modular-build programme. The goal is to rebuild the changed part and
 its dependents, not every unrelated part, while retaining full final validation.
 
-### In review: VM/compiler boundary audit
+### Completed: VM/compiler boundary audit
 
 The user selected this bounded investigation on 2026-09-30, within
 [issue #106](https://github.com/sproates/panackelty/issues/106), before choosing
@@ -407,8 +408,50 @@ and broader test orchestration are the remaining practical coupling.
 
 No compiler/VM redesign is recommended. A runtime-only packaging/test entry point
 could be a small-to-medium one-PR slice; browser feasibility can proceed without
-waiting for it, but must address POSIX host integration. Neither is selected yet.
+waiting for it, but must address POSIX host integration. PR #109 merged with
+explicit approval after its documentation checks passed. Browser feasibility
+was subsequently selected below; runtime-only packaging remains unscheduled.
 The audit does not complete #106's caching or separate-compilation work.
+
+### Now: browser-playground feasibility
+
+Work record: [issue #110](https://github.com/sproates/panackelty/issues/110).
+State: Assessing; bounded experiment complete and findings prepared for review.
+Authorised on 2026-09-30 after the boundary audit. Medium, one investigation PR;
+production delivery remains unscheduled.
+
+Prove a WebAssembly VM can run existing compiler bytecode, compile editable
+complete programs and display their output and diagnostics. Investigate host
+restrictions, cancellation, memory/output limits, download size and latency.
+Deliver a private hosted demonstrator for phone review if feasible, or concrete
+reproducible blockers and a bounded recommendation. Preserve verification,
+exact values, the native toolchain and its validation requirements.
+
+Reason: a direct way to try the language builds on the completed website and
+audit without waiting for infrastructure. Runtime-only packaging is the smaller
+alternative but does not establish browser portability; dependency-aware caching
+addresses daily build friction but has unmeasured savings. Native TCP/timers
+remain the strongest application-enabling alternative if networking becomes the
+immediate goal. No persistent REPL, main-site deployment, new bytecode ABI or
+production browser-platform commitment is included.
+
+Evidence: the existing compiler seed compiles editable programs on a Wasm VM;
+one exact-arithmetic program emits identical native/Wasm bytecode. Of 145 fixed
+VM cases, 131 match exactly and 14 deliberately reject unavailable host services
+with different diagnostics. Worker cancellation/restart, source/output bounds,
+memory growth rejection, diagnostics and stdlib imports pass under Node.
+The [architecture report](ARCHITECTURE.md#browser-playground-feasibility--2026-09-30)
+and [measurements](tests/VALIDATION_PROFILE.md#browser-playground-feasibility--2026-09-30)
+record reproduction, individual samples and limits. The private hosted review
+prototype is deployed with a source/evidence download; the public site is unchanged.
+
+Conclusion: promising runtime/compiler feasibility, with explicit remaining
+gates. Real browser/iPhone rendering and execution were not tested in this
+environment. The isolated Emscripten research SDK uses Python internally, so
+production delivery needs a build-policy-compatible route or a separately agreed
+policy decision. No new interpreter dependency was added to this repository.
+The 256 MiB cap is per Wasm instance, not total browser memory. A persistent REPL,
+production host adapter and public-site integration remain separate work.
 
 ### Completed: content-led website expansion
 
@@ -444,8 +487,9 @@ sessions add state/redefinition decisions. Neither blocks this content update.
 
 ### Remaining recommendations from the pilot — provisional
 
-1. Following website delivery and the VM/compiler boundary audit, reassess bounded build improvements,
-   native TCP/timer feasibility and a browser playground against the alternatives.
+1. After reviewing the browser experiment, compare resolving its toolchain and
+   real-browser gates with bounded build improvements and native TCP/timer
+   feasibility; no follow-up implementation is automatically scheduled.
 2. Targeted compiler/API assistance for observed interpolation, numeric proof
    and discovery friction; retain broader diagnostics as an assessed candidate.
 

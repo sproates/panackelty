@@ -258,3 +258,15 @@ int fault_ftruncate(int fd, off_t size)
 {
     return syscall_fails("ftruncate") ? -1 : ftruncate(fd, size);
 }
+
+int fault_socket(int domain, int type, int protocol)
+{
+    if (syscall_fails("socket")) return -1;
+    int fd = socket(domain, type, protocol);
+    if (fd >= 0) {
+        assert((size_t)fd < sizeof(descriptors) && !descriptors[fd]);
+        descriptors[fd] = true;
+        descriptor_count++;
+    }
+    return fd;
+}

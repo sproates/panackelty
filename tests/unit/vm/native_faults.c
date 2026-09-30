@@ -7,6 +7,7 @@
 #include "numeric.h"
 #include "render.h"
 #include "tasks.h"
+#include "tcp.h"
 #include "verify.h"
 #include "vm.h"
 
@@ -606,12 +607,32 @@ static void check_artifact(const char *mode, const char *path)
     printf("native fault contracts: %zu allocation failures checked\n", sweeps);
 }
 
+
+static void tcp_allocations(void)
+{
+    Value *args[] = {value_data(V_STR, (const uint8_t *)"127.0.0.1", 9),
+        value_size(1), value_data(V_BYTES, (const uint8_t *)"x", 1),
+        value_size(16), value_size(1)};
+    bool valid = true;
+    for (size_t i = 0; i < 5; i++) if (!args[i]) valid = false;
+    if (valid) {
+        VMTcpExchange *exchange = tcp_exchange_start(args);
+        if (exchange) {
+            while (!tcp_exchange_poll(exchange, 1)) {}
+            tcp_exchange_destroy(exchange);
+        }
+    }
+    for (size_t i = 0; i < 5; i++) release(args[i]);
+    assert(fault_descriptors() == 0);
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 3) {
         check_artifact(argv[1], argv[2]);
         return 0;
     }
+    sweep("TCP request and completion", tcp_allocations);
     sweep("decode", decode_program);
     operand = value_size(42);
     assert(operand);

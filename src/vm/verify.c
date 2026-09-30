@@ -86,7 +86,7 @@ bool verify(Program *p, const char **error)
                     return false;
                 }
                 if (!verify_call_edge(function, b ? NULL : called, b && b->pure,
-                                      b && !strcmp(b->name, "async_fake_read"),
+                                      builtin_is_async(b),
                                       instruction->op == OP_AWAIT_CALL)) {
                     *error = function->pure ? "pure function calls impure function" : "invalid async call effect";
                     return false;

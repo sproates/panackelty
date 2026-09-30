@@ -273,6 +273,14 @@ with parent/child joins, virtual deadlines and generation-qualified fake print
 acknowledgements. This proves pending-operation lifetimes without OS I/O,
 public spawning or resource scopes. Source async functions now reuse its typed
 fake-read completion path. Task slots remain reserved until session destruction.
+The independent `tcp.c` adapter adds a bounded source-level TCP exchange using
+nonblocking POSIX sockets and owner-thread polling. Each execution owns at most
+one connection, retained request and bounded response; completion reuses the
+validated bytes/error schema. The native CLI drives polling while suspended;
+embedded execution requires explicit opt-in and can use zero-wait polling.
+Destruction closes the descriptor synchronously without callbacks or threads.
+Fake task sessions retain their existing capability restriction. WASI returns
+an explicit unavailable error. No new source resource ownership model is implied.
 Ownership and status contracts are in the
 [VM guide](src/vm/README.md#internal-resumable-execution).
 

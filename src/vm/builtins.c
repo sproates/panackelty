@@ -18,8 +18,14 @@ static Value *async_service_only(VM *vm, const char *name, Value **arguments)
     return NULL;
 }
 
+bool builtin_is_async(const Builtin *entry)
+{
+    return entry && entry->call == async_service_only;
+}
+
 static const Builtin BUILTINS[] = {
     {"async_fake_read", 1, false, async_service_only},
+    {"$tcp_exchange", 5, false, async_service_only},
     {"fs_read", 2, false, host_capability_call},
     {"fs_write", 2, false, host_capability_call},
     {"fs_metadata", 1, false, host_capability_call},

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -37,6 +38,7 @@ ssize_t fault_read(int fd, void *buffer, size_t count);
 ssize_t fault_write(int fd, const void *buffer, size_t count);
 int fault_nanosleep(const struct timespec *requested, struct timespec *remaining);
 int fault_close(int fd);
+int fault_socket(int domain, int type, int protocol);
 int fault_open(const char *path, int flags, ...);
 int fault_fstat(int fd, struct stat *info);
 int fault_ftruncate(int fd, off_t size);
@@ -56,6 +58,7 @@ pid_t fault_waitpid(pid_t child, int *status, int options);
 #define write fault_write
 #define nanosleep fault_nanosleep
 #define close fault_close
+#define socket fault_socket
 #define open fault_open
 #define fstat fault_fstat
 #define ftruncate fault_ftruncate

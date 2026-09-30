@@ -4,6 +4,7 @@
 #include "program.h"
 #include "render.h"
 #include "utf8.h"
+#include "tcp.h"
 #include "value.h"
 #include "vm.h"
 #include "verify.h"
@@ -35,7 +36,8 @@ struct VMExecution {
     bool running, embedded;
     VMHostCall host_call;
     VMServiceWait print_wait, read_wait;
-    bool waiting_read, fake_fail;
+    bool waiting_read, fake_fail, network_enabled;
+    VMTcpExchange *tcp;
     void *host_context;
 };
 
@@ -196,6 +198,19 @@ static void frames_clear(VMExecution *execution)
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
 {
     VM *vm = execution->vm;
+    if (!strcmp(entry->name, "$tcp_exchange")) {
+        if (execution->embedded && !execution->network_enabled) {
+            vm->error = "VM trap: TCP service is unavailable in this execution";
+        } else {
+            execution->tcp = tcp_exchange_start(arguments);
+            if (!execution->tcp) vm->error = "native VM out of memory";
+            else {
+                execution->waiting_read = true;
+                execution->status = VM_WAITING;
+            }
+        }
+        return NULL;
+    }
     if (!strcmp(entry->name, "async_fake_read")) {
         if (arguments[0]->kind != V_BOOL) {
             vm->error = "VM trap: fake read requires Bool";
@@ -630,7 +645,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             if ((!built && !called) ||
                 instruction->arity != (built ? built->arity : called->param_count) ||
                 !verify_call_edge(function, called, built && built->pure,
-                                  built && !strcmp(built->name, "async_fake_read"),
+                                  builtin_is_async(built),
                                   instruction->op == OP_AWAIT_CALL)) {
                 vm->error = "VM trap: invalid async call effect or signature";
             } else if (built) {
@@ -723,7 +738,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                     vm->error = "VM trap: indirect call arity mismatch";
                 } else if (memchr(callable->as.bytes.data, 0, callable->as.bytes.length) ||
                            !verify_call_edge(function, built ? NULL : called, built && built->pure,
-                                             built && !strcmp(built->name, "async_fake_read"),
+                                             builtin_is_async(built),
                                              instruction->op == OP_AWAIT_VALUE)) {
                     vm->error = function->pure
                         ? "VM trap: pure function invokes impure callable"
@@ -844,6 +859,7 @@ bool vm_execution_destroy(VMExecution *execution)
     if (execution->running) {
         return false;
     }
+    tcp_exchange_destroy(execution->tcp);
     frames_clear(execution);
     free(execution->frames);
     release(execution->result);
@@ -871,11 +887,16 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             if (status != VM_WAITING || !execution.waiting_read) {
                 break;
             }
+            if (execution.tcp) {
+                vm_execution_poll_tcp(&execution, 1000);
+                continue;
+            }
             Value *result = vm_fake_read_result(execution.fake_fail);
             vm_execution_complete_read(&execution, result);
             release(result);
         }
     }
+    tcp_exchange_destroy(execution.tcp);
     frames_clear(&execution);
     free(execution.frames);
     vm->execution = NULL;
@@ -917,7 +938,7 @@ Value *vm_fake_read_result(bool fail)
 
 bool vm_execution_complete_read(VMExecution *execution, Value *result)
 {
-    if (execution->running || execution->status != VM_WAITING || !execution->waiting_read) {
+    if (execution->running || execution->status != VM_WAITING || !execution->waiting_read || execution->tcp) {
         return false;
     }
     execution->waiting_read = false;
@@ -929,6 +950,27 @@ bool vm_execution_complete_read(VMExecution *execution, Value *result)
     execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
     if (execution->vm->error) {
         frames_clear(execution);
+    }
+    return true;
+}
+
+/* Opt-in network capability for native embedders. The CLI enables this through
+ * its synchronous adapter. Existing embedded/fake-task sessions stay isolated. */
+bool vm_execution_enable_tcp(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) return false;
+    execution->network_enabled = true;
+    return true;
+}
+
+bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->tcp) return false;
+    if (tcp_exchange_poll(execution->tcp, max_wait_ms)) {
+        VMTcpExchange *tcp = execution->tcp;
+        execution->tcp = NULL;
+        vm_execution_complete_read(execution, tcp_exchange_result(tcp));
+        tcp_exchange_destroy(tcp);
     }
     return true;
 }

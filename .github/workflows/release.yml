@@ -80,6 +80,15 @@ jobs:
             echo "runner_image_version=${ImageVersion:-unknown}"
           } >"${archive}.provenance"
 
+      - name: Build versioned browser-runtime dependency bundle
+        if: matrix.target == 'linux-x86_64'
+        run: |
+          make browser-runtime-bundle
+          version=$(cat VERSION)
+          tar -C build -czf "build/panackelty-browser-runtime-${version}.tar.gz" browser-runtime
+          cd build
+          sha256sum "panackelty-browser-runtime-${version}.tar.gz" > "panackelty-browser-runtime-${version}.tar.gz.sha256"
+
       - name: Retain validated release assets
         uses: actions/upload-artifact@v6
         with:
@@ -88,6 +97,8 @@ jobs:
             build/panackelty-*.tar.gz
             build/panackelty-*.tar.gz.sha256
             build/panackelty-*.tar.gz.provenance
+            build/panackelty-browser-runtime-*.tar.gz
+            build/panackelty-browser-runtime-*.tar.gz.sha256
           if-no-files-found: error
 
   publish:
@@ -125,7 +136,11 @@ jobs:
             grep -Fx "sha256=$digest" "${archive}.provenance"
             grep -Fx "source_commit=$GITHUB_SHA" "${archive}.provenance"
           done
-          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 6
+          runtime="panackelty-browser-runtime-${version}.tar.gz"
+          test -f "$runtime"
+          test -f "$runtime.sha256"
+          sha256sum -c "$runtime.sha256"
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 8
 
       - name: Create or verify the annotated tag and publish
         env:

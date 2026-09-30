@@ -635,9 +635,10 @@ The existing static GitHub Pages and coverage flow remains in use. PR #108 was a
 ## Core types and discoverable text/collection methods
 
 Work record: [issue #116](https://github.com/sproates/panackelty/issues/116).
-State: Idea, unscheduled. Recorded on 2026-09-30 following hands-on feedback
-from the website playground. The user requested this roadmap proposal;
-implementation scope and priority remain to be agreed.
+State: Ready for prioritisation. Recommended priority: Next, pending selection.
+Recorded and groomed on 2026-09-30 following hands-on website playground feedback.
+The user favours doing this sooner and requested grooming; this records the
+recommended delivery scope, not authorisation to implement or merge.
 
 `Option[T]` and `Result[T,E]` should be usable without stdlib imports, and
 ordinary text/collection operations should be discoverable as methods on values
@@ -663,8 +664,10 @@ receiver-type lookup rather than merely shorten prefixed function names.
 
 Value: less import ceremony and a more consistent API for developers and coding
 agents. Estimated M for core availability and M–L for methods and migration,
-including tests, docs and integration; provisionally one bounded design PR and
-2–3 implementation PRs. Confidence in the friction is high; lookup rules and
+including tests, docs and integration; provisionally three delivery PRs, with
+a fourth only if bootstrap migration needs an independently reviewable step.
+Resolve the bounded design decisions within the relevant PR rather than requiring
+a separate design report up front. Confidence in the friction is high; lookup rules and
 migration cost need assessment. Risks are name capture, duplicate definitions,
 inference/effect regressions and differences between native and browser builds.
 Delay prolongs learning friction rather than a known correctness defect.
@@ -677,6 +680,82 @@ coherent contract across the compiler, stdlib, packages and browser assets.
 Full namespaces, classes, inheritance, dynamic dispatch and general user-defined
 extension methods are outside this proposal. A minimal core prelude is a candidate
 mechanism; implicitly importing the entire stdlib is not the proposed outcome.
+
+### Groomed scope and recommended order
+
+Recommend this as the next principal initiative. The public playground now makes
+basic API inconsistencies visible to new users. Fixing them before more libraries
+and examples depend on the current spellings should reduce migration cost; that
+is a reasoned expectation, not a measured adoption result.
+
+| Candidate | Value and trade-off | Size / estimated PRs |
+| --- | --- | --- |
+| Core types and standard methods (#116) | Recommended Next: direct user feedback, immediate benefit in ordinary programs, and existing method machinery to build on | M–L overall / 3, possibly 4 |
+| Dependency-aware probe reuse (#106), excluding separate compilation | Strongest alternative: slow validation affects every change, but savings from narrower invalidation remain unmeasured | M / 1–2 |
+| Native TCP/timer feasibility | Enables applications blocked in the pilot, but carries greater lifecycle uncertainty and does not resolve basic API friction | M–L investigation / 1–2 |
+
+Choose caching first if measurements show iteration cost obstructs this work;
+choose transport feasibility first if a concrete network application becomes the
+immediate objective. Full namespaces and separate compilation remain broader
+follow-ups, not prerequisites for this bounded initiative.
+
+Proposed delivery contract, to settle before each slice is implemented:
+
+1. **Core availability (M, one PR).** Provide `Option[T]`, `Result[T,E]`, `None`,
+   `Some`, `Ok` and `Error` by default. Prefer one source-defined core loaded once
+   through the existing loader; settle behaviour when the stdlib root is missing
+   or overridden. Old imports must reuse the same definitions. Conflicting user
+   declarations should produce an explicit diagnostic rather than silent
+   shadowing. Keep value-or helpers and host/testing modules outside the implicit
+   public surface. Verify annotations, inference and pattern matching without
+   imports, nested imports and collision failures. Preserve existing inference
+   limits; this slice does not promise inference for an unconstrained `None()`.
+2. **Text methods (M, one PR).** Make `len`, `slice`, `starts_with`,
+   `starts_with_at`, `ends_with`, `reverse`, `is_digit`, `is_letter`,
+   `is_whitespace` and `parse_nat` available on `Str` without imports. Preserve
+   existing Unicode/code-point, ASCII classification and parse-failure contracts.
+   Use receiver-type lookup for standard method names; an unrelated global
+   function must not capture a standard method call. Preserve current user
+   receiver-first calls for names outside the standard method set. Define the
+   reserved-name boundary and wrong-receiver behaviour explicitly, including
+   names shared by supported types such as `len`. Reuse library algorithms and
+   existing runtime primitives where possible; a new VM opcode is not assumed.
+3. **Collection methods and migration (M, one PR).** Provide import-free array
+   `first()` and `sort_by(comparator)` alongside `len`, `append`, `concat`, `map`
+   and `reduce`; retain Map `put`/`has`/`get` and Set `add`/`has`, and make their
+   existing length operations consistent with the same receiver lookup rules.
+   Preserve stable sorting, pure callback requirements and immutable updates.
+   Keep current missing-key behaviour; safe optional Map lookup is separate.
+   Inventory Bytes explicitly and defer new byte-buffer method names to a
+   follow-up rather than leaving its coverage ambiguous. Migrate public examples
+   and playground lessons to the preferred spellings.
+
+Retain old explicit stdlib imports and prefixed functions as a documented
+compatibility surface for this initiative, with tests. New method names must not
+become new unqualified global functions. Do not promise editor completion in
+this item: discoverability means a consistent documented type API and relevant
+diagnostics. General extension methods, new namespaces and Option/Result helper
+methods remain separate scope.
+
+Technical evidence: `loader.panack` already deduplicates resolved module paths;
+`parser.panack` marks selected collection methods for checker resolution, but
+ordinary dot calls currently lose their method identity. The implementation must
+retain enough identity for the proposed lookup rules. `src/playground/runtime.mjs`
+already supplies a stdlib root and runs the same compiler bytecode, so implement
+this in the shared compiler/library path, without browser-only source rewriting.
+An implicit prelude must not leak extra helper declarations simply because the
+current option/result source files contain them alongside their enums.
+
+Each delivery PR needs unit and public-CLI positive/negative cases, canonical
+`make check`, bootstrap/package evidence and rebuilt playground assets with
+relevant browser tests. Compare compilation latency and asset size before and
+after implicit loading; investigate material regressions rather than assuming
+all-module loading is free. Final acceptance includes running import-free
+Option/Result examples, the exact suffix example above and array first/sort
+examples in the published playground after separately approved merge/deployment.
+The proposal issue remains open until all agreed slices and live acceptance are
+complete. Specifications and implementation documentation stay unchanged during
+grooming because none of these proposed contracts has shipped.
 
 ## Language namespaces — idea
 

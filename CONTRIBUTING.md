@@ -34,6 +34,14 @@ See the [official skill documentation](https://learn.chatgpt.com/docs/build-skil
 for discovery details. Maintain the repository copy through normal PR review;
 personal copies are independent and do not update it automatically.
 
+### Repository health skill
+
+The [Repository Health skill](.agents/skills/repository-health/SKILL.md) audits
+dangling PRs, issue/completion bookkeeping, default-branch health and merged
+branch clutter. `AGENTS.md` requires a lightweight run after major/principal
+task completion; it is also the shared procedure for an explicit repository
+health or housekeeping request.
+
 ### Branches, commits and pull requests
 
 - Branch from current `main` using `<kind>/<short-kebab-case-description>`.

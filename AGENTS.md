@@ -14,6 +14,14 @@ Keep accepted decisions and completion summaries in the repository as described
 there. Use feature branches and PRs; never push directly to main. Obtain explicit
 user permission for each PR merge; agreement on scope is not merge permission.
 
+Respect the [three-deliverable grooming checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint).
+Before starting a principal task, check the review baseline and completed-outcome
+ledger in `ROADMAP.md`. After three accepted deliverables, review priorities with
+the user and record the decision before starting the next principal task. Count
+task outcomes, not PRs; update the ledger during each completion handover. Review
+sooner when new evidence warrants it. Urgent fixes may proceed with the reason
+recorded, but must not silently reset or discard a due review.
+
 When asked "what's next", "what's the next item", or a similar prioritisation
 question, read and follow the repository's
 [Next Item skill](.agents/skills/next-item/SKILL.md). Compare viable candidates,
@@ -76,6 +84,9 @@ post-merge acceptance pending. Treat missing status updates as unfinished PR wor
   require explicit approval.
 - Include completion state and any remaining acceptance in the final handover.
   If a task has no issue, say so rather than creating one solely to close it.
+- Update the roadmap's deliverable ledger when an accepted outcome completes,
+  and state when the three-deliverable review is due. Status maintenance remains
+  part of every delivery; it must not wait for the grooming checkpoint.
 
 ## Repository hygiene
 

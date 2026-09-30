@@ -149,11 +149,45 @@ settings changes or subsequent merges.
 
 ## Review and completion
 
-Review priorities after a milestone, significant discovery, or material change
-in scope or effort, and whenever the user requests it. This is an event-driven
-review rule, not a scheduled automation. Record the date, reason, decision and
-important deferrals in a short decision note; do not create administrative work
-without a useful decision to preserve.
+Review priorities after every three completed deliverables, and sooner after a
+significant milestone, discovery, material change in scope or effort, or user
+request. This is a delivery checkpoint, not a scheduled automation. Record the
+date, reason, decision and important deferrals in a short roadmap decision note.
+
+### Three-deliverable grooming checkpoint
+
+Before starting the next principal task after three completed deliverables, the
+agent must review priorities with the user. Keep this lightweight: check changed
+assumptions, dependencies, newly discovered work and whether the proposed next
+task still makes sense. A full backlog rewrite is unnecessary when those checks
+support the existing direction. Record "no priority changes" when that is the
+decision; do not treat silence as agreement to a new priority.
+
+A deliverable is an independently scoped, accepted task outcome. A task delivered
+through three PRs counts once. An agreed investigation, documentation outcome or
+bounded slice of a larger issue can count when its own acceptance is complete;
+the parent issue need not close. Do not count that same outcome again when the
+parent later closes. An intermediate PR, an unmerged result or an item awaiting
+post-merge acceptance does not count. Routine bookkeeping and the grooming review
+itself do not add to the count.
+
+`ROADMAP.md` owns the current review baseline and a short ledger of accepted
+outcomes since it, with each entry linked to its completion evidence. Update the
+ledger in the final delivery PR, effective on merge, or in the completion update
+after post-merge verification. Reconcile with current main before merging so
+concurrent deliveries are not lost or counted twice. State the count and whether
+review is due in the delivery handover.
+
+At each completed review, record the decision and the outcomes considered, then
+start a fresh ledger. An earlier substantive review also resets the count when
+its decision and new baseline are explicitly recorded; an ordinary status edit
+does not. Preserve the previous review record or its merged PR link. If evidence
+is unclear, reconcile completion records before selecting more principal work.
+
+Urgent correctness or security fixes may proceed before a due review. Record the
+reason and retain the review as due; review before the next non-urgent principal
+task. The checkpoint never postpones completion bookkeeping or grants permission
+to merge, schedule automation, or implement unselected backlog items.
 
 Before implementation, agree acceptance evidence and relevant failure cases.
 Finish against that scope, not broad wording such as "comprehensive". Follow

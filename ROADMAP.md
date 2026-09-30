@@ -50,6 +50,24 @@ The sections below retain earlier decisions and completion evidence. Current
 candidate state and the agreed next task are recorded in the grooming table;
 historical recommendations do not create competing implementation queues.
 
+### Grooming checkpoint ledger
+
+Baseline: the 2026-09-30 post-networking review, effective when
+[PR #143](https://github.com/sproates/panackelty/pull/143) merges. This review
+considered the completed finite TCP client/server stage and selected the bounded
+modular-validation slice of #106 as Next. It also recorded the twelve unscheduled
+candidates and the completion-handover rules. This review and its bookkeeping do
+not count as a new deliverable.
+
+Accepted deliverables since this baseline: **0 of 3; review not yet due**.
+No subsequent accepted outcomes are recorded. Add each completed outcome and its
+evidence here during delivery handover. The independently accepted validation
+slice of #106 will count once even if its broader cache/design issue stays open.
+
+Follow the [three-deliverable checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint):
+review before starting the principal task after the third accepted outcome, or
+sooner if new evidence warrants it. Keep the decision and reset baseline explicit.
+
 ### Groomed candidates
 
 The twelve entries below remain **Idea**, with implementation unscheduled. #106

@@ -649,13 +649,13 @@ Most current dot calls still resolve global functions; the proposal must settle
 receiver-type lookup rather than merely shorten prefixed function names.
 
 - [ ] Define minimal implicit availability for Option/Result and their
-      constructors, including canonical definitions, legacy imports and name
+      constructors, including canonical definitions, removal of obsolete imports and name
       collisions; decide helper exposure separately from core types
 - [ ] Inventory text and collection APIs and select concise, type-appropriate
       methods, beginning with `Str.ends_with`; cover literals, variables and
       chaining, global receiver-first calls, fields, generics, purity and useful
       wrong-receiver/unknown-method diagnostics
-- [ ] Agree compatibility or explicit preview migration for existing helpers,
+- [ ] Apply the agreed breaking preview migration for existing helpers,
       imports and user names; coordinate with the namespace proposals below
       without assuming full namespaces must ship first
 - [ ] Deliver independently scoped slices with meaningful compiler and public-CLI
@@ -673,7 +673,7 @@ inference/effect regressions and differences between native and browser builds.
 Delay prolongs learning friction rather than a known correctness defect.
 
 Acceptance includes import-free construction and matching of both core types,
-legacy import coexistence, name-resolution failures, unchanged purity and
+migration of existing callers, name-resolution failures, unchanged purity and
 persistent collection semantics, suffix edge cases and real playground usage.
 Implementation must pass `make check` and relevant browser checks. Keep one
 coherent contract across the compiler, stdlib, packages and browser assets.
@@ -704,7 +704,7 @@ Proposed delivery contract, to settle before each slice is implemented:
 1. **Core availability (M, one PR).** Provide `Option[T]`, `Result[T,E]`, `None`,
    `Some`, `Ok` and `Error` by default. Prefer one source-defined core loaded once
    through the existing loader; settle behaviour when the stdlib root is missing
-   or overridden. Old imports must reuse the same definitions. Conflicting user
+   or overridden. Remove obsolete core imports from maintained sources. Conflicting user
    declarations should produce an explicit diagnostic rather than silent
    shadowing. Keep value-or helpers and host/testing modules outside the implicit
    public surface. Verify annotations, inference and pattern matching without
@@ -730,9 +730,24 @@ Proposed delivery contract, to settle before each slice is implemented:
    follow-up rather than leaving its coverage ambiguous. Migrate public examples
    and playground lessons to the preferred spellings.
 
-Retain old explicit stdlib imports and prefixed functions as a documented
-compatibility surface for this initiative, with tests. New method names must not
-become new unqualified global functions. Do not promise editor completion in
+Migration decision, 2026-09-30: the user reports no external Panackelty authors,
+so preserving obsolete imports and prefixed functions is not a delivery
+requirement. Prefer a clean breaking preview migration. Update compiler and
+stdlib sources, tests, examples, packages and playground lessons together in
+each affected slice; remove superseded public wrappers and redundant import
+modules once their remaining responsibilities have been accounted for. Do not
+remove useful helper behaviour merely because its old module also defined a
+now-implicit type. Record source/API changes in the changelog under the existing
+preview release policy; this is not a compatibility-preserving patch release.
+
+Retain an old spelling only where the reproducible bootstrap demonstrably needs
+it, with the exact dependency, limited scope and removal condition documented.
+Do not assume a historic compiler requires public aliases: prove the requirement
+and prefer isolated bootstrap staging. Acceptance includes a reference audit for
+obsolete calls/imports and a passing bootstrap after migration. Unrelated stdlib
+imports and general user-defined receiver-first functions remain in scope only
+where affected by the new lookup contract. New method names must not become new
+unqualified global functions. Do not promise editor completion in
 this item: discoverability means a consistent documented type API and relevant
 diagnostics. General extension methods, new namespaces and Option/Result helper
 methods remain separate scope.

@@ -40,7 +40,9 @@ then independently builds and smoke-tests Linux x86-64 and macOS arm64 archives.
 Only after both matrix jobs succeed does the final job download their retained
 archives and verify SHA-256 checksums and source-commit provenance.
 
-Only that final job has repository write permission. For a manual release it
+The Linux package job also builds the platform-independent `panackelty-browser-runtime-<version>.tar.gz` dependency bundle and checksum. The publish gate verifies it alongside the native archives; downstream browser releases can pin this immutable core asset instead of cloning the core repository.
+
+Only the final publish job has repository write permission. For a manual release it
 creates an annotated tag at the validated commit, then publishes the prerelease
 in the same run: tags created using the workflow token do not start another
 release workflow. No personal access token or terminal credentials are needed.

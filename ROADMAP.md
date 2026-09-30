@@ -50,8 +50,9 @@ PR #105; both passed all 21 hosted Check jobs. The website expansion shipped in 
 2026-09-30. The user then selected the bounded VM/compiler boundary audit;
 its findings merged in PR #109. The user selected the browser-playground
 feasibility experiment below. Remaining incremental/modular build work
-is unscheduled. Networking, source spawning and resource
-scopes remain draft.
+is unscheduled. Client TCP shipped in PR #127. The user then selected completion
+of the bounded TCP server stage (#128), followed by broader roadmap grooming.
+General source spawning and resource scopes remain draft.
 
 <a id="now-expanded-holistic-and-architectural-gap-assessment"></a>
 
@@ -649,7 +650,11 @@ bytecode. Real networking and broader build-cache work remain separate.
 ## Real async TCP from Panackelty
 
 Work record: [issue #126](https://github.com/sproates/panackelty/issues/126).
-State: In progress. Priority: Now. Selected on 2026-09-30 after deployment
+State: Done. PR #127 merged on 2026-09-30 after all 23 hosted checks passed.
+Canonical validation passed in 117s, with native sanitizer, independent-peer
+source/bytecode tests, bootstrap and browser rejection evidence in the PR.
+This remains unreleased development functionality, not part of alpha.10.
+Selected on 2026-09-30 after deployment
 reliability, explicitly ahead of build-cache work and a C-only networking spike.
 The user wants real source programs to benefit from async/await.
 
@@ -666,6 +671,36 @@ Acceptance requires partial/binary/empty I/O, response limits, timeout/refusal,
 independent progress, cancellation cleanup, explicit host restrictions,
 canonical `make check` and Linux/macOS/browser CI. The full server design and
 build-cache improvements remain independently scoped follow-ups.
+
+## Bounded async TCP server
+
+Work record: [issue #128](https://github.com/sproates/panackelty/issues/128).
+State: Planned; contract prepared for review. Priority: Now. On 2026-09-30 the
+user selected finishing the bounded networking stage, followed by proper
+roadmap grooming. This authorizes server implementation; each merge still needs
+separate approval. Broad roadmap reprioritization follows this stage.
+
+The [server contract](ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
+proposes an awaited finite server owner with named async byte-request handlers,
+bounded concurrent admission, EOF request/reply framing, monotonic deadlines and
+graceful draining. The runtime owns sockets and handler lifetimes. Expected
+client failures are isolated; runtime traps cancel the owner. Listening is a
+separate embedded capability; WASI remains unavailable. General source spawning,
+resource handles, HTTP, DNS, TLS and indefinite service operation are excluded.
+
+Reason: client TCP now works, but source applications cannot accept connections
+or serve multiple clients. Completing the finite client/server stage yields a
+coherent usable outcome before broader grooming. Build caching and compiler
+assistance remain alternatives; the user selected networking first.
+
+Estimated large, 2–3 PRs total: contract and acceptance plan, then 1–2 implementation
+PRs covering native ownership/scheduling and source integration. A contract merge
+does not complete this issue. Acceptance requires real source and saved-bytecode
+echo servers with independent peers, fast-client progress beside stalled clients,
+bounded admission and reuse, every-phase stop/deadline/cancellation tests,
+allocation/descriptor and forged-bytecode evidence, canonical checks, bootstrap,
+Linux/macOS packages, sanitizer CI and browser rejection. Provide runnable
+examples and exact limitations. No release/tag is selected by this decision.
 
 ## Website deployment source selection
 

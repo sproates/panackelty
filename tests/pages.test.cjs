@@ -6,18 +6,24 @@ const path = require('node:path');
 const selectSource = require('../scripts/pages_source.cjs');
 const checkPages = require('../scripts/check_pages.cjs');
 const repo = {owner: 'sproates', repo: 'panackelty'};
-const run = (id, overrides = {}) => ({id, head_sha: String(id).padStart(40, '0'),
+const run = (id, overrides = {}) => ({id, run_number: id, head_sha: String(id).padStart(40, '0'),
   head_branch: 'main', event: 'push', status: 'completed', conclusion: 'success',
   repository: {full_name: 'sproates/panackelty'}, head_repository: {full_name: 'sproates/panackelty'}, ...overrides});
 const artifact = (id, overrides = {}) => ({id, name: `native-coverage-${id}`, expired: false, ...overrides});
-function api(pages, artifacts) {
+function api(pages, artifacts, head = 5) {
   const paginate = async (_, args) => artifacts[args.run_id] || [];
   paginate.iterator = async function* (_, args) {
     assert.equal(args.branch, 'main'); assert.equal(args.event, 'push');
     assert.equal(args.status, 'success'); assert.equal(args.workflow_id, 'check.yml');
     for (const data of pages) yield {data};
   };
-  return {paginate, rest: {actions: {listWorkflowRuns: 'runs', listWorkflowRunArtifacts: 'artifacts'}}};
+  return {paginate, rest: {
+    repos: {getBranch: async args => {
+      assert.deepEqual(args, {...repo, branch: 'main'});
+      return {data: {commit: {sha: run(head).head_sha}}};
+    }},
+    actions: {listWorkflowRuns: 'runs', listWorkflowRunArtifacts: 'artifacts'},
+  }};
 }
 test('documentation-only latest website retains prior coverage across pages', async () => {
   const selected = await selectSource(api([[run(5)], [run(4)]], {4: [artifact(4)]}), repo);
@@ -32,7 +38,7 @@ test('failed, incomplete, PR, other-branch and foreign runs cannot publish', asy
     run(8, {event: 'pull_request'}), run(7, {head_branch: 'feature'}),
     run(6, {head_repository: {full_name: 'other/fork'}})];
   const selected = await selectSource(api([[...bad, run(4)]],
-    Object.fromEntries([...bad, run(4)].map(r => [r.id, [artifact(r.id)]]))), repo);
+    Object.fromEntries([...bad, run(4)].map(r => [r.id, [artifact(r.id)]])), 4), repo);
   assert.equal(selected.site.id, 4); assert.equal(selected.run.id, 4);
 });
 test('missing and expired reports fail closed instead of erasing published coverage', async () => {
@@ -47,6 +53,44 @@ test('API failures are not treated as missing coverage', async () => {
   github.paginate = async () => {throw new Error('permission denied');};
   github.paginate.iterator = iterator;
   await assert.rejects(selectSource(github, repo), /permission denied/);
+});
+
+test('stale successful history cannot publish an older website', async () => {
+  await assert.rejects(selectSource(api([[run(4)]], {4: [artifact(4)]}), repo),
+    /No successful main Check/);
+});
+test('unordered pages and an old rerun cannot displace current source or latest coverage', async () => {
+  const selected = await selectSource(api([[run(2)], [run(4), run(5)], [run(3)]], {
+    2: [artifact(2)], 3: [artifact(3)], 4: [artifact(4)],
+  }), repo);
+  assert.equal(selected.site.id, 5);
+  assert.equal(selected.run.id, 4);
+});
+test('a pending or failed main head never falls back to an older passing commit', async () => {
+  for (const overrides of [{status: 'in_progress'}, {conclusion: 'failure'},
+    {head_repository: null}, {repository: {full_name: 'other/repo'}}]) {
+    await assert.rejects(selectSource(api([[run(5, overrides), run(4)]], {
+      4: [artifact(4)], 5: [artifact(5)],
+    }), repo), /No successful main Check/);
+  }
+});
+test('a main advance during selection cannot mix in coverage newer than the pinned source', async () => {
+  const selected = await selectSource(api([[run(6), run(5), run(4)]], {
+    6: [artifact(6)], 4: [artifact(4)],
+  }), repo);
+  assert.equal(selected.site.id, 5);
+  assert.equal(selected.run.id, 4);
+});
+test('branch and paginated run lookup errors fail closed', async () => {
+  const github = api([[run(5)]], {5: [artifact(5)]});
+  github.rest.repos.getBranch = async () => {throw new Error('branch unavailable');};
+  await assert.rejects(selectSource(github, repo), /branch unavailable/);
+  const history = api([[run(5)]], {5: [artifact(5)]});
+  history.paginate.iterator = async function* () {
+    yield {data: [run(5)]};
+    throw new Error('history unavailable');
+  };
+  await assert.rejects(selectSource(history, repo), /history unavailable/);
 });
 test('assembled real website and nested source links resolve; broken links fail', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pages-links-'));

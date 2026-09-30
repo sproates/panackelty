@@ -636,15 +636,37 @@ The existing static GitHub Pages and coverage flow remains in use. PR #108 was a
 
 ## Developer preview alpha.10 release
 
-State: In progress. Priority: Now. Selected on 2026-09-30 after the website and
-core-library changes shipped. One release PR updates the version, migration
-notes, download instructions and website labels. Provide a website preview before
-merge approval. Publication follows the approved merge, using the exact validated
-main commit. Completion requires Linux x86-64 and macOS arm64 release gates,
-checksums/provenance and downloaded-archive quick-start verification.
+State: Done. PR #122 merged and alpha.10 published on 2026-09-30 from
+`8cb6b75328aae8f6febf02529e9ac1798c7056b4`. Linux x86-64 and macOS arm64
+release gates passed. Both public downloads passed checksum/provenance checks;
+the downloaded macOS archive passed quick-start and release smoke tests. Linux
+archive execution was verified by the release matrix. The website deployed
+successfully with alpha.10 download instructions and migration notes.
 
 The release aligns downloads with the playground's core language APIs and v9
 bytecode. Real networking and broader build-cache work remain separate.
+
+## Website deployment source selection
+
+Work record: [issue #123](https://github.com/sproates/panackelty/issues/123).
+State: In progress. Priority: Now. Selected on 2026-09-30 after alpha.10 release.
+An earlier Pages attempt selected historical content and failed on a missing
+playground SDK installer; retry succeeded. The original API response was not
+retained, so the upstream cause is unproven. The selector's reliance on the first
+successful result, without checking current main, is reproducible with stale
+or unordered history.
+
+Pin main at selection time and require a trusted successful Check for that exact
+commit. Select coverage by Check run number, retaining earlier coverage for
+documentation-only changes. Missing validation, API errors and missing/expired
+coverage stop publication and preserve the live site. This deliberately waits
+when current main is pending or failed, rather than publishing an older commit.
+
+Small–medium, one PR including regression tests and documentation. Acceptance:
+focused source-selection tests, canonical `make check`, hosted Pages validation
+and, after separately approved merge, live source-provenance verification.
+This observed delivery failure takes priority over build-cache measurement and
+TCP/timer discovery; no compiler, website appearance or cache changes are needed.
 
 ## Playground deployment cache consistency
 

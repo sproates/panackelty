@@ -329,7 +329,8 @@ line/branch summaries and HTML. The [public report](https://panackelty.com/cover
 is assembled with the website from successful `main` validation, with source
 commits and archive date. `tests/pages.sh` covers assembly/failure handling in
 the canonical harness; `tests/pages.test.cjs` covers trusted source selection,
-pagination, missing/expired artifacts and relative source links in Pages CI.
+exact-main validation, stale/unordered history, pagination, API failures,
+missing/expired artifacts and relative source links in Pages CI.
 This publication does not add language or native branch coverage.
 The initial local baseline is approximately 85%
 lines and 79% branches; this measures the native corpus, not every full-suite

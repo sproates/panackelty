@@ -871,6 +871,37 @@ scope in #106. This audit neither measures incremental-cache savings nor promise
 a reduction in full validation time. The next choice should compare browser
 feasibility, runtime packaging and cache evidence on their own user value.
 
+## Playground delivery preparation — 2026-09-30
+
+The maintained optional preparation build lives in `src/playground`; its
+[build and host contract](src/playground/README.md) documents pinned dependencies,
+limits and commands. It uses WASI SDK 34.0's native Clang/linker and a locked
+JavaScript WASI shim, replacing the isolated Emscripten prototype below for
+further delivery work. The C build subprocess has an SDK-only PATH. Native
+builds, canonical validation, the compiler seed and bytecode format are unchanged.
+No generated Wasm is committed and the Pages publisher does not deploy this build.
+
+`build.mjs` selects the existing VM modules plus a browser-profile replacement
+for the native typed capability dispatcher. It emits verified compiler/stdlib
+assets and source/artifact hashes under `build/playground`. `setup.mjs` installs
+locked JavaScript dependencies without lifecycle scripts under `build`, preserving
+the native source-policy boundary and existing cleanup behavior. Browser-only
+tests run in their own unprivileged workflow, not instead of native checks.
+
+`runtime.mjs` gives each compiler invocation a fresh in-memory filesystem and
+one bounded writable output file; runtime execution gets a new instance with
+read-only input and no permitted file writes. `worker.mjs` loads same-origin
+assets and reports phases/results. `controller.mjs` owns termination on completion,
+error, timeout or Stop and ignores stale worker messages. UTF-8 source/output
+bounds, artifact-write bounds and linear-memory maximum are separate controls;
+they do not bound total JavaScript memory or background scheduling delay.
+
+The narrow test page and static loopback test server are preparation tools, not
+the final public website UX. Automated Chromium/Firefox/WebKit tests are defined
+in `tests/playground`; actual run results and remaining physical-device checks
+must be reported separately. See [issue #112](https://github.com/sproates/panackelty/issues/112).
+The historical experiment below retains its original measurements and caveats.
+
 ## Browser-playground feasibility — 2026-09-30
 
 Work record: [issue #110](https://github.com/sproates/panackelty/issues/110).

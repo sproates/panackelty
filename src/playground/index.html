@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panackelty playground preparation</title><link rel="stylesheet" href="style.css"></head>
+<body><main><h1>Try Panackelty</h1><p>WASI delivery-preparation build. Each run uses a fresh worker. Not yet integrated into the public website.</p>
+<label for="source">Program</label><textarea id="source" spellcheck="false" autocapitalize="off">import "stdlib/text"
+
+main(): Void {
+  print("Hello, browser!")
+  print((1/3 * 30).nat())
+  print(text_ends_with("hello.panack", ".panack"))
+}
+</textarea><div><button id="run">Run program</button><button id="stop" disabled>Stop</button><span id="status" role="status">Ready</span></div>
+<h2>Output</h2><pre id="output" tabindex="0"></pre>
+<p>32 KiB source/output, 15-second foreground timeout, 256 MiB linear memory per instance (not total tab memory). Standard input is empty. Native processes, typed host capabilities and runtime file writes are unavailable. No persistent session. Background timers may be delayed.</p>
+<p><a href="LICENSE">Panackelty license</a> · <a href="vendor/LICENSE-MIT">WASI adapter license</a> · <a href="provenance.json">Build inputs</a></p>
+</main><script type="module" src="app.mjs"></script></body></html>

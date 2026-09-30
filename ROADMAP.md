@@ -413,10 +413,11 @@ explicit approval after its documentation checks passed. Browser feasibility
 was subsequently selected below; runtime-only packaging remains unscheduled.
 The audit does not complete #106's caching or separate-compilation work.
 
-### Now: browser-playground feasibility
+### Completed: browser-playground feasibility
 
 Work record: [issue #110](https://github.com/sproates/panackelty/issues/110).
-State: Assessing; bounded experiment complete and findings prepared for review.
+State: Done. PR #111 merged with explicit approval and successful documentation
+checks at `875b567`; issue #110 is closed.
 Authorised on 2026-09-30 after the boundary audit. Medium, one investigation PR;
 production delivery remains unscheduled.
 
@@ -452,6 +453,33 @@ production delivery needs a build-policy-compatible route or a separately agreed
 policy decision. No new interpreter dependency was added to this repository.
 The 256 MiB cap is per Wasm instance, not total browser memory. A persistent REPL,
 production host adapter and public-site integration remain separate work.
+
+### Now: playground delivery preparation
+
+Work record: [issue #112](https://github.com/sproates/panackelty/issues/112).
+State: In progress. Selected on 2026-09-30 after reviewing the alternatives.
+Medium, estimated one preparation PR; public-site integration remains a later
+separately reviewed step. Establish a reproducible build without adding a Python
+dependency, then verify loading, compilation, execution, diagnostics, limits and
+cancellation in real browser engines where an authorised environment permits.
+Distinguish automated WebKit evidence from physical iPhone/Safari review.
+
+Reason: close the concrete delivery gaps from #111 before changing the public
+website. Runtime-only packaging is smaller but not a prerequisite; caching has
+unmeasured incremental benefit; native TCP/timers remain the strongest alternative
+if networking applications become the immediate goal. Preserve native builds,
+bytecode verification and exact values. No persistent REPL, public-site deployment,
+policy relaxation or broad host-platform rewrite is included. Stop and re-estimate
+if a compliant build requires disproportionate host/toolchain work.
+
+The WASI SDK route now builds the existing VM with its native Clang/linker and
+an SDK-only subprocess PATH, without the Emscripten tooling. Maintained build,
+host, worker and lifecycle sources are under `src/playground`; locked dependencies
+and all generated outputs remain under `build`. Local compatibility and limit
+tests pass; the separate browser workflow still needs hosted results. Native
+`make check`, browser CI and physical iPhone evidence must be reported distinctly.
+The existing clean-check/unit timing-budget backlog remains open; this browser
+task does not change those targets or claim improved native validation speed.
 
 ### Completed: content-led website expansion
 

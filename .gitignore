@@ -3,4 +3,7 @@
 /panack-vm
 /build/
 /output/
+/src/playground/node_modules/
+/src/playground/test-results/
+/src/playground/playwright-report/
 .obsidian/

@@ -870,3 +870,129 @@ Dependency-aware probe caching and separate compilation retain their original
 scope in #106. This audit neither measures incremental-cache savings nor promises
 a reduction in full validation time. The next choice should compare browser
 feasibility, runtime packaging and cache evidence on their own user value.
+
+## Browser-playground feasibility — 2026-09-30
+
+Work record: [issue #110](https://github.com/sproates/panackelty/issues/110).
+This bounded experiment used native baseline `a35e4e11da9412a7ede03d0c12e826d9428cb2ff`.
+The existing compiler seed runs on a WebAssembly build of the VM and compiles
+editable complete programs. This establishes executable Wasm feasibility under
+Node, not supported browser-platform delivery or a persistent REPL.
+
+### Prototype boundary
+
+A disposable worker loads the existing v9 compiler seed and standard-library
+sources into Emscripten's in-memory filesystem. One VM instance compiles
+`/main.panack` to `/main.bc`; another instance verifies and executes that
+artifact. Source, diagnostics and output remain local to the worker/page; there
+is no server-side compilation or user JavaScript evaluation. Each Run creates a
+fresh worker. Compiler failure prevents execution. The UI inserts output as text.
+
+The C sources, bytecode format and seed are unchanged. The research build replaces
+only `host_capabilities.c` with this deliberately restrictive adapter:
+
+```c
+#include "host_capabilities.h"
+#include "vm.h"
+
+Value *host_capability_call(VM *vm, const char *name, Value **arguments)
+{
+    (void)name;
+    (void)arguments;
+    vm->error = "VM trap: host capability unavailable in browser experiment";
+    return NULL;
+}
+```
+
+It rejects the whole typed capability dispatcher, including processes, typed
+filesystem operations, sleeping and host UTF-8 decoding; this is broader than a
+finished browser adapter needs to reject. Legacy bootstrap file calls use MEMFS,
+not the device filesystem. Standard input returns EOF. The compiler's stdlib
+path must be set in `preRun`, before libc snapshots the environment. Emscripten's
+[filesystem overview](https://emscripten.org/docs/porting/files/file_systems_overview.html)
+and [module lifecycle](https://emscripten.org/docs/api_reference/module.html)
+describe the underlying mechanisms; the experiment tests their use here.
+
+The first strict build with all native sources failed at `HC_MAX_NS`: a 32-bit
+`size_t` can never exceed the 64-bit duration bound. Removing the POSIX component
+avoids that compile error and unsupported process services. This does not repair
+or certify the other host operations for wasm32. General 32-bit host portability
+requires a separate audit rather than suppressing compiler warnings.
+
+### Limits and cancellation
+
+The page terminates its worker on Stop, a terminal response or a 15-second timer.
+Tests terminate a running infinite loop and successfully run a new request.
+The source/output bounds are 32,768 JavaScript string code units (not bytes);
+an overflow diagnostic is additional output. Output accumulates in the worker,
+preventing a message per printed line. Overflow posts one terminal response;
+the owning page must terminate the worker. Throwing from the output callback was
+insufficient in the initial experiment: libc could convert it to a write error
+while the program continued. Worker termination is the cancellation boundary.
+
+Each instance has a 2 MiB C stack, growable linear memory capped at 256 MiB,
+and untrusted-bytecode verification. Compiler and runtime instances can coexist
+until garbage collection; JavaScript buffers and MEMFS use additional memory.
+The cap therefore is **not** a total tab/worker memory limit. Background tabs can
+delay timers. Input validation, Wasm isolation and these responsiveness controls
+are not a security certification, a real-time guarantee or a finished embedding
+API. The current CLI execution path is reused; budgeted cooperative execution is
+not required for this disposable-worker experiment.
+
+### Reproduction and review source
+
+The private [review prototype](https://panackelty-browser-experiment.sproates846529.chatgpt.site)
+contains an **Experiment source** download with the adapter, build recipe,
+worker/UI sources, generated artifacts, tests, evidence and license notices.
+The Site source snapshot is `ad906be11f5e2e3057fbaee64275cefa9db92423`.
+The downloadable `experiment-source.tar.gz` SHA-256 is
+`2c05eb2851863f126c99d41bae8d527a6d1fd22cee68bef8e4e9b0005d652785`.
+This owner-private research artifact is separate from the public website and
+native toolchain. The repository records essential evidence even if that preview
+is unavailable; its source snapshot is not a supported package release.
+
+In the extracted experiment directory, with the baseline checkout available:
+
+```sh
+sh build-experiment.sh /path/to/panackelty /path/to/emcc "$PWD/dist"
+node prepare-assets.cjs /path/to/panackelty
+node test-worker.cjs
+node test-ui.cjs
+make -C /path/to/panackelty native
+node test-vm.cjs /path/to/panackelty
+```
+
+The measured toolchain is Emscripten 6.0.10, SDK release
+`666337b525e673e769121856d175f6f52b8ead64`, with Node 24.19.0 on Linux x86_64.
+Compile the VM C sources except `host_capabilities.c`, substitute the adapter,
+and use `-O2 -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/vm` plus:
+
+```text
+-sMODULARIZE -sEXPORT_NAME=PanackVM
+-sEXPORTED_RUNTIME_METHODS=FS,callMain,ENV
+-sALLOW_MEMORY_GROWTH -sMAXIMUM_MEMORY=268435456
+-sSTACK_SIZE=2097152 -sEXIT_RUNTIME=1 -sENVIRONMENT=web,worker,node
+```
+
+The SDK was isolated outside this repository. Emscripten itself uses Python;
+that is an unresolved **production-build constraint**, not a new prerequisite
+for Panackelty. The repository's no-interpreter policy and native validation are
+unchanged. A production proposal must select a compliant build route or seek an
+explicit policy decision; shipping opaque generated binaries is not a substitute
+for a reproducible, reviewed build pipeline.
+
+### Result and next gate
+
+The [measurement record](tests/VALIDATION_PROFILE.md#browser-playground-feasibility--2026-09-30)
+records actual Wasm execution, corpus differences, sizes and sample latency.
+The architecture is promising enough for a focused browser integration proposal:
+there is no need to rewrite the compiler, split repositories or introduce a new
+bytecode ABI. Before production delivery, resolve the build-policy constraint,
+exercise real Safari/iPhone and desktop browsers (including private-host asset
+loading), test memory pressure/cancellation and define the supported host surface.
+Automated browser rendering was unavailable in this environment; Node worker and
+DOM-stub tests do not replace those checks. Cold network/phone performance is
+unmeasured. The hosted page is supplied for user review, not labelled certified
+for iOS. Persistent definitions, redefinition and state recovery remain separate
+REPL design work. Public-site integration is unscheduled; estimate one or two
+implementation PRs only after the toolchain/browser gates are resolved.

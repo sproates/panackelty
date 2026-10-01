@@ -1293,3 +1293,10 @@ pinned main Check and fails if main advances. Production retains one serialized 
 complete-site deployment and live byte/provenance verification. Browser failures
 cannot pass the publication gate, and PR artifacts never seed production reuse.
 See [environment maintenance and measurements](tests/README.md#prepared-website-validation-environment).
+
+Pages artifact reuse discovers matching artifacts through trusted successful
+main Pages runs. Automatic coverage-refresh triggers compare the live coverage
+provenance with the validated source/report selection before restoring assets.
+An exact match needs no assembly, browser provisioning or deployment; manual
+refreshes remain explicit publication attempts. GitHub and live lookup failures
+are errors, not permission to skip validation.

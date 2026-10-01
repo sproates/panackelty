@@ -611,3 +611,12 @@ Node 24 upload action nested inside `upload-pages-artifact@v5`. Artifact uploads
 retain their default ZIP format; `download-artifact@v8` fails on digest mismatch.
 Changes to these actions require hosted artifact-transfer checks and post-merge
 Pages deployment/live verification; local tests cannot execute hosted actions.
+
+Website reuse searches successful trusted main Pages runs and their per-run
+artifacts, logging each match/miss instead of depending on provenance in the
+repository-wide artifact listing. A coverage-completion trigger with a matching
+validated website checks live coverage provenance against the selected website
+commit, coverage commit, report timestamp and Check run. Exact matches skip
+assembly, browser provisioning, artifact uploads and deployment. Changed or
+missing live provenance requires publication; API failures fail closed. Manual
+rebuilds and PR validation never take the duplicate-publication shortcut.

@@ -110,7 +110,8 @@ Core hosted and post-merge acceptance are complete as recorded above.
 On 2026-10-01 the user selected the reported layout defect first, followed by
 compiler explanations. Browser [PR #6](https://github.com/sproates/panackelty-browser/pull/6)
 replaces inherited homepage footer grid behavior with an independently styled,
-wrapping resource list. Preserve all link destinations and keyboard order.
+resource list styled like the homepage closing links: stacked rows, dividers
+and right-aligned arrows. Preserve all link destinations and keyboard order.
 Acceptance: no overlap or horizontal overflow on desktop and mobile, intact
 readable links, browser regression coverage and a live author preview before
 merge. Finish the browser release, core dependency pin and deployed verification

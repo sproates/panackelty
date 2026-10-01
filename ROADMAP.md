@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 40824)
-Total output lines: 2473
-
 # Panackelty roadmap
 
 This roadmap tracks post-bootstrap language and engineering initiatives. The
@@ -879,7 +876,686 @@ The subsequent embedded playground shipped in PR #115 after feasibility and
 real-browser preparation in PRs #111 and #113. Persistent REPL sessions remain
 independently scoped; the completed website work does not select them.
 
-### Remaining findings from the delivery pilot…10824 tokens truncated…and applicable sanitizer/platform
+### Remaining findings from the delivery pilot
+
+Core library ergonomics shipped in PR #118, and finite TCP client/server support
+shipped in PRs #127 and #130. HTTP framing and indefinite services remain absent;
+the blocked HTTP pilot tasks have not been rerun or declared successful.
+Interpolation, numeric-proof and API discovery friction feed the current workflow
+and compiler-explanation candidates. Compare these against the changed baseline,
+not the pilot's earlier implementation recommendations.
+
+### Developer experience: useful assistance from the compiler
+
+The [workflow assessment](#development-workflow-assessment) and
+[compiler explanations](#compiler-explanations) now give these ideas bounded
+first outcomes. Runtime diagnostics have their [own scope](#source-aware-runtime-errors).
+The following list remains the broader assistance context.
+
+Make working in Panackelty enjoyable, with substantial attention to helping
+programmers understand and develop their programs. This goes beyond polished
+error messages. Assess assistance throughout writing, checking, exploring,
+changing and debugging code, including potential support for:
+
+- Explaining inferred types, effects and guard/proof obligations, including why
+  a program is accepted or rejected and what evidence would satisfy a requirement
+- Context-aware suggestions for names, imports and available operations, missing
+  match cases, and useful feedback for incomplete code
+- Detecting likely mistakes such as unused bindings or unreachable code, with
+  focused, low-noise guidance rather than indiscriminate warnings
+- Safe, actionable fixes and refactoring assistance whose effects can be checked;
+  keep proposed edits reviewable and preserve programmer intent
+- Source-aware runtime failures, discoverable compiler queries and structured
+  output that CLI/editor tooling can share without duplicating compiler knowledge
+
+These are assessment candidates, not promises of specific features or a required
+IDE, language server or REPL. Evaluate usefulness on representative tasks: time
+and friction to reach correct code, discoverability, precision, false positives,
+feedback latency and consistency. Consider approachable defaults and opt-in depth.
+
+### Backlog navigation
+
+The [current grooming table](#groomed-candidates) owns candidate state and the
+[comparison](#proposed-first-step) records the recommendation. Existing namespace,
+host/library, build and language explorations remain visible in their sections;
+none becomes scheduled through its position in this document. Completed milestones
+retain their evidence below and in the historical sections.
+
+### How to turn the backlog into PRs
+
+The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules.
+
+- The assessment and delivery pilot are complete. Choose the next principal
+  initiative from the current comparison after reviewing its scope and evidence;
+  the placement of a detailed proposal does not assign priority.
+- Before implementation, define scope, dependencies, explicit non-goals, failure
+  cases and acceptance evidence. A design PR may finish with a decision or a
+  bounded feasibility result rather than claiming an implemented feature.
+- Close a task only against its stated evidence. Record partial completion
+  explicitly and link follow-up work; do not infer completeness from test counts
+  or broad checklist wording such as “comprehensive”.
+- Update status when a PR ships. Keep performance experiments in
+  [the profiling report](tests/VALIDATION_PROFILE.md), behavioral evidence in
+  [the coverage matrix](tests/COVERAGE.md), and bootstrap history in
+  [the self-hosting record](SELF_HOSTING.md).
+
+## Improve and expand the website
+
+Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
+The [current decision and acceptance](#completed-content-led-website-expansion) above
+owns the state and scope. The initial unscheduled idea was recorded on
+2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
+The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
+
+## Developer preview alpha.10 release
+
+State: Done. PR #122 merged and alpha.10 published on 2026-09-30 from
+`8cb6b75328aae8f6febf02529e9ac1798c7056b4`. Linux x86-64 and macOS arm64
+release gates passed. Both public downloads passed checksum/provenance checks;
+the downloaded macOS archive passed quick-start and release smoke tests. Linux
+archive execution was verified by the release matrix. The website deployed
+successfully with alpha.10 download instructions and migration notes.
+
+The release aligns downloads with the playground's core language APIs and v9
+bytecode. Real networking and broader build-cache work remain separate.
+
+## Real async TCP from Panackelty
+
+Work record: [issue #126](https://github.com/sproates/panackelty/issues/126).
+State: Done. PR #127 merged on 2026-09-30 after all 23 hosted checks passed.
+Canonical validation passed in 117s, with native sanitizer, independent-peer
+source/bytecode tests, bootstrap and browser rejection evidence in the PR.
+This remains unreleased development functionality, not part of alpha.10.
+Issue #126 was closed during the subsequent grooming pass.
+Selected on 2026-09-30 after deployment
+reliability, explicitly ahead of build-cache work and a C-only networking spike.
+The user wants real source programs to benefit from async/await.
+
+Bounded scope: `await tcp_exchange` owns one numeric-IPv4 request/response
+connection, half-closes after sending, reads to EOF, and returns bytes/error.
+Bound memory and total time; use nonblocking sockets with owner-thread polling
+and close on every outcome. Native embedded execution is opt-in; WASI remains
+without raw networking. No source handles, spawning, listening, DNS, TLS or HTTP
+framing. This is an additive development feature, not an alpha.10 release claim.
+
+Medium–large, one PR including compiler/decoder effects, seed refresh, native
+backend, source/bytecode tests, fault/sanitizer evidence and documentation.
+Acceptance requires partial/binary/empty I/O, response limits, timeout/refusal,
+independent progress, cancellation cleanup, explicit host restrictions,
+canonical `make check` and Linux/macOS/browser CI. The finite server subsequently
+shipped below; broader server capabilities and build-cache improvements remain
+independently scoped follow-ups.
+
+## Bounded async TCP server
+
+Work record: [issue #128](https://github.com/sproates/panackelty/issues/128).
+State: Done. Contract PR #129 and implementation PR #130 merged on 2026-09-30;
+implementation merge commit `43c09b947ead3e62a7aa3a4cd18b98f1c64d44ee`.
+All 23 hosted validation/build/browser checks passed; deployment-only jobs were
+skipped for the PR. The implementation records a passing 110s `make check`, native
+ASan/UBSan, 16 WASI runtime/asset tests and identical compiler/stdlib bootstrap
+fixed points. The existing unit-phase budget warning remains. This completes the
+selected finite server stage and allows backlog grooming to proceed. Issue #128
+can close when this repository completion summary merges. No release is included.
+
+The [server contract](ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
+defines an awaited finite server owner with named async byte-request handlers,
+bounded concurrent admission, EOF request/reply framing, monotonic deadlines and
+graceful draining. The runtime owns sockets and handler lifetimes. Expected
+client failures are isolated; runtime traps cancel the owner. Listening is a
+separate embedded capability; WASI remains unavailable. General source spawning,
+resource handles, HTTP, DNS, TLS and indefinite service operation are excluded.
+
+Delivered in two PRs: contract, then source/native implementation. Independent
+source and saved-bytecode peers exercise binary, fragmented and empty transfers,
+request/response limits, stalled-reader and busy-handler fairness, nested outbound
+waits and connection reuse. Tests cover capabilities, forged bytecode, allocation
+and descriptor failures, pending-phase shutdown and final-admission cancellation.
+The runnable finite echo example and documented limits are included. General
+spawning, DNS, TLS, HTTP and indefinite services remain separate proposals.
+
+## Website deployment source selection
+
+Work record: [issue #123](https://github.com/sproates/panackelty/issues/123).
+State: Done. PR #124 merged after all 23 checks passed. Production Pages run
+36723094458 passed build, deployment and live verification; public provenance
+reported merge commit `cdff3ef04ca40952934b6f3e5768306ce9474ca5`.
+Issue #123 was closed during the subsequent grooming pass.
+Selected on 2026-09-30 after alpha.10 release.
+An earlier Pages attempt selected historical content and failed on a missing
+playground SDK installer; retry succeeded. The original API response was not
+retained, so the upstream cause is unproven. The selector's reliance on the first
+successful result, without checking current main, is reproducible with stale
+or unordered history.
+
+Pin main at selection time and require a trusted successful Check for that exact
+commit. Select coverage by Check run number, retaining earlier coverage for
+documentation-only changes. Missing validation, API errors and missing/expired
+coverage stop publication and preserve the live site. This deliberately waits
+when current main is pending or failed, rather than publishing an older commit.
+
+Small–medium, one PR including regression tests and documentation. Acceptance:
+focused source-selection tests, canonical `make check`, hosted Pages validation
+and, after separately approved merge, live source-provenance verification.
+This observed delivery failure takes priority over build-cache measurement and
+TCP/timer discovery; no compiler, website appearance or cache changes are needed.
+
+## Playground deployment cache consistency
+
+Work record: [issue #119](https://github.com/sproates/panackelty/issues/119).
+State: Done. PR #120 merged and deployed on 2026-09-30. All 23 hosted checks
+passed; live reload loaded versioned assets and the import-free text example
+ran successfully. Selected on 2026-09-30 after the browser kept
+an obsolete imported text example following the core-method deployment.
+
+Version the entire playground asset set together and test normal reload from a
+warm HTTP cache across deployments. Acceptance includes deterministic identities,
+new example/library execution in all three browser projects, publishing checks,
+canonical validation and live verification after separately approved merge.
+Cached entry HTML and already open tabs are not automatically refreshed; missing
+old assets must fail visibly rather than silently mixing versions.
+
+Small, one implementation PR. This observed onboarding defect takes priority over
+the separate alpha.10 release, dependency-aware probe reuse and TCP/timer discovery.
+No language, bytecode or downloadable release-version change is included.
+
+## Core types and discoverable text/collection methods
+
+Work record: [issue #116](https://github.com/sproates/panackelty/issues/116).
+State: Done. Completed in PR #118, merged and deployed on 2026-09-30.
+Canonical checks, browser suites and live import-free core/method execution passed;
+issue #116 is closed. The cached-example defect discovered afterwards is tracked
+separately below. The following scope records the accepted implementation.
+Recorded and groomed on 2026-09-30 following hands-on website playground feedback.
+The user selected implementation on 2026-09-30 as one cohesive PR covering core
+types, text/collection methods and migration. The user approved the merge.
+
+`Option[T]` and `Result[T,E]` should be usable without stdlib imports, and
+ordinary text/collection operations should be discoverable as methods on values
+of the appropriate type. Existing import-free `.starts_with()` and `.reverse()`
+make the imported `text_ends_with` helper inconsistent. The proposed equivalent
+is `print("hello.panack".ends_with(".panack"))`, preserving the literal suffix.
+Most current dot calls still resolve global functions; the proposal must settle
+receiver-type lookup rather than merely shorten prefixed function names.
+
+- [x] Define minimal implicit availability for Option/Result and their
+      constructors, including canonical definitions, removal of obsolete imports and name
+      collisions; decide helper exposure separately from core types
+- [x] Inventory text and collection APIs and select concise, type-appropriate
+      methods, beginning with `Str.ends_with`; cover literals, variables and
+      chaining, global receiver-first calls, fields, generics, purity and useful
+      wrong-receiver/unknown-method diagnostics
+- [x] Apply the agreed breaking preview migration for existing helpers,
+      imports and user names; coordinate with the namespace proposals below
+      without assuming full namespaces must ship first
+- [x] Deliver independently scoped slices with meaningful compiler and public-CLI
+      tests, source/saved-bytecode parity, installed-package/bootstrap checks,
+      browser integration and updated language/library examples and contracts
+
+Value: less import ceremony and a more consistent API for developers and coding
+agents. Estimated M for core availability and M–L for methods and migration,
+including tests, docs and integration; one cohesive implementation PR, as selected by the user.
+Resolve the bounded design decisions within the relevant PR rather than requiring
+a separate design report up front. Confidence in the friction is high; lookup rules and
+migration cost need assessment. Risks are name capture, duplicate definitions,
+inference/effect regressions and differences between native and browser builds.
+Delay prolongs learning friction rather than a known correctness defect.
+
+Acceptance includes import-free construction and matching of both core types,
+migration of existing callers, name-resolution failures, unchanged purity and
+persistent collection semantics, suffix edge cases and real playground usage.
+Implementation must pass `make check` and relevant browser checks. Keep one
+coherent contract across the compiler, stdlib, packages and browser assets.
+Full namespaces, classes, inheritance, dynamic dispatch and general user-defined
+extension methods are outside this proposal. A minimal core prelude is a candidate
+mechanism; implicitly importing the entire stdlib is not the proposed outcome.
+
+### Historical scope and recommendation before PR #118
+
+This comparison records the recommendation before PR #118 shipped. The public
+playground had made basic API inconsistencies visible to new users. The rationale
+was to reduce migration cost before more libraries and examples depended on the
+earlier spellings; this was a reasoned expectation, not a measured adoption result.
+
+| Candidate | Value and trade-off | Size / estimated PRs |
+| --- | --- | --- |
+| Core types and standard methods (#116) | Recommended Next: direct user feedback, immediate benefit in ordinary programs, and existing method machinery to build on | M–L overall / 1 |
+| Dependency-aware probe reuse (#106), excluding separate compilation | Strongest alternative: slow validation affects every change, but savings from narrower invalidation remain unmeasured | M / 1–2 |
+| Native TCP/timer feasibility | Enables applications blocked in the pilot, but carries greater lifecycle uncertainty and does not resolve basic API friction | M–L investigation / 1–2 |
+
+Choose caching first if measurements show iteration cost obstructs this work;
+choose transport feasibility first if a concrete network application becomes the
+immediate objective. Full namespaces and separate compilation remain broader
+follow-ups, not prerequisites for this bounded initiative.
+
+Delivery scope, combined in one implementation PR:
+
+1. **Core availability (M component).** Provide `Option[T]`, `Result[T,E]`, `None`,
+   `Some`, `Ok` and `Error` by default. Prefer one source-defined core loaded once
+   through the existing loader; settle behaviour when the stdlib root is missing
+   or overridden. Remove obsolete core imports from maintained sources. Conflicting user
+   declarations should produce an explicit diagnostic rather than silent
+   shadowing. Keep value-or helpers and host/testing modules outside the implicit
+   public surface. Verify annotations, inference and pattern matching without
+   imports, nested imports and collision failures. Preserve existing inference
+   limits; this slice does not promise inference for an unconstrained `None()`.
+2. **Text methods (M component).** Make `len`, `slice`, `starts_with`,
+   `starts_with_at`, `ends_with`, `reverse`, `is_digit`, `is_letter`,
+   `is_whitespace` and `parse_nat` available on `Str` without imports. Preserve
+   existing Unicode/code-point, ASCII classification and parse-failure contracts.
+   Use receiver-type lookup for standard method names; an unrelated global
+   function must not capture a standard method call. Preserve current user
+   receiver-first calls for names outside the standard method set. Define the
+   reserved-name boundary and wrong-receiver behaviour explicitly, including
+   names shared by supported types such as `len`. Reuse library algorithms and
+   existing runtime primitives where possible; a new VM opcode is not assumed.
+3. **Collection methods and migration (M component).** Provide import-free array
+   `first()` and `sort_by(comparator)` alongside `len`, `append`, `concat`, `map`
+   and `reduce`; retain Map `put`/`has`/`get` and Set `add`/`has`, and make their
+   existing operations consistent with the same receiver lookup rules. Map/Set
+   length is not currently supported and is not added in this change.
+   Preserve stable sorting, pure callback requirements and immutable updates.
+   Keep current missing-key behaviour; safe optional Map lookup is separate.
+   Inventory Bytes explicitly and defer new byte-buffer method names to a
+   follow-up rather than leaving its coverage ambiguous. Migrate public examples
+   and playground lessons to the preferred spellings.
+
+Migration decision, 2026-09-30: the user reports no external Panackelty authors,
+so preserving obsolete imports and prefixed functions is not a delivery
+requirement. Prefer a clean breaking preview migration. Update compiler and
+stdlib sources, tests, examples, packages and playground lessons together in
+each affected slice; remove superseded public wrappers and redundant import
+modules once their remaining responsibilities have been accounted for. Do not
+remove useful helper behaviour merely because its old module also defined a
+now-implicit type. Record source/API changes in the changelog under the existing
+preview release policy; this is not a compatibility-preserving patch release.
+
+Retain an old spelling only where the reproducible bootstrap demonstrably needs
+it, with the exact dependency, limited scope and removal condition documented.
+Do not assume a historic compiler requires public aliases: prove the requirement
+and prefer isolated bootstrap staging. Acceptance includes a reference audit for
+obsolete calls/imports and a passing bootstrap after migration. Unrelated stdlib
+imports and general user-defined receiver-first functions remain in scope only
+where affected by the new lookup contract. New method names must not become new
+unqualified global functions. Do not promise editor completion in
+this item: discoverability means a consistent documented type API and relevant
+diagnostics. General extension methods, new namespaces and Option/Result helper
+methods remain separate scope.
+
+Technical evidence: `loader.panack` already deduplicates resolved module paths;
+`parser.panack` marks selected collection methods for checker resolution, but
+ordinary dot calls currently lose their method identity. The implementation must
+retain enough identity for the proposed lookup rules. The browser runtime
+already supplies a stdlib root and runs the same compiler bytecode, so implement
+this in the shared compiler/library path, without browser-only source rewriting.
+An implicit prelude must not leak extra helper declarations simply because the
+current option/result source files contain them alongside their enums.
+
+The implementation PR needs unit and public-CLI positive/negative cases, canonical
+`make check`, bootstrap/package evidence and rebuilt playground assets with
+relevant browser tests. Compare compilation latency and asset size before and
+after implicit loading; investigate material regressions rather than assuming
+all-module loading is free. Final acceptance includes running import-free
+Option/Result examples, the exact suffix example above and array first/sort
+examples in the published playground after separately approved merge/deployment.
+Implementation and live acceptance are complete. The release version remains unchanged during implementation; prepare the next
+alpha (currently expected `0.1.0-alpha.10`) and breaking-change notes in a separate
+release PR. The bytecode format stays v9.
+
+## Language namespaces — idea
+
+Assess first-class language support for namespaces separately from the existing
+logical import paths (`stdlib/...` and `project/...`). Import path organisation
+alone does not settle qualified symbol lookup or namespace semantics.
+
+- [ ] Identify real name-collision, discoverability and API-organisation problems
+      and representative programs that would benefit from namespaces
+- [ ] Specify declaration and qualification syntax, namespace/module relationships,
+      nesting, aliases, imports, visibility/exports, collision and shadowing rules
+- [ ] Assess interactions with functions, types, generics, method syntax and
+      compiler assistance; define useful unresolved/ambiguous-name diagnostics
+- [ ] Estimate compiler, bytecode/runtime, bootstrap and tooling implications;
+      decide compatibility and migration before selecting an implementation
+- [ ] Define focused and public-CLI acceptance tests for lookup, imports,
+      qualification, visibility and failures across source and installed toolchains
+
+## Namespace the current standard library — idea
+
+Review how existing library APIs should be grouped, exported and referenced so
+users can discover them and avoid collisions. This is a separate deliverable
+from general namespace support, with an explicit dependency assessment.
+
+- [ ] Inventory current modules and exported names; identify collisions,
+      inconsistent naming and unnecessarily exposed implementation details
+- [ ] Propose coherent namespace boundaries and ergonomic qualified/unqualified
+      usage, evaluated on real programs and compiler-assisted discoverability
+- [ ] Decide which improvements are possible with today's imports and which
+      require the language namespace proposal; avoid assuming they must ship
+      together or making incompatible naming decisions independently
+- [ ] Plan compatibility or a deliberate preview migration for compiler sources,
+      libraries, examples, tests, documentation and installed packages
+- [ ] Define acceptance evidence that public APIs remain accessible, names resolve
+      predictably and existing behavior is preserved through the migration
+
+Both items remain unscheduled assessment candidates. Preserve existing public
+contracts until the namespace design and any migration are explicitly agreed.
+
+## Review GitHub repository settings and tooling — idea
+
+Assess whether repository configuration and available tooling can improve
+security, code quality and contributor experience. This is a backlog item, not
+an assertion that any particular feature is disabled or suitable. Include it in
+the holistic assessment and compare its value and effort with other candidates.
+
+- [ ] Inventory actual settings, workflows and enabled checks; distinguish
+      unavailable, disabled, already configured and redundant capabilities
+- [ ] Evaluate applicable code/security scanning, secret scanning and push
+      protection, dependency alerts/updates/review (including Actions), and
+      static-analysis or code-quality tools; verify language/ecosystem support
+      and avoid implying that a C scanner analyses custom `.panack` semantics
+- [ ] Review branch/ruleset protections, required checks, workflow/token
+      permissions, environment/release protections and contribution settings
+      against the project's agreed workflow
+- [ ] Record benefit, findings/actionability, false positives, setup and ongoing
+      effort, CI latency, cost/plan availability, access needs and ownership
+- [ ] Recommend a minimal useful set with a clear enable/retain/defer rationale,
+      acceptance checks and an alert-triage process; obtain explicit permission
+      before changing settings, protections, permissions or paid services
+
+Acceptance for the review is an evidence-backed inventory and prioritised
+recommendations. Enabling selected features is separately scoped work with
+its own verification; do not turn on every available feature by default.
+
+## Measure Panackelty source coverage — candidate pending assessment
+
+Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131). State: Idea; implementation
+unscheduled. See the [current comparison](#proposed-first-step) for first-slice
+estimates and recommendation.
+
+The public LLVM report measures the native C VM only. Existing `.panack` tests
+exercise the compiler and libraries, but there is no measured source-line or
+branch baseline for those files. Publishing C coverage did not close this gap.
+
+The frontend already carries source positions; the emitted `FunctionCode` and
+current v9 bytecode contract do not carry an instruction-to-source map.
+Coverage therefore requires compiler/bytecode/VM design, not just an HTML export.
+Compare deterministic sidecar metadata with a versioned bytecode extension;
+do not assume a format change or a particular instrumentation scheme in advance.
+
+Provisional PR boundaries (split further if feasibility or review size requires):
+
+1. **Coverage design and feasibility.** Inventory source-position fidelity and
+   lowering; define executable lines, functions and source branches, including
+   short-circuit expressions, match arms, loops, generated instructions, imports
+   and erased generics. Prove a small source-to-execution mapping. Decide metadata
+   identity, compatibility, validation and bootstrap implications; document
+   overhead and implementation scope before committing to an estimate.
+2. **Collection and correctness.** Implement opt-in measurement and a versioned
+   raw format, with exact expected results on small known programs. Preserve
+   ordinary outputs and semantics; test malformed/mismatched maps, disabled
+   instrumentation and traps. Aggregate across subprocesses and nested VM runs
+   without collisions, lost counts or double-counting cached test observations.
+3. **Suite integration and published baseline.** Measure the `.panack` compiler
+   while it compiles programs, bytecode tooling and standard-library execution,
+   including relevant compiler/functional/bootstrap paths. Account for unexecuted
+   eligible files, test infrastructure, generated code and intentional exclusions.
+   Publish separate source reports through the existing coordinated Pages flow,
+   with commit/source identity, suite scope, denominator and freshness visible.
+4. **Risk-ranked gap closure and regression policy.** Turn uncovered behaviors
+   into bounded test PRs; validate the assertions, not just execution counts.
+   Select per-component change/regression policy after a credible baseline exists,
+   with reviewed exclusions and no invented universal percentage requirement.
+
+- [ ] Complete the design/feasibility decision and bound the initial scope
+- [ ] Establish independently checked source mapping and counter correctness
+- [ ] Record source-line/function coverage for the agreed `.panack` scope
+- [ ] Record source-branch coverage, or explicitly track it as unfinished if a
+      line-first increment is chosen; never substitute VM branch counts silently
+- [ ] Include subprocess/nested compiler execution and all eligible unexecuted
+      files in the aggregate, with reproducible source identities and exclusions
+- [ ] Publish separate native C and `.panack` baselines; never blend percentages
+- [ ] Demonstrate instrumented/uninstrumented semantic equivalence and record
+      runtime, memory and validation cost without weakening existing checks
+- [ ] Establish a documented regression policy and close the first verified gaps
+
+An instrumented compiler must not accidentally change release artifacts or the
+ordinary bootstrap fixed-point contract. Decide source-map privacy/path handling,
+artifact retention and source-snapshot validation as part of the measurement
+format. A report must distinguish zero hits, excluded code, missing data and
+failed collection; partial collection must not appear as a complete green report.
+
+## Groomed development and engineering work
+
+The [candidate table](#groomed-candidates) owns state and estimates. Linked issues
+hold detailed acceptance, risks and first-slice boundaries.
+
+### Development workflow assessment
+
+Work record: [#133](https://github.com/sproates/panackelty/issues/133).
+
+The earlier delivery pilot predates core-method and networking delivery. Observe
+a fixed installation-to-maintenance task, including API discovery, errors and
+focused tests. Record reproducible obstacles and feedback latency, with human
+and fresh-context agent evidence where available. Distinguish release and
+development toolchains. Produce bounded fixes rather than assuming a project
+generator, formatter or package manager is needed.
+
+### Compiler explanations
+
+Work record: [#134](https://github.com/sproates/panackelty/issues/134).
+
+Start with one query explaining an actual checker decision, such as accepted or
+rejected guarded subtraction. Acceptance requires checked facts, source
+locations, honest unknowns and agreement with positive and negative checker
+cases. Retained evidence and cost need investigation. Types and effects can
+follow; runtime value provenance, new inference rules and automatic fixes remain
+separate.
+
+### Systematic invariant testing
+
+Work record: [#135](https://github.com/sproates/panackelty/issues/135).
+
+Extend existing source/bytecode comparisons, deterministic round trips and
+bootstrap fixed points with one bounded invariant family. Use reproducible
+generation or justified source transformations, an independently reviewed oracle
+and useful reduced failures. Demonstrate detection of an isolated deliberate
+perturbation. Shared implementation bugs and invalid transformations are risks;
+full random-language generation and a second execution engine are outside scope.
+
+### Source-aware runtime errors
+
+Work record: [#136](https://github.com/sproates/panackelty/issues/136).
+
+Source positions exist in the frontend, but emitted instruction/source mapping
+is missing. Assess reuse of coverage metadata for one bounded trap and
+call-context slice. Acceptance includes imported/generic code, nested calls, an
+async boundary and safe fallback for absent or mismatched source snapshots.
+Preserve error meaning and bytecode safety. A debugger and full async history
+are separate; report publication is not a prerequisite.
+
+### Learning path and technical documentation
+
+Work record: [#137](https://github.com/sproates/panackelty/issues/137).
+
+Build on the README, examples, specification, VM guide and playground. Start
+with one complete tutorial from clean installation through testing and a
+maintenance change, linked to discoverable library/reference material. Run its
+commands against the declared version and keep development-only networking
+distinct from alpha.10. Subsequent practical and technical guides follow
+demonstrated gaps. Website visual changes require a working review preview.
+
+### Executable documentation
+
+Work record: [#138](https://github.com/sproates/panackelty/issues/138).
+
+Quick-start, website, functional-example and playground checks already execute
+documentation. Inventory checked, illustrative and uncovered content, then
+verify one additional guide through the existing toolchain. Incorrect commands
+or expected output must fail visibly. Preserve negative examples, clean
+setup/cleanup and version boundaries. Coordinate with the first tutorial without
+introducing a competing harness or silently skipping platform-dependent
+examples.
+
+### Editor support
+
+Work record: [#139](https://github.com/sproates/panackelty/issues/139).
+
+No dedicated editor extension or grammar package was found in the tracked tree
+during grooming. Select one editor before implementation, then deliver file
+recognition, highlighting, comments, bracket pairing and indentation with
+installation instructions. Validate current lexical examples and incomplete
+code. Compiler-backed diagnostics, navigation, hover and completion follow
+separate assessment; a language server, formatter and marketplace release are
+not prerequisites.
+
+### Technical showcase programs
+
+Work record: [#140](https://github.com/sproates/panackelty/issues/140).
+
+Choose one complete demonstration combining existing capabilities, such as an
+exact ledger with checked domain rules or a finite concurrent service with
+independent clients. Provide deterministic inputs, expected source/bytecode
+results and both success and failure boundaries. Explain guarantees and
+platform/release limits. Reuse existing examples and checks; no new language
+feature or production HTTP claim is required.
+
+### Runtime and resource baselines
+
+Work record: [#141](https://github.com/sproates/panackelty/issues/141).
+
+Existing validation profiles and paired experiments are useful evidence but do
+not form a general maintained resource baseline. Select a small representative
+workload set and record correctness-checked compilation, execution, memory and
+artifact size. Separate cold/warm costs, report environment and variability, and
+label unavailable metrics. Set policy after understanding baseline noise;
+universal thresholds and cross-language superiority claims are outside the
+initial scope.
+
+### Independent contract implementation
+
+Work record: [#142](https://github.com/sproates/panackelty/issues/142).
+
+The bytecode format, fixed fixtures and VM/compiler audit already establish
+substantial contract evidence. Test one small stable subset by implementing a
+disposable probe from the written contract before consulting implementation
+details. Record ambiguities, independently derived malformed/valid vectors and
+any prior knowledge limiting independence. Use the supported toolchain. This
+assesses specification precision without adding a second execution engine or
+claiming full-language conformance.
+
+## Historical grooming gaps and decisions
+
+These earlier findings are retained as supporting context, not a fresh audit.
+The broader
+[2026-09-29 assessment](docs/ADOPTION_ASSESSMENT.md) now covers application
+architecture and adoption as well as testing. Neither report authorises every
+feature or settles implementation priorities.
+
+| Gap or ambiguity | Evidence / consequence | Treatment |
+| --- | --- | --- |
+| Developer experience and compiler assistance | Existing ideas emphasise diagnostics; useful assistance throughout development needs deliberate assessment | Treat enjoyment and productivity as strategic goals alongside strong testing |
+| Roadmap documentation and process | Stale status and overlapping documents made the actual priorities unclear | Review document roles, acceptance criteria and the process for maintaining current evidence |
+| Source coverage and its denominator | C coverage says nothing about which `.panack` lines or branches execute; omitted files could inflate future reports | Evaluate coverage scope, effort and enabling value in the holistic assessment |
+| Test evidence has drifted | Matrix/backlog references include retired test paths, “both VMs”, a compiler “skeleton”, and already-implemented deterministic round trips | Audit current assertions against the matrix before declaring missing tests; retain historical fixture provenance |
+| Execution coverage versus test quality | A hit does not establish that a test would catch the wrong result | Keep an explicit assertion-quality backlog; evaluate bounded mutation or deliberately perturbed fixtures for selected high-risk behavior |
+| Runtime source diagnostics | Frontend positions exist but emitted instruction records lack source maps | Define a separate follow-up for source-aware runtime traps/call stacks; reuse coverage metadata only where semantics and validation agree |
+| Product direction and feature selection | The specification names Euler programs as its proving ground, while the roadmap explores dependable automation and many unrelated differentiators | Agree representative user programs and a next preview outcome before promoting experiments; reconcile product wording in a later scoped change |
+| Milestone exit criteria | Initial preview delivery is explicit; the next capability milestone is not | Define observable user outcomes, supported scope, compatibility implications and release evidence, rather than promising a date or a bundle of speculative features |
+
+Existing proposals already cover JSON, generic/inference extensions, host APIs,
+error quality, browser targets and contribution criteria. These are prioritisation
+choices, not newly discovered omissions. Missing package management, concurrency,
+module visibility and compatibility guarantees are explicitly deferred in the
+specification; do not promote them merely because other languages have them.
+
+## Harden and expand test coverage — candidate; foundation delivered
+
+The [invariant-testing item](#systematic-invariant-testing) scopes generated inputs
+and equivalence checks separately from [source measurement](#measure-panackelty-source-coverage--candidate-pending-assessment).
+Both extend existing evidence; neither changes coverage status by being planned.
+
+The goal is to make regressions difficult to introduce and failures easy to
+localize while keeping `make check` the canonical validation command.
+
+- [x] Separate internal unit tests from black-box functional program tests
+- [x] Discover functional cases and example expectations without a central
+      manifest
+- [x] Inventory the behavior promised by `SPEC.md` and map it to existing tests
+- [ ] Audit success and failure assertions by language construct and runtime
+      built-in; turn verified omissions into bounded, risk-ranked test PRs
+- [x] Cover every CLI command and shorthand through end-to-end subprocess tests
+- [ ] Expand type, refinement, purity, and name-resolution diagnostic coverage
+- [ ] Exercise file, import, malformed-input, and operating-system failure paths
+- [ ] Expand malformed and adversarial bytecode verifier and VM coverage
+- [x] Establish deterministic compilation and canonical bytecode round-trip tests;
+      extend edge cases only against identified gaps
+- [x] Establish direct lexer, parser, resolver, checker, purity, emitter and
+      driver probes; this is a foundation, not proof of exhaustive behavior
+- [ ] Audit remaining compiler/library assertions and source coverage by component
+- [x] Establish and publish a native C line/branch baseline
+- [ ] Establish the separate `.panack` baseline through the candidate measurement initiative
+- [ ] Review intentional exclusions and untested host-boundary behavior explicitly
+- [x] Organize the suite so focused failures remain fast and the full suite stays
+      practical to run after every change
+
+Testing work that is also a prerequisite for self-hosting should be reflected
+in both roadmaps when completed.
+
+### Publish public native C coverage reports — complete
+
+The native VM's LLVM line and branch coverage remains uploaded as a CI
+artifact. The coordinated Pages publisher makes the HTML report available at
+`https://panackelty.com/coverage/`, so readers can open it directly without
+visiting an Actions run or downloading and extracting an archive. PR #81 merged
+as `52fb0d7`; its main validation and Pages build, deployment and live verification
+all passed on 2026-09-28. The published report is native C coverage only: 87.43%
+lines, 80.65% branches and 100% functions; it is not a `.panack` baseline.
+
+- [x] Implement publication of the successful `main` build's native coverage HTML and summary
+      through the project's existing GitHub Pages site, with source commit,
+      generation date and an explicit label that this covers the native C VM,
+      not the self-hosted compiler or the entire language
+- [x] Keep the website and coverage deployment coordinated so a normal site
+      update cannot erase the latest report and a report update cannot replace
+      the site with stale content; publish only from trusted, successful builds
+- [x] Link the stable report from the site and README, add deployment checks for
+      its entry page and relative source-navigation links, and keep the existing
+      downloadable CI artifact for debugging
+- [x] Document how publication failures and stale results appear, and ensure
+      release and PR workflows cannot publish an unreviewed coverage site
+- [x] Confirm the first merged `main` run publishes successfully and passes the
+      live entry-page, source-navigation and provenance checks
+
+## Codebase-wide human readability and refactoring — candidate
+
+Work record: [Component readability and refactoring](https://github.com/sproates/panackelty/issues/132). State: Idea; implementation
+unscheduled. See the [current comparison](#proposed-first-step) for first-slice
+estimates and recommendation.
+
+Extend the native VM readability cleanup across all project code, including
+the compiler, bytecode tooling, runtime, standard library, bootstrap code,
+CLI, build and CI scripts, and test harnesses. Make the code straightforward
+for a human maintainer to read, navigate and change. Start with an audit, then
+refactor in component-sized PRs after establishing
+relevant test evidence. The assessment proposes using source coverage to inform
+risk without making its delivery a blanket prerequisite for small, well-tested
+refactors; review that dependency with the implementation priorities. The REPL is not a
+prerequisite; do not mix feature changes into readability refactors.
+
+- [ ] Audit each component for dense or oversized functions, unclear names,
+      duplicated logic, hidden dependencies and obsolete code; record a scoped
+      refactoring sequence using the native VM cleanup as the model.
+- [ ] Split responsibilities into cohesive modules and small, clearly named
+      functions; make interfaces, data flow, ownership and error handling
+      explicit, with consistent formatting and comments explaining non-obvious
+      decisions and invariants.
+- [ ] Remove obsolete code and unnecessary duplication, keeping any required
+      bootstrap distinctions explicit; update architecture and component
+      documentation alongside each refactor.
+- [ ] Preserve observable behavior, exact numeric semantics, purity, bytecode
+      safety and bootstrap reproducibility. Retain all existing assertions,
+      add meaningful regression coverage where gaps are found, and validate
+      each scoped refactor with `make check` and applicable sanitizer/platform
       gates; measure and avoid validation or runtime performance regressions.
 
 ## Native VM readability and test hardening

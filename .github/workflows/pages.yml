@@ -142,7 +142,7 @@ jobs:
           fi
           printf '%s\n' "$FINGERPRINT" > build/website/.validation-fingerprint
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.scope.outputs.pages == 'true'
         with:
           name: pages-candidate
@@ -164,7 +164,7 @@ jobs:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: pages-candidate
           path: build/website
@@ -222,7 +222,7 @@ jobs:
         with:
           ref: ${{ needs.build.outputs.site_sha || github.ref }}
           persist-credentials: false
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: pages-candidate
           path: build/website
@@ -268,7 +268,7 @@ jobs:
         run: |
           mkdir reusable
           tar --exclude='./coverage' -cf reusable/website.tar -C build/website .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: github.event_name != 'pull_request'
         with:
           name: validated-website-${{ needs.build.outputs.fingerprint }}
@@ -278,7 +278,7 @@ jobs:
 
       - name: Archive tested PR preview
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: website-preview-${{ github.run_id }}-${{ github.run_attempt }}
           path: build/website
@@ -287,11 +287,11 @@ jobs:
 
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: build/website
 
@@ -309,7 +309,7 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
   verify:
     name: Verify published coverage
@@ -320,7 +320,7 @@ jobs:
         with:
           ref: main
           persist-credentials: false
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: github-pages
           path: published-artifact

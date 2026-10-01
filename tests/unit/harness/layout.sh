@@ -90,8 +90,8 @@ contains .github/workflows/pages.yml 'workflow_run:
     branches: [main]'
 contains .github/workflows/pages.yml 'pull_request:
     branches: [main]'
-contains .github/workflows/pages.yml 'uses: actions/configure-pages@v5'
-contains .github/workflows/pages.yml 'uses: actions/upload-pages-artifact@v4'
+contains .github/workflows/pages.yml 'uses: actions/configure-pages@v6'
+contains .github/workflows/pages.yml 'uses: actions/upload-pages-artifact@v5'
 contains .github/workflows/pages.yml 'path: build/website'
 contains .github/workflows/pages.yml 'if: github.event_name != '"'"'pull_request'"'"''
 contains .github/workflows/pages.yml 'needs: publish'
@@ -99,7 +99,7 @@ contains .github/workflows/pages.yml "needs.browser.result == 'success'"
 contains .github/workflows/pages.yml "needs.build.outputs.browser == 'false' && needs.browser.result == 'skipped'"
 contains .github/workflows/pages.yml 'pages: write'
 contains .github/workflows/pages.yml 'id-token: write'
-contains .github/workflows/pages.yml 'uses: actions/deploy-pages@v4'
+contains .github/workflows/pages.yml 'uses: actions/deploy-pages@v5'
 contains .github/workflows/pages.yml "github.event.workflow_run.conclusion == 'success'"
 contains .github/workflows/pages.yml "github.event.workflow_run.event == 'push'"
 contains .github/workflows/pages.yml "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"

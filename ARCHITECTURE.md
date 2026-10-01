@@ -125,9 +125,9 @@ browser tests stop publication. Post-deployment checks compare every playground
 asset with that tree and verify the Wasm content type.
 Browser releases are built and tested by `sproates/panackelty-browser`; website
 updates deliberately pin a version and checksum rather than following its main.
-The website owns publication and retains the existing integration suite during
-the repository migration. Removing the legacy preparation profile and moving
-its remaining contracts is a separate, unfinished cleanup step under #151.
+The website owns publication and runs the integration suite from an exact
+reviewed browser repository commit. Browser application sources and contracts
+are maintained only in that downstream repository.
 The report landing page records separate website/coverage commits, the coverage
 artifact date and validation run. Missing or expired coverage fails publication
 instead of silently dropping it. Only the deploy job receives `pages: write`
@@ -902,45 +902,40 @@ scope in #106. This audit neither measures incremental-cache savings nor promise
 a reduction in full validation time. The next choice should compare browser
 feasibility, runtime packaging and cache evidence on their own user value.
 
-## Playground delivery preparation — 2026-09-30
+## Browser ownership and website delivery
 
-The maintained optional preparation build lives in `src/playground`; its
-[build and host contract](src/playground/README.md) documents pinned dependencies,
-limits and commands. It uses WASI SDK 34.0's native Clang/linker and a locked
-JavaScript WASI shim, replacing the isolated Emscripten prototype below for
-further delivery work. The C build subprocess has an SDK-only PATH. Native
-builds, canonical validation, the compiler seed and bytecode format are unchanged.
-No generated Wasm is committed. This legacy preparation profile remains for
-core compatibility tests during the #151 migration. Pages now consumes a
-checksummed release from the separate browser repository at `/playground/`;
-it does not rebuild this profile for publication.
+[Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
+WASI build, browser host adapter, JavaScript runtime, worker/controller, UI,
+examples, asset versioning and browser tests. Core supplies the explicit
+`browser-runtime-bundle`; the browser repository pins its core revision.
+Its native CLI/corpus comparisons also use test-only fixtures from that same
+revision. Updating core does not silently update the browser product.
 
-`build.mjs` selects the existing VM modules plus a browser-profile replacement
-for the native typed capability dispatcher. It emits verified compiler/stdlib
-assets and source/artifact hashes under `build/playground`. The complete asset set
-lives in a content-hashed subdirectory; the entry HTML selects that set, and
-relative module/worker/binary URLs stay within it. The build replaces its output
-rather than retaining obsolete assets. Cached old entry pages may need a reload;
-the deployment does not keep historical asset sets. `setup.mjs` installs
-locked JavaScript dependencies without lifecycle scripts under `build`, preserving
-the native source-policy boundary and existing cleanup behavior. Browser-only
-tests run in their own unprivileged workflow, not instead of native checks.
+The browser's single Check workflow verifies deterministic builds, native/WASI
+contracts and all browser scenarios before publishing a checksummed versioned
+release. No browser implementation, npm lockfile, SDK installer or duplicate
+browser build workflow remains in core. Native validation and bundle conformance
+remain core responsibilities; a deliberate downstream dependency update runs
+browser compatibility checks when core changes are adopted.
 
-`runtime.mjs` gives each compiler invocation a fresh in-memory filesystem and
-one bounded writable output file; runtime execution gets a new instance with
-read-only input and no permitted file writes. `worker.mjs` loads same-origin
-assets and reports phases/results. `controller.mjs` owns termination on completion,
-error, timeout or Stop and ignores stale worker messages. UTF-8 source/output
-bounds, artifact-write bounds and linear-memory maximum are separate controls;
-they do not bound total JavaScript memory or background scheduling delay.
+Core owns the website and coverage publication. `site/playground.json` selects
+the browser archive by tag, digest and asset identity. Pages downloads and
+verifies it, checks out the browser integration suite at an exact reviewed SHA,
+and runs all 21 browser scenarios against the assembled website before deploying.
+Both the artifact pin and suite revision require review when behavior changes.
+No browser compilation or native oracle is needed in Pages. Published-byte,
+Wasm MIME, navigation and coverage-provenance checks remain deployment gates.
 
-The page uses the shared site styling and editable examples; its loopback server
-serves `build/website` or the publisher's complete artifact for tests.
-Automated Chromium/Firefox/WebKit tests are defined
-in `tests/playground`; actual run results and remaining physical-device checks
-must be reported separately. Preparation passed in PR #113; website delivery is
-tracked in [issue #114](https://github.com/sproates/panackelty/issues/114).
-The historical experiment below retains its original measurements and caveats.
+PR selection uses the shared component map: website, package, shared and unknown
+inputs retain Pages checks; isolated native components and examples do not
+provision engines for a pinned external product. Production always retains the
+complete browser gate. Browser engine downloads use exact OS/architecture and
+lockfile cache keys; tests always run, and missing or unusable engines cannot
+produce a successful gate. The browser repository documents runtime bounds,
+unsupported hosts, content-addressed caching and physical-device limitations.
+
+The original preparation and delivery shipped in PRs #113 and #115. The historical
+experiment below retains its original measurements and caveats.
 
 ## Browser-playground feasibility — 2026-09-30
 

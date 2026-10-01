@@ -8,9 +8,9 @@ exact numerical work.**
 
 The website consumes a pinned release from
 [Panackelty Browser](https://github.com/sproates/panackelty-browser), selected in
-`site/playground.json`. The legacy [browser preparation profile](src/playground/README.md)
-remains during the repository migration for compatibility/integration tests. Native development
-does not require its WASI SDK or JavaScript test dependencies.
+`site/playground.json`. Browser sources, builds and tests live in that repository.
+Pages runs its pinned integration suite against the complete website before
+deployment. Native development requires neither WASI SDK nor JavaScript packages.
 
 Panackelty combines arbitrary-precision numbers, checked domain types, explicit
 effects, and a portable bytecode VM. Its syntax stays compact enough for a quick

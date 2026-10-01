@@ -15,12 +15,16 @@ emit() {
     if [[ "$format" == route ]]; then
         printf '%s\n' "$route"
     else
+        pages=$(validation_pages "$components")
         printf 'route=%s\n' "$route"
+        printf 'pages=%s\n' "$pages"
         printf 'components=%s\n' "${components:1:${#components}-2}"
         if [[ "$route" == docs ]]; then
             printf 'checks=documents,links,whitespace\n'
         else
-            printf 'checks=documents,links,whitespace,compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages,playground,pages\n'
+            printf 'checks=documents,links,whitespace,compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages'
+            if [[ "$pages" == true ]]; then printf ',pages'; fi
+            printf '\n'
         fi
     fi
 }

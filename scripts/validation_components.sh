@@ -1,6 +1,6 @@
-# Reviewed ownership map, shared by the local and CI selector. This is not a
-# dependency parser: all non-document components retain the full integration
-# envelope until narrower contracts have independently verified evidence.
+# Reviewed ownership map shared by local and CI selection. All non-document
+# components retain the full native integration envelope. The explicit downstream
+# browser pin permits the Pages PR selection documented below.
 validation_component() {
     if ci_informational_doc "$1"; then
         case "$1" in
@@ -15,11 +15,23 @@ validation_component() {
         src/vm/*tcp*|tests/tcp*|tests/functional/cases/*tcp*/*) printf 'tcp\n' ;;
         src/vm/*|src/runtime/*|tests/runner/host_runtime*|tests/fixtures/host_runtime/*) printf 'runtime\n' ;;
         src/stdlib/*) printf 'stdlib\n' ;;
-        src/playground/*|tests/playground/*|scripts/install_wasi_sdk.sh) printf 'playground\n' ;;
-        site/*|scripts/*pages*|tests/pages*) printf 'website\n' ;;
+        site/*|scripts/*pages*|tests/pages*|scripts/fetch_playground.cjs|tests/playground_release.test.cjs) printf 'website\n' ;;
         README.md|LICENSE|CHANGELOG.md|RELEASE_POLICY.md|SECURITY.md|VERSION|tests/release*|tests/quick_start.sh) printf 'package\n' ;;
         examples/*|tests/functional/*) printf 'examples\n' ;;
         SPEC.md|bootstrap/*|Makefile|panack|scripts/*|tests/*|.github/workflows/*) printf 'shared\n' ;;
         *) printf 'unknown\n' ;;
     esac
+}
+
+# The browser product consumes a pinned core version, not this PR's sources.
+# Website/shared/unknown changes still exercise the assembled artifact. This
+# selector changes PR provisioning only; production always retains browser gates.
+validation_pages() {
+    for component in $1; do
+        case "$component" in
+            documentation|process|compiler|bytecode|runtime|tcp|stdlib|examples) ;;
+            *) printf 'true\n'; return ;;
+        esac
+    done
+    printf 'false\n'
 }

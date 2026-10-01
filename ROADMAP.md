@@ -1562,6 +1562,22 @@ release PR. The bytecode format stays v9.
 
 ## Language namespaces — idea
 
+Work record: [#198](https://github.com/sproates/panackelty/issues/198).
+State: Idea, unscheduled. Expanded at the user's request on 2026-10-01 to answer
+how code in one file references functions and types in another. Existing quoted
+file-relative and logical imports already work; declarations currently share one
+program namespace. This extends the namespace idea, not completed import work.
+
+The first outcome is a reviewed design with worked multi-file examples, a current
+behavior audit, compatibility/migration decisions and positive/negative acceptance
+cases. Cover private helpers, public entry points, aliases, selective imports,
+re-exports, same-named symbols, transitive visibility and canonical module identity.
+Assessment is provisionally medium / one design PR; implementation cost remains
+unknown. Coordinate [package structure](#reusable-modules-and-package-structure--idea),
+[dependency management](#dependency-management--idea) and #106's separate-compilation
+design without requiring them to ship together. Main risks are ambiguous lookup,
+accidental API exposure and breaking existing programs.
+
 Assess first-class language support for namespaces separately from the existing
 logical import paths (`stdlib/...` and `project/...`). Import path organisation
 alone does not settle qualified symbol lookup or namespace semantics.
@@ -1597,6 +1613,55 @@ from general namespace support, with an explicit dependency assessment.
 
 Both items remain unscheduled assessment candidates. Preserve existing public
 contracts until the namespace design and any migration are explicitly agreed.
+
+## Reusable modules and package structure — idea
+
+Work record: [#199](https://github.com/sproates/panackelty/issues/199).
+State: Idea, unscheduled; requested on 2026-10-01.
+
+Define how related files form a reusable library with a deliberate public API,
+and how another application consumes it. Distinguish files, source modules,
+namespaces, packages and applications. Assess package roots, manifests, exports,
+internal modules, tests, resources, documentation and toolchain compatibility.
+Compare source distribution with compiled artifacts without assuming a stable ABI
+or requiring #106's separate compilation. This concerns language libraries, not
+OS packaging of the Panackelty toolchain.
+
+Smallest outcome: a reviewed design and bounded local-package prototype plan,
+using one multi-file library from two applications and a relocated installation.
+Define round-trip, hidden-internals and malformed/path-escape acceptance cases.
+Coordinate [cross-file references](#language-namespaces--idea) and
+[dependency management](#dependency-management--idea). Assessment is provisionally
+medium / one design PR; implementation and ongoing maintenance need re-estimation.
+Public API compatibility and premature artifact-format commitments are key risks.
+No registry, separate compiler/linker or package format is selected.
+
+## Dependency management — idea
+
+Work record: [#200](https://github.com/sproates/panackelty/issues/200).
+State: Idea, unscheduled; requested on 2026-10-01.
+
+Design how applications declare, obtain, update and reproduce direct/transitive
+and development dependencies. Third-party packages remain pending in the current
+specification. Compare local paths/vendoring, immutable Git revisions and versioned
+archives before deciding whether a registry is useful. Define manifest/lockfile
+roles, version and toolchain compatibility, conflict/diamond resolution, duplicate
+versions, cycles and package-to-import identity.
+
+Smallest outcome: a reviewed design and bounded prototype plan for an application,
+library and transitive dependency. Specify explicit updates, locked clean/CI and
+offline restores, integrity/provenance, caching, unavailable sources, conflicting
+versions, corrupt artifacts and mismatched locks. Address untrusted package
+contents, credentials/private sources and install/build-script policy. A public
+registry is not a prerequisite; any service needs an ownership/maintenance plan.
+Coordinate #198, #199 and #106's dependency-aware cache work. Assessment is
+provisionally medium / one design PR; implementation/operations may be large.
+Supply-chain trust, reproducibility and surprising upgrades are principal risks.
+No implementation priority, version policy, network service or ecosystem chosen.
+
+These three linked investigations can inform one coherent design, but their
+implementation outcomes remain independently scoped. Backlog recording leaves
+#187 active, programme #180 paused and the accepted-outcome ledger at 2/3.
 
 ## Review GitHub repository settings and tooling — idea
 

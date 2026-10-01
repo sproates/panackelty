@@ -2,6 +2,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
+const os = require('node:os');
+const {once} = require('node:events');
 const {execFileSync} = require('node:child_process');
 const {download, unpack} = require('./fetch_playground.cjs');
 
@@ -61,18 +63,66 @@ function serve(directory, port = 4173) {
   return server;
 }
 
-module.exports = {build, serve};
+async function start(root, metadata, port = 4173, archive) {
+  // Own only this freshly allocated directory: never erase a user's saved build.
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'panackelty-preview-'));
+  const directory = path.join(temporary, 'site');
+  let server;
+  let stopped = false;
+  const cleanup = () => fs.rmSync(temporary, {recursive:true, force:true});
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    if (server) {
+      server.close();
+      server.closeAllConnections();
+    }
+    cleanup();
+    process.removeListener('exit', cleanup);
+    process.removeListener('SIGINT', interrupt);
+    process.removeListener('SIGTERM', interrupt);
+  };
+  const interrupt = () => { stop(); process.exit(0); };
+  process.once('exit', cleanup);
+  process.once('SIGINT', interrupt);
+  process.once('SIGTERM', interrupt);
+  try {
+    await build(root, directory, metadata, archive);
+    server = serve(directory, port);
+    server.once('close', stop);
+    await once(server, 'listening');
+    return {server, directory, stop};
+  } catch (error) {
+    stop();
+    throw error;
+  }
+}
+
+module.exports = {build, serve, start};
 if (require.main === module) (async () => {
-  const [command, output = 'build/preview', port = '4173'] = process.argv.slice(2);
-  if (command === 'build') {
+  const args = process.argv.slice(2);
+  const [command = 'start', output = 'build/preview', port = '4173'] = args;
+  const validPort = value => /^\d+$/.test(value) && +value > 0 && +value < 65536;
+  const metadata = () => {
     const git = args => execFileSync('git', args, {encoding: 'utf8'}).trim();
-    await build(process.cwd(), output, {commit: git(['rev-parse','HEAD']),
+    return {commit: git(['rev-parse','HEAD']),
       dirty: git(['status','--porcelain','--untracked-files=normal']) !== '',
       repository: process.env.GITHUB_REPOSITORY || 'sproates/panackelty',
-      ...(process.env.PREVIEW_HEAD_SHA ? {headCommit:process.env.PREVIEW_HEAD_SHA,baseCommit:process.env.PREVIEW_BASE_SHA} : {})});
+      ...(process.env.PREVIEW_HEAD_SHA ? {headCommit:process.env.PREVIEW_HEAD_SHA,baseCommit:process.env.PREVIEW_BASE_SHA} : {})};
+  };
+  if (command === 'start' && args.length <= 2 && validPort(args[1] || '4173')) {
+    const selectedPort = +(args[1] || '4173');
+    console.log('Building a fresh local preview...');
+    await start(process.cwd(), metadata(), selectedPort);
+    console.log(`Preview: http://127.0.0.1:${selectedPort}/\nStop with Ctrl-C. After editing, stop and rerun to rebuild, then refresh your browser.`);
+  } else if (command === 'build' && args.length <= 2) {
+    await build(process.cwd(), output, metadata());
     console.log(`Preview built at ${output}`);
-  } else if (command === 'serve' && /^\d+$/.test(port) && +port > 0 && +port < 65536) {
+  } else if (command === 'serve' && args.length <= 3 && validPort(port)) {
     serve(output, +port).on('listening', () => console.log(`Preview: http://127.0.0.1:${port}/`))
       .on('error', error => { console.error(error.message); process.exitCode = 1; });
-  } else throw new Error('Usage: node scripts/preview.cjs build [output] | serve [output] [port]');
-})().catch(error => { console.error(error.message); process.exitCode = 1; });
+  } else throw new Error('Usage: node scripts/preview.cjs [start [port] | build [output] | serve [output] [port]]');
+})().catch(error => {
+  console.error(error.code === 'EADDRINUSE' ? 'Preview port is already in use. Stop the other server or choose another port: node scripts/preview.cjs start 4180' : error.message);
+  process.exitCode = 1;
+});

@@ -556,6 +556,14 @@ and bytecode.
   **Bug report** form and covers development expectations.
 - Panackelty is available under the [MIT License](LICENSE).
 
+## Preview website changes locally
+
+From a clone, run `node scripts/preview.cjs` with Node 24 to build the current
+working tree and start a temporary local server. Open the printed URL on the
+development machine; Ctrl-C stops it and cleans up. Rerun after edits and refresh
+the browser. See [local previews](docs/PR_PREVIEWS.md) for saved builds and
+remote-workspace access. No hosting account is required.
+
 ## Build Panackelty itself
 
 This workflow is for contributors and people who want to build or inspect the

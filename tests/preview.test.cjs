@@ -3,11 +3,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {execFileSync} = require('node:child_process');
+const {execFileSync, spawn} = require('node:child_process');
 const {createHash} = require('node:crypto');
 const {once} = require('node:events');
 const http = require('node:http');
-const {build, serve} = require('../scripts/preview.cjs');
+const {build, serve, start} = require('../scripts/preview.cjs');
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-test-'));
@@ -71,4 +71,63 @@ test('server serves Wasm with correct MIME and rejects traversal, links and writ
   for(const url of ['/../secret','/%2e%2e/secret','/leak','/%xx','/missing']) assert.equal((await request(url)).status,404);
   assert.equal((await request('/','POST')).status,405);
   assert.equal((await request('/','HEAD')).body,'');
+});
+
+test('one-command session builds fresh bytes, preserves saved builds, and cleans up on stop', async t => {
+  const f = fixture(t);
+  fs.mkdirSync(path.join(f.root, 'build/preview'), {recursive:true});
+  fs.writeFileSync(path.join(f.root, 'build/preview/keep'), 'user-owned');
+  const first = await start(f.root, f.metadata, 0, f.archive);
+  t.after(first.stop);
+  assert.equal(first.server.address().address, '127.0.0.1');
+  const url = `http://127.0.0.1:${first.server.address().port}/`;
+  assert.equal((await fetch(url)).status, 200);
+  const closed = once(first.server, 'close'); first.stop(); await closed;
+  assert.equal(fs.existsSync(first.directory), false);
+  assert.equal(fs.readFileSync(path.join(f.root, 'build/preview/keep'), 'utf8'), 'user-owned');
+  fs.appendFileSync(path.join(f.root, 'site/index.html'), '\n<!-- rebuilt-local-edit -->');
+  const second = await start(f.root, {...f.metadata, dirty:true}, 0, f.archive);
+  t.after(second.stop);
+  const response = await fetch(`http://127.0.0.1:${second.server.address().port}/`);
+  assert.match(await response.text(), /rebuilt-local-edit/);
+  assert.notEqual(second.directory, first.directory);
+});
+
+test('startup failures release temporary directories and signal handlers', async t => {
+  const f = fixture(t);
+  const temporary = () => fs.readdirSync(os.tmpdir()).filter(name => name.startsWith('panackelty-preview-')).sort();
+  const before = temporary();
+  const signals = ['exit','SIGINT','SIGTERM'].map(name => process.listenerCount(name));
+  await assert.rejects(start(f.root, f.metadata, 0, Buffer.from('bad')), /SHA-256/);
+  const server = serve(f.root, 0); await once(server, 'listening'); t.after(() => server.close());
+  await assert.rejects(start(f.root, f.metadata, server.address().port, f.archive), {code:'EADDRINUSE'});
+  assert.deepEqual(temporary(), before);
+  assert.deepEqual(['exit','SIGINT','SIGTERM'].map(name => process.listenerCount(name)), signals);
+});
+
+test('Ctrl-C and termination stop a session and remove its temporary build', {timeout:10000}, async t => {
+  const f = fixture(t);
+  for (const signal of ['SIGINT','SIGTERM']) {
+    const child = spawn(process.execPath, ['-e', `
+      const fs = require('node:fs');
+      const {start} = require(process.argv[1]);
+      start(process.argv[2], JSON.parse(process.argv[3]), 0, fs.readFileSync(process.argv[4]))
+        .then(session => process.send({directory:session.directory,port:session.server.address().port}));
+    `, path.resolve(__dirname,'../scripts/preview.cjs'), f.root, JSON.stringify(f.metadata), path.join(f.root,'browser.tar.gz')],
+    {stdio:['ignore','pipe','pipe','ipc']});
+    t.after(() => { if (child.exitCode === null) child.kill('SIGKILL'); });
+    const [{directory, port}] = await once(child, 'message');
+    assert.equal((await fetch(`http://127.0.0.1:${port}/`)).status, 200);
+    const exited = once(child, 'exit'); child.kill(signal);
+    assert.deepEqual(await exited, [0,null]);
+    assert.equal(fs.existsSync(directory), false);
+    await assert.rejects(fetch(`http://127.0.0.1:${port}/`));
+  }
+});
+
+test('CLI rejects invalid ports and extra arguments before building', () => {
+  for (const args of [['start','0'],['start','65536'],['start','bad'],['start','4173','extra'],['build','x','extra']]) {
+    assert.throws(() => execFileSync(process.execPath, [path.resolve(__dirname,'../scripts/preview.cjs'), ...args], {stdio:'pipe'}),
+      error => error.status === 1 && /Usage:/.test(error.stderr.toString()));
+  }
 });

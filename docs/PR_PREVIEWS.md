@@ -1,92 +1,93 @@
-# Website PR previews
+# Local website previews
 
 Work record: [#160](https://github.com/sproates/panackelty/issues/160).
-This first slice provides the portable build, local server and tested CI
-artifact. Automatic hosted URLs, fork publication approval and cleanup are
-the next slice, not live capabilities of this change.
 
-## Local use
+## One command
 
-From a clone, using Node 24, Git, POSIX shell and tar:
+From the repository root, using Node 24, Git, POSIX shell and tar:
 
 ```sh
-node scripts/preview.cjs build
-node scripts/preview.cjs serve
+node scripts/preview.cjs
 ```
 
-Open http://127.0.0.1:4173/ in your browser. Stop with Ctrl-C. The server binds
-only to loopback; it is not a public sharing service. No hosting account,
-GitHub token, assistant or native compiler build is needed. Building downloads
-the checksummed browser release pinned in `site/playground.json`. It uses the
-working tree, labels local modifications, and records the Git commit.
+This builds the current working tree into a fresh temporary directory and starts
+a server at http://127.0.0.1:4173/. Open that address in a browser on the same
+machine. The visible notice identifies the commit and local modifications.
 
-To rebuild, remove the generated `build/preview` directory or choose a fresh
-output path. Existing output is rejected to prevent stale assets surviving.
-Both commands accept an output directory; serve accepts an optional port:
+Stop with Ctrl-C. After editing, rerun the command and refresh the browser to see
+a new build. There is no file watcher or automatic browser opening. SIGINT and
+SIGTERM stop the server and remove its temporary files; failed startup also
+cleans up. A forced kill or machine crash can leave a temporary directory for
+the operating system to clear. Saved builds are never overwritten or removed.
+
+The equivalent explicit command is `node scripts/preview.cjs start`. To use
+another port, for example when 4173 is occupied:
+
+```sh
+node scripts/preview.cjs start 4180
+```
+
+No hosting account, deployment credentials, assistant or native compiler build
+is needed. Building downloads and verifies the browser release pinned in
+`site/playground.json`; internet access is needed for that download.
+
+## Saved builds and CI artifacts
+
+For a build that persists after stopping the server:
 
 ```sh
 node scripts/preview.cjs build build/review-2
 node scripts/preview.cjs serve build/review-2 4180
 ```
 
-## Artifact contract
+Existing output is rejected to prevent stale files surviving. Choose a fresh
+directory when rebuilding a saved artifact. The separate `serve` command never
+deletes that directory. Defaults for these commands remain `build/preview`
+and port 4173.
 
-Production and previews share `scripts/assemble_site.sh` for website and
-playground assembly. The preview adds visible identity on the home and
-playground pages, `preview.json`, and no-index hints. Browser binaries and
-versioned runtime assets remain unchanged. Coverage is explicitly unavailable
-for this review build, with a link to separately identified production coverage.
+Production and previews share `scripts/assemble_site.sh` for website/playground
+assembly. The preview adds identity on the home and playground pages,
+`preview.json`, and no-index hints; browser runtime bytes stay unchanged.
+Coverage is explicitly unavailable for the local build, with a link to separately
+identified production coverage.
 
-The Pages PR job builds the synthetic merge revision, records the PR head and
-base as well as that revision, and runs the existing 21 browser scenarios.
-After tests pass it archives `website-preview-RUN_ID-RUN_ATTEMPT` for seven days.
-Download it from the Actions run and serve the extracted directory with the
-same local command. An artifact download is not a hosted review URL.
+The Pages PR job builds the synthetic merge revision, records its head/base,
+runs the existing 21 browser scenarios and archives
+`website-preview-RUN_ID-RUN_ATTEMPT` for seven days. Download and extract it,
+then serve the directory with the command above. CI artifacts are optional:
+authors can preview uncommitted changes without opening a PR or waiting for CI.
 
-The static artifact expects its own origin root, not a PR subdirectory under
-the production website. Publication must identify repository, PR head, merge
-revision, base revision, run ID and attempt independently of artifact claims.
-An artifact is untrusted static content; never run scripts from it in a job
-with deployment credentials. Dirty local builds must not become hosted CI previews.
+## Author workflow and remote machines
 
-## Deployment follow-up contract
+The scope clarified on 2026-10-01 is a temporary preview for the author, not
+a public review URL or permanent staging site. The earlier hosted-publication
+proposal is superseded. There is no preview deployment workflow, provider setup,
+fork publication approval or close-PR hosting cleanup to implement. Production
+publication remains unchanged.
 
-Production stays on GitHub Pages. Recommend a dedicated Cloudflare Pages
-Direct Upload project for previews: it supports branch preview URLs and
-immutable deployment URLs without requiring contributor hosting accounts.
-This is a proposed provider choice; account/project access and limits must be
-verified before configuration. No new paid service or credentials are created
-by this first slice. A separate GitHub Pages repository is an alternative but
-requires managing a combined preview tree and cross-repository publication.
+The server binds only to loopback. In a terminal or IDE on the development
+machine, open the printed URL. In a remote workspace, use that environment's
+existing private port-forwarding or preview UI if available. The URL must map to
+the server's origin root so absolute site links and playground assets work.
 
-The trusted publisher must live on the default branch and consume only a
-successful, identified Pages PR build from this repository. Check the live PR
-is still open and its head/base still match; bind selection to workflow ID,
-run ID, attempt and artifact ID. Never use a PR-provided URL or repository name
-to select a download. Validate artifact bounds, regular files and expected
-layout; reject symlinks, traversal and provider-executable inputs such as
-Pages Functions or `_worker.js`. Run neither PR code nor package installation
-with deployment secrets. Use a separately scoped preview project credential.
+An iPhone's localhost refers to the iPhone, not a remote development machine.
+A successful HTTP check in the workspace does not prove phone accessibility.
+When the local route is unavailable, an author can explicitly request a private
+snapshot using their environment's existing review tools. In this ChatGPT cloud
+session the user requested the Sites skill, which refreshed the existing
+owner-only [review site](https://panackelty-staging.sproates846529.chatgpt.site)
+from the clean PR #171 build at `c843571d07a7fb78fcfc34338372af29f4c8383b`.
+The user confirmed it worked on their iPhone on 2026-10-01.
 
-Same-repository PRs publish automatically after relevant tests. Fork builds
-remain unprivileged; publishing requires approval tied to the exact revision
-through a protected environment or trusted maintainer dispatch. An approval
-must not carry over to a new head. Fork owners need no service account.
+That snapshot is hosted separately; it is not a tunnel to localhost and does not
+automatically update when source files change. Refresh it only when requested,
+preserving its private audience. It remains available until replaced or removed.
+Sites is optional for this author's workflow, not a requirement for contributors
+or the local preview command. No automatic hosted PR publication is introduced.
 
-Manual dispatch takes a PR number and rebuilds/reselects its current revision;
-it must follow the same tests and trust boundary. Write one bot-owned comment
-with the current immutable URL and source commit, and a GitHub deployment link.
-Failures remain visible. Serialize publisher/cleanup operations per PR and
-recheck current revision immediately before and after deployment, deleting
-stale deployments instead of promoting them. Closing a PR removes its preview
-deployments and marks its GitHub deployment inactive; reopened PRs can rebuild.
+## Follow-up
 
-Live acceptance requires same-repository creation/update, deliberately reversed
-build completion order, fork approval/new-head rejection, manual dispatch,
-failure reporting, closure cleanup and phone review, with production unchanged.
-The task is complete only after those checks, not after the build artifact PR.
-
-Provider references:
-- https://developers.cloudflare.com/pages/how-to/use-direct-upload-with-continuous-integration/
-- https://developers.cloudflare.com/pages/configuration/preview-deployments/
-- https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
+[#162](https://github.com/sproates/panackelty/issues/162) records the unscheduled
+idea of replacing the Node serving component with a Panackelty-written local
+HTTP/static-file server. It does not block this workflow or require rewriting
+the build tooling.

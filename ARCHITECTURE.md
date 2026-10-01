@@ -4,7 +4,10 @@ Website review builds and production share `scripts/assemble_site.sh` for
 static site/playground assembly. The Node-only `scripts/preview.cjs` website
 tool adds source identity and loopback serving; it is outside the native
 toolchain dependency boundary. [PR previews](docs/PR_PREVIEWS.md) documents the
-artifact and future trusted publication boundary.
+artifact and local author workflow. Running the tool without arguments builds
+into a fresh OS temporary directory, serves on loopback and removes its own
+files on stop or startup failure. Explicit build/serve commands preserve saved
+artifacts. No hosted preview publisher is part of this design.
 
 ## Overview
 

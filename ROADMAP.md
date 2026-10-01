@@ -159,6 +159,9 @@ Programme milestones:
   constraints and dependency information; distinguish runtime tracing needs.
   Produce experiments, justified shared/separate design decisions, dependencies,
   acceptance boundaries and revised delivery estimates.
+- [ ] Complete the [source-to-bytecode mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
+  after the #182 correctness repair: prove a bounded runtime-trap mapping and
+  agree the metadata contract before expanding its consumers.
 - [ ] Deliver the first #134 explanation with source locations, checked facts,
   assumptions, honest unknowns and positive/negative/imported/generic tests.
   Assess evidence reuse for #173/#174/#175 without requiring a universal framework.
@@ -170,6 +173,51 @@ Programme milestones:
   release adoption; see the [follow-up register](#website-follow-up-register).
 
 - [ ] Pass the programme acceptance gate below on realistic programs.
+
+### Source-to-bytecode mapping foundation — planned shared milestone
+
+**Planned:** agreed on 2026-10-01 as a shared milestone within the current
+compiler and runtime understanding programme (#180), following the #182
+correctness repair. This supports compilation provenance (#173), runtime value
+provenance (#172), source-aware runtime errors (#136) and source coverage (#131).
+It is not a sixth workstream and does not schedule the full diagnostics or
+coverage deliveries. Track the milestone through #180/#173; no separate issue
+is required for this roadmap clarification.
+
+The frontend retains source positions, but emission loses the connection from
+bytecode instructions to original `.panack` files and ranges. Establishing a
+trustworthy mapping enables useful runtime locations, source-level measurement
+and explanations of generated code. A wrong or stale mapping could misidentify
+the failing expression or produce misleading coverage, so identity and failure
+handling are part of the foundation.
+
+The smallest useful outcome is a bounded experiment mapping one runtime trap
+back to its source expression, with independently checked local, imported and
+generic-code cases. Compare deterministic sidecar metadata with a versioned
+bytecode extension; decide the representation from evidence rather than assuming
+a bytecode format change. Define how lowering and generated instructions map to
+source ranges, including explicit cases where no source attribution is available.
+
+- [ ] Prove exact instruction-to-file/range attribution for the bounded trap,
+  including imported and generic code.
+- [ ] Specify artifact/source identity, compatibility, validation, relative-path
+  and privacy handling; test missing, malformed, stale and mismatched maps with
+  safe fallback rather than incorrect source attribution.
+- [ ] Preserve execution semantics, bytecode verification, deterministic release
+  artifacts and the ordinary bootstrap fixed-point contract; measure metadata
+  size and compile/runtime overhead for the experiment.
+- [ ] Record the metadata decision, limitations, acceptance evidence and revised
+  estimates for production mapping and each consumer.
+
+Estimate: small-to-medium investigation, provisionally one feasibility PR.
+Production mapping, call stacks, coverage collection/reporting and provenance
+integration require separately scoped delivery slices; a full debugger and async
+history are outside this milestone. Mapping alone does not establish coverage
+counter correctness or retain runtime value derivations. Keep consumer-specific
+acceptance in #131, #136, #172 and #173.
+
+This planning update has no website impact: it changes no shipped capability or
+published version claim. Consumer delivery must assess its own website follow-up.
 
 ### Programme acceptance: trustworthy and useful on realistic programs
 
@@ -1455,6 +1503,9 @@ branch baseline for those files. Publishing C coverage did not close this gap.
 The frontend already carries source positions; the emitted `FunctionCode` and
 current v9 bytecode contract do not carry an instruction-to-source map.
 Coverage therefore requires compiler/bytecode/VM design, not just an HTML export.
+Reuse the [planned mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
+where its validated contract fits; coverage denominators, source branches and
+counter correctness remain separate acceptance requirements.
 Compare deterministic sidecar metadata with a versioned bytecode extension;
 do not assume a format change or a particular instrumentation scheme in advance.
 
@@ -1544,8 +1595,9 @@ full random-language generation and a second execution engine are outside scope.
 Work record: [#136](https://github.com/sproates/panackelty/issues/136).
 
 Source positions exist in the frontend, but emitted instruction/source mapping
-is missing. Assess reuse of coverage metadata for one bounded trap and
-call-context slice. Acceptance includes imported/generic code, nested calls, an
+is missing. Build on the [planned mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
+for one bounded trap and call-context slice, assessing reuse with coverage
+metadata where semantics agree. Acceptance includes imported/generic code, nested calls, an
 async boundary and safe fallback for absent or mismatched source snapshots.
 Preserve error meaning and bytecode safety. A debugger and full async history
 are separate; report publication is not a prerequisite.

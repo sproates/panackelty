@@ -117,16 +117,21 @@ and a tested CI artifact. The follow-up adds one-command build/start with fresh
 temporary output, stop/cleanup and explicit rebuild instructions. See
 [the local workflow](docs/PR_PREVIEWS.md).
 
-Acceptance remains pending: the delivery agent must verify the private preview
-route available in the user's remote/iPhone environment, and the owner must open
-and interact with the preview on their phone. Local automated lifecycle/HTTP
-checks do not establish phone accessibility. Keep #160 open until that evidence
-is recorded. Production is unchanged; the ledger remains 2 of 3, review not due.
-Current workspace evidence: a separate shell cannot reach the server's localhost
-port, and the supplied browser rejects it with `ERR_BLOCKED_BY_CLIENT`. There is
-no exposed port-forwarding tool in this session. The owner/delivery agent must
-use an environment with a permitted private preview route to finish phone
-acceptance; do not substitute a public hosting service.
+**Done on merge of PR #171.** Local validation passes: 24 website tests, complete
+site assembly, a real default-command HTTP/Wasm/start-stop check, and canonical
+`make check` (137s; existing non-blocking timing warning). The local browser route
+was policy-blocked, so the user explicitly requested the existing private Sites
+review route. The Sites skill published the exact clean PR build at
+`c843571d07a7fb78fcfc34338372af29f4c8383b` to the owner-only
+[review site](https://panackelty-staging.sproates846529.chatgpt.site).
+The user confirmed it was working on their iPhone on 2026-10-01.
+
+This verifies an optional private snapshot for this author's cloud workflow;
+it does not make Sites a dependency of the portable local command or introduce
+automatic hosted PR publication. Production is unchanged. No acceptance remains
+for the agreed #160 scope; the issue closes when the completion PR merges.
+The initiative counts once, taking the ledger to 3 of 3 on merge. Groom before
+selecting the next principal task.
 
 Backlog **Idea, unscheduled**: [#162](https://github.com/sproates/panackelty/issues/162)
 would replace the serving component with a Panackelty-written local HTTP server.
@@ -160,8 +165,9 @@ modular-validation slice of #106 as Next. It also recorded the twelve unschedule
 candidates and the completion-handover rules. This review and its bookkeeping do
 not count as a new deliverable.
 
-Accepted deliverables since this baseline: **2 of 3; review not yet due**
-(effective when this browser-separation completion record merges).
+Accepted deliverables since this baseline: **3 of 3; review due on merge of
+PR #171**, before selecting the next principal task. Until that merge, the
+delivered ledger remains 2 of 3.
 
 1. Bounded modular validation under #106: shared local/CI selection, audited
    process-document checks and conservative component/consumer mapping. See the
@@ -174,6 +180,11 @@ Accepted deliverables since this baseline: **2 of 3; review not yet due**
    provisioning. See the [completion record](#browser-repository-separation--done)
    and [phase evidence](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
    The multi-PR migration counts once; automatic previews are separate scope.
+3. Author-local website previews under #160: portable build and CI artifact in
+   #161, one-command local session in #171, and an explicitly requested private
+   Sites snapshot accepted on the owner's iPhone. See the
+   [completion record](#now-portable-automatic-pr-previews). Counts on #171 merge;
+   the Panackelty-written server in #162 remains an independent unscheduled idea.
 
 Follow the [three-deliverable checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint):
 review before starting the principal task after the third accepted outcome, or

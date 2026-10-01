@@ -72,9 +72,18 @@ the server's origin root so absolute site links and playground assets work.
 
 An iPhone's localhost refers to the iPhone, not a remote development machine.
 A successful HTTP check in the workspace does not prove phone accessibility.
-The delivery agent and owner still need to verify this session's private preview
-route and actual phone interaction; no forwarding capability or phone acceptance
-is claimed. Do not replace this check with an unsolicited public deployment.
+When the local route is unavailable, an author can explicitly request a private
+snapshot using their environment's existing review tools. In this ChatGPT cloud
+session the user requested the Sites skill, which refreshed the existing
+owner-only [review site](https://panackelty-staging.sproates846529.chatgpt.site)
+from the clean PR #171 build at `c843571d07a7fb78fcfc34338372af29f4c8383b`.
+The user confirmed it worked on their iPhone on 2026-10-01.
+
+That snapshot is hosted separately; it is not a tunnel to localhost and does not
+automatically update when source files change. Refresh it only when requested,
+preserving its private audience. It remains available until replaced or removed.
+Sites is optional for this author's workflow, not a requirement for contributors
+or the local preview command. No automatic hosted PR publication is introduced.
 
 ## Follow-up
 

@@ -352,24 +352,27 @@ after three accepted outcomes, or earlier if material evidence changes prioritie
 
 ### Groomed candidates
 
-Except for **In progress** compiler explanations #134 within programme #180 above, the twelve entries
+Except for **In progress** compiler explanations #134 within programme #180 above, the existing entries
 below remain **Idea**, with implementation unscheduled. #106
 has completed its bounded validation slice as recorded below; its later work
 is unscheduled. The user agreed
 the assessment scope; the estimates describe each first useful outcome, including
 tests, documentation and integration. They are not estimates for completing every
 extension. Linked issues hold acceptance detail; this table owns current state.
+The debugging sequence agreed on 2026-10-01 is recorded below; it establishes
+dependencies without replacing the current principal programme.
 
 | Candidate and work record | First useful outcome | Size / estimated PRs |
 | --- | --- | --- |
 | [.panack source coverage](#measure-panackelty-source-coverage--candidate-pending-assessment) ([#131](https://github.com/sproates/panackelty/issues/131)) | Prove exact source/execution attribution before collecting and publishing compiler/library baselines. Source branches, denominator correctness and collection failure remain explicit. | M / 1 feasibility; then provisionally 2–3 |
 | [Component readability and refactoring](#codebase-wide-human-readability-and-refactoring--candidate) ([#132](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
-| [Development workflow assessment](#development-workflow-assessment) ([#133](https://github.com/sproates/panackelty/issues/133)) | Observe installation, API discovery, checking, testing, debugging and a maintenance change against the current toolchain. | S–M / 1 assessment |
+| [Development workflow assessment](#development-workflow-assessment) ([#133](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
 | [Compiler explanations](#compiler-explanations) ([#134](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
 | [Systematic invariant testing](#systematic-invariant-testing) ([#135](https://github.com/sproates/panackelty/issues/135)) | Extend existing equivalence tests with one bounded, reproducible generated-input or semantics-preserving transformation family. | M / 1–2 for one family |
-| [Source-aware runtime errors](#source-aware-runtime-errors) ([#136](https://github.com/sproates/panackelty/issues/136)) | Map a bounded set of traps and call context to source, with safe fallback for missing or mismatched metadata. | M–L / 1–2 after mapping design |
-| [Learning path and technical documentation](#learning-path-and-technical-documentation) ([#137](https://github.com/sproates/panackelty/issues/137)) | Deliver one complete tutorial and a navigable path into practical guides, library reference and technical explanations. | M / 1–2 for first tutorial |
-| [Executable documentation](#executable-documentation) ([#138](https://github.com/sproates/panackelty/issues/138)) | Inventory existing checks and verify one additional documentation surface with expected commands, outputs and version scope. | M / 1–2 for one surface |
+| [Source-aware runtime errors](#source-aware-runtime-errors) ([#136](https://github.com/sproates/panackelty/issues/136)) | Explain a bounded set of runtime failures with source expressions and useful call context; validate through the debugging guide and preserve safe metadata fallback. | M–L / 1–2 after mapping design |
+| [Learning path and technical documentation](#learning-path-and-technical-documentation) ([#137](https://github.com/sproates/panackelty/issues/137)) | Deliver the installation-to-maintenance tutorial and an explicit debugging guide using available tools, with later source-aware updates. | M / 1–2 for first tutorial |
+| [Executable documentation](#executable-documentation) ([#138](https://github.com/sproates/panackelty/issues/138)) | Verify documentation commands and outputs, explicitly including the debugging guide’s failing examples, fixes and regression tests for its declared release. | M / 1–2 for one surface |
+| [Interactive debugger](#interactive-debugger--candidate-for-assessment) (no issue yet) | Assess a bounded synchronous CLI experiment for breakpoints, stepping, locals and call frames against observed debugging gaps. | M / 1 assessment; delivery estimate follows evidence |
 | [Editor support](#editor-support) ([#139](https://github.com/sproates/panackelty/issues/139)) | Provide highlighting and basic editing in one selected editor; assess compiler-backed features separately. | S–M / 1–2 for one editor |
 | [Technical showcase programs](#technical-showcase-programs) ([#140](https://github.com/sproates/panackelty/issues/140)) | Deliver one complete, tested demonstration combining existing language capabilities and explicit failure boundaries. | M / 1–2 for one demonstration |
 | [Runtime and resource baselines](#runtime-and-resource-baselines) ([#141](https://github.com/sproates/panackelty/issues/141)) | Record repeatable compile/run, memory and artifact-size observations for a small representative workload set. | M / 1–2 for initial baseline |
@@ -1562,7 +1565,12 @@ Work record: [#133](https://github.com/sproates/panackelty/issues/133).
 
 The earlier delivery pilot predates core-method and networking delivery. Observe
 a fixed installation-to-maintenance task, including API discovery, errors and
-focused tests. Record reproducible obstacles and feedback latency, with human
+focused tests. Include reproducible debugging tasks covering a runtime trap, an
+external-operation failure and an incorrect result. Observe whether a developer
+can identify the cause, fix it and add a regression test; record time to a correct
+fix, misleading diagnostics and missing tooling, without treating speed alone as
+success. Use these findings to improve the debugging guide and bound any debugger
+assessment. Record reproducible obstacles and feedback latency, with human
 and fresh-context agent evidence where available. Distinguish release and
 development toolchains. Produce bounded fixes rather than assuming a project
 generator, formatter or package manager is needed.
@@ -1597,7 +1605,10 @@ Work record: [#136](https://github.com/sproates/panackelty/issues/136).
 Source positions exist in the frontend, but emitted instruction/source mapping
 is missing. Build on the [planned mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
 for one bounded trap and call-context slice, assessing reuse with coverage
-metadata where semantics agree. Acceptance includes imported/generic code, nested calls, an
+metadata where semantics agree. This is the first source-aware debugging-support
+delivery: explain what failed, identify the source expression and show useful
+call context. Validate these diagnostics through the debugging tutorial.
+Acceptance includes imported/generic code, nested calls, an
 async boundary and safe fallback for absent or mismatched source snapshots.
 Preserve error meaning and bytecode safety. A debugger and full async history
 are separate; report publication is not a prerequisite.
@@ -1613,6 +1624,21 @@ commands against the declared version and keep development-only networking
 distinct from alpha.10. Subsequent practical and technical guides follow
 demonstrated gaps. Website visual changes require a working review preview.
 
+Explicit deliverable: **Debugging Panackelty programs**, a practical guide using
+commands supported by its declared release. Cover three worked problems: a
+runtime trap, an expected external-operation failure that needs handling, and a
+valid program producing the wrong result. Each walkthrough must reproduce the
+problem, investigate its cause, fix it and add a regression test. Show how to
+inspect intermediate values and reduce a failing case using available tools;
+state diagnostic limits honestly. The VM guide's recorded executions are useful
+background, not an interactive debugger.
+
+Start with today's tools rather than waiting for source maps or a debugger.
+Update the guide when source-aware locations and call context ship under #136.
+Coordinate executable examples with #138 and usability evidence with #133.
+Initial guide estimate: S–M / 1–2 PRs including examples and CI checks; later
+updates follow the capabilities they document.
+
 ### Executable documentation
 
 Work record: [#138](https://github.com/sproates/panackelty/issues/138).
@@ -1624,6 +1650,61 @@ or expected output must fail visibly. Preserve negative examples, clean
 setup/cleanup and version boundaries. Coordinate with the first tutorial without
 introducing a competing harness or silently skipping platform-dependent
 examples.
+
+Include the debugging tutorial explicitly: execute its failing examples, asserted
+exit status and relevant diagnostics, corrected programs and regression tests
+against the declared release. Incorrect commands or changed expected results
+must fail CI. Use deterministic local fixtures for external-operation failures;
+keep setup and cleanup reproducible. Distinguish currently supported output from
+future source-aware diagnostics instead of accepting either silently.
+
+### Debugging delivery sequence — agreed 2026-10-01
+
+Runtime failures and incorrect results remain possible despite compiler checks.
+The user agreed the following debugging sequence; these are scoped additions to
+existing work, not a new parallel principal programme or an implementation claim:
+
+1. Deliver the first practical guide under #137/#138 using available tools, with
+   #133 recording observed debugging obstacles. This has no source-map prerequisite.
+2. Deliver the shared source-mapping foundation after #182 and the first
+   source-aware diagnostics under #136; update the guide against their released
+   behavior. The current programme remains the principal implementation priority.
+3. Assess an interactive debugger against the remaining observed problems before
+   committing to production debugger delivery.
+
+Runtime value provenance #172 should evaluate the guide's incorrect-result
+scenario: whether retained derivations help identify where a value went wrong.
+Keep its independent correctness, opt-in overhead, retention and sensitive-data
+acceptance; tracing derivations does not by itself provide stepping or inspection.
+Source mapping remains the shared foundation already planned under #180/#173.
+
+This planning update changes no website claims. Guide publication and shipped
+debugging capabilities must assess website follow-ups for their stated versions.
+
+### Interactive debugger — candidate for assessment
+
+**Idea; implementation unscheduled.** No dedicated issue yet; create its work
+record after checking existing issues when the bounded assessment is selected.
+
+Disassembly and recorded VM walkthroughs do not let a developer pause a running
+program and inspect its state. Assess whether interactive controls resolve gaps
+observed by #133 and the debugging tutorial, particularly incorrect-result bugs.
+
+Start with a bounded synchronous CLI experiment: source breakpoints, stepping,
+local-variable inspection and call-frame navigation on small known programs.
+Use the shared mapping contract and preserve the VM as the only execution engine.
+Define breakpoint resolution and step behavior around lowering, imports and
+unmapped instructions; report unavailable state honestly. Compare observed stops,
+locals and frames with independently expected results, and verify that ordinary
+execution remains equivalent with debugging disabled.
+
+Evaluate VM pause/resume hooks, metadata fidelity, state lifetime, resource cost
+and safe inspection without unintended side effects. Unknown feasibility and
+maintenance costs argue for an experiment before promising a production debugger.
+Deliver a justified proceed/defer decision, demonstrated limitations and revised
+estimates. Provisional size: M / one assessment PR; full delivery remains unknown.
+Editor integration and async debugging require separate assessments and are not
+acceptance requirements for this synchronous experiment.
 
 ### Editor support
 

@@ -1,0 +1,77 @@
+name: Website validation
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    name: Prepare checked website
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Validate website automation and assembly
+        run: |
+          node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
+          sh tests/pages.sh
+      - name: Assemble the exact checked source
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          PREVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$IS_PR" = true ]; then
+            node scripts/preview.cjs build build/website
+          else
+            node scripts/fetch_playground.cjs site/playground.json build/playground
+            sh scripts/assemble_site.sh site build/playground build/website
+          fi
+          bash scripts/pages_fingerprint.sh HEAD > build/website/.validation-fingerprint
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pages-candidate
+          path: build/website
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+  browser:
+    needs: prepare
+    uses: ./.github/workflows/browser-validation.yml
+
+  certify:
+    name: Archive checked website
+    needs: [prepare, browser]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: pages-candidate
+          path: build/website
+      - name: Package tested bytes
+        run: |
+          mkdir checked
+          tar -cf checked/website.tar -C build/website .
+      - uses: actions/upload-artifact@v7
+        with:
+          name: checked-website-${{ github.sha }}
+          path: checked/website.tar
+          if-no-files-found: error
+          retention-days: 90
+      - name: Archive tested PR preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/website
+          if-no-files-found: error
+          retention-days: 7

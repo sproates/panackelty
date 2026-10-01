@@ -146,12 +146,21 @@ process files are not build, package or executable-fixture inputs. Use
 branch and local staged, unstaged and untracked edits. Additions, deletions and
 renames must keep local links valid.
 
+For changes confined to the four regular, non-executable site files listed by
+`validation_website_only_path` (optionally with informational documents), use
+`bash scripts/validate_change.sh --run origin/main` and review the content.
+This explicit website route replaces native validation with website automation
+locally and release-integrity plus all browser tests in hosted Check. Do not
+claim complete website validation from local automation alone. Visual changes
+still require preview acceptance. Routing/publisher/workflow changes remain
+full implementation changes requiring `make check`.
+
 README quick-start content, specifications, packaged documents, unlisted
 instructions, workflows, code, mixed changes and unknown impact require full
 validation. The reviewed process files still need content review; Markdown
 syntax alone never establishes that a new file is informational.
 Changes to the routing/checking implementation require its regression suite
-and the canonical `make check`. CI preserves the existing check names on both
+and the canonical `make check`. CI preserves the existing check names on all
 routes; routing failures must fail those checks.
 
 ## Validation

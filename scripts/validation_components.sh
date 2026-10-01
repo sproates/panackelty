@@ -1,6 +1,13 @@
-# Reviewed ownership map shared by local and CI selection. All non-document
-# components retain the full native integration envelope. The explicit downstream
-# browser pin permits the Pages PR selection documented below.
+# Static website inputs can use complete website validation without native builds.
+# Publisher code, unknown assets and shared tooling remain full-validation inputs.
+validation_website_only_path() {
+    case "$1" in
+        site/index.html|site/styles.css|site/favicon.svg|site/playground.json) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# Reviewed ownership map shared by local and CI selection.
 validation_component() {
     if ci_informational_doc "$1"; then
         case "$1" in

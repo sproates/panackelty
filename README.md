@@ -676,8 +676,13 @@ check names remain present and reject routing failures. See
 [change-aware CI](tests/README.md#change-aware-ci). Run
 `bash scripts/validate_change.sh --plan origin/main` to inspect the shared
 selection, or replace `--plan` with `--run` to execute its local route. Reviewed
-process documents also use the informational route; other changes retain full
-validation. CI additionally executes platform, instrumentation and browser gates.
+process documents also use the informational route. Changes confined to
+`site/index.html`, `site/styles.css`, `site/favicon.svg` and `site/playground.json`
+(optionally with informational documents) use website automation, release-integrity
+checks and all browser scenarios without native builds. The local website route
+runs automation and assembly tests; hosted CI supplies release/browser validation.
+Shared, mixed and unknown changes retain full validation. CI additionally executes
+platform, instrumentation and browser gates where applicable.
 Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profiling)
 separates native builds, harness groups, probes and bootstrap costs.
 

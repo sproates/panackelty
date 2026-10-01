@@ -7,7 +7,7 @@ module.exports = function timings(run, jobs, mergedAt, siteSha, checked) {
     const steps=(j.steps || []).filter(s=>s.conclusion !== 'skipped' && s.started_at);
     return steps.length ? Math.min(...steps.map(s=>ms(s.started_at))) : ms(j.started_at);
   };
-  const validation = completed.filter(j => !['Deploy Pages','Verify published coverage'].includes(j.name));
+  const validation = completed.filter(j => !['Deploy Pages','Verify published website'].includes(j.name));
   if (!validation.length) throw new Error('No validation timing');
   const start=Math.min(...validation.map(actualStart));
   const rawStart=Math.min(...validation.map(j=>ms(j.started_at)));
@@ -15,7 +15,7 @@ module.exports = function timings(run, jobs, mergedAt, siteSha, checked) {
   // These stages are sequential, so dispatch intervals cannot overlap work in
   // another validation stage. First-stage dispatch is already excluded by start.
   const dispatch=validation.reduce((sum,j)=>sum+Math.max(0,actualStart(j)-Math.max(start,ms(j.started_at))),0);
-  const verification=completed.find(j=>j.name==='Verify published coverage');
+  const verification=completed.find(j=>j.name==='Verify published website');
   // Only the first main push for the published source can measure merge latency.
   // Manual refreshes, workflow_run duplicates and reruns are separate attempts.
   const mergeMeasurement = run.event === 'push' && run.head_branch === 'main' &&

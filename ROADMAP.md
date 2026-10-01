@@ -135,7 +135,8 @@ ledger remains 2 of 3; completing #187 will make the next review due.
 Agreed budgets: routine website validation **120 seconds** and merge-to-live
 **180 seconds**, for cold and warm runs, excluding queue time reported separately.
 Implementation uses the digest-pinned official Playwright 1.63.0 environment and
-reuses trusted website artifacts for coverage-only publication. Hosted cold/warm
+reuses browser-certified website artifacts for publication. Coverage now has an
+independent Pages host, as recorded below. Hosted cold/warm
 measurements and post-merge live verification remain acceptance requirements.
 PR #189 is merged and live verification passed, but its first production sample
 took 147s validation and 208s merge-to-live wall time. Coverage refresh also
@@ -207,17 +208,41 @@ The full-route change measured 178s combined validation and 210s merge-to-live
 wall time, with 4s initial Check queue. This repairs production publication but
 does not establish routine website-only budget acceptance.
 
-The next acceptance sample changes only a non-rendered homepage source comment
-plus informational roadmap evidence. It must select the website route, skip
-native matrices, retain all 24 browser scenarios and publish with older trusted
-coverage. After separately approved merge, the delivery agent will record the
-exact Check/Pages runs, compare live bytes and source/report identities, and
-measure Check-through-packaging and merge-to-live including queue accounting.
-The existing coverage source must remain unchanged by this website-only commit.
-This first sample does not replace the required two cold/two warm publications
-or the independent coverage-refresh, race and rollback acceptance still pending.
+PR #202 merged as `4ea9575`. Website-only Check `36930417262` skipped native
+matrices and retained all 24 browser scenarios. Pages `36930649776` restored the
+certificate, skipped duplicate browsers, deployed and passed live verification.
+The then-combined report stayed at `9ef402d`. Combined Check-through-packaging
+was 173s and merge-to-live wall time 204s (3s initial queue): route/publication
+correctness is proven, but timing acceptance is not. Prepared browser time was
+78s (28s initialization, 43s tests); preparation and packaging were 20s each.
 
+**Current agreed publication boundary:** the user selected a separate GitHub
+Pages coverage site after reviewing the coupling. This supersedes the historical
+combined-site refresh/recombination and website/coverage race design above;
+it does not select the full website repository migration #178. Coverage remains
+browsable at <https://sproates.github.io/panackelty-coverage/>. Publisher PR #1 in
+[`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage)
+is merged; run `36933404078` deployed and verified every report file. Its built-in
+GitHub token successfully reads public core artifacts without another credential.
+Coverage generation and native validation remain unchanged in core. The publisher
+polls about every 15 minutes and supports manual dispatch; GitHub schedule delays
+and inactive-repository suspension remain operational limitations.
 
+**This delivery branch implements the website cutover:** Pages no longer selects,
+downloads or attaches coverage. Automatic core/docs-only successful checks with no
+website certificate skip website work. Website SHA/Check identity is recorded
+independently, homepage/docs link to the new host, and the old `/coverage/` and
+`/coverage/html/` entry points become compatibility landing pages. Deep source
+report URLs move to the coverage host. Obsolete report-attachment code is removed.
+
+After separately approved merge, the delivery agent must verify website
+publication with all browser scenarios, homepage and both compatibility entry
+points, exact live website/playground bytes and independent provenance. Confirm
+that the separate report remains browsable and continues advancing on core
+checks without website publication. Retain two cold/two warm routine publication
+measurements and resolve the 120s/180s budget gap. No #187 completion is claimed:
+issue remains open, programme #180 paused, ledger 2/3; completing this outcome
+makes grooming due. This is an intermediate slice with live acceptance pending.
 
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests
@@ -641,6 +666,14 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+- **#187 separate coverage host:** cutover implemented in this branch; live
+  acceptance pending. Owner: delivery agent. Homepage coverage links now target
+  the independent host; old `/coverage/` and `/coverage/html/` become landing
+  pages. No runtime/release version change. Prerequisite independent publisher
+  is live (run `36933404078`). After approved merge verify the new links, landing
+  pages, website identity and unchanged playground bytes; keep open until live
+  checks and independent core-report refresh are recorded.
 
 - **#182 compiler correctness follow-up:** owner is the #180 delivery agent until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as
@@ -2110,6 +2143,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Measurement | Latest recorded evidence | Outstanding issue |
 | --- | --- | --- |
 | Full cold hosted CI | Five follow-up runs: 88/106/107/103/97s, median 103s | Hosted scheduling/completion has no proven hard upper bound |
+| Local coverage-host cutover (2026-10-02; Linux workspace) | 196s; unit 135s; canonical checks passed | Existing full/unit budget warnings persist; retain profiling reminder under #106 |
 | Local clean check, append experiment | 107s | Environment-specific result, not a universal guarantee |
 | Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
 | Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |

@@ -14,7 +14,10 @@ for asset in style.css app.mjs examples.mjs controller.mjs worker.mjs runtime.mj
 done
 test ! -e "$destination"
 test ! -e "$site/playground"
-test ! -e "$site/coverage"
+test -s "$site/coverage/index.html"
+test -s "$site/coverage/html/index.html"
+test ! -e "$site/coverage/summary.txt"
+test ! -e "$site/coverage/provenance.txt"
 test -z "$(find "$site" "$playground" -type l -print)"
 mkdir -p "$destination"
 cp -R "$site/." "$destination/"

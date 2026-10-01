@@ -3,7 +3,7 @@
 **A small, expressive programming language for dependable terminal tools and
 exact numerical work.**
 
-[Website](https://panackelty.com) · [Native VM coverage](https://panackelty.com/coverage/) · [Specification](SPEC.md) ·
+[Website](https://panackelty.com) · [Native VM coverage](https://sproates.github.io/panackelty-coverage/) · [Specification](SPEC.md) ·
 [Releases](../../releases) · [Contributing](CONTRIBUTING.md)
 
 The website consumes a pinned release from
@@ -597,12 +597,14 @@ make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
 
-Browse the [public native VM coverage report](https://panackelty.com/coverage/)
+Browse the [public native VM coverage report](https://sproates.github.io/panackelty-coverage/)
 for LLVM line/branch results and source navigation without downloading an
 artifact. The landing page identifies the coverage commit, archive date and
 successful validation run. This measures the native C VM corpus, not the
-self-hosted compiler or whole-language coverage. Documentation-only updates
-reuse the previous report; failed validation or publication leaves the last
+self-hosted compiler or whole-language coverage. The separate
+[`panackelty-coverage`](https://github.com/sproates/panackelty-coverage) publisher
+checks for eligible reports about every 15 minutes; website publication does not
+wait for it. Documentation-only updates leave the previous report in place; failed validation or publication leaves the last
 published report visible. See [publication details](tests/README.md#public-coverage-publication).
 
 Direct bytecode/verification coverage runs in

@@ -1,3 +1,9 @@
+> Current decision: coverage now has an independent GitHub Pages publisher in
+> [`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage),
+> verified live in run `36933404078`. The combined-site coverage attachment and
+> refresh design below is historical and superseded. Website cutover and remaining
+> cold/warm timing acceptance are tracked in [#187's current roadmap state](../ROADMAP.md#next-fast-website-ci-and-prepared-browser-test-environments).
+
 # Validation profiling baseline
 
 ## Website publication dependency assessment, 2026-10-01

@@ -170,7 +170,7 @@ first=$(bash scripts/pages_fingerprint.sh)
 printf 'compiler edit\n' >> src/compiler/checker.panack
 commit
 [[ $(bash scripts/pages_fingerprint.sh) == "$first" ]] || fail 'native-only fingerprint changed'
-for path in site/playground.json tests/pages.test.cjs scripts/attach_coverage.sh .github/workflows/pages.yml unknown.data; do
+for path in site/playground.json tests/pages.test.cjs scripts/pages_candidate.cjs .github/workflows/pages.yml unknown.data; do
     before=$(bash scripts/pages_fingerprint.sh)
     mkdir -p "$(dirname "$path")"; printf 'input\n' > "$path"
     commit

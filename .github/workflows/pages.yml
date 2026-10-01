@@ -19,8 +19,8 @@ on:
 permissions:
   contents: read
 
-# One production writer for both website and coverage. Queued runs select the
-# current main commit and require its successful Check, not the trigger's old tree.
+# One serialized website writer. Coverage has its own repository and publisher.
+# Ignore obsolete automatic triggers; require successful exact-main validation.
 concurrency:
   group: pages-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -62,6 +62,7 @@ jobs:
           CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           EVENT_NAME: ${{ github.event_name }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = push ]; then
             plan=$(bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA")
@@ -71,17 +72,11 @@ jobs:
               plan=$(printf '%s\n' "$plan" | sed 's/^pages=true$/pages=false/')
             fi
             printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = workflow_run ] && [ "$TRIGGER_SHA" != "$(git rev-parse HEAD)" ]; then
+            echo 'pages=false' >> "$GITHUB_OUTPUT"
           else
             echo 'pages=true' >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Test source selection and report navigation
-        if: steps.scope.outputs.pages == 'true'
-        run: node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
-
-      - name: Test complete site assembly
-        if: steps.scope.outputs.pages == 'true'
-        run: sh tests/pages.sh
 
       - name: Pin current website source before parallel validation
         if: steps.scope.outputs.pages == 'true' && (github.event_name != 'pull_request')
@@ -112,29 +107,39 @@ jobs:
         with:
           script: |
             const fs = require('node:fs');
-            const findWebsite = require('./scripts/pages_artifact.cjs');
-            const checked = process.env.FORCE_REBUILD === 'true' || process.env.EVENT_NAME === 'push' ? null :
-              await require('./scripts/pages_checked_website.cjs')(github, context.repo, process.env.SITE_SHA);
-            const artifact = checked || (process.env.FORCE_REBUILD === 'true' ? null :
-              await findWebsite(github, context.repo, process.env.FINGERPRINT, message => core.info(message)));
-            if (checked) core.info('Restoring website validated by the exact successful main Check');
-            if (artifact && process.env.EVENT_NAME === 'workflow_run') {
+            const automatic = process.env.EVENT_NAME === 'workflow_run';
+            const artifact = await require('./scripts/pages_candidate.cjs')(github, context.repo, {
+              sha: process.env.SITE_SHA, fingerprint: process.env.FINGERPRINT,
+              automatic, rebuild: process.env.FORCE_REBUILD === 'true',
+            }, message => core.info(message));
+            if (automatic && !artifact) {
+              core.info('No checked website: core/docs-only Check needs no website publication');
+              return;
+            }
+            if (artifact?.check_run_id) core.info('Restoring website validated by the exact successful main Check');
+            if (artifact && automatic) {
               const selected = await require('./scripts/pages_source.cjs')(github, context.repo);
               if (await require('./scripts/pages_duplicate.cjs')(selected, process.env.SITE_SHA)) {
-                core.setOutput('duplicate', 'true');
-                await core.summary.addHeading('Publication already current')
-                  .addRaw(`Website ${process.env.SITE_SHA} and coverage run ${selected.run.id} are already live; no assembly, browsers or deployment needed.\n`).write();
+                core.info('This validated website is already live');
                 return;
               }
             }
             core.setOutput('browser', artifact ? 'false' : 'true');
-            if (checked) core.setOutput('checked_run', String(checked.check_run_id));
+            if (artifact?.check_run_id) core.setOutput('checked_run', String(artifact.check_run_id));
             if (artifact) {
               const archive = await github.rest.actions.downloadArtifact({
                 ...context.repo, artifact_id: artifact.id, archive_format: 'zip',
               });
               fs.writeFileSync(`${process.env.RUNNER_TEMP}/website.zip`, Buffer.from(archive.data));
             }
+
+      - name: Test source selection and website navigation
+        if: steps.reuse.outputs.browser != ''
+        run: node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
+
+      - name: Test complete site assembly
+        if: steps.reuse.outputs.browser != ''
+        run: sh tests/pages.sh
 
       - name: Restore validated website bytes without browser provisioning
         if: steps.scope.outputs.pages == 'true' && (steps.reuse.outputs.browser == 'false')
@@ -145,7 +150,7 @@ jobs:
           unzip -q "$RUNNER_TEMP/website.zip" -d "$RUNNER_TEMP/validated-website"
           tar -xf "$RUNNER_TEMP/validated-website/website.tar" -C build/website
           test "$(cat build/website/.validation-fingerprint)" = "$FINGERPRINT"
-          test ! -e build/website/coverage
+          node scripts/check_pages.cjs build/website
           test -z "$(find build/website -type l -print)"
 
       - name: Fetch pinned release and assemble changed website
@@ -165,7 +170,7 @@ jobs:
           printf '%s\n' "$FINGERPRINT" > build/website/.validation-fingerprint
 
       - uses: actions/upload-artifact@v7
-        if: steps.scope.outputs.pages == 'true' && steps.reuse.outputs.duplicate != 'true'
+        if: steps.scope.outputs.pages == 'true' && steps.reuse.outputs.browser != ''
         with:
           name: pages-candidate
           path: build/website
@@ -202,9 +207,8 @@ jobs:
         with:
           name: pages-candidate
           path: build/website
-      - name: Require successful Check for the pinned source and obtain coverage
+      - name: Require successful Check for the pinned website source
         if: github.event_name != 'pull_request'
-        id: validated
         uses: actions/github-script@v8
         env:
           SITE_SHA: ${{ needs.build.outputs.site_sha }}
@@ -213,37 +217,22 @@ jobs:
             const fs = require('node:fs');
             const selectSource = require('./scripts/pages_source.cjs');
             const awaitSource = require('./scripts/pages_ready.cjs');
-            const {site, run, report} = await awaitSource(
+            const {site} = await awaitSource(
               () => selectSource(github, context.repo), process.env.SITE_SHA);
-            const archive = await github.rest.actions.downloadArtifact({
-              ...context.repo, artifact_id: report.id, archive_format: 'zip',
-            });
-            fs.writeFileSync(`${process.env.RUNNER_TEMP}/coverage.zip`, Buffer.from(archive.data));
-            core.setOutput('coverage_sha', run.head_sha);
-            core.setOutput('generated', report.created_at);
-            core.setOutput('run_id', String(run.id));
-            await core.summary.addHeading('Validated publication sources')
-              .addRaw(`Website: ${site.head_sha}\n\nCoverage: ${run.head_sha}\n\nCheck: ${site.id}\n`).write();
+            fs.writeFileSync('build/website/publication.json', JSON.stringify({
+              schema: 1, site_sha: site.head_sha, check_run: site.id,
+            }, null, 2) + '\n');
+            await core.summary.addHeading('Validated website source')
+              .addRaw(`Website: ${site.head_sha}\n\nCheck: ${site.id}\n`).write();
 
-      - name: Attach current coverage to validated website
-        if: github.event_name != 'pull_request'
-        env:
-          COVERAGE_SHA: ${{ steps.validated.outputs.coverage_sha }}
-          SITE_SHA: ${{ needs.build.outputs.site_sha }}
-          COVERAGE_GENERATED: ${{ steps.validated.outputs.generated }}
-          COVERAGE_RUN: ${{ steps.validated.outputs.run_id }}
-        run: |
-          mkdir "$RUNNER_TEMP/coverage"
-          unzip -q "$RUNNER_TEMP/coverage.zip" -d "$RUNNER_TEMP/coverage"
-          sh scripts/attach_coverage.sh "$RUNNER_TEMP/coverage" build/website \
-            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA"
-          node scripts/check_pages.cjs build/website
+      - name: Check assembled website navigation
+        run: node scripts/check_pages.cjs build/website
 
       - name: Archive reusable website after successful browser validation
         if: github.event_name != 'pull_request'
         run: |
           mkdir reusable
-          tar --exclude='./coverage' -cf reusable/website.tar -C build/website .
+          tar -cf reusable/website.tar -C build/website .
       - uses: actions/upload-artifact@v7
         if: github.event_name != 'pull_request'
         with:
@@ -288,7 +277,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
   verify:
-    name: Verify published coverage
+    name: Verify published website
     if: "!cancelled() && needs.build.result == 'success' && needs.deploy.result == 'success'"
     needs: [build, deploy]
     runs-on: ubuntu-24.04
@@ -301,7 +290,7 @@ jobs:
         with:
           name: github-pages
           path: published-artifact
-      - name: Check deployed entry points, source navigation and provenance
+      - name: Check deployed website, playground and provenance
         run: |
           mkdir published
           tar -xf published-artifact/artifact.tar -C published

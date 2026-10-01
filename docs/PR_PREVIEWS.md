@@ -48,12 +48,13 @@ and port 4173.
 Production and previews share `scripts/assemble_site.sh` for website/playground
 assembly. The preview adds identity on the home and playground pages,
 `preview.json`, and no-index hints; browser runtime bytes stay unchanged.
-Coverage is explicitly unavailable for the local build, with a link to separately
-identified production coverage.
+Coverage is published independently at
+[the coverage site](https://sproates.github.io/panackelty-coverage/). The shared
+`/coverage/` landing explains that its source may differ from the local preview.
 
 Check's website validator builds
 the synthetic merge revision, records its head/base,
-runs the existing 21 browser scenarios and archives
+runs the existing 24 browser scenarios and archives
 `website-preview-RUN_ID-RUN_ATTEMPT` for seven days. Download and extract it,
 then serve the directory with the command above. CI artifacts are optional:
 authors can preview uncommitted changes without opening a PR or waiting for CI.

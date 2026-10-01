@@ -1,5 +1,5 @@
-// Validate every local HTML href/src in the assembled artifact, including LLVM
-// source navigation. Also used after deployment to check those same URLs.
+// Validate website navigation and deployed bytes. The external coverage host
+// is deliberately outside this deployment gate.
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -22,7 +22,16 @@ async function checkPages(root, base) {
       throw new Error(`Missing playground asset: ${asset}`);
     }
   }
-  const targets = new Set(['index.html', 'coverage/index.html', 'coverage/summary.txt']);
+  const landing = new Set(['coverage/index.html', 'coverage/html/index.html']);
+  for (const file of files.map(file => path.relative(root, file))) {
+    if (file.startsWith('coverage/') && !landing.has(file)) {
+      throw new Error(`Unexpected bundled coverage report: ${file}`);
+    }
+  }
+  const targets = new Set(['index.html', ...landing]);
+  for (const file of targets) {
+    if (!fs.statSync(path.join(root, file)).isFile()) throw new Error(`Missing entry point: ${file}`);
+  }
   for (const file of files.filter(f => f.endsWith('.html'))) {
     const html = fs.readFileSync(file, 'utf8');
     for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
@@ -38,9 +47,7 @@ async function checkPages(root, base) {
     }
   }
   if (base) {
-    // Check a source page plus its stylesheet as well as the public entry pages.
-    const sample = [...targets].filter(p => p.startsWith('coverage/html/')).slice(0, 3);
-    for (const file of ['index.html', 'coverage/index.html', 'coverage/summary.txt', ...sample]) {
+    for (const file of targets) {
       const response = await fetch(new URL(file, base), {signal: AbortSignal.timeout(15000)});
       if (!response.ok) throw new Error(`Published URL failed (${response.status}): ${file}`);
       if (await response.text() !== fs.readFileSync(path.join(root, file), 'utf8')) {
@@ -60,8 +67,8 @@ async function checkPages(root, base) {
         throw new Error(`Published playground content does not match: ${file}`);
       }
     }
-    const response = await fetch(new URL('coverage/provenance.txt', base), {signal: AbortSignal.timeout(15000)});
-    if (!response.ok || await response.text() !== fs.readFileSync(path.join(root, 'coverage/provenance.txt'), 'utf8')) {
+    const response = await fetch(new URL('publication.json', base), {signal: AbortSignal.timeout(15000)});
+    if (!response.ok || await response.text() !== fs.readFileSync(path.join(root, 'publication.json'), 'utf8')) {
       throw new Error('Published provenance does not match the deployed artifact');
     }
   }

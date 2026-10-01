@@ -1,7 +1,7 @@
 Website CI #187 regressions cover compiler/seed/test-only routing, shared
 and narrowly allowlisted website-only routing, required-gate propagation of missing
 or failed website validation, mode/rename/mixed-input fallback, checked-artifact
-source/expiry rejection, prior-coverage retention and combined Check/publication
+source/expiry rejection, independent coverage hosting and combined Check/publication
 timing (including rerun, wrong-source and failed-live-verification exclusions).
 Website browser certification and full-route publication share all 24 scenarios.
 Applicable full routes require both native and website success; regressions cover
@@ -10,10 +10,10 @@ Adding native inputs cannot remove a website requirement from compatibility gate
 The original regressions also cover shared
 fingerprint identity and deletion invalidation, trusted production artifact reuse,
 foreign/PR/failed/expired artifact rejection, API failure propagation, prepared
-browser version gates, and coverage replacement without changing website bytes.
+browser version gates, and core/docs-only Check completion without website work.
 Reuse tests cover per-run artifact discovery without global-list provenance,
 paginated history/errors and observable decisions. Duplicate-publication tests
-require exact live source/report identity and exercise missing, stale and failed
+require exact live website/Check identity and exercise missing, stale and failed
 lookups without weakening browser/publication gates.
 Timing regressions cover failed/cancelled/skipped/missing live verification,
 manual and duplicate publications, reruns, and superseding source selection;
@@ -76,7 +76,7 @@ The [testing guide](README.md) describes suite ownership and validation commands
 Planning a test does not change a coverage status.
 
 Measured source coverage currently exists only for the native C VM, at the
-[public report](https://panackelty.com/coverage/). The `.panack` compiler,
+[public report](https://sproates.github.io/panackelty-coverage/). The `.panack` compiler,
 bytecode tooling and standard library have tests but no measured source-line
 or branch baseline. The groomed [source-coverage candidate](../ROADMAP.md#measure-panackelty-source-coverage--candidate-pending-assessment)
 starts with trustworthy mapping and measurement feasibility; implementation is
@@ -383,12 +383,16 @@ argument construction, bigint temporaries and full-width unsigned conversion,
 allocation-dependent decimal comparison, and decimal division trailing zeros.
 
 CI runs `make native-sanitize` and `make native-coverage`, publishing native
-line/branch summaries and HTML. The [public report](https://panackelty.com/coverage/)
-is assembled with the website from successful `main` validation, with source
-commits and archive date. `tests/pages.sh` covers assembly/failure handling in
-the canonical harness; `tests/pages.test.cjs` covers trusted source selection,
-exact-main validation, stale/unordered history, pagination, API failures,
-missing/expired artifacts and relative source links in Pages CI.
+line/branch summaries and HTML. The [public report](https://sproates.github.io/panackelty-coverage/)
+is published by the independent `panackelty-coverage` repository from successful
+trusted `main` validation, with source identity and archive date. That repository
+owns report-selection/navigation and full deployed-report verification tests.
+Core `tests/pages.sh` and `tests/pages.test.cjs` cover website assembly and old-URL
+landing pages, source selection without coverage, exact-main validation,
+core/docs-only no-op publication, artifact expiry/API failures, local links and
+live website byte/MIME/provenance checks. The independent production publisher
+passed live verification in run `36933404078`; the website cutover still needs
+post-merge live verification recorded under #187.
 This publication does not add language or native branch coverage.
 The initial local baseline is approximately 85%
 lines and 79% branches; this measures the native corpus, not every full-suite
@@ -543,8 +547,8 @@ The layout harness runs `tests/site_examples.sh`, extracting the displayed
 hello, guarded-type and exact-arithmetic programs and checking their stated
 output through the public CLI in source and saved-bytecode modes. The script
 can use an explicit released command with its `release` selection for the
-release-labelled greeting. Pages tests retain complete website/coverage assembly,
-source selection and nested report navigation, and reject unresolved homepage
+release-labelled greeting. Pages tests retain website/playground assembly,
+source selection, compatibility landing pages and nested local navigation, and reject unresolved homepage
 anchors or accessible-label references. Desktop/mobile presentation is reviewed
 separately; these checks do not claim automated visual or accessibility certification.
 

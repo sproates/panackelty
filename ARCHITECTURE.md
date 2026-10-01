@@ -123,11 +123,14 @@ The canonical harness executes displayed examples through source and saved
 bytecode using `tests/site_examples.sh`; Pages tests also check section and
 accessible-label targets. The Pages workflow
 tests assembly and source selection on relevant pull requests without deploying.
-After successful push validation on `main`, one serialized publisher combines
-the latest successfully validated website with the latest successful native VM
-coverage artifact. Documentation-only validation reuses the prior report. Both
-are deployed together with the playground, preventing partial publication.
-The publisher downloads the browser release pinned by `site/playground.json`,
+After successful push validation on `main`, the serialized website publisher
+restores the exact-source browser-certified website and playground. Native-only
+and documentation-only checks have no certificate and do not publish a website.
+Coverage reports are published independently by
+[`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage)
+to [a separate Pages site](https://sproates.github.io/panackelty-coverage/).
+When website bytes need rebuilding,
+the publisher downloads the browser release pinned by `site/playground.json`,
 verifies its SHA-256 and asset identity, and runs browser tests
 against the complete assembled tree before uploading it. Missing assets or failed
 browser tests stop publication. Post-deployment checks compare every playground
@@ -137,10 +140,12 @@ updates deliberately pin a version and checksum rather than following its main.
 The website owns publication and runs the integration suite from an exact
 reviewed browser repository commit. Browser application sources and contracts
 are maintained only in that downstream repository.
-The report landing page records separate website/coverage commits, the coverage
-artifact date and validation run. Missing or expired coverage fails publication
-instead of silently dropping it. Only the deploy job receives `pages: write`
-and `id-token: write`; PR and release workflows cannot publish coverage.
+The website's `publication.json` identifies its source commit and successful
+Check run. Coverage has its own source identity and deployment; missing reports
+cannot block website publishing. The old `/coverage/` and `/coverage/html/`
+entry points retain landing pages linking to the new host. Deep LLVM source URLs
+are available on that host, not mirrored under the website. Only the website
+deploy job receives `pages: write` and `id-token: write` in core.
 Node is used for Pages/browser automation and its regression tests; the
 native development, packaging and canonical validation toolchain is unchanged.
 
@@ -927,20 +932,22 @@ browser build workflow remains in core. Native validation and bundle conformance
 remain core responsibilities; a deliberate downstream dependency update runs
 browser compatibility checks when core changes are adopted.
 
-Core owns the website and coverage publication. `site/playground.json` selects
+Core owns website publication and coverage generation; the independent coverage
+repository owns report publication. `site/playground.json` selects
 the browser archive by tag, digest and asset identity. Pages downloads and
 verifies it, checks out the browser integration suite at an exact reviewed SHA,
-and runs all 21 browser scenarios against the assembled website before deploying.
+and runs all 24 browser scenarios against the assembled website before deploying.
 Both the artifact pin and suite revision require review when behavior changes.
 No browser compilation or native oracle is needed in Pages. Published-byte,
-Wasm MIME, navigation and coverage-provenance checks remain deployment gates.
+Wasm MIME, navigation and website-provenance checks remain deployment gates.
 
 PR selection uses the shared component map: website, package, shared and unknown
 inputs retain Pages checks; isolated native components and examples do not
-provision engines for a pinned external product. Production always retains the
-complete browser gate. Browser engine downloads use exact OS/architecture and
-lockfile cache keys; tests always run, and missing or unusable engines cannot
-produce a successful gate. The browser repository documents runtime bounds,
+provision engines for a pinned external product. Production always requires a
+successful browser gate or trusted, fingerprint-identical certified bytes.
+Browser engines come from the digest-pinned prepared Playwright image; matching
+package/image versions and the locked dependency install are required.
+The browser repository documents runtime bounds,
 unsupported hosts, content-addressed caching and physical-device limitations.
 
 The original preparation and delivery shipped in PRs #113 and #115. The historical
@@ -1281,37 +1288,36 @@ investigation and timings above describe the pre-repair revision.
 ## Website validation and coverage publication boundary
 
 The website consumes an explicit downstream browser release, independent of
-native compiler/VM changes. Pages fingerprints the reviewed website dependencies
-and validates changed inputs in a digest-pinned Playwright environment. The same
-routing boundary skips browser provisioning for native-only PRs. Successful main
-Pages runs retain reusable website bytes; coverage-only publication restores an
-identical fingerprint from a trusted successful production run and attaches the
-current validated coverage report. It does not reassemble website content.
-Missing identity requires browser validation; expired artifacts or lookup errors
-fail closed. Website pushes validate alongside core CI; publication waits for the exact
-pinned main Check and fails if main advances. Production retains one serialized writer, exact-main Check selection,
-complete-site deployment and live byte/provenance verification. Browser failures
-cannot pass the publication gate, and PR artifacts never seed production reuse.
-See [environment maintenance and measurements](tests/README.md#prepared-website-validation-environment).
+native compiler/VM changes. The four-file static-site allowlist selects the
+website route: Check prepares the website, runs all 24 browser scenarios in the
+digest-pinned environment, and certifies bytes only on success. Required named
+gates depend on website success; native matrices are skipped on this route.
+Shared/publisher/mixed changes retain full native checks and applicable website
+validation in parallel. Native-only changes require native success and an explicit
+website skip. Missing applicability fails closed.
 
-The explicit static-site allowlist has a `website` route. Check invokes reusable
-website preparation, the shared full browser validator and artifact certification;
-its existing named gates require that result and native matrices are skipped.
-Pages defers all applicable PR/push website work to this validator and, on successful main
-Check completion, restores the exact SHA's `checked-website` archive with prior
-trusted coverage. Fingerprint mismatch, coverage contamination and symlinks reject
-restoration. Shared/publisher/mixed changes still use the full route: Check runs
-native and applicable website validation in parallel, and its required gates
-require both to succeed. Native-only full changes require native success and an
-explicitly skipped website validator. Missing applicability fails closed.
-Browser test ownership is centralized in
-`.github/workflows/browser-validation.yml`; no validation job requires deployment
-to succeed. This first slice retains exact-current-main selection; decoupling
-coverage refresh from a newer unvalidated website remains follow-up work.
+Pages defers PR/push validation to Check. Automatic publication ignores obsolete
+trigger SHAs, requires exact-current-main successful Check, and consumes only
+that source's `checked-website` certificate. Absence of a certificate is a no-op
+for core/docs-only checks, never permission to build a website. Fingerprint
+mismatch, bundled report files and symlinks reject restoration. PR artifacts
+cannot seed production. A main advance before packaging fails publication.
 
-Pages artifact reuse discovers matching artifacts through trusted successful
-main Pages runs. Automatic coverage-refresh triggers compare the live coverage
-provenance with the validated source/report selection before restoring assets.
-An exact match needs no assembly, browser provisioning or deployment; manual
-refreshes remain explicit publication attempts. GitHub and live lookup failures
-are errors, not permission to skip validation.
+Manual main dispatch can reuse a matching artifact from trusted successful main
+Pages history, or build and validate when no matching identity exists. Expired
+artifacts and API failures fail closed; `rebuild_website=true` explicitly bypasses
+reuse for maintenance/cold measurements. Serialized publication records website
+SHA and Check run in `publication.json`. An automatic duplicate compares that
+record; exact matches skip transfer and deployment. Missing live identity causes
+publication; lookup errors remain errors. Live verification checks website entry
+points, local navigation, every playground asset, Wasm MIME and website identity.
+
+Core still generates and archives native coverage in Check. The independent
+[`panackelty-coverage`](https://github.com/sproates/panackelty-coverage) repository
+selects successful trusted main reports, publishes the report with its source
+identity, and verifies every report file. Its scheduled/manual publisher uses
+its built-in GitHub token for public artifact reads. There is no cross-repository
+secret or report download in website publication. Coverage freshness does not
+depend on a newer website passing validation. The website keeps two compatibility
+landing pages, not a copy of the report. See
+[publication and maintenance](tests/README.md#public-coverage-publication).

@@ -1277,3 +1277,18 @@ This repairs the prerequisite found by programme #180; it does not add a new
 proof system, source explanation interface or general relational reasoning.
 The VM underflow trap and bytecode format remain unchanged. The earlier
 investigation and timings above describe the pre-repair revision.
+
+## Website validation and coverage publication boundary
+
+The website consumes an explicit downstream browser release, independent of
+native compiler/VM changes. Pages fingerprints the reviewed website dependencies
+and validates changed inputs in a digest-pinned Playwright environment. The same
+routing boundary skips browser provisioning for native-only PRs. Successful main
+Pages runs retain reusable website bytes; coverage-only publication restores an
+identical fingerprint from a trusted successful production run and attaches the
+current validated coverage report. It does not reassemble website content.
+Missing identity requires browser validation; expired artifacts or lookup errors
+fail closed. Production retains one serialized writer, exact-main Check selection,
+complete-site deployment and live byte/provenance verification. Browser failures
+cannot pass the publication gate, and PR artifacts never seed production reuse.
+See [environment maintenance and measurements](tests/README.md#prepared-website-validation-environment).

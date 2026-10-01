@@ -164,3 +164,62 @@ test('homepage section navigation and example references have unique targets', (
     assert(ids.includes(`${name}-output`), `missing expected output: ${name}`);
   }
 });
+
+const findWebsite = require('../scripts/pages_artifact.cjs');
+const fingerprint = 'a'.repeat(64);
+function websiteApi(pages, artifacts) {
+  return {paginate: async (_, args) => {
+    assert.equal(args.name, `validated-website-${fingerprint}`);
+    return Object.entries(artifacts).flatMap(([id, entries]) =>
+      entries.map(a => ({workflow_run:{id:Number(id)}, ...a})));
+  }, rest: {actions: {listArtifacts:'artifacts', getWorkflowRun: async args =>
+    ({data:pages.flat().find(r => r.id === args.run_id)})}}};
+}
+const websiteRun = (id, overrides = {}) => run(id, {event:'workflow_run', path:'.github/workflows/pages.yml', ...overrides});
+const websiteArtifact = (id, overrides = {}) => ({id, name: `validated-website-${fingerprint}`, expired:false, ...overrides});
+test('reuse only identical successful production website, with paginated unordered runs', async () => {
+  const selected = await findWebsite(websiteApi([[websiteRun(2)], [websiteRun(5), websiteRun(4)]], {
+    2: [websiteArtifact(2)], 4: [websiteArtifact(4)],
+    5: [websiteArtifact(5, {name:'validated-website-' + 'b'.repeat(64)})],
+  }), repo, fingerprint);
+  assert.equal(selected.id, 4);
+});
+test('PR, failed, incomplete, foreign and non-main artifacts cannot seed publication', async () => {
+  for (const overrides of [{event:'pull_request'}, {conclusion:'failure'}, {status:'in_progress'},
+    {head_branch:'feature'}, {repository:{full_name:'other/repo'}}, {head_repository:null}]) {
+    assert.equal(await findWebsite(websiteApi([[websiteRun(5, overrides)]],
+      {5:[websiteArtifact(5)]}), repo, fingerprint), null);
+  }
+});
+test('missing identity requires browser tests; expired artifact and API errors fail closed', async () => {
+  assert.equal(await findWebsite(websiteApi([[websiteRun(5)]], {}), repo, fingerprint), null);
+  await assert.rejects(findWebsite(websiteApi([[websiteRun(5)]],
+    {5:[websiteArtifact(5, {expired:true})]}), repo, fingerprint), /expired/);
+  await assert.rejects(findWebsite(websiteApi([], {}), repo, '../invalid'), /fingerprint/);
+  const api = websiteApi([[websiteRun(5)]], {});
+  api.paginate=async()=>{throw new Error('API unavailable');};
+  await assert.rejects(findWebsite(api, repo, fingerprint), /API unavailable/);
+});
+test('publisher requires browser success or authenticated reuse; prepared environment has no install step', () => {
+  const workflow = fs.readFileSync('.github/workflows/pages.yml','utf8');
+  assert.match(workflow, /needs.build.outputs.browser == 'true' && needs.browser.result == 'success'/);
+  assert.match(workflow, /needs.build.outputs.browser == 'false' && needs.browser.result == 'skipped'/);
+  assert.match(workflow, /needs.build.result == 'success'/);
+  assert.match(workflow, /playwright:v1\.63\.0-noble@sha256:[a-f0-9]{64}/);
+  assert.match(workflow, /Playwright package\/image mismatch/);
+  assert.doesNotMatch(workflow, /playwright install|apt-get|actions\/cache/);
+});
+
+test('timings include image initialization and transfers, report initial queue and merge-to-live', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const time=n=>new Date(n*1000).toISOString();
+  const jobs=[{name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'},
+    {name:'Browser integration',started_at:time(35),completed_at:time(80),conclusion:'success'},
+    {name:'Package tested Pages',started_at:time(85),completed_at:time(90),conclusion:'success'},
+    {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
+  const result=measure({created_at:time(0)},jobs,time(0));
+  assert.equal(result.validation_seconds,80);
+  assert.equal(result.initial_queue_seconds,10);
+  assert.equal(result.merge_to_live_seconds,100);
+  assert.equal(result.jobs[1].seconds,45);
+});

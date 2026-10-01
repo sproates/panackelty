@@ -30,6 +30,20 @@ cmp "$work/report/html/coverage/src/vm/value.c.html" "$work/pages/coverage/html/
 grep -q "$sha" "$work/pages/coverage/index.html"
 grep -q 'Native C VM' "$work/pages/coverage/index.html"
 grep -q '2026-09-28T21:00:00Z' "$work/pages/coverage/provenance.txt"
+# Coverage-only publication preserves website and browser bytes exactly, without
+# running assembly, downloading a release or provisioning a browser.
+cp -R "$work/pages" "$work/reused"
+rm -rf "$work/reused/coverage"
+sh "$root/scripts/attach_coverage.sh" "$work/report" "$work/reused" "$sha" '2026-09-28T21:00:00Z' '124' "$sha"
+find "$work/pages/playground" -type f | while IFS= read -r file; do
+    relative=${file#"$work/pages/"}
+    cmp "$file" "$work/reused/$relative"
+done
+cmp "$work/pages/index.html" "$work/reused/index.html"
+grep -q 'check_run=124' "$work/reused/coverage/provenance.txt"
+if sh "$root/scripts/attach_coverage.sh" "$work/report" "$work/reused" "$sha" '2026-09-28T21:00:00Z' '125' "$sha" 2>/dev/null; then
+    echo 'Overwrote coverage output' >&2; exit 1
+fi
 # Reusing an output directory could silently retain stale files; reject it.
 if assemble "$sha" 2>/dev/null; then echo 'Overwrote existing Pages output' >&2; exit 1; fi
 rm -rf "$work/pages"

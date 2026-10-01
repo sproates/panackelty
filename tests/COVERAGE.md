@@ -1,3 +1,9 @@
+Website CI #187 regressions cover compiler/seed/test-only routing, shared
+fingerprint identity and deletion invalidation, trusted production artifact reuse,
+foreign/PR/failed/expired artifact rejection, API failure propagation, prepared
+browser version gates, and coverage replacement without changing website bytes.
+All 21 downstream browser scenarios remain required for changed website inputs.
+
 # Specification coverage
 
 Guard-fact mutation regression coverage (#182) adds 25 checker fixtures: 20

@@ -117,16 +117,26 @@ website/coverage provenance matched. The published release pin is v0.1.1 and
 all six resource rows retain their destinations. Browser regression/preview
 acceptance and live publication are complete; no acceptance remains.
 
-### Next: fast website CI and prepared browser-test environments
+<a id="next-fast-website-ci-and-prepared-browser-test-environments"></a>
 
-**Planned; high priority.** Work record:
+### Now: fast website CI and prepared browser-test environments
+
+**In progress; high priority.** Work record:
 [#187](https://github.com/sproates/panackelty/issues/187). On 2026-10-01 the user
 selected this maintenance item before the next substantial programme #180
 feature. Repeated website setup delays affect every relevant edit and have also
 held up compiler delivery. Finish existing delivery and correctness obligations;
 then take this bounded improvement before resuming substantial programme features.
-This records priority only; implementation has not started. Programme #180 retains
-its agreed scope and progress. The grooming ledger is unchanged.
+On 2026-10-01 the user explicitly selected #187 before any further programme
+work. Programme #180 is temporarily paused at its existing scope and progress;
+resume with the mapping foundation after this maintenance outcome. The grooming
+ledger remains 2 of 3; completing #187 will make the next review due.
+
+Agreed budgets: routine website validation **120 seconds** and merge-to-live
+**180 seconds**, for cold and warm runs, excluding queue time reported separately.
+Implementation uses the digest-pinned official Playwright 1.63.0 environment and
+reuses trusted website artifacts for coverage-only publication. Hosted cold/warm
+measurements and post-merge live verification remain acceptance requirements.
 
 Pages caches browser binaries but still invokes `playwright install --with-deps`
 on each relevant build. During PR #185 the observed job was still preparing tests
@@ -161,7 +171,7 @@ change is preselected. Compiler changes, automatic release promotion and the
 website repository migration are outside this item; website correctness remains
 mandatory. Detailed implementation evidence belongs in #187.
 
-### Now: compiler and runtime understanding programme
+### Resume after #187: compiler and runtime understanding programme
 
 **In progress:** the user authorised starting all five workstreams as one
 coordinated programme on 2026-10-01; #163 live acceptance is now verified. This

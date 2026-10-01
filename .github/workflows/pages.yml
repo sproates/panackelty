@@ -115,7 +115,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: sproates/panackelty-browser
-          ref: 60d5d512fe13392650f9b0893376fda18d1245b5
+          ref: 1e1f67d70c82d2ec972c53d36b52a949f063c894
           path: build/browser-tests
           persist-credentials: false
 

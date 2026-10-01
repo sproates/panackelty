@@ -200,6 +200,24 @@ and live verification remain post-merge acceptance owned by the delivery agent;
 #187 stays open and ledger remains 2/3. This is a correctness repair within the
 active website CI task, not completion or performance acceptance.
 
+PR #197 merged as `9ef402d`. Main Check `36926148148` and production Pages
+`36926424307` passed: certified website restoration, packaging, deployment and
+live byte/MIME/provenance verification succeeded with duplicate browsers skipped.
+The full-route change measured 178s combined validation and 210s merge-to-live
+wall time, with 4s initial Check queue. This repairs production publication but
+does not establish routine website-only budget acceptance.
+
+The next acceptance sample changes only a non-rendered homepage source comment
+plus informational roadmap evidence. It must select the website route, skip
+native matrices, retain all 24 browser scenarios and publish with older trusted
+coverage. After separately approved merge, the delivery agent will record the
+exact Check/Pages runs, compare live bytes and source/report identities, and
+measure Check-through-packaging and merge-to-live including queue accounting.
+The existing coverage source must remain unchanged by this website-only commit.
+This first sample does not replace the required two cold/two warm publications
+or the independent coverage-refresh, race and rollback acceptance still pending.
+
+
 
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests

@@ -1,5 +1,17 @@
 # Specification coverage
 
+Guard-fact mutation regression coverage (#182) adds 23 checker fixtures: 20
+rejections previously accepted by the old compiler, plus three positive workflows
+covering guarded RHS decrement, while refresh, fresh guards in a for loop and
+unrelated immutable bounds. Failures cover direct/nested writes, operand and
+argument evaluation, arrays/indexes, match/condition writes, loop-carried bounds,
+post-loop use and guarded assignments/calls. Eight public CLI failure fixtures
+and `guard_fact_refresh` exercise source checking/running and bytecode workflows.
+A deterministic 48-scenario matrix adds 96 assertions: stale proofs must fail,
+freshly guarded variants must pass, and all 48 accepted variants execute against
+a hand-calculated result table. The focused checker runner now has 160 assertions. These tests establish this
+bounded invalidation contract, not completeness of static proofs.
+
 Website preview regression tests in `tests/preview.test.cjs` cover immutable
 browser bytes, source identity, explicit coverage separation, corrupt inputs,
 atomic assembly, traversal/symlink rejection and local HTTP MIME/method handling.

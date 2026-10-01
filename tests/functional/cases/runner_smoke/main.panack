@@ -9,7 +9,7 @@ pure runner_path(text: Str): Path {
 }
 
 main(): Void {
-  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "hello_world",
+  names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",
     "semicolonless", "stdlib", "string_boundaries", "testing_commands",
@@ -30,6 +30,9 @@ main(): Void {
   expected_text = "${expected_text}PASS selected example count\n"
   failure_names = ["async_bare", "async_blocking", "callable_effect", "constructor_arity", "core_no_global_method", "core_private_helper",
     "core_text_receiver", "core_type_collision", "duplicate_function",
+    "fact_mutation_after_loop", "fact_mutation_arguments", "fact_mutation_direct",
+    "fact_mutation_for_carried", "fact_mutation_nested", "fact_mutation_operand",
+    "fact_mutation_while_carried", "fact_mutation_while_condition",
     "for_iterable_type", "function_arity", "generic_ambiguous", "generic_body",
     "generic_conflict", "generic_main", "generic_purity", "generic_type_arity",
     "guard_not_proven", "if_without_else_value", "immutable_assignment",
@@ -46,12 +49,13 @@ main(): Void {
     expected_text = "${expected_text}PASS failure/${name}/check\nPASS failure/${name}/compile\n"
     if name == "unknown_name" || name == "imported_unknown_name" ||
         name == "unexpected_character" || name == "same_line_without_separator" ||
-        name == "inference_empty_array" || name == "inference_immutable" {
+        name == "inference_empty_array" || name == "inference_immutable" ||
+        starts_with(name, "fact_mutation_") {
       expected_text = "${expected_text}PASS failure/${name}/run\nPASS failure/${name}/disasm\n"
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 297, failures: 0\n")
+  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 340, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],

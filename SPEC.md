@@ -33,6 +33,14 @@ prints `0.5`, and `0.00 / 2.0` prints `0`).
 `Nat` subtraction is accepted only when the checker can prove that the result
 is non-negative. This first implementation recognizes constants and simple
 guard facts. Use `Int` when subtraction may legitimately cross zero.
+Bounds about a mutable local are invalidated when it may be assigned, including
+writes in nested expressions and branches. Loop-carried writes invalidate
+pre-loop bounds; a loop condition or a later guard can establish fresh bounds.
+Within a compound expression, the checker conservatively drops incoming bounds
+for any local the expression may write, even when a particular evaluation path
+would preserve them. Split such computations and establish a fresh guard when
+needed. The right-hand side of a direct assignment can use the valid pre-write
+bound, so a guarded `n = n - 1` remains supported.
 
 ### Rational arithmetic and exact conversions
 

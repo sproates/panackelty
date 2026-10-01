@@ -1253,3 +1253,27 @@ the output, with answers checked against real compiler/execution evidence.
 Keep false claims, unhelpful answers, missing attribution and performance failures
 visible in the acceptance report. The website should demonstrate verified released
 behaviour only; the existing programme follow-up remains open.
+
+## Guard fact invalidation
+
+The #182 repair makes `check_block` thread its current bound facts through
+statements. `facts_after_expression`, `facts_after_statement` and
+`facts_after_block` conservatively identify writes in the AST, including branch,
+match, call-argument, array/index and loop subexpressions. Written names retain
+an unknown `Bounds` entry with neither endpoint asserted; unrelated facts remain.
+Resolver rules prohibit shadowing, and calls cannot assign caller locals through
+captured mutable bindings, so lexical names suffice for this bounded repair.
+
+Before checking a compound expression, the checker drops incoming bounds for
+all names it may write. This deliberately avoids relying on an assumed child
+order or path feasibility. Direct assignment checks its RHS before discarding
+the target's old bound. Loops discard loop-written bounds before checking their
+condition/body to account for later iterations; while conditions can establish
+fresh per-iteration facts. Effects of nested writes also invalidate the enclosing
+block's facts for subsequent statements and its tail value. Guarded assignments
+and function arguments consume the same corrected map as Nat subtraction.
+
+This repairs the prerequisite found by programme #180; it does not add a new
+proof system, source explanation interface or general relational reasoning.
+The VM underflow trap and bytecode format remain unchanged. The earlier
+investigation and timings above describe the pre-repair revision.

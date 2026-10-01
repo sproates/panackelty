@@ -1,4 +1,4 @@
-import "../../src/compiler/checker.panack"
+import "../../src/bytecode/codec.panack"
 import stdlib/testing
 
 // Shared source fixtures preserve independently recorded acceptance expectations.
@@ -40,6 +40,52 @@ checker_sort_contract(source: Str): Str {
       } }
     } }
   }
+}
+
+// A deterministic semantic matrix, not a replay of the invalidation walker.
+// Each stale program must be rejected; adding a fresh guard must make the same
+// write pattern usable. Accepted programs execute on the VM and independently
+// check their numeric result against this small, hand-calculated table.
+checker_mutation_matrix(): [TestResult] {
+  mut results: [TestResult] = []
+  expected_values: [[Nat]] = [[0, 0, 1, 2], [0, 0, 0, 1], [0, 0, 0, 0]]
+  for bound_index in 0..3 {
+    bound: Nat = bound_index + 1
+    start: Nat = bound + 2
+    for value in 0..4 {
+      writes: [Str] = [
+        "n = ${value}",
+        "if true { n = ${value} }",
+        "for item in 0..2 { n = ${value} }",
+        "mut once: Bool = true; while once { n = ${value}; once = false }"
+      ]
+      mut shape: Nat = 0
+      for write in writes {
+        label: Str = "mutation-matrix/${bound}/${value}/${shape}"
+        prefix: Str = "main(): Void { mut n: Nat = ${start}; if n >= ${bound} { ${write}; "
+        stale: Str = prefix + "print(n - ${bound}) } }"
+        results = results.append(checker_unit_compare(label + "/stale",
+          check_source_types(stale), "Nat subtraction may underflow"))
+        expected: Nat = expected_values[bound_index][value]
+        fresh: Str = prefix +
+          "actual: Nat = if n >= ${bound} { n - ${bound} } else { 0 }; " +
+          "if actual != ${expected} { process_exit(1) } } }"
+        status: Str = check_source_types(fresh)
+        results = results.append(checker_unit_compare(label + "/fresh", status, "ok"))
+        if status == "ok" {
+          match lex(fresh) {
+            Error(errors) => { results = results.append(test_expect(label, false, "lex failed")) },
+            Ok(tokens) => { match parse_program_complete(tokens) {
+              Error(error) => { results = results.append(test_expect(label, false, error.message)) },
+              Ok(program) => { run_bytecode(serialize_bytecode(compile_program(program))) }
+            } }
+          }
+        }
+        shape = shape + 1
+      }
+    }
+  }
+  results
 }
 
 main(): Void {
@@ -117,5 +163,29 @@ main(): Void {
     checker_sort_contract("less(a: Nat, b: Nat): Bool { print(a); a < b } main(): Void { print([2, 1].sort_by(@less)); }"), "expected PureFn"))
   results = results.append(checker_unit_compare("sort rejects nonboolean comparator",
     checker_sort_contract("pure less(a: Nat, b: Nat): Nat { a } main(): Void { print([2, 1].sort_by(@less)); }"), "expected PureFn"))
+  results = results.append(checker_unit_source("fact_mutation_direct", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_nested", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_operand", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_arguments", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_array", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_index", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_while_carried", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_for_carried", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_while_condition", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_after_loop", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_match", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_condition", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_guarded_assignment", "guard is not proven"))
+  results = results.append(checker_unit_source("fact_mutation_guarded_call", "expected Positive"))
+  results = results.append(checker_unit_source("fact_mutation_guarded_loop", "guard is not proven"))
+  results = results.append(checker_unit_source("fact_mutation_valid", "ok"))
+  results = results.append(checker_unit_source("fact_mutation_upper_bound", "guard is not proven"))
+  results = results.append(checker_unit_source("fact_mutation_false_branch", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_initializer", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_short_circuit", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_match_subject", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_false_refresh", "ok"))
+  results = results.append(checker_unit_source("fact_mutation_unrelated_mutable", "ok"))
+  results = results.concat(checker_mutation_matrix())
   if test_report(results) > 0 { process_exit(1) }
 }

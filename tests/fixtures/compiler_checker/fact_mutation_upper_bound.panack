@@ -1,0 +1,2 @@
+type Small = Nat where value <= 5
+main(): Void { mut n: Nat = 2; if n <= 5 { n = 9; small: Small = n; print(small) } }

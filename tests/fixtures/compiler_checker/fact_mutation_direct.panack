@@ -1,0 +1,11 @@
+type Positive = Nat where value > 0
+enum Choice { Chosen(Nat), AbsentChoice }
+consume(a: Nat, b: Nat): Void { print(b) }
+consume_positive(a: Nat, b: Positive): Void { print(b) }
+main(): Void {
+  mut balance: Nat = 5
+  if balance >= 2 {
+    balance = 0
+    print(balance - 2)
+  }
+}

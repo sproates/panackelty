@@ -120,3 +120,21 @@ contexts, including inferred callable targets. AsyncFn never coerces to Fn/PureF
 ## Implicit core loading
 
 The project loader requires the bundled `core.panack` and loads it once before entry/import traversal. Core function tokens receive internal identities while preserving locations. Standard `ends_with`, `first`, `sort_by` and `parse_nat` dot calls select fixed implementations; signatures enforce receiver types and existing generic/purity rules. Ordinary user receiver-first calls remain supported outside that method set. The emitter omits unreachable core algorithms only; it does not remove user functions. Pure parser/checker test helpers still accept explicit AST/module inputs and do not perform filesystem-based implicit loading.
+
+## Mutable guard facts
+
+The checker invalidates bounds for assigned locals across statements, nested
+expressions and loop iterations. Compound expressions conservatively discard
+incoming bounds for every local they may write; fresh branch/loop guards can
+restore facts. Direct guarded decrement remains valid because its RHS is checked
+before the assignment kills the old fact. Regression fixtures named
+`fact_mutation_*` cover stale subtraction and guarded-type proofs, nested writes,
+loop-carried changes, fresh facts and unrelated bindings. No new explanation
+command or relational constraint solver is introduced by this repair.
+
+The mutation regression suite also covers upper bounds, false branches,
+short-circuit writes, declaration initialisers and match subjects. A 48-case
+matrix pairs stale-proof rejection with freshly guarded acceptance and actual
+VM execution against hand-calculated results. Existing public CLI failure tests
+exercise `check`, `compile`, `run` and `disasm` for the mutation fixtures and
+verify failed compilation leaves no artifact.

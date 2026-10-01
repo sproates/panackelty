@@ -1,0 +1,18 @@
+pure stable(limit: Nat): Nat {
+  mut other: Nat = 9
+  if limit >= 2 { other = 0; limit - 2 } else { 0 }
+}
+main(): Void {
+  mut balance: Nat = 5
+  if balance >= 2 {
+    balance = balance - 2
+    if balance >= 2 { print(balance - 2) }
+  }
+  while balance > 0 { balance = balance - 1 }
+  print(balance)
+  for item in 0..2 {
+    balance = 3
+    if balance >= 2 { print(balance - 2) }
+  }
+  print(stable(5))
+}

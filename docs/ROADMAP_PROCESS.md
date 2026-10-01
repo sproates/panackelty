@@ -147,6 +147,50 @@ Use feature branches, GitHub noreply commit identity and explicit user permissio
 for each PR merge. Approval of this process does not authorise feature delivery,
 settings changes or subsequent merges.
 
+## Website impact and follow-ups
+
+For every core change and release, the author or agent must assess whether the
+website needs an update. Consider syntax, APIs, semantics, examples, supported
+platforms, installation commands, download links and version/feature claims.
+Record the outcome in the PR: no impact with a reason, or a link to a concrete
+entry in the [website follow-up register](../ROADMAP.md#website-follow-up-register).
+An existing entry can be updated rather than duplicated. Record it in the same
+PR as the core change, before completion handover; do not leave it only in chat.
+The author or agent owns recording and handover until a named maintainer accepts
+ownership. An unknown release version must be recorded as a prerequisite, not
+invented as a download target.
+
+Distinguish two cases:
+
+- **Promotion pending:** the published site remains accurate for its explicitly
+  identified, pinned release. Record what should change when a newer release is
+  deliberately adopted. This is unscheduled work and does not block core delivery.
+- **Correctness defect:** an existing link is broken, an example fails for its
+  advertised version, or a published claim is false or misleading. Record a defect
+  promptly and bring the correction to the user for prioritisation. Do not treat
+  it as harmless version lag or wait for the repository split. If a proposed
+  release or asset change would break the current site, preserve the existing
+  contract or coordinate a verified correction before that change is published.
+
+Recording an entry does not authorise implementation, deployment, a scheduled
+reminder or automatic version promotion. Review pending entries during release
+preparation, website changes and roadmap grooming. Corrections still follow the
+normal PR and explicit merge-approval rules.
+
+The website must describe the versions it actually offers. A newer core release
+may leave it unchanged, provided old artifacts remain available and claims stay
+true. Keep release pins and download links explicit; never publish a link to a
+planned or missing release. Check public artifact availability and checksums,
+run examples with the declared native/browser release, and review syntax,
+capability and "latest" claims before publishing. Machine checks do not establish
+that explanatory prose is truthful. Retain referenced release artifacts; if a
+withdrawal is necessary, coordinate replacement or removal of affected links
+before withdrawal. Keep correction work open until live verification confirms
+links, examples, version labels and relevant claims are accurate.
+
+This is a contribution and review requirement now. Automated website gates and
+independent publishing remain part of the unscheduled website proposal.
+
 ## Review and completion
 
 Review priorities after every three completed deliverables, and sooner after a

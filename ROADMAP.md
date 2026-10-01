@@ -303,6 +303,68 @@ checkpoints and crash recovery are not delivered by the completed in-memory VM
 suspension work. It is distinct from value provenance and remains unscheduled.
 #162, the Panackelty-written preview server, remains separate from completed #160.
 
+## Independent website publishing
+
+Work record: [#178](https://github.com/sproates/panackelty/issues/178).
+
+State: **Idea; unscheduled**. Recorded at the user's request on 2026-10-01.
+Scope: maintenance. This does not select implementation or change current
+priorities or the grooming ledger.
+
+Website edits still share core validation and coverage publication through
+`.github/workflows/pages.yml`, despite consuming a pinned browser release.
+The user reports that simple website publication can take half an hour; current
+hosted timings need measuring. This slows content corrections and site work.
+
+Move pages, assets, public documentation and their publishing workflow into
+`sproates/panackelty-website`. Keep the compiler, VM, specification and runtime
+bundle contract in core, and browser adaptation/playground releases in
+`sproates/panackelty-browser`. The site explicitly pins tested browser artifacts
+and advertised native releases. A new core or browser release must not change
+the live site until a separately reviewed website update is published.
+
+Acceptance for the eventual implementation:
+
+- Website-only changes validate and publish without core builds or waiting for
+  core CI. Use focused content/link/assembly checks and a browser smoke test;
+  retain full browser integration checks when runtime pins or integration change.
+- Measure routine validation and merge-to-live latency, including cold and warm
+  runs. Proposed budgets are under three minutes for validation and under five
+  minutes from merge to live, reporting runner queue time separately. Confirm
+  these budgets during assessment; they are not measured guarantees.
+- Give core coverage an independent publication path, preserve existing public
+  URLs through migration or redirects, and verify domain ownership, previews,
+  rollback and deployed assets before retiring the existing publisher.
+- Publish only existing, checksum-verified release artifacts. Validate download
+  targets and execute advertised examples against their declared released
+  version, including examples that run in the pinned playground. Review prose
+  and syntax claims as well as machine checks; label unreleased features and
+  differing native/browser versions explicitly. Do not call an older pin
+  "latest" without verifying that claim.
+- Record core-to-website follow-ups through the
+  [website impact process](docs/ROADMAP_PROCESS.md#website-impact-and-follow-ups).
+  Recording a follow-up never schedules or starts the update. Version lag is
+  acceptable only while every published claim remains true for its stated version.
+
+Effort: M, provisionally 2–3 PRs across core and the new website repository,
+including migration and acceptance. Dependencies include release availability,
+Pages/domain configuration, preview portability and a separate coverage
+publisher. Risks include broken URLs, overlapping deployment writers and stale
+version claims. The artifact boundary already exists; hosting cutover and timing
+remain to be assessed. No compiler changes or automatic upgrade bot are included.
+
+### Website follow-up register
+
+Record concrete follow-ups here until ownership moves explicitly to the website
+repository. Each entry needs the source issue/PR, affected pages and claims,
+currently advertised version, target version or release prerequisite, required
+update, correctness assessment, owner, state and acceptance evidence. Use a
+linked issue for detail; retain enough information here if GitHub is unavailable.
+Never mark an update complete merely because its PR merged: verify the live site.
+
+No individual core-change follow-ups have been entered by this planning change;
+this is not an audit or certification of the current site's accuracy.
+
 ### Additional platform and distribution ideas
 
 Recorded at the user's request on 2026-09-30 for future grooming. All four

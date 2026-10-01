@@ -117,6 +117,50 @@ website/coverage provenance matched. The published release pin is v0.1.1 and
 all six resource rows retain their destinations. Browser regression/preview
 acceptance and live publication are complete; no acceptance remains.
 
+### Next: fast website CI and prepared browser-test environments
+
+**Planned; high priority.** Work record:
+[#187](https://github.com/sproates/panackelty/issues/187). On 2026-10-01 the user
+selected this maintenance item before the next substantial programme #180
+feature. Repeated website setup delays affect every relevant edit and have also
+held up compiler delivery. Finish existing delivery and correctness obligations;
+then take this bounded improvement before resuming substantial programme features.
+This records priority only; implementation has not started. Programme #180 retains
+its agreed scope and progress. The grooming ledger is unchanged.
+
+Pages caches browser binaries but still invokes `playwright install --with-deps`
+on each relevant build. During PR #185 the observed job was still preparing tests
+after 4m32s, with apt reporting 364 MB of additional disk use. That observation
+establishes setup friction, not a complete publication baseline. This follow-up
+to completed #151 can be delivered independently of the unscheduled repository
+split [#178](#independent-website-publishing).
+
+Acceptance:
+
+- Compiler-only changes trigger no website assembly or browser provisioning,
+  including through coverage-publication triggers. Preserve core checks and a
+  correct coverage publication path; classify mixed and unknown inputs safely.
+- Browser tests use a pinned prepared environment matching the test suite.
+  Ordinary runs do not reinstall browsers or system packages. Assess the official
+  Playwright image first; a derived image may include Node test dependencies.
+- Dependency changes and maintenance updates explicitly refresh the environment.
+  Document ownership and reproducible rebuilds; ordinary site edits do not rebuild it.
+- Preserve existing test coverage and failure gates. Test relevant website,
+  runtime-pin and integration changes, plus routing and provisioning failures.
+- Measure cold and warm routine validation and merge-to-live times, including
+  image pulls, dependency restoration, assembly, tests and deployment. Report
+  queue time separately. Agree and record a numeric budget during assessment,
+  before final evaluation, and meet it without weakening coverage. Replacing apt
+  setup with a slow image download does not by itself satisfy acceptance.
+
+Effort: S–M, provisionally 1–2 implementation PRs including meaningful routing
+regressions and hosted publication verification. Existing pinned browser releases
+and test ownership remain. Risks include mismatched versions, stale environments,
+missed relevant changes and download latency. No self-hosted runner or hosting
+change is preselected. Compiler changes, automatic release promotion and the
+website repository migration are outside this item; website correctness remains
+mandatory. Detailed implementation evidence belongs in #187.
+
 ### Now: compiler and runtime understanding programme
 
 **In progress:** the user authorised starting all five workstreams as one
@@ -145,8 +189,8 @@ guards and unrelated facts. The public v9 seed is refreshed. Regression coverage
 includes 20 formerly accepted unsafe cases, three positive fixtures, a 48-case
 semantic matrix with actual VM execution, and public
 CLI failure/success fixtures. The VM's runtime protection is unchanged. This
-finishes the bounded core repair, not #134 or programme #180. Next: source
-attribution and retained checker evidence. Validation passes; the measured 139s
+finishes the bounded core repair, not #134 or programme #180. The next programme
+feature is source attribution and retained checker evidence, after planned #187. Validation passes; the measured 139s
 full check and 86s unit phase exceed the 120s/15s targets. Keep validation-cost
 profiling under #106 as an explicit prioritisation reminder; retain all coverage.
 Paired compiler-only checks show no material slowdown on the measured workload;
@@ -324,7 +368,8 @@ support, runnable demonstrations, resource baselines and a bounded independent
 contract exercise. These are candidates for assessment, not blanket feature
 authorisation. The user selected modular validation and component boundaries
 under #106; its bounded validation slice is now complete as recorded below.
-Compiler explanations are now selected as Next above; other candidates remain unscheduled.
+Programme #180 remains selected; planned #187 takes priority before its next
+substantial feature. Other candidates remain unscheduled.
 
 The sections below retain earlier decisions and completion evidence. Current
 candidate state and the agreed next task are recorded in the grooming table;
@@ -458,8 +503,9 @@ suspension work. It is distinct from value provenance and remains unscheduled.
 Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 
 State: **Idea; unscheduled**. Recorded at the user's request on 2026-10-01.
-Scope: maintenance. This does not select implementation or change current
-priorities or the grooming ledger.
+Scope: maintenance. This does not select the repository migration or change the
+grooming ledger. The separate [planned #187 CI improvement](#next-fast-website-ci-and-prepared-browser-test-environments)
+can proceed before this split.
 
 Website edits still share core validation and coverage publication through
 `.github/workflows/pages.yml`, despite consuming a pinned browser release.

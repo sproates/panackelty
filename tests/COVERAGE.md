@@ -4,6 +4,9 @@ Website preview regression tests in `tests/preview.test.cjs` cover immutable
 browser bytes, source identity, explicit coverage separation, corrupt inputs,
 atomic assembly, traversal/symlink rejection and local HTTP MIME/method handling.
 These are website tooling checks, not additional language execution coverage.
+Session tests also cover fresh rebuilds, saved-build preservation, occupied ports,
+invalid CLI arguments and SIGINT/SIGTERM shutdown with temporary-file cleanup.
+Actual iPhone access from the remote development environment remains unverified.
 
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 additional runtime and browser tests: unchanged bytecode compatibility, native

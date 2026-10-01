@@ -109,13 +109,29 @@ Core hosted and post-merge acceptance are complete as recorded above.
 
 The user selected [#160](https://github.com/sproates/panackelty/issues/160) on
 2026-10-01. Previews must work independently of ChatGPT and contributor tooling.
-First slice: shared website assembly, a checksummed portable preview build,
-loopback server and tested PR artifact with exact source identity. See
-[the contract](docs/PR_PREVIEWS.md). This is an intermediate delivery, not a
-working hosted preview service. Next slice: isolated hosting, trusted publication,
-fork approval, manual dispatch, GitHub links and lifecycle cleanup, followed by
-live acceptance. Production remains separate. The initiative counts once when
-that acceptance completes; the ledger remains 2 of 3, review not yet due.
+The user clarified the scope on the same date: a temporary local preview for
+the author, not a public URL or permanent staging site. The hosted-publication
+proposal is superseded; no hosting provider or contributor account is required.
+PR #161 delivers shared assembly, a checksummed portable build, loopback serving
+and a tested CI artifact. The follow-up adds one-command build/start with fresh
+temporary output, stop/cleanup and explicit rebuild instructions. See
+[the local workflow](docs/PR_PREVIEWS.md).
+
+Acceptance remains pending: the delivery agent must verify the private preview
+route available in the user's remote/iPhone environment, and the owner must open
+and interact with the preview on their phone. Local automated lifecycle/HTTP
+checks do not establish phone accessibility. Keep #160 open until that evidence
+is recorded. Production is unchanged; the ledger remains 2 of 3, review not due.
+Current workspace evidence: a separate shell cannot reach the server's localhost
+port, and the supplied browser rejects it with `ERR_BLOCKED_BY_CLIENT`. There is
+no exposed port-forwarding tool in this session. The owner/delivery agent must
+use an environment with a permitted private preview route to finish phone
+acceptance; do not substitute a public hosting service.
+
+Backlog **Idea, unscheduled**: [#162](https://github.com/sproates/panackelty/issues/162)
+would replace the serving component with a Panackelty-written local HTTP server.
+Assess HTTP, file-I/O and long-running lifecycle needs first; this dogfooding
+follow-up does not block the current Node-based workflow.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
 server contract PR #129 and server implementation PR #130. Both operations remain
@@ -1531,6 +1547,8 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 
 - [ ] Revisit compiler/nested-runner and collection costs when the developer
       feedback delay justifies it; use current measurements before changing code
+- [ ] Retain the local full-check warning observed during preview work (208s
+      against 120s on 2026-10-01); this remains a non-blocking validation-cost item
 - [ ] Keep runner queue/completion tails distinct from actual execution time
 - [ ] Demonstrate the 120s clean and 15s focused budgets on named reference
       environments; never remove tests, widen budgets or hide failing samples

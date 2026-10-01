@@ -102,6 +102,10 @@ policy, formatting and validation tools cover only their documented scope.
 
 ## Validate a change
 
+For website changes, run `node scripts/preview.cjs build` followed by
+`node scripts/preview.cjs serve` (Node 24). See [PR previews](docs/PR_PREVIEWS.md)
+for local use, CI artifacts, provenance and the planned hosted workflow.
+
 Run `bash scripts/validate_change.sh --plan origin/main` to inspect the affected
 components and required checks, then use `--run` to execute the selected local
 route. It includes branch changes plus staged, unstaged and untracked edits.

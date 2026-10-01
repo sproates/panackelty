@@ -105,6 +105,18 @@ Core hosted and post-merge acceptance are complete as recorded above.
 
 ## Current status and grooming, 2026-09-30
 
+### Now: portable automatic PR previews
+
+The user selected [#160](https://github.com/sproates/panackelty/issues/160) on
+2026-10-01. Previews must work independently of ChatGPT and contributor tooling.
+First slice: shared website assembly, a checksummed portable preview build,
+loopback server and tested PR artifact with exact source identity. See
+[the contract](docs/PR_PREVIEWS.md). This is an intermediate delivery, not a
+working hosted preview service. Next slice: isolated hosting, trusted publication,
+fork approval, manual dispatch, GitHub links and lifecycle cleanup, followed by
+live acceptance. Production remains separate. The initiative counts once when
+that acceptance completes; the ledger remains 2 of 3, review not yet due.
+
 The finite TCP client/server stage is implemented on `main`: client PR #127,
 server contract PR #129 and server implementation PR #130. Both operations remain
 unreleased and are absent from alpha.10 downloads. The server completion evidence

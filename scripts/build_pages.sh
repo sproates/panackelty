@@ -13,25 +13,12 @@ case "$commit:$site_commit" in *[!0-9a-f:]*|'') echo 'Invalid source commit' >&2
 test "${#commit}" -eq 40 && test "${#site_commit}" -eq 40
 case "$generated" in *[!0-9TZ:.-]*|'') echo 'Invalid coverage date' >&2; exit 1;; esac
 case "$run" in *[!0-9]*|'') echo 'Invalid workflow run' >&2; exit 1;; esac
-test -s "$site/index.html"
-test -s "$site/styles.css"
-test -s "$site/favicon.svg"
 test -s "$coverage/html/index.html"
 test -s "$coverage/summary.txt"
-test -s "$playground/index.html"
-version=$(cat "$playground/asset-version.txt")
-case "$version" in *[!0-9a-f]*|'') echo 'Invalid playground asset version' >&2; exit 1;; esac
-test "${#version}" -eq 64
-for asset in style.css app.mjs examples.mjs controller.mjs worker.mjs runtime.mjs vm.wasm compiler.bc stdlib.json provenance.json LICENSE vendor/index.js vendor/LICENSE-MIT; do
-    test -s "$playground/assets/$version/$asset"
-done
-test ! -e "$destination"
 # Reject symlinks instead of following them into unrelated files.
-test -z "$(find "$site" "$coverage" "$playground" -type l -print)"
-mkdir -p "$destination/coverage"
-cp -R "$site/." "$destination/"
-mkdir "$destination/playground"
-cp -R "$playground/." "$destination/playground/"
+test -z "$(find "$coverage" -type l -print)"
+sh "$(dirname "$0")/assemble_site.sh" "$site" "$playground" "$destination"
+mkdir "$destination/coverage"
 cp -R "$coverage/html" "$destination/coverage/html"
 cp "$coverage/summary.txt" "$destination/coverage/summary.txt"
 cat > "$destination/coverage/index.html" <<EOF

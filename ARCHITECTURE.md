@@ -1,5 +1,11 @@
 # Panackelty architecture
 
+Website review builds and production share `scripts/assemble_site.sh` for
+static site/playground assembly. The Node-only `scripts/preview.cjs` website
+tool adds source identity and loopback serving; it is outside the native
+toolchain dependency boundary. [PR previews](docs/PR_PREVIEWS.md) documents the
+artifact and future trusted publication boundary.
+
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual

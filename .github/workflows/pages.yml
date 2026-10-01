@@ -60,7 +60,7 @@ jobs:
           persist-credentials: false
 
       - name: Test source selection and report navigation
-        run: node --test tests/pages.test.cjs tests/playground_release.test.cjs
+        run: node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
 
       - name: Test complete site assembly
         run: sh tests/pages.sh
@@ -99,7 +99,17 @@ jobs:
           node-version: '24'
 
       - name: Fetch the selected website's pinned browser release
-        run: node scripts/fetch_playground.cjs "$SITE_SOURCE/site/playground.json" "$SITE_SOURCE/build/playground"
+        env:
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          PREVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PREVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$IS_PR" = true ]; then
+            node scripts/preview.cjs build build/website
+            cp -R build/website/playground build/playground
+          else
+            node scripts/fetch_playground.cjs "$SITE_SOURCE/site/playground.json" "$SITE_SOURCE/build/playground"
+          fi
 
       - name: Check out the reviewed browser integration suite
         uses: actions/checkout@v6
@@ -120,12 +130,6 @@ jobs:
           cd build/browser-tests
           npm ci --ignore-scripts --no-audit --no-fund
           npx playwright install --with-deps chromium firefox webkit
-
-      - name: Assemble PR website with the pinned playground
-        if: github.event_name == 'pull_request'
-        run: |
-          cp -R site build/website
-          cp -R build/playground build/website/playground
 
       - name: Assemble complete Pages artifact
         if: github.event_name != 'pull_request'
@@ -153,6 +157,15 @@ jobs:
           export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/$SITE_SOURCE/build/playground"
           cd build/browser-tests
           npm run test:browser
+
+      - name: Archive tested PR preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/website
+          retention-days: 7
+          if-no-files-found: error
 
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request'

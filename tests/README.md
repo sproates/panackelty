@@ -10,12 +10,17 @@ cache upgrades are retained. Set `PLAYGROUND_SITE_DIR` and
 running that suite locally; follow the browser repository's setup instructions.
 There is no duplicate browser source/test tree in core.
 
-`node --test tests/pages.test.cjs tests/playground_release.test.cjs` and
+`node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs` and
 `sh tests/pages.sh` check publisher selection, assembly, release-pin validation,
 download failures, size/digest bounds, extraction safety, incomplete assets and
 stale-output rejection. Production additionally verifies every deployed asset,
 MIME type and coverage provenance. Native `make check` does not need Node,
 Playwright or WASI; its existing native and bundle contracts remain independent.
+
+Preview tests additionally exercise working-tree identity, coverage separation,
+corrupt archives, atomic output, loopback HTTP serving, Wasm MIME, traversal,
+symlink rejection and read-only methods. The Pages job tests and archives the
+same preview artifact. See [PR previews](../docs/PR_PREVIEWS.md).
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five

@@ -33,9 +33,6 @@ async function build(root, destination, metadata, archive) {
       if (!/<body\b[^>]*>/i.test(html)) throw new Error('Preview page has no body');
       fs.writeFileSync(target, html.replace(/<body\b[^>]*>/i, match => match + notice));
     }
-    // Never label main's coverage as coverage of an unvalidated PR revision.
-    fs.mkdirSync(path.join(output, 'coverage'));
-    fs.writeFileSync(path.join(output, 'coverage/index.html'), '<!doctype html><title>Preview coverage</title><h1>Coverage is not generated for this preview</h1><p><a href="https://panackelty.com/coverage/">Published main coverage (different revision)</a></p>');
     fs.writeFileSync(path.join(output, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
     fs.renameSync(output, destination);
   } finally { fs.rmSync(temporary, {recursive: true, force: true}); }

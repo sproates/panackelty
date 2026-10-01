@@ -13,13 +13,13 @@ There is no duplicate browser source/test tree in core.
 `node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs` and
 `sh tests/pages.sh` check publisher selection, assembly, release-pin validation,
 download failures, size/digest bounds, extraction safety, incomplete assets and
-stale-output rejection. Production additionally verifies every deployed asset,
-MIME type and coverage provenance. Native `make check` does not need Node,
+stale-output rejection. Production additionally verifies website navigation and every playground asset,
+MIME type and website provenance. Native `make check` does not need Node,
 Playwright or WASI; its existing native and bundle contracts remain independent.
 
 Preview tests additionally exercise working-tree identity, coverage separation,
 corrupt archives, atomic output, loopback HTTP serving, Wasm MIME, traversal,
-symlink rejection and read-only methods. The Pages job tests and archives the
+symlink rejection and read-only methods. Check’s website validator tests and archives the
 same preview artifact. See [PR previews](../docs/PR_PREVIEWS.md).
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
@@ -172,52 +172,60 @@ retains them as a per-run artifact so timing regressions remain visible.
 
 ### Public coverage publication
 
-[Public native VM coverage](https://panackelty.com/coverage/) includes a landing
-page, LLVM source navigation and `summary.txt`. The Check workflow continues to
-upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
-Only successful push validation on `main` is eligible for publication.
+[Public native VM coverage](https://sproates.github.io/panackelty-coverage/)
+is hosted independently by
+[`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage).
+Core Check still generates and uploads `native-coverage-<run-id>` artifacts with
+90-day retention. The separate publisher uses its built-in GitHub token to read
+public artifacts; it needs no new credential. It checks about every 15 minutes
+and supports manual dispatch. GitHub may delay schedules and disables scheduled
+workflows in inactive public repositories after 60 days; maintainers should check
+that repository's Actions status if the public report stops advancing.
 
-The Pages workflow is the single writer for the website and coverage. It pins
-current `main` before publication. All applicable website inputs use Check's reusable
-`website-validation.yml`, sharing `browser-validation.yml` with Pages. Its checked
-artifact is archived only after all browser scenarios pass. Native matrices are
-skipped only for the four-file website route. Applicable full-route changes run
-native and website validation concurrently; every existing compatibility gate
-requires both results. Native-only changes require native success and an explicit
-website skip. Missing or invalid applicability fails closed.
-Pages defers PR/push website validation to Check; successful main completion
-restores `checked-website-<sha>`, verifies its fingerprint/coverage-free shape,
-and attaches prior trusted coverage without another browser run. PR artifacts
-remain ineligible for production.
-Publication requires a successful trusted Check for that exact SHA across paginated API results. Missing validation fails
-closed, including when the API returns only older successes. Coverage comes
-from the highest Check run number at or before that selected run with a report;
-API result order and old rerun completion times do not determine freshness.
-Native-only and documentation-only successes reuse tested website bytes and
-attach fresh coverage without assembling the website or provisioning browsers. Production runs serialize and select sources at execution time, so a
-delayed older trigger cannot restore its older site. PRs only test; release
-workflows do not deploy. Manual Pages dispatch is permitted only from `main`
-and applies the same exact-commit validation. Publication waits at most two minutes for a pending Check; failed validation
-or a superseding main cannot substitute an older site. Retry after validation.
-A main advance during selection does not change the pinned source.
+Only completed successful trusted main-push Check reports are eligible. The
+publisher validates source ancestry, artifact identity and report navigation,
+serializes deployments, rechecks selection before publishing and prevents rollback
+behind the live report. Its landing page and `provenance.json` identify the core
+source, Check run, artifact and archive date. It verifies every deployed report
+file. Missing/expired reports, API errors and failed validation leave the last
+published report visible; investigate that repository's workflow and rerun a full
+core Check if a fresh artifact is needed. Publishing does not execute core code.
 
-The landing page and `coverage/provenance.txt` identify both source commits,
-the report archive date (UTC) and Check run. A failed validation leaves that
-commit ineligible. Missing/expired artifacts, API errors or invalid reports
-fail the Pages build before deployment; the existing public site stays intact.
-If coverage has expired, run a full Check on `main` before retrying Pages.
-Publication failures are visible in the Pages workflow; freshness is explicit
-in the public date and commits, rather than implying every report is current.
-Post-deployment checks verify the public entry pages, a sample of LLVM source
-navigation and exact provenance. A verification failure is reported by Pages
-and requires investigation; it does not automatically roll back a deployment.
+Website publication never selects, downloads or verifies those report bytes.
+Core Pages retains `/coverage/` and `/coverage/html/` as links to the new report;
+old deep LLVM source URLs are not mirrored. The homepage and documentation link
+directly to the independent host. Review previews use the same landing pages,
+which explicitly say the report may describe a different source revision.
 
-`sh tests/pages.sh` exercises complete assembly and missing-report, symlink,
-invalid-provenance and stale-output failures within the canonical harness.
-`node --test tests/pages.test.cjs` tests stale/unordered history, exact-main validation, pagination, API failures
-and all local
-report links in the Pages PR job. Node is only a Pages automation dependency,
-not a dependency of the native compiler, packaging or `make check`.
+### Website publication
+
+Check owns applicable website validation and certifies `checked-website-<sha>`
+only after all 24 browser scenarios pass. The narrow website route skips native
+matrices; applicable full routes require both native and website success at every
+compatibility gate. Native-only checks require an explicit website skip. Missing
+or malformed applicability fails closed. PR artifacts never seed production.
+
+Automatic Pages runs ignore obsolete trigger SHAs, require successful exact-main
+Check and restore only its browser certificate. Core/docs-only checks without a
+certificate do no assembly, artifact transfer, browser provisioning or deployment.
+Restoration verifies the input fingerprint, links, absence of bundled reports and
+symlinks. Production serializes, rechecks the pinned source before packaging and
+fails if main advances. API errors and expired certificates fail closed.
+
+Manual dispatch from main retains trusted fingerprint-based reuse and explicit
+rebuild support. Publication waits up to 120 seconds for exact-source Check;
+failed validation cannot substitute an older source. The website records its own
+`publication.json` (source SHA and Check run). Exact automatic duplicates skip
+publication. Live verification compares entry pages, local links, every playground
+asset, Wasm MIME and website provenance without contacting the coverage host.
+Failure requires investigation; it does not automatically roll back deployment.
+
+`sh tests/pages.sh` exercises website/playground assembly, compatibility landing
+pages, invalid asset identities, missing assets, symlinks and stale-output rejection
+in the canonical harness. `node --test tests/pages.test.cjs` covers exact-source
+selection without coverage, core-only no-ops, trusted artifact selection, API
+errors, duplicates, local links and live byte/MIME/provenance failures. Node is
+only an automation dependency, not required by native `make check` or packaging.
 
 The specification-to-test map and prioritized coverage backlog live in
 [`COVERAGE.md`](COVERAGE.md). Update it when a language promise or its automated
@@ -599,14 +607,14 @@ checks and `npm run test:browser` in the pinned browser suite. See the
 `scripts/pages_fingerprint.sh` hashes tracked names, modes and blob IDs using the
 same native-only exclusions as PR routing. Unknown files participate. Website,
 publisher, browser-test and workflow changes therefore require fresh browser
-validation. Production reuses only a matching `validated-website-<fingerprint>`
+validation. Manual publication can reuse a matching `validated-website-<fingerprint>`
 artifact from a successful main Pages run in this repository. PR, failed, foreign
 or incomplete runs cannot populate this trusted path. Missing artifacts bootstrap
 validation; expired artifacts and API errors fail closed. An explicit main Pages
 dispatch with `rebuild_website=true` regenerates the artifact for maintenance or
 cold measurement. An unchanged subsequent dispatch measures warm reuse. Artifacts
-retain 90 days and contain no coverage: `attach_coverage.sh` supplies the latest
-validated native report while preserving every website/playground byte. Reuse
+retain 90 days and contain the compatibility landing pages, with no bundled
+native report. Packaging writes the newly validated website identity. Reuse
 does not promote a browser release or execute new core compiler code in the site.
 
 The agreed cold/warm budgets are 120s validation and 180s merge-to-live, excluding
@@ -640,10 +648,9 @@ cheap warm hits; a miss searches older runs with at most eight concurrent
 read-only requests. Results are evaluated newest first, regardless of response
 order, and any API failure in a batch fails publication. The exact-source Check
 wait polls every five seconds with the same 120-second total sleep allowance;
-source changes, expired reports and API errors still fail immediately.
-A coverage-completion trigger with a matching
-validated website checks live coverage provenance against the selected website
-commit, coverage commit, report timestamp and Check run. Exact matches skip
-assembly, browser provisioning, artifact uploads and deployment. Changed or
-missing live provenance requires publication; API failures fail closed. Manual
+source changes and API errors still fail immediately.
+An automatic website trigger with an exact-source certificate compares live
+`publication.json` against the selected website commit and Check run. Exact
+matches skip assembly, browser provisioning, artifact uploads and deployment.
+Missing live identity requires publication; lookup errors fail closed. Manual
 rebuilds and PR validation never take the duplicate-publication shortcut.

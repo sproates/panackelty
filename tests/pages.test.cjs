@@ -25,74 +25,36 @@ function api(pages, artifacts, head = 5) {
     actions: {listWorkflowRuns: 'runs', listWorkflowRunArtifacts: 'artifacts'},
   }};
 }
-test('documentation-only latest website retains prior coverage across pages', async () => {
-  const selected = await selectSource(api([[run(5)], [run(4)]], {4: [artifact(4)]}), repo);
-  assert.equal(selected.site.id, 5); assert.equal(selected.run.id, 4);
-});
-test('latest successful full run replaces both sources', async () => {
-  const selected = await selectSource(api([[run(5), run(4)]], {5: [artifact(5)], 4: [artifact(4)]}), repo);
-  assert.equal(selected.site.id, 5); assert.equal(selected.run.id, 5);
-});
-test('failed, incomplete, PR, other-branch and foreign runs cannot publish', async () => {
-  const bad = [run(10, {conclusion: 'failure'}), run(9, {status: 'in_progress'}),
-    run(8, {event: 'pull_request'}), run(7, {head_branch: 'feature'}),
-    run(6, {head_repository: {full_name: 'other/fork'}})];
-  const selected = await selectSource(api([[...bad, run(4)]],
-    Object.fromEntries([...bad, run(4)].map(r => [r.id, [artifact(r.id)]])), 4), repo);
-  assert.equal(selected.site.id, 4); assert.equal(selected.run.id, 4);
-});
-test('missing and expired reports fail closed instead of erasing published coverage', async () => {
-  await assert.rejects(selectSource(api([[run(5)]], {}), repo), /No successful/);
-  await assert.rejects(selectSource(api([[run(5), run(4)]], {
-    5: [artifact(5, {expired: true})], 4: [artifact(4)],
-  }), repo), /expired/);
-});
-test('API failures are not treated as missing coverage', async () => {
-  const github = api([[run(5)]], {});
+test('exact successful website selection does not inspect coverage artifacts', async () => {
+  const github = api([[run(2)], [run(5), run(4)]], {});
   const iterator = github.paginate.iterator;
-  github.paginate = async () => {throw new Error('permission denied');};
+  github.paginate = async () => {throw new Error('website selection must not request artifacts');};
   github.paginate.iterator = iterator;
-  await assert.rejects(selectSource(github, repo), /permission denied/);
+  assert.deepEqual(await selectSource(github, repo), {site:run(5)});
 });
-
-test('stale successful history cannot publish an older website', async () => {
-  await assert.rejects(selectSource(api([[run(4)]], {4: [artifact(4)]}), repo),
-    /No successful main Check/);
-});
-test('unordered pages and an old rerun cannot displace current source or latest coverage', async () => {
-  const selected = await selectSource(api([[run(2)], [run(4), run(5)], [run(3)]], {
-    2: [artifact(2)], 3: [artifact(3)], 4: [artifact(4)],
-  }), repo);
-  assert.equal(selected.site.id, 5);
-  assert.equal(selected.run.id, 4);
-});
-test('a pending or failed main head never falls back to an older passing commit', async () => {
-  for (const overrides of [{status: 'in_progress'}, {conclusion: 'failure'},
-    {head_repository: null}, {repository: {full_name: 'other/repo'}}]) {
-    await assert.rejects(selectSource(api([[run(5, overrides), run(4)]], {
-      4: [artifact(4)], 5: [artifact(5)],
-    }), repo), /No successful main Check/);
+test('failed, incomplete, PR, other-branch and foreign exact-main runs cannot publish', async () => {
+  for (const overrides of [{conclusion:'failure'}, {status:'in_progress'},
+    {event:'pull_request'}, {head_branch:'feature'}, {head_repository:null},
+    {repository:{full_name:'other/repo'}}, {head_repository:{full_name:'other/fork'}}]) {
+    await assert.rejects(selectSource(api([[run(5,overrides),run(4)]],{}),repo), /No successful main Check/);
   }
 });
-test('a main advance during selection cannot mix in coverage newer than the pinned source', async () => {
-  const selected = await selectSource(api([[run(6), run(5), run(4)]], {
-    6: [artifact(6)], 4: [artifact(4)],
-  }), repo);
-  assert.equal(selected.site.id, 5);
-  assert.equal(selected.run.id, 4);
+test('stale successes and old reruns cannot displace current main', async () => {
+  await assert.rejects(selectSource(api([[run(4)]],{}),repo), /No successful main Check/);
+  assert.equal((await selectSource(api([[run(6),run(4)],[run(5)]],{}),repo)).site.id,5);
 });
 test('branch and paginated run lookup errors fail closed', async () => {
-  const github = api([[run(5)]], {5: [artifact(5)]});
+  const github = api([[run(5)]], {});
   github.rest.repos.getBranch = async () => {throw new Error('branch unavailable');};
   await assert.rejects(selectSource(github, repo), /branch unavailable/);
-  const history = api([[run(5)]], {5: [artifact(5)]});
+  const history = api([[run(5)]], {});
   history.paginate.iterator = async function* () {
     yield {data: [run(5)]};
     throw new Error('history unavailable');
   };
   await assert.rejects(selectSource(history, repo), /history unavailable/);
 });
-test('assembled real website and nested source links resolve; broken links fail', async t => {
+test('assembled website navigation and deployed bytes resolve; failures remain visible', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pages-links-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.cpSync('site', root, {recursive: true});
@@ -105,21 +67,20 @@ test('assembled real website and nested source links resolve; broken links fail'
   for (const name of ['vm.wasm', 'compiler.bc', 'stdlib.json', 'worker.mjs', 'provenance.json']) {
     fs.writeFileSync(path.join(root, assets, name), 'fixture');
   }
-  fs.mkdirSync(path.join(root, 'coverage/html/coverage/src'), {recursive: true});
-  fs.writeFileSync(path.join(root, 'coverage/index.html'), '<a href="html/index.html">report</a>');
-  fs.writeFileSync(path.join(root, 'coverage/summary.txt'), 'summary');
-  fs.writeFileSync(path.join(root, 'coverage/html/index.html'), '<a href="coverage/src/vm.c.html">source</a>');
-  fs.writeFileSync(path.join(root, 'coverage/html/coverage/src/vm.c.html'), '<a href="../../index.html">back</a>');
+  fs.mkdirSync(path.join(root, 'help/topics'), {recursive:true});
+  fs.writeFileSync(path.join(root, 'help/index.html'), '<a href="topics/example.html">topic</a>');
+  fs.writeFileSync(path.join(root, 'help/topics/example.html'), '<a href="../index.html">back</a>');
   const targets = await checkPages(root);
-  assert(targets.has('coverage/html/coverage/src/vm.c.html'));
+  assert(targets.has('help/topics/example.html'));
   assert(targets.has('playground/index.html'));
-  fs.writeFileSync(path.join(root, 'coverage/provenance.txt'), 'coverage_commit=abc\n');
+  fs.writeFileSync(path.join(root, 'publication.json'), JSON.stringify({schema:1,site_sha:run(5).head_sha,check_run:5}));
   const visited = [];
   let stale = false;
   let broken = false;
   let wrongMime = false;
   let staleWasm = false;
   t.mock.method(global, 'fetch', async url => {
+    assert.equal(url.origin, 'https://example.test', 'must not depend on external coverage host');
     const file = url.pathname.slice(1);
     visited.push(file);
     if (broken) return {ok: false, status: 404};
@@ -127,11 +88,11 @@ test('assembled real website and nested source links resolve; broken links fail'
       headers: new Map([['content-type', wrongMime ? 'text/html' : 'application/wasm']]),
       arrayBuffer: async () => staleWasm && file === `${assets}/vm.wasm`
         ? Buffer.from('stale') : fs.readFileSync(path.join(root, file)),
-      text: async () => stale && file === 'coverage/provenance.txt'
+      text: async () => stale && file === 'publication.json'
       ? 'old provenance' : fs.readFileSync(path.join(root, file), 'utf8')};
   });
   await checkPages(root, 'https://example.test/');
-  assert(visited.includes('coverage/html/coverage/src/vm.c.html'));
+  assert(visited.includes('help/topics/example.html'));
   assert(visited.includes(`${assets}/vm.wasm`));
   assert(visited.includes(`${assets}/worker.mjs`));
   wrongMime = true;
@@ -143,9 +104,13 @@ test('assembled real website and nested source links resolve; broken links fail'
   await assert.rejects(checkPages(root, 'https://example.test/'), /provenance/);
   stale = false; broken = true;
   await assert.rejects(checkPages(root, 'https://example.test/'), /404/);
-  fs.unlinkSync(path.join(root, 'coverage/html/coverage/src/vm.c.html'));
+  broken = false;
+  fs.writeFileSync(path.join(root, 'coverage/summary.txt'), 'stale bundled report');
+  await assert.rejects(checkPages(root), /Unexpected bundled coverage/);
+  fs.unlinkSync(path.join(root, 'coverage/summary.txt'));
+  fs.unlinkSync(path.join(root, 'help/topics/example.html'));
   await assert.rejects(checkPages(root), /ENOENT/);
-  fs.writeFileSync(path.join(root, 'coverage/html/index.html'), '<a href="../../../outside.html">escape</a>');
+  fs.writeFileSync(path.join(root, 'help/index.html'), '<a href="../../outside.html">escape</a>');
   await assert.rejects(checkPages(root), /Escaping link/);
 });
 
@@ -167,13 +132,13 @@ test('homepage section navigation and example references have unique targets', (
 
 const findWebsite = require('../scripts/pages_artifact.cjs');
 const fingerprint = 'a'.repeat(64);
-test('checked website is bound to the exact successful main Check and keeps older coverage', async () => {
+test('checked website is bound to the exact successful main Check without requiring coverage', async () => {
   const checked=require('../scripts/pages_checked_website.cjs');
   const sha=run(5).head_sha;
   const candidate={id:99,name:`checked-website-${sha}`,expired:false};
   const github=api([[run(5),run(4)]],{5:[candidate],4:[artifact(4)]});
   assert.equal((await checked(github,repo,sha)).id,99);
-  assert.equal((await selectSource(github,repo)).run.id,4);
+  assert.equal((await selectSource(github,repo)).site.id,5);
   await assert.rejects(checked(github,repo,run(4).head_sha),/Main advanced/);
   for (const overrides of [{event:'pull_request'}, {status:'in_progress'}, {conclusion:'failure'},
     {head_repository:{full_name:'other/repo'}}, {head_branch:'feature'}]) {
@@ -184,7 +149,7 @@ test('checked website is bound to the exact successful main Check and keeps olde
     {5:[{...candidate,name:`checked-website-${run(4).head_sha}`}],4:[artifact(4)]}),repo,sha),null);
   await assert.rejects(checked(api([[run(5),run(4)]],
     {5:[{...candidate,expired:true}],4:[artifact(4)]}),repo,sha),/expired/);
-  await assert.rejects(checked(api([[run(5)]],{5:[candidate]}),repo,sha),/coverage artifact/);
+  assert.equal((await checked(api([[run(5)]],{5:[candidate]}),repo,sha)).id,99);
   await assert.rejects(checked(github,repo,'invalid'),/Invalid website source/);
 });
 
@@ -203,9 +168,10 @@ test('website certification follows browser success; publisher restores and chec
   assert.match(website,/name: checked-website-\$\{\{ github.sha \}\}/);
   assert.match(website,/name: website-preview-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/);
   assert.doesNotMatch(website,/if: always|pages: write|id-token: write|make check/);
-  assert.match(pages,/scripts\/pages_checked_website.cjs/);
+  assert.match(pages,/scripts\/pages_candidate.cjs/);
   assert.match(pages,/test .*cat build\/website\/\.validation-fingerprint/);
-  assert.match(pages,/test ! -e build\/website\/coverage/);
+  assert.match(pages,/node scripts\/check_pages.cjs build\/website/);
+  assert.doesNotMatch(pages,/native-coverage|coverage.zip|attach_coverage|COVERAGE_SHA/);
   assert.match(pages,/grep -qx 'pages=true'/);
   assert.match(pages,/s\/\^pages=true\$\/pages=false\//);
 });
@@ -306,7 +272,7 @@ test('timings include image initialization and transfers, report initial queue a
   const jobs=[{name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'},
     {name:'Browser integration',started_at:time(35),completed_at:time(80),conclusion:'success'},
     {name:'Package tested Pages',started_at:time(85),completed_at:time(90),conclusion:'success'},
-    {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
+    {name:'Verify published website',started_at:time(95),completed_at:time(100),conclusion:'success'}];
   const result=measure({created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'},jobs,time(0),'abc');
   assert.equal(result.validation_seconds,80);
   assert.equal(result.initial_queue_seconds,10);
@@ -321,12 +287,12 @@ test('publication waits for exact Check, and never substitutes a newer or older 
   const sha='b'.repeat(40); let calls=0; let waits=0;
   const result=await ready(async()=>{
     if (++calls<3) throw new Error(`No successful main Check for ${sha}; wait for validation and retry Pages.`);
-    return {site:{head_sha:sha},run:{id:12}};
+    return {site:{head_sha:sha,id:12}};
   },sha,async ms=>{assert.equal(ms,5000);waits++;});
-  assert.equal(result.run.id,12); assert.equal(waits,2);
+  assert.equal(result.site.id,12); assert.equal(waits,2);
   await assert.rejects(ready(async()=>({site:{head_sha:'c'.repeat(40)}}),sha), /Main advanced/);
   await assert.rejects(ready(async()=>{throw new Error('API denied');},sha), /API denied/);
-  await assert.rejects(ready(async()=>{throw new Error('Coverage expired');},sha), /Coverage expired/);
+  await assert.rejects(ready(async()=>{throw new Error('Certificate expired');},sha), /Certificate expired/);
   calls=0;
   await assert.rejects(ready(async()=>{calls++;throw new Error(`No successful main Check for ${sha}; pending`);},sha,async()=>{}), /pending/);
   assert.equal(calls,25);
@@ -354,7 +320,7 @@ test('failed, cancelled, skipped and missing live verification never report merg
   const prepare={name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'};
   for (const conclusion of ['failure','cancelled','skipped',null]) {
     const jobs=[prepare];
-    if (conclusion) jobs.push({name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion});
+    if (conclusion) jobs.push({name:'Verify published website',started_at:time(95),completed_at:time(100),conclusion});
     const result=measure(run,jobs,time(0),'abc');
     assert.equal(result.merge_to_live_wall_seconds,null,conclusion);
     assert.equal(result.merge_to_live_seconds,null,conclusion);
@@ -367,7 +333,7 @@ test('refreshes, reruns and superseding sources are not first merge-to-live meas
   const time=n=>new Date(n*1000).toISOString();
   const run={created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'};
   const jobs=[{name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'},
-    {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
+    {name:'Verify published website',started_at:time(95),completed_at:time(100),conclusion:'success'}];
   for (const change of [{event:'workflow_dispatch'},{event:'workflow_run'},{event:'pull_request'},
     {run_attempt:2},{head_branch:'feature'},{head_sha:'older'}]) {
     assert.equal(measure({...run,...change},jobs,time(0),'abc').merge_to_live_wall_seconds,null);
@@ -389,20 +355,49 @@ test('artifact history failures propagate and reuse decisions are observable', a
   await assert.rejects(findWebsite(broken,repo,fingerprint),/history unavailable/);
 });
 
-test('duplicate publication requires exact live website and coverage identity', async () => {
+test('automatic core/docs checks never fall back to Pages history or browser assembly', async () => {
+  const candidate = require('../scripts/pages_candidate.cjs');
+  for (const artifacts of [{}, {5:[artifact(5)]}]) {
+    const github = api([[run(5)]], artifacts);
+    // api's iterator rejects any history lookup other than check.yml.
+    assert.equal(await candidate(github,repo,{sha:run(5).head_sha,fingerprint,automatic:true}),null);
+  }
+  const certified = {id:99,name:`checked-website-${run(5).head_sha}`,expired:false};
+  assert.equal((await candidate(api([[run(5)]],{5:[certified]}),repo,
+    {sha:run(5).head_sha,fingerprint,automatic:true})).check_run_id,5);
+  assert.equal(await candidate({},repo,{rebuild:true}),null);
+  const workflow=fs.readFileSync('.github/workflows/pages.yml','utf8');
+  assert.match(workflow,/automatic && !artifact[\s\S]*?return;/);
+  assert.match(workflow,/steps.reuse.outputs.browser != ''/);
+  assert.match(workflow,/TRIGGER_SHA.*!=.*git rev-parse HEAD/);
+});
+
+test('manual maintenance can restore trusted Pages bytes when current Check has no certificate', async () => {
+  const candidate = require('../scripts/pages_candidate.cjs');
+  const github = api([[run(5)]], {8:[websiteArtifact(8)]});
+  github.paginate.iterator = async function* (_, args) {
+    yield {data:args.workflow_id === 'check.yml' ? [run(5)] : [websiteRun(8)]};
+  };
+  assert.equal((await candidate(github,repo,{sha:run(5).head_sha,fingerprint,automatic:false})).id,8);
+  const broken = api([[run(5)]], {});
+  const iterator = broken.paginate.iterator;
+  broken.paginate = async () => {throw new Error('artifact lookup denied');};
+  broken.paginate.iterator = iterator;
+  await assert.rejects(candidate(broken,repo,{sha:run(5).head_sha,fingerprint,automatic:true}), /artifact lookup denied/);
+});
+
+test('duplicate publication requires exact live website identity independently of coverage', async () => {
   const duplicate=require('../scripts/pages_duplicate.cjs');
-  const selected={site:run(5),run:run(4),report:{created_at:'2026-10-01T00:00:00Z'}};
+  const selected={site:run(5)};
   const sha=selected.site.head_sha;
-  const expected=`coverage_commit=${selected.run.head_sha}\narchived_at=${selected.report.created_at}\ncheck_run=4\nsite_commit=${sha}\n`;
+  const expected={schema:1,site_sha:sha,check_run:5};
   const live=body=>async (url,options)=>{
-    assert.equal(url,'https://panackelty.com/coverage/provenance.txt');
+    assert.equal(url,'https://panackelty.com/publication.json');
     assert.equal(options.cache,'no-store');
-    return {ok:true,status:200,text:async()=>body};
+    return {ok:true,status:200,json:async()=>body};
   };
   assert.equal(await duplicate(selected,sha,live(expected)),true);
-  for (const body of ['',expected.replace('check_run=4','check_run=3'),
-    expected.replace(sha,run(3).head_sha),expected.replace(selected.run.head_sha,run(2).head_sha),
-    expected.replace('00:00:00Z','00:01:00Z')]) {
+  for (const body of [{}, {...expected,check_run:4}, {...expected,site_sha:run(3).head_sha}, {...expected,schema:2}]) {
     assert.equal(await duplicate(selected,sha,live(body)),false);
   }
   assert.equal(await duplicate(selected,sha,async()=>({ok:false,status:404})),false);
@@ -418,7 +413,7 @@ test('website-only publication timings include originating Check and cannot hide
   const sha=run(5).head_sha;
   const check={...run(5),run_attempt:1,created_at:t(0)};
   const page={...run(6),head_sha:sha,event:'workflow_run',run_attempt:1,created_at:t(110)};
-  const jobs=[job('Prepare Pages',115,125),job('Package tested Pages',130,140),job('Verify published coverage',145,155)];
+  const jobs=[job('Prepare Pages',115,125),job('Package tested Pages',130,140),job('Verify published website',145,155)];
   const upstream={run:check,jobs:[job('website / Prepare checked website',5,15),job('website / Browser integration',20,100)],trigger_id:5};
   const measured=measure(page,jobs,t(0),sha,upstream);
   assert.equal(measured.validation_seconds,135);
@@ -434,7 +429,7 @@ test('website-only publication timings include originating Check and cannot hide
   for (const changes of [{trigger_id:4},{run:{...check,run_attempt:2}}]) {
     assert.equal(measure(page,jobs,t(0),sha,{...upstream,...changes}).merge_to_live_wall_seconds,null);
   }
-  const failed=[...jobs.slice(0,2),job('Verify published coverage',145,155,'failure')];
+  const failed=[...jobs.slice(0,2),job('Verify published website',145,155,'failure')];
   assert.equal(measure(page,failed,t(0),sha,upstream).merge_to_live_wall_seconds,null);
   for (const bad of [{head_sha:run(4).head_sha},{conclusion:'failure'},{event:'pull_request'}]) {
     assert.throws(()=>measure(page,jobs,t(0),sha,{...upstream,run:{...check,...bad}}),/Invalid upstream/);

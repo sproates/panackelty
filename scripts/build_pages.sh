@@ -9,39 +9,13 @@ generated=$5
 run=$6
 site_commit=$7
 playground=$8
-case "$commit:$site_commit" in *[!0-9a-f:]*|'') echo 'Invalid source commit' >&2; exit 1;; esac
-test "${#commit}" -eq 40 && test "${#site_commit}" -eq 40
-case "$generated" in *[!0-9TZ:.-]*|'') echo 'Invalid coverage date' >&2; exit 1;; esac
-case "$run" in *[!0-9]*|'') echo 'Invalid workflow run' >&2; exit 1;; esac
+# Validate report before creating output (failed inputs leave no partial site).
 test -s "$coverage/html/index.html"
 test -s "$coverage/summary.txt"
-# Reject symlinks instead of following them into unrelated files.
 test -z "$(find "$coverage" -type l -print)"
+case "$commit:$site_commit" in *[!0-9a-f:]*|'') exit 1;; esac
+test "${#commit}" -eq 40 && test "${#site_commit}" -eq 40
+case "$generated" in *[!0-9TZ:.-]*|'') exit 1;; esac
+case "$run" in *[!0-9]*|'') exit 1;; esac
 sh "$(dirname "$0")/assemble_site.sh" "$site" "$playground" "$destination"
-mkdir "$destination/coverage"
-cp -R "$coverage/html" "$destination/coverage/html"
-cp "$coverage/summary.txt" "$destination/coverage/summary.txt"
-cat > "$destination/coverage/index.html" <<EOF
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Native VM coverage — Panackelty</title>
-<link rel="stylesheet" href="../styles.css"></head>
-<body><main style="max-width: 70rem; margin: 3rem auto; padding: 1.5rem">
-<p><a href="../">Panackelty home</a></p>
-<h1>Native C VM coverage</h1>
-<p>LLVM line and branch coverage from the native test corpus. This does not
-measure the self-hosted compiler or the whole language.</p>
-<p><a href="html/index.html">Browse the interactive source report</a> ·
-<a href="summary.txt">Download the coverage summary</a></p>
-<p>Report archived (UTC): <time>$generated</time></p>
-<p>Coverage source: <a href="https://github.com/sproates/panackelty/commit/$commit">$commit</a></p>
-<p>Website source: <a href="https://github.com/sproates/panackelty/commit/$site_commit">$site_commit</a></p>
-<p><a href="https://github.com/sproates/panackelty/actions/runs/$run">Successful validation run</a></p>
-<p>This is the latest successfully published report. Documentation-only changes
-reuse prior coverage. Failed validation or publication leaves the previous
-report in place; check the date and source commit when assessing freshness.</p>
-</main></body></html>
-EOF
-printf 'coverage_commit=%s\narchived_at=%s\ncheck_run=%s\nsite_commit=%s\n' \
-    "$commit" "$generated" "$run" "$site_commit" > "$destination/coverage/provenance.txt"
+sh "$(dirname "$0")/attach_coverage.sh" "$coverage" "$destination" "$commit" "$generated" "$run" "$site_commit"

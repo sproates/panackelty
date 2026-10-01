@@ -1,6 +1,8 @@
 name: Pages
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: [Check]
     types: [completed]
@@ -8,6 +10,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      rebuild_website:
+        description: 'Explicitly rebuild the prepared website artifact (maintenance/cold measurement)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -19,25 +26,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    runs-on: ubuntu-22.04
-    outputs:
-      pages: ${{ steps.scope.outputs.pages }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - id: scope
-        env:
-          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA" >> "$GITHUB_OUTPUT"
   build:
-    needs: changes
-    name: Build Pages
+    name: Prepare Pages
     if: >-
-      (github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true') ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
@@ -45,71 +38,136 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      SITE_SOURCE: ${{ github.event_name == 'pull_request' && '.' || 'validated-site' }}
+      SITE_SOURCE: '.'
     permissions:
       contents: read
       actions: read
       pages: read
     outputs:
       site_sha: ${{ steps.source.outputs.site_sha }}
+      fingerprint: ${{ steps.fingerprint.outputs.value }}
+      browser: ${{ steps.reuse.outputs.browser }}
     steps:
       - name: Check out trusted publisher (or PR for unprivileged tests)
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+          fetch-depth: 0
           persist-credentials: false
 
+      - name: Classify before any website work
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = push ]; then
+            bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo 'pages=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Test source selection and report navigation
+        if: steps.scope.outputs.pages == 'true'
         run: node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
 
       - name: Test complete site assembly
+        if: steps.scope.outputs.pages == 'true'
         run: sh tests/pages.sh
 
-      - name: Select validated current main and coverage sources
-        if: github.event_name != 'pull_request'
+      - name: Pin current website source before parallel validation
+        if: steps.scope.outputs.pages == 'true' && (github.event_name != 'pull_request')
         id: source
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('node:fs');
-            const selectSource = require('./scripts/pages_source.cjs');
-            const {site, run, report} = await selectSource(github, context.repo);
-            const archive = await github.rest.actions.downloadArtifact({
-              ...context.repo, artifact_id: report.id, archive_format: 'zip',
-            });
-            fs.writeFileSync(`${process.env.RUNNER_TEMP}/coverage.zip`, Buffer.from(archive.data));
-            core.setOutput('site_sha', site.head_sha);
-            core.setOutput('coverage_sha', run.head_sha);
-            core.setOutput('generated', report.created_at);
-            core.setOutput('run_id', String(run.id));
-            await core.summary.addHeading('Coverage publication sources')
-              .addRaw(`Website: ${site.head_sha}\n\nCoverage: ${run.head_sha}\n\nArchived: ${report.created_at}\n`)
-              .write();
-
-      - name: Check out validated website content
-        if: github.event_name != 'pull_request'
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.source.outputs.site_sha }}
-          path: validated-site
-          persist-credentials: false
+        run: echo "site_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v6
+        if: steps.scope.outputs.pages == 'true'
         with:
           node-version: '24'
 
-      - name: Fetch the selected website's pinned browser release
+      - name: Fingerprint selected website inputs
+        if: steps.scope.outputs.pages == 'true'
+        id: fingerprint
+        run: |
+          cd "$SITE_SOURCE"
+          echo "value=$(bash scripts/pages_fingerprint.sh HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Find previously validated production website
+        if: steps.scope.outputs.pages == 'true'
+        id: reuse
+        uses: actions/github-script@v8
+        env:
+          FINGERPRINT: ${{ steps.fingerprint.outputs.value }}
+          FORCE_REBUILD: ${{ github.event_name == 'pull_request' || inputs.rebuild_website == true }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const findWebsite = require('./scripts/pages_artifact.cjs');
+            const artifact = process.env.FORCE_REBUILD === 'true' ? null :
+              await findWebsite(github, context.repo, process.env.FINGERPRINT);
+            core.setOutput('browser', artifact ? 'false' : 'true');
+            if (artifact) {
+              const archive = await github.rest.actions.downloadArtifact({
+                ...context.repo, artifact_id: artifact.id, archive_format: 'zip',
+              });
+              fs.writeFileSync(`${process.env.RUNNER_TEMP}/website.zip`, Buffer.from(archive.data));
+            }
+
+      - name: Restore validated website bytes without browser provisioning
+        if: steps.scope.outputs.pages == 'true' && (steps.reuse.outputs.browser == 'false')
+        env:
+          FINGERPRINT: ${{ steps.fingerprint.outputs.value }}
+        run: |
+          mkdir -p build/website
+          unzip -q "$RUNNER_TEMP/website.zip" -d "$RUNNER_TEMP/validated-website"
+          tar -xf "$RUNNER_TEMP/validated-website/website.tar" -C build/website
+          test "$(cat build/website/.validation-fingerprint)" = "$FINGERPRINT"
+          test ! -e build/website/coverage
+          test -z "$(find build/website -type l -print)"
+
+      - name: Fetch pinned release and assemble changed website
+        if: steps.scope.outputs.pages == 'true' && (steps.reuse.outputs.browser == 'true')
         env:
           IS_PR: ${{ github.event_name == 'pull_request' }}
           PREVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PREVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          FINGERPRINT: ${{ steps.fingerprint.outputs.value }}
         run: |
           if [ "$IS_PR" = true ]; then
             node scripts/preview.cjs build build/website
-            cp -R build/website/playground build/playground
           else
-            node scripts/fetch_playground.cjs "$SITE_SOURCE/site/playground.json" "$SITE_SOURCE/build/playground"
+            node scripts/fetch_playground.cjs "$SITE_SOURCE/site/playground.json" build/playground
+            sh scripts/assemble_site.sh "$SITE_SOURCE/site" build/playground build/website
           fi
+          printf '%s\n' "$FINGERPRINT" > build/website/.validation-fingerprint
+
+      - uses: actions/upload-artifact@v4
+        if: steps.scope.outputs.pages == 'true'
+        with:
+          name: pages-candidate
+          path: build/website
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
+
+  browser:
+    name: Browser integration
+    needs: build
+    if: needs.build.outputs.browser == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: pages-candidate
+          path: build/website
 
       - name: Check out the reviewed browser integration suite
         uses: actions/checkout@v6
@@ -119,44 +177,104 @@ jobs:
           path: build/browser-tests
           persist-credentials: false
 
-      - name: Restore matching browser engines
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build/browser-tests/package-lock.json') }}
-
-      - name: Prepare website integration tests
+      - name: Install locked test package and verify prepared browsers
         run: |
           cd build/browser-tests
           npm ci --ignore-scripts --no-audit --no-fund
-          npx playwright install --with-deps chromium firefox webkit
+          node - <<'JS'
+          const fs = require('node:fs');
+          if (require('playwright/package.json').version !== '1.63.0') {
+            throw new Error('Playwright package/image mismatch: update the prepared environment');
+          }
+          for (const name of ['chromium', 'firefox', 'webkit']) {
+            if (!fs.existsSync(require('playwright')[name].executablePath())) {
+              throw new Error(`Prepared browser missing: ${name}`);
+            }
+          }
+          JS
 
-      - name: Assemble complete Pages artifact
+      - name: Match mounted home ownership to the container user
+        # GitHub mounts /github/home with host-user ownership. Firefox rejects
+        # root execution with a home owned by another user; do not redefine HOME.
+        run: chown "$(id -u):$(id -g)" /github/home
+
+      - name: Test browser execution before publishing
+        run: |
+          export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/website"
+          export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/build/website/playground"
+          cd build/browser-tests
+          npm run test:browser -- --workers=3
+
+  publish:
+    name: Package tested Pages
+    needs: [build, browser]
+    if: >-
+      always() && !cancelled() && needs.build.result == 'success' &&
+      ((needs.build.outputs.browser == 'true' && needs.browser.result == 'success') ||
+       (needs.build.outputs.browser == 'false' && needs.browser.result == 'skipped'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.build.outputs.site_sha || github.ref }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v6
+        with:
+          name: pages-candidate
+          path: build/website
+      - name: Require successful Check for the pinned source and obtain coverage
+        if: github.event_name != 'pull_request'
+        id: validated
+        uses: actions/github-script@v8
+        env:
+          SITE_SHA: ${{ needs.build.outputs.site_sha }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const selectSource = require('./scripts/pages_source.cjs');
+            const awaitSource = require('./scripts/pages_ready.cjs');
+            const {site, run, report} = await awaitSource(
+              () => selectSource(github, context.repo), process.env.SITE_SHA);
+            const archive = await github.rest.actions.downloadArtifact({
+              ...context.repo, artifact_id: report.id, archive_format: 'zip',
+            });
+            fs.writeFileSync(`${process.env.RUNNER_TEMP}/coverage.zip`, Buffer.from(archive.data));
+            core.setOutput('coverage_sha', run.head_sha);
+            core.setOutput('generated', report.created_at);
+            core.setOutput('run_id', String(run.id));
+            await core.summary.addHeading('Validated publication sources')
+              .addRaw(`Website: ${site.head_sha}\n\nCoverage: ${run.head_sha}\n\nCheck: ${site.id}\n`).write();
+
+      - name: Attach current coverage to validated website
         if: github.event_name != 'pull_request'
         env:
-          COVERAGE_SHA: ${{ steps.source.outputs.coverage_sha }}
-          SITE_SHA: ${{ steps.source.outputs.site_sha }}
-          COVERAGE_GENERATED: ${{ steps.source.outputs.generated }}
-          COVERAGE_RUN: ${{ steps.source.outputs.run_id }}
+          COVERAGE_SHA: ${{ steps.validated.outputs.coverage_sha }}
+          SITE_SHA: ${{ needs.build.outputs.site_sha }}
+          COVERAGE_GENERATED: ${{ steps.validated.outputs.generated }}
+          COVERAGE_RUN: ${{ steps.validated.outputs.run_id }}
         run: |
           mkdir "$RUNNER_TEMP/coverage"
           unzip -q "$RUNNER_TEMP/coverage.zip" -d "$RUNNER_TEMP/coverage"
-          sh scripts/build_pages.sh validated-site/site "$RUNNER_TEMP/coverage" build/pages \
-            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA" validated-site/build/playground
-          node scripts/check_pages.cjs build/pages
+          sh scripts/attach_coverage.sh "$RUNNER_TEMP/coverage" build/website \
+            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA"
+          node scripts/check_pages.cjs build/website
 
-      - name: Test browser execution before publishing
-        env:
-          IS_PR: ${{ github.event_name == 'pull_request' }}
+      - name: Archive reusable website after successful browser validation
+        if: github.event_name != 'pull_request'
         run: |
-          if [ "$IS_PR" = true ]; then
-            export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/website"
-          else
-            export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/pages"
-          fi
-          export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/$SITE_SOURCE/build/playground"
-          cd build/browser-tests
-          npm run test:browser
+          mkdir reusable
+          tar --exclude='./coverage' -cf reusable/website.tar -C build/website .
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: validated-website-${{ needs.build.outputs.fingerprint }}
+          path: reusable/website.tar
+          retention-days: 90
+          if-no-files-found: error
 
       - name: Archive tested PR preview
         if: github.event_name == 'pull_request'
@@ -175,12 +293,12 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
-          path: build/pages
+          path: build/website
 
   deploy:
     name: Deploy Pages
     if: github.event_name != 'pull_request'
-    needs: build
+    needs: publish
     runs-on: ubuntu-24.04
     environment:
       name: github-pages
@@ -217,3 +335,38 @@ jobs:
             sleep 10
           done
           exit 1
+
+  timings:
+    name: Pages timings
+    needs: [build, browser, publish, deploy, verify]
+    if: always() && !cancelled() && needs.build.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/github-script@v8
+        env:
+          SITE_SHA: ${{ needs.build.outputs.site_sha }}
+        with:
+          script: |
+            const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id:context.runId});
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              ...context.repo, run_id:context.runId, filter:'latest', per_page:100,
+            });
+            let mergedAt;
+            if (process.env.SITE_SHA) {
+              const {data: commit} = await github.rest.repos.getCommit({...context.repo, ref:process.env.SITE_SHA});
+              mergedAt=commit.commit.committer.date;
+            }
+            const result=require('./scripts/pages_timings.cjs')(run,jobs,mergedAt,process.env.SITE_SHA);
+            await core.summary.addHeading('Website validation timings')
+              .addCodeBlock(JSON.stringify(result,null,2),'json')
+              .addRaw('Budgets: validation 120s; merge-to-live 180s. Raw wall time and observed pre-step runner dispatch are reported separately. Inter-job scheduling and image pulls remain included in validation. Merge-to-live wall time is reported only for successful first-attempt main pushes of the published source. Queue-excluded merge-to-live remains unmeasured and requires acceptance evidence; manual refreshes, duplicate publications, reruns and failed verification cannot establish it.\n')
+              .write();
+            if (result.validation_seconds>120 || result.merge_to_live_wall_seconds>180) {
+              core.warning('Website timing budget exceeded; retain all tests and investigate the phase timings.');
+            }

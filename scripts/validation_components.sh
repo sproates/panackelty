@@ -23,15 +23,12 @@ validation_component() {
     esac
 }
 
-# The browser product consumes a pinned core version, not this PR's sources.
-# Website/shared/unknown changes still exercise the assembled artifact. This
-# selector changes PR provisioning only; production always retains browser gates.
-validation_pages() {
-    for component in $1; do
-        case "$component" in
-            documentation|process|compiler|bytecode|runtime|tcp|stdlib|examples) ;;
-            *) printf 'true\n'; return ;;
-        esac
-    done
-    printf 'false\n'
+# Website consumes the pinned browser release, never the native compiler seed.
+# Only explicitly reviewed native-only paths may avoid browser validation.
+validation_pages_path() {
+    if ci_informational_doc "$1"; then printf 'false\n'; return; fi
+    case "$1" in
+        src/compiler/*|src/bytecode/*|src/vm/*|src/runtime/*|src/stdlib/*|bootstrap/*|examples/*|tests/fixtures/*|tests/runner/*|tests/unit/*|tests/functional/*|tests/tcp*|SPEC.md|BYTECODE*) printf 'false\n' ;;
+        *) printf 'true\n' ;;
+    esac
 }

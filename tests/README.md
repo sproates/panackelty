@@ -2,7 +2,7 @@
 
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 WASI/native compatibility and actual browser suites. Pages checks out an exact
-reviewed browser test commit and runs its 21 Chromium/Firefox/WebKit scenarios
+reviewed browser test commit and runs its 24 Chromium/Firefox/WebKit scenarios
 against the selected assembled website and checksummed `site/playground.json`
 release. Navigation, all nine examples, limits, failure recovery and real HTTP
 cache upgrades are retained. Set `PLAYGROUND_SITE_DIR` and
@@ -177,18 +177,18 @@ page, LLVM source navigation and `summary.txt`. The Check workflow continues to
 upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
 Only successful push validation on `main` is eligible for publication.
 
-The Pages workflow is the single writer for the website and coverage. It selects
-the current `main` commit at selection time and requires a successful trusted
-Check for that exact SHA across paginated API results. Missing validation fails
+The Pages workflow is the single writer for the website and coverage. It pins
+current `main` before validation; website pushes can validate in parallel with
+Check. Publication requires a successful trusted Check for that exact SHA across paginated API results. Missing validation fails
 closed, including when the API returns only older successes. Coverage comes
 from the highest Check run number at or before that selected run with a report;
 API result order and old rerun completion times do not determine freshness.
-Documentation-only successes therefore refresh the site without erasing the
-report. Production runs serialize and select sources at execution time, so a
+Native-only and documentation-only successes reuse tested website bytes and
+attach fresh coverage without assembling the website or provisioning browsers. Production runs serialize and select sources at execution time, so a
 delayed older trigger cannot restore its older site. PRs only test; release
 workflows do not deploy. Manual Pages dispatch is permitted only from `main`
-and applies the same exact-commit validation. If current main is pending or
-failed, wait for a successful Check and retry Pages; no older site is substituted.
+and applies the same exact-commit validation. Publication waits at most two minutes for a pending Check; failed validation
+or a superseding main cannot substitute an older site. Retry after validation.
 A main advance during selection does not change the pinned source.
 
 The landing page and `coverage/provenance.txt` identify both source commits,
@@ -558,3 +558,50 @@ Finite TCP server coverage uses `unit/vm/tcp_server.c` for owner/host contracts,
 `tcp_serve.sh` with independent `tcp_client.c` peers for public source and saved
 bytecode. These run through canonical unit/functional targets. Loopback binding
 must be permitted. Playground runtime tests assert explicit WASI rejection.
+
+## Prepared website validation environment
+
+Issue #187 uses the official `mcr.microsoft.com/playwright:v1.63.0-noble` image,
+pinned by digest in `.github/workflows/pages.yml`. It supplies all three browser
+engines and their OS dependencies. Routine runs install only the locked Node test
+package with lifecycle scripts disabled; there is no browser/apt installation.
+The workflow verifies package/image version equality and executable presence
+before running the complete Chromium/Firefox/WebKit suite with three workers
+(one isolated browser project per worker; no cases are omitted). Container initialization
+and pulls count towards validation time. Node dependency installation is measured;
+a derived image is justified only if those measurements warrant it.
+
+The website CI maintainer owns the image digest and pinned downstream test commit.
+When updating that commit's Playwright lockfile, change the image version/digest
+in the same PR, rerun cold/warm validation and review all browser results. For an
+OS/security refresh, explicitly select a reviewed upstream image digest and rerun
+those checks. Ordinary website edits do not rebuild an image. Reproduce locally
+with `docker pull` using the exact workflow image, then mount the repository and
+assembled site into that image and run the workflow's locked install/version
+checks and `npm run test:browser` in the pinned browser suite. See the
+[official image documentation](https://playwright.dev/docs/docker).
+
+`scripts/pages_fingerprint.sh` hashes tracked names, modes and blob IDs using the
+same native-only exclusions as PR routing. Unknown files participate. Website,
+publisher, browser-test and workflow changes therefore require fresh browser
+validation. Production reuses only a matching `validated-website-<fingerprint>`
+artifact from a successful main Pages run in this repository. PR, failed, foreign
+or incomplete runs cannot populate this trusted path. Missing artifacts bootstrap
+validation; expired artifacts and API errors fail closed. An explicit main Pages
+dispatch with `rebuild_website=true` regenerates the artifact for maintenance or
+cold measurement. An unchanged subsequent dispatch measures warm reuse. Artifacts
+retain 90 days and contain no coverage: `attach_coverage.sh` supplies the latest
+validated native report while preserving every website/playground byte. Reuse
+does not promote a browser release or execute new core compiler code in the site.
+
+The agreed cold/warm budgets are 120s validation and 180s merge-to-live, excluding
+queue time reported separately. The `Pages timings` job reports complete job
+intervals (including pulls and artifact transfers), initial workflow queue, observed pre-step runner dispatch, and raw wall times.
+Validation excludes only measured pre-step dispatch; container initialization
+remains included. Inter-job orchestration is retained. Merge-to-live wall time is emitted only after successful live verification for
+the first main push attempt of the published source. Manual refreshes, duplicate
+publications, reruns, and failed or cancelled verification cannot establish it.
+The queue-excluded merge-to-live field remains null: acceptance must separately
+account for queue overlap with Check; the wall time is only a conservative bound. Hosted results and
+live verification must be recorded before #187 closes. A timing warning never
+skips tests or permits failed browser validation to publish.

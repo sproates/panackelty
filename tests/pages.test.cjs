@@ -164,3 +164,128 @@ test('homepage section navigation and example references have unique targets', (
     assert(ids.includes(`${name}-output`), `missing expected output: ${name}`);
   }
 });
+
+const findWebsite = require('../scripts/pages_artifact.cjs');
+const fingerprint = 'a'.repeat(64);
+function websiteApi(pages, artifacts) {
+  return {paginate: async (_, args) => {
+    assert.equal(args.name, `validated-website-${fingerprint}`);
+    return Object.entries(artifacts).flatMap(([id, entries]) =>
+      entries.map(a => ({workflow_run:{id:Number(id)}, ...a})));
+  }, rest: {actions: {listArtifacts:'artifacts', getWorkflowRun: async args =>
+    ({data:pages.flat().find(r => r.id === args.run_id)})}}};
+}
+const websiteRun = (id, overrides = {}) => run(id, {event:'workflow_run', path:'.github/workflows/pages.yml', ...overrides});
+const websiteArtifact = (id, overrides = {}) => ({id, name: `validated-website-${fingerprint}`, expired:false, ...overrides});
+test('reuse only identical successful production website, with paginated unordered runs', async () => {
+  const selected = await findWebsite(websiteApi([[websiteRun(2)], [websiteRun(5), websiteRun(4)]], {
+    2: [websiteArtifact(2)], 4: [websiteArtifact(4)],
+    5: [websiteArtifact(5, {name:'validated-website-' + 'b'.repeat(64)})],
+  }), repo, fingerprint);
+  assert.equal(selected.id, 4);
+});
+test('PR, failed, incomplete, foreign and non-main artifacts cannot seed publication', async () => {
+  for (const overrides of [{event:'pull_request'}, {conclusion:'failure'}, {status:'in_progress'},
+    {path:'.github/workflows/other.yml'}, {head_branch:'feature'}, {repository:{full_name:'other/repo'}}, {head_repository:null}]) {
+    assert.equal(await findWebsite(websiteApi([[websiteRun(5, overrides)]],
+      {5:[websiteArtifact(5)]}), repo, fingerprint), null);
+  }
+});
+test('missing identity requires browser tests; expired artifact and API errors fail closed', async () => {
+  assert.equal(await findWebsite(websiteApi([[websiteRun(5)]], {}), repo, fingerprint), null);
+  await assert.rejects(findWebsite(websiteApi([[websiteRun(5)]],
+    {5:[websiteArtifact(5, {expired:true})]}), repo, fingerprint), /expired/);
+  await assert.rejects(findWebsite(websiteApi([], {}), repo, '../invalid'), /fingerprint/);
+  const api = websiteApi([[websiteRun(5)]], {});
+  api.paginate=async()=>{throw new Error('API unavailable');};
+  await assert.rejects(findWebsite(api, repo, fingerprint), /API unavailable/);
+});
+test('publisher requires browser success or authenticated reuse; prepared environment has no install step', () => {
+  const workflow = fs.readFileSync('.github/workflows/pages.yml','utf8');
+  assert.match(workflow, /needs.build.outputs.browser == 'true' && needs.browser.result == 'success'/);
+  assert.match(workflow, /needs.build.outputs.browser == 'false' && needs.browser.result == 'skipped'/);
+  assert.match(workflow, /needs.build.result == 'success'/);
+  assert.match(workflow, /Classify before any website work/);
+  assert.match(workflow, /steps.scope.outputs.pages == 'true'/);
+  assert.match(workflow, /playwright:v1\.63\.0-noble@sha256:[a-f0-9]{64}/);
+  assert.match(workflow, /Playwright package\/image mismatch/);
+  assert.match(workflow, /npm run test:browser -- --workers=3/);
+  assert.match(workflow, /chown .* \/github\/home/);
+  assert.doesNotMatch(workflow, /playwright install|apt-get|actions\/cache/);
+});
+
+test('timings include image initialization and transfers, report initial queue and merge-to-live', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const time=n=>new Date(n*1000).toISOString();
+  const jobs=[{name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'},
+    {name:'Browser integration',started_at:time(35),completed_at:time(80),conclusion:'success'},
+    {name:'Package tested Pages',started_at:time(85),completed_at:time(90),conclusion:'success'},
+    {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
+  const result=measure({created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'},jobs,time(0),'abc');
+  assert.equal(result.validation_seconds,80);
+  assert.equal(result.initial_queue_seconds,10);
+  assert.equal(result.merge_to_live_wall_seconds,100);
+  assert.equal(result.merge_to_live_seconds,null);
+  assert.equal(result.live_verification,'success');
+  assert.equal(result.jobs[1].seconds,45);
+});
+
+test('publication waits for exact Check, and never substitutes a newer or older source', async () => {
+  const ready=require('../scripts/pages_ready.cjs');
+  const sha='b'.repeat(40); let calls=0; let waits=0;
+  const result=await ready(async()=>{
+    if (++calls<3) throw new Error(`No successful main Check for ${sha}; wait for validation and retry Pages.`);
+    return {site:{head_sha:sha},run:{id:12}};
+  },sha,async ms=>{assert.equal(ms,10000);waits++;});
+  assert.equal(result.run.id,12); assert.equal(waits,2);
+  await assert.rejects(ready(async()=>({site:{head_sha:'c'.repeat(40)}}),sha), /Main advanced/);
+  await assert.rejects(ready(async()=>{throw new Error('API denied');},sha), /API denied/);
+  await assert.rejects(ready(async()=>{throw new Error('Coverage expired');},sha), /Coverage expired/);
+  calls=0;
+  await assert.rejects(ready(async()=>{calls++;throw new Error(`No successful main Check for ${sha}; pending`);},sha,async()=>{}), /pending/);
+  assert.equal(calls,13);
+});
+
+test('observed dispatch before first runner step is separated without subtracting image pulls', () => {
+  const measure=require('../scripts/pages_timings.cjs'); const time=n=>new Date(n*1000).toISOString();
+  const jobs=[{name:'changes',started_at:time(0),completed_at:time(42),conclusion:'success',
+    steps:[{name:'Set up job',started_at:time(37),conclusion:'success'}]},
+    {name:'Browser integration',started_at:time(45),completed_at:time(140),conclusion:'success',
+    steps:[{name:'Set up job',started_at:time(46),conclusion:'success'},
+      {name:'Initialize containers',started_at:time(47),conclusion:'success'}]},
+    {name:'Package tested Pages',started_at:time(142),completed_at:time(148),conclusion:'success'}];
+  const result=measure({created_at:time(0)},jobs);
+  assert.equal(result.validation_wall_seconds,148); assert.equal(result.validation_seconds,110);
+  assert.equal(result.initial_queue_seconds,37); assert.equal(result.subsequent_dispatch_seconds,1);
+  assert.equal(result.jobs[1].seconds,94);
+});
+
+
+test('failed, cancelled, skipped and missing live verification never report merge success', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const time=n=>new Date(n*1000).toISOString();
+  const run={created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'};
+  const prepare={name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'};
+  for (const conclusion of ['failure','cancelled','skipped',null]) {
+    const jobs=[prepare];
+    if (conclusion) jobs.push({name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion});
+    const result=measure(run,jobs,time(0),'abc');
+    assert.equal(result.merge_to_live_wall_seconds,null,conclusion);
+    assert.equal(result.merge_to_live_seconds,null,conclusion);
+    assert.equal(result.live_verification,conclusion === 'skipped' || !conclusion ? 'not_run' : conclusion);
+  }
+});
+
+test('refreshes, reruns and superseding sources are not first merge-to-live measurements', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const time=n=>new Date(n*1000).toISOString();
+  const run={created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'};
+  const jobs=[{name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'},
+    {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
+  for (const change of [{event:'workflow_dispatch'},{event:'workflow_run'},{event:'pull_request'},
+    {run_attempt:2},{head_branch:'feature'},{head_sha:'older'}]) {
+    assert.equal(measure({...run,...change},jobs,time(0),'abc').merge_to_live_wall_seconds,null);
+  }
+  assert.equal(measure(run,jobs,undefined,'abc').merge_to_live_wall_seconds,null);
+  assert.equal(measure(run,jobs,time(0)).merge_to_live_wall_seconds,null);
+});

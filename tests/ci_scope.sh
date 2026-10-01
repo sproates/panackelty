@@ -98,7 +98,7 @@ while read -r path component; do
     commit; route full
     plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
     [[ "$plan" == *"components=$component"* ]] || fail "component: $path"
-    case "$component" in compiler|bytecode|runtime|tcp|stdlib|examples) pages=false ;; *) pages=true ;; esac
+    case "$path" in src/compiler/*|src/bytecode/*|src/vm/*|src/runtime/*|src/stdlib/*|tests/tcp*|examples/*|SPEC.md|bootstrap/*) pages=false ;; *) pages=true ;; esac
     [[ "$plan" == *"pages=$pages"* ]] || fail "website dependency: $path"
     checks=compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages
     if [[ "$pages" == true ]]; then checks=$checks,pages; fi
@@ -121,6 +121,31 @@ Makefile shared
 .github/workflows/check.yml shared
 unrecognised/input.data unknown
 CASES
+# Compiler delivery (source, seed, harness, fixtures and documentation) does
+# not assemble a pinned downstream website. Actual browser pins still do.
+fixture
+for path in src/compiler/checker.panack bootstrap/compiler-v9.bc tests/unit/harness/runner.sh tests/runner/main.panack SPEC.md; do
+    mkdir -p "$(dirname "$path")"; printf 'change\n' >> "$path"
+done
+commit
+[[ $(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head") == *'pages=false'* ]] || fail 'compiler delivery entered Pages'
+# Fingerprints use the same dependency boundary in publication and PR selection.
+mkdir -p scripts
+cp "$root"/scripts/{ci_docs.sh,validation_components.sh,pages_fingerprint.sh} scripts/
+commit; base=$head
+first=$(bash scripts/pages_fingerprint.sh)
+printf 'compiler edit\n' >> src/compiler/checker.panack
+commit
+[[ $(bash scripts/pages_fingerprint.sh) == "$first" ]] || fail 'native-only fingerprint changed'
+for path in site/playground.json tests/pages.test.cjs scripts/attach_coverage.sh .github/workflows/pages.yml unknown.data; do
+    before=$(bash scripts/pages_fingerprint.sh)
+    mkdir -p "$(dirname "$path")"; printf 'input\n' > "$path"
+    commit
+    [[ $(bash scripts/pages_fingerprint.sh) != "$before" ]] || fail "fingerprint ignored $path"
+done
+before=$(bash scripts/pages_fingerprint.sh)
+git rm -q site/playground.json; commit
+[[ $(bash scripts/pages_fingerprint.sh) != "$before" ]] || fail 'fingerprint ignored deletion'
 # Mixed inputs cannot hide website/shared changes behind native-only changes.
 fixture
 mkdir -p src/vm site
@@ -305,7 +330,7 @@ for workflow in check pages; do
     grep -F 'bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA"' ".github/workflows/$workflow.yml" >/dev/null || fail "selector missing: $workflow"
     if grep -E '^[[:space:]]+paths(-ignore)?:' ".github/workflows/$workflow.yml" >/dev/null; then fail "independent filter: $workflow"; fi
 done
-grep -F "github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
+grep -F "steps.scope.outputs.pages == 'true'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
 echo 'CI workflow routing and cancellation contracts passed.'
 sh tests/ci_partition.sh
 sh tests/ci_conformance.sh

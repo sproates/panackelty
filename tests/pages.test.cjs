@@ -168,16 +168,17 @@ test('homepage section navigation and example references have unique targets', (
 const findWebsite = require('../scripts/pages_artifact.cjs');
 const fingerprint = 'a'.repeat(64);
 function websiteApi(pages, artifacts) {
-  return {paginate: async (_, args) => {
-    assert.equal(args.name, `validated-website-${fingerprint}`);
-    return Object.entries(artifacts).flatMap(([id, entries]) =>
-      entries.map(a => ({workflow_run:{id:Number(id)}, ...a})));
-  }, rest: {actions: {listArtifacts:'artifacts', getWorkflowRun: async args =>
-    ({data:pages.flat().find(r => r.id === args.run_id)})}}};
+  const paginate = async (_, args) => artifacts[args.run_id] || [];
+  paginate.iterator = async function* (_, args) {
+    assert.equal(args.workflow_id,'pages.yml');
+    assert.equal(args.branch,'main'); assert.equal(args.status,'success');
+    for (const data of pages) yield {data};
+  };
+  return {paginate,rest:{actions:{listWorkflowRuns:'runs',listWorkflowRunArtifacts:'artifacts'}}};
 }
 const websiteRun = (id, overrides = {}) => run(id, {event:'workflow_run', path:'.github/workflows/pages.yml', ...overrides});
 const websiteArtifact = (id, overrides = {}) => ({id, name: `validated-website-${fingerprint}`, expired:false, ...overrides});
-test('reuse only identical successful production website, with paginated unordered runs', async () => {
+test('reuse matching website via paginated trusted runs without repository artifact provenance', async () => {
   const selected = await findWebsite(websiteApi([[websiteRun(2)], [websiteRun(5), websiteRun(4)]], {
     2: [websiteArtifact(2)], 4: [websiteArtifact(4)],
     5: [websiteArtifact(5, {name:'validated-website-' + 'b'.repeat(64)})],
@@ -197,7 +198,9 @@ test('missing identity requires browser tests; expired artifact and API errors f
     {5:[websiteArtifact(5, {expired:true})]}), repo, fingerprint), /expired/);
   await assert.rejects(findWebsite(websiteApi([], {}), repo, '../invalid'), /fingerprint/);
   const api = websiteApi([[websiteRun(5)]], {});
+  const iterator=api.paginate.iterator;
   api.paginate=async()=>{throw new Error('API unavailable');};
+  api.paginate.iterator=iterator;
   await assert.rejects(findWebsite(api, repo, fingerprint), /API unavailable/);
 });
 test('publisher requires browser success or authenticated reuse; prepared environment has no install step', () => {
@@ -288,4 +291,39 @@ test('refreshes, reruns and superseding sources are not first merge-to-live meas
   }
   assert.equal(measure(run,jobs,undefined,'abc').merge_to_live_wall_seconds,null);
   assert.equal(measure(run,jobs,time(0)).merge_to_live_wall_seconds,null);
+});
+
+
+test('artifact history failures propagate and reuse decisions are observable', async () => {
+  const messages=[];
+  const selected=await findWebsite(websiteApi([[websiteRun(7)],[websiteRun(5)]],
+    {5:[websiteArtifact(5)]}),repo,fingerprint,m=>messages.push(m));
+  assert.equal(selected.id,5);
+  assert(messages.some(m=>m.includes('run 7: no matching')));
+  assert(messages.some(m=>m.includes('Reusing website artifact 5')));
+  const broken=websiteApi([],{});
+  broken.paginate.iterator=async function* () {throw new Error('history unavailable');};
+  await assert.rejects(findWebsite(broken,repo,fingerprint),/history unavailable/);
+});
+
+test('duplicate publication requires exact live website and coverage identity', async () => {
+  const duplicate=require('../scripts/pages_duplicate.cjs');
+  const selected={site:run(5),run:run(4),report:{created_at:'2026-10-01T00:00:00Z'}};
+  const sha=selected.site.head_sha;
+  const expected=`coverage_commit=${selected.run.head_sha}\narchived_at=${selected.report.created_at}\ncheck_run=4\nsite_commit=${sha}\n`;
+  const live=body=>async (url,options)=>{
+    assert.equal(url,'https://panackelty.com/coverage/provenance.txt');
+    assert.equal(options.cache,'no-store');
+    return {ok:true,status:200,text:async()=>body};
+  };
+  assert.equal(await duplicate(selected,sha,live(expected)),true);
+  for (const body of ['',expected.replace('check_run=4','check_run=3'),
+    expected.replace(sha,run(3).head_sha),expected.replace(selected.run.head_sha,run(2).head_sha),
+    expected.replace('00:00:00Z','00:01:00Z')]) {
+    assert.equal(await duplicate(selected,sha,live(body)),false);
+  }
+  assert.equal(await duplicate(selected,sha,async()=>({ok:false,status:404})),false);
+  await assert.rejects(duplicate(selected,sha,async()=>({ok:false,status:503})),/HTTP 503/);
+  await assert.rejects(duplicate(selected,sha,async()=>{throw new Error('network unavailable');}),/network unavailable/);
+  await assert.rejects(duplicate(selected,run(6).head_sha,live(expected)),/Main advanced/);
 });

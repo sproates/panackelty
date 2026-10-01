@@ -100,12 +100,23 @@ jobs:
         env:
           FINGERPRINT: ${{ steps.fingerprint.outputs.value }}
           FORCE_REBUILD: ${{ github.event_name == 'pull_request' || inputs.rebuild_website == true }}
+          EVENT_NAME: ${{ github.event_name }}
+          SITE_SHA: ${{ steps.source.outputs.site_sha }}
         with:
           script: |
             const fs = require('node:fs');
             const findWebsite = require('./scripts/pages_artifact.cjs');
             const artifact = process.env.FORCE_REBUILD === 'true' ? null :
-              await findWebsite(github, context.repo, process.env.FINGERPRINT);
+              await findWebsite(github, context.repo, process.env.FINGERPRINT, message => core.info(message));
+            if (artifact && process.env.EVENT_NAME === 'workflow_run') {
+              const selected = await require('./scripts/pages_source.cjs')(github, context.repo);
+              if (await require('./scripts/pages_duplicate.cjs')(selected, process.env.SITE_SHA)) {
+                core.setOutput('duplicate', 'true');
+                await core.summary.addHeading('Publication already current')
+                  .addRaw(`Website ${process.env.SITE_SHA} and coverage run ${selected.run.id} are already live; no assembly, browsers or deployment needed.\n`).write();
+                return;
+              }
+            }
             core.setOutput('browser', artifact ? 'false' : 'true');
             if (artifact) {
               const archive = await github.rest.actions.downloadArtifact({
@@ -143,7 +154,7 @@ jobs:
           printf '%s\n' "$FINGERPRINT" > build/website/.validation-fingerprint
 
       - uses: actions/upload-artifact@v7
-        if: steps.scope.outputs.pages == 'true'
+        if: steps.scope.outputs.pages == 'true' && steps.reuse.outputs.duplicate != 'true'
         with:
           name: pages-candidate
           path: build/website

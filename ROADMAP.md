@@ -137,9 +137,17 @@ Agreed budgets: routine website validation **120 seconds** and merge-to-live
 Implementation uses the digest-pinned official Playwright 1.63.0 environment and
 reuses trusted website artifacts for coverage-only publication. Hosted cold/warm
 measurements and post-merge live verification remain acceptance requirements.
+PR #189 is merged and live verification passed, but its first production sample
+took 147s validation and 208s merge-to-live wall time. Coverage refresh also
+repeated assembly/browser work despite matching inputs. The user selected repair
+of artifact reuse and redundant publication next, after Node 24 action maintenance
+(PR #190). The repair uses per-run artifact discovery and exact live provenance
+comparison; hosted reuse, duplicate-skip and changed-coverage publication remain
+acceptance requirements owned by the delivery agent. #187 stays open; neither
+this repair nor the action upgrade establishes the agreed timing budgets.
 
-Pages caches browser binaries but still invokes `playwright install --with-deps`
-on each relevant build. During PR #185 the observed job was still preparing tests
+Before PR #189, Pages cached browser binaries but still invoked
+`playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests
 after 4m32s, with apt reporting 364 MB of additional disk use. That observation
 establishes setup friction, not a complete publication baseline. This follow-up
 to completed #151 can be delivered independently of the unscheduled repository

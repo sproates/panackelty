@@ -24,7 +24,7 @@ async function build(root, destination, metadata, archive) {
     execFileSync('sh', [path.join(__dirname, 'assemble_site.sh'), path.join(root, 'site'), playground, output]);
     const provenance = {...metadata, browser: pin};
     fs.writeFileSync(path.join(output, 'preview.json'), JSON.stringify(provenance, null, 2) + '\n');
-    const notice = `<aside style="padding:1rem;background:#fff3cd;color:#222">Review preview: ${metadata.headCommit || metadata.commit}${metadata.headCommit ? ' (merged with PR base)' : ''}${metadata.dirty ? ' (local changes)' : ''}. <a href="/preview.json">Build identity</a></aside>`;
+    const notice = `<aside style="padding:1rem;background:#fff3cd;color:#222;overflow-wrap:anywhere;min-width:0;box-sizing:border-box">Review preview: ${metadata.headCommit || metadata.commit}${metadata.headCommit ? ' (merged with PR base)' : ''}${metadata.dirty ? ' (local changes)' : ''}. <a href="/preview.json">Build identity</a></aside>`;
     for (const file of ['index.html', 'playground/index.html']) {
       const target = path.join(output, file);
       const html = fs.readFileSync(target, 'utf8');

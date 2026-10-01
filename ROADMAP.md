@@ -104,47 +104,54 @@ Core hosted and post-merge acceptance are complete as recorded above.
 
 ## Current status and grooming, 2026-10-01
 
-### Now: playground footer layout
+### Completed: playground footer layout
 
-**Verification pending on merge of the website pin update:** [#163](https://github.com/sproates/panackelty/issues/163).
-On 2026-10-01 the user selected the reported layout defect first, followed by
-compiler explanations. Browser [PR #6](https://github.com/sproates/panackelty-browser/pull/6)
-replaces inherited homepage footer grid behavior with an independently styled,
-resource list styled like the homepage closing links: stacked rows, dividers
-and right-aligned arrows. Preserve all link destinations and keyboard order.
-Acceptance: no overlap or horizontal overflow on desktop and mobile, intact
-readable links, browser regression coverage and a live author preview before
-merge. Finish the browser release, core dependency pin and deployed verification
-before closing #163. S / provisionally two delivery PRs across the repositories;
-The grooming record merged in [PR #176](https://github.com/sproates/panackelty/pull/176)
-and does not count as a separate outcome. The author accepted the matching
-homepage-style preview on 2026-10-01. The website pin update consumes browser
-v0.1.1 and the exact reviewed browser test revision. After that update merges,
-the delivery agent must verify successful Pages deployment, the published pin,
-and all six resource rows/destinations before marking #163 Done and counting it
-once. Retain the open issue until those checks pass.
+**Done:** [#163](https://github.com/sproates/panackelty/issues/163), effective when
+this completion record merges. Browser PR #6 and core PR #177 are merged; the
+user accepted the homepage-style resource list preview. Browser v0.1.1 is pinned.
+Production [Pages run 36875191639](https://github.com/sproates/panackelty/actions/runs/36875191639)
+passed build, deployment and verification at core `2952dd2`. On 2026-10-01 the
+published site was independently compared with that run's downloaded artifact
+using `scripts/check_pages.cjs`: all playground bytes, Wasm MIME type and
+website/coverage provenance matched. The published release pin is v0.1.1 and
+all six resource rows retain their destinations. Browser regression/preview
+acceptance and live publication are complete; no acceptance remains.
 
-### Next: compiler and runtime understanding programme
+### Now: compiler and runtime understanding programme
 
-**Planned:** the user selected all five workstreams as one coordinated programme
-on 2026-10-01, following remaining #163 acceptance. This expands the earlier
-#134-only selection. Work together on investigation, evidence design and delivery;
+**In progress:** the user authorised starting all five workstreams as one
+coordinated programme on 2026-10-01; #163 live acceptance is now verified. This
+expands the earlier #134-only selection. Work together on investigation, evidence design and delivery;
 retain independently testable stages and child acceptance, rather than five
 unrelated initiatives or one large implementation PR.
 
 <a id="compiler-and-runtime-understanding-programme"></a>
 
 Programme tracker: [#180](https://github.com/sproates/panackelty/issues/180).
-**Overall: Planned; 0 of 5 workstreams accepted.** This is a count of accepted
-workstreams, not an effort percentage. No implementation is claimed by this record.
+**Overall: In progress; 0 of 5 workstreams accepted.** This counts accepted
+workstreams, not an effort percentage. The initial shared investigation is
+recorded in [ARCHITECTURE.md](ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01)
+with [reproducible probes](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
+No explanation feature is delivered yet. Initial findings: bounds lose their
+origin, binary operations lack complete attribution, emission drops source
+mapping, and no retained static dependency or dynamic derivation graph exists.
+Shared investigation remains open for sidecar integrity, runtime retention and
+positive non-impact experiments.
+
+**Immediate prerequisite:** [#182](https://github.com/sproates/panackelty/issues/182),
+a reproduced stale guard-fact defect. Direct and nested mutation can leave a
+subtraction incorrectly accepted; the VM still traps safely. Repair fact
+invalidation/control-flow handling before explaining those proofs. This is
+within #134, not a sixth workstream. Next implementation is the correctness
+repair and its regressions, followed by source attribution and retained evidence.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
-| [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Planned | Explain checked types, effects and proof obligations from actual checker evidence; start with guarded subtraction. No accepted delivery yet. |
-| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Planned | Connect source through checking/lowering to emitted bytecode. No accepted delivery yet. |
-| [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Planned | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
-| [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Planned | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
-| [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Planned | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
+| [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Investigation in progress | Explain checked types, effects and proof obligations from actual checker evidence; start with guarded subtraction. No accepted delivery yet. |
+| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Investigation in progress | Connect source through checking/lowering to emitted bytecode. No accepted delivery yet. |
+| [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
+| [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
+| [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
 
 Programme milestones:
 
@@ -283,14 +290,21 @@ The review considered these three completed outcomes once each:
 3. Author-local website previews under #160, delivered through #161 and #171,
    including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
-Accepted deliverables since the new baseline: **0 of 3**. The layout work is
-awaiting final delivery/verification; programme #180 is planned. Neither is counted yet. Grooming
-and its bookkeeping do not add an outcome. Record each accepted completion and
-review again after three, or earlier if material evidence changes the decision.
+Accepted deliverables since the new baseline: **1 of 3; review not yet due**
+(effective when this completion record merges).
+
+1. Playground layout #163: accepted preview, published browser v0.1.1, merged
+   core pin and independently verified live assets/provenance. See the
+   [completion record](#completed-playground-footer-layout).
+
+Programme #180 has started shared investigation; no workstream is accepted yet.
+This initial investigation is an intermediate programme slice, not another
+completed outcome. Grooming and bookkeeping do not add an outcome. Review again
+after three accepted outcomes, or earlier if material evidence changes priorities.
 
 ### Groomed candidates
 
-Except for **Planned** compiler explanations #134 within programme #180 above, the twelve entries
+Except for **In progress** compiler explanations #134 within programme #180 above, the twelve entries
 below remain **Idea**, with implementation unscheduled. #106
 has completed its bounded validation slice as recorded below; its later work
 is unscheduled. The user agreed
@@ -352,7 +366,7 @@ Source-coverage feasibility (#131), editor basics (#139) and invariant testing
 ### Additional ideas recorded on 2026-10-01
 
 Entries #164–#170 remain **Idea, unscheduled**. Entries #172–#175 are now
-**Planned** within [programme #180](#compiler-and-runtime-understanding-programme),
+**In progress (shared investigation)** within [programme #180](#compiler-and-runtime-understanding-programme),
 whose table above owns current progress. The summaries below retain their scope;
 issue detail defines acceptance. Preserve independently useful outcomes and
 justify shared evidence rather than requiring a large common framework.
@@ -427,6 +441,16 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+- **#182 compiler correctness follow-up:** owner is the #180 delivery agent until
+  handed over. The published v0.1.1 playground compiler has the same SHA-256 as
+  the affected core seed; plan a corrective compiler/browser release and explicit
+  website pin update after the repair passes acceptance. No target release is
+  assigned. Review static-safety and guarded-type claims against the actual
+  published runtime; the homepage's literal guarded-type example does not exercise
+  the reproduced mutation defect. Keep this follow-up open through public
+  verification that the unsafe examples are rejected and valid examples still run.
+  Recording it does not start website implementation or imply the fix is released.
 
 Record concrete follow-ups here until ownership moves explicitly to the website
 repository. Each entry needs the source issue/PR, affected pages and claims,

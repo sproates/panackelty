@@ -1118,3 +1118,138 @@ rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records lim
 ## Implicit core and standard methods
 
 The loader loads the toolchain-owned `src/stdlib/core.panack` before the entry module, using the same canonical visited set. It internalises only the core algorithm tokens (`$core_ends_with`, `$core_first`, `$core_sort_by`), retaining source positions. The parser selects these identities for standard dot calls; generic checking and purity use their ordinary source signatures. Core enums are shared with the compiler, replacing its duplicate Result definition. Reachable core algorithms are emitted through existing calls; unused core algorithms are omitted. No VM, opcode or bytecode-v9 contract changes are required. Other stdlib modules remain explicit. Native packages and browser assets must carry the matching core source and compiler seed.
+
+## Compiler and runtime understanding: initial investigation, 2026-10-01
+
+Programme [#180](https://github.com/sproates/panackelty/issues/180) is in progress.
+This is an initial shared investigation at core revision
+`2952dd27bd8f48eedb09f173a60eab9f023d6aa6`, not a delivered explanation feature or
+completion of the programme's realistic-program acceptance gate. Reproduction
+and observed results are in the
+[probe report](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
+
+### Existing evidence and where it is lost
+
+| Workstream | Existing implementation evidence | Missing foundation |
+| --- | --- | --- |
+| #134: checker explanations | `TypeInfo`, local environments, `condition_facts` and `Bounds` in [checker.panack](src/compiler/checker.panack); effect checks in [purity.panack](src/compiler/purity.panack) | `CheckedExpression` retains only type information and diagnostics. Successful obligations, rule identities, assumptions and fact origins are discarded. Bounds must first be sound under mutation. |
+| #173: compilation provenance | Tokens carry start/end information; the AST can retain `LocatedExpr`; emission already knows function-local instruction offsets | Parser binary-expression constructors omit location wrappers. [emitter.panack](src/compiler/emitter.panack) strips `LocatedExpr`; `FunctionCode` and `EmittedCode` retain no instruction/source relation. Method lowering, generated temporaries and erased generics need explicit attribution. |
+| #174: inferred requirements | Local comparison bounds, concrete literal information, nominal guarded types and call substitutions | There is no general inverse constraint analysis or minimal-requirements solver. Relational guards between two variable operands and conjunction-based flow facts are not supported by the current subtraction proof. Derived requirements must be distinguished from requirements the current checker can discharge. |
+| #175: semantic consequences | Resolved declarations, call expressions, declared effects and independently checked function bodies | No retained graph of proof dependencies or exported function guarantees. A weakened callee guard produces a local error, not a transitive proof report. Recompilation diagnostics alone cannot establish an unaffected property. |
+| #172: runtime value provenance | [execute.c](src/vm/execute.c) frames retain function/PC, operands and locals during execution | [value.h](src/vm/value.h) has value tags and reference counts but no derivation identity. Values can be shared and old locals released. Instruction tracing alone does not explain value origins or control dependencies. |
+
+The [loader](src/compiler/loader.panack) retains source snapshots, but
+`PreparedProject` in the [driver](src/compiler/driver.panack) reduces diagnostics
+to a string and does not retain those snapshots for a later explanation query.
+The type-checking pass runs before the purity pass; type failure prevents the
+latter from running. A report must distinguish a failed obligation from a phase
+that was never evaluated.
+
+### Correctness prerequisite
+
+[Defect #182](https://github.com/sproates/panackelty/issues/182) is reproduced:
+inside `if balance >= 2`, assignment `balance = 0` does not invalidate the
+incoming lower bound. The checker accepts `balance - 2`; the VM then traps.
+A write in a nested `if` reproduces the same failure. This affects the bundled
+seed and a freshly compiled, byte-identical current compiler. The VM's runtime
+check remains effective; this is a static proof defect, not evidence of memory
+corruption. Bare immutable maps of facts do not establish immutability of the
+program values they describe.
+
+Repair must cover assignment evaluation order, nested expression writes,
+branch joins and loop-carried changes. Removing a fact only after a direct
+assignment is insufficient. Guarded assignments consume the same bounds and need
+regression coverage too. Sound guarded decrements and fresh guards after writes
+must remain usable. This prerequisite belongs within #134, not a sixth programme
+workstream. Do not present a successful proof as trustworthy before this repair.
+
+### Proposed evidence boundary
+
+Use shared source and declaration identities, but separate static evidence,
+emission mapping and dynamic execution records. This is a design recommendation
+to test, not an implemented schema or an agreed public protocol.
+
+- A static evidence record should identify the obligation and checker rule,
+  source reference, outcome (`established`, `not established`, `unsupported` or
+  `not evaluated`), supporting fact IDs and assumptions. Distinguish a disproved
+  requirement from an inability to prove it. Produce the decision and its evidence
+  together in the checker; rendering must not reconstruct reasoning independently.
+- Facts need binding identity and validity across writes/control flow, plus the
+  source and branch that established them. For the first subtraction slice,
+  retain literal or lower-bound evidence and the required constant bound. Do not
+  claim a general `amount <= balance` solver exists. Record unsupported relational
+  or compound cases honestly.
+- Keep opt-in evidence collection separate from ordinary compilation overhead.
+  Compare check results with collection enabled and disabled. Retained source
+  snapshots and per-revision identities must detect stale evidence rather than
+  attaching it to changed text. Public machine output should be versioned only
+  after the first consumers and stability requirements are understood.
+- For #173, associate emitted function/instruction ranges with source origins and
+  lowering steps. Explicitly identify generated instructions and many-to-one
+  mappings. Prototype a validated sidecar before deciding whether bytecode format
+  changes are necessary; bind it to the exact artifact and source revision.
+  Generic bodies are erased, so a single instruction is not evidence of one
+  unique generic call-site instantiation.
+- For #174, start with one sufficient local requirement and recheck the proposed
+  condition using the same compiler. Report alternatives and unsupported cases;
+  do not call it the weakest requirement without a defined proof. General generic
+  capabilities/traits and user result contracts are absent from current language
+  semantics and must not be invented to fit illustrative issue examples.
+- For #175, prototype explicit dependency edges from obligations to assumptions,
+  declarations and call effects. Compare predictions with independently applied
+  changes. An unaffected result needs positive justification within a defined
+  analysis boundary; unchanged bytecode or missing diagnostics alone is inadequate.
+- For #172, prototype a bounded, opt-in per-execution event graph with occurrence
+  IDs, operand-origin edges and relevant control/call context. A `Value *` address
+  is not a stable event ID. Define truncation, retention and effectful input
+  handling before recording data; do not replay external effects to explain them.
+  Initially measure a pure computation, then investigate host/async boundaries.
+
+### Delivery sequence and remaining investigations
+
+1. Repair #182 with direct/nested/loop/guarded-assignment regressions and a verified
+   compiler seed. Establish position retention for the chosen explanation query.
+2. Deliver #134's literal/lower-bound subtraction explanation from actual checker
+   evidence, including rejected and unsupported cases. Expand types/effects only
+   against explicit evidence and acceptance. Estimate: M / 1–2 PRs after the
+   correctness repair; source-span changes may need their own PR.
+3. Prototype #173's source-to-instruction mapping alongside the evidence boundary.
+   Estimate: M / 1 bounded prototype PR before committing to artifact format.
+4. Use that foundation for #174 sufficient-requirement and #175 dependency/change
+   experiments. Each is M / 1 investigation/prototype PR; production scope and
+   performance remain unknown until validated, especially across calls/recursion.
+5. Investigate #172's event identity, bounded storage and control dependencies in
+   parallel in the design sequence, with implementation staged after source
+   mapping. Estimate: M / 1 prototype PR; broader runtime integration is unknown.
+
+The repair estimate is S–M / 1 PR, subject to nested-write and loop findings.
+These are provisional slices, not a total programme estimate or a promise that
+all acceptance fits in these PR counts. All five remain in scope. Shared
+evidence is a hypothesis to test, not a reason to block every workstream on one
+universal graph. Remaining shared investigation includes concrete experiments
+for sidecar integrity, runtime event retention and positive non-impact evidence.
+
+### Realistic-program evaluation proposal
+
+Use three complementary workloads and agree the final cases before acceptance:
+a multi-module application with guarded accounting and generic helpers; actual
+compiler/parser maintenance using source positions, bounds and collection code;
+and a deterministic data transformation with an unexpected aggregate result.
+Use existing code where suitable and publish complete reproducible programs.
+Small probes in this investigation expose assumptions; they do not satisfy that
+evaluation. Represent supported effects and imported calls, and preserve cases
+that the analysis cannot answer.
+
+Proposed initial budgets for review: no more than 5% median ordinary-check
+regression on the compiler-as-input benchmark with collection disabled; bounded
+static queries within twice the matching check time, reporting absolute latency
+as well; a configurable hard event/byte cap for runtime tracing with explicit
+truncation. Dynamic overhead needs a prototype before a defensible threshold.
+These budgets are not yet accepted or achieved and small-program process timings
+are not a substitute for measurements of a real workload.
+
+An independent reviewer must complete the defined debugging/change tasks from
+the output, with answers checked against real compiler/execution evidence.
+Keep false claims, unhelpful answers, missing attribution and performance failures
+visible in the acceptance report. The website should demonstrate verified released
+behaviour only; the existing programme follow-up remains open.

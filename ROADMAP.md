@@ -65,7 +65,7 @@ type. A separate public HTTP check confirmed the architecture section, browser
 source link and exact `playground/release.json` pin. No publication acceptance
 remains for this slice.
 
-### Browser repository separation — verification pending
+### Browser repository separation — Done
 
 The user selected completion of #151's browser ownership and CI cleanup.
 Browser PR #5 moves the complete legacy suite: 15 runtime tests (145 VM corpus
@@ -82,18 +82,26 @@ native/example PRs while preserving it for website, package, shared, unknown and
 mixed changes. Production browser and deployed-asset/provenance gates remain.
 Core still owns native validation and the versioned runtime-bundle contract.
 
-Refs #151. Acceptance requires green downstream and core CI, recorded cold/warm
-provisioning and test timings, then authorised merges and a successful production
-Pages run with public artifact verification. The assistant will perform the
-post-merge checks and prepare the completion record. Keep #151 open until these
-pass. Automatic PR previews are a separate unfinished follow-up. The grooming
-ledger remains 1 of 3 until this outcome is accepted; no review is due yet.
+Work record: [#151](https://github.com/sproates/panackelty/issues/151).
+Browser PR #5 and core PR #158 merged on 2026-10-01. Post-merge acceptance passed:
+browser [Check run 36813656641](https://github.com/sproates/panackelty-browser/actions/runs/36813656641)
+validated and published the unchanged release; core
+[Check run 36813659789](https://github.com/sproates/panackelty/actions/runs/36813659789)
+passed on `c1d5339d668d6cd6f5c6bd3b844f414197328f81`.
+Production [Pages run 36813831380](https://github.com/sproates/panackelty/actions/runs/36813831380)
+passed the complete assembled-site browser suite, deployment and verification of
+all published playground bytes, Wasm MIME type and website/coverage provenance.
+A separate public HTTP check confirmed the exact release pin, architecture
+section, merged website commit and current coverage run. No acceptance remains
+for #151; this completion record closes it and counts the migration once.
+Automatic PR previews remain a separate unfinished follow-up. The grooming
+ledger is now 2 of 3; review is not yet due.
 Local acceptance: 20 browser Node tests and 17 publisher tests pass, as do site
 assembly and adversarial routing checks. Final implementation `make check` passes
 in 132s, still above its 120s budget; the existing native full/unit
 validation-budget backlog remains open. Both cold and warm browser CI runs passed all 21 scenarios; the measured jobs
 were 213s and 182s. See [phase timings and limitations](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
-Core hosted and post-merge evidence remains to be verified.
+Core hosted and post-merge acceptance are complete as recorded above.
 
 ## Current status and grooming, 2026-09-30
 
@@ -124,14 +132,20 @@ modular-validation slice of #106 as Next. It also recorded the twelve unschedule
 candidates and the completion-handover rules. This review and its bookkeeping do
 not count as a new deliverable.
 
-Accepted deliverables since this baseline: **1 of 3; review not yet due**
-(effective when the modular-validation delivery PR merges).
+Accepted deliverables since this baseline: **2 of 3; review not yet due**
+(effective when this browser-separation completion record merges).
 
 1. Bounded modular validation under #106: shared local/CI selection, audited
    process-document checks and conservative component/consumer mapping. See the
    [completion record](#completed-modular-validation-and-component-boundaries)
    and [measurement evidence](tests/VALIDATION_PROFILE.md#modular-validation-route--2026-09-30).
    This counts once; the broader cache/design issue remains open.
+2. Browser ownership and CI cleanup under #151: versioned core/browser and
+   website artifact boundaries, complete migrated test coverage, removal of
+   duplicate builds/publishers, conservative Pages selection and measured cache
+   provisioning. See the [completion record](#browser-repository-separation--done)
+   and [phase evidence](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
+   The multi-PR migration counts once; automatic previews are separate scope.
 
 Follow the [three-deliverable checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint):
 review before starting the principal task after the third accepted outcome, or

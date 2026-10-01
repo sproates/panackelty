@@ -228,21 +228,39 @@ Coverage generation and native validation remain unchanged in core. The publishe
 polls about every 15 minutes and supports manual dispatch; GitHub schedule delays
 and inactive-repository suspension remain operational limitations.
 
-**This delivery branch implements the website cutover:** Pages no longer selects,
-downloads or attaches coverage. Automatic core/docs-only successful checks with no
-website certificate skip website work. Website SHA/Check identity is recorded
-independently, homepage/docs link to the new host, and the old `/coverage/` and
-`/coverage/html/` entry points become compatibility landing pages. Deep source
-report URLs move to the coverage host. Obsolete report-attachment code is removed.
+**Website cutover verified:** PR #203 merged as `5381bc5`. Main Check
+`36935711159` and Pages `36935939432` passed, including all 24 browser scenarios,
+certified artifact restoration without duplicate browsers, deployment and live
+website/playground byte, Wasm MIME and independent website-provenance checks.
+The homepage and both old coverage entry points return the exact merged bytes;
+the compatibility landing was visually inspected live. Coverage attachment and
+its obsolete wrappers are removed. Website publication records its own identity
+in `publication.json`; the report retains independent `provenance.json`.
 
-After separately approved merge, the delivery agent must verify website
-publication with all browser scenarios, homepage and both compatibility entry
-points, exact live website/playground bytes and independent provenance. Confirm
-that the separate report remains browsable and continues advancing on core
-checks without website publication. Retain two cold/two warm routine publication
-measurements and resolve the 120s/180s budget gap. No #187 completion is claimed:
-issue remains open, programme #180 paused, ledger 2/3; completing this outcome
-makes grooming due. This is an intermediate slice with live acceptance pending.
+**Independent report refresh verified, automatic scheduling still pending:**
+manual coverage run `36938575919` selected core Check `36935711159`, advanced the
+live report from `9ef402d` to `5381bc5`, and verified every published report file.
+It took 51s and did not trigger another core website publication; live website
+identity stayed unchanged. No additional credential or publisher-code change was
+needed. This proves report advancement independently of website deployment.
+It does not yet prove a core-only main change leaves website publication idle.
+
+At the 2026-10-02 investigation, the coverage workflow was enabled, with the
+intended cron on main, but no `schedule` run had appeared since bootstrap.
+Manual dispatch worked. The observable gap is scheduled-event delivery; the
+underlying cause is unconfirmed. GitHub documents that scheduled events may be
+[delayed or dropped](https://docs.github.com/en/actions/how-tos/troubleshoot-workflows).
+Do not treat a manual refresh as automatic-refresh acceptance, or change working
+publication code without evidence. If cron remains absent, investigate schedule
+activation/delivery and assess a reliable trigger before claiming unattended use.
+
+The #203 mixed/full-route publication measured 182s combined validation and 212s
+merge-to-verified-live wall time (3s initial Check queue); publication alone was
+41s. This is not routine website-only performance acceptance. Remaining work:
+observe a successful scheduled refresh, establish core-only no-publication
+production evidence, and obtain two cold/two warm routine publication measurements
+against the original 120s/180s budgets. No #187 completion is claimed: issue stays
+open, programme #180 paused, ledger 2/3; completing it makes grooming due.
 
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests
@@ -667,13 +685,13 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
 
 ### Website follow-up register
 
-- **#187 separate coverage host:** cutover implemented in this branch; live
-  acceptance pending. Owner: delivery agent. Homepage coverage links now target
-  the independent host; old `/coverage/` and `/coverage/html/` become landing
-  pages. No runtime/release version change. Prerequisite independent publisher
-  is live (run `36933404078`). After approved merge verify the new links, landing
-  pages, website identity and unchanged playground bytes; keep open until live
-  checks and independent core-report refresh are recorded.
+- **#187 separate coverage host:** website cutover and independent manual report
+  refresh verified; owner: delivery agent. PR #203 / Pages `36935939432` passed
+  live homepage, playground, both old entry points and website identity checks;
+  landing layout inspected. Coverage run `36938575919` advanced the report to
+  core `5381bc5` without another website deployment. No runtime version change.
+  Keep automatic scheduling and core-only no-publication acceptance open under
+  #187; the current state and timing requirements are recorded above.
 
 - **#182 compiler correctness follow-up:** owner is the #180 delivery agent until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as

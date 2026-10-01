@@ -91,7 +91,9 @@ ledger remains 1 of 3 until this outcome is accepted; no review is due yet.
 Local acceptance: 20 browser Node tests and 17 publisher tests pass, as do site
 assembly and adversarial routing checks. Final implementation `make check` passes
 in 132s, still above its 120s budget; the existing native full/unit
-validation-budget backlog remains open. Hosted and post-merge evidence follows.
+validation-budget backlog remains open. Both cold and warm browser CI runs passed all 21 scenarios; the measured jobs
+were 213s and 182s. See [phase timings and limitations](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
+Core hosted and post-merge evidence remains to be verified.
 
 ## Current status and grooming, 2026-09-30
 

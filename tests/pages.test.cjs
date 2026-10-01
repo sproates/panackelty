@@ -217,6 +217,45 @@ test('publisher requires browser success or authenticated reuse; prepared enviro
   assert.doesNotMatch(workflow, /playwright install|apt-get|actions\/cache/);
 });
 
+test('cold artifact lookup is bounded and selects newest identity despite response order', async () => {
+  const github=websiteApi([Array.from({length:20},(_,i)=>websiteRun(20-i))],{});
+  const iterator=github.paginate.iterator;
+  let active=0, peak=0; const requested=[];
+  github.paginate=async (_, {run_id:id})=>{
+    requested.push(id); peak=Math.max(peak,++active);
+    await new Promise(resolve=>setImmediate(resolve));
+    if (id===18) await new Promise(resolve=>setImmediate(resolve));
+    active--;
+    return [18,17].includes(id) ? [websiteArtifact(id)] : [];
+  };
+  github.paginate.iterator=iterator;
+  assert.equal((await findWebsite(github,repo,fingerprint)).id,18);
+  assert.equal(peak,8); assert.equal(active,0);
+  assert.deepEqual(requested,[20,19,18,17,16,15,14,13,12]);
+});
+
+test('warm artifact hit avoids speculative history requests', async () => {
+  const github=websiteApi([[websiteRun(3),websiteRun(2)]],{3:[websiteArtifact(3)]});
+  const original=github.paginate; let calls=0;
+  github.paginate=async (...args)=>{calls++;return original(...args);};
+  github.paginate.iterator=original.iterator;
+  assert.equal((await findWebsite(github,repo,fingerprint)).id,3);
+  assert.equal(calls,1);
+});
+
+test('concurrent discovery never hides API failures or falls back past an expired match', async () => {
+  const github=websiteApi([[websiteRun(4),websiteRun(3),websiteRun(2)]],{});
+  const iterator=github.paginate.iterator;
+  github.paginate=async (_, {run_id:id})=>{
+    if (id===2) throw new Error('artifact API failed');
+    return id===3 ? [websiteArtifact(3)] : [];
+  };
+  github.paginate.iterator=iterator;
+  await assert.rejects(findWebsite(github,repo,fingerprint),/artifact API failed/);
+  await assert.rejects(findWebsite(websiteApi([[websiteRun(4),websiteRun(3),websiteRun(2)]],
+    {3:[websiteArtifact(3,{expired:true})],2:[websiteArtifact(2)]}),repo,fingerprint),/expired/);
+});
+
 test('timings include image initialization and transfers, report initial queue and merge-to-live', () => {
   const measure=require('../scripts/pages_timings.cjs');
   const time=n=>new Date(n*1000).toISOString();
@@ -239,14 +278,14 @@ test('publication waits for exact Check, and never substitutes a newer or older 
   const result=await ready(async()=>{
     if (++calls<3) throw new Error(`No successful main Check for ${sha}; wait for validation and retry Pages.`);
     return {site:{head_sha:sha},run:{id:12}};
-  },sha,async ms=>{assert.equal(ms,10000);waits++;});
+  },sha,async ms=>{assert.equal(ms,5000);waits++;});
   assert.equal(result.run.id,12); assert.equal(waits,2);
   await assert.rejects(ready(async()=>({site:{head_sha:'c'.repeat(40)}}),sha), /Main advanced/);
   await assert.rejects(ready(async()=>{throw new Error('API denied');},sha), /API denied/);
   await assert.rejects(ready(async()=>{throw new Error('Coverage expired');},sha), /Coverage expired/);
   calls=0;
   await assert.rejects(ready(async()=>{calls++;throw new Error(`No successful main Check for ${sha}; pending`);},sha,async()=>{}), /pending/);
-  assert.equal(calls,13);
+  assert.equal(calls,25);
 });
 
 test('observed dispatch before first runner step is separated without subtracting image pulls', () => {

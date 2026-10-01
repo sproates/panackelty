@@ -614,7 +614,13 @@ Pages deployment/live verification; local tests cannot execute hosted actions.
 
 Website reuse searches successful trusted main Pages runs and their per-run
 artifacts, logging each match/miss instead of depending on provenance in the
-repository-wide artifact listing. A coverage-completion trigger with a matching
+repository-wide artifact listing. The newest trusted run is checked alone for
+cheap warm hits; a miss searches older runs with at most eight concurrent
+read-only requests. Results are evaluated newest first, regardless of response
+order, and any API failure in a batch fails publication. The exact-source Check
+wait polls every five seconds with the same 120-second total sleep allowance;
+source changes, expired reports and API errors still fail immediately.
+A coverage-completion trigger with a matching
 validated website checks live coverage provenance against the selected website
 commit, coverage commit, report timestamp and Check run. Exact matches skip
 assembly, browser provisioning, artifact uploads and deployment. Changed or

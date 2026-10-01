@@ -3,7 +3,7 @@
 ## Guard-fact repair and test hardening, 2026-10-01
 
 Core repair for [#182](https://github.com/sproates/panackelty/issues/182), following
-programme #180's baseline below. The focused checker runner passes 160 assertions:
+programme #180's baseline below. The initial focused checker runner passed 160 assertions:
 23 fixed fixtures and 48 generated stale/fresh pairs, with all 48 freshly guarded
 programs executed by the VM against a hand-calculated result table. All 20 fixed
 unsafe inputs were independently accepted by the pre-fix compiler. CLI fixtures
@@ -24,6 +24,11 @@ intentional defects, preserving all other code:
 Each mutant compiled successfully and its test run exited 1 with the listed
 assertion failures. The unmodified implementation exited 0. These checks measure
 sensitivity to specific omissions, not exhaustive proof of soundness.
+
+Independent PR review added two direct regressions for mutation during a while
+condition and a for iterable, bringing the checker runner to 162 assertions and
+25 fixed fixtures. Both require the loop body to reject the stale subtraction
+proof. The mutation counts above describe the initial 160-assertion suite.
 
 `make regenerate-seed` produced identical stage-2/3/4 compiler artifacts with
 SHA-256 `9888463f9310890f09c32439f9ca6ff66e6ba485cbdf150f69e7a3916a2af30f`

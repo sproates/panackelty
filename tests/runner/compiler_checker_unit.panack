@@ -172,6 +172,8 @@ main(): Void {
   results = results.append(checker_unit_source("fact_mutation_while_carried", "Nat subtraction may underflow"))
   results = results.append(checker_unit_source("fact_mutation_for_carried", "Nat subtraction may underflow"))
   results = results.append(checker_unit_source("fact_mutation_while_condition", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_while_condition_write", "Nat subtraction may underflow"))
+  results = results.append(checker_unit_source("fact_mutation_for_iterable_write", "Nat subtraction may underflow"))
   results = results.append(checker_unit_source("fact_mutation_after_loop", "Nat subtraction may underflow"))
   results = results.append(checker_unit_source("fact_mutation_match", "Nat subtraction may underflow"))
   results = results.append(checker_unit_source("fact_mutation_condition", "Nat subtraction may underflow"))

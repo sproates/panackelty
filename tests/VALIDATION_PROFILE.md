@@ -1,5 +1,153 @@
 # Validation profiling baseline
 
+## Compiler understanding probes, 2026-10-01
+
+Initial evidence for [programme #180](https://github.com/sproates/panackelty/issues/180)
+and the [architecture investigation](../ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01).
+Baseline: `2952dd27bd8f48eedb09f173a60eab9f023d6aa6`, Darwin arm64, native
+`make -j2` build. These are exploratory probes, not feature acceptance or a new
+regression suite. No compiler/VM implementation was changed in this investigation.
+
+Build and verify the current compiler independently of its driver seed:
+
+```sh
+make -j2
+mkdir -p /tmp/panackelty-180-probes
+./panack compile src/compiler/main.panack -o /tmp/panackelty-180-probes/current-compiler.bc
+shasum -a 256 bootstrap/compiler-v9.bc /tmp/panackelty-180-probes/current-compiler.bc
+```
+
+Both SHA-256 values were
+`b8df915137e1e33355dd8baaa9219e2a3aa8dac28e0dc9d3442678dbacccc6b9`.
+For each program below, run both `./panack check FILE` and
+`./panack run /tmp/panackelty-180-probes/current-compiler.bc check FILE`.
+For accepted programs, repeat with `run` instead of `check`.
+Both compiler paths produced the same outcomes.
+
+For the expression probes use this complete template, substituting the table's
+body for `BODY`:
+
+```panackelty
+pure debit(balance: Nat): Nat { BODY }
+main(): Void { print(debit(5)) }
+```
+
+| Case | BODY | Check exit | Execution / evidence |
+| --- | --- | ---: | --- |
+| Literal | `5 - 2` | 0 | Prints `3` |
+| Lower bound | `if balance >= 2 { balance - 2 } else { 0 }` | 0 | Prints `3` |
+| No fact | `balance - 2` | 1 | Nat subtraction may underflow |
+| False-branch fact | `if balance < 2 { 0 } else { balance - 2 }` | 0 | Prints `3` |
+| Conjunction | `if balance >= 2 && balance <= 9 { balance - 2 } else { 0 }` | 1 | Nat subtraction may underflow despite sufficient mathematical condition |
+| Weakened fact | `if balance >= 1 { balance - 2 } else { 0 }` | 1 | Nat subtraction may underflow |
+
+For the literal probe, omit the parameter and call `debit()` in `main`; this
+matches the exact zero-argument program executed. Rejections emitted the unpositioned text
+`error: Nat subtraction may underflow; prove the left side is large enough or use Int`.
+Binary AST construction currently lacks the wrapper needed to attribute this
+operation, even though positioned calls work.
+
+The relational probe also rejects with that diagnostic:
+
+```panackelty
+pure debit(balance: Nat, amount: Nat): Nat {
+  if balance >= amount { balance - amount } else { 0 }
+}
+main(): Void { print(debit(5, 2)) }
+```
+
+Two mutation probes expose [#182](https://github.com/sproates/panackelty/issues/182):
+
+```panackelty
+main(): Void {
+  mut balance: Nat = 5
+  if balance >= 2 {
+    balance = 0
+    print(balance - 2)
+  }
+}
+```
+
+Both `check` paths exit 0 with `ok`; both `run` paths exit 1 with
+`error: VM trap: Nat underflow`. Replacing `balance = 0` with
+`if true { balance = 0 }` has the same result. These observed acceptances are
+known defects, not desired regression expectations. The fix must turn the
+unsafe cases into checker rejections while retaining runtime protection.
+
+The accepted lower-bound program's `disasm` includes:
+
+```text
+FUNCTION|debit|pure|balance
+0|LOAD|balance
+1|CONST|Nat:2
+2|BINARY|>=
+3|JUMP_FALSE|8
+4|LOAD|balance
+5|CONST|Nat:2
+6|BINARY|-
+7|JUMP|9
+8|CONST|Nat:0
+9|RETURN
+```
+
+There is no source/proof map in this output or the current `FunctionCode` schema.
+It is a useful baseline for #173, not an explanation of the checking decision.
+
+### Cross-module change probes
+
+`debit.panack`:
+
+```panackelty
+pure debit(balance: Nat): Nat {
+  if balance >= 2 { balance - 2 } else { 0 }
+}
+pure identity[T](value: T): T { value }
+```
+
+`order.panack` in the same directory:
+
+```panackelty
+import "debit.panack"
+pure settle(balance: Nat): Nat { debit(identity(balance)) }
+pure checkout(balance: Nat): Nat { settle(balance) }
+pure unrelated(value: Nat): Nat { value + 1 }
+main(): Void {
+  print(checkout(5))
+  print(unrelated(5))
+}
+```
+
+The current-source compiler runs this program successfully, printing `3` and `6`.
+Two independent edits to `debit.panack` (restore the original between them):
+
+- Weaken the guard to `balance >= 1`: check exits 1 at the underflow obligation.
+  It does not produce a transitive guarantee-impact report for the callers.
+- Remove `pure` from `debit`: check exits 1 at `order.panack:2:34`, reporting
+  `pure function cannot call impure function debit`, including a source excerpt.
+  The declared pure signature of `settle` is still used at its call sites; the
+  result is not a recursively inferred effect report.
+
+These experiments establish useful boundaries for #174/#175. They do not prove
+`unrelated` is unaffected, implement predictions or establish a runtime value
+history. Those remain explicit prototype work.
+
+### Timing baseline
+
+Wall-clock observations on the existing local Darwin arm64 environment, including
+process launch, with no claim of controlled hardware or cross-machine performance:
+
+| Workload | Samples in seconds | Median |
+| --- | --- | ---: |
+| Fresh-source compiler checking `order.panack` | 0.0321, 0.0325, 0.0320, 0.0325, 0.0336 | 0.0325 |
+| Fresh-source compiler checking `examples/euler001_iterative.panack` | 0.0335, 0.0297, 0.0300, 0.0308, 0.0305 | 0.0305 |
+| `./panack check src/compiler/main.panack` | 6.073, 6.012, 6.064 | 6.064 |
+
+The small programs are dominated by fixed costs and cannot justify an overhead
+budget. Use repeated compiler-as-input and practical-program samples when adding
+evidence collection. Proposed budgets and remaining evaluation decisions are
+recorded in the architecture investigation. No #180 acceptance box is checked
+by these timings.
+
 ## Browser ownership and provisioning — 2026-10-01
 
 Core PR #158 and [browser PR #5](https://github.com/sproates/panackelty-browser/pull/5)

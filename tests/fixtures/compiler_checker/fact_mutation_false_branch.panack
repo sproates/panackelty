@@ -1,0 +1,1 @@
+main(): Void { mut n: Nat = 5; if n < 2 {} else { n = 0; print(n - 2) } }

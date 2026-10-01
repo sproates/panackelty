@@ -138,12 +138,20 @@ mapping, and no retained static dependency or dynamic derivation graph exists.
 Shared investigation remains open for sidecar integrity, runtime retention and
 positive non-impact experiments.
 
-**Immediate prerequisite:** [#182](https://github.com/sproates/panackelty/issues/182),
-a reproduced stale guard-fact defect. Direct and nested mutation can leave a
-subtraction incorrectly accepted; the VM still traps safely. Repair fact
-invalidation/control-flow handling before explaining those proofs. This is
-within #134, not a sixth workstream. Next implementation is the correctness
-repair and its regressions, followed by source attribution and retained evidence.
+**Correctness prerequisite #182: implemented in this delivery branch; accepted
+on merge after required checks pass.** The checker invalidates bounds across
+direct/nested writes, expression children and loop iterations, retaining fresh
+guards and unrelated facts. The public v9 seed is refreshed. Regression coverage
+includes 20 formerly accepted unsafe cases, three positive fixtures, a 48-case
+semantic matrix with actual VM execution, and public
+CLI failure/success fixtures. The VM's runtime protection is unchanged. This
+finishes the bounded core repair, not #134 or programme #180. Next: source
+attribution and retained checker evidence. Validation passes; the measured 139s
+full check and 86s unit phase exceed the 120s/15s targets. Keep validation-cost
+profiling under #106 as an explicit prioritisation reminder; retain all coverage.
+Paired compiler-only checks show no material slowdown on the measured workload;
+see the [repair measurements](tests/VALIDATION_PROFILE.md#guard-fact-repair-and-test-hardening-2026-10-01). Browser/native release adoption and
+live verification remain separately recorded in the website follow-up register.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
@@ -338,12 +346,16 @@ The review considered these three completed outcomes once each:
 3. Author-local website previews under #160, delivered through #161 and #171,
    including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
-Accepted deliverables since the new baseline: **1 of 3; review not yet due**
+Accepted deliverables since the new baseline: **2 of 3; review not yet due**
 (effective when this completion record merges).
 
 1. Playground layout #163: accepted preview, published browser v0.1.1, merged
    core pin and independently verified live assets/provenance. See the
    [completion record](#completed-playground-footer-layout).
+
+2. Guard-fact correctness repair #182 within #180: core invalidation, regression
+   coverage and refreshed v9 compiler seed, effective on this delivery's merge.
+   Website release adoption remains separate and is not counted again as this repair.
 
 Programme #180 has started shared investigation; no workstream is accepted yet.
 This initial investigation is an intermediate programme slice, not another
@@ -496,7 +508,7 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
 - **#182 compiler correctness follow-up:** owner is the #180 delivery agent until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as
   the affected core seed; plan a corrective compiler/browser release and explicit
-  website pin update after the repair passes acceptance. No target release is
+  website pin update after the core repair is merged and released. No target release is
   assigned. Review static-safety and guarded-type claims against the actual
   published runtime; the homepage's literal guarded-type example does not exercise
   the reproduced mutation defect. Keep this follow-up open through public

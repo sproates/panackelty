@@ -1,0 +1,1 @@
+error: Nat subtraction may underflow; prove the left side is large enough or use Int

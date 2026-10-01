@@ -1,5 +1,10 @@
 # Self-hosting roadmap
 
+The #182 guard-fact repair refreshes the v9 compiler seed so the public CLI
+rejects stale proofs after mutation. The seed refresh verifies identical
+stage-2/3/4 compiler and standard-library artifacts; the bytecode format and
+release version are unchanged.
+
 The bounded TCP server addition retains v9 and refreshes the compiler seed for
 `tcp_serve`, its handler signature, limits record and reserved builtin lowering.
 The seed was regenerated with identical stage 2/3/4 compiler and standard-library

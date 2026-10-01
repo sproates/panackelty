@@ -1,0 +1,2 @@
+enum Pick { Picked(Nat) }
+main(): Void { mut n: Nat = 5; if n >= 2 { match (if true { n = 0; Picked(1) } else { Picked(2) }) { Picked(item) => print(n - 2) } } }

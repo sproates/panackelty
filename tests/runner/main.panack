@@ -26,7 +26,7 @@ pure runner_selected(name: Str): Bool {
     name == "cli_rational_failures" ||
     name == "core_methods" || name == "collections" || name == "compiler_lexer" ||
     name == "compiler_skeleton" ||
-    name == "hello_world" || name == "host_capabilities" ||
+    name == "guard_fact_refresh" || name == "hello_world" || name == "host_capabilities" ||
     name == "host_process" || name == "host_types" ||
     name == "local_inference" || name == "modules" || name == "optional_else" ||
     name == "rational_unit" || name == "records_and_enums" ||
@@ -318,7 +318,8 @@ runner_failure(directory: Path, workspace: TestWorkspace): [TestResult] {
                 expected, prefix))
               if name == "unknown_name" || name == "imported_unknown_name" ||
                   name == "unexpected_character" || name == "same_line_without_separator" ||
-                  name == "inference_empty_array" || name == "inference_immutable" {
+                  name == "inference_empty_array" || name == "inference_immutable" ||
+                  starts_with(name, "fact_mutation_") {
                 results = results.append(runner_failure_command("${label}/run",
                   runner_command(["run", source_text], false), expected, prefix))
                 results = results.append(runner_failure_command("${label}/disasm",
@@ -367,7 +368,7 @@ runner_failures(workspace: TestWorkspace, selected: Str): [TestResult] {
           results = results.concat(runner_failure(directory, workspace))
         }
       }
-      expected_count: Nat = if selected == "" { 47 } else { 1 }
+      expected_count: Nat = if selected == "" { 55 } else { 1 }
       results.append(test_equal_nat("selected failure count", count, expected_count))
     }
   }
@@ -419,7 +420,7 @@ main(): Void {
           }
         }
         expected_count: Nat = if only_failures || selected_example != "" || selected_failure != "" { 0 }
-          else { if selected_case == "" { 27 } else { 1 } }
+          else { if selected_case == "" { 28 } else { 1 } }
         results = results.append(test_equal_nat("selected fixture count", found, expected_count))
         if selected_case == "" && selected_failure == "" && !only_failures {
           results = results.concat(runner_examples(workspace, selected_example))

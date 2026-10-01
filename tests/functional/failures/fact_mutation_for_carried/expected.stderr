@@ -1,0 +1,3 @@
+error: <case>/main.panack:8:24: Nat subtraction may underflow; prove the left side is large enough or use Int
+  8 |     for item in 0..2 { print(balance - 2); balance = 0 }
+    |                        ^

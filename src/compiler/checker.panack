@@ -791,11 +791,80 @@ pure check_generic_call(name: Str, function: FunctionLookup, type_arguments: [St
   CheckedExpression(plain_type(substitute_type(function.return_type, function.type_parameters, substitutions)), diagnostics)
 }
 
+// Drop incoming bounds for any local written while evaluating an expression.
+// Calls cannot mutate caller locals: values are persistent and closures do not
+// capture mutable bindings. Nested block expressions can, so visit every child.
+// Unknown bounds retain the map key without asserting either endpoint.
+pure forget_written_fact(facts: Map[Str,Bounds], name: Str): Map[Str,Bounds] {
+  if map_has(facts, name) { map_put(facts, name, Bounds(false, 0, false, 0)) }
+  else { facts }
+}
+
+pure facts_after_expression(expression: Expr, facts: Map[Str,Bounds]): Map[Str,Bounds] {
+  empty: Map[Str,Bounds] = map()
+  mut result: Map[Str,Bounds] = facts
+  if facts != empty {
+    match expression {
+      LocatedExpr(position, value) => { result = facts_after_expression(value, result) },
+      ArrayExpr(items) => {
+        for item in items { result = facts_after_expression(item, result) }
+      },
+      UnaryExpr(operator, value) => { result = facts_after_expression(value, result) },
+      BinaryExpr(operator, left, right) => {
+        result = facts_after_expression(right, facts_after_expression(left, result))
+      },
+      CallExpr(name, arguments, type_arguments) => {
+        for argument in arguments { result = facts_after_expression(argument, result) }
+      },
+      FieldExpr(target, field) => { result = facts_after_expression(target, result) },
+      IndexExpr(target, index) => {
+        result = facts_after_expression(index, facts_after_expression(target, result))
+      },
+      IfExpr(condition, yes, no, has_else) => {
+        result = facts_after_expression(condition, result)
+        result = facts_after_block(yes, result)
+        if has_else { result = facts_after_block(no, result) }
+      },
+      BlockExpr(block) => { result = facts_after_block(block, result) },
+      MatchExpr(subject, arms) => {
+        result = facts_after_expression(subject, result)
+        for arm in arms { result = facts_after_expression(arm.body, result) }
+      },
+      NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {},
+      BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(name) => {}
+    }
+  }
+  result
+}
+
+pure facts_after_statement(statement: Statement, facts: Map[Str,Bounds]): Map[Str,Bounds] {
+  match statement {
+    BindingStatement(name, type_name, mutable, value) => facts_after_expression(value, facts),
+    AssignmentStatement(name, value) => forget_written_fact(facts_after_expression(value, facts), name),
+    ExpressionStatement(value) => facts_after_expression(value, facts),
+    WhileStatement(condition, body) => facts_after_block(body, facts_after_expression(condition, facts)),
+    ForStatement(name, iterable, body) => facts_after_block(body, facts_after_expression(iterable, facts))
+  }
+}
+
+pure facts_after_block(block: Block, facts: Map[Str,Bounds]): Map[Str,Bounds] {
+  mut result: Map[Str,Bounds] = facts
+  for statement in block.statements { result = facts_after_statement(statement, result) }
+  match block.value {
+    NoBlockValue() => {},
+    TailBlockValue(value) => { result = facts_after_expression(value, result) }
+  }
+  result
+}
+
 pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedExpression {
   check_expression_scoped(expression, environment, facts, program, [])
 }
 
-pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedExpression {
+pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedExpression {
+  // Conservatively discard bounds across all children before checking operands
+  // or call arguments. No assumed operand order can resurrect a stale fact.
+  facts: Map[Str,Bounds] = facts_after_expression(expression, incoming_facts)
   mut diagnostics: [Diagnostic] = []
   mut info: TypeInfo = no_type()
   match expression {
@@ -1204,12 +1273,14 @@ pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
   TypeInfo(name, value.has_nat && !mutable, value.nat_value, mutable)
 }
 
-pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedBlock {
+pure check_block(block: Block, parent: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedBlock {
+  mut facts: Map[Str,Bounds] = incoming_facts
   mut environment: Map[Str,TypeInfo] = parent
   mut diagnostics: [Diagnostic] = []
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
+        facts = facts_after_expression(value, facts)
         checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types)
         diagnostics = concat(diagnostics, checked.diagnostics)
         mut binding_type: Str = type_name
@@ -1223,6 +1294,7 @@ pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds]
         environment = map_put(environment, name, local_binding_info(binding_type, checked.info, mutable))
       },
       AssignmentStatement(name, value) => {
+        facts = facts_after_expression(value, facts)
         target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics)
         if !map_has(environment, name) {
           diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
@@ -1232,16 +1304,21 @@ pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds]
       },
       ExpressionStatement(value) => { checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics); },
       WhileStatement(condition, body) => {
+        // A later iteration must not reuse pre-loop facts for written locals.
+        // The condition can then establish fresh bounds on every iteration.
+        facts = facts_after_statement(statement, facts)
         checked: CheckedExpression = check_expression_scoped(condition, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics)
         if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic_for(condition, "while condition must be Bool")); } else {}
         body_facts: Map[Str,Bounds] = condition_facts(condition, facts, true); checked_body: CheckedBlock = check_block(body, environment, body_facts, program, scope_types); diagnostics = concat(diagnostics, checked_body.diagnostics)
       },
       ForStatement(name, iterable, body) => {
+        facts = facts_after_statement(statement, facts)
         checked: CheckedExpression = check_expression_scoped(iterable, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics); shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
         if checked.info.name == "Range" || checked.info.name == "Bytes" { item = "Nat"; } else { if shape.base == "Array" && len(shape.arguments) == 1 { item = shape.arguments[0]; } else { iterable_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(iterable, "for requires a Range or array, got ${iterable_type}")); } }
         loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block(body, loop_environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked_body.diagnostics)
       }
     }
+    facts = facts_after_statement(statement, facts)
   }
   mut info: TypeInfo = plain_type("Void")
   match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); } }

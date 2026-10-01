@@ -1,17 +1,21 @@
 # Tests
 
-The optional [playground preparation suite](../src/playground/README.md) adds
-WASI/native compatibility and actual browser worker checks in its own CI workflow.
-Pages also runs the browser tests on the selected assembled website before
-deployment, using the checksummed external release in `site/playground.json`.
-These tests include the homepage links and selectable playground examples.
-`node --test tests/playground_release.test.cjs` checks release-pin validation,
-download failures, size and digest bounds, extraction safety, incomplete assets
-and stale-output rejection. The separate browser repository gates release
-publication on its own runtime and real-browser tests. The legacy preparation
-suite remains during migration; it is no longer the Pages build source.
-Its locked JavaScript packages and WASI SDK are not prerequisites of native
-`make check`. Browser tests supplement, never replace, the canonical suites below.
+[Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
+WASI/native compatibility and actual browser suites. Pages checks out an exact
+reviewed browser test commit and runs its 21 Chromium/Firefox/WebKit scenarios
+against the selected assembled website and checksummed `site/playground.json`
+release. Navigation, all nine examples, limits, failure recovery and real HTTP
+cache upgrades are retained. Set `PLAYGROUND_SITE_DIR` and
+`PLAYGROUND_BUILD_DIR` to the complete website and downloaded playground when
+running that suite locally; follow the browser repository's setup instructions.
+There is no duplicate browser source/test tree in core.
+
+`node --test tests/pages.test.cjs tests/playground_release.test.cjs` and
+`sh tests/pages.sh` check publisher selection, assembly, release-pin validation,
+download failures, size/digest bounds, extraction safety, incomplete assets and
+stale-output rejection. Production additionally verifies every deployed asset,
+MIME type and coverage provenance. Native `make check` does not need Node,
+Playwright or WASI; its existing native and bundle contracts remain independent.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
@@ -438,7 +442,7 @@ bash scripts/validate_change.sh --plan origin/main
 bash scripts/validate_change.sh --run origin/main
 ```
 
-The plan reports `route`, affected `components` and required `checks`. Local
+The plan reports `route`, the Pages PR requirement `pages`, affected `components` and required `checks`. Local
 selection compares the merge base with the working tree and index and includes
 untracked, non-ignored files. The run checks branch/index/worktree whitespace,
 then executes `make docs` alone for `docs`, or `make docs` and canonical
@@ -454,7 +458,7 @@ without building the compiler, and remains part of `make check` through policy.
 | --- | --- |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `AGENTS.md`, `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.agents/skills/next-item/SKILL.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
-| Any component, shared contract, unlisted path or mixture with code | Full existing validation, both platform packages and browser consumers |
+| Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages; Pages for website/package/shared/unknown inputs |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
@@ -469,8 +473,9 @@ control execution; these retain full checks.
 
 ### Component dependencies and retained coupling
 
-`scripts/validation_components.sh` records ownership for explanation; ownership
-alone does not prove that unrelated integration checks can be removed.
+`scripts/validation_components.sh` records ownership and Pages PR selection.
+The browser product's explicit version pin establishes its independence from
+isolated native PRs; ownership alone is not evidence for dropping native checks.
 
 | Input owner | Dependencies and consumers that must retain evidence |
 | --- | --- |
@@ -479,24 +484,24 @@ alone does not prove that unrelated integration checks can be removed.
 | VM/runtime and TCP | Native modules, fault tests, host probes, source/bytecode functional cases including real TCP peers, sanitizer and coverage runs; compiler itself runs on VM |
 | Standard library | Compiler and runtime probes, bootstrap library identity, source examples, installed and browser libraries |
 | Examples | Functional expected outputs, source/bytecode conformance, packaged examples |
-| Playground and website | WASI VM, pinned compiler seed, bundled standard library, browser workers and Pages assembly |
+| Website | Pinned external browser release, assembly, downstream integration suite and publication |
 | Package inputs | Installed documents/version, native toolchain, quick-start extraction, both supported platform archives |
 | Shared or unknown | Conservative union of all consumers, including Makefile, seed, specifications, selectors and workflows |
 
-This first slice retains the full integration envelope for every non-document
-component. Existing focused `check-compiler`, `check-bytecode` and `check-vm`
+The native integration envelope remains full for every non-document component. Existing focused `check-compiler`, `check-bytecode` and `check-vm`
 targets help during development but do not replace acceptance checks. The
 launcher builds the native VM, Panackelty probes execute on it, and packaging and
 bootstrap combine components; the earlier independent VM audit does not prove
 safe omission of those integrations. Separate compilation and dependency-aware
 artifact reuse remain later work under #106.
 
-Check, Playground and Pages PR validation consume the same selector rather than
-independent path filters. Documentation-only PRs do not install browser tools or
-build Wasm. Full changes conservatively run both browser consumers, including
-shared/unknown inputs previously omitted by path filters. Production Pages
-publication still follows successful Check runs and validates current main;
-that separate publication policy and release gates are unchanged.
+Check and Pages PR validation consume the same selector. No core workflow builds
+Wasm. Documentation and isolated compiler/bytecode/runtime/TCP/stdlib/example
+changes do not provision browser engines: the browser product pins a separately
+validated core revision. Website, package, shared, unknown and mixed inputs retain
+Pages integration. Missing revisions also retain Pages. Browser dependency updates
+run the full downstream suite. Production Pages always follows successful Check
+runs, selects validated current main and retains the browser/publication gates.
 
 The fast path checks changed whitespace, empty/NUL-containing documents,
 conflict markers, and local inline/image/reference link destinations outside

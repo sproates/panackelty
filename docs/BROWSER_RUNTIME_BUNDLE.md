@@ -1,7 +1,7 @@
 # Browser runtime dependency bundle
 
-The browser playground is moving toward a separate downstream repository. Core
-Panackelty therefore exposes a **versioned build-input bundle**, not a stable C
+The [browser playground](https://github.com/sproates/panackelty-browser) is a
+separate downstream repository. Core Panackelty exposes a **versioned build-input bundle**, not a stable C
 embedding ABI.
 
 Run:
@@ -35,3 +35,9 @@ browser suite.
 
 This bundle packages matched build inputs as one dependency. It does not make
 private VM C functions, structures or headers a supported third-party ABI.
+
+The browser currently materializes this bundle from an exact reviewed core commit.
+Its native CLI and conformance fixture comparisons use that same checkout as
+explicit test-only inputs. Browser builds do not read those test fixtures. A core
+PR retains native and bundle validation; adopting it in the browser requires a
+downstream dependency update and the complete runtime/browser suite.

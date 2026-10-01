@@ -65,14 +65,35 @@ type. A separate public HTTP check confirmed the architecture section, browser
 source link and exact `playground/release.json` pin. No publication acceptance
 remains for this slice.
 
-Refs #151: the broader migration, legacy-source/workflow cleanup and timing
-acceptance remain open. The old browser Actions-artifact uploader also remains;
-it is separate from the new durable release consumed by the site. Automatic PR
-preview wiring is still unfinished. This intermediate migration slice does not
-add a completed deliverable or reset the grooming checkpoint (1 of 3).
-Local `make check` passed in 145s against the 120s budget; the existing unit
-budget warning also remains. Retain the
-[validation-budget backlog](#keep-validation-within-development-budgets--non-blocking-backlog).
+### Browser repository separation — verification pending
+
+The user selected completion of #151's browser ownership and CI cleanup.
+Browser PR #5 moves the complete legacy suite: 15 runtime tests (145 VM corpus
+cases), asset identity coverage and seven scenarios in each of three browser
+engines. Its only publisher remains the tested immutable release workflow;
+checksum-verified SDK archives and exact-lockfile engine downloads are cached.
+The product artifact remains byte-for-byte identical to released v0.1.0.
+
+Core removes the duplicate application, npm dependencies, SDK installer and
+Playground preparation workflow. Pages downloads the reviewed release and runs
+the full integration suite from an exact browser commit against the assembled
+website. The common component selector omits browser provisioning on isolated
+native/example PRs while preserving it for website, package, shared, unknown and
+mixed changes. Production browser and deployed-asset/provenance gates remain.
+Core still owns native validation and the versioned runtime-bundle contract.
+
+Refs #151. Acceptance requires green downstream and core CI, recorded cold/warm
+provisioning and test timings, then authorised merges and a successful production
+Pages run with public artifact verification. The assistant will perform the
+post-merge checks and prepare the completion record. Keep #151 open until these
+pass. Automatic PR previews are a separate unfinished follow-up. The grooming
+ledger remains 1 of 3 until this outcome is accepted; no review is due yet.
+Local acceptance: 20 browser Node tests and 17 publisher tests pass, as do site
+assembly and adversarial routing checks. Final implementation `make check` passes
+in 132s, still above its 120s budget; the existing native full/unit
+validation-budget backlog remains open. Both cold and warm browser CI runs passed all 21 scenarios; the measured jobs
+were 213s and 182s. See [phase timings and limitations](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
+Core hosted and post-merge evidence remains to be verified.
 
 ## Current status and grooming, 2026-09-30
 
@@ -693,8 +714,8 @@ if a compliant build requires disproportionate host/toolchain work.
 
 The WASI SDK route now builds the existing VM with its native Clang/linker and
 an SDK-only subprocess PATH, without the Emscripten tooling. Maintained build,
-host, worker and lifecycle sources are under `src/playground`; locked dependencies
-and all generated outputs remain under `build`. Local compatibility and limit
+host, worker and lifecycle sources initially lived under `src/playground`; they
+now belong to the independent browser repository. Local compatibility and limit
 tests pass; the separate browser workflow passed on the merged PR head. Native
 `make check`, browser CI and physical iPhone evidence must be reported distinctly.
 The existing clean-check/unit timing-budget backlog remains open; this browser
@@ -1065,7 +1086,7 @@ methods remain separate scope.
 Technical evidence: `loader.panack` already deduplicates resolved module paths;
 `parser.panack` marks selected collection methods for checker resolution, but
 ordinary dot calls currently lose their method identity. The implementation must
-retain enough identity for the proposed lookup rules. `src/playground/runtime.mjs`
+retain enough identity for the proposed lookup rules. The browser runtime
 already supplies a stdlib root and runs the same compiler bytecode, so implement
 this in the shared compiler/library path, without browser-only source rewriting.
 An implicit prelude must not leak extra helper declarations simply because the

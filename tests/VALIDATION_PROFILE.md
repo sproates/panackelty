@@ -1,5 +1,55 @@
 # Validation profiling baseline
 
+## Browser ownership and provisioning — 2026-10-01
+
+Core PR #158 and [browser PR #5](https://github.com/sproates/panackelty-browser/pull/5)
+move the full suite rather than dropping coverage. The historical core baseline
+is [run 36785380904](https://github.com/sproates/panackelty/actions/runs/36785380904),
+job 110125464499. The downstream cold/warm samples use the exact same browser
+commit `60d5d512fe13392650f9b0893376fda18d1245b5` and Ubuntu 24.04:
+[run 36800287161](https://github.com/sproates/panackelty-browser/actions/runs/36800287161),
+attempt 1/job 110172851594 and attempt 2/job 110173866101. Both passed all 20
+Node tests (including 145 VM corpus cases) and 21 real-browser scenarios.
+The first attempt missed both caches; the second restored their exact keys.
+Durations below are whole seconds from Actions step timestamps.
+
+| Phase | Previous core workflow | Downstream cold | Downstream warm |
+| --- | ---: | ---: | ---: |
+| SDK restore | — | 0 | 4 |
+| SDK download/verification/extraction | 5 | 4 | 4 |
+| npm install | 2 | 2 | 1 |
+| Two deterministic builds | 4 | 3 | 4 |
+| Native oracle and runtime contracts | 5 | 5 | 5 |
+| Engine cache restore | — | 0 | 8 |
+| Engine/OS provisioning | 278 | 81 | 40 |
+| Complete browser tests | 101 | 98 | 104 |
+| Archive packaging | — | 0 | 0 |
+| Total browser job | 402 | 213 | 182 |
+
+Warm engine restore plus installation took 48s versus 81s cold; the complete job
+was 31s shorter. These are single hosted samples, not a guaranteed speedup. The
+old-to-cold difference cannot be attributed to caching: download and runner
+conditions varied. SDK caching showed no time saving in this sample (8s including
+restore versus 4s cold); its small pinned archive is reverified before extraction.
+Missing or checksum-invalid SDK archives are downloaded again. Engine installs
+still run on hits; missing executables are installed, and unusable engines fail
+the actual tests. No cache contains a test result. Keys include OS/architecture
+and the installer or complete package lock; there are no broad restore keys.
+
+The primary structural saving is removal of the duplicate core browser build
+and duplicate downstream publisher. Core PRs with only native/example components
+no longer provision engines for the independently pinned browser product. The
+shared selector regressions cover independent components, mixed/unknown inputs,
+renames and missing history; website/shared inputs keep browser integration.
+Production Pages still runs the full suite, then deployed-byte/provenance checks.
+This is not a claim that skipped tests run faster or that production avoids all
+engine setup. Dependency upgrades require downstream compatibility validation.
+
+Final local implementation `make check` passed in **132s** against the 120s
+budget. The native full/unit budget backlog remains open; browser separation
+does not claim to solve native validation performance. The older observations
+below are historical snapshots of their then-current routing.
+
 ## Modular validation route — 2026-09-30
 
 The bounded slice of [#106](https://github.com/sproates/panackelty/issues/106)

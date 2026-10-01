@@ -22,7 +22,7 @@ jobs:
   changes:
     runs-on: ubuntu-22.04
     outputs:
-      route: ${{ steps.scope.outputs.route }}
+      pages: ${{ steps.scope.outputs.pages }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -37,7 +37,7 @@ jobs:
     needs: changes
     name: Build Pages
     if: >-
-      (github.event_name == 'pull_request' && needs.changes.outputs.route == 'full') ||
+      (github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
@@ -101,11 +101,25 @@ jobs:
       - name: Fetch the selected website's pinned browser release
         run: node scripts/fetch_playground.cjs "$SITE_SOURCE/site/playground.json" "$SITE_SOURCE/build/playground"
 
-      - name: Prepare retained website integration tests
+      - name: Check out the reviewed browser integration suite
+        uses: actions/checkout@v6
+        with:
+          repository: sproates/panackelty-browser
+          ref: 60d5d512fe13392650f9b0893376fda18d1245b5
+          path: build/browser-tests
+          persist-credentials: false
+
+      - name: Restore matching browser engines
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build/browser-tests/package-lock.json') }}
+
+      - name: Prepare website integration tests
         run: |
-          cd "$SITE_SOURCE"
-          npm run setup --prefix src/playground
-          node build/playground-tools/node_modules/@playwright/test/cli.js install --with-deps chromium firefox webkit
+          cd build/browser-tests
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx playwright install --with-deps chromium firefox webkit
 
       - name: Assemble PR website with the pinned playground
         if: github.event_name == 'pull_request'
@@ -136,8 +150,9 @@ jobs:
           else
             export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/pages"
           fi
-          cd "$SITE_SOURCE"
-          npm run test:browser --prefix src/playground
+          export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/$SITE_SOURCE/build/playground"
+          cd build/browser-tests
+          npm run test:browser
 
       - name: Configure GitHub Pages
         if: github.event_name != 'pull_request'

@@ -1,5 +1,10 @@
 # Browser/WASM repository boundary investigation
 
+This is the historical investigation snapshot from before repository separation.
+For the resulting ownership and delivery contract, see
+[architecture](../ARCHITECTURE.md#browser-ownership-and-website-delivery) and the
+[roadmap](../ROADMAP.md#browserwasm-boundary-investigation--2026-10-01).
+
 ## Decision
 
 **Recommendation: split the browser playground into a separate repository, but not by copying the current source-tree integration unchanged. Perform one small core-boundary preparation first, then migrate.**

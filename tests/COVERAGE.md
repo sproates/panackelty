@@ -1,7 +1,7 @@
 # Specification coverage
 
-The optional [browser preparation profile](../src/playground/README.md) has
-additional tests in `tests/playground`: unchanged bytecode compatibility, native
+[Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
+additional runtime and browser tests: unchanged bytecode compatibility, native
 compiler equivalence, exact values, Unicode, source errors, explicit unavailable
 hosts, UTF-8 input/output bounds, memory growth rejection and worker lifecycle.
 Its declared host restrictions are not new native language semantics. Browser
@@ -13,10 +13,10 @@ stop, timeout, diagnostics and failure recovery. Pages assembly rejects missing
 playground assets and symlinks before publishing. Deployment tests check the
 selected complete artifact, including playground bytes and Wasm MIME type.
 Pages consumes the pinned external browser release rather than building the
-legacy profile. `tests/playground_release.test.cjs` covers invalid pins, HTTP
+browser product. `tests/playground_release.test.cjs` covers invalid pins, HTTP
 failure, oversized/tampered downloads, links/special files, missing compiler,
-asset identity and atomic installation. The existing assembled-site browser
-checks are retained during the migration.
+asset identity and atomic installation. Pages runs all 21 assembled-site browser scenarios from a pinned downstream
+test commit; no duplicate tests remain in core.
 Asset identity tests cover every staged file and deterministic ordering. Real
 browser tests warm an HTTP cache, switch deployments, reload and verify matching
 example/library execution with versioned module, worker and binary requests.

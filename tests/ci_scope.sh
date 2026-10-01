@@ -82,7 +82,7 @@ for path in AGENTS.md CONTRIBUTING.md docs/ROADMAP_PROCESS.md .agents/skills/nex
     printf '# Process\n' > "$path"
     commit; route docs
     plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
-    [[ "$plan" == $'route=docs\ncomponents=process\nchecks=documents,links,whitespace' ]] || fail 'process plan'
+    [[ "$plan" == $'route=docs\npages=false\ncomponents=process\nchecks=documents,links,whitespace' ]] || fail 'process plan'
 done
 fixture
 mkdir -p .github docs tests
@@ -98,7 +98,11 @@ while read -r path component; do
     commit; route full
     plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
     [[ "$plan" == *"components=$component"* ]] || fail "component: $path"
-    [[ "$plan" == *'compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages,playground,pages' ]] || fail "lost integrations: $path"
+    case "$component" in compiler|bytecode|runtime|tcp|stdlib|examples) pages=false ;; *) pages=true ;; esac
+    [[ "$plan" == *"pages=$pages"* ]] || fail "website dependency: $path"
+    checks=compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages
+    if [[ "$pages" == true ]]; then checks=$checks,pages; fi
+    [[ "$plan" == *"$checks" ]] || fail "lost integrations: $path"
 done <<'CASES'
 src/compiler/checker.panack compiler
 src/bytecode/reader.panack bytecode
@@ -107,7 +111,7 @@ src/runtime/host.panack runtime
 src/vm/host_tcp.c tcp
 tests/tcp_serve.sh tcp
 src/stdlib/array.panack stdlib
-src/playground/worker.mjs playground
+scripts/fetch_playground.cjs website
 site/index.html website
 VERSION package
 examples/hello.panack examples
@@ -117,6 +121,18 @@ Makefile shared
 .github/workflows/check.yml shared
 unrecognised/input.data unknown
 CASES
+# Mixed inputs cannot hide website/shared changes behind native-only changes.
+fixture
+mkdir -p src/vm site
+printf 'code\n' > src/vm/vm.c
+printf 'html\n' > site/index.html
+commit
+[[ $(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head") == *'pages=true'* ]] || fail 'mixed website input'
+base=$head
+git mv site/index.html src/vm/old.c
+commit
+[[ $(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head") == *'pages=true'* ]] || fail 'renamed website input'
+[[ $(bash "$root/scripts/ci_scope.sh" --plan missing "$head") == *'pages=true'* ]] || fail 'unknown revision omitted website'
 # Local classification includes staged, unstaged and untracked changes, with the
 # same plan after commit. Index-only changes cannot disappear behind a reversal.
 fixture
@@ -285,12 +301,11 @@ grep -F 'CI_VALIDATION_RESULT: ${{ needs.test_run.result }}' .github/workflows/c
 grep -F 'name: Package (${{ matrix.target }})' .github/workflows/check.yml >/dev/null || fail 'package check names changed'
 # Every consumer must use the same selection. No path filter may silently omit
 # an unknown/shared dependency, and docs must not enter browser build jobs.
-for workflow in check playground pages; do
+for workflow in check pages; do
     grep -F 'bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA"' ".github/workflows/$workflow.yml" >/dev/null || fail "selector missing: $workflow"
     if grep -E '^[[:space:]]+paths(-ignore)?:' ".github/workflows/$workflow.yml" >/dev/null; then fail "independent filter: $workflow"; fi
 done
-grep -F "if: needs.changes.outputs.route == 'full'" .github/workflows/playground.yml >/dev/null || fail 'docs enter playground'
-grep -F "github.event_name == 'pull_request' && needs.changes.outputs.route == 'full'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
+grep -F "github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
 echo 'CI workflow routing and cancellation contracts passed.'
 sh tests/ci_partition.sh
 sh tests/ci_conformance.sh

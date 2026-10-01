@@ -65,6 +65,18 @@ whose claims, examples, paths, diagrams, or status are affected:
 If no documentation change is necessary, state in the final response that the
 documentation was reviewed and why it remains accurate.
 
+## Website impact
+
+For every core change and release, follow the
+[website impact and follow-up process](docs/ROADMAP_PROCESS.md#website-impact-and-follow-ups).
+Record needed updates in the roadmap's website follow-up register in the same
+PR, with affected claims, versions, prerequisites and ownership. State no impact
+with a reason when applicable. Recording work does not start or schedule it.
+Version lag is acceptable only while the live site remains truthful for its
+stated versions; broken release links and incorrect syntax are correctness
+defects, not optional promotions. Review pending entries at releases, website
+changes and grooming, and verify the live correction before closing them.
+
 ## Completion handover
 
 Before requesting merge approval, follow the

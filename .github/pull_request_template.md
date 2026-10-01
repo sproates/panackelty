@@ -14,3 +14,13 @@ Merging still requires explicit user approval. -->
 - Outcome and roadmap entry:
 - Issue linkage:
 - Remaining acceptance and responsible person or agent, or none:
+
+## Website impact
+
+<!-- Follow docs/ROADMAP_PROCESS.md#website-impact-and-follow-ups. Assess core
+changes and releases against the versions the site actually offers. Record a
+concrete follow-up in ROADMAP.md in this PR when needed; recording it does not
+start or schedule the website update. -->
+
+- No impact (with reason), or follow-up register/issue link:
+- Published site remains correct for its stated versions, or defect and required coordination:

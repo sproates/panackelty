@@ -44,7 +44,7 @@ selected complete artifact, including playground bytes and Wasm MIME type.
 Pages consumes the pinned external browser release rather than building the
 browser product. `tests/playground_release.test.cjs` covers invalid pins, HTTP
 failure, oversized/tampered downloads, links/special files, missing compiler,
-asset identity and atomic installation. Pages runs all 21 assembled-site browser scenarios from a pinned downstream
+asset identity and atomic installation. Pages runs all 24 assembled-site browser scenarios from a pinned downstream
 test commit; no duplicate tests remain in core.
 Asset identity tests cover every staged file and deterministic ordering. Real
 browser tests warm an HTTP cache, switch deployments, reload and verify matching

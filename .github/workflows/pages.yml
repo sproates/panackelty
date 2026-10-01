@@ -1,6 +1,8 @@
 name: Pages
 
 on:
+  push:
+    branches: [main]
   workflow_run:
     workflows: [Check]
     types: [completed]
@@ -43,6 +45,7 @@ jobs:
     name: Prepare Pages
     if: >-
       (github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.pages == 'true') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
@@ -50,7 +53,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      SITE_SOURCE: ${{ github.event_name == 'pull_request' && '.' || 'validated-site' }}
+      SITE_SOURCE: '.'
     permissions:
       contents: read
       actions: read
@@ -72,34 +75,10 @@ jobs:
       - name: Test complete site assembly
         run: sh tests/pages.sh
 
-      - name: Select validated current main and coverage sources
+      - name: Pin current website source before parallel validation
         if: github.event_name != 'pull_request'
         id: source
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const fs = require('node:fs');
-            const selectSource = require('./scripts/pages_source.cjs');
-            const {site, run, report} = await selectSource(github, context.repo);
-            const archive = await github.rest.actions.downloadArtifact({
-              ...context.repo, artifact_id: report.id, archive_format: 'zip',
-            });
-            fs.writeFileSync(`${process.env.RUNNER_TEMP}/coverage.zip`, Buffer.from(archive.data));
-            core.setOutput('site_sha', site.head_sha);
-            core.setOutput('coverage_sha', run.head_sha);
-            core.setOutput('generated', report.created_at);
-            core.setOutput('run_id', String(run.id));
-            await core.summary.addHeading('Coverage publication sources')
-              .addRaw(`Website: ${site.head_sha}\n\nCoverage: ${run.head_sha}\n\nArchived: ${report.created_at}\n`)
-              .write();
-
-      - name: Check out validated website content
-        if: github.event_name != 'pull_request'
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ steps.source.outputs.site_sha }}
-          path: validated-site
-          persist-credentials: false
+        run: echo "site_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v6
         with:
@@ -158,20 +137,6 @@ jobs:
             sh scripts/assemble_site.sh "$SITE_SOURCE/site" build/playground build/website
           fi
           printf '%s\n' "$FINGERPRINT" > build/website/.validation-fingerprint
-
-      - name: Attach current coverage to validated website
-        if: github.event_name != 'pull_request'
-        env:
-          COVERAGE_SHA: ${{ steps.source.outputs.coverage_sha }}
-          SITE_SHA: ${{ steps.source.outputs.site_sha }}
-          COVERAGE_GENERATED: ${{ steps.source.outputs.generated }}
-          COVERAGE_RUN: ${{ steps.source.outputs.run_id }}
-        run: |
-          mkdir "$RUNNER_TEMP/coverage"
-          unzip -q "$RUNNER_TEMP/coverage.zip" -d "$RUNNER_TEMP/coverage"
-          sh scripts/attach_coverage.sh "$RUNNER_TEMP/coverage" build/website \
-            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA"
-          node scripts/check_pages.cjs build/website
 
       - uses: actions/upload-artifact@v4
         with:
@@ -245,12 +210,54 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      actions: read
       pages: read
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.build.outputs.site_sha || github.ref }}
+          persist-credentials: false
       - uses: actions/download-artifact@v6
         with:
           name: pages-candidate
           path: build/website
+      - name: Require successful Check for the pinned source and obtain coverage
+        if: github.event_name != 'pull_request'
+        id: validated
+        uses: actions/github-script@v8
+        env:
+          SITE_SHA: ${{ needs.build.outputs.site_sha }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const selectSource = require('./scripts/pages_source.cjs');
+            const awaitSource = require('./scripts/pages_ready.cjs');
+            const {site, run, report} = await awaitSource(
+              () => selectSource(github, context.repo), process.env.SITE_SHA);
+            const archive = await github.rest.actions.downloadArtifact({
+              ...context.repo, artifact_id: report.id, archive_format: 'zip',
+            });
+            fs.writeFileSync(`${process.env.RUNNER_TEMP}/coverage.zip`, Buffer.from(archive.data));
+            core.setOutput('coverage_sha', run.head_sha);
+            core.setOutput('generated', report.created_at);
+            core.setOutput('run_id', String(run.id));
+            await core.summary.addHeading('Validated publication sources')
+              .addRaw(`Website: ${site.head_sha}\n\nCoverage: ${run.head_sha}\n\nCheck: ${site.id}\n`).write();
+
+      - name: Attach current coverage to validated website
+        if: github.event_name != 'pull_request'
+        env:
+          COVERAGE_SHA: ${{ steps.validated.outputs.coverage_sha }}
+          SITE_SHA: ${{ needs.build.outputs.site_sha }}
+          COVERAGE_GENERATED: ${{ steps.validated.outputs.generated }}
+          COVERAGE_RUN: ${{ steps.validated.outputs.run_id }}
+        run: |
+          mkdir "$RUNNER_TEMP/coverage"
+          unzip -q "$RUNNER_TEMP/coverage.zip" -d "$RUNNER_TEMP/coverage"
+          sh scripts/attach_coverage.sh "$RUNNER_TEMP/coverage" build/website \
+            "$COVERAGE_SHA" "$COVERAGE_GENERATED" "$COVERAGE_RUN" "$SITE_SHA"
+          node scripts/check_pages.cjs build/website
+
       - name: Archive reusable website after successful browser validation
         if: github.event_name != 'pull_request'
         run: |
@@ -353,7 +360,7 @@ jobs:
             const result=require('./scripts/pages_timings.cjs')(run,jobs,mergedAt);
             await core.summary.addHeading('Website validation timings')
               .addCodeBlock(JSON.stringify(result,null,2),'json')
-              .addRaw('Budgets: validation 120s; merge-to-live 180s. Wall times conservatively include inter-job scheduling; initial queue is reported separately. Image pulls are included.\n')
+              .addRaw('Budgets: validation 120s; merge-to-live 180s. Raw wall time and observed pre-step runner dispatch are reported separately. Inter-job scheduling and image pulls remain included in validation. Merge-to-live is a conservative wall time.\n')
               .write();
             if (result.validation_seconds>120 || result.merge_to_live_seconds>180) {
               core.warning('Website timing budget exceeded; retain all tests and investigate the phase timings.');

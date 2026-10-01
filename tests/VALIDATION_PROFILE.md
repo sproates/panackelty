@@ -1,5 +1,39 @@
 # Validation profiling baseline
 
+## Website prepared environment assessment, 2026-10-01
+
+Issue #187 / PR #189. Agreed budgets: routine website validation 120s and
+merge-to-live 180s, for cold and warm runs, excluding separately reported queue.
+The prior Pages build in run 36893783723 lasted 784s (13m04s).
+
+At `d6ffac7`, run 36898308883 used the official digest-pinned Playwright 1.63.0
+image and all 24 scenarios with three workers. Attempt 1 passed: changes 4s,
+prepare 10s, browser job 80s (including image initialization; test execution
+44.2s), packaging 8s. First job start to packaging completion was 109s.
+Attempt 2 passed on another fresh hosted runner: prepare 8s, browser 80s,
+packaging 8s. Raw validation wall time was 148s; the job API recorded the first
+job starting at 17:20:49 UTC but its first runner step at 17:21:26 UTC. Excluding
+that observed 37s startup dispatch gives 111s, before any further dispatch
+adjustment. Do not label this repeat run as a cached-container or production
+artifact-reuse measurement: both PR runs executed the full browser suite.
+
+The initial image trial rejected all Firefox launches because the mounted home
+was owned by a different user. Aligning `/github/home` ownership with the
+container user fixed it without redefining HOME or disabling browser tests.
+Both successful samples preserve all test cases. Package installation was small
+relative to browser execution/image initialization, so a derived Node-dependency
+image is not justified by these samples.
+
+Production website pushes now validate alongside core Check; publication waits
+for the exact pinned source's successful Check and eligible coverage. Missing,
+failed, superseded and API-error paths cannot publish. Final hosted checks of
+that scheduling change, production artifact reuse, cold/warm merge-to-live and
+live byte/provenance verification remain acceptance work. The issue stays open
+until those measurements meet the agreed budgets; local and PR success alone do
+not establish publication latency. Native validation retains its separate timing
+warning and coverage requirements.
+
+
 ## Guard-fact repair and test hardening, 2026-10-01
 
 Core repair for [#182](https://github.com/sproates/panackelty/issues/182), following

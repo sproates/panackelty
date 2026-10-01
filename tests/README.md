@@ -177,9 +177,9 @@ page, LLVM source navigation and `summary.txt`. The Check workflow continues to
 upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
 Only successful push validation on `main` is eligible for publication.
 
-The Pages workflow is the single writer for the website and coverage. It selects
-the current `main` commit at selection time and requires a successful trusted
-Check for that exact SHA across paginated API results. Missing validation fails
+The Pages workflow is the single writer for the website and coverage. It pins
+current `main` before validation; website pushes can validate in parallel with
+Check. Publication requires a successful trusted Check for that exact SHA across paginated API results. Missing validation fails
 closed, including when the API returns only older successes. Coverage comes
 from the highest Check run number at or before that selected run with a report;
 API result order and old rerun completion times do not determine freshness.
@@ -187,8 +187,8 @@ Native-only and documentation-only successes reuse tested website bytes and
 attach fresh coverage without assembling the website or provisioning browsers. Production runs serialize and select sources at execution time, so a
 delayed older trigger cannot restore its older site. PRs only test; release
 workflows do not deploy. Manual Pages dispatch is permitted only from `main`
-and applies the same exact-commit validation. If current main is pending or
-failed, wait for a successful Check and retry Pages; no older site is substituted.
+and applies the same exact-commit validation. Publication waits at most two minutes for a pending Check; failed validation
+or a superseding main cannot substitute an older site. Retry after validation.
 A main advance during selection does not change the pinned source.
 
 The landing page and `coverage/provenance.txt` identify both source commits,
@@ -596,8 +596,9 @@ does not promote a browser release or execute new core compiler code in the site
 
 The agreed cold/warm budgets are 120s validation and 180s merge-to-live, excluding
 queue time reported separately. The `Pages timings` job reports complete job
-intervals (including pulls and artifact transfers), initial workflow queue and
-conservative wall-clock validation/publication times. Inter-job queue/orchestration
-is retained in those wall times rather than silently deducted. Hosted results and
+intervals (including pulls and artifact transfers), initial workflow queue, observed pre-step runner dispatch, and raw wall times.
+Validation excludes only measured pre-step dispatch; container initialization
+remains included. Inter-job orchestration is retained. Merge-to-live remains a
+conservative wall time, with job dispatch reported separately. Hosted results and
 live verification must be recorded before #187 closes. A timing warning never
 skips tests or permits failed browser validation to publish.

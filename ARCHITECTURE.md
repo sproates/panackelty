@@ -1288,7 +1288,8 @@ Pages runs retain reusable website bytes; coverage-only publication restores an
 identical fingerprint from a trusted successful production run and attaches the
 current validated coverage report. It does not reassemble website content.
 Missing identity requires browser validation; expired artifacts or lookup errors
-fail closed. Production retains one serialized writer, exact-main Check selection,
+fail closed. Website pushes validate alongside core CI; publication waits for the exact
+pinned main Check and fails if main advances. Production retains one serialized writer, exact-main Check selection,
 complete-site deployment and live byte/provenance verification. Browser failures
 cannot pass the publication gate, and PR artifacts never seed production reuse.
 See [environment maintenance and measurements](tests/README.md#prepared-website-validation-environment).

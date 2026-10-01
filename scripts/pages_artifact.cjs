@@ -10,7 +10,7 @@ module.exports = async function findWebsite(github, repo, fingerprint) {
     if (!artifact.workflow_run?.id) continue;
     const {data: run} = await github.rest.actions.getWorkflowRun({...repo, run_id: artifact.workflow_run.id});
     if (run.path !== '.github/workflows/pages.yml' || run.head_branch !== 'main' ||
-        !['workflow_run', 'workflow_dispatch'].includes(run.event) ||
+        !['push', 'workflow_run', 'workflow_dispatch'].includes(run.event) ||
         run.status !== 'completed' || run.conclusion !== 'success' ||
         run.repository?.full_name !== `${repo.owner}/${repo.repo}` ||
         run.head_repository?.full_name !== `${repo.owner}/${repo.repo}`) continue;

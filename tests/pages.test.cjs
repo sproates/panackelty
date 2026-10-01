@@ -186,7 +186,7 @@ test('reuse only identical successful production website, with paginated unorder
 });
 test('PR, failed, incomplete, foreign and non-main artifacts cannot seed publication', async () => {
   for (const overrides of [{event:'pull_request'}, {conclusion:'failure'}, {status:'in_progress'},
-    {head_branch:'feature'}, {repository:{full_name:'other/repo'}}, {head_repository:null}]) {
+    {path:'.github/workflows/other.yml'}, {head_branch:'feature'}, {repository:{full_name:'other/repo'}}, {head_repository:null}]) {
     assert.equal(await findWebsite(websiteApi([[websiteRun(5, overrides)]],
       {5:[websiteArtifact(5)]}), repo, fingerprint), null);
   }
@@ -224,4 +224,34 @@ test('timings include image initialization and transfers, report initial queue a
   assert.equal(result.initial_queue_seconds,10);
   assert.equal(result.merge_to_live_seconds,100);
   assert.equal(result.jobs[1].seconds,45);
+});
+
+test('publication waits for exact Check, and never substitutes a newer or older source', async () => {
+  const ready=require('../scripts/pages_ready.cjs');
+  const sha='b'.repeat(40); let calls=0; let waits=0;
+  const result=await ready(async()=>{
+    if (++calls<3) throw new Error(`No successful main Check for ${sha}; wait for validation and retry Pages.`);
+    return {site:{head_sha:sha},run:{id:12}};
+  },sha,async ms=>{assert.equal(ms,10000);waits++;});
+  assert.equal(result.run.id,12); assert.equal(waits,2);
+  await assert.rejects(ready(async()=>({site:{head_sha:'c'.repeat(40)}}),sha), /Main advanced/);
+  await assert.rejects(ready(async()=>{throw new Error('API denied');},sha), /API denied/);
+  await assert.rejects(ready(async()=>{throw new Error('Coverage expired');},sha), /Coverage expired/);
+  calls=0;
+  await assert.rejects(ready(async()=>{calls++;throw new Error(`No successful main Check for ${sha}; pending`);},sha,async()=>{}), /pending/);
+  assert.equal(calls,13);
+});
+
+test('observed dispatch before first runner step is separated without subtracting image pulls', () => {
+  const measure=require('../scripts/pages_timings.cjs'); const time=n=>new Date(n*1000).toISOString();
+  const jobs=[{name:'changes',started_at:time(0),completed_at:time(42),conclusion:'success',
+    steps:[{name:'Set up job',started_at:time(37),conclusion:'success'}]},
+    {name:'Browser integration',started_at:time(45),completed_at:time(140),conclusion:'success',
+    steps:[{name:'Set up job',started_at:time(46),conclusion:'success'},
+      {name:'Initialize containers',started_at:time(47),conclusion:'success'}]},
+    {name:'Package tested Pages',started_at:time(142),completed_at:time(148),conclusion:'success'}];
+  const result=measure({created_at:time(0)},jobs);
+  assert.equal(result.validation_wall_seconds,148); assert.equal(result.validation_seconds,110);
+  assert.equal(result.initial_queue_seconds,37); assert.equal(result.subsequent_dispatch_seconds,1);
+  assert.equal(result.jobs[1].seconds,94);
 });

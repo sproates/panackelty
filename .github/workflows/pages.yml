@@ -223,12 +223,17 @@ jobs:
           }
           JS
 
+      - name: Match mounted home ownership to the container user
+        # GitHub mounts /github/home with host-user ownership. Firefox rejects
+        # root execution with a home owned by another user; do not redefine HOME.
+        run: chown "$(id -u):$(id -g)" /github/home
+
       - name: Test browser execution before publishing
         run: |
           export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/website"
           export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/build/website/playground"
           cd build/browser-tests
-          npm run test:browser
+          npm run test:browser -- --workers=3
 
   publish:
     name: Package tested Pages

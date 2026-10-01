@@ -2,7 +2,7 @@
 
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 WASI/native compatibility and actual browser suites. Pages checks out an exact
-reviewed browser test commit and runs its 21 Chromium/Firefox/WebKit scenarios
+reviewed browser test commit and runs its 24 Chromium/Firefox/WebKit scenarios
 against the selected assembled website and checksummed `site/playground.json`
 release. Navigation, all nine examples, limits, failure recovery and real HTTP
 cache upgrades are retained. Set `PLAYGROUND_SITE_DIR` and
@@ -566,7 +566,8 @@ pinned by digest in `.github/workflows/pages.yml`. It supplies all three browser
 engines and their OS dependencies. Routine runs install only the locked Node test
 package with lifecycle scripts disabled; there is no browser/apt installation.
 The workflow verifies package/image version equality and executable presence
-before running all 21 Chromium/Firefox/WebKit scenarios. Container initialization
+before running the complete Chromium/Firefox/WebKit suite with three workers
+(one isolated browser project per worker; no cases are omitted). Container initialization
 and pulls count towards validation time. Node dependency installation is measured;
 a derived image is justified only if those measurements warrant it.
 

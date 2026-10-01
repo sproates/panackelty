@@ -207,6 +207,8 @@ test('publisher requires browser success or authenticated reuse; prepared enviro
   assert.match(workflow, /needs.build.result == 'success'/);
   assert.match(workflow, /playwright:v1\.63\.0-noble@sha256:[a-f0-9]{64}/);
   assert.match(workflow, /Playwright package\/image mismatch/);
+  assert.match(workflow, /npm run test:browser -- --workers=3/);
+  assert.match(workflow, /chown .* \/github\/home/);
   assert.doesNotMatch(workflow, /playwright install|apt-get|actions\/cache/);
 });
 

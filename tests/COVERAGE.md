@@ -391,8 +391,12 @@ Core `tests/pages.sh` and `tests/pages.test.cjs` cover website assembly and old-
 landing pages, source selection without coverage, exact-main validation,
 core/docs-only no-op publication, artifact expiry/API failures, local links and
 live website byte/MIME/provenance checks. The independent production publisher
-passed live verification in run `36933404078`; the website cutover still needs
-post-merge live verification recorded under #187.
+passed initial live verification in run `36933404078`. PR #203 website cutover
+passed live byte/MIME/provenance verification in Pages `36935939432`; both old
+entry points match the merged landing, which was visually inspected. Manual
+coverage refresh `36938575919` advanced the independent report to core `5381bc5`
+and verified every file without another website publication. Scheduled-event
+delivery and core-only production no-op evidence remain open under #187.
 This publication does not add language or native branch coverage.
 The initial local baseline is approximately 85%
 lines and 79% branches; this measures the native corpus, not every full-suite

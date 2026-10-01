@@ -1,10 +1,45 @@
 > Current decision: coverage now has an independent GitHub Pages publisher in
 > [`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage),
 > verified live in run `36933404078`. The combined-site coverage attachment and
-> refresh design below is historical and superseded. Website cutover and remaining
-> cold/warm timing acceptance are tracked in [#187's current roadmap state](../ROADMAP.md#next-fast-website-ci-and-prepared-browser-test-environments).
+> refresh design below is historical and superseded. Website cutover is verified;
+> remaining schedule/core-only and cold/warm timing acceptance are tracked in [#187's current roadmap state](../ROADMAP.md#next-fast-website-ci-and-prepared-browser-test-environments).
 
 # Validation profiling baseline
+
+## Separate coverage host acceptance, 2026-10-02
+
+PR #203 merged as `5381bc5`. Main Check `36935711159` passed all required native,
+platform and website gates. Pages `36935939432` restored the browser-certified
+website, skipped duplicate browsers and passed deployment/live verification.
+
+| Observation | Result |
+| --- | --- |
+| Check-through-packaging validation | 182s conservative wall bound |
+| Merge-to-verified-live | 212s wall time |
+| Initial Check queue | 3s |
+| Publication-only validation | 41s; excludes originating Check, not an end-to-end result |
+| Website preparation / packaging | 20s / 19s |
+| Deployment / verification | 10s / 6s |
+
+This changed publisher code and used full validation. It is not a routine
+website-only cold/warm acceptance sample. The 120s/180s targets remain unchanged.
+The homepage, old `/coverage/` and `/coverage/html/` entry points matched merged
+bytes via independent HTTP checks; website provenance identified `5381bc5` and
+Check `36935711159`. The landing layout was inspected in the live browser.
+
+Coverage workflow `publish.yml` was enabled and its main cron was
+`7,22,37,52 * * * *`, but no scheduled run had appeared during investigation.
+Manual run `36938575919` passed preparation, deployment and every-file live
+verification in 51s. Its report advanced from core `9ef402d` / Check `36926148148`
+to `5381bc5` / Check `36935711159`, artifact `11198500306`. Live website identity
+remained unchanged and no new core Pages run appeared. No code fix was needed
+for report selection, download or publication.
+
+This establishes independent report refresh, not automatic schedule delivery.
+The schedule's root cause is not established. GitHub's
+[documented delay/drop behavior](https://docs.github.com/en/actions/how-tos/troubleshoot-workflows)
+is a possible explanation, not proof of a particular service incident.
+#187 retains scheduled-run, core-only production and routine cold/warm acceptance.
 
 ## Website publication dependency assessment, 2026-10-01
 

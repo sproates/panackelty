@@ -4,6 +4,9 @@ or failed website validation, mode/rename/mixed-input fallback, checked-artifact
 source/expiry rejection, prior-coverage retention and combined Check/publication
 timing (including rerun, wrong-source and failed-live-verification exclusions).
 Website browser certification and full-route publication share all 24 scenarios.
+Applicable full routes require both native and website success; regressions cover
+failed, cancelled, skipped and missing results plus malformed applicability.
+Adding native inputs cannot remove a website requirement from compatibility gates.
 The original regressions also cover shared
 fingerprint identity and deletion invalidation, trusted production artifact reuse,
 foreign/PR/failed/expired artifact rejection, API failure propagation, prepared

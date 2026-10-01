@@ -182,6 +182,13 @@ and old-coverage provenance. The next slice must still establish independent
 coverage refresh against accepted website bytes under newer failing/pending site
 changes, race/rollback handling and full cold/warm acceptance. #187 remains open,
 ledger stays 2/3, and the original 120s/180s budgets have not been relaxed.
+PR #194's review found that mixed changes could omit website results from the
+required gates. The repair exports explicit website applicability, runs the
+validator for applicable full routes, and requires both native and website
+success. Pages defers that work to Check to avoid a duplicate browser run.
+Native-only full routes retain their explicit website skip. Hosted mixed-route
+negative acceptance must accompany the existing website-only fixture evidence;
+this repair does not claim post-merge production acceptance.
 
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests

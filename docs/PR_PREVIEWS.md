@@ -51,7 +51,7 @@ assembly. The preview adds identity on the home and playground pages,
 Coverage is explicitly unavailable for the local build, with a link to separately
 identified production coverage.
 
-The Pages PR job (or Check's website validator for website-only changes) builds
+Check's website validator builds
 the synthetic merge revision, records its head/base,
 runs the existing 21 browser scenarios and archives
 `website-preview-RUN_ID-RUN_ATTEMPT` for seven days. Download and extract it,

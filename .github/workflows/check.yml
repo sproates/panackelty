@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       route: ${{ steps.scope.outputs.route }}
+      pages: ${{ steps.scope.outputs.pages }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -48,7 +49,7 @@ jobs:
 
   website:
     needs: changes
-    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'website' && !cancelled()
+    if: needs.changes.result == 'success' && needs.changes.outputs.pages == 'true' && !cancelled()
     uses: ./.github/workflows/website-validation.yml
     permissions:
       contents: read
@@ -221,6 +222,7 @@ jobs:
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.package_build.result }}
           CI_WEBSITE_RESULT: ${{ needs.website.result }}
+          CI_WEBSITE_REQUIRED: ${{ needs.changes.outputs.pages }}
         run: sh scripts/ci_gate.sh
 
   test:
@@ -236,4 +238,5 @@ jobs:
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.test_run.result }}
           CI_WEBSITE_RESULT: ${{ needs.website.result }}
+          CI_WEBSITE_REQUIRED: ${{ needs.changes.outputs.pages }}
         run: sh scripts/ci_gate.sh

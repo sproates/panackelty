@@ -194,7 +194,9 @@ test('website certification follows browser success; publisher restores and chec
   const pages=fs.readFileSync('.github/workflows/pages.yml','utf8');
   assert.match(check,/needs: \[changes, package_build, website\]/);
   assert.match(check,/needs: \[changes, test_run, website\]/);
-  assert.match(check,/needs.changes.outputs.route == 'website'/);
+  assert.match(check,/needs.changes.outputs.pages == 'true'/);
+  assert.match(check,/pages: \$\{\{ steps.scope.outputs.pages \}\}/);
+  assert.equal((check.match(/CI_WEBSITE_REQUIRED:/g)||[]).length,2);
   assert.equal((check.match(/CI_WEBSITE_RESULT:/g)||[]).length,2);
   assert.match(website,/ref: \$\{\{ github.sha \}\}/);
   assert.match(website,/needs: \[prepare, browser\]/);
@@ -204,7 +206,7 @@ test('website certification follows browser success; publisher restores and chec
   assert.match(pages,/scripts\/pages_checked_website.cjs/);
   assert.match(pages,/test .*cat build\/website\/\.validation-fingerprint/);
   assert.match(pages,/test ! -e build\/website\/coverage/);
-  assert.match(pages,/grep -qx 'route=website'/);
+  assert.match(pages,/grep -qx 'pages=true'/);
   assert.match(pages,/s\/\^pages=true\$\/pages=false\//);
 });
 function websiteApi(pages, artifacts) {

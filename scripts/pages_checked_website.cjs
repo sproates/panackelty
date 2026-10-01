@@ -1,4 +1,4 @@
-// Website-only Check certifies bytes after every browser scenario succeeds.
+// Check certifies website bytes after every browser scenario succeeds.
 // Source selection requires the exact successful trusted main push, never a PR.
 module.exports = async function checkedWebsite(github, repo, sha) {
   if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('Invalid website source');

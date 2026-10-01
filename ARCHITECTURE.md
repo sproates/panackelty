@@ -1297,11 +1297,14 @@ See [environment maintenance and measurements](tests/README.md#prepared-website-
 The explicit static-site allowlist has a `website` route. Check invokes reusable
 website preparation, the shared full browser validator and artifact certification;
 its existing named gates require that result and native matrices are skipped.
-Pages defers website-only PR/push work to this validator and, on successful main
+Pages defers all applicable PR/push website work to this validator and, on successful main
 Check completion, restores the exact SHA's `checked-website` archive with prior
 trusted coverage. Fingerprint mismatch, coverage contamination and symlinks reject
-restoration. Shared/publisher/mixed changes still use the full route and parallel
-Pages validation. Browser test ownership is centralized in
+restoration. Shared/publisher/mixed changes still use the full route: Check runs
+native and applicable website validation in parallel, and its required gates
+require both to succeed. Native-only full changes require native success and an
+explicitly skipped website validator. Missing applicability fails closed.
+Browser test ownership is centralized in
 `.github/workflows/browser-validation.yml`; no validation job requires deployment
 to succeed. This first slice retains exact-current-main selection; decoupling
 coverage refresh from a newer unvalidated website remains follow-up work.

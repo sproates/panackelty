@@ -319,6 +319,7 @@ fixture
 printf '\n[broken](missing.md\n' >> ROADMAP.md
 reject_docs 'unclosed inline link'
 # A failed or cancelled classifier must fail every stable check, not skip green.
+export CI_WEBSITE_REQUIRED=false CI_WEBSITE_RESULT=skipped
 for result in failure cancelled skipped ''; do
     for selected in docs website full ''; do
         if CI_SCOPE_RESULT="$result" CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed classification'; fi
@@ -329,13 +330,24 @@ for selected in '' invalid; do
 done
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
-CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped CI_WEBSITE_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped CI_WEBSITE_REQUIRED=true CI_WEBSITE_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
 for native in success failure skipped cancelled ''; do
     for website in success failure skipped cancelled ''; do
         [[ "$native:$website" != skipped:success ]] || continue
-        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT="$native" CI_WEBSITE_RESULT="$website" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
+        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT="$native" CI_WEBSITE_REQUIRED=true CI_WEBSITE_RESULT="$website" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
             fail 'website route accepted missing/failed tests or inconsistent native result'
         fi
+    done
+done
+for required in true false '' invalid; do
+    for native in success failure skipped cancelled ''; do
+        for website in success failure skipped cancelled ''; do
+            expected=failure
+            if [[ "$native" == success && ( "$required:$website" == true:success || "$required:$website" == false:skipped ) ]]; then expected=success; fi
+            actual=failure
+            if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT="$native" CI_WEBSITE_REQUIRED="$required" CI_WEBSITE_RESULT="$website" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then actual=success; fi
+            [[ "$actual" == "$expected" ]] || fail "full gate: applicability=$required native=$native website=$website"
+        done
     done
 done
 for selected in docs full; do

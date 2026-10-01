@@ -65,9 +65,9 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = push ]; then
             plan=$(bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA")
-            # Check owns website-only validation. Its successful main completion
+            # Check owns all applicable website validation. Its main completion
             # triggers publication of the checked artifact, without a second run.
-            if printf '%s\n' "$plan" | grep -qx 'route=website'; then
+            if printf '%s\n' "$plan" | grep -qx 'pages=true'; then
               plan=$(printf '%s\n' "$plan" | sed 's/^pages=true$/pages=false/')
             fi
             printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"

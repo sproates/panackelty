@@ -178,12 +178,14 @@ upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
 Only successful push validation on `main` is eligible for publication.
 
 The Pages workflow is the single writer for the website and coverage. It pins
-current `main` before validation; full-route website pushes validate in parallel
-with Check. The four allowlisted website files instead use Check's reusable
+current `main` before publication. All applicable website inputs use Check's reusable
 `website-validation.yml`, sharing `browser-validation.yml` with Pages. Its checked
 artifact is archived only after all browser scenarios pass. Native matrices are
-skipped and existing compatibility gates require website validation success.
-Pages defers website-only PR/push validation to Check; successful main completion
+skipped only for the four-file website route. Applicable full-route changes run
+native and website validation concurrently; every existing compatibility gate
+requires both results. Native-only changes require native success and an explicit
+website skip. Missing or invalid applicability fails closed.
+Pages defers PR/push website validation to Check; successful main completion
 restores `checked-website-<sha>`, verifies its fingerprint/coverage-free shape,
 and attaches prior trusted coverage without another browser run. PR artifacts
 remain ineligible for production.

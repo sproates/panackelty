@@ -145,6 +145,15 @@ of artifact reuse and redundant publication next, after Node 24 action maintenan
 comparison; hosted reuse, duplicate-skip and changed-coverage publication remain
 acceptance requirements owned by the delivery agent. #187 stays open; neither
 this repair nor the action upgrade establishes the agreed timing budgets.
+PR #191 is merged as `67fa8f0`. Production run `36910124129` passed live byte
+and provenance verification: validation was 132s excluding observed dispatch,
+and merge-to-live wall time was 174s. Automatic follow-up `36910376804` found
+the trusted artifact and skipped browsers, packaging and deployment. This proves
+duplicate suppression, not warm restoration with changed coverage. The next
+repair overlaps bounded artifact-history reads and shortens exact-source polling,
+preserving all validation gates. Hosted timing and changed-coverage publication
+remain post-merge acceptance owned by the delivery agent; #187 and ledger 2/3
+remain unchanged until the full outcome is accepted.
 
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests

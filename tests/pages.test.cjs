@@ -221,10 +221,12 @@ test('timings include image initialization and transfers, report initial queue a
     {name:'Browser integration',started_at:time(35),completed_at:time(80),conclusion:'success'},
     {name:'Package tested Pages',started_at:time(85),completed_at:time(90),conclusion:'success'},
     {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
-  const result=measure({created_at:time(0)},jobs,time(0));
+  const result=measure({created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'},jobs,time(0),'abc');
   assert.equal(result.validation_seconds,80);
   assert.equal(result.initial_queue_seconds,10);
-  assert.equal(result.merge_to_live_seconds,100);
+  assert.equal(result.merge_to_live_wall_seconds,100);
+  assert.equal(result.merge_to_live_seconds,null);
+  assert.equal(result.live_verification,'success');
   assert.equal(result.jobs[1].seconds,45);
 });
 
@@ -256,4 +258,34 @@ test('observed dispatch before first runner step is separated without subtractin
   assert.equal(result.validation_wall_seconds,148); assert.equal(result.validation_seconds,110);
   assert.equal(result.initial_queue_seconds,37); assert.equal(result.subsequent_dispatch_seconds,1);
   assert.equal(result.jobs[1].seconds,94);
+});
+
+
+test('failed, cancelled, skipped and missing live verification never report merge success', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const time=n=>new Date(n*1000).toISOString();
+  const run={created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'};
+  const prepare={name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'};
+  for (const conclusion of ['failure','cancelled','skipped',null]) {
+    const jobs=[prepare];
+    if (conclusion) jobs.push({name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion});
+    const result=measure(run,jobs,time(0),'abc');
+    assert.equal(result.merge_to_live_wall_seconds,null,conclusion);
+    assert.equal(result.merge_to_live_seconds,null,conclusion);
+    assert.equal(result.live_verification,conclusion === 'skipped' || !conclusion ? 'not_run' : conclusion);
+  }
+});
+
+test('refreshes, reruns and superseding sources are not first merge-to-live measurements', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const time=n=>new Date(n*1000).toISOString();
+  const run={created_at:time(0),event:'push',head_branch:'main',run_attempt:1,head_sha:'abc'};
+  const jobs=[{name:'Prepare Pages',started_at:time(10),completed_at:time(30),conclusion:'success'},
+    {name:'Verify published coverage',started_at:time(95),completed_at:time(100),conclusion:'success'}];
+  for (const change of [{event:'workflow_dispatch'},{event:'workflow_run'},{event:'pull_request'},
+    {run_attempt:2},{head_branch:'feature'},{head_sha:'older'}]) {
+    assert.equal(measure({...run,...change},jobs,time(0),'abc').merge_to_live_wall_seconds,null);
+  }
+  assert.equal(measure(run,jobs,undefined,'abc').merge_to_live_wall_seconds,null);
+  assert.equal(measure(run,jobs,time(0)).merge_to_live_wall_seconds,null);
 });

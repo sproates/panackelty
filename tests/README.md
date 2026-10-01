@@ -598,7 +598,10 @@ The agreed cold/warm budgets are 120s validation and 180s merge-to-live, excludi
 queue time reported separately. The `Pages timings` job reports complete job
 intervals (including pulls and artifact transfers), initial workflow queue, observed pre-step runner dispatch, and raw wall times.
 Validation excludes only measured pre-step dispatch; container initialization
-remains included. Inter-job orchestration is retained. Merge-to-live remains a
-conservative wall time, with job dispatch reported separately. Hosted results and
+remains included. Inter-job orchestration is retained. Merge-to-live wall time is emitted only after successful live verification for
+the first main push attempt of the published source. Manual refreshes, duplicate
+publications, reruns, and failed or cancelled verification cannot establish it.
+The queue-excluded merge-to-live field remains null: acceptance must separately
+account for queue overlap with Check; the wall time is only a conservative bound. Hosted results and
 live verification must be recorded before #187 closes. A timing warning never
 skips tests or permits failed browser validation to publish.

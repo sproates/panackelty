@@ -2,7 +2,10 @@ Website CI #187 regressions cover compiler/seed/test-only routing, shared
 fingerprint identity and deletion invalidation, trusted production artifact reuse,
 foreign/PR/failed/expired artifact rejection, API failure propagation, prepared
 browser version gates, and coverage replacement without changing website bytes.
-All 24 downstream browser scenarios remain required for changed website inputs.
+Timing regressions cover failed/cancelled/skipped/missing live verification,
+manual and duplicate publications, reruns, and superseding source selection;
+none may claim successful first-merge latency. All 24 downstream browser
+scenarios remain required for changed website inputs.
 
 # Specification coverage
 

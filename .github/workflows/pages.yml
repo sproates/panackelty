@@ -362,11 +362,11 @@ jobs:
               const {data: commit} = await github.rest.repos.getCommit({...context.repo, ref:process.env.SITE_SHA});
               mergedAt=commit.commit.committer.date;
             }
-            const result=require('./scripts/pages_timings.cjs')(run,jobs,mergedAt);
+            const result=require('./scripts/pages_timings.cjs')(run,jobs,mergedAt,process.env.SITE_SHA);
             await core.summary.addHeading('Website validation timings')
               .addCodeBlock(JSON.stringify(result,null,2),'json')
-              .addRaw('Budgets: validation 120s; merge-to-live 180s. Raw wall time and observed pre-step runner dispatch are reported separately. Inter-job scheduling and image pulls remain included in validation. Merge-to-live is a conservative wall time.\n')
+              .addRaw('Budgets: validation 120s; merge-to-live 180s. Raw wall time and observed pre-step runner dispatch are reported separately. Inter-job scheduling and image pulls remain included in validation. Merge-to-live wall time is reported only for successful first-attempt main pushes of the published source. Queue-excluded merge-to-live remains unmeasured and requires acceptance evidence; manual refreshes, duplicate publications, reruns and failed verification cannot establish it.\n')
               .write();
-            if (result.validation_seconds>120 || result.merge_to_live_seconds>180) {
+            if (result.validation_seconds>120 || result.merge_to_live_wall_seconds>180) {
               core.warning('Website timing budget exceeded; retain all tests and investigate the phase timings.');
             }

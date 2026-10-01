@@ -44,24 +44,35 @@ as an accepted implementation deliverable or reset the three-deliverable
 checkpoint. The proposed implementation sequence remains subject to review and
 merge approval.
 
-### Browser website publication connection — in progress
+### Browser website publication connection — verified
 
-The independent browser repository exists and its architecture explanation was
-merged in `sproates/panackelty-browser#3`, but the website still needed a delivery
-connection. This slice adds a version/checksum pin in `site/playground.json` and
-consumes the browser repository's tested release archive while preserving
+The independent browser repository's architecture explanation from
+`sproates/panackelty-browser#3` is now live at
+[the public playground](https://panackelty.com/playground/#build-architecture-title).
+Browser PR #4 publishes a tested, checksummed `v0.1.0` release; core PR #156
+consumes it through `site/playground.json`, preserving
 website/coverage ownership and assembled-site browser tests in this repository.
 It removes the browser compilation step from Pages, not the remaining legacy
 compatibility profile or its tests.
 
-Post-merge acceptance: the browser publisher must release `v0.1.0`, its archive
-must match the reviewed pin, then the website consumer PR must pass and deploy.
-The agent will verify the live architecture section and complete artifact.
-Until then, publication is pending. Refs #151; that broader migration and its
-timing/cleanup acceptance remain open. This intermediate slice does not add a
-completed deliverable or reset the grooming checkpoint.
-Local validation still reports the existing unit-phase budget warning (68s
-against 15s); retain the [validation-budget backlog](#keep-validation-within-development-budgets--non-blocking-backlog).
+Post-merge acceptance passed on 2026-10-01. The published browser archive matches
+the reviewed SHA-256 and the CI candidate byte-for-byte. Core commit
+`64421a19afb7279a668367b62bfc3a67eda841fc` passed Check; production
+[Pages run 36798813540](https://github.com/sproates/panackelty/actions/runs/36798813540)
+passed website browser integration, deployment and post-deployment verification
+of the entry points, coverage provenance, every playground asset and Wasm MIME
+type. A separate public HTTP check confirmed the architecture section, browser
+source link and exact `playground/release.json` pin. No publication acceptance
+remains for this slice.
+
+Refs #151: the broader migration, legacy-source/workflow cleanup and timing
+acceptance remain open. The old browser Actions-artifact uploader also remains;
+it is separate from the new durable release consumed by the site. Automatic PR
+preview wiring is still unfinished. This intermediate migration slice does not
+add a completed deliverable or reset the grooming checkpoint (1 of 3).
+Local `make check` passed in 145s against the 120s budget; the existing unit
+budget warning also remains. Retain the
+[validation-budget backlog](#keep-validation-within-development-budgets--non-blocking-backlog).
 
 ## Current status and grooming, 2026-09-30
 

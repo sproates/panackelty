@@ -124,25 +124,96 @@ the delivery agent must verify successful Pages deployment, the published pin,
 and all six resource rows/destinations before marking #163 Done and counting it
 once. Retain the open issue until those checks pass.
 
-### Next: compiler explanations
+### Next: compiler and runtime understanding programme
 
-**Planned:** [#134](https://github.com/sproates/panackelty/issues/134), after #163.
-Deliver one compiler-backed explanation of why guarded Nat subtraction is
-accepted or rejected: checked facts, assumptions and source locations, with
-explicit unknown/unsupported cases. M / 1–2 PRs including evidence retention,
-CLI integration, positive/negative/imported/generic tests, documentation,
-feedback-cost measurements and canonical validation. Do not invent proof
-narratives or promise automatic repairs. Narrow the exact query after inspecting
-the checker; keep the outcome independently useful.
+**Planned:** the user selected all five workstreams as one coordinated programme
+on 2026-10-01, following remaining #163 acceptance. This expands the earlier
+#134-only selection. Work together on investigation, evidence design and delivery;
+retain independently testable stages and child acceptance, rather than five
+unrelated initiatives or one large implementation PR.
 
-This gives useful compiler assistance priority after three infrastructure/workflow
-outcomes, and tests evidence reuse for #174/#175 without committing to a shared
-framework first. Source coverage #131 remains the strongest alternative because
-Panackelty source execution is still unmeasured. It is unscheduled, not blocked
-behind all compiler-introspection work. Refactoring #132 needs an evidenced
-hotspot; file discovery #167 is useful scripting work but follows the selected
-compiler assistance. Revisit priorities if inspection finds disproportionate
-cost or an urgent correctness defect.
+<a id="compiler-and-runtime-understanding-programme"></a>
+
+Programme tracker: [#180](https://github.com/sproates/panackelty/issues/180).
+**Overall: Planned; 0 of 5 workstreams accepted.** This is a count of accepted
+workstreams, not an effort percentage. No implementation is claimed by this record.
+
+| Workstream | State | Acceptance focus / progress |
+| --- | --- | --- |
+| [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Planned | Explain checked types, effects and proof obligations from actual checker evidence; start with guarded subtraction. No accepted delivery yet. |
+| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Planned | Connect source through checking/lowering to emitted bytecode. No accepted delivery yet. |
+| [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Planned | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
+| [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Planned | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
+| [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Planned | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
+
+Programme milestones:
+
+- [ ] Investigate all five together: inventory existing evidence, source mapping,
+  constraints and dependency information; distinguish runtime tracing needs.
+  Produce experiments, justified shared/separate design decisions, dependencies,
+  acceptance boundaries and revised delivery estimates.
+- [ ] Deliver the first #134 explanation with source locations, checked facts,
+  assumptions, honest unknowns and positive/negative/imported/generic tests.
+  Assess evidence reuse for #173/#174/#175 without requiring a universal framework.
+- [ ] Deliver the remaining agreed scope across all five workstreams in the
+  sequence justified by investigation, including runtime provenance's distinct
+  overhead, retention and sensitive-data requirements.
+- [ ] Complete integration, documentation, performance and release acceptance.
+- [ ] Publish and verify version-correct website demonstrations through deliberate
+  release adoption; see the [follow-up register](#website-follow-up-register).
+
+- [ ] Pass the programme acceptance gate below on realistic programs.
+
+### Programme acceptance: trustworthy and useful on realistic programs
+
+**The explanations and predictions must be trustworthy and useful on realistic
+programs.** Completing five isolated demonstrations is insufficient to close the
+programme. Agree and record the representative programs and success criteria
+before final evaluation; retain unsuccessful cases and limitations in the report.
+
+- Use complete, reproducible application or tool workflows, including multi-module
+  code, calls across module boundaries, generics and effects where supported.
+  Select cases from practical development needs, not solely fixtures constructed
+  to showcase the feature. Cover all five workstreams across the evaluation set;
+  document unsupported categories rather than implying universal coverage.
+- Establish trustworthiness against actual checker decisions, emitted bytecode
+  and observed execution as appropriate. Apply predicted changes and compare
+  predicted direct/transitive consequences with the real results. Check derived
+  requirements by recompilation, and runtime provenance against execution.
+  Include accepted, rejected, unsupported and deliberately misleading cases;
+  unknown results must remain explicit. Silence is not evidence of non-impact.
+- Demonstrate usefulness through recorded developer tasks: identify the cause of
+  a rejection, make and verify a valid correction, assess a change's consequences,
+  or explain an unexpected value. A reviewer who did not implement the feature
+  must be able to use its output to reach a verifiable answer without reading
+  compiler internals. Record the answer, supporting evidence, unresolved questions
+  and confusing output; attractive text alone does not satisfy acceptance.
+- Measure explanation latency, ordinary compilation overhead and runtime tracing
+  cost on these programs against budgets agreed during investigation. Record
+  reproducible commands, exact revisions, expected/actual results and reviewer
+  findings. Resolve correctness failures within the agreed scope and review
+  usefulness failures before claiming acceptance; any scope reduction needs an
+  explicit user decision.
+
+Keep this gate pending until its evidence is linked from #180 and the roadmap.
+It supplements each child issue's acceptance and the release/website checks.
+
+At every accepted delivery, update this table and #180 with child issue/PR links,
+acceptance evidence, blockers and remaining work. Keep child issues open until
+their own agreed acceptance is met. A narrow first experiment does not complete
+an entire workstream unless it fulfils that scope. Any deferral or scope reduction
+requires an explicit user decision. Close the programme only after all five
+workstreams and programme-level release/website acceptance, or an explicitly
+approved scope revision. Track independently accepted outcomes once in the
+normal grooming ledger; umbrella closure does not count them again.
+
+Overall effort and PR count await the shared investigation. The previous
+M / 1–2 PR estimate covers only the narrow #134 slice. Normal-build and runtime
+costs must be measured, and explanations must use actual evidence rather than
+invented narratives. Broader type inference #170 is adjacent, outside these five.
+Source coverage #131, file discovery #167 and website separation #178 remain
+independent candidates; review priorities at the usual checkpoints rather than
+making the entire programme an unconditional prerequisite for unrelated work.
 
 <a id="now-portable-automatic-pr-previews"></a>
 
@@ -199,7 +270,8 @@ historical recommendations do not create competing implementation queues.
 ### Grooming checkpoint ledger
 
 Baseline: the 2026-10-01 review, agreed with the user: fix #163 first, then
-compiler explanations #134. This supersedes the 2026-09-30 review in
+the compiler and runtime understanding programme #180, expanded from #134
+on 2026-10-01. This supersedes the 2026-09-30 review in
 [PR #143](https://github.com/sproates/panackelty/pull/143).
 
 The review considered these three completed outcomes once each:
@@ -212,13 +284,13 @@ The review considered these three completed outcomes once each:
    including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
 Accepted deliverables since the new baseline: **0 of 3**. The layout work is
-awaiting final delivery/verification; compiler explanations are planned. Neither is counted yet. Grooming
+awaiting final delivery/verification; programme #180 is planned. Neither is counted yet. Grooming
 and its bookkeeping do not add an outcome. Record each accepted completion and
 review again after three, or earlier if material evidence changes the decision.
 
 ### Groomed candidates
 
-Except for **Planned** compiler explanations #134 above, the twelve entries
+Except for **Planned** compiler explanations #134 within programme #180 above, the twelve entries
 below remain **Idea**, with implementation unscheduled. #106
 has completed its bounded validation slice as recorded below; its later work
 is unscheduled. The user agreed
@@ -279,10 +351,11 @@ Source-coverage feasibility (#131), editor basics (#139) and invariant testing
 
 ### Additional ideas recorded on 2026-10-01
 
-All entries here are **Idea, unscheduled**. Issue detail defines investigations
-and acceptance, not agreed implementation order. Preserve independently useful
-outcomes; assess shared evidence without making a large common framework a
-prerequisite for every compiler capability.
+Entries #164–#170 remain **Idea, unscheduled**. Entries #172–#175 are now
+**Planned** within [programme #180](#compiler-and-runtime-understanding-programme),
+whose table above owns current progress. The summaries below retain their scope;
+issue detail defines acceptance. Preserve independently useful outcomes and
+justify shared evidence rather than requiring a large common framework.
 
 | Work record | Bounded intent / relationship |
 | --- | --- |
@@ -362,8 +435,18 @@ update, correctness assessment, owner, state and acceptance evidence. Use a
 linked issue for detail; retain enough information here if GitHub is unavailable.
 Never mark an update complete merely because its PR merged: verify the live site.
 
-No individual core-change follow-ups have been entered by this planning change;
-this is not an audit or certification of the current site's accuracy.
+- **Programme #180 website demonstrations:** promotion pending; owner is the
+  agent or maintainer delivering #180 until explicitly handed over. Affected
+  surfaces: homepage capabilities, learning examples and playground where supported.
+  Add a tested rejected/explained/corrected example and describe each delivered
+  capability accurately. Current baseline: browser pin v0.1.1 and native download
+  alpha.10 in this roadmap; recheck actual advertised versions when implementing.
+  Target release is not assigned. Prerequisites: feature acceptance, published
+  native/browser artifacts supporting each example, and explicit website adoption.
+  Keep existing claims unchanged until supported; no current-site defect is
+  asserted by this entry. No automatic update is scheduled. Close after live
+  verification of examples, download links and version/feature claims. Website
+  repository separation #178 is not a prerequisite.
 
 ### Additional platform and distribution ideas
 
@@ -1417,8 +1500,9 @@ Start with one query explaining an actual checker decision, such as accepted or
 rejected guarded subtraction. Acceptance requires checked facts, source
 locations, honest unknowns and agreement with positive and negative checker
 cases. Retained evidence and cost need investigation. Types and effects can
-follow; runtime value provenance, new inference rules and automatic fixes remain
-separate.
+follow within [programme #180](#compiler-and-runtime-understanding-programme).
+Runtime value provenance is its own linked workstream #172; new inference rules
+and automatic fixes remain outside #134.
 
 ### Systematic invariant testing
 

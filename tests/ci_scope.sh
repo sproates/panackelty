@@ -330,7 +330,7 @@ for workflow in check pages; do
     grep -F 'bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA"' ".github/workflows/$workflow.yml" >/dev/null || fail "selector missing: $workflow"
     if grep -E '^[[:space:]]+paths(-ignore)?:' ".github/workflows/$workflow.yml" >/dev/null; then fail "independent filter: $workflow"; fi
 done
-grep -F "github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
+grep -F "steps.scope.outputs.pages == 'true'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
 echo 'CI workflow routing and cancellation contracts passed.'
 sh tests/ci_partition.sh
 sh tests/ci_conformance.sh

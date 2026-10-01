@@ -26,26 +26,11 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  changes:
-    runs-on: ubuntu-22.04
-    outputs:
-      pages: ${{ steps.scope.outputs.pages }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - id: scope
-        env:
-          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA" >> "$GITHUB_OUTPUT"
   build:
-    needs: changes
     name: Prepare Pages
     if: >-
-      (github.event_name == 'pull_request' && needs.changes.outputs.pages == 'true') ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.pages == 'true') ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' &&
@@ -67,30 +52,49 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+          fetch-depth: 0
           persist-credentials: false
 
+      - name: Classify before any website work
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = push ]; then
+            bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo 'pages=true' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Test source selection and report navigation
+        if: steps.scope.outputs.pages == 'true'
         run: node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
 
       - name: Test complete site assembly
+        if: steps.scope.outputs.pages == 'true'
         run: sh tests/pages.sh
 
       - name: Pin current website source before parallel validation
-        if: github.event_name != 'pull_request'
+        if: steps.scope.outputs.pages == 'true' && (github.event_name != 'pull_request')
         id: source
         run: echo "site_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v6
+        if: steps.scope.outputs.pages == 'true'
         with:
           node-version: '24'
 
       - name: Fingerprint selected website inputs
+        if: steps.scope.outputs.pages == 'true'
         id: fingerprint
         run: |
           cd "$SITE_SOURCE"
           echo "value=$(bash scripts/pages_fingerprint.sh HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Find previously validated production website
+        if: steps.scope.outputs.pages == 'true'
         id: reuse
         uses: actions/github-script@v8
         env:
@@ -111,7 +115,7 @@ jobs:
             }
 
       - name: Restore validated website bytes without browser provisioning
-        if: steps.reuse.outputs.browser == 'false'
+        if: steps.scope.outputs.pages == 'true' && (steps.reuse.outputs.browser == 'false')
         env:
           FINGERPRINT: ${{ steps.fingerprint.outputs.value }}
         run: |
@@ -123,7 +127,7 @@ jobs:
           test -z "$(find build/website -type l -print)"
 
       - name: Fetch pinned release and assemble changed website
-        if: steps.reuse.outputs.browser == 'true'
+        if: steps.scope.outputs.pages == 'true' && (steps.reuse.outputs.browser == 'true')
         env:
           IS_PR: ${{ github.event_name == 'pull_request' }}
           PREVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -139,6 +143,7 @@ jobs:
           printf '%s\n' "$FINGERPRINT" > build/website/.validation-fingerprint
 
       - uses: actions/upload-artifact@v4
+        if: steps.scope.outputs.pages == 'true'
         with:
           name: pages-candidate
           path: build/website
@@ -333,7 +338,7 @@ jobs:
 
   timings:
     name: Pages timings
-    needs: [changes, build, browser, publish, deploy, verify]
+    needs: [build, browser, publish, deploy, verify]
     if: always() && !cancelled() && needs.build.result == 'success'
     runs-on: ubuntu-24.04
     permissions:

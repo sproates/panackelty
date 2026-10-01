@@ -605,3 +605,9 @@ The queue-excluded merge-to-live field remains null: acceptance must separately
 account for queue overlap with Check; the wall time is only a conservative bound. Hosted results and
 live verification must be recorded before #187 closes. A timing warning never
 skips tests or permits failed browser validation to publish.
+
+Pages uses Node 24-compatible artifact and deployment actions, including the
+Node 24 upload action nested inside `upload-pages-artifact@v5`. Artifact uploads
+retain their default ZIP format; `download-artifact@v8` fails on digest mismatch.
+Changes to these actions require hosted artifact-transfer checks and post-merge
+Pages deployment/live verification; local tests cannot execute hosted actions.

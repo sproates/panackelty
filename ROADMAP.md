@@ -162,6 +162,42 @@ Programme milestones:
 - [ ] Publish and verify version-correct website demonstrations through deliberate
   release adoption; see the [follow-up register](#website-follow-up-register).
 
+- [ ] Pass the programme acceptance gate below on realistic programs.
+
+### Programme acceptance: trustworthy and useful on realistic programs
+
+**The explanations and predictions must be trustworthy and useful on realistic
+programs.** Completing five isolated demonstrations is insufficient to close the
+programme. Agree and record the representative programs and success criteria
+before final evaluation; retain unsuccessful cases and limitations in the report.
+
+- Use complete, reproducible application or tool workflows, including multi-module
+  code, calls across module boundaries, generics and effects where supported.
+  Select cases from practical development needs, not solely fixtures constructed
+  to showcase the feature. Cover all five workstreams across the evaluation set;
+  document unsupported categories rather than implying universal coverage.
+- Establish trustworthiness against actual checker decisions, emitted bytecode
+  and observed execution as appropriate. Apply predicted changes and compare
+  predicted direct/transitive consequences with the real results. Check derived
+  requirements by recompilation, and runtime provenance against execution.
+  Include accepted, rejected, unsupported and deliberately misleading cases;
+  unknown results must remain explicit. Silence is not evidence of non-impact.
+- Demonstrate usefulness through recorded developer tasks: identify the cause of
+  a rejection, make and verify a valid correction, assess a change's consequences,
+  or explain an unexpected value. A reviewer who did not implement the feature
+  must be able to use its output to reach a verifiable answer without reading
+  compiler internals. Record the answer, supporting evidence, unresolved questions
+  and confusing output; attractive text alone does not satisfy acceptance.
+- Measure explanation latency, ordinary compilation overhead and runtime tracing
+  cost on these programs against budgets agreed during investigation. Record
+  reproducible commands, exact revisions, expected/actual results and reviewer
+  findings. Resolve correctness failures within the agreed scope and review
+  usefulness failures before claiming acceptance; any scope reduction needs an
+  explicit user decision.
+
+Keep this gate pending until its evidence is linked from #180 and the roadmap.
+It supplements each child issue's acceptance and the release/website checks.
+
 At every accepted delivery, update this table and #180 with child issue/PR links,
 acceptance evidence, blockers and remaining work. Keep child issues open until
 their own agreed acceptance is met. A narrow first experiment does not complete

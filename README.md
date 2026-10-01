@@ -6,8 +6,10 @@ exact numerical work.**
 [Website](https://panackelty.com) · [Native VM coverage](https://panackelty.com/coverage/) · [Specification](SPEC.md) ·
 [Releases](../../releases) · [Contributing](CONTRIBUTING.md)
 
-For the website's optional browser build, see
-[browser playground](src/playground/README.md). Native development
+The website consumes a pinned release from
+[Panackelty Browser](https://github.com/sproates/panackelty-browser), selected in
+`site/playground.json`. The legacy [browser preparation profile](src/playground/README.md)
+remains during the repository migration for compatibility/integration tests. Native development
 does not require its WASI SDK or JavaScript test dependencies.
 
 Panackelty combines arbitrary-precision numbers, checked domain types, explicit

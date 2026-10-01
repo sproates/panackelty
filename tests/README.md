@@ -3,7 +3,13 @@
 The optional [playground preparation suite](../src/playground/README.md) adds
 WASI/native compatibility and actual browser worker checks in its own CI workflow.
 Pages also runs the browser tests on the selected assembled website before
-deployment. These tests include the homepage links and selectable playground examples.
+deployment, using the checksummed external release in `site/playground.json`.
+These tests include the homepage links and selectable playground examples.
+`node --test tests/playground_release.test.cjs` checks release-pin validation,
+download failures, size and digest bounds, extraction safety, incomplete assets
+and stale-output rejection. The separate browser repository gates release
+publication on its own runtime and real-browser tests. The legacy preparation
+suite remains during migration; it is no longer the Pages build source.
 Its locked JavaScript packages and WASI SDK are not prerequisites of native
 `make check`. Browser tests supplement, never replace, the canonical suites below.
 

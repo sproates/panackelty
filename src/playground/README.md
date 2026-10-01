@@ -1,6 +1,9 @@
 # Browser playground
 
-This optional browser build supplies the website's `/playground/` page. It replaces the isolated
+This optional legacy browser build is retained for compatibility tests during
+the #151 repository migration. The website now consumes a pinned release from
+[Panackelty Browser](https://github.com/sproates/panackelty-browser) instead.
+This profile replaced the isolated
 Emscripten experiment with a pinned native WASI SDK compiler and a JavaScript
 WASI host. The ordinary native CLI, seed, bytecode v9 and `make check` remain
 independent of these tools. Public deployment follows the normal reviewed Pages flow.
@@ -38,10 +41,10 @@ the actual homepage, shared styles and `/playground/` paths. Run
 The review tree does not contain a coverage report; production assembly adds
 the separately validated report.
 
-The Pages workflow builds the playground from the selected validated website
-revision, assembles it with website and coverage assets, and runs real-browser
+The Pages workflow downloads and verifies the release selected by the validated
+website's `site/playground.json`, assembles it with website and coverage assets, and runs real-browser
 tests against that complete artifact before upload/deployment. PR runs test the
-website preview without deploying. Build or browser failures prevent publication.
+website preview without deploying. Download, checksum or browser failures prevent publication.
 The separate playground workflow retains deterministic-build and native-compatibility
 checks. The SDK installer is optional and never a native `make check` prerequisite.
 

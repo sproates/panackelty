@@ -44,6 +44,25 @@ as an accepted implementation deliverable or reset the three-deliverable
 checkpoint. The proposed implementation sequence remains subject to review and
 merge approval.
 
+### Browser website publication connection — in progress
+
+The independent browser repository exists and its architecture explanation was
+merged in `sproates/panackelty-browser#3`, but the website still needed a delivery
+connection. This slice adds a version/checksum pin in `site/playground.json` and
+consumes the browser repository's tested release archive while preserving
+website/coverage ownership and assembled-site browser tests in this repository.
+It removes the browser compilation step from Pages, not the remaining legacy
+compatibility profile or its tests.
+
+Post-merge acceptance: the browser publisher must release `v0.1.0`, its archive
+must match the reviewed pin, then the website consumer PR must pass and deploy.
+The agent will verify the live architecture section and complete artifact.
+Until then, publication is pending. Refs #151; that broader migration and its
+timing/cleanup acceptance remain open. This intermediate slice does not add a
+completed deliverable or reset the grooming checkpoint.
+Local validation still reports the existing unit-phase budget warning (68s
+against 15s); retain the [validation-budget backlog](#keep-validation-within-development-budgets--non-blocking-backlog).
+
 ## Current status and grooming, 2026-09-30
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,

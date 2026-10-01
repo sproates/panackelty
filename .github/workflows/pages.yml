@@ -60,7 +60,7 @@ jobs:
           persist-credentials: false
 
       - name: Test source selection and report navigation
-        run: node --test tests/pages.test.cjs
+        run: node --test tests/pages.test.cjs tests/playground_release.test.cjs
 
       - name: Test complete site assembly
         run: sh tests/pages.sh
@@ -98,14 +98,20 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Build the selected website's playground
+      - name: Fetch the selected website's pinned browser release
+        run: node scripts/fetch_playground.cjs "$SITE_SOURCE/site/playground.json" "$SITE_SOURCE/build/playground"
+
+      - name: Prepare retained website integration tests
         run: |
           cd "$SITE_SOURCE"
-          sh scripts/install_wasi_sdk.sh "$RUNNER_TEMP/playground-sdk"
-          export WASI_SDK_PATH="$RUNNER_TEMP/playground-sdk/wasi-sdk-34.0-x86_64-linux"
           npm run setup --prefix src/playground
-          npm run build --prefix src/playground
           node build/playground-tools/node_modules/@playwright/test/cli.js install --with-deps chromium firefox webkit
+
+      - name: Assemble PR website with the pinned playground
+        if: github.event_name == 'pull_request'
+        run: |
+          cp -R site build/website
+          cp -R build/playground build/website/playground
 
       - name: Assemble complete Pages artifact
         if: github.event_name != 'pull_request'

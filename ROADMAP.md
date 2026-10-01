@@ -190,6 +190,17 @@ Native-only full routes retain their explicit website skip. Hosted mixed-route
 negative acceptance must accompany the existing website-only fixture evidence;
 this repair does not claim post-merge production acceptance.
 
+PR #194 merged as `e913081`; main Check `36922481426` passed. Publication
+`36922746934` restored the certified artifact and packaged it without browsers,
+but GitHub's implicit job success condition propagated the browser skip into
+deployment and live verification. No deployment occurred. The follow-up gives
+those jobs explicit cancellation and direct-prerequisite success guards, with
+regressions for skipped, failed and cancelled prerequisites. Actual deployment
+and live verification remain post-merge acceptance owned by the delivery agent;
+#187 stays open and ledger remains 2/3. This is a correctness repair within the
+active website CI task, not completion or performance acceptance.
+
+
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests
 after 4m32s, with apt reporting 364 MB of additional disk use. That observation

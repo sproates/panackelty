@@ -441,3 +441,30 @@ test('website-only publication timings include originating Check and cannot hide
   }
   assert.throws(()=>measure(page,jobs,t(0),sha,{...upstream,jobs:[]}),/Missing successful/);
 });
+
+// GitHub applies an implicit success() unless a condition has a status function.
+// That implicit check propagates skips from the reused browser's dependency chain.
+test('deployment and live verification tolerate skipped ancestors only after successful prerequisites', () => {
+  const workflow=fs.readFileSync('.github/workflows/pages.yml','utf8');
+  const condition = job => {
+    const block=workflow.split(`\n  ${job}:\n`)[1].split(/\n  [a-z]+:\n/)[0];
+    const expression=block.match(/    if: "([^"\n]+)"/)[1];
+    assert.match(expression, /!cancelled\(\)/, 'explicit status overrides implicit ancestor success');
+    return new Function('cancelled','github','needs', `return (${expression});`);
+  };
+  const deploy=condition('deploy'), verify=condition('verify');
+  for (const cancelled of [false,true]) {
+    for (const event_name of ['pull_request','push','workflow_run','workflow_dispatch']) {
+      for (const result of ['success','failure','skipped','cancelled','']) {
+        const needs={publish:{result},browser:{result:'skipped'}};
+        assert.equal(deploy(()=>cancelled,{event_name},needs), !cancelled && event_name!=='pull_request' && result==='success');
+      }
+    }
+    for (const build of ['success','failure','skipped','cancelled','']) {
+      for (const deployed of ['success','failure','skipped','cancelled','']) {
+        assert.equal(verify(()=>cancelled,{}, {build:{result:build},deploy:{result:deployed},browser:{result:'skipped'}}),
+          !cancelled && build==='success' && deployed==='success');
+      }
+    }
+  }
+});

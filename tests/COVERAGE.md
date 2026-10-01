@@ -582,3 +582,9 @@ Browser runtime tests check explicit listening rejection.
 Evidence concerns finite EOF-framed TCP only: no TLS/HTTP/IPv6, general source
 spawning, unbounded service operation or large-scale reactor performance claim.
 Platform and sanitizer validation results belong in the implementation PR.
+
+Website publication conditions are regression-tested directly from the workflow:
+skipped browser ancestors must not suppress deployment after successful packaging,
+and failed/skipped/cancelled packaging or deployment must never permit the next
+stage. Pull requests and workflow cancellation cannot deploy. Hosted production
+acceptance remains required because these tests do not emulate GitHub's scheduler.

@@ -1,4 +1,10 @@
 Website CI #187 regressions cover compiler/seed/test-only routing, shared
+and narrowly allowlisted website-only routing, required-gate propagation of missing
+or failed website validation, mode/rename/mixed-input fallback, checked-artifact
+source/expiry rejection, prior-coverage retention and combined Check/publication
+timing (including rerun, wrong-source and failed-live-verification exclusions).
+Website browser certification and full-route publication share all 24 scenarios.
+The original regressions also cover shared
 fingerprint identity and deletion invalidation, trusted production artifact reuse,
 foreign/PR/failed/expired artifact rejection, API failure propagation, prepared
 browser version gates, and coverage replacement without changing website bytes.

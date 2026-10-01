@@ -47,6 +47,7 @@ jobs:
       site_sha: ${{ steps.source.outputs.site_sha }}
       fingerprint: ${{ steps.fingerprint.outputs.value }}
       browser: ${{ steps.reuse.outputs.browser }}
+      checked_run: ${{ steps.reuse.outputs.checked_run }}
     steps:
       - name: Check out trusted publisher (or PR for unprivileged tests)
         uses: actions/checkout@v6
@@ -63,7 +64,13 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ "$EVENT_NAME" = pull_request ] || [ "$EVENT_NAME" = push ]; then
-            bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA" >> "$GITHUB_OUTPUT"
+            plan=$(bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA")
+            # Check owns website-only validation. Its successful main completion
+            # triggers publication of the checked artifact, without a second run.
+            if printf '%s\n' "$plan" | grep -qx 'route=website'; then
+              plan=$(printf '%s\n' "$plan" | sed 's/^pages=true$/pages=false/')
+            fi
+            printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
           else
             echo 'pages=true' >> "$GITHUB_OUTPUT"
           fi
@@ -106,8 +113,11 @@ jobs:
           script: |
             const fs = require('node:fs');
             const findWebsite = require('./scripts/pages_artifact.cjs');
-            const artifact = process.env.FORCE_REBUILD === 'true' ? null :
-              await findWebsite(github, context.repo, process.env.FINGERPRINT, message => core.info(message));
+            const checked = process.env.FORCE_REBUILD === 'true' || process.env.EVENT_NAME === 'push' ? null :
+              await require('./scripts/pages_checked_website.cjs')(github, context.repo, process.env.SITE_SHA);
+            const artifact = checked || (process.env.FORCE_REBUILD === 'true' ? null :
+              await findWebsite(github, context.repo, process.env.FINGERPRINT, message => core.info(message)));
+            if (checked) core.info('Restoring website validated by the exact successful main Check');
             if (artifact && process.env.EVENT_NAME === 'workflow_run') {
               const selected = await require('./scripts/pages_source.cjs')(github, context.repo);
               if (await require('./scripts/pages_duplicate.cjs')(selected, process.env.SITE_SHA)) {
@@ -118,6 +128,7 @@ jobs:
               }
             }
             core.setOutput('browser', artifact ? 'false' : 'true');
+            if (checked) core.setOutput('checked_run', String(checked.check_run_id));
             if (artifact) {
               const archive = await github.rest.actions.downloadArtifact({
                 ...context.repo, artifact_id: artifact.id, archive_format: 'zip',
@@ -163,58 +174,12 @@ jobs:
           if-no-files-found: error
 
   browser:
-    name: Browser integration
     needs: build
     if: needs.build.outputs.browser == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
-      options: --ipc=host
-    env:
-      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: pages-candidate
-          path: build/website
-
-      - name: Check out the reviewed browser integration suite
-        uses: actions/checkout@v6
-        with:
-          repository: sproates/panackelty-browser
-          ref: 1e1f67d70c82d2ec972c53d36b52a949f063c894
-          path: build/browser-tests
-          persist-credentials: false
-
-      - name: Install locked test package and verify prepared browsers
-        run: |
-          cd build/browser-tests
-          npm ci --ignore-scripts --no-audit --no-fund
-          node - <<'JS'
-          const fs = require('node:fs');
-          if (require('playwright/package.json').version !== '1.63.0') {
-            throw new Error('Playwright package/image mismatch: update the prepared environment');
-          }
-          for (const name of ['chromium', 'firefox', 'webkit']) {
-            if (!fs.existsSync(require('playwright')[name].executablePath())) {
-              throw new Error(`Prepared browser missing: ${name}`);
-            }
-          }
-          JS
-
-      - name: Match mounted home ownership to the container user
-        # GitHub mounts /github/home with host-user ownership. Firefox rejects
-        # root execution with a home owned by another user; do not redefine HOME.
-        run: chown "$(id -u):$(id -g)" /github/home
-
-      - name: Test browser execution before publishing
-        run: |
-          export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/website"
-          export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/build/website/playground"
-          cd build/browser-tests
-          npm run test:browser -- --workers=3
+    uses: ./.github/workflows/browser-validation.yml
+    permissions:
+      contents: read
+      actions: read
 
   publish:
     name: Package tested Pages
@@ -362,6 +327,7 @@ jobs:
       - uses: actions/github-script@v8
         env:
           SITE_SHA: ${{ needs.build.outputs.site_sha }}
+          CHECKED_RUN: ${{ needs.build.outputs.checked_run }}
         with:
           script: |
             const {data: run} = await github.rest.actions.getWorkflowRun({...context.repo, run_id:context.runId});
@@ -373,10 +339,19 @@ jobs:
               const {data: commit} = await github.rest.repos.getCommit({...context.repo, ref:process.env.SITE_SHA});
               mergedAt=commit.commit.committer.date;
             }
-            const result=require('./scripts/pages_timings.cjs')(run,jobs,mergedAt,process.env.SITE_SHA);
+            let checked;
+            if (process.env.CHECKED_RUN) {
+              const run_id=Number(process.env.CHECKED_RUN);
+              const {data: source}=await github.rest.actions.getWorkflowRun({...context.repo,run_id});
+              const sourceJobs=await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+                ...context.repo,run_id,filter:'latest',per_page:100,
+              });
+              checked={run:source,jobs:sourceJobs,trigger_id:context.payload.workflow_run?.id};
+            }
+            const result=require('./scripts/pages_timings.cjs')(run,jobs,mergedAt,process.env.SITE_SHA,checked);
             await core.summary.addHeading('Website validation timings')
               .addCodeBlock(JSON.stringify(result,null,2),'json')
-              .addRaw('Budgets: validation 120s; merge-to-live 180s. Raw wall time and observed pre-step runner dispatch are reported separately. Inter-job scheduling and image pulls remain included in validation. Merge-to-live wall time is reported only for successful first-attempt main pushes of the published source. Queue-excluded merge-to-live remains unmeasured and requires acceptance evidence; manual refreshes, duplicate publications, reruns and failed verification cannot establish it.\n')
+              .addRaw('Budgets: validation 120s; merge-to-live 180s. Checked-website publications include their originating Check validation through Pages packaging; this combined value is a conservative wall bound without inter-job queue subtraction. Other runs report observed pre-step dispatch separately. Image pulls and transfers stay included. First-attempt exact-source push/publication pairs alone report merge-to-live wall time. Queue-excluded merge latency remains unmeasured; manual refreshes, duplicates, reruns and failed verification cannot establish it.\n')
               .write();
             if (result.validation_seconds>120 || result.merge_to_live_wall_seconds>180) {
               core.warning('Website timing budget exceeded; retain all tests and investigate the phase timings.');

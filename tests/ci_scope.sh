@@ -91,6 +91,39 @@ for path in .github/pull_request_template.md AGENTS.md ROADMAP.md docs/ROADMAP_P
 done
 commit; route docs
 # Expected ownership examples are deliberately independent of classifier patterns.
+for path in site/index.html site/styles.css site/favicon.svg site/playground.json; do
+    fixture
+    mkdir site; printf 'asset\n' > "$path"
+    commit; route website
+    plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+    [[ "$plan" == *'pages=true'* && "$plan" == *'website-automation,release-integrity,browsers' ]] || fail 'website checks missing'
+    printf '\nNotes\n' >> ROADMAP.md
+    commit; route website
+    chmod +x "$path"
+    commit; route full
+done
+fixture
+mkdir site; printf 'asset\n' > site/index.html
+commit; base=$head
+git rm -q site/index.html; commit; route website
+fixture
+mkdir site; ln -s ../README.md site/index.html
+commit; route full
+fixture
+mkdir site; printf 'asset\n' > site/styles.css
+commit; base=$head
+git mv site/styles.css site/unreviewed.css; commit; route full
+fixture
+mkdir site; printf 'asset\n' > site/index.html
+printf 'native change\n' >> src/main.c
+commit; route full
+fixture
+mkdir site; printf 'asset\n' > site/index.html
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == website ]] || fail 'untracked website input'
+git add site/index.html; chmod +x site/index.html
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'unstaged executable website input'
+
+# Expected ownership examples are deliberately independent of classifier patterns.
 while read -r path component; do
     fixture
     mkdir -p "$(dirname "$path")"
@@ -112,7 +145,7 @@ src/vm/host_tcp.c tcp
 tests/tcp_serve.sh tcp
 src/stdlib/array.panack stdlib
 scripts/fetch_playground.cjs website
-site/index.html website
+site/extra.js website
 VERSION package
 examples/hello.panack examples
 SPEC.md shared
@@ -287,7 +320,7 @@ printf '\n[broken](missing.md\n' >> ROADMAP.md
 reject_docs 'unclosed inline link'
 # A failed or cancelled classifier must fail every stable check, not skip green.
 for result in failure cancelled skipped ''; do
-    for selected in docs full ''; do
+    for selected in docs website full ''; do
         if CI_SCOPE_RESULT="$result" CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed classification'; fi
     done
 done
@@ -296,6 +329,15 @@ for selected in '' invalid; do
 done
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped CI_WEBSITE_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
+for native in success failure skipped cancelled ''; do
+    for website in success failure skipped cancelled ''; do
+        [[ "$native:$website" != skipped:success ]] || continue
+        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT="$native" CI_WEBSITE_RESULT="$website" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
+            fail 'website route accepted missing/failed tests or inconsistent native result'
+        fi
+    done
+done
 for selected in docs full; do
     for result in failure cancelled skipped success ''; do
         if [[ "$selected:$result" == docs:skipped || "$selected:$result" == full:success ]]; then continue; fi
@@ -312,7 +354,7 @@ awk '
 /^  (package|test):$/ { gate=1; heavy=0; next }
 /^  (package_build|test_run):$/ { gate=0; heavy=1; next }
 /^  [a-z_]+:$/ { gate=0; heavy=0 }
-gate && /^    needs: \[changes, (package_build|test_run)\]$/ { dependencies++ }
+gate && /^    needs: \[changes, (package_build|test_run), website\]$/ { dependencies++ }
 gate && /^    if: always\(\)$/ { guards++ }
 gate && /^    timeout-minutes: 2$/ { bounds++ }
 heavy && /^    needs: changes$/ { work_dependencies++ }

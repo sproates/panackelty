@@ -12,6 +12,12 @@ case "${CI_SCOPE_ROUTE-}" in
             exit 1
         fi
         echo 'Informational documentation checks passed; full validation is not applicable.' ;;
+    website)
+        if [ "${CI_VALIDATION_RESULT-}" != skipped ] || [ "${CI_WEBSITE_RESULT-}" != success ]; then
+            echo 'website validation did not succeed or native route was inconsistent' >&2
+            exit 1
+        fi
+        echo 'Complete website validation passed; native builds are not applicable.' ;;
     full)
         if [ "${CI_VALIDATION_RESULT-}" != success ]; then
             echo 'full validation did not succeed' >&2

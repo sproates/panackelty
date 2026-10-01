@@ -171,6 +171,18 @@ maintenance changes need agreement. It does not claim performance acceptance,
 select the #178 repository migration or advance ledger 2/3. #187 remains active;
 programme #180 remains paused pending its accepted outcome.
 
+The user approved starting implementation on 2026-10-01. The first slice adds
+the four-file website-only route, shared reusable browser validation and a
+successful-main Check artifact consumed by Pages with existing trusted coverage.
+Required compatibility gates depend on website success; shared, mixed, publisher
+and unknown edits retain full native validation. Combined website-only timing
+includes the originating Check, not just the restoration job. Production
+acceptance remains pending after merge, including actual website-only publication
+and old-coverage provenance. The next slice must still establish independent
+coverage refresh against accepted website bytes under newer failing/pending site
+changes, race/rollback handling and full cold/warm acceptance. #187 remains open,
+ledger stays 2/3, and the original 120s/180s budgets have not been relaxed.
+
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests
 after 4m32s, with apt reporting 364 MB of additional disk use. That observation

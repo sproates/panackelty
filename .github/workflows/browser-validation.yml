@@ -1,0 +1,61 @@
+name: Browser validation
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  test:
+    name: Browser integration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: pages-candidate
+          path: build/website
+
+      - name: Check out the reviewed browser integration suite
+        uses: actions/checkout@v6
+        with:
+          repository: sproates/panackelty-browser
+          ref: 1e1f67d70c82d2ec972c53d36b52a949f063c894
+          path: build/browser-tests
+          persist-credentials: false
+
+      - name: Install locked test package and verify prepared browsers
+        run: |
+          cd build/browser-tests
+          npm ci --ignore-scripts --no-audit --no-fund
+          node - <<'JS'
+          const fs = require('node:fs');
+          if (require('playwright/package.json').version !== '1.63.0') {
+            throw new Error('Playwright package/image mismatch: update the prepared environment');
+          }
+          for (const name of ['chromium', 'firefox', 'webkit']) {
+            if (!fs.existsSync(require('playwright')[name].executablePath())) {
+              throw new Error(`Prepared browser missing: ${name}`);
+            }
+          }
+          JS
+
+      - name: Match mounted home ownership to the container user
+        # GitHub mounts /github/home with host-user ownership. Firefox rejects
+        # root execution with a home owned by another user; do not redefine HOME.
+        run: chown "$(id -u):$(id -g)" /github/home
+
+      - name: Test browser execution before publishing
+        run: |
+          export PLAYGROUND_SITE_DIR="$GITHUB_WORKSPACE/build/website"
+          export PLAYGROUND_BUILD_DIR="$GITHUB_WORKSPACE/build/website/playground"
+          cd build/browser-tests
+          npm run test:browser -- --workers=3

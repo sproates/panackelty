@@ -178,8 +178,16 @@ upload `native-coverage-<run-id>` artifacts (90-day retention) on full runs.
 Only successful push validation on `main` is eligible for publication.
 
 The Pages workflow is the single writer for the website and coverage. It pins
-current `main` before validation; website pushes can validate in parallel with
-Check. Publication requires a successful trusted Check for that exact SHA across paginated API results. Missing validation fails
+current `main` before validation; full-route website pushes validate in parallel
+with Check. The four allowlisted website files instead use Check's reusable
+`website-validation.yml`, sharing `browser-validation.yml` with Pages. Its checked
+artifact is archived only after all browser scenarios pass. Native matrices are
+skipped and existing compatibility gates require website validation success.
+Pages defers website-only PR/push validation to Check; successful main completion
+restores `checked-website-<sha>`, verifies its fingerprint/coverage-free shape,
+and attaches prior trusted coverage without another browser run. PR artifacts
+remain ineligible for production.
+Publication requires a successful trusted Check for that exact SHA across paginated API results. Missing validation fails
 closed, including when the API returns only older successes. Coverage comes
 from the highest Check run number at or before that selected run with a report;
 API result order and old rerun completion times do not determine freshness.
@@ -450,7 +458,8 @@ bash scripts/validate_change.sh --run origin/main
 The plan reports `route`, the Pages PR requirement `pages`, affected `components` and required `checks`. Local
 selection compares the merge base with the working tree and index and includes
 untracked, non-ignored files. The run checks branch/index/worktree whitespace,
-then executes `make docs` alone for `docs`, or `make docs` and canonical
+then executes `make docs` alone for `docs`, website automation and assembly tests
+plus `make docs` for `website`, or `make docs` and canonical
 `make check` for `full`. CI runs the same route with its additional platform,
 sanitizer, coverage and browser gates. No route caches test outcomes.
 Use a different base ref when appropriate. Invalid local refs fail visibly;
@@ -464,10 +473,14 @@ without building the compiler, and remains part of `make check` through policy.
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `AGENTS.md`, `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.agents/skills/next-item/SKILL.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
 | Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages; Pages for website/package/shared/unknown inputs |
+| Only `site/index.html`, `site/styles.css`, `site/favicon.svg`, `site/playground.json`, optionally with informational documents | Complete website validation and certified artifact; no native matrices; existing required names depend on website success |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
-All document inputs must be regular non-executable files on both sides. The
+All document and website-only inputs must be regular non-executable files on both
+sides. Publisher scripts, workflows, additional site paths and mixtures with
+native code remain full-route. Deleting a required site file selects website
+validation, where assembly fails; classification never certifies a site. The
 classifier compares the complete PR diff from its merge base. Renames expand
 into old-path deletion/new-path addition; symlinks, executable Markdown and
 unmerged local indexes cannot use the fast path. `scripts/ci_docs.sh` owns the
@@ -599,7 +612,13 @@ queue time reported separately. The `Pages timings` job reports complete job
 intervals (including pulls and artifact transfers), initial workflow queue, observed pre-step runner dispatch, and raw wall times.
 Validation excludes only measured pre-step dispatch; container initialization
 remains included. Inter-job orchestration is retained. Merge-to-live wall time is emitted only after successful live verification for
-the first main push attempt of the published source. Manual refreshes, duplicate
+the first main push attempt of the published source, or its matching first Check
+completion publication for a checked website. That website-only measurement spans
+the originating Check through Pages packaging, including inter-workflow delay;
+it is a conservative wall bound without inter-job queue subtraction. The separate
+publication-only duration must not be mistaken for full validation. Reused checked
+artifacts on manual/old-trigger/rerun paths have no first-publication measurement.
+Manual refreshes, duplicate
 publications, reruns, and failed or cancelled verification cannot establish it.
 The queue-excluded merge-to-live field remains null: acceptance must separately
 account for queue overlap with Check; the wall time is only a conservative bound. Hosted results and

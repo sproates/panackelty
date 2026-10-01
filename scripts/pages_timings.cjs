@@ -1,6 +1,6 @@
 // Include container pulls (the Initialize containers step), transfers and
 // inter-job scheduling. Separate observed runner dispatch before its first step.
-module.exports = function timings(run, jobs, mergedAt, siteSha) {
+module.exports = function timings(run, jobs, mergedAt, siteSha, checked) {
   const ms = value => {const t=Date.parse(value); if (!Number.isFinite(t)) throw new Error('Missing timing'); return t;};
   const completed = jobs.filter(j => j.conclusion !== 'skipped' && j.completed_at && j.name !== 'Pages timings');
   const actualStart = j => {
@@ -21,7 +21,7 @@ module.exports = function timings(run, jobs, mergedAt, siteSha) {
   const mergeMeasurement = run.event === 'push' && run.head_branch === 'main' &&
     run.run_attempt === 1 && siteSha && run.head_sha === siteSha && mergedAt;
   const verified = verification?.conclusion === 'success';
-  return {
+  const result = {
     validation_seconds:(end-start-dispatch)/1000,
     validation_wall_seconds:(end-rawStart)/1000,
     initial_queue_seconds:Math.max(0,(start-ms(run.created_at))/1000),
@@ -35,4 +35,35 @@ module.exports = function timings(run, jobs, mergedAt, siteSha) {
     jobs:completed.map(j=>({name:j.name, seconds:(ms(j.completed_at)-actualStart(j))/1000,
       dispatch_seconds:Math.max(0,(actualStart(j)-ms(j.started_at))/1000), conclusion:j.conclusion})),
   };
+  if (checked) {
+    const source=checked.run;
+    if (source.head_sha !== siteSha || source.head_branch !== 'main' ||
+        source.event !== 'push' || source.status !== 'completed' || source.conclusion !== 'success') {
+      throw new Error('Invalid upstream website validation identity');
+    }
+    result.publication_validation_seconds=result.validation_seconds;
+    result.validation_seconds=null;
+    result.validation_wall_seconds=null;
+    result.validation_scope='reused Check website artifact; not a first publication measurement';
+    result.merge_to_live_wall_seconds=null;
+    const first = run.event === 'workflow_run' && checked.trigger_id === source.id &&
+      source.run_attempt === 1 && run.run_attempt === 1 && run.head_sha === siteSha;
+    if (first) {
+      const sourceJobs=checked.jobs.filter(j=>j.conclusion !== 'skipped' && j.completed_at);
+      if (!sourceJobs.length || sourceJobs.some(j=>j.conclusion !== 'success')) {
+        throw new Error('Missing successful upstream validation jobs');
+      }
+      const upstreamStart=Math.min(...sourceJobs.map(actualStart));
+      const upstreamEnd=Math.max(...sourceJobs.map(j=>ms(j.completed_at)));
+      if (upstreamEnd > start) throw new Error('Upstream validation did not precede publication');
+      result.validation_seconds=(end-upstreamStart)/1000;
+      result.validation_wall_seconds=result.validation_seconds;
+      result.initial_queue_seconds=Math.max(0,(upstreamStart-ms(source.created_at))/1000);
+      result.subsequent_dispatch_seconds=null;
+      result.validation_scope='originating Check through Pages packaging; conservative wall bound';
+      result.merge_to_live_wall_seconds=verified && mergedAt
+        ? (ms(verification.completed_at)-ms(mergedAt))/1000 : null;
+    }
+  }
+  return result;
 };

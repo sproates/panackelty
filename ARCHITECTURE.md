@@ -1294,6 +1294,18 @@ complete-site deployment and live byte/provenance verification. Browser failures
 cannot pass the publication gate, and PR artifacts never seed production reuse.
 See [environment maintenance and measurements](tests/README.md#prepared-website-validation-environment).
 
+The explicit static-site allowlist has a `website` route. Check invokes reusable
+website preparation, the shared full browser validator and artifact certification;
+its existing named gates require that result and native matrices are skipped.
+Pages defers website-only PR/push work to this validator and, on successful main
+Check completion, restores the exact SHA's `checked-website` archive with prior
+trusted coverage. Fingerprint mismatch, coverage contamination and symlinks reject
+restoration. Shared/publisher/mixed changes still use the full route and parallel
+Pages validation. Browser test ownership is centralized in
+`.github/workflows/browser-validation.yml`; no validation job requires deployment
+to succeed. This first slice retains exact-current-main selection; decoupling
+coverage refresh from a newer unvalidated website remains follow-up work.
+
 Pages artifact reuse discovers matching artifacts through trusted successful
 main Pages runs. Automatic coverage-refresh triggers compare the live coverage
 provenance with the validated source/report selection before restoring assets.

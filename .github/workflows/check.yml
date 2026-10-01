@@ -46,6 +46,14 @@ jobs:
           fi
           bash scripts/check_docs.sh
 
+  website:
+    needs: changes
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'website' && !cancelled()
+    uses: ./.github/workflows/website-validation.yml
+    permissions:
+      contents: read
+      actions: read
+
   package_build:
     needs: changes
     if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
@@ -197,7 +205,7 @@ jobs:
   # normal cancellation, so a superseded PR update does not wait for old builds.
   package:
     name: Package (${{ matrix.target }})
-    needs: [changes, package_build]
+    needs: [changes, package_build, website]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -212,10 +220,11 @@ jobs:
           CI_SCOPE_RESULT: ${{ needs.changes.result }}
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.package_build.result }}
+          CI_WEBSITE_RESULT: ${{ needs.website.result }}
         run: sh scripts/ci_gate.sh
 
   test:
-    needs: [changes, test_run]
+    needs: [changes, test_run, website]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -226,4 +235,5 @@ jobs:
           CI_SCOPE_RESULT: ${{ needs.changes.result }}
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.test_run.result }}
+          CI_WEBSITE_RESULT: ${{ needs.website.result }}
         run: sh scripts/ci_gate.sh

@@ -17,6 +17,11 @@ git diff --cached --check "$merge_base" --
 route=${plan%%$'\n'*}
 case "$route" in
     route=docs) make docs ;;
+    route=website)
+        echo 'Running website automation locally; CI additionally verifies the pinned release and all browser scenarios.'
+        make docs
+        node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs
+        sh tests/pages.sh ;;
     route=full)
         echo 'Running canonical local validation; CI additionally runs platform, instrumentation and browser gates.'
         make docs

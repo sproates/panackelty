@@ -167,6 +167,46 @@ test('homepage section navigation and example references have unique targets', (
 
 const findWebsite = require('../scripts/pages_artifact.cjs');
 const fingerprint = 'a'.repeat(64);
+test('checked website is bound to the exact successful main Check and keeps older coverage', async () => {
+  const checked=require('../scripts/pages_checked_website.cjs');
+  const sha=run(5).head_sha;
+  const candidate={id:99,name:`checked-website-${sha}`,expired:false};
+  const github=api([[run(5),run(4)]],{5:[candidate],4:[artifact(4)]});
+  assert.equal((await checked(github,repo,sha)).id,99);
+  assert.equal((await selectSource(github,repo)).run.id,4);
+  await assert.rejects(checked(github,repo,run(4).head_sha),/Main advanced/);
+  for (const overrides of [{event:'pull_request'}, {status:'in_progress'}, {conclusion:'failure'},
+    {head_repository:{full_name:'other/repo'}}, {head_branch:'feature'}]) {
+    await assert.rejects(checked(api([[run(5,overrides),run(4)]],
+      {5:[candidate],4:[artifact(4)]}),repo,sha),/No successful main Check/);
+  }
+  assert.equal(await checked(api([[run(5),run(4)]],
+    {5:[{...candidate,name:`checked-website-${run(4).head_sha}`}],4:[artifact(4)]}),repo,sha),null);
+  await assert.rejects(checked(api([[run(5),run(4)]],
+    {5:[{...candidate,expired:true}],4:[artifact(4)]}),repo,sha),/expired/);
+  await assert.rejects(checked(api([[run(5)]],{5:[candidate]}),repo,sha),/coverage artifact/);
+  await assert.rejects(checked(github,repo,'invalid'),/Invalid website source/);
+});
+
+test('website certification follows browser success; publisher restores and checks certified bytes', () => {
+  const check=fs.readFileSync('.github/workflows/check.yml','utf8');
+  const website=fs.readFileSync('.github/workflows/website-validation.yml','utf8');
+  const pages=fs.readFileSync('.github/workflows/pages.yml','utf8');
+  assert.match(check,/needs: \[changes, package_build, website\]/);
+  assert.match(check,/needs: \[changes, test_run, website\]/);
+  assert.match(check,/needs.changes.outputs.route == 'website'/);
+  assert.equal((check.match(/CI_WEBSITE_RESULT:/g)||[]).length,2);
+  assert.match(website,/ref: \$\{\{ github.sha \}\}/);
+  assert.match(website,/needs: \[prepare, browser\]/);
+  assert.match(website,/name: checked-website-\$\{\{ github.sha \}\}/);
+  assert.match(website,/name: website-preview-\$\{\{ github.run_id \}\}-\$\{\{ github.run_attempt \}\}/);
+  assert.doesNotMatch(website,/if: always|pages: write|id-token: write|make check/);
+  assert.match(pages,/scripts\/pages_checked_website.cjs/);
+  assert.match(pages,/test .*cat build\/website\/\.validation-fingerprint/);
+  assert.match(pages,/test ! -e build\/website\/coverage/);
+  assert.match(pages,/grep -qx 'route=website'/);
+  assert.match(pages,/s\/\^pages=true\$\/pages=false\//);
+});
 function websiteApi(pages, artifacts) {
   const paginate = async (_, args) => artifacts[args.run_id] || [];
   paginate.iterator = async function* (_, args) {
@@ -210,11 +250,13 @@ test('publisher requires browser success or authenticated reuse; prepared enviro
   assert.match(workflow, /needs.build.result == 'success'/);
   assert.match(workflow, /Classify before any website work/);
   assert.match(workflow, /steps.scope.outputs.pages == 'true'/);
-  assert.match(workflow, /playwright:v1\.63\.0-noble@sha256:[a-f0-9]{64}/);
-  assert.match(workflow, /Playwright package\/image mismatch/);
-  assert.match(workflow, /npm run test:browser -- --workers=3/);
-  assert.match(workflow, /chown .* \/github\/home/);
-  assert.doesNotMatch(workflow, /playwright install|apt-get|actions\/cache/);
+  const browser = fs.readFileSync('.github/workflows/browser-validation.yml','utf8');
+  assert.match(workflow, /uses: \.\/\.github\/workflows\/browser-validation\.yml/);
+  assert.match(browser, /playwright:v1\.63\.0-noble@sha256:[a-f0-9]{64}/);
+  assert.match(browser, /Playwright package\/image mismatch/);
+  assert.match(browser, /npm run test:browser -- --workers=3/);
+  assert.match(browser, /chown .* \/github\/home/);
+  assert.doesNotMatch(browser, /playwright install|apt-get|actions\/cache/);
 });
 
 test('cold artifact lookup is bounded and selects newest identity despite response order', async () => {
@@ -365,4 +407,35 @@ test('duplicate publication requires exact live website and coverage identity', 
   await assert.rejects(duplicate(selected,sha,async()=>({ok:false,status:503})),/HTTP 503/);
   await assert.rejects(duplicate(selected,sha,async()=>{throw new Error('network unavailable');}),/network unavailable/);
   await assert.rejects(duplicate(selected,run(6).head_sha,live(expected)),/Main advanced/);
+});
+
+test('website-only publication timings include originating Check and cannot hide validation', () => {
+  const measure=require('../scripts/pages_timings.cjs');
+  const t=n=>new Date(n*1000).toISOString();
+  const job=(name,start,end,conclusion='success')=>({name,started_at:t(start),completed_at:t(end),conclusion});
+  const sha=run(5).head_sha;
+  const check={...run(5),run_attempt:1,created_at:t(0)};
+  const page={...run(6),head_sha:sha,event:'workflow_run',run_attempt:1,created_at:t(110)};
+  const jobs=[job('Prepare Pages',115,125),job('Package tested Pages',130,140),job('Verify published coverage',145,155)];
+  const upstream={run:check,jobs:[job('website / Prepare checked website',5,15),job('website / Browser integration',20,100)],trigger_id:5};
+  const measured=measure(page,jobs,t(0),sha,upstream);
+  assert.equal(measured.validation_seconds,135);
+  assert.equal(measured.publication_validation_seconds,25);
+  assert.equal(measured.merge_to_live_wall_seconds,155);
+  assert.equal(measured.initial_queue_seconds,5);
+  assert.equal(measured.subsequent_dispatch_seconds,null);
+  for (const changes of [{event:'workflow_dispatch'},{run_attempt:2},{head_sha:run(4).head_sha}]) {
+    const result=measure({...page,...changes},jobs,t(0),sha,upstream);
+    assert.equal(result.validation_seconds,null);
+    assert.equal(result.merge_to_live_wall_seconds,null);
+  }
+  for (const changes of [{trigger_id:4},{run:{...check,run_attempt:2}}]) {
+    assert.equal(measure(page,jobs,t(0),sha,{...upstream,...changes}).merge_to_live_wall_seconds,null);
+  }
+  const failed=[...jobs.slice(0,2),job('Verify published coverage',145,155,'failure')];
+  assert.equal(measure(page,failed,t(0),sha,upstream).merge_to_live_wall_seconds,null);
+  for (const bad of [{head_sha:run(4).head_sha},{conclusion:'failure'},{event:'pull_request'}]) {
+    assert.throws(()=>measure(page,jobs,t(0),sha,{...upstream,run:{...check,...bad}}),/Invalid upstream/);
+  }
+  assert.throws(()=>measure(page,jobs,t(0),sha,{...upstream,jobs:[]}),/Missing successful/);
 });

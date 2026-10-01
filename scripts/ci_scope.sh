@@ -22,6 +22,8 @@ emit() {
         printf 'components=%s\n' "${components:1:${#components}-2}"
         if [[ "$route" == docs ]]; then
             printf 'checks=documents,links,whitespace\n'
+        elif [[ "$route" == website ]]; then
+            printf 'checks=documents,links,whitespace,website-automation,release-integrity,browsers\n'
         else
             printf 'checks=documents,links,whitespace,compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages'
             if [[ "$pages" == true ]]; then printf ',pages'; fi
@@ -64,7 +66,11 @@ while IFS= read -r -d '' path; do
     if [[ $(validation_pages_path "$path") == true ]]; then pages_required=true; fi
     component=$(validation_component "$path")
     add_component "$component"
-    case "$component" in documentation|process) ;; *) route=full ;; esac
+    if validation_website_only_path "$path"; then
+        [[ "$route" != docs ]] || route=website
+    else
+        case "$component" in documentation|process) ;; *) route=full ;; esac
+    fi
     for revision in "$base" "$head"; do
         entry=$(git --literal-pathspecs ls-tree "$revision" -- "$path") || full
         mode=${entry%% *}

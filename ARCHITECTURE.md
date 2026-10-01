@@ -118,10 +118,16 @@ After successful push validation on `main`, one serialized publisher combines
 the latest successfully validated website with the latest successful native VM
 coverage artifact. Documentation-only validation reuses the prior report. Both
 are deployed together with the playground, preventing partial publication.
-The publisher builds the selected revision's WASI assets and runs browser tests
+The publisher downloads the browser release pinned by `site/playground.json`,
+verifies its SHA-256 and asset identity, and runs browser tests
 against the complete assembled tree before uploading it. Missing assets or failed
 browser tests stop publication. Post-deployment checks compare every playground
 asset with that tree and verify the Wasm content type.
+Browser releases are built and tested by `sproates/panackelty-browser`; website
+updates deliberately pin a version and checksum rather than following its main.
+The website owns publication and retains the existing integration suite during
+the repository migration. Removing the legacy preparation profile and moving
+its remaining contracts is a separate, unfinished cleanup step under #151.
 The report landing page records separate website/coverage commits, the coverage
 artifact date and validation run. Missing or expired coverage fails publication
 instead of silently dropping it. Only the deploy job receives `pages: write`
@@ -904,8 +910,10 @@ limits and commands. It uses WASI SDK 34.0's native Clang/linker and a locked
 JavaScript WASI shim, replacing the isolated Emscripten prototype below for
 further delivery work. The C build subprocess has an SDK-only PATH. Native
 builds, canonical validation, the compiler seed and bytecode format are unchanged.
-No generated Wasm is committed. The Pages publisher builds these assets from
-the same validated revision as the website and deploys them at `/playground/`.
+No generated Wasm is committed. This legacy preparation profile remains for
+core compatibility tests during the #151 migration. Pages now consumes a
+checksummed release from the separate browser repository at `/playground/`;
+it does not rebuild this profile for publication.
 
 `build.mjs` selects the existing VM modules plus a browser-profile replacement
 for the native typed capability dispatcher. It emits verified compiler/stdlib

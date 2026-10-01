@@ -1,5 +1,189 @@
 # Validation profiling baseline
 
+## Website publication dependency assessment, 2026-10-01
+
+Assessment for [#187](https://github.com/sproates/panackelty/issues/187), after
+PR #192 (`58a07bd`). The user authorised investigation and a design proposal;
+this section does not implement or approve changing publication policy.
+
+### Evidence and the actual dependency
+
+| Production Pages run | Validation excluding observed dispatch | Merge-to-live wall | Artifact lookup | Check selection and coverage download |
+| --- | ---: | ---: | ---: | ---: |
+| [36910124129](https://github.com/sproates/panackelty/actions/runs/36910124129), PR #191 | 132s | 174s | 9s | 21s |
+| [36912354959](https://github.com/sproates/panackelty/actions/runs/36912354959), PR #192 | 155s | 191s | 5s | 50s |
+
+Both passed deployment and live byte/provenance verification. Both subsequent
+automatic runs skipped duplicate publication. The 50s step includes API lookup,
+polling and download; it is not a measurement of 50s idle time alone. PR #192's
+103s PR validation excludes this production step and cannot establish the
+production budget. Browser execution was 45s and image initialization 27s in
+both production runs. These are two observations, not a latency distribution.
+
+The dependency chain is visible in `.github/workflows/pages.yml`:
+`publish` calls `pages_ready.cjs`, which calls `pages_source.cjs`. The selector
+first fetches current main, then requires a successful **whole Check workflow**
+for exactly that SHA before selecting any coverage report. Thus an already
+available coverage artifact cannot unlock publication while packaging runs.
+
+In [Check 36912354646](https://github.com/sproates/panackelty/actions/runs/36912354646),
+coverage completed at 19:12:36 UTC; the `test` gate completed at 19:12:45;
+macOS runtime packaging completed at 19:12:53; the last package compatibility
+gate completed at 19:13:03. Website browsers had finished at 19:12:18. The Pages
+selection/download step ran approximately 19:12:26–19:13:16. This explains why
+reducing artifact lookup and polling did not remove the main bottleneck.
+
+There is also a merge-time coupling: `ci_scope.sh` only has `docs` and `full`
+routes. `validation_component` recognises website files, but every component
+other than documentation/process still selects `full`. `check.yml` then runs
+all seven native suites and ten platform/package slices. Changing a website
+file therefore still invokes core validation, even though Pages never uses the
+resulting native packages. Moving files alone would not fix the selector contract.
+
+| Published component | Real inputs and required evidence | Current extra dependency |
+| --- | --- | --- |
+| Website/playground | `site/`, checksum-pinned browser v0.1.1 archive, assembly/publisher code, fingerprint, link/assembly tests and all 24 browser scenarios | Current-main whole Check, native packages and newly generated coverage |
+| Native coverage | Report artifact from a trusted successful main Check, report identity/date, safe attachment and live verification | Selection requires current-main Check even when an older eligible report is already available |
+| Release promotion | Explicit pin/checksum change and tests against that released browser artifact | No native build output is consumed by site assembly |
+
+This follows `assemble_site.sh`, `fetch_playground.cjs`, `site/playground.json`
+and `attach_coverage.sh`. Shared build/routing/publisher changes still need core
+tests when they can affect core behavior. The classification boundary must be
+reviewed, not inferred just from a file's directory or component name.
+
+### Alternatives and recommendation
+
+| Alternative | Benefit | Limitation / decision |
+| --- | --- | --- |
+| More polling/lookup tuning | Small bounded overhead reduction | Cannot remove the whole-Check dependency; not the next remedy |
+| Wait only for the coverage job | Earlier fresh coverage | Changes the existing successful-whole-Check trust rule; could publish coverage from a subsequently failed run. Reject for this slice |
+| Independent validation decisions, one publisher in core | Removes website-only core builds and waits; preserves coverage trust, URLs and one production writer | Recommended first implementation; requires explicit route and source-selection policy changes |
+| Full website repository split #178 | Strong ownership separation | Still needs the same artifact/coverage contracts, plus permissions, previews, domain and rollback migration. Keep unscheduled until the smaller boundary is proven |
+
+The recommendation changes **which evidence applies to which output**. It does
+not remove native checks from core, mixed, shared or unknown changes; it does
+not accept reports from incomplete or failed Check runs. All 24 browser scenarios
+remain required for changed website inputs in this slice. It needs no new host,
+domain, repository or self-hosted runner.
+
+### Proposed contract and event behavior
+
+1. Add a narrowly reviewed `website` route alongside `docs` and `full`. Its
+   initial allowlist covers static `site/` assets and the explicit browser pin;
+   file modes, deletions, renames and mixed changes must be checked. Publisher,
+   routing, workflows, unknown paths and shared scripts retain `full` initially.
+   Website-only changes run documentation, website automation/assembly, release
+   integrity and full browser validation without native builds. Existing required
+   compatibility gates must depend on successful applicable checks; skipped,
+   missing or failed website validation must never yield a green gate. Audit
+   required check names/rules before implementing; no branch-protection bypass.
+   Concretely, extract preparation/browser validation into a reusable unprivileged
+   workflow called by Check when website inputs change. Website-route compatibility
+   gates depend on that result instead of native matrices; full-route gates retain
+   native dependencies and include website validation where applicable. The
+   privileged publisher consumes the exact successful main validation artifact,
+   rather than running a second browser suite or making validation depend on
+   deployment. Check never waits for publication, so there is no circular wait.
+   PR artifacts remain ineligible for production. This also makes the required
+   gate contract explicit without assuming permission to alter repository rules.
+2. Split source selection into independent website and coverage decisions.
+   Website evidence records immutable source SHA, input fingerprint, browser
+   pin/test-suite identity and successful website validation. For `website`
+   changes this is sufficient without current-main native Check. `full` changes
+   continue to wait for exact-source successful Check before website adoption.
+   Bind routing evidence to exact base/head revisions, not mutable labels or a
+   caller-supplied claim. Inherited website-only classification must not allow a
+   later mixed commit to bypass its full gate.
+3. On a website publication, attach the latest eligible coverage from a trusted
+   successful main Check at or before the selected website source's ancestry.
+   Do not wait for a new report merely because main advanced. Keep coverage SHA,
+   report timestamp and Check ID visible and distinct from website SHA. This
+   intentionally extends the existing documentation-only reuse policy to
+   independently validated website edits. Missing, expired, corrupt or untrusted
+   required artifacts fail closed; preserve the existing live site and require
+   an explicit successful rebuild, rather than silently deleting coverage.
+4. On successful core Check completion, update coverage using the latest
+   successfully published/validated website artifact. Do not promote changed
+   website inputs from current main while their validation is pending or failed.
+   The coverage SHA may be newer than that website SHA; record both honestly.
+   Preserve every website/playground byte and skip browser provisioning. Native
+   Check failure leaves previous coverage and website intact.
+5. Keep the single production concurrency group and a single deploy operation
+   that publishes the assembled site plus coverage. Re-select eligible sources
+   after acquiring the writer slot and recheck identities before deployment.
+   Stale queued triggers must not roll either component back. If sources advance,
+   fail/retry explicitly; do not combine an unchecked website with fresh coverage.
+   Preserve selected byte hashes and provenance in the deploy artifact and verify
+   them live. Exact duplicate pairs skip deployment. Retain existing URLs.
+6. Store website validation provenance independently from whole-Check identity.
+   Retain an immutable coverage-free website artifact even when a newer core
+   commit exists; automatic coverage refresh restores it by its recorded identity.
+   Separate publisher revision, website source and coverage source in provenance.
+   Version the provenance schema and test transition from today's fields. An old
+   artifact with insufficient evidence requires revalidation, not guessed trust.
+
+| Event | Website adoption | Coverage adoption |
+| --- | --- | --- |
+| Static website/pin-only edit | After applicable website tests; no native wait | Most recent eligible existing report |
+| Core-only change | Keep previously accepted website bytes | New report only after whole Check succeeds |
+| Mixed/shared/publisher change | Exact-source whole Check plus website tests when inputs changed | Eligible report after whole Check succeeds |
+| Documentation-only change | No unnecessary website adoption or browser run | No publication unless selected report/component identity changed |
+| Failed validation, expired artifact, API failure | Preserve live site; explicit failure | Preserve live report; explicit failure |
+
+For manual refresh, select the same eligible identities; explicit cold rebuild
+forces website tests without changing pins. The initial bootstrap must have both
+a validated website and a successful coverage report. Do not rely on copying
+unverified public bytes as the trust source. Rollback uses a retained, verified
+component pair via the same writer and live checks; it must be explicit and
+distinguishable from automatic monotonic selection.
+
+### Acceptance and bounded delivery estimate
+
+Estimate: **medium, two implementation PRs after this assessment**, potentially
+a third if hosted race/transition evidence exposes defects. This is an estimate
+for the same-repository boundary, not the full #178 migration.
+
+- PR A: exact route/evidence model, narrow website-only validation and independent
+  coverage selection for website publication. Preserve full routing for shared
+  and publisher edits. Regressions must exercise complete route-to-gate decisions,
+  fake API histories, wrong SHA/base, malformed modes, missing evidence and failed
+  website tests. Update architecture, testing and provenance contracts together.
+- PR B: coverage-only reuse of accepted website artifacts, race-safe single-writer
+  integration and production acceptance evidence; remove superseded current-main
+  coupling code/tests only once replacement invariants are covered. Verify
+  schema transition, retained URLs, rollback and expiry/error behavior.
+
+Neither PR closes #187 on implementation alone. Required evidence includes:
+
+- Website-only change invokes no native builds and cannot merge/publish with
+  failed website checks; core/mixed/shared/unknown changes retain native gates.
+- Successful core-only Check publishes genuinely changed coverage through hosted
+  artifact restoration with zero website assembly/browser provisioning. Compare
+  every website file before/after; preserve report and website source identities.
+- A core failure cannot publish its report; a failing/newer website cannot be
+  adopted by coverage refresh. Test overlapping pushes, delayed completions,
+  reordered API history, retries, duplicate triggers, missing/expired artifacts,
+  corrupt downloads and main advancing before deploy. Check identity immediately
+  before publication and demonstrate no rollback under stale queued triggers.
+- Measure at least two cold and two warm website-only publications and a real
+  changed-coverage refresh. Retain all samples, including misses. Keep the agreed
+  120s validation / 180s merge-to-live budgets; also report merge-to-live wall,
+  initial queue, observed dispatch, image pull, tests, assembly and live checks.
+  Report mixed/full pipeline timing separately without silently weakening its
+  acceptance. Confirm applicability of the original budgets to mixed maintenance
+  changes with the user before claiming complete acceptance.
+
+Subtracting the latest 50s selection/download step would give 105s validation
+and 141s merge-to-live wall, but this is only a counterfactual lower bound: old
+coverage still needs selection/download, scheduling varies and real production
+measurements are mandatory. No budget achievement or hosted changed-coverage
+reuse is claimed by this assessment.
+
+The assessment is an intermediate part of #187, not a separate completed outcome.
+Ledger remains 2/3; programme #180 stays paused. #178 remains an independent,
+unscheduled ownership/migration proposal. Implementation requires acceptance of
+the policy above and each later PR still requires explicit merge permission.
+
 ## Website prepared environment assessment, 2026-10-01
 
 Issue #187 / PR #189. Agreed budgets: routine website validation 120s and

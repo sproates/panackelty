@@ -155,6 +155,22 @@ preserving all validation gates. Hosted timing and changed-coverage publication
 remain post-merge acceptance owned by the delivery agent; #187 and ledger 2/3
 remain unchanged until the full outcome is accepted.
 
+PR #192 is merged as `58a07bd`; production run `36912354959` passed live
+verification but measured 155s validation / 191s merge-to-live wall. Artifact
+lookup fell to 5s; exact-source Check selection and coverage download grew to
+50s. Coverage completed before platform packaging, but publication requires
+the whole current-main Check. See the
+[publication dependency assessment](tests/VALIDATION_PROFILE.md#website-publication-dependency-assessment-2026-10-01)
+for timestamps, the source-code dependency chain, alternatives and acceptance.
+The user authorised this assessment on 2026-10-01. Its recommendation is a narrow
+website-only validation route plus independent website/coverage source decisions
+under one production writer, initially within core. Estimate: medium, two
+implementation PRs, with a possible third for hosted findings. This proposes a
+publication-policy change; implementation and budget applicability to mixed
+maintenance changes need agreement. It does not claim performance acceptance,
+select the #178 repository migration or advance ledger 2/3. #187 remains active;
+programme #180 remains paused pending its accepted outcome.
+
 Before PR #189, Pages cached browser binaries but still invoked
 `playwright install --with-deps` on each relevant build. During PR #185 the observed job was still preparing tests
 after 4m32s, with apt reporting 364 MB of additional disk use. That observation

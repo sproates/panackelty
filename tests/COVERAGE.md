@@ -1,5 +1,10 @@
 # Specification coverage
 
+Website preview regression tests in `tests/preview.test.cjs` cover immutable
+browser bytes, source identity, explicit coverage separation, corrupt inputs,
+atomic assembly, traversal/symlink rejection and local HTTP MIME/method handling.
+These are website tooling checks, not additional language execution coverage.
+
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 additional runtime and browser tests: unchanged bytecode compatibility, native
 compiler equivalence, exact values, Unicode, source errors, explicit unavailable

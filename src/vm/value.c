@@ -374,3 +374,5 @@ Value *named_value(ValueKind kind, const char *name, char **names, Value **value
     }
     return v;
 }
+
+/* Mixed-route gate acceptance fixture. */

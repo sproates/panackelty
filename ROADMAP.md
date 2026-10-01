@@ -94,8 +94,7 @@ all published playground bytes, Wasm MIME type and website/coverage provenance.
 A separate public HTTP check confirmed the exact release pin, architecture
 section, merged website commit and current coverage run. No acceptance remains
 for #151; this completion record closes it and counts the migration once.
-Automatic PR previews remain a separate unfinished follow-up. The grooming
-ledger is now 2 of 3; review is not yet due.
+Author-local previews were subsequently completed under #160, as recorded below.
 Local acceptance: 20 browser Node tests and 17 publisher tests pass, as do site
 assembly and adversarial routing checks. Final implementation `make check` passes
 in 132s, still above its 120s budget; the existing native full/unit
@@ -103,9 +102,45 @@ validation-budget backlog remains open. Both cold and warm browser CI runs passe
 were 213s and 182s. See [phase timings and limitations](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
 Core hosted and post-merge acceptance are complete as recorded above.
 
-## Current status and grooming, 2026-09-30
+## Current status and grooming, 2026-10-01
 
-### Now: portable automatic PR previews
+### Now: playground footer layout
+
+**In progress:** [#163](https://github.com/sproates/panackelty/issues/163).
+On 2026-10-01 the user selected the reported layout defect first, followed by
+compiler explanations. Browser [PR #6](https://github.com/sproates/panackelty-browser/pull/6)
+replaces inherited homepage footer grid behavior with an independently styled,
+resource list styled like the homepage closing links: stacked rows, dividers
+and right-aligned arrows. Preserve all link destinations and keyboard order.
+Acceptance: no overlap or horizontal overflow on desktop and mobile, intact
+readable links, browser regression coverage and a live author preview before
+merge. Finish the browser release, core dependency pin and deployed verification
+before closing #163. S / provisionally two delivery PRs across the repositories;
+this priority-record PR is bookkeeping, not a separate outcome.
+
+### Next: compiler explanations
+
+**Planned:** [#134](https://github.com/sproates/panackelty/issues/134), after #163.
+Deliver one compiler-backed explanation of why guarded Nat subtraction is
+accepted or rejected: checked facts, assumptions and source locations, with
+explicit unknown/unsupported cases. M / 1–2 PRs including evidence retention,
+CLI integration, positive/negative/imported/generic tests, documentation,
+feedback-cost measurements and canonical validation. Do not invent proof
+narratives or promise automatic repairs. Narrow the exact query after inspecting
+the checker; keep the outcome independently useful.
+
+This gives useful compiler assistance priority after three infrastructure/workflow
+outcomes, and tests evidence reuse for #174/#175 without committing to a shared
+framework first. Source coverage #131 remains the strongest alternative because
+Panackelty source execution is still unmeasured. It is unscheduled, not blocked
+behind all compiler-introspection work. Refactoring #132 needs an evidenced
+hotspot; file discovery #167 is useful scripting work but follows the selected
+compiler assistance. Revisit priorities if inspection finds disproportionate
+cost or an urgent correctness defect.
+
+<a id="now-portable-automatic-pr-previews"></a>
+
+### Completed: portable author-local previews
 
 The user selected [#160](https://github.com/sproates/panackelty/issues/160) on
 2026-10-01. Previews must work independently of ChatGPT and contributor tooling.
@@ -117,7 +152,7 @@ and a tested CI artifact. The follow-up adds one-command build/start with fresh
 temporary output, stop/cleanup and explicit rebuild instructions. See
 [the local workflow](docs/PR_PREVIEWS.md).
 
-**Done on merge of PR #171.** Local validation passes: 24 website tests, complete
+**Done: PR #171 merged on 2026-10-01; #160 is closed.** Local validation passes: 24 website tests, complete
 site assembly, a real default-command HTTP/Wasm/start-stop check, and canonical
 `make check` (137s; existing non-blocking timing warning). The local browser route
 was policy-blocked, so the user explicitly requested the existing private Sites
@@ -129,9 +164,8 @@ The user confirmed it was working on their iPhone on 2026-10-01.
 This verifies an optional private snapshot for this author's cloud workflow;
 it does not make Sites a dependency of the portable local command or introduce
 automatic hosted PR publication. Production is unchanged. No acceptance remains
-for the agreed #160 scope; the issue closes when the completion PR merges.
-The initiative counts once, taking the ledger to 3 of 3 on merge. Groom before
-selecting the next principal task.
+for the agreed #160 scope. It counted once as the third accepted outcome
+reviewed at the 2026-10-01 grooming checkpoint below.
 
 Backlog **Idea, unscheduled**: [#162](https://github.com/sproates/panackelty/issues/162)
 would replace the serving component with a Panackelty-written local HTTP server.
@@ -150,7 +184,7 @@ support, runnable demonstrations, resource baselines and a bounded independent
 contract exercise. These are candidates for assessment, not blanket feature
 authorisation. The user selected modular validation and component boundaries
 under #106; its bounded validation slice is now complete as recorded below.
-The other candidates remain unscheduled.
+Compiler explanations are now selected as Next above; other candidates remain unscheduled.
 
 The sections below retain earlier decisions and completion evidence. Current
 candidate state and the agreed next task are recorded in the grooming table;
@@ -158,41 +192,28 @@ historical recommendations do not create competing implementation queues.
 
 ### Grooming checkpoint ledger
 
-Baseline: the 2026-09-30 post-networking review in merged
-[PR #143](https://github.com/sproates/panackelty/pull/143). This review
-considered the completed finite TCP client/server stage and selected the bounded
-modular-validation slice of #106 as Next. It also recorded the twelve unscheduled
-candidates and the completion-handover rules. This review and its bookkeeping do
-not count as a new deliverable.
+Baseline: the 2026-10-01 review, agreed with the user: fix #163 first, then
+compiler explanations #134. This supersedes the 2026-09-30 review in
+[PR #143](https://github.com/sproates/panackelty/pull/143).
 
-Accepted deliverables since this baseline: **3 of 3; review due on merge of
-PR #171**, before selecting the next principal task. Until that merge, the
-delivered ledger remains 2 of 3.
+The review considered these three completed outcomes once each:
 
-1. Bounded modular validation under #106: shared local/CI selection, audited
-   process-document checks and conservative component/consumer mapping. See the
-   [completion record](#completed-modular-validation-and-component-boundaries)
-   and [measurement evidence](tests/VALIDATION_PROFILE.md#modular-validation-route--2026-09-30).
-   This counts once; the broader cache/design issue remains open.
-2. Browser ownership and CI cleanup under #151: versioned core/browser and
-   website artifact boundaries, complete migrated test coverage, removal of
-   duplicate builds/publishers, conservative Pages selection and measured cache
-   provisioning. See the [completion record](#browser-repository-separation--done)
-   and [phase evidence](tests/VALIDATION_PROFILE.md#browser-ownership-and-provisioning--2026-10-01).
-   The multi-PR migration counts once; automatic previews are separate scope.
-3. Author-local website previews under #160: portable build and CI artifact in
-   #161, one-command local session in #171, and an explicitly requested private
-   Sites snapshot accepted on the owner's iPhone. See the
-   [completion record](#now-portable-automatic-pr-previews). Counts on #171 merge;
-   the Panackelty-written server in #162 remains an independent unscheduled idea.
+1. Bounded modular validation under #106, delivered in [PR #144](https://github.com/sproates/panackelty/pull/144); the broader
+   cache/design work remains unscheduled.
+2. Browser ownership and CI cleanup under #151, completed through browser #5,
+   core #158 and the [verified completion record](#browser-repository-separation--done) in #159.
+3. Author-local website previews under #160, delivered through #161 and #171,
+   including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
-Follow the [three-deliverable checkpoint](docs/ROADMAP_PROCESS.md#three-deliverable-grooming-checkpoint):
-review before starting the principal task after the third accepted outcome, or
-sooner if new evidence warrants it. Keep the decision and reset baseline explicit.
+Accepted deliverables since the new baseline: **0 of 3**. The layout work is
+in progress; compiler explanations are planned. Neither is counted yet. Grooming
+and its bookkeeping do not add an outcome. Record each accepted completion and
+review again after three, or earlier if material evidence changes the decision.
 
 ### Groomed candidates
 
-The twelve entries below remain **Idea**, with implementation unscheduled. #106
+Except for **Planned** compiler explanations #134 above, the twelve entries
+below remain **Idea**, with implementation unscheduled. #106
 has completed its bounded validation slice as recorded below; its later work
 is unscheduled. The user agreed
 the assessment scope; the estimates describe each first useful outcome, including
@@ -249,6 +270,32 @@ The prior selection favoured this task over source coverage because unnecessary
 socket/build dependencies were directly observed during process editing.
 Source-coverage feasibility (#131), editor basics (#139) and invariant testing
 (#135) should be reassessed next; none is automatically scheduled by completion.
+
+### Additional ideas recorded on 2026-10-01
+
+All entries here are **Idea, unscheduled**. Issue detail defines investigations
+and acceptance, not agreed implementation order. Preserve independently useful
+outcomes; assess shared evidence without making a large common framework a
+prerequisite for every compiler capability.
+
+| Work record | Bounded intent / relationship |
+| --- | --- |
+| [#164](https://github.com/sproates/panackelty/issues/164) Extensible numeric model | Assess real/complex representations, operations and exactness guarantees. |
+| [#165](https://github.com/sproates/panackelty/issues/165) Browser event POC | Repeated browser events invoke a bytecode handler through an explicit host boundary. |
+| [#166](https://github.com/sproates/panackelty/issues/166) Typed HTTP messages | Two independent Panackelty services exchange typed messages; assess HTTP and lifecycle gaps. |
+| [#167](https://github.com/sproates/panackelty/issues/167) File discovery | Deterministic recursive include/exclude matching with filesystem errors and symlink policy. |
+| [#168](https://github.com/sproates/panackelty/issues/168) Subprocess POC | Exercise process execution and standard streams, including failure boundaries. |
+| [#169](https://github.com/sproates/panackelty/issues/169) Tiny build tool | Dogfood discovery and processes in a bounded build workflow; establish prerequisites. |
+| [#170](https://github.com/sproates/panackelty/issues/170) Type inference | Demonstrate current inference limits and assess one predictable, sound expansion. |
+| [#172](https://github.com/sproates/panackelty/issues/172) Explainable values | Investigate opt-in runtime value derivations; distinguish provenance from instruction tracing. |
+| [#173](https://github.com/sproates/panackelty/issues/173) Explainable compilation | Connect one source construct through checking/lowering to actual emitted bytecode. |
+| [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Derive a sufficient requirement from checker evidence and verify it by recompilation. |
+| [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Predict direct/transitive proof consequences and verify against an actual change; unaffected claims require evidence. |
+
+Durable resumable execution remains in the existing exploration below: persisted
+checkpoints and crash recovery are not delivered by the completed in-memory VM
+suspension work. It is distinct from value provenance and remains unscheduled.
+#162, the Panackelty-written preview server, remains separate from completed #160.
 
 ### Additional platform and distribution ideas
 

@@ -106,7 +106,7 @@ Core hosted and post-merge acceptance are complete as recorded above.
 
 ### Now: playground footer layout
 
-**In progress:** [#163](https://github.com/sproates/panackelty/issues/163).
+**Verification pending on merge of the website pin update:** [#163](https://github.com/sproates/panackelty/issues/163).
 On 2026-10-01 the user selected the reported layout defect first, followed by
 compiler explanations. Browser [PR #6](https://github.com/sproates/panackelty-browser/pull/6)
 replaces inherited homepage footer grid behavior with an independently styled,
@@ -116,7 +116,13 @@ Acceptance: no overlap or horizontal overflow on desktop and mobile, intact
 readable links, browser regression coverage and a live author preview before
 merge. Finish the browser release, core dependency pin and deployed verification
 before closing #163. S / provisionally two delivery PRs across the repositories;
-this priority-record PR is bookkeeping, not a separate outcome.
+The grooming record merged in [PR #176](https://github.com/sproates/panackelty/pull/176)
+and does not count as a separate outcome. The author accepted the matching
+homepage-style preview on 2026-10-01. The website pin update consumes browser
+v0.1.1 and the exact reviewed browser test revision. After that update merges,
+the delivery agent must verify successful Pages deployment, the published pin,
+and all six resource rows/destinations before marking #163 Done and counting it
+once. Retain the open issue until those checks pass.
 
 ### Next: compiler explanations
 
@@ -206,7 +212,7 @@ The review considered these three completed outcomes once each:
    including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
 Accepted deliverables since the new baseline: **0 of 3**. The layout work is
-in progress; compiler explanations are planned. Neither is counted yet. Grooming
+awaiting final delivery/verification; compiler explanations are planned. Neither is counted yet. Grooming
 and its bookkeeping do not add an outcome. Record each accepted completion and
 review again after three, or earlier if material evidence changes the decision.
 

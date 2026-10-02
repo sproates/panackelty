@@ -389,7 +389,8 @@ Do not invent effort percentages; report completed criteria and remaining work.
 | U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
 | U6 | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
 | U7 | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Unstarted; investigate retention early rather than leaving it until final integration | Estimate after runtime experiment |
-| U8 | Pass the realistic-program gate below across all five workstreams, complete release/docs acceptance, deliberately adopt releases on the website and verify live demonstrations | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
+| U8 | Pass the realistic-program gate below across all five workstreams and complete release/docs acceptance | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
+| U9 | Final task: refresh website positioning and demonstrate the accepted compiler/runtime capabilities; deliberately adopt supporting releases and verify the live site | U8 accepted; published artifacts supporting advertised features | Planned, unstarted; tagline to be decided later with the user; acceptance below | Estimate after accepted capabilities and website scope are known |
 
 U0 continues alongside the bounded U1 investigation. This is one coordinated
 programme with independently testable deliveries. It does not require every
@@ -541,12 +542,40 @@ before final evaluation; retain unsuccessful cases and limitations in the report
 Keep this gate pending until its evidence is linked from #180 and the roadmap.
 It supplements each child issue's acceptance and the release/website checks.
 
+### Final task U9: website positioning and demonstrations
+
+Agreed on 2026-10-02: finish the programme with a website marketing refresh that
+makes its demonstrated compiler and runtime understanding prominent alongside
+exact values and the language's other foundations. Update the homepage blurb,
+capability presentation and relevant learning/playground examples to show what
+developers can achieve with the five accepted workstreams. Choose the tagline
+later with the user; no proposed slogan is approved by this decision.
+
+- Begin after U8 acceptance. Base claims on the realistic-program evidence and
+  describe limitations and unknown results honestly. Distinguish native and
+  browser support; do not advertise an unreleased or unsupported capability.
+- Include tested examples of explanation, compilation provenance, inferred
+  requirements, change prediction and runtime value provenance as supported by
+  the adopted releases, including a rejected/explained/corrected example.
+- Deliberately adopt published releases, verify download artifacts and run each
+  example against its advertised version. Preserve truthful claims and working
+  links throughout; recording this task does not publish or automatically update
+  the site.
+- Provide a working preview for user review before requesting merge approval.
+  After publication, verify live examples, download links, version labels and
+  feature claims, and link the evidence from #180 and the website follow-up
+  register before accepting U9 or closing the programme.
+
+Website repository separation #178 is not a prerequisite. This is the final
+programme deliverable, not a sixth compiler/runtime workstream; the five-workstream
+acceptance count remains unchanged.
+
 At every accepted delivery, update this table and #180 with child issue/PR links,
 acceptance evidence, blockers and remaining work. Keep child issues open until
 their own agreed acceptance is met. A narrow first experiment does not complete
 an entire workstream unless it fulfils that scope. Any deferral or scope reduction
 requires an explicit user decision. Close the programme only after all five
-workstreams and programme-level release/website acceptance, or an explicitly
+workstreams, U8 evaluation/release acceptance and U9 website acceptance, or an explicitly
 approved scope revision. Track independently accepted outcomes once in the
 normal grooming ledger; umbrella closure does not count them again.
 
@@ -851,11 +880,13 @@ update, correctness assessment, owner, state and acceptance evidence. Use a
 linked issue for detail; retain enough information here if GitHub is unavailable.
 Never mark an update complete merely because its PR merged: verify the live site.
 
-- **Programme #180 website demonstrations:** promotion pending; owner is the
+- **Programme #180 final website refresh (U9):** promotion pending; owner is the
   agent or maintainer delivering #180 until explicitly handed over. Affected
   surfaces: homepage capabilities, learning examples and playground where supported.
-  Add a tested rejected/explained/corrected example and describe each delivered
-  capability accurately. Current baseline: browser pin v0.1.1 and native download
+  Refresh the marketing blurb and capability presentation using U9 acceptance
+  above, with the tagline left undecided. Add tested demonstrations, including a
+  rejected/explained/corrected example, and describe each delivered capability
+  accurately. Current baseline: browser pin v0.1.1 and native download
   alpha.10 in this roadmap; recheck actual advertised versions when implementing.
   Target release is not assigned. Prerequisites: feature acceptance, published
   native/browser artifacts supporting each example, and explicit website adoption.

@@ -1922,3 +1922,45 @@ budgets remain production work. The malicious recomputed-digest counterexample
 is retained as evidence that integrity alone cannot authenticate attribution.
 Independent review requested corruption protection, comparable timing and
 variable-PC/nested-index regressions; those changes are included in this run.
+
+
+## U2 frontend source spans, 2026-10-02
+
+The first U2 slice retains complete expression spans and replaces the U1 range
+recovery workaround. Reproduce frontend tests with `make check-compiler`, the
+bounded attribution experiment with `make source-mapping-experiment`, and full
+unit/functional/bootstrap validation with `make check`.
+
+The focused compiler check passed in 47s against a 15s target; the existing #106
+validation-cost reminder remains active. After the seed refresh, full validation exposed 15 old failure transcripts
+(46 command assertions) with changed locations. Their rejection and error text
+were preserved while precise locations/excerpts were updated. No tests were
+removed or relaxed. The new span
+runner has 33 literal range expectations; six public CLI integration assertions
+check local and imported compound diagnostic locations. The 111 experiment
+assertions pass with direct retained spans. Independent read-only review found
+no actionable issue after ten extra range probes, five accepted byte-identical
+programs and stale-guard/purity rejection probes.
+
+`make regenerate-seed` verified fresh stage-2/3/4 compiler and standard-library
+fixed points before updating the v9 seed and digest. The compiler digest is
+`ad72e9e53f7431cc0acaadedc0dc6c8a230b6e01a09f387821fe27376b251d22`;
+the conformance artifact digest is
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+The bytecode format and language syntax are unchanged.
+
+Three warm, alternating baseline/candidate compile samples on macOS arm64, using
+the `de26483` seed and refreshed seed with the same native VM and source files:
+
+| Input | Baseline seconds | Candidate seconds | Executable bytes |
+| --- | --- | --- | ---: |
+| `src/compiler/main.panack` | 7.093, 7.045, 7.110 | 7.426, 7.195, 7.282 | 272798 |
+| `tests/functional/cases/callables/main.panack` | 0.034, 0.033, 0.034 | 0.036, 0.035, 0.036 | 800 |
+
+Every paired artifact was byte-identical. Each sample runs `./panack run SEED
+compile INPUT -o OUTPUT` in a fresh process with stdout redirected. The compiler
+input is the candidate compiler source in both cases. Its median rose by 0.189s
+(about 2.7%); the tiny callable case differs by 2ms and includes process startup.
+These observations do not establish a general overhead budget, memory cost or
+realistic-program acceptance. Further U2 metadata collection must measure its
+additional cost separately. Production instruction attribution remains unfinished.

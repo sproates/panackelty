@@ -457,7 +457,7 @@ invalid artifact cannot evade the source checker by directly encoding a call
 from a pure function to an impure built-in.
 
 Source tokens carry half-open offsets and one-based line and column positions.
-The parser retains positions on expressions, and the project loader supplies
+The parser retains complete half-open expression spans, and the project loader supplies
 the canonical owning-module path before parsing. Lexer and parser diagnostics
 therefore use token positions directly; the resolver, type checker, and purity
 checker preserve the nearest positioned expression as diagnostics flow back to
@@ -1328,9 +1328,10 @@ landing pages, not a copy of the report. See
 The [bounded experiment](tests/experiments/source_mapping/README.md) attributes
 an actual bounds-index trap to exact local, imported and generic source ranges.
 It uses the loaded AST, actual emitted instruction list and real VM dispatcher;
-production compiler/VM sources and v9 bytes remain unchanged. Unsupported and
-generated instructions remain unavailable. Re-parsing the located receiver is
-an experimental range recovery step, not a production span contract.
+the original U1 delivery left production compiler/VM sources and v9 bytes
+unchanged. Unsupported and
+generated instructions remain unavailable. U1 originally re-parsed the located receiver to recover the range; the U2
+frontend slice below replaces that workaround with retained expression spans.
 
 The next production design should use optional deterministic sidecars: they
 preserve executable compatibility and allow safe omission. Appending the same
@@ -1343,3 +1344,28 @@ must be resolved in U2. Generic attribution identifies the erased body, not a
 specialisation. U1 is feasibility evidence, not the programme's realistic-program
 acceptance or a public diagnostic feature. See the experiment for counterexamples,
 representation trade-offs and revised consumer estimates.
+
+
+## U2 frontend source-span foundation, 2026-10-02
+
+`SourceSpan` pairs original-file `SourcePos` endpoints. `LocatedExpr` now retains
+that span for literals, references, calls, arrays, unary/binary expressions,
+postfix chains, conditionals, matches and match-arm blocks. Offsets count Unicode
+code points; line/column coordinates are one-based and the end is exclusive.
+The last consumed token determines the end, excluding following whitespace,
+comments and statement separators. Parentheses include their delimiters in the
+outer span; method lowering retains the original written range and each argument's
+own span. Synthetic expressions without origin remain explicitly unavailable.
+
+The loader preserves the owning module path and snapshot. Resolver, checker and
+purity diagnostics use the span's start while retaining a child's more specific
+position. New compound wrappers give previously unpositioned errors a source
+location, including imported generic bodies. The emitter still strips wrappers;
+executable instructions and bytecode v9 are unchanged. This first U2 slice does
+not deliver instruction mappings, a serialised metadata contract, authenticity
+checks or a source-aware runtime diagnostic API.
+
+The U1 experiment now reads retained spans instead of re-lexing/re-parsing source.
+Its original compatibility and trust limitations still apply. Parser range tests,
+public CLI rejection locations, existing semantic suites and fixed-point seed
+refresh cover this transition. See the [validation record](tests/VALIDATION_PROFILE.md#u2-frontend-source-spans-2026-10-02).

@@ -1,2 +1,4 @@
-error: operator + does not accept T and T
+error: <case>/main.panack:1:31: operator + does not accept T and T
+  1 | pure double[T](value: T): T { value + value }
+    |                               ^
 function double returns Nat, expected T

@@ -5,6 +5,12 @@ record SourcePos {
   column: Nat
 }
 
+// Half-open Unicode code-point range in one original source file.
+record SourceSpan {
+  start: SourcePos,
+  end: SourcePos
+}
+
 enum TokenKind {
   Identifier,
   Number,

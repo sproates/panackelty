@@ -78,7 +78,7 @@ pure checker_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Di
 
 pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
   match expression {
-    LocatedExpr(position, value) => Diagnostic(message, position),
+    LocatedExpr(position, value) => Diagnostic(message, position.start),
     NatExpr(value) => checker_diagnostic(message), DecimalExpr(text) => checker_diagnostic(message),
     StringExpr(text) => checker_diagnostic(message), BoolExpr(value) => checker_diagnostic(message),
     NameExpr(name) => checker_diagnostic(message), FunctionExpr(name) => checker_diagnostic(message),
@@ -871,7 +871,7 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
     LocatedExpr(position, value) => {
       checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types)
       info = checked.info
-      diagnostics = checker_diagnostics_at(checked.diagnostics, position)
+      diagnostics = checker_diagnostics_at(checked.diagnostics, position.start)
     },
     NatExpr(value) => { info = TypeInfo("Nat", true, value, false); },
     DecimalExpr(text) => { info = plain_type("Dec"); },

@@ -654,3 +654,10 @@ An automatic website trigger with an exact-source certificate compares live
 matches skip assembly, browser provisioning, artifact uploads and deployment.
 Missing live identity requires publication; lookup errors fail closed. Manual
 rebuilds and PR validation never take the duplicate-publication shortcut.
+
+
+`make source-mapping-experiment` runs the bounded U1 feasibility tests, requiring
+Node 24+ in addition to the native toolchain. It is separate from interpreter-free
+`make check` and runs after the isolated compiler CI suite on Linux and macOS.
+See [the experiment](experiments/source_mapping/README.md) for its exact scope,
+trust boundary and printed size/timing evidence.

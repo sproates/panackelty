@@ -332,8 +332,9 @@ with [reproducible probes](tests/VALIDATION_PROFILE.md#compiler-understanding-pr
 No explanation feature is delivered yet. Initial findings: bounds lose their
 origin, binary operations lack complete attribution, emission drops source
 mapping, and no retained static dependency or dynamic derivation graph exists.
-Shared investigation remains open for sidecar integrity, runtime retention and
-positive non-impact experiments.
+The bounded U1 experiment establishes sidecar identity/fallback evidence;
+producer authenticity, runtime retention and positive non-impact experiments
+remain open.
 
 **Correctness prerequisite #182: accepted and closed.** PR #185 merged as
 `81ba7b1`; its checker and public-CLI regression evidence is recorded in #180. The checker invalidates bounds across
@@ -354,7 +355,7 @@ live verification remain separately recorded in the website follow-up register.
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
 | [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Investigation in progress | Explain checked types, effects and proof obligations from actual checker evidence; start with guarded subtraction. No accepted delivery yet. |
-| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Investigation in progress | Connect source through checking/lowering to emitted bytecode. No accepted delivery yet. |
+| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Investigation in progress | Bounded U1 trap attribution established; production mapping and connections through checking/lowering remain open. No accepted workstream delivery yet. |
 | [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
 | [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
 | [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
@@ -371,17 +372,18 @@ and performance measurements. Update these records together when delivery
 changes their claims.
 
 **Snapshot, 2026-10-02:** initial investigation #183 and correctness repair #185
-are merged. There is no source-mapping implementation or delivered explanation
+are merged. U1 adds a test-only mapping experiment and a sidecar design decision,
+effective on this delivery PR's merge. There is no production mapping or delivered explanation
 feature. All five workstreams remain open, with **0 of 5 accepted**. This is an
 acceptance count, not a claim that no useful preparatory work has been done.
 Do not invent effort percentages; report completed criteria and remaining work.
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
-| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; sidecar integrity, runtime retention and positive non-impact evidence remain | Remaining investigation estimate to be refined during U1 |
+| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; producer authenticity, runtime retention and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
 | C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
-| U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Planned; the next bounded implementation task | Small–medium; 1 feasibility PR |
-| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Unstarted; scope must be agreed from U1 evidence | Estimate after U1 |
+| U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted on merge of this delivery: [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
+| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Unstarted; optional sidecar proposed, full spans and trust/dependency contract still required | Medium–large; provisionally 2–3 PRs, scope agreement next |
 | U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | Unstarted; guarded subtraction is the first slice, not the entire workstream | First slice medium, 1–2 PRs; full scope estimate after investigation |
 | U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
 | U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
@@ -405,14 +407,13 @@ release or live checks where its scope requires them.
 
 ### Next action and agent handover
 
-**Next task: U1, the bounded source-mapping experiment described below.** First
-choose a reproducible runtime trap and independently specified expected source
-ranges for local, imported and generic programs. Establish the current behaviour,
-compare deterministic sidecar metadata with a versioned bytecode extension, and
-record the smallest experiment that can decide between them. Keep ordinary
-execution and the bootstrap fixed point unchanged. Record unknown attribution
-explicitly. Do not start a full debugger, coverage reporter or all five features
-in the same PR.
+**Next task after U1 merge: agree the U2 production mapping scope.** Read the
+[U1 evidence and revised estimates](tests/experiments/source_mapping/README.md).
+Replace narrow range recovery with spans retained through the frontend/emitter;
+agree source/dependency identity, producer trust, unknown attribution and the
+first public-CLI consumer. Preserve bytecode v9 unless new evidence justifies a
+version change. U0 retention and positive non-impact investigation remain open.
+Do not start all five features or claim realistic-program acceptance from U1.
 
 An agent resuming this work should:
 
@@ -447,15 +448,16 @@ Use this compact handover record in #180 for each active delivery:
 - Next concrete action, with enough context for another agent to execute it.
 - Website/release impact, including explicit no-impact reasoning where applicable.
 
-No implementation branch or agent assignment is claimed by this planning update.
-Until U1 begins, the next owner is the agent explicitly taking up U1. On acceptance,
-update both the milestone register and the workstream table; count independently
-accepted outcomes once in the grooming ledger. Preserve the existing website
-correctness follow-up for #182 and the later programme demonstration register.
+U1 owner: the agent delivering `feat/source-mapping-experiment`; the PR and
+review/validation evidence are linked from #180. The agent owns remaining review,
+checks and merge handover. This completion record takes effect on merge, which
+still requires explicit approval. The five workstreams remain open. Preserve the
+existing website correctness follow-up for #182 and later demonstration register.
 
-### Source-to-bytecode mapping foundation — planned shared milestone
+### Source-to-bytecode mapping foundation — U1 experiment done; U2 planned
 
-**Planned:** agreed on 2026-10-01 as a shared milestone within the current
+**U1 done on this delivery PR's merge; U2 remains planned.** Agreed on
+2026-10-01 as a shared milestone within the current
 compiler and runtime understanding programme (#180), following the #182
 correctness repair. This supports compilation provenance (#173), runtime value
 provenance (#172), source-aware runtime errors (#136) and source coverage (#131).
@@ -477,16 +479,23 @@ bytecode extension; decide the representation from evidence rather than assuming
 a bytecode format change. Define how lowering and generated instructions map to
 source ranges, including explicit cases where no source attribution is available.
 
-- [ ] Prove exact instruction-to-file/range attribution for the bounded trap,
+- [x] Prove exact instruction-to-file/range attribution for the bounded trap,
   including imported and generic code.
-- [ ] Specify artifact/source identity, compatibility, validation, relative-path
+- [x] Specify artifact/source identity, compatibility, validation, relative-path
   and privacy handling; test missing, malformed, stale and mismatched maps with
   safe fallback rather than incorrect source attribution.
-- [ ] Preserve execution semantics, bytecode verification, deterministic release
+- [x] Preserve execution semantics, bytecode verification, deterministic release
   artifacts and the ordinary bootstrap fixed-point contract; measure metadata
   size and compile/runtime overhead for the experiment.
-- [ ] Record the metadata decision, limitations, acceptance evidence and revised
+- [x] Record the metadata decision, limitations, acceptance evidence and revised
   estimates for production mapping and each consumer.
+
+Acceptance is bounded by the [experiment report](tests/experiments/source_mapping/README.md):
+identity and integrity checks do not authenticate a malicious producer. The
+production contract must address that boundary and exact loaded source closure.
+Canonical validation and independent review are recorded in #180/the delivery PR.
+Website impact: none for U1, which changes no published syntax, runtime, release
+artifact or website claim. The #182 corrective release follow-up remains open.
 
 Estimate: small-to-medium investigation, provisionally one feasibility PR.
 Production mapping, call stacks, coverage collection/reporting and provenance
@@ -495,8 +504,8 @@ history are outside this milestone. Mapping alone does not establish coverage
 counter correctness or retain runtime value derivations. Keep consumer-specific
 acceptance in #131, #136, #172 and #173.
 
-This planning update has no website impact: it changes no shipped capability or
-published version claim. Consumer delivery must assess its own website follow-up.
+This experiment changes no shipped capability or published version claim.
+Consumer delivery must assess its own website follow-up.
 
 ### Programme acceptance: trustworthy and useful on realistic programs
 
@@ -627,6 +636,13 @@ outcomes since this review**. The documentation and review do not themselves add
 an outcome. Review again after three accepted outcomes or earlier if new evidence
 changes priorities. This records direction and handover requirements; it neither
 accepts a compiler milestone nor authorises future PR merges.
+
+Current ledger after U1 delivery merges: **1 of 3 accepted outcomes** since the
+2026-10-02 baseline. U1 is one completed, independently scoped feasibility outcome;
+its experiment, decision and validation are linked above and in #180. It does not
+close #173 or #180, and must not be counted again at programme completion. The
+next mandatory review is after two further accepted outcomes, or earlier on new
+evidence. Before U1 merges, the accepted count remains 0 of 3.
 
 ### Grooming checkpoint ledger
 

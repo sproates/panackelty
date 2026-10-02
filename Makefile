@@ -418,3 +418,17 @@ ci-conformance-source: native
 ci-conformance-bytecode: native
 	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 	@$(MAKE) --no-print-directory quick-start
+
+# U1 feasibility probe. It observes the actual dispatch loop without adding a
+# production tracing ABI or changing the compiler seed/bytecode format.
+.PHONY: source-mapping-experiment
+source-mapping-experiment: native $(BUILD_DIR)/experiments/source-mapping-compiler.bc $(BUILD_DIR)/experiments/source-mapping-vm
+	@node tests/experiments/source_mapping/run.cjs "$(BUILD_DIR)/experiments/source-mapping-compiler.bc" "$(BUILD_DIR)/experiments/source-mapping-vm"
+
+$(BUILD_DIR)/experiments/source-mapping-compiler.bc: tests/experiments/source_mapping/compiler.panack $(wildcard src/compiler/*.panack src/bytecode/*.panack src/stdlib/*.panack) $(SEED_COMPILER) | native
+	@mkdir -p "$(@D)"
+	./panack compile $< -o "$@"
+
+$(BUILD_DIR)/experiments/source-mapping-vm: tests/experiments/source_mapping/trap_probe.c src/vm/execute.c $(VM_LIBRARY_OBJECTS)
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_LIBRARY_OBJECTS)) -o "$@" $(LDLIBS)

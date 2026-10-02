@@ -1,0 +1,8 @@
+// Unicode before the expression: λ🙂. Offsets count code points, not UTF-8 bytes.
+pure pick_generic[T](items: [T], index: Nat): T {
+  items[index]
+}
+main(): Void {
+  valid: Nat = pick_generic[Nat]([7], 0)
+  invalid: Str = pick_generic[Str](["value"], 2)
+}

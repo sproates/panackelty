@@ -82,6 +82,16 @@ jobs:
         if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}
 
+      - name: Set up experiment test tooling
+        if: matrix.suite == 'compiler'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Test bounded source-mapping experiment
+        if: matrix.suite == 'compiler'
+        run: make source-mapping-experiment
+
       - name: Archive detailed validation profile
         if: always() && needs.changes.result == 'success' && needs.changes.outputs.route == 'full'
         uses: actions/upload-artifact@v6

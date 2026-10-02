@@ -1876,3 +1876,49 @@ contracts pass 13/13; real Chromium, Firefox and WebKit tests pass 18/18,
 including import-free construction, chained methods and wrong-receiver errors.
 The full functional runner passes 297 assertions. These results precede the
 final clean canonical check; its result is recorded in the PR validation summary.
+
+
+## U1 source-mapping experiment, 2026-10-02
+
+Reproduce with `make source-mapping-experiment`. Measured on macOS arm64 with
+Node 26.0.0, native release build and the existing v9 seed, based on `c6eadb0`.
+Hosted experiment tooling pins Node 24. The final bounded suite reports 111
+assertions. All five fixture artifacts are byte-identical to public CLI output.
+The sidecar binds all six source files in the fixture corpus, including files
+not loaded by a particular entry. Tiny-program size ratios are not representative
+of real projects.
+
+| Case | Executable bytes | Sidecar bytes | Embedded candidate total bytes |
+| --- | ---: | ---: | ---: |
+| local | 101 | 990 | 1099 |
+| imported | 119 | 1002 | 1129 |
+| generic | 161 | 1002 | 1171 |
+| nested | 132 | 993 | 1133 |
+| conditional | 143 | 1003 | 1154 |
+
+Five warm samples in milliseconds, rounded to three decimal places:
+
+| Operation | Raw samples | Median |
+| --- | --- | ---: |
+| compile_plain | 31.258, 28.940, 28.881, 28.612, 28.736 | 28.881 |
+| compile_mapped | 31.788, 32.527, 29.888, 30.916, 29.424 | 30.916 |
+| run_bulk | 2.678, 2.536, 2.550, 2.723, 2.501 | 2.550 |
+| run_observed | 2.413, 2.334, 2.111, 2.247, 2.263 | 2.263 |
+| serialize | 0.290, 0.333, 0.252, 0.269, 0.351 | 0.290 |
+| lookup | 0.432, 0.379, 0.262, 0.332, 0.353 | 0.353 |
+
+The compile median difference is +2.035ms; metadata serialisation and lookup are
+separate costs. Runtime compares the same executable's bulk and single-step
+modes over 1,000 successful calls and a final trap. The observed median difference
+is -0.287ms, below startup/noise at this scale; it does not show an optimisation
+or establish a production tracing budget. Probe build, disassembly and the whole
+validation command are outside these samples. Production compiler/VM sources
+and emitted executable bytes do not change. No production overhead is introduced.
+
+The appended candidate is rejected by v9; a versioned embedded consumer was not
+implemented. Optional sidecars are the recommended U2 direction. Source-span
+retention, exact dependency closure, producer trust and larger realistic-program
+budgets remain production work. The malicious recomputed-digest counterexample
+is retained as evidence that integrity alone cannot authenticate attribution.
+Independent review requested corruption protection, comparable timing and
+variable-PC/nested-index regressions; those changes are included in this run.

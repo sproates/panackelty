@@ -40,7 +40,8 @@ function trap(artifact) {
 }
 const measurements=[];
 try {
-  const cases=[['local','pick','local.panack',45,57,2],
+  const cases=[['callback','select','callback.panack',33,43,2,3,'[7][index]'],
+    ['local','pick','local.panack',45,57,2],
     ['imported','imported_pick','lib/pick.panack',54,66,2],
     ['generic','pick_generic','generic.panack',134,146,3],
     ['nested','nested','nested.panack',63,84,2,4,'items[indices[index]]'],
@@ -76,7 +77,7 @@ try {
   fs.writeFileSync(nestedSource,nestedOriginal.toString().replace('nested([7], [2], 0)','nested([7], [2], 2)'));
   const inner=compile('nested'),innerPoint=trap(inner.artifact);
   check(innerPoint.pc===3,'nested inner indexing traps before outer PC 4');
-  check(metadata.lookup(metadata.create(inner.rows,corpus,inner.bytes,compilerIdentity),inner.bytes,compilerIdentity,corpus,instructions(inner.artifact),innerPoint)===null,'inner indexing does not borrow outer attribution');
+  check(metadata.lookup(metadata.create(inner.rows,corpus,inner.bytes,compilerIdentity),inner.bytes,compilerIdentity,corpus,instructions(inner.artifact),innerPoint)?.expression==='indices[index]','inner indexing has its own emitter attribution');
   fs.writeFileSync(nestedSource,nestedOriginal);
   const {map,bytes,point,code}=baseline;
   const unavailable=(raw,data=bytes,identity=compilerIdentity,at=point)=>{
@@ -113,18 +114,18 @@ try {
   const good=compile('local');command('./panack',['run',good.artifact]);
   check(command(observer,[good.artifact]).stdout.trim()==='completed','valid index has no fabricated trap');
   fs.writeFileSync(source,original);
-  // Unsupported non-tail index must not borrow a nearby location.
+  // Non-tail indexes now have their own exact emitter attribution.
   fs.writeFileSync(path.join(corpus,'unsupported.panack'),'pure other(items: [Nat], index: Nat): Nat { value: Nat = items[index]; value }\nmain(): Void { value: Nat = other([7], 2); }\n');
   const unsupported=compile('unsupported');const other=trap(unsupported.artifact);
-  check(unsupported.rows==='','unsupported AST shape has no map rows');
+  check(unsupported.rows!=='','binding initializer has emitter map rows');
   const unsupportedMap=metadata.create(unsupported.rows,corpus,unsupported.bytes,compilerIdentity);
-  check(metadata.lookup(unsupportedMap,unsupported.bytes,compilerIdentity,corpus,instructions(unsupported.artifact),other)===null,'unsupported failing instruction has no location');
+  check(metadata.lookup(unsupportedMap,unsupported.bytes,compilerIdentity,corpus,instructions(unsupported.artifact),other)?.start===57,'binding initializer maps its own expression');
   fs.unlinkSync(path.join(corpus,'unsupported.panack'));
   // An earlier indexing trap in the same function must not borrow its mapped tail.
   fs.writeFileSync(path.join(corpus,'earlier.panack'),'pure other(items: [Nat], index: Nat): Nat { value: Nat = items[index]; items[index] }\nmain(): Void { value: Nat = other([7], 2); }\n');
   const earlier=compile('earlier');const earlierPoint=trap(earlier.artifact);
   check(earlier.rows!=='','later tail index is mapped');
-  check(metadata.lookup(metadata.create(earlier.rows,corpus,earlier.bytes,compilerIdentity),earlier.bytes,compilerIdentity,corpus,instructions(earlier.artifact),earlierPoint)===null,'earlier trap does not borrow the tail range');
+  check(metadata.lookup(metadata.create(earlier.rows,corpus,earlier.bytes,compilerIdentity),earlier.bytes,compilerIdentity,corpus,instructions(earlier.artifact),earlierPoint)?.start===57,'earlier trap uses its own expression rather than the later tail');
   fs.unlinkSync(path.join(corpus,'earlier.panack'));
 
   // Reordered function names: instruction identity must not depend on table order.

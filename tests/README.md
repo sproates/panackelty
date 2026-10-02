@@ -668,3 +668,11 @@ Unicode code-point/line/column expectations and nested range traces. It runs wit
 the native compiler unit suite; no external interpreter is required. Public CLI
 location regressions live in the compiler integration suite. These checks prepare
 U2 instruction mapping but do not establish a runtime source-map contract.
+
+
+The U2 `compiler_instruction_sources_unit.panack` suite checks actual emitted
+instruction indices and source ranges, lowered/unavailable attribution, optional
+map/plain byte identity and original imported/generic locations. It runs under
+`make unit` and `make check-compiler`. `make source-mapping-experiment` additionally
+checks emitter mappings against real native VM traps; its sidecar remains a
+bounded test format, not a supported CLI contract.

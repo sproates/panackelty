@@ -641,3 +641,24 @@ rejection status and diagnostic messages are unchanged; expectations now include
 newly available excerpts or point to the offending compound expression rather
 than its enclosing call. These remain byte-exact assertions, including all
 stale-guard failure cases; no diagnostic matching was relaxed.
+
+
+### U2 instruction-source emission
+
+`compiler_instruction_sources_unit.panack`, registered in both compiler and unit
+suites, fixes instruction indices/opcodes and direct/lowered/unavailable ranges
+for nested arithmetic/indexing, nonzero offsets, short-circuit operators, both
+conditional forms, matches, while/for bodies, map/reduce, direct and indirect
+await, arrays, fields, ranges, interpolation and synthetic ASTs. Whole loaded
+program checks assert ordered unique indices, function/source alignment after
+core pruning and map/plain byte identity, including async, standard-library,
+imported/generic and nested match/conditional collection code. The imported
+Unicode fixture checks original module, line/column and source slice.
+
+The compiler integration suite executes the complete nested lowering fixture
+through the public CLI and asserts its six output lines. The runtime source-map
+experiment retains its invalid/stale/missing metadata cases and now proves exact
+attribution for inner indexes, binding initializers, earlier indexes and a trap
+inside a collection callback. It uses actual emitter entries, not AST-tail
+reconstruction. Serialized production metadata and public source-aware runtime
+messages are not delivered by these tests.

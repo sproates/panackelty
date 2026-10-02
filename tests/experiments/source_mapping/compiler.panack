@@ -1,79 +1,24 @@
 import "../../../src/compiler/driver.panack"
 
-// U1's terminal-index experiment now consumes retained frontend spans directly.
-// The deliberately narrow emission contract is unchanged; U2 production
-// instruction mappings and metadata consumption are separate deliveries.
-source_mapping_tail(name: Str, tail: Expr, code: BytecodeProgram): Void {
-  match expression_span(tail) {
-    None() => {},
-    Some(span) => {
-      match unlocated_expression(tail) {
-        IndexExpr(target, index) => {
-          match unlocated_expression(target) {
-            NameExpr(variable) => {
-              for function in code.functions {
-                count: Nat = len(function.instructions)
-                if function.name == name && count >= 2 {
-                  pc: Nat = prior_index(prior_index(count))
-                  if render_instruction(function.instructions[pc]) == "INDEX_GET" {
-                    file: Str = span.start.file
-                    start: Nat = span.start.offset
-                    end: Nat = span.end.offset
-                    print("map\t${name}\t${pc}\t${file}\t${start}\t${end}")
-                  } else {}
-                } else {}
-              }
-            },
-            LocatedExpr(unused_position, unused_value) => {},
-            NatExpr(unused_value) => {},
-            DecimalExpr(unused_text) => {},
-            StringExpr(unused_text) => {},
-            BoolExpr(unused_value) => {},
-            FunctionExpr(unused_name) => {},
-            ArrayExpr(unused_items) => {},
-            UnaryExpr(unused_operator, unused_operand) => {},
-            BinaryExpr(unused_operator, unused_left, unused_right) => {},
-            CallExpr(unused_name, unused_arguments, unused_type_arguments) => {},
-            FieldExpr(unused_target, unused_field) => {},
-            IndexExpr(unused_target, unused_index) => {},
-            IfExpr(unused_condition, unused_yes, unused_no, unused_has_else) => {},
-            BlockExpr(unused_block) => {},
-            MatchExpr(unused_subject, unused_arms) => {},
+// Consume actual emitter entries. The test-only sidecar/observer remains bounded
+// to INDEX_GET; it never infers instruction identity from AST shape or proximity.
+source_mapping_probe(mapped: SourceMappedProgram): Void {
+  for mapping in mapped.sources {
+    for function in mapped.bytecode.functions {
+      if function.name == mapping.name {
+        for entry in mapping.entries {
+          if entry.index < len(function.instructions) {
+            if render_instruction(function.instructions[entry.index]) == "INDEX_GET" && !entry.lowered {
+              name: Str = mapping.name
+              pc: Nat = entry.index
+              file: Str = entry.span.start.file
+              start: Nat = entry.span.start.offset
+              end: Nat = entry.span.end.offset
+              print("map\t${name}\t${pc}\t${file}\t${start}\t${end}")
+            }
           }
-        },
-        LocatedExpr(unused_position, unused_value) => {},
-        NatExpr(unused_value) => {},
-        DecimalExpr(unused_text) => {},
-        StringExpr(unused_text) => {},
-        BoolExpr(unused_value) => {},
-        NameExpr(unused_name) => {},
-        FunctionExpr(unused_name) => {},
-        ArrayExpr(unused_items) => {},
-        UnaryExpr(unused_operator, unused_operand) => {},
-        BinaryExpr(unused_operator, unused_left, unused_right) => {},
-        CallExpr(unused_name, unused_arguments, unused_type_arguments) => {},
-        FieldExpr(unused_target, unused_field) => {},
-        IfExpr(unused_condition, unused_yes, unused_no, unused_has_else) => {},
-        BlockExpr(unused_block) => {},
-        MatchExpr(unused_subject, unused_arms) => {},
-      }
-    }
-  }
-}
-
-source_mapping_probe(project: LoadedProject, code: BytecodeProgram): Void {
-  for declaration in project.program.declarations {
-    match declaration {
-      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        match body.value {
-          NoBlockValue() => {},
-          TailBlockValue(tail) => { source_mapping_tail(name, tail, code); }
         }
-      },
-      ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {},
-      RecordDeclaration(name, parameters, fields) => {},
-      EnumDeclaration(name, parameters, variants) => {}
+      }
     }
   }
 }
@@ -86,8 +31,12 @@ main(): Void {
     eprint(diagnostic_messages(loaded.diagnostics, loaded.sources))
     process_exit(1)
   } else {
-    code: BytecodeProgram = compile_program(loaded.program)
-    write_bytes(args[1], serialize_bytecode(code))
-    if args[2] == "map" { source_mapping_probe(loaded, code); } else {}
+    if args[2] == "map" {
+      mapped: SourceMappedProgram = compile_program_with_sources(loaded.program)
+      write_bytes(args[1], serialize_bytecode(mapped.bytecode))
+      source_mapping_probe(mapped)
+    } else {
+      write_bytes(args[1], serialize_bytecode(compile_program(loaded.program)))
+    }
   }
 }

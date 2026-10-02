@@ -591,7 +591,7 @@ dependencies without replacing the current principal programme.
 | [Interactive debugger](#interactive-debugger--candidate-for-assessment) (no issue yet) | Assess a bounded synchronous CLI experiment for breakpoints, stepping, locals and call frames against observed debugging gaps. | M / 1 assessment; delivery estimate follows evidence |
 | [Editor support](#editor-support) ([#139](https://github.com/sproates/panackelty/issues/139)) | Provide highlighting and basic editing in one selected editor; assess compiler-backed features separately. | S–M / 1–2 for one editor |
 | [Technical showcase programs](#technical-showcase-programs) ([#140](https://github.com/sproates/panackelty/issues/140)) | Deliver one complete, tested demonstration combining existing language capabilities and explicit failure boundaries. | M / 1–2 for one demonstration |
-| [Runtime and resource baselines](#runtime-and-resource-baselines) ([#141](https://github.com/sproates/panackelty/issues/141)) | Record repeatable compile/run, memory and artifact-size observations for a small representative workload set. | M / 1–2 for initial baseline |
+| [Performance and benchmarking](#performance-and-benchmarking) ([#141](https://github.com/sproates/panackelty/issues/141)) | Establish reproducible compile/run, memory and artifact-size benchmarks; use evidence to guide later profiling and optimisation. | M / 1–2 for initial baseline; later optimisation separately scoped |
 | [Independent contract implementation](#independent-contract-implementation) ([#142](https://github.com/sproates/panackelty/issues/142)) | Attempt a narrowly scoped independent implementation from the written bytecode contract and record ambiguities. | M / 1 bounded assessment |
 
 <a id="proposed-first-step"></a>
@@ -2019,17 +2019,36 @@ results and both success and failure boundaries. Explain guarantees and
 platform/release limits. Reuse existing examples and checks; no new language
 feature or production HTTP claim is required.
 
-### Runtime and resource baselines
+<a id="runtime-and-resource-baselines"></a>
+
+### Performance and benchmarking
 
 Work record: [#141](https://github.com/sproates/panackelty/issues/141).
 
+State: **Idea; unscheduled**. The 2026-10-02 user request broadens the existing
+runtime/resource baseline proposal rather than creating a duplicate. This does
+not change compiler-work priority or reopen the deferred website/CI work.
+
 Existing validation profiles and paired experiments are useful evidence but do
-not form a general maintained resource baseline. Select a small representative
-workload set and record correctness-checked compilation, execution, memory and
-artifact size. Separate cold/warm costs, report environment and variability, and
-label unavailable metrics. Set policy after understanding baseline noise;
-universal thresholds and cross-language superiority claims are outside the
-initial scope.
+not form a general maintained performance baseline. Start with a small suite of
+representative programs and focused benchmarks covering compilation, exact-value
+operations, strings/collections and bounded I/O where supported. Measure
+compilation, startup and execution costs, throughput/latency where meaningful,
+peak memory and artifact size where reliable measurement is available.
+
+Correctness-check outputs, pin inputs and record toolchain/environment metadata,
+replay commands, repetitions and variability. Separate cold/warm and compile/run
+costs, compare like-for-like revisions without concurrent benchmark interference,
+and label unavailable metrics. The smallest useful outcome is a reproducible
+baseline and comparison report, provisionally **M / 1–2 PRs**; host noise and
+platform-specific accounting limit confidence in comparisons.
+
+Use subsequent profiling to identify bottlenecks and scope targeted optimisation
+with before/after evidence. Set regression budgets or automation only after
+baseline noise is understood. Optimisation is separately scoped, not part of the
+initial baseline commitment; preserve exactness, safety and correctness.
+Universal thresholds and cross-language superiority claims are outside the
+initial scope. Recording this idea does not schedule benchmark implementation.
 
 ### Independent contract implementation
 

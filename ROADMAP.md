@@ -346,7 +346,7 @@ finishes the bounded core repair, not #134 or programme #180. The next programme
 feature is source attribution and retained checker evidence. Remaining #187
 work is deferred and does not block this programme. Validation passes; the measured 139s
 full check and 86s unit phase exceed the 120s/15s targets. The U2 frontend focused compiler check also exceeded its 15s target (47s).
-The instruction-source slice passed full validation in 158s, above the 120s target. Keep validation-cost
+The instruction-source slice passed full validation in 158s; the final U2 sidecar/CLI slice passed in 163s, both above the 120s target. Keep validation-cost
 profiling under #106 as an explicit prioritisation reminder; retain all coverage.
 Paired compiler-only checks show no material slowdown on the measured workload;
 see the [repair measurements](tests/VALIDATION_PROFILE.md#guard-fact-repair-and-test-hardening-2026-10-01). Browser/native release adoption and
@@ -382,10 +382,10 @@ Do not invent effort percentages; report completed criteria and remaining work.
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
-| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; producer authenticity, runtime retention and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
+| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; authenticated external producers, runtime retention and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
 | C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
 | U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
-| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | In progress: frontend spans accepted in #209; optional emission mappings delivered by this slice on merge; sidecar trust/dependency contract and CLI acceptance remain | Medium–large; 2–3 PRs total |
+| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Done on this final delivery merge: frontend #209, emission #214, exact local-replay sidecar and public CLI; [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
 | U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | Unstarted; guarded subtraction is the first slice, not the entire workstream | First slice medium, 1–2 PRs; full scope estimate after investigation |
 | U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
 | U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
@@ -410,16 +410,22 @@ release or live checks where its scope requires them.
 
 ### Next action and agent handover
 
-**U2 is authorised and in progress.** Frontend spans were accepted through #209
-(`6d10c1b`). The current delivery on `feat/compiler-instruction-sources` adds
-optional instruction-source entries during actual emission, distinguishes lowered
-machinery, preserves explicit unavailable gaps and updates the runtime experiment.
-The delivery agent owns validation, independent review, PR and handover in #180.
-This is an intermediate slice, not U2 or #173 acceptance. After it merges, complete
-the production sidecar identity/trust/exact-dependency contract and public-CLI
-consumption/fallback. Preserve bytecode v9. U0 retention and positive non-impact
-investigation remain open; source/trust questions must be resolved in the final U2
-contract before accepting metadata from a producer. All five workstreams stay open.
+**U2 final delivery is on `feat/validated-source-map-cli`.** Frontend spans were
+accepted through #209 (`6d10c1b`) and instruction mappings through #214
+(`60010dc`). This final slice adds deterministic optional sidecars and public
+compile/lookup commands, with exact source-closure reproduction as the trust
+boundary. The delivery agent owns validation, independent review, PR and #180
+handover until explicit merge approval. U2 is Done on this delivery's merge;
+there is no release or live-site acceptance prerequisite for this core milestone.
+See [the contract](docs/SOURCE_MAPS.md) and validation evidence below.
+
+The next proposed implementation is U3's first guarded-subtraction explanation:
+retain the checker evidence that an accepted/rejected obligation actually used,
+with source facts and explicit unknowns. Read #134 and agree that slice before
+starting. It does not close the full checker-explanation workstream. U0 runtime
+retention and positive non-impact investigation remain open, as does original
+producer authentication outside the local-replay contract. All five workstreams
+remain open; public mapping alone does not complete #173.
 
 An agent resuming this work should:
 
@@ -455,32 +461,35 @@ Use this compact handover record in #180 for each active delivery:
 - Website/release impact, including explicit no-impact reasoning where applicable.
 
 U1 was accepted through merged [PR #208](https://github.com/sproates/panackelty/pull/208)
-at `de26483`. U2's frontend and emission foundations are intermediate deliveries: it does not
-add a grooming outcome or close #173/#180. The accepted ledger remains 1 of 3.
-Existing #182 release/site correctness work and programme demonstrations remain
-separate. Website impact of this slice: no current claim, example or release pin
-requires correction; the new mapping entry point is internal and unreleased.
-Do not advertise public source mapping or runtime explanations from this work.
+at `de26483`. U2's frontend and emitter slices did not independently add grooming
+outcomes. The final validated-sidecar delivery completes U2 on merge and advances
+the ledger to 2 of 3. It closes neither #173 nor #180. Existing #182 release/site
+correctness work and programme demonstrations remain separate.
 
-### Source-to-bytecode mapping foundation — U1 done; U2 in progress
+### Source-to-bytecode mapping foundation: U1 done; U2 done on final merge
 
-**U1 accepted through PR #208; U2 is in progress.** Agreed on
-2026-10-01 as a shared milestone within the current
-compiler and runtime understanding programme (#180), following the #182
-correctness repair. This supports compilation provenance (#173), runtime value
-provenance (#172), source-aware runtime errors (#136) and source coverage (#131).
-It is not a sixth workstream and does not schedule the full diagnostics or
-coverage deliveries. Track the milestone through #180/#173; no separate issue
-is required for this roadmap clarification.
+U2 connects retained expression ranges to actual emitted instructions and
+provides validated local lookup with deterministic optional sidecars. It
+preserves v9 bytes and returns unavailable for missing, stale, forged or
+incompatible evidence. Exact snapshots include imports and core; sidecars contain
+source text and lookup recompiles. These limits and privacy costs are part of
+the [accepted contract](docs/SOURCE_MAPS.md), not deferred implementation details.
 
-The original gap was the lost connection from emitted instructions to source
-files and ranges. U2 now retains this relation internally through an optional
-emitter result; production identity validation and consumption remain outstanding.
-A trustworthy mapping enables useful runtime locations, source-level measurement
-and explanations of generated code. A wrong or stale mapping could misidentify
-the failing expression or produce misleading coverage, so identity and failure
-handling are part of the foundation.
+Acceptance evidence includes self-hosted unit/public-CLI tests, independent
+actual-VM trap locations and coherent-forgery probes, ordinary/mapped byte
+identity, fresh bootstrap fixed points, canonical validation and a compiler-sized
+measurement. The [validation profile](tests/VALIDATION_PROFILE.md) records the
+results. Independent review found an output directory-alias bug, fixed with a
+post-artifact destination check and preservation regression, and a doubled
+lookup timing sample, fixed by reusing the single captured output.
 
+U2 has no separate issue; track it through #180/#173. This completes the shared
+mapping milestone, while checker evidence, compilation reasons, runtime
+provenance, source-aware errors (#136) and coverage (#131) retain their scope.
+No live website claim needs correction for these unreleased commands. Promotion
+is recorded in the website follow-up register and waits for a supporting release.
+
+The following U1 experiment scope is retained as historical decision context.
 The smallest useful outcome is a bounded experiment mapping one runtime trap
 back to its source expression, with independently checked local, imported and
 generic-code cases. Compare deterministic sidecar metadata with a versioned
@@ -501,7 +510,7 @@ source ranges, including explicit cases where no source attribution is available
 
 Acceptance is bounded by the [experiment report](tests/experiments/source_mapping/README.md):
 identity and integrity checks do not authenticate a malicious producer. The
-production contract must address that boundary and exact loaded source closure.
+production contract above addresses that boundary through exact local replay.
 Canonical validation and independent review are recorded in #180/the delivery PR.
 Website impact: none for U1, which changes no published syntax, runtime, release
 artifact or website claim. The #182 corrective release follow-up remains open.
@@ -674,12 +683,12 @@ an outcome. Review again after three accepted outcomes or earlier if new evidenc
 changes priorities. This records direction and handover requirements; it neither
 accepts a compiler milestone nor authorises future PR merges.
 
-Current ledger after U1 delivery merged: **1 of 3 accepted outcomes** since the
-2026-10-02 baseline. U1 is one completed, independently scoped feasibility outcome;
-its experiment, decision and validation are linked above and in #180. It does not
-close #173 or #180, and must not be counted again at programme completion. The
-next mandatory review is after two further accepted outcomes, or earlier on new
-evidence. U2's intermediate frontend slice does not add an accepted outcome.
+Current ledger before the U2 final delivery merges: **1 of 3 accepted outcomes**
+since the 2026-10-02 baseline (U1). On this delivery's merge it becomes **2 of 3**:
+U1 feasibility and U2 production mapping. Frontend/emitter slices are included in
+U2, not counted separately. Neither outcome closes #173 or #180 or is counted
+again at programme completion. The next mandatory review is after one further
+accepted outcome following U2, or earlier if new evidence changes priorities.
 
 ### Grooming checkpoint ledger
 
@@ -862,6 +871,16 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+- **#180 U2 public source-map commands:** pending promotion; owner: programme
+  delivery agent. The live site still advertises v0.1.1; no supporting release is
+  assigned. After publishing and deliberately adopting a release containing U2,
+  consider CLI documentation and a validated lookup example, stating exact-source
+  reproduction, unavailable fallback, lookup cost and full-source sidecar privacy.
+  Current pinned examples and release links are unaffected. Do not advertise
+  automatic runtime explanations. Acceptance requires checking the example against
+  the adopted artifacts and verifying the published pages. Recording this entry
+  does not start website work; U9's broader positioning remains separate.
 
 - **#187 separate coverage host:** website cutover and independent manual report
   refresh verified; owner: delivery agent. PR #203 / Pages `36935939432` passed

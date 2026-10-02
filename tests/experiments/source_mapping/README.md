@@ -1,105 +1,69 @@
-# U1: bounded source-mapping experiment
+# Native source-map acceptance evidence
 
-Run `make source-mapping-experiment` from the repository root with a C toolchain,
-Node 24 or later, and the existing compiler seed. The target is separate from
-`make check` and interpreter-free validation. Check runs it after the existing
-isolated compiler suite on Linux and macOS. The original U1 delivery changed no
-production source, CLI or compiler seed.
-U2 now supplies retained frontend spans, emitter mappings and a refreshed v9 seed; this test target
-still adds no production tracing ABI or bytecode-format extension.
+Run `make source-mapping-experiment` with the native toolchain and Node 24+.
+The target compiles `trap_probe.c`, which observes the actual VM dispatcher,
+and tests the production `compile --source-map` and `locate` commands. It runs
+in the Linux/macOS compiler CI jobs, separately from interpreter-free native
+`make check`. Canonical self-hosted unit and CLI tests cover the production
+contract without Node.
 
-## Question and result
+## Independently checked attribution
 
-Can an actual failing VM instruction be attributed to an exact source range in
-local, imported and generic code without changing ordinary execution?
+The observer records the function and PC immediately before advancing one real
+VM instruction. On a trap, it retains the function identity owned by the Program;
+execution frames may already have been cleared. It uses the actual decoder,
+verifier and dispatcher, with no alternative interpreter or production trace ABI.
 
-Yes, for the tested `INDEX_GET` traps. `compiler.panack` uses the real loader,
-checker, emitter and serializer. It consumes `compile_program_with_sources`
-entries at their recorded function-local instruction indices, selecting direct
-index operations for this bounded sidecar. It no longer walks tail expressions
-or reconstructs an instruction index from function length.
+Literal test expectations cover local, imported, erased generic, nested,
+conditional and callback indexes. A Unicode prefix establishes code-point rather
+than UTF-8 offsets. Binding initialisers and earlier indexes retain their own
+range instead of borrowing a later tail expression. Source execution and saved
+bytecode produce the same trap, and mapped artifacts match ordinary compilation.
 
-U1 originally recovered a tail-expression range by re-parsing source. U2's first
-slice retained the range in the frontend; the emission slice now supplies the
-actual instruction relationship. Nested inner indexes, binding initializers,
-earlier indexes and indexes inside a `.map()` callback receive their own ranges.
-No source association is guessed from a nearby or terminal instruction.
+The test constructs malformed maps and coherent lies about instruction indices,
+source indices, paths, ranges, line/column coordinates, lowering flags and counts.
+Duplicate records and valid-range changes are rejected by local reproduction.
+Missing/stale/oversized/invalid-UTF-8 inputs, wrong artifacts, implicit-core
+changes, unknown functions and unmapped PCs all return unavailable. Unchanged
+explicit-source symlinks are supported; unrelated neighbouring files are outside
+the exact loaded closure. Repeated and relocated builds retain identical pairs.
 
-`trap_probe.c` compiles the real VM dispatcher into a test executable. It saves
-the current function and PC immediately before each single-instruction advance,
-because trapping clears the execution frames. The Program still owns the saved
-function. Execution uses the same decoder, verifier and dispatcher as the native
-VM. There is no alternative interpreter or production tracing ABI.
+## Decision and trust boundary
 
-The test's expected file, function, PC, range, line and column are literal values
-specified independently of the mapping code. Imported declarations resolve to
-the imported file. A generic function is called with both Nat and Str before the
-Str call traps: attribution identifies the shared erased body, not a distinct
-specialisation or type-argument trace. A Unicode prefix checks code-point rather
-than UTF-8 byte offsets. The bounded sidecar excludes generated machinery and non-index instructions.
-An earlier indexing trap uses its own entry rather than its function's tail range. The public CLI reproduces the same trap from source and saved bytes.
+U1 selected an optional sidecar to preserve executable v9 bytes. An appended
+metadata candidate is still tested and rejected by the existing v9 verifier;
+embedding metadata would need an explicit format migration with a demonstrated
+benefit. No such migration is part of U2.
 
-## Representation decision
+The U1 checksum envelope exposed a coherent-forgery counterexample: checksums do
+not authenticate source attribution. U2 replaces that envelope with exact local
+reproduction of bytecode, source snapshots and emitter entries. Production never
+parses foreign map fields. The full [source-map contract](../../../docs/SOURCE_MAPS.md)
+records the trust boundary, disclosure of complete source text, closure limits,
+lookup cost and filesystem assumptions. The test-only JSON implementation and
+compiler adapter have been removed; the JavaScript decoder in `run.cjs` exists
+solely to construct adversarial mutations of known-good output.
 
-Proceed towards U2 with an optional, deterministic sidecar, subject to agreeing
-its production scope. It preserves the current v9 executable bytes and verifier,
-can be omitted without changing execution, and can be validated separately.
-The experiment emits identical bytecode to the public CLI and deterministic
-relative-path metadata across repeated builds and relocated source roots.
+## Measurements and limits
 
-The competing embedded candidate appends a marker and the same metadata to v9.
-The existing decoder correctly rejects it. This is a compatibility/size probe,
-not an implemented new bytecode version: an embedded representation needs an
-explicit format version, loader/verifier contract, seed migration and tests.
-Embedding would bind transport of code and map together, but still would not
-prove the map's source claims. No measured benefit justifies that migration for
-this first consumer. Retain the embedded option if future consumers require it.
+The current runner reports mapped/ordinary compilation samples, one validated
+lookup per timing sample, and artifact/sidecar sizes. These include process
+startup, source loading and compiler work. The
+[validation profile](../../VALIDATION_PROFILE.md) retains historical U1 runtime
+bulk/single-step and JavaScript serialisation measurements, but the current
+target does not reproduce those retired implementation timings. There is no
+production runtime tracing in this delivery.
 
-The experimental envelope records a schema version, offset encoding, producer
-bytecode digest, executable digest, source hashes, entries and an integrity
-checksum. Lookups require a matching instruction boundary/opcode, valid bounded
-ranges, unique keys and unchanged source snapshots. Relative paths reject
-traversal and symlinks. Missing, oversized, malformed, stale or mismatched maps
-return unavailable. The prototype hashes the entire declared fixture corpus,
-not the loader's exact dependency closure; this deliberately over-invalidates.
-It contains no absolute paths or source text, but relative filenames and hashes
-can still reveal information. It is not a privacy guarantee.
-
-**Integrity is not authenticity.** The envelope checksum catches accidental
-valid-range edits, but a malicious producer can rewrite a range and recompute
-it. An executable counterexample preserves that finding. Trust must come from
-the producer/artifact channel, not a self-asserted compiler hash. U2 must define
-that boundary, capture the exact loaded source snapshots (including libraries),
-and address read/compile/lookup races. These fixtures do not establish safety
-for arbitrary untrusted metadata, concurrent filesystem mutation or adversarial
-resource exhaustion. No production consumer accepts this format.
-
-## Measurements and limitations
-
-The runner prints every raw timing sample and metadata size. Compilation compares
-the same compiler probe with mapping disabled/enabled. Runtime compares bulk and
-single-step execution of the same test executable over 1,000 successful calls
-followed by a trap; both include process startup. Metadata serialisation and
-lookup are measured separately. Disassembly parsing and building the probe are
-outside those timing samples. These small warm measurements are feasibility
-observations, not production overhead budgets or performance guarantees.
-See [the recorded run](../../VALIDATION_PROFILE.md#u1-source-mapping-experiment-2026-10-02).
-U1 introduced no production overhead because it changed no production sources
-or artifacts; that small benchmark did not prove tracing was free. U2 frontend and emitter
-retention costs are measured separately in the validation profile.
-
-U1 does not establish realistic-program usefulness for the whole programme.
-It provides a tested attribution boundary and identifies what U2 must replace:
-function/PC identity, dependency closure and trusted metadata distribution.
-U2 has replaced source-span recovery with retained spans and tail-index
-reconstruction with actual emitter entries. Runtime retention and positive non-impact evidence for
-other workstreams remain open under U0.
+The self-hosted compiler is also measured as a larger, multi-module corpus.
+These observations establish practical costs for this foundation; they do not
+satisfy the whole programme's realistic-program usefulness gate. Runtime
+retention, checker explanations and positive non-impact evidence remain open.
 
 ## Follow-on scope estimates
 
 | Delivery | First useful outcome | Provisional size / PRs |
 | --- | --- | --- |
-| U2 production mapping | Retain spans through parsing/lowering/emission; deterministic optional mapping and public-CLI fallback tests; agree producer trust and exact source closure | Medium–large / 2–3 |
+| U2 production mapping | Implemented across frontend, emission and validated sidecar deliveries; acceptance on final delivery merge | 3 PRs |
 | #134, U3 | First guarded-subtraction explanation from retained checker facts and source origins | Medium / 1–2; full types/effects/proof scope still unestimated |
 | #173, U4 | Connect mapped emission with checking/lowering reasons and explicit generated origins | Medium–large / 2–3 after U2; mapping alone is insufficient |
 | #174, U5 | One bounded inferred requirement validated by actual recompilation | Medium / 1–2 after U3; general solver excluded |
@@ -107,8 +71,6 @@ other workstreams remain open under U0.
 | #172, U7 | One opt-in computation derivation with bounded retention | Large / 2–4 after U0 retention investigation |
 | #136 / #131 | First source-aware trap / bounded source-coverage consumer | Each medium / 1–2 after U2; separate unscheduled work |
 
-These are revised planning estimates, not scope commitments or whole-workstream
-completion estimates. Agree representative workloads and overhead budgets before
-production acceptance. The experiment should remain until production tests
-replace its decision evidence; do not keep competing metadata implementations
-once U2 supersedes it.
+These are planning estimates rather than whole-workstream completion claims.
+Agree representative workloads and budgets before the later feature acceptance
+and programme-wide evaluation.

@@ -76,9 +76,13 @@ remain U2 work.
   relative to their importer, `project/` paths from the entry directory, and
   `stdlib/` paths from the active toolchain. It canonicalizes and recursively
   reads each module once, detects invalid paths, cycles, and missing modules,
-  retains each source snapshot for diagnostic rendering, and hands one combined
+  retains ordered source paths and snapshots for diagnostic rendering and source maps, and hands one combined
   program to the pure frontend and emitter.
-- `driver.panack` implements `check`, `compile`, `run`, and `disasm` for source
+- `source_maps.panack` owns canonical optional sidecars and exact local replay
+  validation, portable identifiers, bounded file comparison and location rendering.
+  It never decodes foreign map paths or lengths. See the
+  [source-map contract](../../docs/SOURCE_MAPS.md).
+- `driver.panack` implements `check`, `compile`, `run`, `disasm` and `locate` for source
   and version-9 bytecode, including default output paths and primary positioned
   lexer, parser, name, and type diagnostics.
 - `main.panack` is the executable self-hosted compiler entry point.

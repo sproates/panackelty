@@ -1096,3 +1096,15 @@ for otherwise valid arguments. Embedded listening is denied by default and needs
 its own native opt-in, separate from outbound TCP. Handler children inherit the
 outbound permission, never listening permission. These internal host APIs are
 experimental, not a stable embedding ABI.
+
+## Optional instruction source lookup
+
+`panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP` emits an optional
+sidecar without changing language semantics or executable bytecode v9.
+`panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME
+--instruction PC` validates the pair by local recompilation and returns a direct
+expression, enclosing lowered expression, or explicit unavailable result. Ranges
+are half-open Unicode code-point offsets with one-based line/column coordinates.
+Lookup does not execute source, and ordinary runtime diagnostics do not consult
+maps. The [source-map contract](docs/SOURCE_MAPS.md) defines identity, source
+closure, compatibility, I/O bounds, output safety and source disclosure.

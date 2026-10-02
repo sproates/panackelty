@@ -1,16 +1,19 @@
 import "../bytecode/decoder.panack"
+import "../stdlib/filesystem.panack"
 
 record ProjectLoadState {
   programs: [Program],
   visited: Set[Str],
   diagnostics: [Diagnostic],
-  sources: Map[Str,Str]
+  sources: Map[Str,Str],
+  source_paths: [Str]
 }
 
 record LoadedProject {
   program: Program,
   diagnostics: [Diagnostic],
-  sources: Map[Str,Str]
+  sources: Map[Str,Str],
+  source_paths: [Str]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -96,83 +99,111 @@ pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_r
   }
 }
 
-load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_root: Str, stdlib_root: Str): ProjectLoadState {
+read_project_source(path: Str, bounded: Bool, paths: [Str], sources: Map[Str,Str]): Result[Str,Str] {
+  if !bounded { Ok(read_file(path)) }
+  else {
+    mut total: Nat = 0
+    for loaded in paths { total = total + byte_len(utf8_encode(sources.get(loaded))); }
+    if len(paths) >= 256 || total > 8388608 {
+      Error("source-map source closure limit exceeded")
+    } else {
+      match path_from_text(path) {
+        Error(error) => Error("invalid source path"),
+        Ok(file) => match fs_read(file, 1048576) {
+          Error(error) => Error("source-map source unavailable or exceeds 1 MiB"),
+          Ok(data) => {
+            if total + byte_len(data) > 8388608 { Error("source-map source closure exceeds 8 MiB") }
+            else { if !valid_utf8(data) { Error("source-map source is not valid UTF-8") }
+            else { Ok(utf8_decode(data)) } }
+          }
+        }
+      }
+    }
+  }
+}
+
+load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_root: Str, stdlib_root: Str, bounded: Bool): ProjectLoadState {
   if state.visited.has(path) {
     state
   } else {
     if path_in_stack(stack, path) {
       diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("import cycle includes ${path}"))
-      ProjectLoadState(state.programs, state.visited, diagnostics, state.sources)
+      ProjectLoadState(state.programs, state.visited, diagnostics, state.sources, state.source_paths)
     } else {
       if path_suffix(path) != ".panack" {
         diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("import must reference a .panack file: ${path}"))
-        ProjectLoadState(state.programs, state.visited, diagnostics, state.sources)
+        ProjectLoadState(state.programs, state.visited, diagnostics, state.sources, state.source_paths)
       } else {
         if !file_exists(path) {
           diagnostics: [Diagnostic] = append(state.diagnostics, loader_diagnostic("missing source module ${path}"))
-          ProjectLoadState(state.programs, state.visited, diagnostics, state.sources)
+          ProjectLoadState(state.programs, state.visited, diagnostics, state.sources, state.source_paths)
         } else {
-          source: Str = read_file(path)
-          sources: Map[Str,Str] = state.sources.put(path, source)
-          match lex_file(source, path) {
-            Error(errors) => {
-              mut diagnostics: [Diagnostic] = state.diagnostics
-              for error in errors {
-                diagnostics = append(diagnostics, error)
-              }
-              ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources)
-            },
-            Ok(tokens) => {
-              selected: [Token] = if path == path_join(stdlib_root, "core.panack") { core_tokens(tokens) } else { tokens }
-              match parse_program_complete(selected) {
-                Error(error) => {
-                  diagnostics: [Diagnostic] = append(state.diagnostics, error)
-                  ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources)
+          match read_project_source(path, bounded, state.source_paths, state.sources) {
+            Error(message) => ProjectLoadState(state.programs, state.visited, append(state.diagnostics, loader_diagnostic(message + ": " + path)), state.sources, state.source_paths),
+            Ok(source) => {
+              paths: [Str] = append(state.source_paths, path)
+              sources: Map[Str,Str] = state.sources.put(path, source)
+              match lex_file(source, path) {
+                Error(errors) => {
+                  mut diagnostics: [Diagnostic] = state.diagnostics
+                  for error in errors {
+                    diagnostics = append(diagnostics, error)
+                  }
+                  ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources, paths)
                 },
-                Ok(program) => {
-                  mut current: ProjectLoadState = ProjectLoadState(state.programs, state.visited, state.diagnostics, sources)
-                  next_stack: [Str] = append(stack, path)
-                  for declaration in program.declarations {
-                    match declaration {
-                      ImportDeclaration(imported) => {
-                        if is_logical_import(imported) {
-                          if !logical_import_valid(imported) {
-                            diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("invalid logical import path: ${imported}"))
-                            current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
-                          } else {
-                            if starts_with(imported, "stdlib/") && len(stdlib_root) == 0 {
-                              diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("standard library root is not configured"))
-                              current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
+                Ok(tokens) => {
+                  selected: [Token] = if path == path_join(stdlib_root, "core.panack") { core_tokens(tokens) } else { tokens }
+                  match parse_program_complete(selected) {
+                    Error(error) => {
+                      diagnostics: [Diagnostic] = append(state.diagnostics, error)
+                      ProjectLoadState(state.programs, state.visited.add(path), diagnostics, sources, paths)
+                    },
+                    Ok(program) => {
+                      mut current: ProjectLoadState = ProjectLoadState(state.programs, state.visited, state.diagnostics, sources, paths)
+                      next_stack: [Str] = append(stack, path)
+                      for declaration in program.declarations {
+                        match declaration {
+                          ImportDeclaration(imported) => {
+                            if is_logical_import(imported) {
+                              if !logical_import_valid(imported) {
+                                diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("invalid logical import path: ${imported}"))
+                                current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources, current.source_paths)
+                              } else {
+                                if starts_with(imported, "stdlib/") && len(stdlib_root) == 0 {
+                                  diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("standard library root is not configured"))
+                                  current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources, current.source_paths)
+                                } else {
+                                  parent: Str = path_parent(path)
+                                  dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
+                                  current = load_project_module(dependency, current, next_stack, project_root, stdlib_root, bounded)
+                                }
+                              }
                             } else {
-                              parent: Str = path_parent(path)
-                              dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
-                              current = load_project_module(dependency, current, next_stack, project_root, stdlib_root)
+                              if path_is_absolute(imported) {
+                                diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("imports must use relative or logical paths: ${imported}"))
+                                current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources, current.source_paths)
+                              } else {
+                                if path_suffix(imported) != ".panack" {
+                                  diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("relative import must reference a .panack file: ${imported}"))
+                                  current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources, current.source_paths)
+                                } else {
+                                  parent: Str = path_parent(path)
+                                  dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
+                                  current = load_project_module(dependency, current, next_stack, project_root, stdlib_root, bounded)
+                                }
+                              }
                             }
-                          }
-                        } else {
-                          if path_is_absolute(imported) {
-                            diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("imports must use relative or logical paths: ${imported}"))
-                            current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
-                          } else {
-                            if path_suffix(imported) != ".panack" {
-                              diagnostics: [Diagnostic] = append(current.diagnostics, loader_diagnostic("relative import must reference a .panack file: ${imported}"))
-                              current = ProjectLoadState(current.programs, current.visited, diagnostics, current.sources)
-                            } else {
-                              parent: Str = path_parent(path)
-                              dependency: Str = resolve_import_path(imported, parent, project_root, stdlib_root)
-                              current = load_project_module(dependency, current, next_stack, project_root, stdlib_root)
-                            }
-                          }
+                          },
+                          TypeDeclaration(name, base, guard) => {},
+                          RecordDeclaration(name, parameters, fields) => {},
+                          EnumDeclaration(name, parameters, variants) => {},
+                          FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
                         }
-                      },
-                      TypeDeclaration(name, base, guard) => {},
-                      RecordDeclaration(name, parameters, fields) => {},
-                      EnumDeclaration(name, parameters, variants) => {},
-                      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
+                      }
+                      programs: [Program] = append(current.programs, program)
+                      ProjectLoadState(programs, current.visited.add(path), current.diagnostics, current.sources, current.source_paths)
                     }
                   }
-                  programs: [Program] = append(current.programs, program)
-                  ProjectLoadState(programs, current.visited.add(path), current.diagnostics, current.sources)
                 }
               }
             }
@@ -184,6 +215,14 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
 }
 
 load_project(entry: Str): LoadedProject {
+  load_project_mode(entry, false)
+}
+
+load_project_for_source_map(entry: Str): LoadedProject {
+  load_project_mode(entry, true)
+}
+
+load_project_mode(entry: Str, bounded: Bool): LoadedProject {
   resolved: Str = path_resolve(entry)
   project_root: Str = path_parent(resolved)
   stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
@@ -192,16 +231,16 @@ load_project(entry: Str): LoadedProject {
     ""
   }
   empty: Set[Str] = set()
-  initial: ProjectLoadState = ProjectLoadState([], empty, [], map())
+  initial: ProjectLoadState = ProjectLoadState([], empty, [], map(), [])
   stack: [Str] = []
   mut core: ProjectLoadState = initial
   if len(stdlib_root) == 0 {
-    core = ProjectLoadState([], empty, [loader_diagnostic("standard library root is not configured; core types require the bundled standard library")], map())
+    core = ProjectLoadState([], empty, [loader_diagnostic("standard library root is not configured; core types require the bundled standard library")], map(), [])
   } else {
-    core = load_project_module(path_join(stdlib_root, "core.panack"), initial, stack, project_root, stdlib_root)
+    core = load_project_module(path_join(stdlib_root, "core.panack"), initial, stack, project_root, stdlib_root, bounded)
   }
   loaded: ProjectLoadState = if len(core.diagnostics) == 0 {
-    load_project_module(resolved, core, stack, project_root, stdlib_root)
+    load_project_module(resolved, core, stack, project_root, stdlib_root, bounded)
   } else { core }
   program: Program = append_program_declarations(loaded.programs)
   mut diagnostics: [Diagnostic] = loaded.diagnostics
@@ -211,5 +250,5 @@ load_project(entry: Str): LoadedProject {
   if len(diagnostics) == 0 {
     diagnostics = concat(diagnostics, check_program_frontend(program))
   } else {}
-  LoadedProject(program, diagnostics, loaded.sources)
+  LoadedProject(program, diagnostics, loaded.sources, loaded.source_paths)
 }

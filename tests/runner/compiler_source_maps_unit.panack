@@ -1,0 +1,65 @@
+import "../../src/compiler/driver.panack"
+import stdlib/testing
+
+main(): Void {
+  mut results: [TestResult] = []
+  for text in ["", "-1", "1.5", " 1", "1x", "4294967296", "99999999999", "١"] {
+    results = results.append(test_expect("map arguments reject instruction " + text,
+      source_map_instruction(text) == None(), "accepted invalid instruction index"))
+  }
+  results = results.append(test_expect("map arguments accept u32 boundary", source_map_instruction("4294967295") == Some(4294967295), "lost upper boundary"))
+  results = results.append(test_expect("map arguments accept zero", source_map_instruction("0") == Some(0), "lost zero"))
+  for args in [
+    ["compile", "a.panack", "--source-map", "a.map"],
+    ["compile", "a.panack", "-o", "a.bc", "--source-map", "a.map", "--source-map", "b.map"],
+    ["compile", "a.panack", "-o", "a.bc", "--source-map", ""],
+    ["compile", "a.panack", "-o", "a.bc", "--source-map", "a.map", "--function", "main"],
+    ["compile", "a.bc", "-o", "a.bc", "--source-map", "a.map"]
+  ] {
+    results = results.append(test_expect("map compile argument rejection", !source_map_arguments(args, false).valid, "accepted invalid arguments"))
+  }
+  results = results.append(test_expect("map compile flag order", source_map_arguments(["compile", "a.panack", "--source-map", "a.map", "-o", "a.bc"], false).valid, "rejected valid arguments"))
+  lookup: [Str] = ["locate", "a.bc", "--source", "a.panack", "--source-map", "a.map", "--function", "main", "--instruction", "0"]
+  results = results.append(test_expect("map locate arguments", source_map_arguments(lookup, true).valid, "rejected valid arguments"))
+  results = results.append(test_expect("map duplicate instruction", !source_map_arguments(lookup.concat(["--instruction", "1"]), true).valid, "accepted duplicate"))
+  results = results.append(test_equal_str("map relative sibling", source_relative_path("/a/project", "/a/library/file.panack"), "../library/file.panack"))
+  results = results.append(test_equal_str("map root path", source_relative_path("/", "/file.panack"), "file.panack"))
+  results = results.append(test_equal_str("map stdlib namespace", source_identifier("/a/std/core.panack", "/a", "/a/std"), "stdlib/core.panack"))
+  results = results.append(test_equal_str("map prefix boundary", source_identifier("/a/stdlib/core.panack", "/a", "/a/std"), "project/stdlib/core.panack"))
+  for file in ["tests/experiments/source_mapping/fixtures/local.panack", "tests/experiments/source_mapping/fixtures/generic.panack", "tests/fixtures/compiler_contracts/instruction_sources/main.panack", "tests/functional/cases/stdlib/main.panack"] {
+    entry: Str = path_resolve(file)
+    root: Str = path_parent(entry)
+    stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+    project: LoadedProject = load_project_for_source_map(entry)
+    mapped: SourceMappedProgram = compile_program_with_sources(project.program)
+    artifact: Bytes = serialize_bytecode(mapped.bytecode)
+    sidecar: Bytes = serialize_source_map(project, mapped, artifact, entry, root, stdlib)
+    results = results.append(test_expect("map bounded loader/" + file, len(project.diagnostics) == 0 && source_snapshots_unchanged(project), "failed to load stable project"))
+    results = results.append(test_expect("map ordinary byte identity/" + file, artifact == serialize_bytecode(compile_program(project.program)), "mapping changed execution"))
+    results = results.append(test_expect("map deterministic serialization/" + file, byte_len(sidecar) > 0 && sidecar == serialize_source_map(project, mapped, artifact, entry, root, stdlib), "serialization differs"))
+    results = results.append(test_expect("map entire loaded closure/" + file, len(source_snapshots(project, root, stdlib)) == len(project.source_paths) && len(project.source_paths) >= 2, "source closure lost core/entry"))
+    results = results.append(test_equal_str("map missing function/" + file, source_map_location(project, mapped, "unknown", 0, root, stdlib), "source-map: unavailable"))
+    results = results.append(test_equal_str("map invalid PC/" + file, source_map_location(project, mapped, "main", 4294967295, root, stdlib), "source-map: unavailable"))
+    if file.ends_with("generic.panack") {
+      results = results.append(test_equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
+    }
+  }
+  results = results.append(test_expect("map balanced empty chunks", source_map_join([], 0, 0) == bytes(), "empty join differs"))
+  results = results.append(test_expect("map balanced odd chunks", source_map_join([utf8_encode("a"), utf8_encode("bc"), utf8_encode("d")], 0, 3) == utf8_encode("abcd"), "join changed byte order"))
+  mut paths: [Str] = []
+  for index in 0..256 { paths = paths.append("fixture"); }
+  sources: Map[Str,Str] = map_put(map(), "fixture", "")
+  match read_project_source("does-not-exist.panack", true, paths, sources) {
+    Ok(text) => { results = results.append(test_expect("map file count bound", false, "accepted oversized closure")); },
+    Error(error) => { results = results.append(test_equal_str("map file count bound", error, "source-map source closure limit exceeded")); }
+  }
+  mut large: Str = "x"
+  for index in 0..20 { large = large + large; }
+  // Closure checking rejects excessive total bytes before opening another file.
+  match read_project_source("does-not-exist.panack", true,
+      ["fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture", "fixture"], map_put(map(), "fixture", large)) {
+    Ok(text) => { results = results.append(test_expect("map total source bound", false, "accepted oversized closure")); },
+    Error(error) => { results = results.append(test_equal_str("map total source bound", error, "source-map source closure limit exceeded")); }
+  }
+  if test_report(results) > 0 { process_exit(1) }
+}

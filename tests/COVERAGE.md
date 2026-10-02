@@ -598,24 +598,22 @@ stage. Pull requests and workflow cancellation cannot deploy. Hosted production
 acceptance remains required because these tests do not emulate GitHub's scheduler.
 
 
-## U1 source-mapping experiment
+## Native source-map acceptance experiment
 
-`make source-mapping-experiment` checks literal function/PC/file/range expectations
-for local, imported and erased generic bodies, including a Unicode prefix.
-Public source execution and saved bytecode retain the same bounds trap; emitted
-bytes match the public compiler. It checks deterministic/relocated metadata,
-function-table reordering, unsupported expressions, earlier unmapped traps in a
-mapped function, valid non-trapping execution, stale or missing sources,
-symlinks, wrong artifacts/producers, malformed/oversized maps, opcode/range
-validation and accidental valid-range corruption. A coherent forged map remains
-an explicit negative finding: digests do not authenticate attribution.
+`make source-mapping-experiment` now tests the production CLI against independently
+specified actual VM function/PC/file/range expectations. Local/imported/generic,
+Unicode, inner and earlier indexes, callbacks, function reordering, relocation,
+valid non-trapping execution and ordinary bytecode identity remain covered.
+Malformed/oversized maps, duplicate records and coherent instruction/source/range
+forgeries must fail closed. Core changes, missing/stale/invalid source inputs and
+mismatched pairs do too. The old checksum forgery finding is now a rejection
+regression against local reproduction, not an accepted metadata weakness.
 
-This is a separate Node-based experiment suite run in Linux/macOS compiler CI,
-not a new interpreter dependency of native `make check`. The real VM dispatcher
-is observed through a test-only executable; all existing compiler, VM, functional
-and bootstrap checks remain required. No production source-mapping coverage,
-full source coverage, realistic-program acceptance or complete metadata security
-is claimed. See [scope and reproduction](experiments/source_mapping/README.md).
+This additional Node-based suite runs in Linux/macOS compiler CI. It observes the
+real dispatcher and does not add an interpreter dependency to `make check`.
+The [contract](../docs/SOURCE_MAPS.md) and [experiment](experiments/source_mapping/README.md)
+state limits; automatic source-aware runtime errors and programme-wide realistic
+usefulness are not claimed.
 
 
 ## U2 frontend source-span foundation
@@ -632,9 +630,9 @@ positions rather than values derived from the parser under test.
 Six compiler integration assertions run complete failing programs through public
 `panack check`, `run` and `compile`, asserting exact local binary and imported
 generic indexing error locations/excerpts. Existing accept/reject, purity,
-control-flow and emitted-bytecode tests remain intact. The 111 U1 trap assertions
-now consume the actual retained spans and no longer recover ranges by re-parsing.
-No production instruction/source mapping or runtime diagnostic feature is claimed.
+control-flow and emitted-bytecode tests remain intact. The native trap assertions consume actual retained spans rather than recovering
+ranges by re-parsing. Public source mapping is covered below; automatic runtime
+diagnostics remain separate.
 
 The seed refresh also updates 15 existing functional failure transcripts. Their
 rejection status and diagnostic messages are unchanged; expectations now include
@@ -660,5 +658,22 @@ through the public CLI and asserts its six output lines. The runtime source-map
 experiment retains its invalid/stale/missing metadata cases and now proves exact
 attribution for inner indexes, binding initializers, earlier indexes and a trap
 inside a collection callback. It uses actual emitter entries, not AST-tail
-reconstruction. Serialized production metadata and public source-aware runtime
-messages are not delivered by these tests.
+reconstruction. Production sidecar coverage follows below; public source-aware runtime messages
+remain future work.
+
+### U2 validated sidecar and public CLI
+
+`runner/compiler_source_maps_unit.panack` checks argument boundaries, portable
+identity, deterministic bytes, balanced chunk order, Unicode coordinates, missing
+functions/PCs, exact loaded closure and source count/byte caps.
+`runner/compiler_source_maps_cli.panack` runs complete programs through public
+`panack` commands and verifies direct/lowered/unavailable output, repeated map
+and plain/mapped byte identity, execution, corrupt maps, missing pairs, comment
+changes in local/imported/transitive-unused sources and invalid UTF-8. It checks
+fresh-output requirements, direct/directory/hard-link/symlink aliases, preservation
+of source and artifact bytes, partial writes and strict argument rejection.
+Both suites run under `make unit` and `make check-compiler`, preserving all earlier
+span/emitter/control-flow tests. Native-PC and coherent binary-forgery checks use
+the separate observer suite above. Hostile concurrent output-directory mutation,
+source-free verification and authenticated original producers are outside the
+[explicit contract](../docs/SOURCE_MAPS.md).

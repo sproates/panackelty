@@ -155,7 +155,7 @@ pure append_program_declarations(programs: [Program]): Program {
       declarations = append(declarations, declaration)
     }
   }
-  Program(declarations)
+  indexed_program(declarations)
 }
 
 pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): ModuleGraphState {
@@ -167,7 +167,7 @@ pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): Modu
       ModuleGraphState(state.programs, state.visiting, state.visited, diagnostics)
     } else {
       mut found: Bool = false
-      mut selected: Program = Program([])
+      mut selected: Program = indexed_program([])
       for unit in units {
         if unit.path == path {
           if found {

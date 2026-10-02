@@ -31,7 +31,7 @@ pure expression_emission(source: Str, offset: Nat): Str {
     Error(errors) => "lex error",
     Ok(tokens) => match parse_complete(tokens) {
       Error(error) => error.message,
-      Ok(expression) => emission_trace(emit_expression(expression, Program([]), 0, offset, true), offset)
+      Ok(expression) => emission_trace(emit_expression(expression, indexed_program([]), 0, offset, true), offset)
     }
   }
 }
@@ -110,7 +110,7 @@ main(): Void {
   results = append(results, test_equal_str("instruction-sources/or", expression_emission("false || true", 2), "2|CONST|Bool:false|0..5:expression\n3|JUMP_FALSE|6|0..13:lowered\n4|CONST|Bool:true|0..13:lowered\n5|JUMP|7|0..13:lowered\n6|CONST|Bool:true|9..13:expression\n"))
   results = append(results, test_equal_str("instruction-sources/if", expression_emission("if flag { 1 } else { 2 }", 0), "0|LOAD|flag|3..7:expression\n1|JUMP_FALSE|4|0..24:lowered\n2|CONST|Nat:1|10..11:expression\n3|JUMP|5|0..24:lowered\n4|CONST|Nat:2|21..22:expression\n"))
   results = append(results, test_equal_str("instruction-sources/await", expression_emission("await reader.call(inner(1))", 0), "0|LOAD|reader|6..12:expression\n1|CONST|Nat:1|24..25:expression\n2|CALL|inner|1|18..26:expression\n3|AWAIT_VALUE|1|6..27:expression\n"))
-  results = append(results, test_equal_str("instruction-sources/synthetic", emission_trace(emit_expression(BinaryExpr("+", NatExpr(1), NatExpr(2)), Program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|unavailable\n"))
+  results = append(results, test_equal_str("instruction-sources/synthetic", emission_trace(emit_expression(BinaryExpr("+", NatExpr(1), NatExpr(2)), indexed_program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|unavailable\n"))
   results = append(results, test_equal_str("instruction-sources/map-offset", expression_emission("items.map(@f)", 4), "4|LOAD|items|0..5:expression\n5|STORE|$collection0|0..13:lowered\n6|MAKE_ARRAY|0|0..13:lowered\n7|STORE|$accumulator0|0..13:lowered\n8|CONST|Str:f|10..12:expression\n9|STORE|$callback0|0..13:lowered\n10|LOAD|$collection0|0..13:lowered\n11|ITER_INIT|$iterator0|0..13:lowered\n12|ITER_NEXT|$iterator0|$item0|20|0..13:lowered\n13|LOAD|$accumulator0|0..13:lowered\n14|LOAD|$callback0|0..13:lowered\n15|LOAD|$item0|0..13:lowered\n16|CALL_VALUE|1|0..13:lowered\n17|CALL|append|2|0..13:lowered\n18|STORE|$accumulator0|0..13:lowered\n19|JUMP|12|0..13:lowered\n20|LOAD|$accumulator0|0..13:lowered\n"))
   results = append(results, test_equal_str("instruction-sources/reduce", expression_emission("items.reduce(0, @f)", 0), "0|LOAD|items|0..5:expression\n1|STORE|$collection0|0..19:lowered\n2|CONST|Nat:0|13..14:expression\n3|STORE|$accumulator0|0..19:lowered\n4|CONST|Str:f|16..18:expression\n5|STORE|$callback0|0..19:lowered\n6|LOAD|$collection0|0..19:lowered\n7|ITER_INIT|$iterator0|0..19:lowered\n8|ITER_NEXT|$iterator0|$item0|15|0..19:lowered\n9|LOAD|$callback0|0..19:lowered\n10|LOAD|$accumulator0|0..19:lowered\n11|LOAD|$item0|0..19:lowered\n12|CALL_VALUE|2|0..19:lowered\n13|STORE|$accumulator0|0..19:lowered\n14|JUMP|8|0..19:lowered\n15|LOAD|$accumulator0|0..19:lowered\n"))
   results = append(results, test_equal_str("instruction-sources/match", expression_emission("match value { Some(x) => x, None() => 0 }", 0), "0|LOAD|value|6..11:expression\n1|STORE|$match0|0..41:lowered\n2|LOAD|$match0|0..41:lowered\n3|MATCH_VARIANT|Some|7|0..41:lowered\n4|STORE|x|0..41:lowered\n5|LOAD|x|25..26:expression\n6|JUMP|12|0..41:lowered\n7|LOAD|$match0|0..41:lowered\n8|MATCH_VARIANT|None|11|0..41:lowered\n9|CONST|Nat:0|38..39:expression\n10|JUMP|12|0..41:lowered\n11|MATCH_FAIL|0..41:lowered\n"))
@@ -128,7 +128,7 @@ main(): Void {
   results = append(results, test_equal_str("instruction-sources/variant", program_emission("enum Choice { Left(Nat), Right } main(): Choice { Left(1) }", "main"), "0|CONST|Nat:1|55..56:expression\n1|MAKE_VARIANT|Choice|Left|1|50..57:expression\n2|RETURN|unavailable\n"))
   // An unlocated synthetic child must not inherit the enclosing expression's span.
   span: SourceSpan = SourceSpan(SourcePos("synthetic.panack", 0, 1, 1), SourcePos("synthetic.panack", 5, 1, 6))
-  results = append(results, test_equal_str("instruction-sources/synthetic-child", emission_trace(emit_expression(LocatedExpr(span, BinaryExpr("+", NatExpr(1), NatExpr(2))), Program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|0..5:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/synthetic-child", emission_trace(emit_expression(LocatedExpr(span, BinaryExpr("+", NatExpr(1), NatExpr(2))), indexed_program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|0..5:expression\n"))
   for file in ["tests/fixtures/compiler_contracts/instruction_sources/main.panack", "tests/functional/cases/async_await/main.panack", "tests/functional/cases/callables/main.panack", "tests/functional/cases/stdlib/main.panack", "tests/experiments/source_mapping/fixtures/generic.panack", "tests/experiments/source_mapping/fixtures/imported.panack"] {
     loaded: LoadedProject = load_project(file)
     results = append(results, test_expect("instruction-sources/valid-project/${file}", len(loaded.diagnostics) == 0, diagnostic_messages(loaded.diagnostics, loaded.sources)))

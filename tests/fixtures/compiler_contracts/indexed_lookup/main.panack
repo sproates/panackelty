@@ -1,0 +1,12 @@
+import "library.panack"
+pure indexed_answer(): Nat { forward_answer() }
+pure forward_answer(): Nat { 42 }
+main(): Void {
+  count: PositiveCount = 2
+  box: LookupBox[Str] = LookupBox(lookup_identity("indexed"))
+  print(box.value)
+  print(lookup_number(LookupValue(indexed_answer())))
+  empty: LookupChoice[Nat] = LookupEmpty()
+  print(lookup_number(empty))
+  print(count)
+}

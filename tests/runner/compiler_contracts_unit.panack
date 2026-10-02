@@ -17,8 +17,57 @@ contract_check(name: Str, expected: Str): TestResult {
   }
 }
 
+// Independently expected lookup contracts, including unresolved malformed input.
+pure indexed_lookup_contracts(): [TestResult] {
+  declarations: [TopLevel] = [
+    ImportDeclaration("before.panack"),
+    TypeDeclaration("Shared", "Nat", BoolExpr(true)),
+    RecordDeclaration("Shared", ["R"], [RecordField("first", "R")]),
+    EnumDeclaration("Shared", ["E"], [EnumVariant("Repeated", ["E"]), EnumVariant("Kept", [])]),
+    FunctionDeclaration("Shared", [], "Nat", true, false, Block([], NoBlockValue()), []),
+    TypeDeclaration("Shared", "Int", BoolExpr(false)),
+    ImportDeclaration("between.panack"),
+    RecordDeclaration("Shared", ["S"], [RecordField("last", "S")]),
+    EnumDeclaration("Shared", ["T"], [EnumVariant("Repeated", ["T"]), EnumVariant("Repeated", ["Str"])]),
+    FunctionDeclaration("Shared", [FunctionParameter("arg", "Str")], "Bool", false, true, Block([], NoBlockValue()), ["F"])
+  ]
+  program: Program = indexed_program(declarations)
+  guarded: GuardedTypeLookup = guarded_type(program, "Shared")
+  record: RecordLookup = record_type(program, "Shared")
+  enum_value: EnumLookup = enum_type(program, "Shared")
+  function: FunctionLookup = function_type(program, "Shared")
+  variant: VariantLookup = variant_type(program, "Repeated")
+  kept: VariantLookup = variant_type(program, "Kept")
+  mut results: [TestResult] = [
+    test_expect("indexed lookup preserves declaration order", program.declarations == declarations, "source order changed"),
+    test_expect("indexed type keeps last same-kind declaration", guarded.found && guarded.base == "Int" && guarded.guard == BoolExpr(false), "wrong guarded type"),
+    test_expect("indexed record has independent namespace", record.found && record.parameters == ["S"] && record.fields == [RecordField("last", "S")], "wrong record"),
+    test_expect("indexed enum keeps complete last declaration", enum_value.found && enum_value.parameters == ["T"] && enum_value.variants == [EnumVariant("Repeated", ["T"]), EnumVariant("Repeated", ["Str"])], "wrong enum"),
+    test_expect("indexed function retains signature and effects", function.found && function.parameters == [FunctionParameter("arg", "Str")] && function.return_type == "Bool" && !function.is_pure && function.is_async && function.type_parameters == ["F"], "wrong function"),
+    test_expect("indexed variant keeps last duplicate payload", variant.found && variant.enum_name == "Shared" && variant.parameters == ["T"] && variant.payload == ["Str"], "wrong variant"),
+    test_expect("indexed variants retain earlier enum-only names", kept.found && kept.parameters == ["E"] && kept.payload == [], "lost earlier variant"),
+    test_expect("indexed duplicates still reach resolver", len(collect_symbols(program).diagnostics) > 0, "index hid duplicate declarations")
+  ]
+  for name in ["", "Missing", "shared", "Repeated"] {
+    results = append(results, test_expect("indexed missing declaration/" + name,
+      !guarded_type(program, name).found && !record_type(program, name).found &&
+      !enum_type(program, name).found && !function_type(program, name).found, "false lookup hit"))
+  }
+  for name in ["", "Missing", "shared", "Shared"] {
+    results = append(results, test_expect("indexed missing variant/" + name, !variant_type(program, name).found, "false variant hit"))
+  }
+  earlier: Program = indexed_program([EnumDeclaration("Earlier", [], [EnumVariant("V", ["Nat"])])])
+  later: Program = indexed_program([EnumDeclaration("Later", ["X"], [EnumVariant("V", ["X"])])])
+  merged: Program = append_program_declarations([earlier, indexed_program([]), later])
+  merged_variant: VariantLookup = variant_type(merged, "V")
+  results = append(results, test_expect("merged module indexes rebuilt", merged_variant.found && merged_variant.enum_name == "Later" && merged_variant.parameters == ["X"] && merged_variant.payload == ["X"] && enum_type(merged, "Earlier").found, "stale module index"))
+  results = append(results, test_expect("input module index unchanged", variant_type(earlier, "V").enum_name == "Earlier", "merge mutated input"))
+  results = append(results, test_expect("empty indexed program has no match", !record_type(indexed_program([]), "Shared").found && !variant_type(indexed_program([]), "V").found, "empty index matched"))
+  results
+}
+
 main(): Void {
-  mut results: [TestResult] = []
+  mut results: [TestResult] = indexed_lookup_contracts()
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))

@@ -35,7 +35,7 @@ checker_sort_contract(source: Str): Str {
         Ok(input) => { match parse_program_complete(input) {
           Error(error) => error.message,
           Ok(program) => render_resolver_diagnostics(check_program_types(
-            Program(concat(core.declarations, program.declarations))))
+            indexed_program(concat(core.declarations, program.declarations))))
         } }
       } }
     } }

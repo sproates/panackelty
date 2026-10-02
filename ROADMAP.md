@@ -119,7 +119,26 @@ acceptance and live publication are complete; no acceptance remains.
 
 <a id="next-fast-website-ci-and-prepared-browser-test-environments"></a>
 
-### Now: fast website CI and prepared browser-test environments
+### Accepted website delivery; remaining CI follow-ups deferred
+
+**User decision, 2026-10-02:** the delivered website and separate browsable
+coverage site are good enough for now. Accept the delivered outcome and shelve
+further automatic-scheduling investigation, core-only production acceptance
+trials and cold/warm performance work. #187 remains open as a deferred follow-up,
+not an active blocker. No claim is made that the original 120s/180s targets or
+automatic refresh acceptance have been met. No further trial or monitoring is
+scheduled. Revisit on user request, a publication correctness failure, or report
+staleness becoming a practical problem.
+
+Programme #180 is no longer blocked by #187. The accepted website outcome is
+the third deliverable since the review baseline, so the priority review is now
+due before the next principal implementation. The previously selected compiler
+and runtime understanding programme remains the return candidate, not a new
+implementation started by this deferral decision.
+
+The following history records the earlier scope, measurements and acceptance
+requirements; its active-priority and ledger statements are historical and are
+superseded by this decision.
 
 **In progress; high priority.** Work record:
 [#187](https://github.com/sproates/panackelty/issues/187). On 2026-10-01 the user
@@ -295,7 +314,7 @@ change is preselected. Compiler changes, automatic release promotion and the
 website repository migration are outside this item; website correctness remains
 mandatory. Detailed implementation evidence belongs in #187.
 
-### Resume after #187: compiler and runtime understanding programme
+### Return candidate after priority review: compiler and runtime understanding programme
 
 **In progress:** the user authorised starting all five workstreams as one
 coordinated programme on 2026-10-01; #163 live acceptance is now verified. This
@@ -502,8 +521,9 @@ support, runnable demonstrations, resource baselines and a bounded independent
 contract exercise. These are candidates for assessment, not blanket feature
 authorisation. The user selected modular validation and component boundaries
 under #106; its bounded validation slice is now complete as recorded below.
-Programme #180 remains selected; planned #187 takes priority before its next
-substantial feature. Other candidates remain unscheduled.
+Programme #180 remains the previously selected return candidate. Remaining #187
+work is deferred by the 2026-10-02 decision above; the due priority review precedes
+the next substantial feature. Other candidates remain unscheduled.
 
 The sections below retain earlier decisions and completion evidence. Current
 candidate state and the agreed next task are recorded in the grooming table;
@@ -525,8 +545,7 @@ The review considered these three completed outcomes once each:
 3. Author-local website previews under #160, delivered through #161 and #171,
    including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
-Accepted deliverables since the new baseline: **2 of 3; review not yet due**
-(effective when this completion record merges).
+Accepted deliverables since the new baseline: **3 of 3; priority review due**.
 
 1. Playground layout #163: accepted preview, published browser v0.1.1, merged
    core pin and independently verified live assets/provenance. See the
@@ -535,6 +554,12 @@ Accepted deliverables since the new baseline: **2 of 3; review not yet due**
 2. Guard-fact correctness repair #182 within #180: core invalidation, regression
    coverage and refreshed v9 compiler seed, effective on this delivery's merge.
    Website release adoption remains separate and is not counted again as this repair.
+
+3. Website CI and independent coverage delivery #187: user accepted the delivered
+   state as good enough on 2026-10-02, after verified website publication and
+   independent report refresh. Remaining scheduling and performance acceptance
+   are explicitly deferred, not represented as passing. Count this delivered
+   outcome once; documentation PRs do not add outcomes.
 
 Programme #180 has started shared investigation; no workstream is accepted yet.
 This initial investigation is an intermediate programme slice, not another
@@ -690,8 +715,8 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
   live homepage, playground, both old entry points and website identity checks;
   landing layout inspected. Coverage run `36938575919` advanced the report to
   core `5381bc5` without another website deployment. No runtime version change.
-  Keep automatic scheduling and core-only no-publication acceptance open under
-  #187; the current state and timing requirements are recorded above.
+  Automatic scheduling, core-only no-publication and timing acceptance remain
+  open but deferred under #187 by user decision; they no longer block other work.
 
 - **#182 compiler correctness follow-up:** owner is the #180 delivery agent until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as

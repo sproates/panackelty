@@ -5,7 +5,7 @@ Node 24 or later, and the existing compiler seed. The target is separate from
 `make check` and interpreter-free validation. Check runs it after the existing
 isolated compiler suite on Linux and macOS. The original U1 delivery changed no
 production source, CLI or compiler seed.
-U2 now supplies retained frontend spans and a refreshed v9 seed; this test target
+U2 now supplies retained frontend spans, emitter mappings and a refreshed v9 seed; this test target
 still adds no production tracing ABI or bytecode-format extension.
 
 ## Question and result
@@ -13,16 +13,17 @@ still adds no production tracing ABI or bytecode-format extension.
 Can an actual failing VM instruction be attributed to an exact source range in
 local, imported and generic code without changing ordinary execution?
 
-Yes, for the deliberately bounded function-tail expression `items[index]`.
-`compiler.panack` uses the real loader, checker, emitter and serializer. It
-identifies the loaded declaration and its actual emitted function, checks the
-terminal `INDEX_GET` opcode and records its function-local instruction index.
-The original U1 frontend retained a receiver position but no complete indexing
-range, so the initial probe re-lexed and parsed the expression to recover its end.
-The first U2 slice replaces that workaround: the probe now reads the actual
-`SourceSpan` retained on the loaded tail expression. Unsupported emission shapes
-remain unmapped. This probe is still not a general instruction/source mapping
-algorithm and must not be extended by guessing nearby instructions.
+Yes, for the tested `INDEX_GET` traps. `compiler.panack` uses the real loader,
+checker, emitter and serializer. It consumes `compile_program_with_sources`
+entries at their recorded function-local instruction indices, selecting direct
+index operations for this bounded sidecar. It no longer walks tail expressions
+or reconstructs an instruction index from function length.
+
+U1 originally recovered a tail-expression range by re-parsing source. U2's first
+slice retained the range in the frontend; the emission slice now supplies the
+actual instruction relationship. Nested inner indexes, binding initializers,
+earlier indexes and indexes inside a `.map()` callback receive their own ranges.
+No source association is guessed from a nearby or terminal instruction.
 
 `trap_probe.c` compiles the real VM dispatcher into a test executable. It saves
 the current function and PC immediately before each single-instruction advance,
@@ -35,9 +36,8 @@ specified independently of the mapping code. Imported declarations resolve to
 the imported file. A generic function is called with both Nat and Str before the
 Str call traps: attribution identifies the shared erased body, not a distinct
 specialisation or type-argument trace. A Unicode prefix checks code-point rather
-than UTF-8 byte offsets. Generated instructions and unsupported expressions have
-no attribution. An earlier indexing trap cannot borrow its function's mapped
-tail range. The public CLI reproduces the same trap from source and saved bytes.
+than UTF-8 byte offsets. The bounded sidecar excludes generated machinery and non-index instructions.
+An earlier indexing trap uses its own entry rather than its function's tail range. The public CLI reproduces the same trap from source and saved bytes.
 
 ## Representation decision
 
@@ -85,13 +85,14 @@ outside those timing samples. These small warm measurements are feasibility
 observations, not production overhead budgets or performance guarantees.
 See [the recorded run](../../VALIDATION_PROFILE.md#u1-source-mapping-experiment-2026-10-02).
 U1 introduced no production overhead because it changed no production sources
-or artifacts; that small benchmark did not prove tracing was free. The U2 span
+or artifacts; that small benchmark did not prove tracing was free. U2 frontend and emitter
 retention costs are measured separately in the validation profile.
 
 U1 does not establish realistic-program usefulness for the whole programme.
 It provides a tested attribution boundary and identifies what U2 must replace:
 function/PC identity, dependency closure and trusted metadata distribution.
-The first U2 delivery has replaced source-span recovery with retained spans. Runtime retention and positive non-impact evidence for
+U2 has replaced source-span recovery with retained spans and tail-index
+reconstruction with actual emitter entries. Runtime retention and positive non-impact evidence for
 other workstreams remain open under U0.
 
 ## Follow-on scope estimates

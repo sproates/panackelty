@@ -1,0 +1,28 @@
+import "library.panack"
+
+record Box { value: Nat }
+enum Choice { Left([Nat]), Right([Nat]) }
+
+pure twice(value: Nat): Nat { value * 2 }
+pure total(accumulator: Nat, value: Nat): Nat { accumulator + value }
+pure choose(choice: Choice, flag: Bool): Nat {
+  match choice {
+    Left(items) => {
+      if flag { items.map(@twice).reduce(0, @total) }
+      else { items.reduce(1, @total) }
+    },
+    Right(items) => items.map(@twice).reduce(2, @total)
+  }
+}
+
+main(): Void {
+  mut sum: Nat = 0
+  for item in [1, 2] { sum = sum + item; }
+  while sum < 4 { sum = sum + 1; }
+  print(Box(sum).value)
+  print(choose(Left([1, 2]), true))
+  print(choose(Left([1, 2]), false))
+  print(choose(Right([1, 2]), true))
+  print(pick[Nat]([9], 0))
+  print(pick[Str](["value"], 0))
+}

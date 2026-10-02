@@ -1,10 +1,12 @@
 # Self-hosting roadmap
 
-The first U2 delivery refreshes the v9 seed with complete frontend expression
-spans. The old seed builds the candidate; fresh stage-2/3/4 compiler and standard-
+The U2 deliveries refresh the v9 seed with complete frontend expression spans
+and optional instruction-source retention in the emitter. The old seed builds the candidate; fresh stage-2/3/4 compiler and standard-
 library artifacts converge byte-for-byte. Language syntax, emitted instructions
 and the bytecode version are unchanged. Compound errors can now retain their
-source location; production instruction metadata remains subsequent U2 work.
+source location. Ordinary compilation omits instruction-source tables; the internal
+opt-in result preserves executable bytes. Production sidecar validation and CLI
+consumption remain subsequent U2 work.
 
 The #182 guard-fact repair refreshes the v9 compiler seed so the public CLI
 rejects stale proofs after mutation. The seed refresh verifies identical

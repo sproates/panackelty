@@ -1360,12 +1360,50 @@ own span. Synthetic expressions without origin remain explicitly unavailable.
 The loader preserves the owning module path and snapshot. Resolver, checker and
 purity diagnostics use the span's start while retaining a child's more specific
 position. New compound wrappers give previously unpositioned errors a source
-location, including imported generic bodies. The emitter still strips wrappers;
-executable instructions and bytecode v9 are unchanged. This first U2 slice does
-not deliver instruction mappings, a serialised metadata contract, authenticity
-checks or a source-aware runtime diagnostic API.
+location, including imported generic bodies. Executable instructions and bytecode
+v9 are unchanged. The first frontend slice did not deliver instruction mappings;
+the following emission slice supplies the internal relation described below.
+Serialization, authenticity and source-aware runtime diagnostics remain open.
 
 The U1 experiment now reads retained spans instead of re-lexing/re-parsing source.
 Its original compatibility and trust limitations still apply. Parser range tests,
 public CLI rejection locations, existing semantic suites and fixed-point seed
 refresh cover this transition. See the [validation record](tests/VALIDATION_PROFILE.md#u2-frontend-source-spans-2026-10-02).
+
+
+## U2 instruction-source emission, 2026-10-02
+
+`compile_program_with_sources` returns executable `BytecodeProgram` alongside
+`FunctionSources`. Each sparse `InstructionSource` has an absolute instruction
+index within its function, the retained original `SourceSpan`, and a `lowered`
+flag. Entries are unique and ordered by instruction index; an absent entry means
+unavailable. There is no attribution by nearest instruction, inferred tail shape,
+or bytecode disassembly. The same emitter constructs instructions and their
+entries, including both sides of branches and loop bodies. Jump-target patching
+and await rewriting preserve instruction count and metadata alignment. Unused
+core functions and their source tables are pruned together.
+
+A direct arithmetic, call, index, field or construction operation uses its own
+expression range; its operands retain their smaller ranges. Short-circuit,
+conditional, match and collection map/reduce machinery uses the owning expression
+range with `lowered = true`. Interpolation variable loads use the whole literal
+range and are marked lowered; the interpolation operation uses the literal range.
+Await replaces only the terminal call opcode and preserves that invocation's
+range, excluding the `await` keyword. Argument calls keep their original opcode
+and origin. Erased generic functions retain the definition's original module and
+range, not an invented per-instantiation body.
+
+Statement stores/pops, statement-loop machinery, implicit void values and final
+returns have no retained statement/declaration range and remain unavailable.
+Explicit `()` has its own expression range. An unlocated synthetic child cannot
+inherit a parent's origin. Missing entries are intentional gaps, not permission
+for a consumer to guess another location.
+
+Ordinary `compile_program` disables source retention. `FunctionCode`, the
+serializer, bytecode v9 and the VM are unchanged; the metadata is a separate
+internal result, not a new serialized ABI. The optional path must emit identical
+bytes. The existing runtime experiment now consumes emitter entries for every
+`INDEX_GET`, including nested and non-tail expressions and collection callbacks;
+its test-only sidecar still accepts only that opcode. Production dependency
+snapshots, trusted producer identity, sidecar validation, compatibility and CLI
+fallback remain the final U2 slice. No public command advertises this internal API.

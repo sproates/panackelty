@@ -1,0 +1,3 @@
+main(): Void {
+  value: Nat = 1 + true
+}

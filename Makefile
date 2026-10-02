@@ -76,6 +76,7 @@ check-compiler-impl:
 		tests/runner/compiler_purity_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
+		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_lexer_unit.panack
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
@@ -133,6 +134,7 @@ unit-compiler: native
 		tests/runner/compiler_purity_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
+		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_lexer_unit.panack
 
 functional: native

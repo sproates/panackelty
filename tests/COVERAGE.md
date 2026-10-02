@@ -616,3 +616,28 @@ is observed through a test-only executable; all existing compiler, VM, functiona
 and bootstrap checks remain required. No production source-mapping coverage,
 full source coverage, realistic-program acceptance or complete metadata security
 is claimed. See [scope and reproduction](experiments/source_mapping/README.md).
+
+
+## U2 frontend source-span foundation
+
+`runner/compiler_source_spans_unit.panack` runs in both the ordinary unit/compiler
+suite and `check-compiler`. Its 33 fixed expectations cover every expression
+category, nested precedence and associativity, postfix chains, explicit generic
+arguments, lowered methods, parenthesised receivers, match-arm blocks, optional
+else, await, original-file coordinates, CRLF, Unicode, trailing comments,
+bindings/assignments/loops and implicit semicolons. It also checks that synthetic
+unlocated ASTs have no invented origin. Expected ranges are literal lexical
+positions rather than values derived from the parser under test.
+
+Six compiler integration assertions run complete failing programs through public
+`panack check`, `run` and `compile`, asserting exact local binary and imported
+generic indexing error locations/excerpts. Existing accept/reject, purity,
+control-flow and emitted-bytecode tests remain intact. The 111 U1 trap assertions
+now consume the actual retained spans and no longer recover ranges by re-parsing.
+No production instruction/source mapping or runtime diagnostic feature is claimed.
+
+The seed refresh also updates 15 existing functional failure transcripts. Their
+rejection status and diagnostic messages are unchanged; expectations now include
+newly available excerpts or point to the offending compound expression rather
+than its enclosing call. These remain byte-exact assertions, including all
+stale-guard failure cases; no diagnostic matching was relaxed.

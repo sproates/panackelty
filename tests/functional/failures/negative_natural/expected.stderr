@@ -1,1 +1,3 @@
-error: cannot assign Int to Nat; guard is not proven
+error: <case>/main.panack:2:18: cannot assign Int to Nat; guard is not proven
+  2 |   invalid: Nat = -1
+    |                  ^

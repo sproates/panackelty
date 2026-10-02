@@ -1,110 +1,79 @@
 import "../../../src/compiler/driver.panack"
 
-// U1 only: a directly indexed tail expression, with an identifier receiver.
-// All other forms deliberately have no attribution. Production emission is used
-// unchanged; the emitted terminal opcode is checked before assigning its index.
+// U1's terminal-index experiment now consumes retained frontend spans directly.
+// The deliberately narrow emission contract is unchanged; U2 production
+// instruction mappings and metadata consumption are separate deliveries.
+source_mapping_tail(name: Str, tail: Expr, code: BytecodeProgram): Void {
+  match expression_span(tail) {
+    None() => {},
+    Some(span) => {
+      match unlocated_expression(tail) {
+        IndexExpr(target, index) => {
+          match unlocated_expression(target) {
+            NameExpr(variable) => {
+              for function in code.functions {
+                count: Nat = len(function.instructions)
+                if function.name == name && count >= 2 {
+                  pc: Nat = prior_index(prior_index(count))
+                  if render_instruction(function.instructions[pc]) == "INDEX_GET" {
+                    file: Str = span.start.file
+                    start: Nat = span.start.offset
+                    end: Nat = span.end.offset
+                    print("map\t${name}\t${pc}\t${file}\t${start}\t${end}")
+                  } else {}
+                } else {}
+              }
+            },
+            LocatedExpr(unused_position, unused_value) => {},
+            NatExpr(unused_value) => {},
+            DecimalExpr(unused_text) => {},
+            StringExpr(unused_text) => {},
+            BoolExpr(unused_value) => {},
+            FunctionExpr(unused_name) => {},
+            ArrayExpr(unused_items) => {},
+            UnaryExpr(unused_operator, unused_operand) => {},
+            BinaryExpr(unused_operator, unused_left, unused_right) => {},
+            CallExpr(unused_name, unused_arguments, unused_type_arguments) => {},
+            FieldExpr(unused_target, unused_field) => {},
+            IndexExpr(unused_target, unused_index) => {},
+            IfExpr(unused_condition, unused_yes, unused_no, unused_has_else) => {},
+            BlockExpr(unused_block) => {},
+            MatchExpr(unused_subject, unused_arms) => {},
+          }
+        },
+        LocatedExpr(unused_position, unused_value) => {},
+        NatExpr(unused_value) => {},
+        DecimalExpr(unused_text) => {},
+        StringExpr(unused_text) => {},
+        BoolExpr(unused_value) => {},
+        NameExpr(unused_name) => {},
+        FunctionExpr(unused_name) => {},
+        ArrayExpr(unused_items) => {},
+        UnaryExpr(unused_operator, unused_operand) => {},
+        BinaryExpr(unused_operator, unused_left, unused_right) => {},
+        CallExpr(unused_name, unused_arguments, unused_type_arguments) => {},
+        FieldExpr(unused_target, unused_field) => {},
+        IfExpr(unused_condition, unused_yes, unused_no, unused_has_else) => {},
+        BlockExpr(unused_block) => {},
+        MatchExpr(unused_subject, unused_arms) => {},
+      }
+    }
+  }
+}
+
 source_mapping_probe(project: LoadedProject, code: BytecodeProgram): Void {
   for declaration in project.program.declarations {
     match declaration {
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         match body.value {
           NoBlockValue() => {},
-          TailBlockValue(tail) => {
-            match unlocated_expression(tail) {
-              IndexExpr(target, index) => {
-                match target {
-                  LocatedExpr(position, receiver) => {
-                    match unlocated_expression(receiver) {
-                      NameExpr(variable) => {
-                        file: Str = position.file
-                        if project.sources.has(file) {
-                          match lex_file(project.sources.get(file), file) {
-                            Error(errors) => {},
-                            Ok(tokens) => {
-                              mut cursor: Nat = 0
-                              while cursor < len(tokens) && tokens[cursor].start < position.offset { cursor = cursor + 1; }
-                              if cursor < len(tokens) && tokens[cursor].start == position.offset {
-                                match parse_expression(tokens, cursor) {
-                                  Error(error) => {},
-                                  Ok(parsed) => {
-                                    next: Nat = parsed.next
-                                    if next > 0 && next > cursor && render_expr(parsed.value) == render_expr(tail) {
-                                      end: Nat = tokens[prior_index(next)].end
-                                      for function in code.functions {
-                                        count: Nat = len(function.instructions)
-                                        if function.name == name && count >= 2 {
-                                          pc: Nat = prior_index(prior_index(count))
-                                          if render_instruction(function.instructions[pc]) == "INDEX_GET" {
-                                            start: Nat = position.offset
-                                            print("map\t${name}\t${pc}\t${file}\t${start}\t${end}")
-                                          } else {}
-                                        } else {}
-                                      }
-                                    } else {}
-                                  }
-                                }
-                              } else {}
-                            }
-                          }
-                        } else {}
-                      },
-                      LocatedExpr(unused_position, unused_value) => {},
-                      NatExpr(unused_nat) => {},
-                      DecimalExpr(unused_decimal) => {},
-                      StringExpr(unused_string) => {},
-                      BoolExpr(unused_bool) => {},
-                      FunctionExpr(unused_function) => {},
-                      ArrayExpr(unused_items) => {},
-                      UnaryExpr(unused_operator, unused_operand) => {},
-                      BinaryExpr(unused_operator, unused_left, unused_right) => {},
-                      CallExpr(unused_callee, unused_arguments, unused_types) => {},
-                      FieldExpr(unused_target, unused_field) => {},
-                      IndexExpr(unused_target, unused_index) => {},
-                      IfExpr(unused_condition, unused_yes, unused_no, unused_else) => {},
-                      BlockExpr(unused_block) => {},
-                      MatchExpr(unused_subject, unused_arms) => {}
-                    }
-                  },
-                  NatExpr(unused_nat) => {},
-                  DecimalExpr(unused_decimal) => {},
-                  StringExpr(unused_string) => {},
-                  BoolExpr(unused_bool) => {},
-                  NameExpr(unused_name) => {},
-                  FunctionExpr(unused_function) => {},
-                  ArrayExpr(unused_items) => {},
-                  UnaryExpr(unused_operator, unused_operand) => {},
-                  BinaryExpr(unused_operator, unused_left, unused_right) => {},
-                  CallExpr(unused_callee, unused_arguments, unused_types) => {},
-                  FieldExpr(unused_target, unused_field) => {},
-                  IndexExpr(unused_target, unused_index) => {},
-                  IfExpr(unused_condition, unused_yes, unused_no, unused_else) => {},
-                  BlockExpr(unused_block) => {},
-                  MatchExpr(unused_subject, unused_arms) => {}
-                }
-              },
-              LocatedExpr(unused_position, unused_value) => {},
-              NatExpr(unused_nat) => {},
-              DecimalExpr(unused_decimal) => {},
-              StringExpr(unused_string) => {},
-              BoolExpr(unused_bool) => {},
-              NameExpr(unused_name) => {},
-              FunctionExpr(unused_function) => {},
-              ArrayExpr(unused_items) => {},
-              UnaryExpr(unused_operator, unused_operand) => {},
-              BinaryExpr(unused_operator, unused_left, unused_right) => {},
-              CallExpr(unused_callee, unused_arguments, unused_types) => {},
-              FieldExpr(unused_target, unused_field) => {},
-              IfExpr(unused_condition, unused_yes, unused_no, unused_else) => {},
-              BlockExpr(unused_block) => {},
-              MatchExpr(unused_subject, unused_arms) => {}
-            }
-          }
+          TailBlockValue(tail) => { source_mapping_tail(name, tail, code); }
         }
       },
-      ImportDeclaration(unused_path) => {},
-      TypeDeclaration(unused_name, unused_base, unused_guard) => {},
-      RecordDeclaration(unused_name, unused_parameters, unused_fields) => {},
-      EnumDeclaration(unused_name, unused_parameters, unused_variants) => {}
+      ImportDeclaration(path) => {},
+      TypeDeclaration(name, base, guard) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {}
     }
   }
 }

@@ -233,7 +233,7 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
   mut diagnostics: [Diagnostic] = []
   match expression {
     LocatedExpr(position, value) => {
-      diagnostics = resolver_diagnostics_at(resolve_expression(value, scope, symbols), position)
+      diagnostics = resolver_diagnostics_at(resolve_expression(value, scope, symbols), position.start)
     },
     NatExpr(value) => {},
     DecimalExpr(text) => {},

@@ -2214,6 +2214,41 @@ any prior knowledge limiting independence. Use the supported toolchain. This
 assesses specification precision without adding a second execution engine or
 claiming full-language conformance.
 
+## Potential technical publications
+
+Record publication candidates when there is a concrete thesis and supporting
+implementation or evaluation evidence. Each candidate needs a contribution to
+assess, links to evidence and prior work, and a revisit trigger. This is an
+unscheduled backlog, not a publication programme or a commitment to publish
+every idea. No other paper candidates are selected yet.
+
+### Compiler and runtime understanding paper — idea
+
+Work record: [#211](https://github.com/sproates/panackelty/issues/211).
+Agreed for the backlog on 2026-10-02; assessment is unscheduled. Revisit after
+programme #180 U8 realistic-program evaluation. This is separate from #180 and
+does not block programme acceptance or its final U9 website refresh.
+
+Assess whether the implemented architecture and measured results justify a
+technical white paper, experience report or research submission. Compare with
+relevant prior work and identify the contribution supported by evidence;
+original research novelty is not established. A useful account of engineering
+and integration does not require inventing every underlying concept.
+
+The smallest outcome is a recorded assessment and publication recommendation,
+including a reason and revisit trigger if deferred. If justified and selected,
+draft the paper around architecture, reproducible realistic examples, exact
+revisions and commands, measurements, independent evaluation, limitations and
+related work. Review claims and reproduce results before an explicitly agreed
+publication; recording this candidate does not start writing or submission.
+Effort and PR count remain unknown until the evidence and format are assessed.
+
+During programme delivery, retain design rationale, counterexamples, unsuccessful
+approaches and performance/usefulness evidence in existing programme records.
+Reuse those records rather than introducing a competing progress tracker.
+Risks are overstated novelty, unsupported generalisation and distraction from
+delivery; do not expand compiler scope merely to obtain a paper.
+
 ## Historical grooming gaps and decisions
 
 These earlier findings are retained as supporting context, not a fresh audit.

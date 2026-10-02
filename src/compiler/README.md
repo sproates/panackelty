@@ -2,7 +2,7 @@
 
 This directory contains the compiler being implemented in Panackelty:
 
-- `types.panack` defines file-aware source positions, tokens, diagnostics, and
+- `types.panack` defines file-aware source positions and half-open expression spans, tokens, diagnostics, and
   their public `file:line:column: message` header rendering.
 - `diagnostics.panack` adds numbered source excerpts and aligned carets from
   retained source snapshots, with deterministic tab and Unicode display and
@@ -11,6 +11,15 @@ This directory contains the compiler being implemented in Panackelty:
   normalizes terminating physical line breaks while preserving continued
   expressions, and reports positioned invalid-character and unterminated-string
   diagnostics.
+Expression `LocatedExpr` wrappers carry `SourceSpan(start, end)`: both endpoints
+refer to the original module and use Unicode code-point offsets with one-based
+line/column coordinates. Ranges include delimiters and explicit generic arguments;
+method lowering retains the written receiver/method range. Parentheses extend the
+outer range without changing rendering or child expression ranges. Synthetic
+unlocated expressions return `None` from `expression_span`. This is expression
+attribution, not spans for every declaration, statement or generated instruction.
+The emitter still discards these wrappers; production source maps remain U2 work.
+
 - `parser.panack` contains the recursive expression AST and parser for literals,
   operators, calls, explicit named function references, receiver-first
   method-call lowering, field access, indexing,

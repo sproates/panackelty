@@ -21,7 +21,7 @@ pure check_expression_effects(expression: Expr, program: Program, environment: M
   match expression {
     LocatedExpr(position, value) => {
       await_call = true
-      diagnostics = checker_diagnostics_at(check_expression_effects(value, program, environment, awaited), position)
+      diagnostics = checker_diagnostics_at(check_expression_effects(value, program, environment, awaited), position.start)
     },
     NatExpr(value) => {},
     DecimalExpr(text) => {},

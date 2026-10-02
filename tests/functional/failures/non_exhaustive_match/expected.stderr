@@ -1,1 +1,3 @@
-error: non-exhaustive match; missing Nada
+error: <case>/main.panack:4:3: non-exhaustive match; missing Nada
+  4 |   match value { Just(found) => found }
+    |   ^

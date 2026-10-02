@@ -1,0 +1,2 @@
+import "library.panack"
+main(): Void { value: Nat = broken[Nat]([7]); }

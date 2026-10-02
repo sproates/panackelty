@@ -661,3 +661,10 @@ Node 24+ in addition to the native toolchain. It is separate from interpreter-fr
 `make check` and runs after the isolated compiler CI suite on Linux and macOS.
 See [the experiment](experiments/source_mapping/README.md) for its exact scope,
 trust boundary and printed size/timing evidence.
+
+
+`compiler_source_spans_unit.panack` checks frontend expression spans with fixed
+Unicode code-point/line/column expectations and nested range traces. It runs with
+the native compiler unit suite; no external interpreter is required. Public CLI
+location regressions live in the compiler integration suite. These checks prepare
+U2 instruction mapping but do not establish a runtime source-map contract.

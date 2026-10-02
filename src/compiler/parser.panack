@@ -1,7 +1,7 @@
 import "lexer.panack"
 
 enum Expr {
-  LocatedExpr(SourcePos, Expr),
+  LocatedExpr(SourceSpan, Expr),
   NatExpr(Nat),
   DecimalExpr(Str),
   StringExpr(Str),
@@ -136,8 +136,38 @@ record ParsedTopLevel {
   next: Nat
 }
 
-pure located_expression(tokens: [Token], index: Nat, value: Expr): Expr {
-  LocatedExpr(token_position(tokens, index), value)
+pure token_end_position(tokens: [Token], next: Nat): SourcePos {
+  if next > 0 {
+    last: Nat = next - 1
+    if last < len(tokens) {
+      token: Token = tokens[last]
+      SourcePos(token.position.file, token.end, token.end_line, token.end_column)
+    } else { SourcePos("", 0, 0, 0) }
+  } else { SourcePos("", 0, 0, 0) }
+}
+
+pure located_expression(tokens: [Token], index: Nat, next: Nat, value: Expr): Expr {
+  LocatedExpr(SourceSpan(token_position(tokens, index), token_end_position(tokens, next)), unlocated_expression(value))
+}
+
+pure expression_span(expression: Expr): Option[SourceSpan] {
+  match expression {
+    LocatedExpr(span, value) => Some(span),
+    NatExpr(value) => None(), DecimalExpr(text) => None(), StringExpr(text) => None(), BoolExpr(value) => None(),
+    NameExpr(name) => None(), FunctionExpr(name) => None(), ArrayExpr(items) => None(),
+    UnaryExpr(operator, operand) => None(), BinaryExpr(operator, left, right) => None(),
+    CallExpr(name, arguments, type_arguments) => None(), FieldExpr(target, field) => None(), IndexExpr(target, index) => None(),
+    IfExpr(condition, yes, no, has_else) => None(), BlockExpr(block) => None(), MatchExpr(subject, arms) => None()
+  }
+}
+
+// Postfix and binary parsers retain the left expression's original beginning.
+// An unlocated synthetic input stays unlocated rather than acquiring a guess.
+pure extended_expression(tokens: [Token], left: Expr, next: Nat, value: Expr): Expr {
+  match expression_span(left) {
+    Some(span) => LocatedExpr(SourceSpan(span.start, token_end_position(tokens, next)), value),
+    None() => value
+  }
 }
 
 record ParsedFunctionParameterList {
@@ -466,7 +496,7 @@ pure parse_pattern_bindings(tokens: [Token], bindings: [Str], index: Nat): Resul
 pure parse_match_arm_body(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
   if index < len(tokens) && tokens[index].text == "{" {
     match parse_block(tokens, index) {
-      Ok(block) => Ok(ParsedExpr(BlockExpr(block.value), block.next)),
+      Ok(block) => Ok(ParsedExpr(located_expression(tokens, index, block.next, BlockExpr(block.value)), block.next)),
       Error(error) => Error(error)
     }
   } else {
@@ -534,7 +564,7 @@ pure parse_match_expression(tokens: [Token], index: Nat): Result[ParsedExpr,Diag
       } else {
         arms: [MatchArm] = []
         match parse_match_arms(tokens, arms, subject.next + 1) {
-          Ok(parsed_arms) => Ok(ParsedExpr(MatchExpr(subject.value, parsed_arms.values), parsed_arms.next)),
+          Ok(parsed_arms) => Ok(ParsedExpr(located_expression(tokens, index, parsed_arms.next, MatchExpr(subject.value, parsed_arms.values)), parsed_arms.next)),
           Error(error) => Error(error)
         }
       }
@@ -550,12 +580,12 @@ pure parse_if_expression(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnos
         Ok(yes) => {
           if yes.next < len(tokens) && tokens[yes.next].text == "else" {
             match parse_block(tokens, yes.next + 1) {
-              Ok(no) => Ok(ParsedExpr(IfExpr(condition.value, yes.value, no.value, true), no.next)),
+              Ok(no) => Ok(ParsedExpr(located_expression(tokens, index, no.next, IfExpr(condition.value, yes.value, no.value, true)), no.next)),
               Error(error) => Error(error)
             }
           } else {
             no: Block = Block([], NoBlockValue())
-            Ok(ParsedExpr(IfExpr(condition.value, yes.value, no, false), yes.next))
+            Ok(ParsedExpr(located_expression(tokens, index, yes.next, IfExpr(condition.value, yes.value, no, false)), yes.next))
           }
         },
         Error(error) => Error(error)
@@ -587,11 +617,11 @@ pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr,Diag
     Ok(types) => {
       if types.next < len(tokens) && tokens[types.next].text == "(" {
         match parse_expression_list(tokens, types.next + 1, ")") {
-          Ok(arguments) => Ok(ParsedExpr(located_expression(tokens, index, CallExpr(tokens[index].text, arguments.values, types.values)), arguments.next)),
+          Ok(arguments) => Ok(ParsedExpr(located_expression(tokens, index, arguments.next, CallExpr(tokens[index].text, arguments.values, types.values)), arguments.next)),
           Error(error) => Error(error)
         }
       } else {
-        Ok(ParsedExpr(located_expression(tokens, index, NameExpr(tokens[index].text)), index + 1))
+        Ok(ParsedExpr(located_expression(tokens, index, index + 1, NameExpr(tokens[index].text)), index + 1))
       }
     }
   }
@@ -604,7 +634,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
     token: Token = tokens[index]
     if token.text == "@" {
       if index + 1 < len(tokens) && tokens[index + 1].kind == Identifier() {
-        Ok(ParsedExpr(located_expression(tokens, index, FunctionExpr(tokens[index + 1].text)), index + 2))
+        Ok(ParsedExpr(located_expression(tokens, index, index + 2, FunctionExpr(tokens[index + 1].text)), index + 2))
       } else {
         Error(parse_error("expected function name after @", token_position(tokens, index + 1)))
       }
@@ -615,27 +645,27 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
         parse_if_expression(tokens, index)
       } else {
         if token.kind == Number() {
-          Ok(ParsedExpr(located_expression(tokens, index, NatExpr(nat_from_str(token.text))), index + 1))
+          Ok(ParsedExpr(located_expression(tokens, index, index + 1, NatExpr(nat_from_str(token.text))), index + 1))
         } else {
           if token.kind == DecimalNumber() {
-            Ok(ParsedExpr(located_expression(tokens, index, DecimalExpr(token.text)), index + 1))
+            Ok(ParsedExpr(located_expression(tokens, index, index + 1, DecimalExpr(token.text)), index + 1))
           } else {
             if token.kind == StringLiteral() {
-              Ok(ParsedExpr(located_expression(tokens, index, StringExpr(token.text)), index + 1))
+              Ok(ParsedExpr(located_expression(tokens, index, index + 1, StringExpr(token.text)), index + 1))
             } else {
               if token.text == "true" || token.text == "false" {
-                Ok(ParsedExpr(located_expression(tokens, index, BoolExpr(token.text == "true")), index + 1))
+                Ok(ParsedExpr(located_expression(tokens, index, index + 1, BoolExpr(token.text == "true")), index + 1))
               } else {
                 if token.kind == Identifier() {
                   parse_named_expression(tokens, index)
                 } else {
                   if token.text == "(" {
                     if index + 1 < len(tokens) && tokens[index + 1].text == ")" {
-                      Ok(ParsedExpr(located_expression(tokens, index, CallExpr("$unit", [], [])), index + 2))
+                      Ok(ParsedExpr(located_expression(tokens, index, index + 2, CallExpr("$unit", [], [])), index + 2))
                     } else { match parse_expression(tokens, index + 1) {
                       Ok(inner) => {
                         if inner.next < len(tokens) && tokens[inner.next].text == ")" {
-                          Ok(ParsedExpr(inner.value, inner.next + 1))
+                          Ok(ParsedExpr(located_expression(tokens, index, inner.next + 1, inner.value), inner.next + 1))
                         } else {
                           Error(parse_error("expected closing parenthesis", token_position(tokens, inner.next)))
                         }
@@ -645,7 +675,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
                   } } else {
                     if token.text == "[" {
                       match parse_expression_list(tokens, index + 1, "]") {
-                        Ok(items) => Ok(ParsedExpr(ArrayExpr(items.values), items.next)),
+                        Ok(items) => Ok(ParsedExpr(located_expression(tokens, index, items.next, ArrayExpr(items.values)), items.next)),
                         Error(error) => Error(error)
                       }
                     } else {
@@ -683,7 +713,7 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
     match parse_expression(tokens, index + 1) {
       Ok(parsed_index) => {
         if parsed_index.next < len(tokens) && tokens[parsed_index.next].text == "]" {
-          parse_postfix_tail(tokens, IndexExpr(left, parsed_index.value), parsed_index.next + 1)
+          parse_postfix_tail(tokens, extended_expression(tokens, left, parsed_index.next + 1, IndexExpr(left, parsed_index.value)), parsed_index.next + 1)
         } else {
           Error(parse_error("expected closing bracket", token_position(tokens, parsed_index.next)))
         }
@@ -701,12 +731,12 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
               match parse_expression_list(tokens, types.next + 1, ")") {
                 Ok(arguments) => {
                   values: [Expr] = concat([left], arguments.values)
-                  parse_postfix_tail(tokens, CallExpr(lowered_method_name(name), values, types.values), arguments.next)
+                  parse_postfix_tail(tokens, extended_expression(tokens, left, arguments.next, CallExpr(lowered_method_name(name), values, types.values)), arguments.next)
                 },
                 Error(error) => Error(error)
               }
             } else {
-              parse_postfix_tail(tokens, FieldExpr(left, name), index + 2)
+              parse_postfix_tail(tokens, extended_expression(tokens, left, index + 2, FieldExpr(left, name)), index + 2)
             }
           }
         }
@@ -730,7 +760,7 @@ pure parse_unary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
   if index < len(tokens) && (tokens[index].text == "-" || tokens[index].text == "!" || tokens[index].text == "await") {
     operator: Str = tokens[index].text
     match parse_unary(tokens, index + 1) {
-      Ok(operand) => Ok(ParsedExpr(UnaryExpr(operator, operand.value), operand.next)),
+      Ok(operand) => Ok(ParsedExpr(located_expression(tokens, index, operand.next, UnaryExpr(operator, operand.value)), operand.next)),
       Error(error) => Error(error)
     }
   } else {
@@ -742,7 +772,7 @@ pure parse_product_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
   if index < len(tokens) && (tokens[index].text == "*" || tokens[index].text == "/" || tokens[index].text == "%") {
     operator: Str = tokens[index].text
     match parse_unary(tokens, index + 1) {
-      Ok(right) => parse_product_tail(tokens, BinaryExpr(operator, left, right.value), right.next),
+      Ok(right) => parse_product_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr(operator, left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -761,7 +791,7 @@ pure parse_sum_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr,
   if index < len(tokens) && (tokens[index].text == "+" || tokens[index].text == "-") {
     operator: Str = tokens[index].text
     match parse_product(tokens, index + 1) {
-      Ok(right) => parse_sum_tail(tokens, BinaryExpr(operator, left, right.value), right.next),
+      Ok(right) => parse_sum_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr(operator, left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -780,7 +810,7 @@ pure parse_comparison_tail(tokens: [Token], left: Expr, index: Nat): Result[Pars
   if index < len(tokens) && (tokens[index].text == "<" || tokens[index].text == "<=" || tokens[index].text == ">" || tokens[index].text == ">=") {
     operator: Str = tokens[index].text
     match parse_sum(tokens, index + 1) {
-      Ok(right) => parse_comparison_tail(tokens, BinaryExpr(operator, left, right.value), right.next),
+      Ok(right) => parse_comparison_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr(operator, left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -799,7 +829,7 @@ pure parse_equality_tail(tokens: [Token], left: Expr, index: Nat): Result[Parsed
   if index < len(tokens) && (tokens[index].text == "==" || tokens[index].text == "!=") {
     operator: Str = tokens[index].text
     match parse_comparison(tokens, index + 1) {
-      Ok(right) => parse_equality_tail(tokens, BinaryExpr(operator, left, right.value), right.next),
+      Ok(right) => parse_equality_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr(operator, left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -817,7 +847,7 @@ pure parse_equality(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] 
 pure parse_and_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr,Diagnostic] {
   if index < len(tokens) && tokens[index].text == "&&" {
     match parse_equality(tokens, index + 1) {
-      Ok(right) => parse_and_tail(tokens, BinaryExpr("&&", left, right.value), right.next),
+      Ok(right) => parse_and_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr("&&", left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -835,7 +865,7 @@ pure parse_and(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
 pure parse_or_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr,Diagnostic] {
   if index < len(tokens) && tokens[index].text == "||" {
     match parse_and(tokens, index + 1) {
-      Ok(right) => parse_or_tail(tokens, BinaryExpr("||", left, right.value), right.next),
+      Ok(right) => parse_or_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr("||", left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -853,7 +883,7 @@ pure parse_or(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
 pure parse_range_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedExpr,Diagnostic] {
   if index < len(tokens) && tokens[index].text == ".." {
     match parse_or(tokens, index + 1) {
-      Ok(right) => parse_range_tail(tokens, BinaryExpr("..", left, right.value), right.next),
+      Ok(right) => parse_range_tail(tokens, extended_expression(tokens, left, right.next, BinaryExpr("..", left, right.value)), right.next),
       Error(error) => Error(error)
     }
   } else {
@@ -952,7 +982,7 @@ pure parse_block_items(tokens: [Token], statements: [Statement], index: Nat): Re
                 } else {
                   match parse_expression(tokens, type_ref.next + 1) {
                     Ok(value) => {
-                      initializer: Expr = if len(type_ref.text) == 0 { located_expression(tokens, type_ref.next + 1, value.value) } else { value.value }
+                      initializer: Expr = value.value
                       statement: Statement = BindingStatement(name, type_ref.text, mutable, initializer)
                       if value.next < len(tokens) && tokens[value.next].text == ";" {
                         parse_block_items(tokens, append(statements, statement), value.next + 1)
@@ -983,7 +1013,7 @@ pure parse_block_items(tokens: [Token], statements: [Statement], index: Nat): Re
               name: Str = tokens[index].text
               match parse_expression(tokens, index + 2) {
                 Ok(value) => {
-                  statement: Statement = AssignmentStatement(name, located_expression(tokens, index + 2, value.value))
+                  statement: Statement = AssignmentStatement(name, value.value)
                   if value.next < len(tokens) && tokens[value.next].text == ";" {
                     parse_block_items(tokens, append(statements, statement), value.next + 1)
                   } else {

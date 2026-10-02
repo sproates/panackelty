@@ -2220,8 +2220,10 @@ Record publication candidates when there is a concrete thesis and supporting
 implementation or evaluation evidence. Each candidate needs a contribution to
 assess, links to evidence and prior work, and a revisit trigger. This is an
 unscheduled backlog, not a publication programme or a commitment to publish
-every idea. The research candidate below may contribute to the compiler paper;
-no separate paper is promised for it.
+every idea. The change-impact research candidate below may contribute to the
+compiler paper. The separate [type-inference research candidates](#type-inference-research-candidates)
+may support future papers if their contributions are established; no separate
+paper is promised for any candidate.
 
 ### Compiler and runtime understanding paper — idea
 
@@ -2543,6 +2545,29 @@ both the guarantees they provide and the clarity of the resulting workflow.
       suggested fix produces a valid program
 - [ ] Build a diagnostic conformance suite covering usefulness, source accuracy,
       recovery after an error, and avoidance of misleading follow-on errors
+
+### Type-inference research candidates
+
+Agreed for the backlog on 2026-10-02. These are unscheduled research ideas beyond
+[#170](https://github.com/sproates/panackelty/issues/170)'s inference foundation,
+outside programme #180 and its completion criteria. Begin with prior-work and
+contract assessment; select prototypes separately when prerequisites are clear.
+Novelty is unestablished. Effort and PR counts await assessment; no implementation
+or publication commitment follows from recording these candidates.
+
+| Candidate | Research question and bounded acceptance |
+| --- | --- |
+| [#215 Edit-stable type inference](https://github.com/sproates/panackelty/issues/215) | Define guarantees that selected edits preserve inferred types and operation meanings, and find sufficient annotation boundaries where needed. Start with expression extraction and expected-type context; compare local/bidirectional inference and refactoring research. Establish preservation within a defined fragment and measure annotation burden, usefulness and cost. Compilation depends on current source, never hidden edit history. |
+| [#216 Resource inference for exact arithmetic](https://github.com/sproates/panackelty/issues/216) | Infer conditional numerator/denominator bit-size, intermediate-growth and work bounds under explicit input/iteration assumptions and a normalization/cost model. Compare resource-aware and size analyses, prove supported rules and evaluate precision and overhead. Preserve exact semantics; distinguish proved bounds from measurements and runtime estimates, and report unknowns honestly. |
+| [#217 Ambiguity-guided annotation selection](https://github.com/sproates/panackelty/issues/217) | Select small, understandable sets of source annotation choices sufficient to resolve ambiguity, with consequences for each. Compare annotation synthesis and interactive/refinement inference; define the candidate language and minimality metric before claiming a minimum. Verify offered choices, retain genuine ambiguity, and measure burden, edit stability, developer usefulness and latency. Never guess intent or silently select semantics. |
+
+Each assessment should identify a precise potentially distinct contribution,
+reproducible evaluation and a proceed/defer recommendation, retaining unsupported
+cases and limitations. Risks include duplicating prior work, restricting useful
+inference, combinatorial cost and overstating guarantees. Literature assessment
+can precede production inference; implementation depends on the relevant #170
+interfaces and explicit scope selection. Record any supported publication thesis
+in the [potential technical publications backlog](#potential-technical-publications).
 
 ### Core and standard-library types — planned exploration
 

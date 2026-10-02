@@ -1321,3 +1321,25 @@ secret or report download in website publication. Coverage freshness does not
 depend on a newer website passing validation. The website keeps two compatibility
 landing pages, not a copy of the report. See
 [publication and maintenance](tests/README.md#public-coverage-publication).
+
+
+## U1 source-mapping feasibility decision, 2026-10-02
+
+The [bounded experiment](tests/experiments/source_mapping/README.md) attributes
+an actual bounds-index trap to exact local, imported and generic source ranges.
+It uses the loaded AST, actual emitted instruction list and real VM dispatcher;
+production compiler/VM sources and v9 bytes remain unchanged. Unsupported and
+generated instructions remain unavailable. Re-parsing the located receiver is
+an experimental range recovery step, not a production span contract.
+
+The next production design should use optional deterministic sidecars: they
+preserve executable compatibility and allow safe omission. Appending the same
+payload to v9 is rejected, as expected; an embedded alternative requires explicit
+versioning and has no demonstrated benefit for this first consumer. The prototype
+validates bytecode/source identities, instruction indices, ranges, paths and an
+integrity checksum. A recomputed forged checksum still permits false attribution;
+producer authenticity, exact dependency snapshots and concurrent-file handling
+must be resolved in U2. Generic attribution identifies the erased body, not a
+specialisation. U1 is feasibility evidence, not the programme's realistic-program
+acceptance or a public diagnostic feature. See the experiment for counterexamples,
+representation trade-offs and revised consumer estimates.

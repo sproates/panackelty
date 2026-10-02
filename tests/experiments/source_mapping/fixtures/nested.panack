@@ -1,0 +1,4 @@
+pure nested(items: [Nat], indices: [Nat], index: Nat): Nat {
+  items[indices[index]]
+}
+main(): Void { value: Nat = nested([7], [2], 0); }

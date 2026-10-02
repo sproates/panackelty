@@ -1,0 +1,4 @@
+pure pick(items: [Nat], index: Nat): Nat {
+  items[index]
+}
+main(): Void { value: Nat = pick([7], 2); }

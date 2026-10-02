@@ -596,3 +596,23 @@ skipped browser ancestors must not suppress deployment after successful packagin
 and failed/skipped/cancelled packaging or deployment must never permit the next
 stage. Pull requests and workflow cancellation cannot deploy. Hosted production
 acceptance remains required because these tests do not emulate GitHub's scheduler.
+
+
+## U1 source-mapping experiment
+
+`make source-mapping-experiment` checks literal function/PC/file/range expectations
+for local, imported and erased generic bodies, including a Unicode prefix.
+Public source execution and saved bytecode retain the same bounds trap; emitted
+bytes match the public compiler. It checks deterministic/relocated metadata,
+function-table reordering, unsupported expressions, earlier unmapped traps in a
+mapped function, valid non-trapping execution, stale or missing sources,
+symlinks, wrong artifacts/producers, malformed/oversized maps, opcode/range
+validation and accidental valid-range corruption. A coherent forged map remains
+an explicit negative finding: digests do not authenticate attribution.
+
+This is a separate Node-based experiment suite run in Linux/macOS compiler CI,
+not a new interpreter dependency of native `make check`. The real VM dispatcher
+is observed through a test-only executable; all existing compiler, VM, functional
+and bootstrap checks remain required. No production source-mapping coverage,
+full source coverage, realistic-program acceptance or complete metadata security
+is claimed. See [scope and reproduction](experiments/source_mapping/README.md).

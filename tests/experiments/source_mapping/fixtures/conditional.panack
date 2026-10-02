@@ -1,0 +1,4 @@
+pure conditional(items: [Nat], index: Nat): Nat {
+  items[if index == 0 { 0 } else { index }]
+}
+main(): Void { value: Nat = conditional([7], 2); }

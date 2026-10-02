@@ -1,0 +1,124 @@
+import "../../../src/compiler/driver.panack"
+
+// U1 only: a directly indexed tail expression, with an identifier receiver.
+// All other forms deliberately have no attribution. Production emission is used
+// unchanged; the emitted terminal opcode is checked before assigning its index.
+source_mapping_probe(project: LoadedProject, code: BytecodeProgram): Void {
+  for declaration in project.program.declarations {
+    match declaration {
+      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
+        match body.value {
+          NoBlockValue() => {},
+          TailBlockValue(tail) => {
+            match unlocated_expression(tail) {
+              IndexExpr(target, index) => {
+                match target {
+                  LocatedExpr(position, receiver) => {
+                    match unlocated_expression(receiver) {
+                      NameExpr(variable) => {
+                        file: Str = position.file
+                        if project.sources.has(file) {
+                          match lex_file(project.sources.get(file), file) {
+                            Error(errors) => {},
+                            Ok(tokens) => {
+                              mut cursor: Nat = 0
+                              while cursor < len(tokens) && tokens[cursor].start < position.offset { cursor = cursor + 1; }
+                              if cursor < len(tokens) && tokens[cursor].start == position.offset {
+                                match parse_expression(tokens, cursor) {
+                                  Error(error) => {},
+                                  Ok(parsed) => {
+                                    next: Nat = parsed.next
+                                    if next > 0 && next > cursor && render_expr(parsed.value) == render_expr(tail) {
+                                      end: Nat = tokens[prior_index(next)].end
+                                      for function in code.functions {
+                                        count: Nat = len(function.instructions)
+                                        if function.name == name && count >= 2 {
+                                          pc: Nat = prior_index(prior_index(count))
+                                          if render_instruction(function.instructions[pc]) == "INDEX_GET" {
+                                            start: Nat = position.offset
+                                            print("map\t${name}\t${pc}\t${file}\t${start}\t${end}")
+                                          } else {}
+                                        } else {}
+                                      }
+                                    } else {}
+                                  }
+                                }
+                              } else {}
+                            }
+                          }
+                        } else {}
+                      },
+                      LocatedExpr(unused_position, unused_value) => {},
+                      NatExpr(unused_nat) => {},
+                      DecimalExpr(unused_decimal) => {},
+                      StringExpr(unused_string) => {},
+                      BoolExpr(unused_bool) => {},
+                      FunctionExpr(unused_function) => {},
+                      ArrayExpr(unused_items) => {},
+                      UnaryExpr(unused_operator, unused_operand) => {},
+                      BinaryExpr(unused_operator, unused_left, unused_right) => {},
+                      CallExpr(unused_callee, unused_arguments, unused_types) => {},
+                      FieldExpr(unused_target, unused_field) => {},
+                      IndexExpr(unused_target, unused_index) => {},
+                      IfExpr(unused_condition, unused_yes, unused_no, unused_else) => {},
+                      BlockExpr(unused_block) => {},
+                      MatchExpr(unused_subject, unused_arms) => {}
+                    }
+                  },
+                  NatExpr(unused_nat) => {},
+                  DecimalExpr(unused_decimal) => {},
+                  StringExpr(unused_string) => {},
+                  BoolExpr(unused_bool) => {},
+                  NameExpr(unused_name) => {},
+                  FunctionExpr(unused_function) => {},
+                  ArrayExpr(unused_items) => {},
+                  UnaryExpr(unused_operator, unused_operand) => {},
+                  BinaryExpr(unused_operator, unused_left, unused_right) => {},
+                  CallExpr(unused_callee, unused_arguments, unused_types) => {},
+                  FieldExpr(unused_target, unused_field) => {},
+                  IndexExpr(unused_target, unused_index) => {},
+                  IfExpr(unused_condition, unused_yes, unused_no, unused_else) => {},
+                  BlockExpr(unused_block) => {},
+                  MatchExpr(unused_subject, unused_arms) => {}
+                }
+              },
+              LocatedExpr(unused_position, unused_value) => {},
+              NatExpr(unused_nat) => {},
+              DecimalExpr(unused_decimal) => {},
+              StringExpr(unused_string) => {},
+              BoolExpr(unused_bool) => {},
+              NameExpr(unused_name) => {},
+              FunctionExpr(unused_function) => {},
+              ArrayExpr(unused_items) => {},
+              UnaryExpr(unused_operator, unused_operand) => {},
+              BinaryExpr(unused_operator, unused_left, unused_right) => {},
+              CallExpr(unused_callee, unused_arguments, unused_types) => {},
+              FieldExpr(unused_target, unused_field) => {},
+              IfExpr(unused_condition, unused_yes, unused_no, unused_else) => {},
+              BlockExpr(unused_block) => {},
+              MatchExpr(unused_subject, unused_arms) => {}
+            }
+          }
+        }
+      },
+      ImportDeclaration(unused_path) => {},
+      TypeDeclaration(unused_name, unused_base, unused_guard) => {},
+      RecordDeclaration(unused_name, unused_parameters, unused_fields) => {},
+      EnumDeclaration(unused_name, unused_parameters, unused_variants) => {}
+    }
+  }
+}
+
+main(): Void {
+  args: [Str] = command_args()
+  if len(args) != 3 { eprint("expected entry, output and map/plain mode"); process_exit(1); } else {}
+  loaded: LoadedProject = load_project(args[0])
+  if len(loaded.diagnostics) > 0 {
+    eprint(diagnostic_messages(loaded.diagnostics, loaded.sources))
+    process_exit(1)
+  } else {
+    code: BytecodeProgram = compile_program(loaded.program)
+    write_bytes(args[1], serialize_bytecode(code))
+    if args[2] == "map" { source_mapping_probe(loaded, code); } else {}
+  }
+}

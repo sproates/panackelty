@@ -48,19 +48,83 @@ record TypeInfo {
 
 record CheckedExpression {
   info: TypeInfo,
-  diagnostics: [Diagnostic]
+  diagnostics: [Diagnostic],
+  evidence: [SubtractionEvidence]
 }
 
 record CheckedBlock {
   info: TypeInfo,
-  diagnostics: [Diagnostic]
+  diagnostics: [Diagnostic],
+  evidence: [SubtractionEvidence]
 }
 
 record Bounds {
   has_lower: Bool,
   lower: Nat,
   has_upper: Bool,
-  upper: Nat
+  upper: Nat,
+  lower_origin: Option[GuardOrigin]
+}
+
+// Evidence is retained only by the explicit query. It is produced at the same
+// decision point as the diagnostic, not reconstructed from diagnostic text.
+record GuardOrigin {
+  span: Option[SourceSpan],
+  truth: Bool
+}
+
+record SubtractionDecision {
+  proven: Bool,
+  rule: Str,
+  has_lower: Bool,
+  lower: Nat,
+  guard: Option[GuardOrigin]
+}
+
+record SubtractionEvidence {
+  function_name: Str,
+  span: Option[SourceSpan],
+  left: TypeInfo,
+  right: TypeInfo,
+  decision: SubtractionDecision
+}
+
+record CheckedProgram {
+  diagnostics: [Diagnostic],
+  evidence: [SubtractionEvidence]
+}
+
+pure evidence_for_function(entries: [SubtractionEvidence], name: Str): [SubtractionEvidence] {
+  mut result: [SubtractionEvidence] = []
+  for entry in entries {
+    result = append(result, SubtractionEvidence(name, entry.span, entry.left, entry.right, entry.decision))
+  }
+  result
+}
+
+pure subtraction_decision(left: Expr, left_info: TypeInfo, right_info: TypeInfo, facts: Map[Str,Bounds]): SubtractionDecision {
+  mut decision: SubtractionDecision = SubtractionDecision(false, "insufficient", false, 0, None())
+  if left_info.has_nat && right_info.has_nat && left_info.nat_value >= right_info.nat_value {
+    decision = SubtractionDecision(true, "constants", false, 0, None())
+  }
+  match unlocated_expression(left) {
+    NameExpr(name) => {
+      if decision.rule != "constants" && right_info.has_nat && facts.has(name) {
+        bound: Bounds = facts.get(name)
+        if bound.has_lower {
+          proven: Bool = bound.lower >= right_info.nat_value
+          decision = SubtractionDecision(proven, if proven { "lower-bound" } else { "insufficient" }, true, bound.lower, bound.lower_origin)
+        }
+      }
+    },
+    LocatedExpr(span, value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {},
+    StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(name) => {},
+    ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {},
+    CallExpr(name, args, types) => {}, FieldExpr(value, field) => {},
+    IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+  }
+  decision
 }
 
 pure checker_diagnostic(message: Str): Diagnostic {
@@ -788,7 +852,7 @@ pure check_generic_call(name: Str, function: FunctionLookup, type_arguments: [St
     }
     index = index + 1
   }
-  CheckedExpression(plain_type(substitute_type(function.return_type, function.type_parameters, substitutions)), diagnostics)
+  CheckedExpression(plain_type(substitute_type(function.return_type, function.type_parameters, substitutions)), diagnostics, [])
 }
 
 // Drop incoming bounds for any local written while evaluating an expression.
@@ -796,7 +860,7 @@ pure check_generic_call(name: Str, function: FunctionLookup, type_arguments: [St
 // capture mutable bindings. Nested block expressions can, so visit every child.
 // Unknown bounds retain the map key without asserting either endpoint.
 pure forget_written_fact(facts: Map[Str,Bounds], name: Str): Map[Str,Bounds] {
-  if map_has(facts, name) { map_put(facts, name, Bounds(false, 0, false, 0)) }
+  if map_has(facts, name) { map_put(facts, name, Bounds(false, 0, false, 0, None())) }
   else { facts }
 }
 
@@ -861,17 +925,23 @@ pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: M
   check_expression_scoped(expression, environment, facts, program, [])
 }
 
-pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedExpression {
+pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedExpression {
+  check_expression_evidence(expression, environment, facts, program, scope_types, false, None())
+}
+
+pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str], retain: Bool, origin: Option[SourceSpan]): CheckedExpression {
   // Conservatively discard bounds across all children before checking operands
   // or call arguments. No assumed operand order can resurrect a stale fact.
   facts: Map[Str,Bounds] = facts_after_expression(expression, incoming_facts)
   mut diagnostics: [Diagnostic] = []
+  mut evidence: [SubtractionEvidence] = []
   mut info: TypeInfo = no_type()
   match expression {
     LocatedExpr(position, value) => {
-      checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types)
+      checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, if retain { Some(position) } else { None() })
       info = checked.info
       diagnostics = checker_diagnostics_at(checked.diagnostics, position.start)
+      evidence = checked.evidence
     },
     NatExpr(value) => { info = TypeInfo("Nat", true, value, false); },
     DecimalExpr(text) => { info = plain_type("Dec"); },
@@ -896,8 +966,8 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
     ArrayExpr(items) => {
       mut element: Str = "$T"
       for item in items {
-        checked: CheckedExpression = check_expression_scoped(item, environment, facts, program, scope_types)
-        diagnostics = concat(diagnostics, checked.diagnostics)
+        checked: CheckedExpression = check_expression_evidence(item, environment, facts, program, scope_types, retain, None())
+        diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
         if checked.info.name == "Void" {
           diagnostics = append(diagnostics, checker_diagnostic("Void expressions cannot be stored in an array"))
         } else {
@@ -911,8 +981,8 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
       info = plain_type("Array[${element}]")
     },
     UnaryExpr(operator, operand) => {
-      checked: CheckedExpression = check_expression_scoped(operand, environment, facts, program, scope_types)
-      diagnostics = checked.diagnostics
+      checked: CheckedExpression = check_expression_evidence(operand, environment, facts, program, scope_types, retain, None())
+      diagnostics = checked.diagnostics; evidence = checked.evidence
       base: Str = base_type(program, checked.info.name)
       if operator == "await" { info = checked.info; }
       else { if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
@@ -920,9 +990,9 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
       else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } } }
     },
     BinaryExpr(operator, left, right) => {
-      checked_left: CheckedExpression = check_expression_scoped(left, environment, facts, program, scope_types)
-      checked_right: CheckedExpression = check_expression_scoped(right, environment, facts, program, scope_types)
-      diagnostics = concat(checked_left.diagnostics, checked_right.diagnostics)
+      checked_left: CheckedExpression = check_expression_evidence(left, environment, facts, program, scope_types, retain, None())
+      checked_right: CheckedExpression = check_expression_evidence(right, environment, facts, program, scope_types, retain, None())
+      diagnostics = concat(checked_left.diagnostics, checked_right.diagnostics); evidence = concat(checked_left.evidence, checked_right.evidence)
       left_base: Str = base_type(program, checked_left.info.name)
       right_base: Str = base_type(program, checked_right.info.name)
       if operator == ".." {
@@ -945,25 +1015,27 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
             if operator == "+" && left_base == "Str" && right_base == "Str" { info = plain_type("Str"); }
             else {
               numeric: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Dec" || right_base == "Rat")
-              if (operator == "%" && (left_base == "Rat" || right_base == "Rat")) || !numeric || ((left_base == "Dec" || right_base == "Dec") && left_base != right_base) {
+              compatible_numeric: Bool = numeric && !((left_base == "Dec" || right_base == "Dec") && left_base != right_base)
+              if (operator == "%" && (left_base == "Rat" || right_base == "Rat")) || !compatible_numeric {
                 left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
                 diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${left_name} and ${right_name}"))
               } else {}
               result: Str = if left_base == "Dec" { "Dec" } else { if operator == "/" || left_base == "Rat" || right_base == "Rat" { "Rat" } else { if left_base == "Int" || right_base == "Int" { "Int" } else { "Nat" } } }
               if result == "Nat" && operator == "-" {
-                mut proven: Bool = checked_left.info.has_nat && checked_right.info.has_nat && checked_left.info.nat_value >= checked_right.info.nat_value
-                match unlocated_expression(left) {
-                  LocatedExpr(position, inner) => {},
-                  NameExpr(name) => {
-                    if checked_right.info.has_nat && map_has(facts, name) {
-                      bound: Bounds = map_get(facts, name)
-                      if bound.has_lower && bound.lower >= checked_right.info.nat_value { proven = true; } else {}
-                    } else {}
-                  },
-                  NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, args, type_arguments) => {}, FieldExpr(value, field) => {}, IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+                decision: SubtractionDecision = subtraction_decision(left, checked_left.info, checked_right.info, facts)
+                if !decision.proven { diagnostics = append(diagnostics, checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")); }
+                if retain {
+                  selected: SubtractionDecision = if !compatible_numeric || len(checked_left.diagnostics) > 0 || len(checked_right.diagnostics) > 0 {
+                    SubtractionDecision(false, "invalid-operands", false, 0, None())
+                  } else { decision }
+                  evidence = append(evidence, SubtractionEvidence("", origin, checked_left.info, checked_right.info, selected))
                 }
-                if !proven { diagnostics = append(diagnostics, checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")); } else {}
-              } else {}
+              } else {
+                if retain && operator == "-" {
+                  evidence = append(evidence, SubtractionEvidence("", origin, checked_left.info, checked_right.info,
+                    SubtractionDecision(false, if !compatible_numeric || len(checked_left.diagnostics) > 0 || len(checked_right.diagnostics) > 0 { "invalid-operands" } else { "unsupported" }, false, 0, None())))
+                }
+              }
               info = TypeInfo(result, false, 0, false)
             }
           }
@@ -1000,8 +1072,8 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
       mut argument_infos: [TypeInfo] = []
       mut index: Nat = 0
       for argument in arguments {
-        checked: CheckedExpression = check_expression_scoped(argument, environment, facts, program, scope_types)
-        diagnostics = concat(diagnostics, checked.diagnostics)
+        checked: CheckedExpression = check_expression_evidence(argument, environment, facts, program, scope_types, retain, None())
+        diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
         argument_infos = append(argument_infos, checked.info)
         if checked.info.name == "Void" {
           diagnostics = append(diagnostics, checker_diagnostic("Void is not a value and cannot be passed as an argument"))
@@ -1131,14 +1203,14 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
       } else {}
       if function.found && len(function.type_parameters) > 0 {
         generic: CheckedExpression = check_generic_call(display_name, function, type_arguments, arguments, argument_infos, scope_types, facts, program)
-        diagnostics = concat(diagnostics, generic.diagnostics)
+        diagnostics = concat(diagnostics, generic.diagnostics); if retain { evidence = concat(evidence, generic.evidence); }
         result = generic.info.name
       }
       info = plain_type(result)
     },
     FieldExpr(target, field) => {
-      checked: CheckedExpression = check_expression_scoped(target, environment, facts, program, scope_types)
-      diagnostics = checked.diagnostics
+      checked: CheckedExpression = check_expression_evidence(target, environment, facts, program, scope_types, retain, None())
+      diagnostics = checked.diagnostics; evidence = checked.evidence
       shape: TypeShape = type_shape(checked.info.name)
       record: RecordLookup = record_type(program, shape.base)
       if !record.found { target_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("field access requires a record, got ${target_type}")); }
@@ -1151,25 +1223,25 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
       }
     },
     IndexExpr(target, index) => {
-      collection: CheckedExpression = check_expression_scoped(target, environment, facts, program, scope_types)
-      checked_index: CheckedExpression = check_expression_scoped(index, environment, facts, program, scope_types)
-      diagnostics = concat(collection.diagnostics, checked_index.diagnostics)
+      collection: CheckedExpression = check_expression_evidence(target, environment, facts, program, scope_types, retain, None())
+      checked_index: CheckedExpression = check_expression_evidence(index, environment, facts, program, scope_types, retain, None())
+      diagnostics = concat(collection.diagnostics, checked_index.diagnostics); evidence = concat(collection.evidence, checked_index.evidence)
       shape: TypeShape = type_shape(collection.info.name)
       if base_type(program, checked_index.info.name) != "Nat" { index_type: Str = checked_index.info.name; diagnostics = append(diagnostics, checker_diagnostic("index must be Nat, got ${index_type}")); } else {}
       if shape.base == "Array" && len(shape.arguments) == 1 { info = plain_type(shape.arguments[0]); }
       else { if collection.info.name == "Str" { info = plain_type("Str"); } else { if collection.info.name == "Bytes" { info = plain_type("Nat"); } else { collection_type: Str = collection.info.name; diagnostics = append(diagnostics, checker_diagnostic("indexing requires Str, Bytes, or an array, got ${collection_type}")); } } }
     },
     IfExpr(condition, yes, no, has_else) => {
-      checked_condition: CheckedExpression = check_expression_scoped(condition, environment, facts, program, scope_types)
-      diagnostics = checked_condition.diagnostics
+      checked_condition: CheckedExpression = check_expression_evidence(condition, environment, facts, program, scope_types, retain, None())
+      diagnostics = checked_condition.diagnostics; evidence = checked_condition.evidence
       if checked_condition.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("if condition must be Bool")); } else {}
-      yes_facts: Map[Str,Bounds] = condition_facts(condition, facts, true)
-      no_facts: Map[Str,Bounds] = condition_facts(condition, facts, false)
-      checked_yes: CheckedBlock = check_block(yes, environment, yes_facts, program, scope_types)
-      diagnostics = concat(diagnostics, checked_yes.diagnostics)
+      yes_facts: Map[Str,Bounds] = condition_facts_evidence(condition, facts, true, retain, None())
+      no_facts: Map[Str,Bounds] = condition_facts_evidence(condition, facts, false, retain, None())
+      checked_yes: CheckedBlock = check_block_evidence(yes, environment, yes_facts, program, scope_types, retain)
+      diagnostics = concat(diagnostics, checked_yes.diagnostics); if retain { evidence = concat(evidence, checked_yes.evidence); }
       if has_else {
-        checked_no: CheckedBlock = check_block(no, environment, no_facts, program, scope_types)
-        diagnostics = concat(diagnostics, checked_no.diagnostics)
+        checked_no: CheckedBlock = check_block_evidence(no, environment, no_facts, program, scope_types, retain)
+        diagnostics = concat(diagnostics, checked_no.diagnostics); if retain { evidence = concat(evidence, checked_no.evidence); }
         joined: Str = merge_types(program, checked_yes.info.name, checked_no.info.name)
         if joined == "Unknown" { yes_type: Str = checked_yes.info.name; no_type_name: Str = checked_no.info.name; diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${yes_type} and ${no_type_name}")); } else {}
         info = plain_type(joined)
@@ -1177,10 +1249,10 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
         info = plain_type("Void")
       }
     },
-    BlockExpr(block) => { checked: CheckedBlock = check_block(block, environment, facts, program, scope_types); info = checked.info; diagnostics = checked.diagnostics; },
+    BlockExpr(block) => { checked: CheckedBlock = check_block_evidence(block, environment, facts, program, scope_types, retain); info = checked.info; diagnostics = checked.diagnostics; evidence = checked.evidence; },
     MatchExpr(subject, arms) => {
-      checked_subject: CheckedExpression = check_expression_scoped(subject, environment, facts, program, scope_types)
-      diagnostics = checked_subject.diagnostics
+      checked_subject: CheckedExpression = check_expression_evidence(subject, environment, facts, program, scope_types, retain, None())
+      diagnostics = checked_subject.diagnostics; evidence = checked_subject.evidence
       shape: TypeShape = type_shape(checked_subject.info.name)
       enum_value: EnumLookup = enum_type(program, shape.base)
       if !enum_value.found { subject_type: Str = checked_subject.info.name; diagnostics = append(diagnostics, checker_diagnostic("match requires an enum, got ${subject_type}")); }
@@ -1198,7 +1270,7 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
           if len(arm.pattern.bindings) != len(payload) { payload_count: Nat = len(payload); diagnostics = append(diagnostics, checker_diagnostic("pattern ${variant_name} expects ${payload_count} bindings")); } else {}
           mut arm_environment: Map[Str,TypeInfo] = environment; mut binding_index: Nat = 0
           for binding in arm.pattern.bindings { if binding_index < len(payload) { arm_environment = map_put(arm_environment, binding, plain_type(substitute_type(payload[binding_index], enum_value.parameters, values))); } else {}; binding_index = binding_index + 1; }
-          checked_arm: CheckedExpression = check_expression_scoped(arm.body, arm_environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked_arm.diagnostics)
+          checked_arm: CheckedExpression = check_expression_evidence(arm.body, arm_environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked_arm.diagnostics); if retain { evidence = concat(evidence, checked_arm.evidence); }
           if result == "" { result = checked_arm.info.name; } else { arm_type: Str = checked_arm.info.name; merged: Str = merge_types(program, result, arm_type); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${result} and ${arm_type}")); } else { result = merged; } }
         }
         for variant in enum_value.variants { if !set_has(visited, variant.name) { missing: Str = variant.name; diagnostics = append(diagnostics, checker_diagnostic("non-exhaustive match; missing ${missing}")); } else {} }
@@ -1206,30 +1278,35 @@ pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], i
       }
     }
   }
-  CheckedExpression(info, diagnostics)
+  CheckedExpression(info, diagnostics, evidence)
 }
 
 pure condition_facts(condition: Expr, facts: Map[Str,Bounds], truth: Bool): Map[Str,Bounds] {
+  condition_facts_evidence(condition, facts, truth, false, None())
+}
+
+pure condition_facts_evidence(condition: Expr, facts: Map[Str,Bounds], truth: Bool, retain: Bool, origin: Option[SourceSpan]): Map[Str,Bounds] {
   mut result: Map[Str,Bounds] = facts
   match condition {
-    LocatedExpr(position, value) => { result = condition_facts(value, facts, truth); },
+    LocatedExpr(position, value) => { result = condition_facts_evidence(value, facts, truth, retain, if retain { Some(position) } else { None() }); },
     BinaryExpr(operator, left, right) => {
       match unlocated_expression(left) {
         NameExpr(name) => {
           match unlocated_expression(right) {
             NatExpr(value) => {
-              bound: Bounds = if map_has(result, name) { map_get(result, name) } else { Bounds(false, 0, false, 0) }
+              bound: Bounds = if map_has(result, name) { map_get(result, name) } else { Bounds(false, 0, false, 0, None()) }
               mut next: Bounds = bound
-              if (operator == ">" && truth) || (operator == "<=" && !truth) { next = Bounds(true, value + 1, bound.has_upper, bound.upper); } else {}
-              if (operator == ">=" && truth) || (operator == "<" && !truth) { next = Bounds(true, value, bound.has_upper, bound.upper); } else {}
-              if operator == "<=" && truth { next = Bounds(bound.has_lower, bound.lower, true, value); } else {}
-              if operator == ">" && !truth { next = Bounds(bound.has_lower, bound.lower, true, value); } else {}
+              reason: Option[GuardOrigin] = if retain { Some(GuardOrigin(origin, truth)) } else { None() }
+              if (operator == ">" && truth) || (operator == "<=" && !truth) { next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason); } else {}
+              if (operator == ">=" && truth) || (operator == "<" && !truth) { next = Bounds(true, value, bound.has_upper, bound.upper, reason); } else {}
+              if operator == "<=" && truth { next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin); } else {}
+              if operator == ">" && !truth { next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin); } else {}
               if (operator == "<" && truth) || (operator == ">=" && !truth) {
-                if value > 0 { next = Bounds(bound.has_lower, bound.lower, true, value - 1); } else {}
+                if value > 0 { next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin); } else {}
               } else {}
-              if operator == "==" && truth { next = Bounds(true, value, true, value); } else {}
+              if operator == "==" && truth { next = Bounds(true, value, true, value, reason); } else {}
               if operator == "==" && !truth && value == 0 {
-                next = Bounds(true, 1, bound.has_upper, bound.upper)
+                next = Bounds(true, 1, bound.has_upper, bound.upper, reason)
               } else {}
               result = map_put(result, name, next)
             },
@@ -1273,16 +1350,25 @@ pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
   TypeInfo(name, value.has_nat && !mutable, value.nat_value, mutable)
 }
 
-pure check_block(block: Block, parent: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedBlock {
+pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedBlock {
+  check_block_evidence(block, parent, facts, program, scope_types, false)
+}
+
+pure check_program_types(program: Program): [Diagnostic] {
+  check_program_evidence(program, false).diagnostics
+}
+
+pure check_block_evidence(block: Block, parent: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str], retain: Bool): CheckedBlock {
   mut facts: Map[Str,Bounds] = incoming_facts
   mut environment: Map[Str,TypeInfo] = parent
   mut diagnostics: [Diagnostic] = []
+  mut evidence: [SubtractionEvidence] = []
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
         facts = facts_after_expression(value, facts)
-        checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types)
-        diagnostics = concat(diagnostics, checked.diagnostics)
+        checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None())
+        diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
         mut binding_type: Str = type_name
         if len(type_name) == 0 {
           binding_type = checked.info.name
@@ -1295,37 +1381,38 @@ pure check_block(block: Block, parent: Map[Str,TypeInfo], incoming_facts: Map[St
       },
       AssignmentStatement(name, value) => {
         facts = facts_after_expression(value, facts)
-        target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics)
+        target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
         if !map_has(environment, name) {
           diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
           environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
         }
         else { if !target.mutable { diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign to immutable local ${name}")); } else { if !assignable_checked(program, checked.info, target.name, value, facts) { value_type: Str = checked.info.name; target_type: Str = target.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${target_type}")); } else {} } }
       },
-      ExpressionStatement(value) => { checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics); },
+      ExpressionStatement(value) => { checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }; },
       WhileStatement(condition, body) => {
         // A later iteration must not reuse pre-loop facts for written locals.
         // The condition can then establish fresh bounds on every iteration.
         facts = facts_after_statement(statement, facts)
-        checked: CheckedExpression = check_expression_scoped(condition, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics)
+        checked: CheckedExpression = check_expression_evidence(condition, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
         if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic_for(condition, "while condition must be Bool")); } else {}
-        body_facts: Map[Str,Bounds] = condition_facts(condition, facts, true); checked_body: CheckedBlock = check_block(body, environment, body_facts, program, scope_types); diagnostics = concat(diagnostics, checked_body.diagnostics)
+        body_facts: Map[Str,Bounds] = condition_facts_evidence(condition, facts, true, retain, None()); checked_body: CheckedBlock = check_block_evidence(body, environment, body_facts, program, scope_types, retain); diagnostics = concat(diagnostics, checked_body.diagnostics); if retain { evidence = concat(evidence, checked_body.evidence); }
       },
       ForStatement(name, iterable, body) => {
         facts = facts_after_statement(statement, facts)
-        checked: CheckedExpression = check_expression_scoped(iterable, environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked.diagnostics); shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
+        checked: CheckedExpression = check_expression_evidence(iterable, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }; shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
         if checked.info.name == "Range" || checked.info.name == "Bytes" { item = "Nat"; } else { if shape.base == "Array" && len(shape.arguments) == 1 { item = shape.arguments[0]; } else { iterable_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(iterable, "for requires a Range or array, got ${iterable_type}")); } }
-        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block(body, loop_environment, facts, program, scope_types); diagnostics = concat(diagnostics, checked_body.diagnostics)
+        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block_evidence(body, loop_environment, facts, program, scope_types, retain); diagnostics = concat(diagnostics, checked_body.diagnostics); if retain { evidence = concat(evidence, checked_body.evidence); }
       }
     }
     facts = facts_after_statement(statement, facts)
   }
   mut info: TypeInfo = plain_type("Void")
-  match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression_scoped(value, environment, facts, program, scope_types); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); } }
-  CheckedBlock(info, diagnostics)
+  match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None()); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }; } }
+  CheckedBlock(info, diagnostics, evidence)
 }
 
-pure check_program_types(program: Program): [Diagnostic] {
+pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
+  mut evidence: [SubtractionEvidence] = []
   mut diagnostics: [Diagnostic] = resolve_program(program)
   if len(diagnostics) == 0 {
     mut has_main: Bool = false
@@ -1333,7 +1420,7 @@ pure check_program_types(program: Program): [Diagnostic] {
       match declaration {
         TypeDeclaration(name, base, guard) => {
           if !is_scalar_base(base) || base == "Rat" || base == "Unit" { diagnostics = append(diagnostics, checker_diagnostic("guarded type base must be a scalar, got ${base}")); } else {}
-          environment: Map[Str,TypeInfo] = map_put(map(), "value", plain_type(base)); facts: Map[Str,Bounds] = map(); checked: CheckedExpression = check_expression(guard, environment, facts, program); diagnostics = concat(diagnostics, checked.diagnostics)
+          environment: Map[Str,TypeInfo] = map_put(map(), "value", plain_type(base)); facts: Map[Str,Bounds] = map(); checked: CheckedExpression = check_expression_evidence(guard, environment, facts, program, [], false, None()); diagnostics = concat(diagnostics, checked.diagnostics)
           if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("type guard must produce Bool")); } else {}
         },
         RecordDeclaration(name, parameters, fields) => {
@@ -1363,7 +1450,7 @@ pure check_program_types(program: Program): [Diagnostic] {
           if name == "main" { has_main = true; if len(parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters")); } else {} } else {}
           environment: Map[Str,TypeInfo] = map(); mut values: Map[Str,TypeInfo] = environment
           for parameter in parameters { diagnostics = concat(diagnostics, require_type(program, parameter.type_name, type_parameters, false)); values = map_put(values, parameter.name, plain_type(parameter.type_name)); }
-          diagnostics = concat(diagnostics, require_type(program, return_type, type_parameters, true)); facts: Map[Str,Bounds] = map(); checked: CheckedBlock = check_block(body, values, facts, program, type_parameters); diagnostics = concat(diagnostics, checked.diagnostics)
+          diagnostics = concat(diagnostics, require_type(program, return_type, type_parameters, true)); facts: Map[Str,Bounds] = map(); checked: CheckedBlock = check_block_evidence(body, values, facts, program, type_parameters, retain); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, evidence_for_function(checked.evidence, name)); }
           mut return_ok: Bool = assignable(program, checked.info.name, return_type)
           guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
           if !return_ok && guarded_return.found && checked.info.has_nat && base_type(program, checked.info.name) == guarded_return.base {
@@ -1376,7 +1463,7 @@ pure check_program_types(program: Program): [Diagnostic] {
     }
     if !has_main { diagnostics = append(diagnostics, checker_diagnostic("program has no main function")); } else {}
   } else {}
-  diagnostics
+  CheckedProgram(diagnostics, evidence)
 }
 
 pure check_source_types(source: Str): Str {

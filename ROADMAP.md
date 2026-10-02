@@ -329,8 +329,10 @@ Programme tracker: [#180](https://github.com/sproates/panackelty/issues/180).
 workstreams, not an effort percentage. The initial shared investigation is
 recorded in [ARCHITECTURE.md](ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01)
 with [reproducible probes](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
-No explanation feature is delivered yet. Initial findings: bounds lose their
-origin, U2 retains expression ranges and optional instruction-source mappings, and no retained static dependency or dynamic derivation graph exists.
+The first U3 subtraction query is delivered on this change's merge; broader
+type/effect explanations remain open. U2 provides production source maps; U3
+retains subtraction decisions and guard origins. No retained static dependency
+or dynamic derivation graph exists.
 The bounded U1 experiment establishes sidecar identity/fallback evidence;
 producer authenticity, runtime retention and positive non-impact experiments
 remain open.
@@ -348,14 +350,20 @@ work is deferred and does not block this programme. Validation passes; the measu
 full check and 86s unit phase exceed the 120s/15s targets. The U2 frontend focused compiler check also exceeded its 15s target (47s).
 The instruction-source slice passed full validation in 158s; the final U2 sidecar/CLI slice passed in 163s, both above the 120s target. Keep validation-cost
 profiling under #106 as an explicit prioritisation reminder; retain all coverage.
-Paired compiler-only checks show no material slowdown on the measured workload;
+U3 final paired compiler-corpus compilation measured 21.331s before / 22.583s
+after (+5.9% in one sample); earlier paired samples were noisy. Small explanation
+median was 51.3ms; a whole-compiler query took 17.296s. These are observations, not
+a general overhead guarantee. The first U3 full run exceeded the budget at 300s (unit 281s) and caught a
+runner-smoke expected-count update; final acceptance requires the corrected
+canonical rerun. Retain #106 profiling as a priority-review candidate.
+The earlier repair compiler-only checks show no material slowdown on their measured workload;
 see the [repair measurements](tests/VALIDATION_PROFILE.md#guard-fact-repair-and-test-hardening-2026-10-01). Browser/native release adoption and
 live verification remain separately recorded in the website follow-up register.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
-| [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Investigation in progress | Explain checked types, effects and proof obligations from actual checker evidence; start with guarded subtraction. No accepted delivery yet. |
-| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Investigation in progress | Bounded U1 trap attribution established; production mapping and connections through checking/lowering remain open. No accepted workstream delivery yet. |
+| [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Investigation in progress | First guarded-subtraction query delivered on this change's merge; full types/effects/proof scope remains open. |
+| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Investigation in progress | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
 | [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
 | [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
 | [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
@@ -372,21 +380,20 @@ and performance measurements. Update these records together when delivery
 changes their claims.
 
 **Snapshot, 2026-10-02:** initial investigation #183 and correctness repair #185
-are merged. U1 was accepted through PR #208 (`de26483`), establishing the bounded
-mapping experiment and sidecar direction. PR #209 delivered frontend expression
-spans. This emission slice adds optional instruction-source associations on merge;
-the production sidecar/CLI contract and explanation features remain outstanding. All five workstreams remain open, with **0 of 5
-accepted**. This is an
-acceptance count, not a claim that no useful preparatory work has been done.
-Do not invent effort percentages; report completed criteria and remaining work.
+are merged. U1 was accepted through #208; U2 frontend spans (#209), instruction
+mappings (#214), and public sidecar/lookup (#218, `cbae41b`) are accepted. This
+change delivers U3's first working guarded-subtraction explanation on merge.
+It does not complete #134's full scope. All five workstreams remain open, with
+**0 of 5 accepted**. This is an acceptance count, not an effort percentage.
+Report completed criteria and remaining work rather than invented effort weights.
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
 | U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; authenticated external producers, runtime retention and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
 | C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
 | U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
-| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Done on this final delivery merge: frontend #209, emission #214, exact local-replay sidecar and public CLI; [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
-| U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | Unstarted; guarded subtraction is the first slice, not the entire workstream | First slice medium, 1–2 PRs; full scope estimate after investigation |
+| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Accepted: frontend #209, emission #214, exact local-replay sidecar and public CLI #218 (`cbae41b`); [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
+| U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | First subtraction query Done on this change's merge; actual proof decisions, guard sources, rejected/unavailable results and CLI acceptance. Broader types/effects/proof scope remains | First slice delivered in 1 PR; remaining scope re-estimated at grooming |
 | U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
 | U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
 | U6 | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
@@ -410,22 +417,24 @@ release or live checks where its scope requires them.
 
 ### Next action and agent handover
 
-**U2 final delivery is on `feat/validated-source-map-cli`.** Frontend spans were
-accepted through #209 (`6d10c1b`) and instruction mappings through #214
-(`60010dc`). This final slice adds deterministic optional sidecars and public
-compile/lookup commands, with exact source-closure reproduction as the trust
-boundary. The delivery agent owns validation, independent review, PR and #180
-handover until explicit merge approval. U2 is Done on this delivery's merge;
-there is no release or live-site acceptance prerequisite for this core milestone.
-See [the contract](docs/SOURCE_MAPS.md) and validation evidence below.
+**U3 first query: `feat/guarded-subtraction-explanations`.** The user selected
+this bounded slice after U2 (#218) merged. It is Done on this change's merge:
+`panack explain SOURCE.panack --function NAME` reports the actual Nat subtraction
+proof decision, constants/lower bound and guard branch/source from the checker.
+It preserves checker diagnostics and explicitly distinguishes whole-project
+validity from local proof status. See the [contract](docs/COMPILER_EXPLANATIONS.md)
+and [validation evidence](tests/VALIDATION_PROFILE.md).
 
-The next proposed implementation is U3's first guarded-subtraction explanation:
-retain the checker evidence that an accepted/rejected obligation actually used,
-with source facts and explicit unknowns. Read #134 and agree that slice before
-starting. It does not close the full checker-explanation workstream. U0 runtime
-retention and positive non-impact investigation remain open, as does original
-producer authentication outside the local-replay contract. All five workstreams
-remain open; public mapping alone does not complete #173.
+The delivery agent owns tests, review, PR and #180 handover until explicit merge
+approval. There is no release/live-site acceptance prerequisite for this core
+slice. Until merged, it remains in review, not accepted. No child issue closes.
+
+After this accepted outcome the ledger reaches **3 of 3**, so the next action is
+priority grooming before another principal implementation task. Compare further
+U3 types/effects/proof explanations with U0 runtime-retention/non-impact evidence
+and existing engineering candidates. Do not automatically start the remainder of
+U3. U0 investigations and original producer authentication beyond local replay
+remain open. U2 mapping alone still does not complete #173.
 
 An agent resuming this work should:
 
@@ -462,11 +471,12 @@ Use this compact handover record in #180 for each active delivery:
 
 U1 was accepted through merged [PR #208](https://github.com/sproates/panackelty/pull/208)
 at `de26483`. U2's frontend and emitter slices did not independently add grooming
-outcomes. The final validated-sidecar delivery completes U2 on merge and advances
-the ledger to 2 of 3. It closes neither #173 nor #180. Existing #182 release/site
+outcomes. The final validated-sidecar delivery #218 completed U2 and advanced
+the ledger to 2 of 3. This U3 first-query outcome advances it to 3 of 3 on merge;
+priority grooming is then due. It closes neither #173 nor #180. Existing #182 release/site
 correctness work and programme demonstrations remain separate.
 
-### Source-to-bytecode mapping foundation: U1 done; U2 done on final merge
+### Source-to-bytecode mapping foundation: U1 and U2 done
 
 U2 connects retained expression ranges to actual emitted instructions and
 provides validated local lookup with deterministic optional sidecars. It
@@ -683,12 +693,11 @@ an outcome. Review again after three accepted outcomes or earlier if new evidenc
 changes priorities. This records direction and handover requirements; it neither
 accepts a compiler milestone nor authorises future PR merges.
 
-Current ledger before the U2 final delivery merges: **1 of 3 accepted outcomes**
-since the 2026-10-02 baseline (U1). On this delivery's merge it becomes **2 of 3**:
-U1 feasibility and U2 production mapping. Frontend/emitter slices are included in
-U2, not counted separately. Neither outcome closes #173 or #180 or is counted
-again at programme completion. The next mandatory review is after one further
-accepted outcome following U2, or earlier if new evidence changes priorities.
+Current ledger: **2 of 3 accepted outcomes** since the 2026-10-02 baseline:
+U1 feasibility and U2 production mapping (#218). This U3 first-query delivery
+makes it **3 of 3 on merge**. Frontend/emitter slices count within U2, not again.
+No workstream or programme closes from these bounded outcomes. **Priority
+grooming is due after this delivery is accepted**, before further principal work.
 
 ### Grooming checkpoint ledger
 
@@ -907,6 +916,13 @@ update, correctness assessment, owner, state and acceptance evidence. Use a
 linked issue for detail; retain enough information here if GitHub is unavailable.
 Never mark an update complete merely because its PR merged: verify the live site.
 
+- **U3 subtraction explanation CLI:** promotion pending; owner is the core
+  delivery agent until release/adoption handover. After a supporting native
+  release, update command examples and feature claims with the bounded
+  Nat-subtraction scope, whole-program/local-proof distinction and unavailable
+  cases. Browser support must be verified separately before advertising it.
+  Current published pins/examples remain unchanged; this change starts no site
+  work. Broader demonstrations remain in U9.
 - **Programme #180 final website refresh (U9):** promotion pending; owner is the
   agent or maintainer delivering #180 until explicitly handed over. Affected
   surfaces: homepage capabilities, learning examples and playground where supported.
@@ -2043,11 +2059,13 @@ generator, formatter or package manager is needed.
 
 Work record: [#134](https://github.com/sproates/panackelty/issues/134).
 
-Start with one query explaining an actual checker decision, such as accepted or
-rejected guarded subtraction. Acceptance requires checked facts, source
-locations, honest unknowns and agreement with positive and negative checker
-cases. Retained evidence and cost need investigation. Types and effects can
-follow within [programme #180](#compiler-and-runtime-understanding-programme).
+The first U3 query is delivered on this change's merge: `panack explain` reports
+actual accepted/unproved subtraction decisions, operand facts and guard source
+locations with explicit unavailable results. Diagnostic parity, public-CLI
+acceptance and cost are recorded in the [query contract](docs/COMPILER_EXPLANATIONS.md)
+and validation profile. Full types/effects/proof explanations remain open within
+[programme #180](#compiler-and-runtime-understanding-programme); re-estimate and
+select the next slice at the due grooming checkpoint.
 Runtime value provenance is its own linked workstream #172; new inference rules
 and automatic fixes remain outside #134.
 
@@ -2066,8 +2084,9 @@ full random-language generation and a second execution engine are outside scope.
 
 Work record: [#136](https://github.com/sproates/panackelty/issues/136).
 
-Source positions exist in the frontend, but emitted instruction/source mapping
-is missing. Build on the [planned mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
+Production source positions, instruction mappings and validated sidecar lookup
+are available through U2. Automatic runtime error integration remains open; build
+on the [mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
 for one bounded trap and call-context slice, assessing reuse with coverage
 metadata where semantics agree. This is the first source-aware debugging-support
 delivery: explain what failed, identify the source expression and show useful

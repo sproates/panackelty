@@ -1,0 +1,84 @@
+import "source_maps.panack"
+
+// Presentation consumes retained checker decisions and the exact loaded text.
+// It does not rerun proofs, parse diagnostics, or execute user code.
+pure explanation_location(origin: Option[SourceSpan], sources: Map[Str,Str], root: Str, stdlib_root: Str): Str {
+  match origin {
+    None() => "source: unavailable",
+    Some(span) => {
+      if !sources.has(span.start.file) { "source: unavailable" }
+      else {
+        source: Str = sources.get(span.start.file)
+        if span.end.offset < span.start.offset || span.end.offset > len(source) { "source: unavailable" }
+        else {
+          file: Str = source_map_escape(source_identifier(span.start.file, root, stdlib_root))
+          line: Nat = span.start.line
+          column: Nat = span.start.column
+          end_line: Nat = span.end.line
+          end_column: Nat = span.end.column
+          expression: Str = source_map_escape(slice(source, span.start.offset, span.end.offset))
+          "source: ${file}:${line}:${column}-${end_line}:${end_column}\nexpression: ${expression}"
+        }
+      }
+    }
+  }
+}
+
+pure render_subtraction_evidence(entry: SubtractionEvidence, sources: Map[Str,Str], root: Str, stdlib_root: Str): Str {
+  decision: SubtractionDecision = entry.decision
+  unavailable: Bool = decision.rule == "unsupported" || decision.rule == "invalid-operands"
+  status: Str = if unavailable { "unavailable" } else { if decision.proven { "proved" } else { "unproved" } }
+  left_type: Str = source_map_escape(entry.left.name)
+  right_type: Str = source_map_escape(entry.right.name)
+  mut output: Str = "subtraction: ${status}\n" + explanation_location(entry.span, sources, root, stdlib_root) +
+    "\noperand types: ${left_type}, ${right_type}"
+  if unavailable {
+    output = output + if decision.rule == "unsupported" {
+      "\nreason: this query only explains Nat subtraction obligations"
+    } else { "\nreason: operand checking failed; no trustworthy subtraction explanation" }
+  } else {
+    output = output + "\nobligation: left >= right"
+    if entry.left.has_nat {
+      value: Nat = entry.left.nat_value
+      output = output + "\nleft constant: ${value}"
+    }
+    if entry.right.has_nat {
+      value: Nat = entry.right.nat_value
+      output = output + "\nright constant: ${value}"
+    } else { output = output + "\nright constant: unknown" }
+    if decision.has_lower {
+      bound: Nat = decision.lower
+      output = output + "\nleft lower bound: ${bound}"
+      match decision.guard {
+        None() => { output = output + "\nguard origin: unavailable"; },
+        Some(guard) => {
+          truth: Str = if guard.truth { "true" } else { "false" }
+          output = output + "\nguard branch: ${truth}\n" + explanation_location(guard.span, sources, root, stdlib_root)
+        }
+      }
+    }
+    output = output + if decision.rule == "constants" {
+      "\nreason: retained constant values satisfy the obligation"
+    } else { if decision.rule == "lower-bound" {
+      "\nreason: retained lower bound is at least the right constant"
+    } else {
+      "\nreason: retained facts do not prove the obligation; this does not establish a runtime failure"
+    } }
+  }
+  output
+}
+
+pure render_subtraction_explanations(project: LoadedProject, name: Str, root: Str, stdlib_root: Str): Str {
+  state: Str = if len(project.diagnostics) == 0 { "accepted" } else { "rejected" }
+  function_name: Str = source_map_escape(name)
+  mut output: Str = "program: ${state}\nfunction: ${function_name}\nscope: Nat subtraction; generic definitions, not call-site specialisations"
+  mut count: Nat = 0
+  for entry in project.evidence {
+    if entry.function_name == name {
+      output = output + "\n\n" + render_subtraction_evidence(entry, project.sources, root, stdlib_root)
+      count = count + 1
+    }
+  }
+  if count == 0 { output = output + "\n\nsubtraction: unavailable\nreason: no subtraction evidence was retained for this function"; }
+  output
+}

@@ -1108,3 +1108,16 @@ are half-open Unicode code-point offsets with one-based line/column coordinates.
 Lookup does not execute source, and ordinary runtime diagnostics do not consult
 maps. The [source-map contract](docs/SOURCE_MAPS.md) defines identity, source
 closure, compatibility, I/O bounds, output safety and source disclosure.
+
+## Compiler subtraction explanations
+
+`panack explain SOURCE.panack --function NAME` performs the ordinary frontend
+checks with opt-in evidence retention and reports binary `Nat` subtraction
+obligations from the named function. It exposes existing constant/lower-bound
+proof decisions without adding proof rules or changing acceptance. A local
+proved obligation does not imply whole-program validity; unproved does not imply
+a runtime counterexample. Unsupported/invalid operands and unavailable evidence
+are explicit. Generic results describe definitions, not specialisations. No user
+code executes and no bytecode or files are emitted. See the
+[command contract](docs/COMPILER_EXPLANATIONS.md) for exit status, source bounds,
+positions and deliberate limits. Bytecode v9 and numeric semantics are unchanged.

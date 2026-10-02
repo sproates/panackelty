@@ -1135,7 +1135,7 @@ completion of the programme's realistic-program acceptance gate. Reproduction
 and observed results are in the
 [probe report](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
 
-### Existing evidence and where it is lost
+### Existing evidence and where it is lost (2026-10-01 snapshot)
 
 | Workstream | Existing implementation evidence | Missing foundation |
 | --- | --- | --- |
@@ -1425,3 +1425,29 @@ The [complete contract](docs/SOURCE_MAPS.md) records source disclosure, size
 limits, stable-tree assumptions, compatibility and partial output handling.
 The old test-only JSON/checksum sidecar and compiler adapter are removed; the
 native observer now exercises these public commands against actual VM PCs.
+
+## U3 first query: retained subtraction evidence, 2026-10-02
+
+`check_program_evidence` uses the same checker traversal and subtraction decision
+as ordinary checking. `SubtractionDecision` is the result that controls the
+underflow diagnostic; opt-in `SubtractionEvidence` stores that result, operand
+facts, function identity and the current expression span. Expression/block
+results carry child evidence through calls, collections, branches, loops and
+matches. Ordinary frontend callers request no retention.
+
+`Bounds.lower_origin` optionally records the source span and truth branch of the
+comparison that last established the lower bound. Upper-only refinements preserve
+that origin; replacement lower bounds replace it; mutation invalidation drops it
+with the bound. Evidence reflects the actual bound in use, including insufficient
+ones. It does not reconstruct a proof from surrounding syntax or diagnostic text.
+
+The loader's bounded explanation path retains checker results on type failure;
+it runs purity checking only after successful type checking, as before. Resolver
+or loading errors yield no partial fabricated proofs. `explanations.panack`
+formats retained decisions against loaded source snapshots; `driver.panack`
+selects a function with `explain`. Whole-project validity, local proof status and
+unsupported evidence remain distinct. Generic evidence describes source
+function definitions. No runtime, emitter, serialization or v9 instruction changes
+are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines
+scope and source limits; U3 types/effects and the other programme queries remain
+open. The earlier investigation tables are historical inventories.

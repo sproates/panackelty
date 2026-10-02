@@ -57,7 +57,8 @@ remain U2 work.
   exhaustive matches, joins control-flow
   result types, and proves the supported guarded assignments and safe natural
   subtraction facts. It accepts either one parsed program or an already-loaded
-  module graph.
+  module graph. The explicit query additionally retains subtraction decisions
+  and lower-bound guard origins; ordinary checking retains no evidence.
 - `purity.panack` completes the frontend by walking guarded-type predicates and
   pure function bodies, including nested blocks, branches, loops, matches, and
   call arguments. It rejects calls to impure built-ins, user functions, and
@@ -82,7 +83,10 @@ remain U2 work.
   validation, portable identifiers, bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
   [source-map contract](../../docs/SOURCE_MAPS.md).
-- `driver.panack` implements `check`, `compile`, `run`, `disasm` and `locate` for source
+- `explanations.panack` presents opt-in subtraction decisions and guard origins
+  retained by the checker, using loaded source snapshots. See the
+  [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
+- `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and `explain` for source
   and version-9 bytecode, including default output paths and primary positioned
   lexer, parser, name, and type diagnostics.
 - `main.panack` is the executable self-hosted compiler entry point.

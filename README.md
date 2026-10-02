@@ -493,6 +493,19 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
+### Explain a subtraction check
+
+```sh
+panack explain example.panack --function remaining
+```
+
+The first explanation query shows why a `Nat` subtraction is proved or unproved,
+using the checker's actual constants or guard bounds and their source locations.
+It also reports the whole program's acceptance separately. Unproved does not
+mean a runtime failure was demonstrated; unsupported explanations remain explicit.
+The command does not execute your program. See the
+[query contract and example](docs/COMPILER_EXPLANATIONS.md) for scope and limits.
+
 ### Locate an instruction in its source
 
 Compile with an optional map, then validate a function/instruction location:

@@ -2069,3 +2069,70 @@ package smoke and quick-start checks. This exceeds the existing 120 s budget;
 the #106 roadmap reminder includes the measurement. No coverage was skipped.
 The original pre-U2c seed also reproduces the final 298,386-byte compiler exactly.
 Documentation/link and diff checks pass.
+
+## U3 first subtraction explanation query, 2026-10-02
+
+Base: `cbae41b` (merged #218). Candidate branch:
+`feat/guarded-subtraction-explanations`. The query retains the actual checker
+subtraction decision and bound origin; normal checking omits evidence. The
+[contract](../docs/COMPILER_EXPLANATIONS.md) defines scope and honest unavailable
+results. This is the first U3 query, not acceptance of all #134 or #180.
+
+Focused acceptance passed: 96 self-hosted unit assertions, including expected
+proof outcomes, source origins, diagnostic parity and disabled retention; 26
+public-CLI assertions in the new functional case, which passed both from source
+and compiled bytecode. Existing checker mutation fixtures retain exact diagnostic
+parity. The canonical `make check` remains the final implementation gate; its
+final execution result and hosted gates are recorded in the delivery PR/#180.
+
+Independent review reproduced seven mutation counterexamples against the base
+seed, new ordinary checking and explanation mode; all kept the same diagnostics
+and omitted stale guard origins. Additional probes covered return-type rejection,
+shadowing, nested invalid operands and weaker replacement guards. Review found
+mixed numeric-domain operands mislabelled as unproved/unsupported, fixed using
+the ordinary compatibility predicate, and an unguarded environment read masking
+missing stdlib configuration, fixed with the loader's guarded lookup convention.
+Both gained regression tests and were independently rechecked on the refreshed
+seed. No actionable findings remained.
+
+The original base seed reproduces the final candidate byte-for-byte. Fresh
+stage-2/3/4 compilers converge at
+`5df1c9f258cd7607c5c076115ac8e025f14f0da645ed186e4d410736f84d8f56`;
+the standard-library artifact remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+The candidate compiler is 308,735 bytes versus 298,386 at base. This is compiler
+implementation size, not overhead added to user artifacts; bytecode remains v9.
+
+### Same-workload measurements
+
+Linux x86-64 development container, native VM built with `-O2`. Both seeds compile
+an isolated `cbae41b` checkout's `src/compiler/main.panack`, using the same VM and
+stdlib. The resulting baseline-program artifacts are byte-identical. Wall-clock
+samples include process startup, loading, checking, emission and writing.
+
+| Sample | Base seed | Candidate seed | Interpretation |
+| --- | --- | --- | --- |
+| Initial three alternating pairs, before review fixes | 22.669 / 21.672 / 21.106s | 22.257 / 19.795 / 20.862s | Medians 21.672 / 20.862s; limited noisy samples |
+| Final reviewed-seed pair | 21.331s | 22.583s | +5.9% in this single observation; no general zero-overhead claim |
+
+Final `explain` of the baseline compiler's `condition_facts` function took
+17.296s and emitted 445 bytes, including the guarded `value - 1` proof. This
+checks the whole compiler project before filtering presentation; it does not
+compile or execute it. A small `remaining(n)` guard fixture took
+50.7 / 50.0 / 58.8 / 51.3 / 53.0ms (median 51.3ms). No hard explanation latency or
+memory guarantee is established by these examples. The existing #106 validation
+budget concern remains; no tests were dropped or timing targets relaxed.
+
+Reproduction: preserve the base seed and source checkout; run each seed with
+`panack-vm run SEED compile BASE/src/compiler/main.panack -o OUTPUT.bc`, alternating
+order and comparing bytes. Run the final CLI's `explain` against the same entry
+with `--function condition_facts`. Use the complete example in the query contract
+for small-fixture measurements. `make regenerate-seed` independently verifies
+fresh compiler and stdlib fixed points; `make check` covers the canonical suites.
+
+The first full U3 run caught a stale runner-smoke aggregate count: adding one
+functional case adds its source/compile/bytecode assertions, so the independent
+expected total changes from 340 to 343. The case list was already updated; the
+footer is now corrected as well. That failed run took 300s (unit 281s) and did
+not complete functional/bootstrap acceptance. The final canonical rerun is
+reported separately in the delivery PR; no test was skipped or weakened.

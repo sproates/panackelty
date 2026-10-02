@@ -1,0 +1,93 @@
+import "../../src/compiler/explanations.panack"
+import stdlib/testing
+
+pure explanation_program(source: Str): Program {
+  match lex_file(source, "sample.panack") {
+    Error(errors) => Program([]),
+    Ok(tokens) => match parse_program_complete(tokens) {
+      Error(error) => Program([]), Ok(program) => program
+    }
+  }
+}
+pure evidence_summary(source: Str): Str {
+  checked: CheckedProgram = check_program_evidence(explanation_program(source), true)
+  mut output: Str = if len(checked.diagnostics) == 0 { "accepted" } else { "rejected" }
+  for entry in checked.evidence {
+    rule: Str = entry.decision.rule
+    output = output + "|" + entry.function_name + ":" + rule
+    if entry.decision.has_lower {
+      lower: Nat = entry.decision.lower
+      output = output + ":${lower}"
+    }
+    match entry.decision.guard {
+      None() => {},
+      Some(guard) => {
+        output = output + if guard.truth { ":true" } else { ":false" }
+        match guard.span {
+          None() => { output = output + ":unavailable"; },
+          Some(span) => { output = output + ":" + slice(source, span.start.offset, span.end.offset); }
+        }
+      }
+    }
+    match entry.span {
+      None() => { output = output + ":missing"; },
+      Some(span) => { output = output + ":" + slice(source, span.start.offset, span.end.offset); }
+    }
+  }
+  output
+}
+main(): Void {
+  mut results: [TestResult] = []
+  cases: [[Str]] = [
+    ["constants", "main(): Void { print(5 - 2); }", "accepted|main:constants:5 - 2"],
+    ["constant failure", "main(): Void { print(1 - 2); }", "rejected|main:insufficient:1 - 2"],
+    ["immutable constant", "main(): Void { n: Nat = 3; print(n - 2); }", "accepted|main:constants:n - 2"],
+    ["mutable literal is not constant", "main(): Void { mut n: Nat = 3; print(n - 2); }", "rejected|main:insufficient:n - 2"],
+    ["guard", "pure f(n: Nat): Nat { if n >= 2 { n - 2 } else { 0 } } main(): Void {}", "accepted|f:lower-bound:2:true:n >= 2:n - 2"],
+    ["strict guard", "pure f(n: Nat): Nat { if n > 2 { n - 3 } else { 0 } } main(): Void {}", "accepted|f:lower-bound:3:true:n > 2:n - 3"],
+    ["false branch", "pure f(n: Nat): Nat { if n < 2 { 0 } else { n - 2 } } main(): Void {}", "accepted|f:lower-bound:2:false:n < 2:n - 2"],
+    ["false non-strict", "pure f(n: Nat): Nat { if n <= 2 { 0 } else { n - 3 } } main(): Void {}", "accepted|f:lower-bound:3:false:n <= 2:n - 3"],
+    ["zero exclusion", "pure f(n: Nat): Nat { if n == 0 { 0 } else { n - 1 } } main(): Void {}", "accepted|f:lower-bound:1:false:n == 0:n - 1"],
+    ["equality", "pure f(n: Nat): Nat { if n == 2 { n - 2 } else { 0 } } main(): Void {}", "accepted|f:lower-bound:2:true:n == 2:n - 2"],
+    ["insufficient bound", "pure f(n: Nat): Nat { if n >= 2 { n - 3 } else { 0 } } main(): Void {}", "rejected|f:insufficient:2:true:n >= 2:n - 3"],
+    ["unretained relation", "pure f(n: Nat, m: Nat): Nat { if n >= m { n - m } else { 0 } } main(): Void {}", "rejected|f:insufficient:n - m"],
+    ["unretained conjunction", "pure f(n: Nat): Nat { if n >= 2 && true { n - 2 } else { 0 } } main(): Void {}", "rejected|f:insufficient:n - 2"],
+    ["upper guard keeps lower origin", "pure f(n: Nat): Nat { if n >= 2 { if n < 8 { n - 2 } else { 0 } } else { 0 } } main(): Void {}", "accepted|f:lower-bound:2:true:n >= 2:n - 2"],
+    ["replacement lower origin", "pure f(n: Nat): Nat { if n >= 2 { if n >= 3 { n - 3 } else { 0 } } else { 0 } } main(): Void {}", "accepted|f:lower-bound:3:true:n >= 3:n - 3"],
+    ["branch does not leak", "main(): Void { mut n: Nat = 3; if n >= 2 { print(n - 2); }; print(n - 2); }", "rejected|main:lower-bound:2:true:n >= 2:n - 2|main:insufficient:n - 2"],
+    ["mutation invalidates origin", "main(): Void { mut n: Nat = 3; if n >= 2 { n = 0; print(n - 2); } }", "rejected|main:insufficient:n - 2"],
+    ["refreshed origin", "main(): Void { mut n: Nat = 3; if n >= 2 { n = 4; if n > 2 { print(n - 3); } } }", "accepted|main:lower-bound:3:true:n > 2:n - 3"],
+    ["while refresh", "main(): Void { mut n: Nat = 3; while n > 0 { n = n - 1; } }", "accepted|main:lower-bound:1:true:n > 0:n - 1"],
+    ["loop carried invalidation", "main(): Void { mut n: Nat = 3; if n > 0 { for i in 0..2 { print(n - 1); n = 0; } } }", "rejected|main:insufficient:n - 1"],
+    ["unsupported Int", "pure f(n: Int): Int { n - 1 } main(): Void {}", "accepted|f:unsupported:n - 1"],
+    ["invalid operands", "main(): Void { print(true - 1); }", "rejected|main:invalid-operands:true - 1"],
+    ["mixed Nat Dec", "main(): Void { print(3 - 1.0); }", "rejected|main:invalid-operands:3 - 1.0"],
+    ["mixed Dec Nat", "main(): Void { print(3.0 - 1); }", "rejected|main:invalid-operands:3.0 - 1"],
+    ["invalid non-Nat", "main(): Void { print(true - (-1)); }", "rejected|main:invalid-operands:true - (-1)"],
+    ["generic definition", "pure f[T](item: T, n: Nat): Nat { if n > 0 { n - 1 } else { 0 } } main(): Void { print(f[Str](\"x\", 3)); }", "accepted|f:lower-bound:1:true:n > 0:n - 1"],
+    ["generic numeric unsupported", "pure f[T](n: T): T { n - 1 } main(): Void {}", "rejected|f:invalid-operands:n - 1"],
+    ["nested array and index", "main(): Void { print([5 - 2][1 - 1]); }", "accepted|main:constants:5 - 2|main:constants:1 - 1"],
+    ["nested binary", "main(): Void { print((5 - 2) - 1); }", "rejected|main:constants:(5 - 2)|main:insufficient:(5 - 2) - 1"]
+  ]
+  for item in cases {
+    source: Str = item[1]
+    program: Program = explanation_program(source)
+    results = append(results, test_equal_str(item[0], evidence_summary(source), item[2]))
+    results = append(results, test_expect(item[0] + " diagnostic parity",
+      check_program_evidence(program, true).diagnostics == check_program_types(program), "retention changed diagnostics"))
+    results = append(results, test_equal_nat(item[0] + " ordinary retention off", len(check_program_evidence(program, false).evidence), 0))
+  }
+  // Existing adversarial mutation corpus must preserve every diagnostic exactly.
+  for fixture in ["fact_mutation_direct", "fact_mutation_arguments", "fact_mutation_operand", "fact_mutation_nested", "fact_mutation_while_condition", "fact_mutation_for_carried", "fact_mutation_while_carried"] {
+    source: Str = read_file("tests/functional/failures/" + fixture + "/main.panack")
+    program: Program = explanation_program(source)
+    results = append(results, test_expect(fixture + " parity", check_program_evidence(program, true).diagnostics == check_program_types(program), "retention changed rejection"))
+  }
+  unlocated: CheckedExpression = check_expression_evidence(BinaryExpr("-", NatExpr(2), NatExpr(1)), map(), map(), Program([]), [], true, None())
+  results = append(results, test_equal_nat("unlocated evidence count", len(unlocated.evidence), 1))
+  if len(unlocated.evidence) == 1 {
+    results = append(results, test_expect("unlocated evidence is not guessed", unlocated.evidence[0].span == None() &&
+      unlocated.evidence[0].decision.rule == "constants", "incorrect source or proof"))
+  }
+  if test_report(results) > 0 { process_exit(1); }
+}

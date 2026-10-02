@@ -130,11 +130,11 @@ automatic refresh acceptance have been met. No further trial or monitoring is
 scheduled. Revisit on user request, a publication correctness failure, or report
 staleness becoming a practical problem.
 
-Programme #180 is no longer blocked by #187. The accepted website outcome is
-the third deliverable since the review baseline, so the priority review is now
-due before the next principal implementation. The previously selected compiler
-and runtime understanding programme remains the return candidate, not a new
-implementation started by this deferral decision.
+Programme #180 is no longer blocked by #187. The accepted website outcome was
+the third deliverable since the previous review baseline. The proposed
+[2026-10-02 priority review](#programme-priority-review-2026-10-02) records the
+return to compiler work, effective when its documentation PR is approved and
+merged. The deferral itself did not start compiler implementation.
 
 The following history records the earlier scope, measurements and acceptance
 requirements; its active-priority and ledger statements are historical and are
@@ -314,7 +314,7 @@ change is preselected. Compiler changes, automatic release promotion and the
 website repository migration are outside this item; website correctness remains
 mandatory. Detailed implementation evidence belongs in #187.
 
-### Return candidate after priority review: compiler and runtime understanding programme
+### Compiler and runtime understanding programme: delivery and resumption
 
 **In progress:** the user authorised starting all five workstreams as one
 coordinated programme on 2026-10-01; #163 live acceptance is now verified. This
@@ -335,15 +335,16 @@ mapping, and no retained static dependency or dynamic derivation graph exists.
 Shared investigation remains open for sidecar integrity, runtime retention and
 positive non-impact experiments.
 
-**Correctness prerequisite #182: implemented in this delivery branch; accepted
-on merge after required checks pass.** The checker invalidates bounds across
+**Correctness prerequisite #182: accepted and closed.** PR #185 merged as
+`81ba7b1`; its checker and public-CLI regression evidence is recorded in #180. The checker invalidates bounds across
 direct/nested writes, expression children and loop iterations, retaining fresh
 guards and unrelated facts. The public v9 seed is refreshed. Regression coverage
 includes 20 formerly accepted unsafe cases, three positive fixtures, a 48-case
 semantic matrix with actual VM execution, and public
 CLI failure/success fixtures. The VM's runtime protection is unchanged. This
 finishes the bounded core repair, not #134 or programme #180. The next programme
-feature is source attribution and retained checker evidence, after planned #187. Validation passes; the measured 139s
+feature is source attribution and retained checker evidence. Remaining #187
+work is deferred and does not block this programme. Validation passes; the measured 139s
 full check and 86s unit phase exceed the 120s/15s targets. Keep validation-cost
 profiling under #106 as an explicit prioritisation reminder; retain all coverage.
 Paired compiler-only checks show no material slowdown on the measured workload;
@@ -358,26 +359,99 @@ live verification remain separately recorded in the website follow-up register.
 | [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
 | [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
 
-Programme milestones:
+### Programme delivery register
 
-- [ ] Investigate all five together: inventory existing evidence, source mapping,
-  constraints and dependency information; distinguish runtime tracing needs.
-  Produce experiments, justified shared/separate design decisions, dependencies,
-  acceptance boundaries and revised delivery estimates.
-- [ ] Complete the [source-to-bytecode mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
-  after the #182 correctness repair: prove a bounded runtime-trap mapping and
-  agree the metadata contract before expanding its consumers.
-- [ ] Deliver the first #134 explanation with source locations, checked facts,
-  assumptions, honest unknowns and positive/negative/imported/generic tests.
-  Assess evidence reuse for #173/#174/#175 without requiring a universal framework.
-- [ ] Deliver the remaining agreed scope across all five workstreams in the
-  sequence justified by investigation, including runtime provenance's distinct
-  overhead, retention and sensitive-data requirements.
-- [ ] Complete integration, documentation, performance and release acceptance.
-- [ ] Publish and verify version-correct website demonstrations through deliberate
-  release adoption; see the [follow-up register](#website-follow-up-register).
+This register is the implementation plan for #180. It gives an agent enough
+context to resume without the originating conversation. ROADMAP.md owns scope,
+priority, milestone state and the next action. Issue #180 links PRs and detailed
+findings; the five child issues retain their full acceptance criteria.
+ARCHITECTURE.md records accepted design decisions, tests/COVERAGE.md records
+behavioural evidence, and tests/VALIDATION_PROFILE.md records reproducible probes
+and performance measurements. Update these records together when delivery
+changes their claims.
 
-- [ ] Pass the programme acceptance gate below on realistic programs.
+**Snapshot, 2026-10-02:** initial investigation #183 and correctness repair #185
+are merged. There is no source-mapping implementation or delivered explanation
+feature. All five workstreams remain open, with **0 of 5 accepted**. This is an
+acceptance count, not a claim that no useful preparatory work has been done.
+Do not invent effort percentages; report completed criteria and remaining work.
+
+| ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
+| --- | --- | --- | --- | --- |
+| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; sidecar integrity, runtime retention and positive non-impact evidence remain | Remaining investigation estimate to be refined during U1 |
+| C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
+| U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Planned; the next bounded implementation task | Small–medium; 1 feasibility PR |
+| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Unstarted; scope must be agreed from U1 evidence | Estimate after U1 |
+| U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | Unstarted; guarded subtraction is the first slice, not the entire workstream | First slice medium, 1–2 PRs; full scope estimate after investigation |
+| U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
+| U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
+| U6 | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
+| U7 | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Unstarted; investigate retention early rather than leaving it until final integration | Estimate after runtime experiment |
+| U8 | Pass the realistic-program gate below across all five workstreams, complete release/docs acceptance, deliberately adopt releases on the website and verify live demonstrations | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
+
+U0 continues alongside the bounded U1 investigation. This is one coordinated
+programme with independently testable deliveries. It does not require every
+workstream to use one data structure or wait for a universal framework. The
+order after U1 is provisional: revise dependencies and estimates from evidence,
+recording the reason in this register and #180. No milestone silently narrows a
+child issue's scope. Runtime explanations remain a separate engineering concern
+where retention and execution cost differ from static evidence.
+
+Each milestone moves through Planned, In progress, In review, Verification
+pending and Accepted. A blocked milestone records the blocker and next action;
+other genuinely independent work may be proposed. A merged experiment does not
+close a workstream. Acceptance requires linked tests and review evidence, and
+release or live checks where its scope requires them.
+
+### Next action and agent handover
+
+**Next task: U1, the bounded source-mapping experiment described below.** First
+choose a reproducible runtime trap and independently specified expected source
+ranges for local, imported and generic programs. Establish the current behaviour,
+compare deterministic sidecar metadata with a versioned bytecode extension, and
+record the smallest experiment that can decide between them. Keep ordinary
+execution and the bootstrap fixed point unchanged. Record unknown attribution
+explicitly. Do not start a full debugger, coverage reporter or all five features
+in the same PR.
+
+An agent resuming this work should:
+
+1. Read local and repository instructions, this programme section, #180, the
+   relevant child issue and the linked investigation/acceptance evidence.
+2. Check the actual checkout, current main, open PRs and worktrees. A different
+   chat may have advanced the programme. Preserve unrelated work and never infer
+   progress from this conversation or a stale branch.
+3. Reconcile the register with merged evidence. Check the priority-review ledger
+   and any unresolved release correctness obligation. If a milestone already has
+   an owner or active PR, continue that delivery or agree a separate bounded
+   scope rather than duplicating it.
+4. Record the selected milestone, branch/PR, responsible agent or maintainer,
+   acceptance cases, dependencies and next concrete action in #180. The agent
+   doing the work owns validation, documentation and post-merge handover until
+   explicitly handed over. Do not record personal identity details.
+5. Deliver through a dedicated branch and PR, with unit/public-CLI regressions
+   as appropriate and canonical validation under the repository instructions.
+   Obtain independent review for compiler correctness and counterexamples before
+   milestone acceptance. Reviewer findings and their resolution belong in the
+   evidence record. A review does not replace tests or explicit merge approval.
+6. Before stopping or handing over, update the milestone state here and the
+   detailed record in #180. Name the exact remaining action, including any
+   required approval or post-merge check. Keep failing probes and limitations.
+
+Use this compact handover record in #180 for each active delivery:
+
+- Milestone and child issue; state; responsible agent/maintainer.
+- Branch, PR, tested commit and merged commit if applicable.
+- Accepted criteria and linked commands/results; independent review and findings.
+- Decisions, unresolved questions, blockers and remaining acceptance.
+- Next concrete action, with enough context for another agent to execute it.
+- Website/release impact, including explicit no-impact reasoning where applicable.
+
+No implementation branch or agent assignment is claimed by this planning update.
+Until U1 begins, the next owner is the agent explicitly taking up U1. On acceptance,
+update both the milestone register and the workstream table; count independently
+accepted outcomes once in the grooming ledger. Preserve the existing website
+correctness follow-up for #182 and the later programme demonstration register.
 
 ### Source-to-bytecode mapping foundation — planned shared milestone
 
@@ -521,17 +595,42 @@ support, runnable demonstrations, resource baselines and a bounded independent
 contract exercise. These are candidates for assessment, not blanket feature
 authorisation. The user selected modular validation and component boundaries
 under #106; its bounded validation slice is now complete as recorded below.
-Programme #180 remains the previously selected return candidate. Remaining #187
-work is deferred by the 2026-10-02 decision above; the due priority review precedes
-the next substantial feature. Other candidates remain unscheduled.
+Programme #180 is the proposed return priority in the review below. Remaining
+#187 work stays deferred. Other candidates remain unscheduled; this planning
+change starts no compiler implementation.
 
 The sections below retain earlier decisions and completion evidence. Current
 candidate state and the agreed next task are recorded in the grooming table;
 historical recommendations do not create competing implementation queues.
 
+### Programme priority review, 2026-10-02
+
+**Proposed decision, effective on approval and merge of this documentation:**
+resume #180 with U1 and maintain the resumable programme register requested by
+the user. Remaining #187 performance/scheduling work stays deferred: the delivered
+website and independent report were accepted, so it no longer blocks compiler
+work. Publishing the #182 corrective compiler/browser release remains a separate
+correctness follow-up; revisit its urgency if current live claims or examples
+are shown to be wrong. Other newly recorded language/tooling/performance ideas
+remain candidates rather than silently expanding this programme.
+
+This review considers the three accepted outcomes in the previous ledger below:
+#163 playground layout, #182 guard-fact repair, and the accepted #187 website/
+independent-coverage delivery. Source mapping is proposed first because it enables
+trustworthy explanations and runtime locations; the next slice has a bounded
+experiment and explicit failure cases. Further CI tuning is deferred by the user,
+while a corrective release needs coordinated release/adoption work. Preserve its
+recorded obligation without treating it as an explanation feature.
+
+The new baseline takes effect on this planning PR's merge: **0 of 3 accepted
+outcomes since this review**. The documentation and review do not themselves add
+an outcome. Review again after three accepted outcomes or earlier if new evidence
+changes priorities. This records direction and handover requirements; it neither
+accepts a compiler milestone nor authorises future PR merges.
+
 ### Grooming checkpoint ledger
 
-Baseline: the 2026-10-01 review, agreed with the user: fix #163 first, then
+Previous baseline and completion history (superseded by the review above on merge): the 2026-10-01 review, agreed with the user: fix #163 first, then
 the compiler and runtime understanding programme #180, expanded from #134
 on 2026-10-01. This supersedes the 2026-09-30 review in
 [PR #143](https://github.com/sproates/panackelty/pull/143).
@@ -545,14 +644,15 @@ The review considered these three completed outcomes once each:
 3. Author-local website previews under #160, delivered through #161 and #171,
    including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
 
-Accepted deliverables since the new baseline: **3 of 3; priority review due**.
+Accepted deliverables since that previous baseline: **3 of 3**, considered by
+the 2026-10-02 review above.
 
 1. Playground layout #163: accepted preview, published browser v0.1.1, merged
    core pin and independently verified live assets/provenance. See the
    [completion record](#completed-playground-footer-layout).
 
 2. Guard-fact correctness repair #182 within #180: core invalidation, regression
-   coverage and refreshed v9 compiler seed, effective on this delivery's merge.
+   coverage and refreshed v9 compiler seed, delivered in merged PR #185.
    Website release adoption remains separate and is not counted again as this repair.
 
 3. Website CI and independent coverage delivery #187: user accepted the delivered

@@ -684,3 +684,19 @@ lookup output, stale closure, corrupt maps and alias-safe output failures.
 They need no Python or Node interpreter. The additional native observer suite
 constructs binary forgeries and checks actual runtime PCs; its decoder is only
 an adversarial test helper, never a production lookup implementation.
+
+### U3 subtraction explanation acceptance
+
+`tests/runner/compiler_explanations_unit.panack` checks independently expected
+constant/guard proof rules, false and nested branches, guard-origin replacement,
+mutation invalidation/refresh, loop-carried bounds, unsupported domains and
+generic definitions. It compares diagnostic arrays with ordinary checking and
+verifies ordinary checking retains no evidence. It runs in `make unit` and
+`make check-compiler`.
+
+The `cli_explanations` functional case runs complete projects through `./panack`,
+asserting imported generic source locations, accepted/rejected/unavailable
+results, ordinary source/bytecode behavior, absence of execution, whole-program
+purity failure, parser/resolver failures and argument errors. The canonical
+functional runner executes the case from source and compiled bytecode; its
+runner-smoke expectations include it. Full acceptance remains `make check`.

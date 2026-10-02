@@ -1,0 +1,27 @@
+PASS imported generic proof
+PASS query does not execute main
+PASS unknown function
+PASS ordinary source executes
+PASS ordinary compile
+PASS ordinary bytecode executes
+PASS stale guard is not cited
+PASS fresh guard is cited
+PASS false branch proof
+PASS constant proof
+PASS unsupported relationship remains unproved
+PASS Int explanation unavailable
+PASS invalid operand explanation unavailable
+PASS incompatible numeric operands
+PASS incompatible numeric operands
+PASS incompatible numeric operands
+PASS local proof does not accept impure program
+PASS resolver failure has no fabricated proof
+PASS syntax failure has no fabricated proof
+PASS missing source
+PASS invalid explain arguments
+PASS invalid explain arguments
+PASS invalid explain arguments
+PASS invalid explain arguments
+PASS invalid explain arguments
+PASS missing embedded stdlib configuration
+tests: 26, failures: 0

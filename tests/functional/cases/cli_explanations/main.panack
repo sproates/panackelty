@@ -1,0 +1,104 @@
+import stdlib/result
+import stdlib/testing_files
+import stdlib/testing_commands
+
+pure explain_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+pure explain_contains(text: Str, part: Str): Bool {
+  mut found: Bool = false
+  for offset in 0..len(text) { if starts_with_at(text, part, offset) { found = true; } }
+  found
+}
+explain_write(path: Str, text: Str): Void {
+  match fs_write(explain_path(path), utf8_encode(text)) {
+    Ok(done) => {}, Error(error) => { eprint("fixture write failed"); process_exit(1); }
+  }
+}
+explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden: [Str], diagnostic: Str): TestResult {
+  match process_run(explain_path("./panack"), arguments, bytes(), path_current(), [], duration_seconds(15), 1048576) {
+    Error(error) => test_expect(name, false, "command failed"),
+    Ok(actual) => {
+      text: Str = utf8_decode(actual.stdout)
+      mut valid: Bool = actual.exit_code == status && actual.signal == 0
+      for part in required { if !explain_contains(text, part) { valid = false; } }
+      for part in forbidden { if explain_contains(text, part) { valid = false; } }
+      valid = valid && if diagnostic == "" { actual.stderr == bytes() } else { explain_contains(utf8_decode(actual.stderr), diagnostic) }
+      test_expect(name, valid, text + "; " + utf8_decode(actual.stderr))
+    }
+  }
+}
+main(): Void {
+  match test_workspace_create(explain_path("/tmp")) {
+    Error(error) => { eprint("workspace failed"); process_exit(1); },
+    Ok(workspace) => {
+      root: Str = result_value_or(path_to_text(workspace.root), "")
+      source: Str = root + "/main.panack"
+      library: Str = root + "/library.panack"
+      artifact: Str = root + "/main.bc"
+      mut results: [TestResult] = []
+      original: Str = "import \"library.panack\"\nmain(): Void { print(remaining[Str](\"x\", 5)); print(remaining[Nat](7, 4)); }\n"
+      explain_write(source, original)
+      explain_write(library, "// λ🙂\npure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
+      results = append(results, explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
+        ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
+      results = append(results, explain_run("query does not execute main", ["explain", source, "--function", "main"], 0,
+        ["subtraction: unavailable", "no subtraction evidence"], ["\n3\n", "\n2\n"], ""))
+      results = append(results, explain_run("unknown function", ["explain", source, "--function", "absent"], 1, [], [], "unknown function absent"))
+      results = append(results, explain_run("ordinary source executes", [source], 0, ["3\n2\n"], ["program:"], ""))
+      results = append(results, explain_run("ordinary compile", ["compile", source, "-o", artifact], 0, ["wrote "], [], ""))
+      results = append(results, explain_run("ordinary bytecode executes", [artifact], 0, ["3\n2\n"], ["program:"], ""))
+      explain_write(source, "main(): Void { mut n: Nat = 3; if n >= 2 { n = 0; print(n - 2); } }")
+      results = append(results, explain_run("stale guard is not cited", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unproved", "does not establish a runtime failure"], ["left lower bound", "guard branch"], "Nat subtraction may underflow"))
+      explain_write(source, "main(): Void { mut n: Nat = 3; if n >= 2 { n = 4; if n > 2 { print(n - 3); } } }")
+      results = append(results, explain_run("fresh guard is cited", ["explain", source, "--function", "main"], 0,
+        ["subtraction: proved", "left lower bound: 3", "expression: n > 2"], ["expression: n >= 2"], ""))
+      explain_write(source, "pure f(n: Nat): Nat { if n < 2 { 0 } else { n - 2 } } main(): Void {}")
+      results = append(results, explain_run("false branch proof", ["explain", source, "--function", "f"], 0,
+        ["subtraction: proved", "guard branch: false", "expression: n < 2"], [], ""))
+      explain_write(source, "main(): Void { print(5 - 2); }")
+      results = append(results, explain_run("constant proof", ["explain", source, "--function", "main"], 0,
+        ["subtraction: proved", "left constant: 5", "right constant: 2", "retained constant values"], ["guard branch"], ""))
+      explain_write(source, "pure f(n: Nat, m: Nat): Nat { if n >= m { n - m } else { 0 } } main(): Void {}")
+      results = append(results, explain_run("unsupported relationship remains unproved", ["explain", source, "--function", "f"], 1,
+        ["subtraction: unproved", "right constant: unknown"], ["guard branch"], "Nat subtraction may underflow"))
+      explain_write(source, "main(): Void { n: Int = 3; print(n - 1); }")
+      results = append(results, explain_run("Int explanation unavailable", ["explain", source, "--function", "main"], 0,
+        ["program: accepted", "subtraction: unavailable", "only explains Nat"], ["subtraction: proved"], ""))
+      explain_write(source, "main(): Void { print(true - 1); }")
+      results = append(results, explain_run("invalid operand explanation unavailable", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable", "operand checking failed"], ["subtraction: proved"], "does not accept Bool and Nat"))
+      for expression in ["3 - 1.0", "3.0 - 1", "true - (-1)"] {
+        explain_write(source, "main(): Void { print(" + expression + "); }")
+        results = append(results, explain_run("incompatible numeric operands", ["explain", source, "--function", "main"], 1,
+          ["program: rejected", "subtraction: unavailable", "operand checking failed"], ["subtraction: unproved", "obligation: left >= right"], "does not accept"))
+      }
+      explain_write(source, "pure f(): Nat { print(1); 5 - 2 } main(): Void {}")
+      results = append(results, explain_run("local proof does not accept impure program", ["explain", source, "--function", "f"], 1,
+        ["program: rejected", "subtraction: proved"], ["program: accepted"], "pure"))
+      explain_write(source, "main(): Void { print(5 - 2); print(unknown); }")
+      results = append(results, explain_run("resolver failure has no fabricated proof", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable"], ["subtraction: proved"], "unknown"))
+      explain_write(source, "main(): Void { ??? }")
+      results = append(results, explain_run("syntax failure has no fabricated proof", ["explain", source, "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable"], ["subtraction: proved"], "error:"))
+      results = append(results, explain_run("missing source", ["explain", root + "/missing.panack", "--function", "main"], 1,
+        ["program: rejected", "subtraction: unavailable"], ["subtraction: proved"], "missing source module"))
+      for args in [["explain"], ["explain", artifact, "--function", "main"], ["explain", source, "--function", ""],
+          ["explain", source, "--other", "main"], ["explain", source, "--function", "main", "extra"]] {
+        results = append(results, explain_run("invalid explain arguments", args, 1, [], ["program:"], "explain usage"))
+      }
+      match process_run(explain_path("/usr/bin/env"), ["-u", "PANACKELTY_STDLIB_PATH", "./panack-vm", "run",
+          "bootstrap/compiler-v9.bc", "explain", source, "--function", "main"], bytes(), path_current(), [], duration_seconds(15), 1048576) {
+        Error(error) => { results = append(results, test_expect("missing embedded stdlib configuration", false, "command failed")); },
+        Ok(actual) => { results = append(results, test_expect("missing embedded stdlib configuration",
+          actual.exit_code == 1 && actual.signal == 0 && explain_contains(utf8_decode(actual.stderr), "standard library root is not configured") &&
+          !explain_contains(utf8_decode(actual.stderr), "VM trap"), utf8_decode(actual.stderr))); }
+      }
+      for file in [source, library, artifact] {
+        match fs_remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("cleanup", false, error.code)); } }
+      }
+      match test_workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("workspace cleanup", false, error.code)); } }
+      if test_report(results) > 0 { process_exit(1); }
+    }
+  }
+}

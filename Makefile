@@ -79,6 +79,7 @@ check-compiler-impl:
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \
+		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
@@ -140,6 +141,7 @@ unit-compiler: native
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \
+		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
 

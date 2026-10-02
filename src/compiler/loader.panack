@@ -13,7 +13,8 @@ record LoadedProject {
   program: Program,
   diagnostics: [Diagnostic],
   sources: Map[Str,Str],
-  source_paths: [Str]
+  source_paths: [Str],
+  evidence: [SubtractionEvidence]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -215,14 +216,18 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
 }
 
 load_project(entry: Str): LoadedProject {
-  load_project_mode(entry, false)
+  load_project_mode(entry, false, false)
 }
 
 load_project_for_source_map(entry: Str): LoadedProject {
-  load_project_mode(entry, true)
+  load_project_mode(entry, true, false)
 }
 
-load_project_mode(entry: Str, bounded: Bool): LoadedProject {
+load_project_explained(entry: Str): LoadedProject {
+  load_project_mode(entry, true, true)
+}
+
+load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
   resolved: Str = path_resolve(entry)
   project_root: Str = path_parent(resolved)
   stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
@@ -247,8 +252,12 @@ load_project_mode(entry: Str, bounded: Bool): LoadedProject {
   if len(diagnostics) == 0 {
     diagnostics = concat(diagnostics, resolve_program(program))
   } else {}
+  mut evidence: [SubtractionEvidence] = []
   if len(diagnostics) == 0 {
-    diagnostics = concat(diagnostics, check_program_frontend(program))
-  } else {}
-  LoadedProject(program, diagnostics, loaded.sources, loaded.source_paths)
+    checked: CheckedProgram = check_program_evidence(program, retain)
+    diagnostics = checked.diagnostics
+    evidence = checked.evidence
+    if len(diagnostics) == 0 { diagnostics = check_program_purity(program); }
+  }
+  LoadedProject(program, diagnostics, loaded.sources, loaded.source_paths, evidence)
 }

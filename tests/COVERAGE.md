@@ -677,3 +677,17 @@ span/emitter/control-flow tests. Native-PC and coherent binary-forgery checks us
 the separate observer suite above. Hostile concurrent output-directory mutation,
 source-free verification and authenticated original producers are outside the
 [explicit contract](../docs/SOURCE_MAPS.md).
+
+## U3 first subtraction explanation query
+
+The checker explanation unit suite covers constant and lower-bound decisions,
+true/false branch source origins, nested refinements, mutation invalidation and
+fresh guards, while/for facts, unsupported operands and generic definitions.
+Each source case checks diagnostic parity with ordinary checking and zero
+ordinary evidence retention. Existing adversarial mutation fixtures also check
+retention parity. The public `cli_explanations` functional case verifies imported
+Unicode/generic source ranges, local proof versus whole-program rejection,
+missing/unsupported evidence, no program execution, malformed input/options and
+ordinary source/bytecode execution. These tests cover the bounded subtraction
+query, not the unimplemented type/effect, change-impact or runtime explanations.
+Panackelty source execution coverage percentages remain unmeasured.

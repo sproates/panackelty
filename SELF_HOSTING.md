@@ -1,5 +1,12 @@
 # Self-hosting roadmap
 
+The first U3 query refreshes the v9 seed with opt-in checker evidence and
+`panack explain SOURCE.panack --function NAME`. Ordinary proof rules and emitted
+program bytes are unchanged. Fresh stage-2/3/4 compiler and standard-library
+fixed points validate the refresh; see the [query contract](docs/COMPILER_EXPLANATIONS.md)
+and validation profile. This is a bounded subtraction query, not full compiler
+or runtime explanations.
+
 The U2 deliveries refresh the v9 seed with complete frontend expression spans,
 optional instruction-source retention and validated public source-map commands.
 The previous seed builds the candidate; fresh stage-2/3/4 compiler and standard-

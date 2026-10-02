@@ -656,7 +656,7 @@ Missing live identity requires publication; lookup errors fail closed. Manual
 rebuilds and PR validation never take the duplicate-publication shortcut.
 
 
-`make source-mapping-experiment` runs the bounded U1 feasibility tests, requiring
+`make source-mapping-experiment` runs the native-PC source-map acceptance tests, requiring
 Node 24+ in addition to the native toolchain. It is separate from interpreter-free
 `make check` and runs after the isolated compiler CI suite on Linux and macOS.
 See [the experiment](experiments/source_mapping/README.md) for its exact scope,
@@ -674,5 +674,13 @@ The U2 `compiler_instruction_sources_unit.panack` suite checks actual emitted
 instruction indices and source ranges, lowered/unavailable attribution, optional
 map/plain byte identity and original imported/generic locations. It runs under
 `make unit` and `make check-compiler`. `make source-mapping-experiment` additionally
-checks emitter mappings against real native VM traps; its sidecar remains a
-bounded test format, not a supported CLI contract.
+checks validated public CLI mappings against real native VM traps. The former
+test-only sidecar and compiler adapter are removed.
+
+`compiler_source_maps_unit.panack` and `compiler_source_maps_cli.panack` run in
+both `make unit` and `make check-compiler`. They exercise the sidecar contract,
+bounds and the public CLI on complete programs, including execution, exact
+lookup output, stale closure, corrupt maps and alias-safe output failures.
+They need no Python or Node interpreter. The additional native observer suite
+constructs binary forgeries and checks actual runtime PCs; its decoder is only
+an adversarial test helper, never a production lookup implementation.

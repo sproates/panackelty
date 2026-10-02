@@ -2012,3 +2012,60 @@ and 8.202s with the mapped probe. The small difference between the two new paths
 is measurement variation, not evidence that retaining maps is free or faster.
 The fixture medians were 37/38/40ms. These bounded measurements establish neither
 general overhead/memory budgets nor whole-programme realistic-program usefulness.
+
+## U2 validated source-map CLI, 2026-10-02
+
+The final U2 delivery replaces the experimental checksum sidecar with exact local
+replay. Current reproduction is `make source-mapping-experiment`; it no longer
+uses the historical `source-mapping-compiler.bc` adapter or JavaScript metadata
+serializer. Earlier U1 bulk/single-step and serialization timings above describe
+the retired experiment, not the current production contract.
+
+Focused results: 51 self-hosted source-map unit assertions, 45 public-CLI
+assertions, and 121 native observer/forgery assertions pass. Existing span and
+emission suites remain registered. The independent reviewer found a directory
+symlink output alias, fixed by checking the second destination after the first
+write and verifying both resulting files. Its regression proves the bytecode
+still executes after rejection. The reviewer also found that the initial timing
+helper performed two lookups; the corrected samples below contain one each.
+No further production correctness issue was reported.
+
+Warm macOS development measurements, native optimised VM, process startup
+included (milliseconds, five samples):
+
+| Operation, local indexing fixture | Samples | Median |
+| --- | --- | --- |
+| Ordinary compilation | 28.36, 28.63, 28.43, 30.22, 29.40 | 28.63 |
+| Compilation with source map | 31.47, 34.26, 30.72, 30.82, 31.61 | 31.47 |
+| Reproduced lookup | 34.27, 30.89, 33.95, 31.31, 31.52 | 31.52 |
+
+| Fixture | Executable bytes | Sidecar bytes |
+| --- | ---: | ---: |
+| Callback | 287 | 3,464 |
+| Local | 101 | 2,746 |
+| Imported | 119 | 2,853 |
+| Generic/Unicode | 161 | 3,106 |
+| Nested | 132 | 2,947 |
+| Conditional | 143 | 3,048 |
+
+A compiler-sized multi-module observation used `src/compiler/main.panack` as the
+entry, `/usr/bin/time -p`, fresh output filenames, and `locate` for
+`source_map_arguments` instruction 0. Ordinary compilation took 8.28 s; mapped
+compilation took 10.47 s; validated lookup took 10.48 s. Ordinary/mapped artifacts
+were byte-identical at 298,386 bytes; the sidecar was 1,493,879 bytes. This is one
+warm sample each, not a stable performance guarantee. Lookup has compilation-scale
+cost, and full source snapshots make maps larger than executables. These results
+support the bounded local tool while leaving programme-wide usefulness and
+later runtime retention budgets open. Serialisation uses balanced chunk joining.
+
+Fresh stage-2/3/4 compiler SHA-256:
+`164bb5899ce98dfd02d4b26be112c01a0756220e2c443b5de6cc8965174f81d9`.
+All three standard-library artifacts match
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+and execute with the expected output. Bytecode remains v9.
+
+Final clean `make check` passed in 163 s, including unit, functional, bootstrap,
+package smoke and quick-start checks. This exceeds the existing 120 s budget;
+the #106 roadmap reminder includes the measurement. No coverage was skipped.
+The original pre-U2c seed also reproduces the final 298,386-byte compiler exactly.
+Documentation/link and diff checks pass.

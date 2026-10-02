@@ -78,6 +78,8 @@ check-compiler-impl:
 		tests/runner/compiler_parser_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
+		tests/runner/compiler_source_maps_unit.panack \
+		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
@@ -137,6 +139,8 @@ unit-compiler: native
 		tests/runner/compiler_parser_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
+		tests/runner/compiler_source_maps_unit.panack \
+		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
 
 functional: native
@@ -423,15 +427,10 @@ ci-conformance-bytecode: native
 	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 	@$(MAKE) --no-print-directory quick-start
 
-# U1 feasibility probe. It observes the actual dispatch loop without adding a
-# production tracing ABI or changing the compiler seed/bytecode format.
+# Native-PC evidence against the production source-map CLI; no production trace ABI.
 .PHONY: source-mapping-experiment
-source-mapping-experiment: native $(BUILD_DIR)/experiments/source-mapping-compiler.bc $(BUILD_DIR)/experiments/source-mapping-vm
-	@node tests/experiments/source_mapping/run.cjs "$(BUILD_DIR)/experiments/source-mapping-compiler.bc" "$(BUILD_DIR)/experiments/source-mapping-vm"
-
-$(BUILD_DIR)/experiments/source-mapping-compiler.bc: tests/experiments/source_mapping/compiler.panack $(wildcard src/compiler/*.panack src/bytecode/*.panack src/stdlib/*.panack) $(SEED_COMPILER) | native
-	@mkdir -p "$(@D)"
-	./panack compile $< -o "$@"
+source-mapping-experiment: native $(BUILD_DIR)/experiments/source-mapping-vm
+	@node tests/experiments/source_mapping/run.cjs "$(BUILD_DIR)/experiments/source-mapping-vm"
 
 $(BUILD_DIR)/experiments/source-mapping-vm: tests/experiments/source_mapping/trap_probe.c src/vm/execute.c $(VM_LIBRARY_OBJECTS)
 	@mkdir -p "$(@D)"

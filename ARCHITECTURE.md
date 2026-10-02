@@ -1333,14 +1333,14 @@ unchanged. Unsupported and
 generated instructions remain unavailable. U1 originally re-parsed the located receiver to recover the range; the U2
 frontend slice below replaces that workaround with retained expression spans.
 
-The next production design should use optional deterministic sidecars: they
+The U1 decision was to use optional deterministic sidecars: they
 preserve executable compatibility and allow safe omission. Appending the same
 payload to v9 is rejected, as expected; an embedded alternative requires explicit
 versioning and has no demonstrated benefit for this first consumer. The prototype
 validates bytecode/source identities, instruction indices, ranges, paths and an
 integrity checksum. A recomputed forged checksum still permits false attribution;
 producer authenticity, exact dependency snapshots and concurrent-file handling
-must be resolved in U2. Generic attribution identifies the erased body, not a
+are addressed by the local-replay U2 contract below. Generic attribution identifies the erased body, not a
 specialisation. U1 is feasibility evidence, not the programme's realistic-program
 acceptance or a public diagnostic feature. See the experiment for counterexamples,
 representation trade-offs and revised consumer estimates.
@@ -1402,8 +1402,26 @@ for a consumer to guess another location.
 Ordinary `compile_program` disables source retention. `FunctionCode`, the
 serializer, bytecode v9 and the VM are unchanged; the metadata is a separate
 internal result, not a new serialized ABI. The optional path must emit identical
-bytes. The existing runtime experiment now consumes emitter entries for every
-`INDEX_GET`, including nested and non-tail expressions and collection callbacks;
-its test-only sidecar still accepts only that opcode. Production dependency
-snapshots, trusted producer identity, sidecar validation, compatibility and CLI
-fallback remain the final U2 slice. No public command advertises this internal API.
+bytes. The native experiment exercises emitted `INDEX_GET` locations, including
+nested and non-tail expressions and collection callbacks. Production snapshots,
+local-replay trust, validation, compatibility and CLI fallback are delivered by
+the sidecar layer below, which covers all retained instruction entries.
+
+## U2 validated source-map sidecar and CLI, 2026-10-02
+
+The loader records the ordered exact source closure, including implicit core,
+and exposes bounded UTF-8 loading for mapping. `source_maps.panack` serialises
+portable identifiers, captured source bytes, executable bytes and the optional
+emitter entries; balanced chunk joining avoids repeated whole-map copying.
+`driver.panack` opts into this path through `compile --source-map` and `locate`.
+Normal compilation and the VM bytecode contract remain unchanged.
+
+Lookup regenerates the canonical pair from explicitly supplied local sources.
+It compares foreign bytes under locally computed read bounds without decoding
+foreign metadata, then renders the fresh in-memory attribution. The local
+compiler and source tree establish trust; a self-asserted producer digest does
+not. No automatic VM trap integration or source-free verification is added.
+The [complete contract](docs/SOURCE_MAPS.md) records source disclosure, size
+limits, stable-tree assumptions, compatibility and partial output handling.
+The old test-only JSON/checksum sidecar and compiler adapter are removed; the
+native observer now exercises these public commands against actual VM PCs.

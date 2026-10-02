@@ -1,1 +1,3 @@
 usage: panack FILE | panack {check,compile,run,disasm} FILE
+       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP
+       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC

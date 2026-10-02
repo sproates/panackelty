@@ -493,6 +493,23 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
+### Locate an instruction in its source
+
+Compile with an optional map, then validate a function/instruction location:
+
+```sh
+panack compile hello.panack -o hello-mapped.bc --source-map hello.pmap
+panack locate hello-mapped.bc --source hello.panack --source-map hello.pmap --function main --instruction 0
+```
+
+Use fresh output filenames. Lookup recompiles the exact source closure and
+accepts the pair only if both artifact and map match; stale or missing evidence
+returns `source-map: unavailable`. Execution and bytecode v9 are unchanged.
+Sidecars contain complete source text, including imports and comments. Read the
+[trust, privacy and compatibility contract](docs/SOURCE_MAPS.md) before sharing
+one. Automatic source-aware runtime errors remain future work.
+
+
 ## How it works
 
 Every source program takes the same route to execution:

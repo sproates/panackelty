@@ -1964,3 +1964,51 @@ input is the candidate compiler source in both cases. Its median rose by 0.189s
 These observations do not establish a general overhead budget, memory cost or
 realistic-program acceptance. Further U2 metadata collection must measure its
 additional cost separately. Production instruction attribution remains unfinished.
+
+## U2 instruction-source emission, 2026-10-02
+
+The optional emitter path retains sparse original ranges at actual function-local
+instruction indices. Ordinary emission disables entries; serialization and v9
+instructions are unchanged. Tests distinguish direct expression operations,
+lowered machinery and unavailable origins without borrowing nearby mappings.
+
+Acceptance evidence:
+
+- `make check` passed in 158s with native host operations available: unit 100s,
+  functional 4s, bootstrap 25s, quick start 1s. All 36 new mapping assertions and
+  the complete public-CLI nested lowering fixture pass. The 120s full/15s focused
+  budgets remain exceeded and the #106 reminder is retained in ROADMAP.md.
+- The initial sandboxed check failed native module/host-fault groups; both passed
+  unchanged with host permissions available. No coverage was skipped or weakened.
+- `make source-mapping-experiment` passed 121 assertions against real VM traps,
+  including inner indexes, initializers, earlier expressions, imported/generic
+  bodies and a collection callback. Missing/stale/malformed metadata checks remain.
+- Fresh stage-2/3/4 compiler and standard-library artifacts converged exactly.
+  Seed: `ca2f027ee8f1afce1660d1bd35c72532422a360bbcc495ae614ec805d3272dfb`
+  (283151 bytes, previously 272798). Standard-library artifact SHA-256 remains
+  `614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+- Independent read-only review found no actionable defect. A separate nested
+  if/match/map/reduce probe checked 93 instructions at offset 13 and 21 manually
+  specified exact source-range/kind checkpoints. Exact constructor-origin tests
+  were added following the reviewer's optional coverage suggestion.
+
+Three sequential warm samples compiled identical current sources using the
+previous frontend-span seed and the refreshed seed. A third path used the
+source-mapping experiment compiler with opt-in emission and INDEX_GET row output.
+All three paths produced identical executable bytes in every sample. Commands:
+`panack-vm run SEED compile SOURCE -o OUTPUT` and
+`panack-vm run build/experiments/source-mapping-compiler.bc SOURCE OUTPUT map`.
+These include loading, checking, emission, serialization and process startup;
+the mapped probe also includes row output, so this is not an isolated emitter
+benchmark. Samples were taken after full validation, without another test run.
+
+| Source | Previous seed seconds | Ordinary new seed seconds | Mapped probe seconds |
+| --- | --- | --- | --- |
+| Compiler `src/compiler/main.panack` | 8.041, 8.111, 7.987 | 8.220, 8.216, 8.120 | 8.349, 8.176, 8.202 |
+| Nested lowering fixture | 0.037, 0.037, 0.040 | 0.038, 0.040, 0.038 | 0.038, 0.047, 0.040 |
+
+Compiler compilation medians were 8.041s before, 8.216s ordinary after (+2.2%)
+and 8.202s with the mapped probe. The small difference between the two new paths
+is measurement variation, not evidence that retaining maps is free or faster.
+The fixture medians were 37/38/40ms. These bounded measurements establish neither
+general overhead/memory budgets nor whole-programme realistic-program usefulness.

@@ -1,0 +1,4 @@
+// λ🙂: imported generic source positions count code points.
+pure pick[T](items: [T], index: Nat): T {
+  items[index]
+}

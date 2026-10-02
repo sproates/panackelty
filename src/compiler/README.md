@@ -18,7 +18,12 @@ method lowering retains the written receiver/method range. Parentheses extend th
 outer range without changing rendering or child expression ranges. Synthetic
 unlocated expressions return `None` from `expression_span`. This is expression
 attribution, not spans for every declaration, statement or generated instruction.
-The emitter still discards these wrappers; production source maps remain U2 work.
+The emitter can retain these ranges through `compile_program_with_sources`.
+Its sparse entries identify function-local instruction indices and distinguish
+expression operations from lowered machinery. Missing entries mean unavailable;
+there is no nearest-instruction fallback. Ordinary `compile_program` retains no
+entries. Serialization, trusted metadata consumption and public CLI exposure
+remain U2 work.
 
 - `parser.panack` contains the recursive expression AST and parser for literals,
   operators, calls, explicit named function references, receiver-first
@@ -64,7 +69,9 @@ The emitter still discards these wrappers; production source maps remain U2 work
   function body per declaration, including indirect calls and the iterator
   lowering for persistent array `map`/`reduce`. It computes absolute control-flow targets
   while using persistent arrays, allocates compiler temporaries independently
-  per function, and exposes a differential disassembly boundary.
+  per function, and exposes differential disassembly and opt-in instruction-source
+  boundaries. Both paths emit identical executable bytes; source tables undergo
+  the same core-function pruning as the instruction table.
 - `loader.panack` is the effectful project boundary. It resolves quoted paths
   relative to their importer, `project/` paths from the entry directory, and
   `stdlib/` paths from the active toolchain. It canonicalizes and recursively

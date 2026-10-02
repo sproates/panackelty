@@ -1,0 +1,4 @@
+pure select(index: Nat): Nat {
+  [7][index]
+}
+main(): Void { values: [Nat] = [0, 2].map(@select); }

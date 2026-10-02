@@ -1,0 +1,139 @@
+import "../../src/compiler/driver.panack"
+import stdlib/testing
+
+pure instruction_origin(entries: [InstructionSource], pc: Nat): Str {
+  mut result: Str = "unavailable"
+  for entry in entries {
+    if entry.index == pc {
+      start: Nat = entry.span.start.offset
+      end: Nat = entry.span.end.offset
+      kind: Str = if entry.lowered { "lowered" } else { "expression" }
+      result = "${start}..${end}:${kind}"
+    }
+  }
+  result
+}
+
+pure emission_trace(code: EmittedCode, offset: Nat): Str {
+  mut output: Str = ""
+  mut pc: Nat = offset
+  for instruction in code.instructions {
+    opcode: Str = render_instruction(instruction)
+    origin: Str = instruction_origin(code.sources, pc)
+    output = output + "${pc}|${opcode}|${origin}\n"
+    pc = pc + 1
+  }
+  output
+}
+
+pure expression_emission(source: Str, offset: Nat): Str {
+  match lex_file(source, "expression.panack") {
+    Error(errors) => "lex error",
+    Ok(tokens) => match parse_complete(tokens) {
+      Error(error) => error.message,
+      Ok(expression) => emission_trace(emit_expression(expression, Program([]), 0, offset, true), offset)
+    }
+  }
+}
+
+pure program_emission(source: Str, function_name: Str): Str {
+  match lex_file(source, "program.panack") {
+    Error(errors) => "lex error",
+    Ok(tokens) => match parse_program_complete(tokens) {
+      Error(error) => error.message,
+      Ok(program) => {
+        compiled: SourceMappedProgram = compile_program_with_sources(program)
+        mut output: Str = "missing function"
+        for function in compiled.bytecode.functions {
+          if function.name == function_name {
+            for mapping in compiled.sources {
+              if mapping.name == function_name {
+                output = emission_trace(EmittedCode(function.instructions, 0, mapping.entries), 0)
+              }
+            }
+          }
+        }
+        output
+      }
+    }
+  }
+}
+
+pure mapping_invariants(program: Program): Bool {
+  plain: SourceMappedProgram = compile_program_emission(program, false)
+  mapped: SourceMappedProgram = compile_program_with_sources(program)
+  mut valid: Bool = len(plain.sources) == 0 && serialize_bytecode(plain.bytecode) == serialize_bytecode(mapped.bytecode)
+  valid = valid && len(mapped.sources) == len(mapped.bytecode.functions)
+  mut function_index: Nat = 0
+  for function in mapped.bytecode.functions {
+    if function_index < len(mapped.sources) {
+      mapping: FunctionSources = mapped.sources[function_index]
+      valid = valid && mapping.name == function.name
+      mut first: Bool = true
+      mut previous: Nat = 0
+      for entry in mapping.entries {
+        valid = valid && entry.index < len(function.instructions) && (first || previous < entry.index)
+        valid = valid && entry.span.start.file == entry.span.end.file && entry.span.start.offset < entry.span.end.offset
+        first = false
+        previous = entry.index
+      }
+    } else { valid = false }
+    function_index = function_index + 1
+  }
+  valid
+}
+
+pure imported_origin(project: LoadedProject): Bool {
+  compiled: SourceMappedProgram = compile_program_with_sources(project.program)
+  mut found: Bool = false
+  for mapping in compiled.sources {
+    if mapping.name == "pick" {
+      for entry in mapping.entries {
+        if entry.index == 2 {
+          span: SourceSpan = entry.span
+          found = !entry.lowered && span.start.file.ends_with("instruction_sources/library.panack") &&
+            span.start.file == span.end.file && span.start.line == 3 && span.start.column == 3 &&
+            span.end.line == 3 && span.end.column == 15 &&
+            slice(project.sources.get(span.start.file), span.start.offset, span.end.offset) == "items[index]"
+        }
+      }
+    }
+  }
+  found
+}
+
+main(): Void {
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str("instruction-sources/nested-binary", expression_emission("1 + 2 * 3", 0), "0|CONST|Nat:1|0..1:expression\n1|CONST|Nat:2|4..5:expression\n2|CONST|Nat:3|8..9:expression\n3|BINARY|*|4..9:expression\n4|BINARY|+|0..9:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/nested-index-offset", expression_emission("items[indices[index]]", 7), "7|LOAD|items|0..5:expression\n8|LOAD|indices|6..13:expression\n9|LOAD|index|14..19:expression\n10|INDEX_GET|6..20:expression\n11|INDEX_GET|0..21:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/and", expression_emission("true && false", 0), "0|CONST|Bool:true|0..4:expression\n1|JUMP_FALSE|4|0..13:lowered\n2|CONST|Bool:false|8..13:expression\n3|JUMP|5|0..13:lowered\n4|CONST|Bool:false|0..13:lowered\n"))
+  results = append(results, test_equal_str("instruction-sources/or", expression_emission("false || true", 2), "2|CONST|Bool:false|0..5:expression\n3|JUMP_FALSE|6|0..13:lowered\n4|CONST|Bool:true|0..13:lowered\n5|JUMP|7|0..13:lowered\n6|CONST|Bool:true|9..13:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/if", expression_emission("if flag { 1 } else { 2 }", 0), "0|LOAD|flag|3..7:expression\n1|JUMP_FALSE|4|0..24:lowered\n2|CONST|Nat:1|10..11:expression\n3|JUMP|5|0..24:lowered\n4|CONST|Nat:2|21..22:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/await", expression_emission("await reader.call(inner(1))", 0), "0|LOAD|reader|6..12:expression\n1|CONST|Nat:1|24..25:expression\n2|CALL|inner|1|18..26:expression\n3|AWAIT_VALUE|1|6..27:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/synthetic", emission_trace(emit_expression(BinaryExpr("+", NatExpr(1), NatExpr(2)), Program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|unavailable\n"))
+  results = append(results, test_equal_str("instruction-sources/map-offset", expression_emission("items.map(@f)", 4), "4|LOAD|items|0..5:expression\n5|STORE|$collection0|0..13:lowered\n6|MAKE_ARRAY|0|0..13:lowered\n7|STORE|$accumulator0|0..13:lowered\n8|CONST|Str:f|10..12:expression\n9|STORE|$callback0|0..13:lowered\n10|LOAD|$collection0|0..13:lowered\n11|ITER_INIT|$iterator0|0..13:lowered\n12|ITER_NEXT|$iterator0|$item0|20|0..13:lowered\n13|LOAD|$accumulator0|0..13:lowered\n14|LOAD|$callback0|0..13:lowered\n15|LOAD|$item0|0..13:lowered\n16|CALL_VALUE|1|0..13:lowered\n17|CALL|append|2|0..13:lowered\n18|STORE|$accumulator0|0..13:lowered\n19|JUMP|12|0..13:lowered\n20|LOAD|$accumulator0|0..13:lowered\n"))
+  results = append(results, test_equal_str("instruction-sources/reduce", expression_emission("items.reduce(0, @f)", 0), "0|LOAD|items|0..5:expression\n1|STORE|$collection0|0..19:lowered\n2|CONST|Nat:0|13..14:expression\n3|STORE|$accumulator0|0..19:lowered\n4|CONST|Str:f|16..18:expression\n5|STORE|$callback0|0..19:lowered\n6|LOAD|$collection0|0..19:lowered\n7|ITER_INIT|$iterator0|0..19:lowered\n8|ITER_NEXT|$iterator0|$item0|15|0..19:lowered\n9|LOAD|$callback0|0..19:lowered\n10|LOAD|$accumulator0|0..19:lowered\n11|LOAD|$item0|0..19:lowered\n12|CALL_VALUE|2|0..19:lowered\n13|STORE|$accumulator0|0..19:lowered\n14|JUMP|8|0..19:lowered\n15|LOAD|$accumulator0|0..19:lowered\n"))
+  results = append(results, test_equal_str("instruction-sources/match", expression_emission("match value { Some(x) => x, None() => 0 }", 0), "0|LOAD|value|6..11:expression\n1|STORE|$match0|0..41:lowered\n2|LOAD|$match0|0..41:lowered\n3|MATCH_VARIANT|Some|7|0..41:lowered\n4|STORE|x|0..41:lowered\n5|LOAD|x|25..26:expression\n6|JUMP|12|0..41:lowered\n7|LOAD|$match0|0..41:lowered\n8|MATCH_VARIANT|None|11|0..41:lowered\n9|CONST|Nat:0|38..39:expression\n10|JUMP|12|0..41:lowered\n11|MATCH_FAIL|0..41:lowered\n"))
+  results = append(results, test_equal_str("instruction-sources/while-unavailable-scaffolding", program_emission("main(): Void { mut x = 0; while x < 1 { x = x + 1; } }", "main"), "0|CONST|Nat:0|23..24:expression\n1|STORE|x|unavailable\n2|LOAD|x|32..33:expression\n3|CONST|Nat:1|36..37:expression\n4|BINARY|<|32..37:expression\n5|JUMP_FALSE|13|unavailable\n6|LOAD|x|44..45:expression\n7|CONST|Nat:1|48..49:expression\n8|BINARY|+|44..49:expression\n9|STORE|x|unavailable\n10|CONST|Void|unavailable\n11|POP|unavailable\n12|JUMP|2|unavailable\n13|CONST|Void|unavailable\n14|RETURN|unavailable\n"))
+  results = append(results, test_equal_str("instruction-sources/for-unavailable-scaffolding", program_emission("main(): Void { for item in [1] { print(item); } }", "main"), "0|CONST|Nat:1|28..29:expression\n1|MAKE_ARRAY|1|27..30:expression\n2|ITER_INIT|$iter0|unavailable\n3|ITER_NEXT|$iter0|item|10|unavailable\n4|LOAD|item|39..43:expression\n5|CALL|print|1|33..44:expression\n6|POP|unavailable\n7|CONST|Void|unavailable\n8|POP|unavailable\n9|JUMP|3|unavailable\n10|CONST|Void|unavailable\n11|RETURN|unavailable\n"))
+  results = append(results, test_equal_str("instruction-sources/await-direct", expression_emission("await fetch(inner(1))", 0), "0|CONST|Nat:1|18..19:expression\n1|CALL|inner|1|12..20:expression\n2|AWAIT_CALL|fetch|1|6..21:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/if-no-else", expression_emission("if flag { print(1); }", 0), "0|LOAD|flag|3..7:expression\n1|JUMP_FALSE|7|0..21:lowered\n2|CONST|Nat:1|16..17:expression\n3|CALL|print|1|10..18:expression\n4|POP|unavailable\n5|CONST|Void|unavailable\n6|POP|0..21:lowered\n7|CONST|Void|0..21:lowered\n"))
+  results = append(results, test_equal_str("instruction-sources/explicit-void", expression_emission("()", 0), "0|CALL|$unit|0|0..2:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/array-index", expression_emission("[1, 2][0]", 0), "0|CONST|Nat:1|1..2:expression\n1|CONST|Nat:2|4..5:expression\n2|MAKE_ARRAY|2|0..6:expression\n3|CONST|Nat:0|7..8:expression\n4|INDEX_GET|0..9:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/unary-decimal", expression_emission("-1 + 2.5", 0), "0|CONST|Nat:1|1..2:expression\n1|UNARY|-|0..2:expression\n2|CONST|Dec:2.5|5..8:expression\n3|BINARY|+|0..8:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/range", expression_emission("1..3", 0), "0|CONST|Nat:1|0..1:expression\n1|CONST|Nat:3|3..4:expression\n2|MAKE_RANGE|0..4:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/field", expression_emission("record.value", 0), "0|LOAD|record|0..6:expression\n1|FIELD_GET|value|0..12:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/interpolation", expression_emission("\"hello $" + "{name}\"", 0), "0|LOAD|name|0..15:lowered\n1|INTERPOLATE|hello ,|0..15:expression\n"))
+  results = append(results, test_equal_str("instruction-sources/record", program_emission("record Box { value: Nat } main(): Nat { Box(1).value }", "main"), "0|CONST|Nat:1|44..45:expression\n1|MAKE_RECORD|Box|value|40..46:expression\n2|FIELD_GET|value|40..52:expression\n3|RETURN|unavailable\n"))
+  results = append(results, test_equal_str("instruction-sources/variant", program_emission("enum Choice { Left(Nat), Right } main(): Choice { Left(1) }", "main"), "0|CONST|Nat:1|55..56:expression\n1|MAKE_VARIANT|Choice|Left|1|50..57:expression\n2|RETURN|unavailable\n"))
+  // An unlocated synthetic child must not inherit the enclosing expression's span.
+  span: SourceSpan = SourceSpan(SourcePos("synthetic.panack", 0, 1, 1), SourcePos("synthetic.panack", 5, 1, 6))
+  results = append(results, test_equal_str("instruction-sources/synthetic-child", emission_trace(emit_expression(LocatedExpr(span, BinaryExpr("+", NatExpr(1), NatExpr(2))), Program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|0..5:expression\n"))
+  for file in ["tests/fixtures/compiler_contracts/instruction_sources/main.panack", "tests/functional/cases/async_await/main.panack", "tests/functional/cases/callables/main.panack", "tests/functional/cases/stdlib/main.panack", "tests/experiments/source_mapping/fixtures/generic.panack", "tests/experiments/source_mapping/fixtures/imported.panack"] {
+    loaded: LoadedProject = load_project(file)
+    results = append(results, test_expect("instruction-sources/valid-project/${file}", len(loaded.diagnostics) == 0, diagnostic_messages(loaded.diagnostics, loaded.sources)))
+    results = append(results, test_expect("instruction-sources/identity-order-bytes/${file}", mapping_invariants(loaded.program), "mapping order/identity changed or executable bytes differ"))
+  }
+  results = append(results, test_expect("instruction-sources/imported-generic-origin", imported_origin(load_project("tests/fixtures/compiler_contracts/instruction_sources/main.panack")), "lost original module/range or generic body identity"))
+  if test_report(results) > 0 { process_exit(1) }
+}

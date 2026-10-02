@@ -691,3 +691,16 @@ missing/unsupported evidence, no program execution, malformed input/options and
 ordinary source/bytecode execution. These tests cover the bounded subtraction
 query, not the unimplemented type/effect, change-impact or runtime explanations.
 Panackelty source execution coverage percentages remain unmeasured.
+
+## Indexed compiler declaration lookup
+
+The existing compiler-contract unit suite adds 19 fixed assertions for declaration
+order, per-kind namespace separation, duplicate last-match signatures/effects,
+variant owner/type/payload retention, variants retained from earlier duplicate
+enums, missing/empty/case-sensitive names, interleaved imports, rebuilt module
+indexes and unchanged input modules. Resolver duplicate rejection remains tested.
+The compiler integration suite runs the imported `indexed_lookup` project through
+the public CLI, covering guarded types, generic records/variants, forward calls
+and independently expected output. Existing diagnostics, mutation, source-map,
+explanation, generic/effect, full functional and bootstrap tests remain required.
+No tests are removed or relaxed to obtain the performance improvement.

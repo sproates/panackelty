@@ -22,8 +22,8 @@ The emitter can retain these ranges through `compile_program_with_sources`.
 Its sparse entries identify function-local instruction indices and distinguish
 expression operations from lowered machinery. Missing entries mean unavailable;
 there is no nearest-instruction fallback. Ordinary `compile_program` retains no
-entries. Serialization, trusted metadata consumption and public CLI exposure
-remain U2 work.
+entries. Production sidecar serialization and validated public CLI lookup are
+documented in `../../docs/SOURCE_MAPS.md`.
 
 - `parser.panack` contains the recursive expression AST and parser for literals,
   operators, calls, explicit named function references, receiver-first
@@ -37,7 +37,13 @@ remain U2 work.
   array type references. Generic record fields and enum variant payloads are
   parsed alongside pure and impure functions with scoped type parameters and
   optional explicit type arguments at direct and receiver-first calls. The parser now covers the complete
-  accepted language grammar.
+  accepted language grammar. `indexed_program` retains declaration order while
+  building separate type/record/enum/function indexes and variant metadata.
+  Construct programs through this factory, including synthetic test ASTs.
+  Module combination rebuilds indexes; checker lookups preserve last-match
+  behavior even for malformed declarations inspected before resolver rejection.
+  Native Map operations still scan linearly; the optimisation removes repeated
+  interpreted traversal, not all lookup cost.
 - `resolver.panack` collects top-level functions and constructors, validates
   conflicts with built-ins, and resolves lexical names across functions,
   blocks, loops, conditionals, and pattern arms. Its pure module-graph boundary

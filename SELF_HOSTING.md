@@ -1,5 +1,12 @@
 # Self-hosting roadmap
 
+The indexed-lookup performance change refreshes the v9 seed while preserving
+compiler semantics and user-program bytecode. The previous seed reproduces the
+new compiler, and fresh stages 2/3/4 converge with the unchanged standard-library
+fixed point. Program declaration indexes are internal compiler data, not a new
+bytecode ABI or an unchecked compilation mode. See the indexed-lookup measurements
+in [the validation profile](tests/VALIDATION_PROFILE.md).
+
 The first U3 query refreshes the v9 seed with opt-in checker evidence and
 `panack explain SOURCE.panack --function NAME`. Ordinary proof rules and emitted
 program bytes are unchanged. Fresh stage-2/3/4 compiler and standard-library

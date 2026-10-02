@@ -248,8 +248,9 @@ pure render_type(base: Str, arguments: [Str]): Str {
 
 pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
   mut result: GuardedTypeLookup = GuardedTypeLookup(false, "", NatExpr(0))
-  for declaration in program.declarations {
-    match declaration {
+  if map_has(program.type_indices, name) {
+    index: Nat = map_get(program.type_indices, name)
+    match program.declarations[index] {
       TypeDeclaration(declared, base, guard) => {
         if declared == name {
           result = GuardedTypeLookup(true, base, guard)
@@ -267,8 +268,9 @@ pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
 
 pure record_type(program: Program, name: Str): RecordLookup {
   mut result: RecordLookup = RecordLookup(false, [], [])
-  for declaration in program.declarations {
-    match declaration {
+  if map_has(program.record_indices, name) {
+    index: Nat = map_get(program.record_indices, name)
+    match program.declarations[index] {
       RecordDeclaration(declared, parameters, fields) => {
         if declared == name {
           result = RecordLookup(true, parameters, fields)
@@ -285,8 +287,9 @@ pure record_type(program: Program, name: Str): RecordLookup {
 
 pure enum_type(program: Program, name: Str): EnumLookup {
   mut result: EnumLookup = EnumLookup(false, [], [])
-  for declaration in program.declarations {
-    match declaration {
+  if map_has(program.enum_indices, name) {
+    index: Nat = map_get(program.enum_indices, name)
+    match program.declarations[index] {
       EnumDeclaration(declared, parameters, variants) => {
         if declared == name {
           result = EnumLookup(true, parameters, variants)
@@ -303,8 +306,9 @@ pure enum_type(program: Program, name: Str): EnumLookup {
 
 pure function_type(program: Program, name: Str): FunctionLookup {
   mut result: FunctionLookup = FunctionLookup(false, [], "", false, false, [])
-  for declaration in program.declarations {
-    match declaration {
+  if map_has(program.function_indices, name) {
+    index: Nat = map_get(program.function_indices, name)
+    match program.declarations[index] {
       FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         if declared == name {
           result = FunctionLookup(true, parameters, return_type, is_pure, is_async, type_parameters)
@@ -320,23 +324,10 @@ pure function_type(program: Program, name: Str): FunctionLookup {
 }
 
 pure variant_type(program: Program, name: Str): VariantLookup {
-  mut result: VariantLookup = VariantLookup(false, "", [], [])
-  for declaration in program.declarations {
-    match declaration {
-      EnumDeclaration(enum_name, parameters, variants) => {
-        for variant in variants {
-          if variant.name == name {
-            result = VariantLookup(true, enum_name, parameters, variant.payload)
-          } else {
-          }
-        }
-      },
-      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
-      RecordDeclaration(declared, parameters, fields) => {},
-      FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
-    }
-  }
-  result
+  if map_has(program.variants, name) {
+    variant: IndexedVariant = map_get(program.variants, name)
+    VariantLookup(true, variant.enum_name, variant.parameters, variant.payload)
+  } else { VariantLookup(false, "", [], []) }
 }
 
 pure base_type(program: Program, name: Str): Str {

@@ -229,6 +229,19 @@ root `VERSION` file in a checkout or the installed copy and handles
 `panack --version` without altering the reproducible compiler bytecode. The
 checked program then crosses back into the pure emitter and serializer.
 
+Parsed `Program` values retain declarations in source order and immutable
+per-kind name indexes constructed by `indexed_program`. Module combination
+rebuilds the indexes against the combined declaration array; it never carries
+module-local offsets into another program. Type, record, enum and function
+lookups retain their separate namespaces and previous last-match semantics.
+Variant entries retain the last matching owner, type parameters and payload,
+including earlier variants omitted from a later duplicate enum declaration.
+The resolver still sees every declaration and rejects duplicates as before.
+These indexes replace repeated Panackelty declaration scans with native Map
+operations; Maps currently use linear scans, so this is not a constant-time
+lookup guarantee. AST/source ranges, diagnostics, evidence and emitted v9
+semantics remain unchanged. No index is serialized into user bytecode.
+
 `src/compiler/driver.panack` implements all four public compiler operations.
 Source `run` compiles to version-9 bytes and invokes the runtime's verified
 nested-bytecode boundary; saved bytecode follows the same decoder and verifier.

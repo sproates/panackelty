@@ -6,6 +6,136 @@
 
 # Validation profiling baseline
 
+## Compiler lookup and validation cost — 2026-10-02
+
+The user selected bounded performance work under #106 after PR #219 and asked
+whether recent compiler changes caused slower validation. Baseline: `f379c50`;
+Linux x86_64, GCC 13.3.0, native `-O2`, default two validation workers. No other
+build or measurement ran alongside the baseline or fixed-input timing samples.
+The later independent review and seed refresh were not timed benchmarks.
+
+### Isolating compiler revision cost
+
+Five historical seeds compiled exactly the `de26483` compiler source tree and
+standard library using the same native VM. Two runs used forward/reverse revision
+order. Every output had SHA-256
+`9888463f9310890f09c32439f9ca6ff66e6ba485cbdf150f69e7a3916a2af30f`.
+
+| Seed revision | First run | Reverse-order run | Mean |
+| --- | ---: | ---: | ---: |
+| U1 baseline `de26483` | 15.737s | 16.515s | 16.126s |
+| Frontend spans `6d10c1b` | 16.232s | 16.819s | 16.526s |
+| Instruction sources `60010dc` | 16.876s | 17.279s | 17.078s |
+| Source-map CLI `cbae41b` | 16.631s | 16.769s | 16.700s |
+| Explanations `f379c50` | 17.552s | 17.009s | 17.280s |
+
+The final mean is 7.2% above U1 and 3.5% above #218 on this workload. Two samples
+are bounded observations, not a statistical general regression guarantee.
+Compiler `.panack` source grew from 233,433 to 273,290 bytes (17.1%) over the same
+interval. Self-compilation and compiler-importing tests therefore also process
+larger inputs; comparing full checks alone conflates implementation overhead,
+input growth, new tests and host variation.
+
+### Where clean validation spends time
+
+A fresh profiled baseline `make check` passed in **366s**: unit 274s, functional
+6s, bootstrap 68s, quick-start 1s, plus native setup. The unchanged warm
+`make check-compiler` passed in **33s**. Both exceed their 120s/15s budgets.
+Profiles retain every executed test; no result caching or changed worker count.
+
+Large unit costs include compiling driver and snapshot helpers (24s each),
+compiler-contract tests (24s), instruction-source tests (23s), source-map tests
+(21s), explanation tests (20s) and checker tests (15s). Most of these probes then
+execute in under the profiler's one-second resolution. Native oracle coverage
+includes a 50s fixture-runner execution, which itself compiles source and bytecode
+fixtures. These observations are nested/overlapping and **must not be summed**.
+Bootstrap's native seed-refresh transaction is also intentionally fresh.
+
+A temporary native instruction counter attributed **265,754,650 of 342,311,954
+VM instructions (77.6%)** to `record_type`, `guarded_type`, `variant_type`,
+`function_type` and `enum_type` while the baseline seed compiled the fixed U1
+source. This is dispatched-instruction count, not a CPU-time percentage. The
+counter only incremented a per-function field at dispatch and printed totals on
+successful exit; its binary was never used for elapsed comparisons or validation.
+A separate `-pg` CPU sample indicated interpreter/value traffic, motivating the
+language-function counter rather than a speculative native lookup change.
+
+### Bounded improvement
+
+`indexed_program` retains source-order declarations and builds immutable
+per-kind declaration indexes plus variant-owner/type/payload metadata. Parsing
+and module combination both construct fresh indexes. Checker and constructor
+lookups use those indexes; malformed duplicate declarations preserve each old
+scan's last-match result, while the resolver still rejects the duplicates.
+Native Maps themselves use linear scans and persistent copying: this removes
+repeated interpreted declaration traversal, not all linear cost. There is no
+new CLI mode, skipped safety check, bytecode format, source-map or evidence loss,
+dependency cache, test selection change or separate compilation.
+
+The initial isolated prototype comparison on the fixed U1 source measured
+6.131s and 6.042s around an unchanged 15.659s baseline run. All three produced the
+same bytes above: about 61% lower compilation time in this comparison.
+
+Final canonical `make check` after all implementation/test edits passed in
+**186s**, versus the same-host 366s baseline (49.2% lower elapsed time).
+Unit validation fell 274s to 138s; functional stayed 6s; bootstrap fell 68s to
+23s. Native setup and package/quick-start also passed. Worker settings and test
+coverage are unchanged, except the additional 19 lookup assertions and three
+public-CLI checks. The full 120s and incremental/unit 15s budgets remain unmet;
+this is a bounded improvement, not completion of #106.
+
+The unchanged warm `make check-compiler` passed in **32s** versus 33s before:
+there is no material warm-path improvement in these single samples, because
+compiled-probe reuse already removes the expensive compilation work.
+
+Final same-VM/source comparison using the refreshed seed:
+
+| Workload / metric | Before | Indexed candidate |
+| --- | ---: | ---: |
+| Fixed U1 compiler source, elapsed | 16.7896s | 6.5460s |
+| Same child process, peak RSS | 103,576 KiB | 103,692 KiB |
+| Small program, five-run median | 58.7ms | 58.0ms |
+| Small program, peak RSS range | 7,912 KiB | 7,844–7,912 KiB |
+
+Elapsed observations include process launch; Linux `wait4` provides per-child
+peak RSS, not a retained-AST measurement. The one compiler pair cannot establish
+a general memory bound; the small timings show no material change beyond noise.
+Every before/after artifact is identical. Small-program SHA-256:
+`90570ceb9ef26fbc7e1355399fcf45027d19ee5018904180b4b91df8baba251d`.
+The compiler seed itself grows from 308,735 to 309,613 bytes (+878 bytes), while
+user-program artifacts stay unchanged. README/SPEC and source-map/explanation
+contracts were reviewed: no public syntax, option, proof or attribution contract
+changes require alterations there.
+
+### Reproduction and scope
+
+Use a detached `de26483` worktree and extract each revision's
+`bootstrap/compiler-v9.bc` with `git show`. From the detached worktree, set
+`PANACKELTY_STDLIB_PATH` to its absolute `src/stdlib`, then time the same current
+native VM running each seed with `compile src/compiler/main.panack -o OUTPUT`.
+Hash each output; alternate seed order and avoid concurrent builds. Time the
+unmodified and candidate seeds with the same VM, source and environment.
+For validation, set absolute `VALIDATION_PROFILE_FILE` and
+`VALIDATION_PROFILE_RUN`, run `make clean && make check`, then
+`make check-compiler` without cleaning. The profiling protocol above remains
+unchanged; wall-clock one-second rows locate large costs, not tiny operations.
+
+The previous seed produces the indexed compiler byte-for-byte; fresh stages
+2/3/4 converge at
+`5d02c622bebc4cfeed28e8a212b2c0dec86551371d486a8665281839364f0ee7`.
+The standard-library fixed point remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Expanded unit and imported public-CLI coverage preserve independently expected
+results. Dave's independent review found no actionable findings: 1,540 direct
+comparisons against the original five scan implementations covered duplicate and
+cross-kind names, empty/Unicode keys, declaration rotations and module merging;
+79 existing sources had exact checking/explanation stdout/stderr/status parity;
+all 22 accepted sources compiled to identical bytes. A custom imported generic
+fixture preserved explanation/source-map bytes and runtime output. All 220
+compiler-contract assertions passed independently. Review probes completed before
+final timed validation. Broad cache invalidation and general performance budgets remain #106
+follow-ups; compiler mode design is recorded separately in #220.
+
 ## Separate coverage host acceptance, 2026-10-02
 
 PR #203 merged as `5381bc5`. Main Check `36935711159` passed all required native,

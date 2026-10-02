@@ -700,3 +700,13 @@ results, ordinary source/bytecode behavior, absence of execution, whole-program
 purity failure, parser/resolver failures and argument errors. The canonical
 functional runner executes the case from source and compiled bytecode; its
 runner-smoke expectations include it. Full acceptance remains `make check`.
+
+### Indexed declaration lookup acceptance
+
+`compiler_contracts_unit.panack` checks fixed lookup results across duplicate
+and missing declarations, independent namespaces, interleaved imports and merged
+module indexes. `compiler_integration_unit.panack` executes the imported
+`fixtures/compiler_contracts/indexed_lookup` project with generic constructors,
+guarded values and forward function references. These run in both ordinary
+compiler validation and canonical `make check`; existing source-map and
+explanation tests continue to cover attribution and proof evidence.

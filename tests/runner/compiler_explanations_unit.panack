@@ -3,9 +3,9 @@ import stdlib/testing
 
 pure explanation_program(source: Str): Program {
   match lex_file(source, "sample.panack") {
-    Error(errors) => Program([]),
+    Error(errors) => indexed_program([]),
     Ok(tokens) => match parse_program_complete(tokens) {
-      Error(error) => Program([]), Ok(program) => program
+      Error(error) => indexed_program([]), Ok(program) => program
     }
   }
 }
@@ -83,7 +83,7 @@ main(): Void {
     program: Program = explanation_program(source)
     results = append(results, test_expect(fixture + " parity", check_program_evidence(program, true).diagnostics == check_program_types(program), "retention changed rejection"))
   }
-  unlocated: CheckedExpression = check_expression_evidence(BinaryExpr("-", NatExpr(2), NatExpr(1)), map(), map(), Program([]), [], true, None())
+  unlocated: CheckedExpression = check_expression_evidence(BinaryExpr("-", NatExpr(2), NatExpr(1)), map(), map(), indexed_program([]), [], true, None())
   results = append(results, test_equal_nat("unlocated evidence count", len(unlocated.evidence), 1))
   if len(unlocated.evidence) == 1 {
     results = append(results, test_expect("unlocated evidence is not guessed", unlocated.evidence[0].span == None() &&

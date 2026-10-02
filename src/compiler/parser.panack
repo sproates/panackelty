@@ -67,8 +67,49 @@ record FunctionParameter {
   type_name: Str
 }
 
+record IndexedVariant {
+  enum_name: Str,
+  parameters: [Str],
+  payload: [Str]
+}
+
 record Program {
-  declarations: [TopLevel]
+  declarations: [TopLevel],
+  type_indices: Map[Str,Nat],
+  record_indices: Map[Str,Nat],
+  enum_indices: Map[Str,Nat],
+  function_indices: Map[Str,Nat],
+  variants: Map[Str,IndexedVariant]
+}
+
+// Preserve source order for diagnostics/emission; indexes only accelerate lookup.
+// Separate namespaces and last-write wins reproduce the previous lookup scans,
+// including malformed programs inspected directly before resolver rejection.
+pure indexed_program(declarations: [TopLevel]): Program {
+  mut types: Map[Str,Nat] = map()
+  mut records: Map[Str,Nat] = map()
+  mut enums: Map[Str,Nat] = map()
+  mut functions: Map[Str,Nat] = map()
+  mut variants: Map[Str,IndexedVariant] = map()
+  mut index: Nat = 0
+  for declaration in declarations {
+    match declaration {
+      ImportDeclaration(path) => {},
+      TypeDeclaration(name, base, guard) => { types = map_put(types, name, index); },
+      RecordDeclaration(name, parameters, fields) => { records = map_put(records, name, index); },
+      EnumDeclaration(name, parameters, values) => {
+        enums = map_put(enums, name, index)
+        for value in values {
+          variants = map_put(variants, value.name, IndexedVariant(name, parameters, value.payload))
+        }
+      },
+      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
+        functions = map_put(functions, name, index)
+      }
+    }
+    index = index + 1
+  }
+  Program(declarations, types, records, enums, functions, variants)
 }
 
 enum Statement {
@@ -1331,7 +1372,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
 
 pure parse_program_items(tokens: [Token], declarations: [TopLevel], index: Nat): Result[Program,Diagnostic] {
   if index == len(tokens) {
-    Ok(Program(declarations))
+    Ok(indexed_program(declarations))
   } else {
     if tokens[index].text == ";" {
       parse_program_items(tokens, declarations, index + 1)

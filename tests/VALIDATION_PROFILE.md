@@ -2653,8 +2653,11 @@ blocks with controlled curl failures on the first or second download, or a
 mismatching checksum. All exited nonzero before invoking tar. The macOS shell
 block and `shasum` failure probe on Linux do **not** establish macOS native support.
 Hosted Check runs the real-release test once in each existing platform's
-`conformance-bytecode` job; macOS arm64 execution and hosted acceptance remain
-pending publication of this change. This online check is deliberately separate
+`conformance-bytecode` job. On 2026-10-03 UTC, both native hosted platform jobs
+passed the exact README installation step at head `1607f577623ad02d4298ca73a258556a792d264e`:
+[Linux x86_64](https://github.com/sproates/panackelty/actions/runs/37160525736/job/111312898639)
+and [macOS arm64](https://github.com/sproates/panackelty/actions/runs/37160525736/job/111312898647).
+This online check is deliberately separate
 from the offline canonical `make check`.
 
 README minimum OS versions agree with `RELEASE_POLICY.md`; alpha.10 migration,

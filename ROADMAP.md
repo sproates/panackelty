@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#117.**
+The initial allocation contains **105 identities**. **Next available: RM#118.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -109,10 +109,26 @@ of published alpha.10 reached verified Hello World in about 2m43s, with zero
 failed installation/check/run commands. Independent verification confirmed exact
 output and archive/installed-file consistency. See the
 [trial evidence and limitations](tests/VALIDATION_PROFILE.md#newcomer-installation-trial--2026-10-04).
-Minor opportunities are platform-specific unpack/download examples; no blocking
+Follow-up [RM#117: Platform-specific installation instructions](#rm-117) tracks
+the unpack/download improvements; no blocking
 product defect surfaced. This tested a fresh directory on a shared host starting
 at GitHub, not a clean OS, marketing-site navigation or human beginner usability.
 No fixes or further trials were started; each requires separate selection.
+
+<a id="rm-117"></a>
+
+**RM#117: Platform-specific installation instructions** ·
+[GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
+Idea / unscheduled. Follow-up to [RM#116: Installation and Hello World trial](#rm-116):
+provide separate copy-paste Linux x86_64 and macOS arm64 download, platform-appropriate
+checksum verification, extraction and version-check examples, followed by Hello
+World check/run and clear local executable / optional PATH guidance. Validate real
+published assets and commands on each appropriate platform; disclose unavailable
+verification. Review README, release and website instruction consistency without
+silently changing release pins. Small / provisionally one documentation PR plus
+installation verification; no installer, packaging or new platform scope. Trial
+succeeded; these address minor friction, not a demonstrated installation failure.
+Implementation and additional trials are not started.
 
 <a id="rm-114"></a>
 

@@ -1464,3 +1464,16 @@ function definitions. No runtime, emitter, serialization or v9 instruction chang
 are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines
 scope and source limits; U3 types/effects and the other programme queries remain
 open. The earlier investigation tables are historical inventories.
+
+## U3 local effect evidence
+
+The effect traversal returns `CheckedEffects`: ordered diagnostics and opt-in
+`EffectEvidence` containing the function, expression span, boundary kind, enclosing
+mode, callee classification/basis, awaited state and local violation reasons.
+Ordinary and explained checking use the same predicates and recursion. The loader
+retains a pass-ran flag so earlier frontend failures cannot look like successful
+effect checks. The renderer reports local boundaries separately from whole-program
+acceptance. Calls are classified from declarations, callable types and builtin or
+constructor contracts; no transitive dependency graph, inferred effect expansion,
+runtime execution or bytecode metadata is introduced. Definition evidence is
+associated once and filtered by the requested function during rendering.

@@ -6,6 +6,40 @@
 
 # Validation profiling baseline
 
+## U3 local effect explanations — 2026-10-03
+
+Baseline `46bccfa` and the candidate seed compiled the exact baseline compiler
+source and library with the same native VM, serially, using forward/reverse
+order. No validation or review probes overlapped these samples. Two compiler
+runs per revision averaged **5.977s before / 6.127s after** (+2.5%); all outputs
+were byte-identical to baseline seed SHA-256
+`5d02c622bebc4cfeed28e8a212b2c0dec86551371d486a8665281839364f0ee7`.
+Per-child Linux `wait4` peak RSS was 118,300–118,348 KiB before and
+118,372–118,376 KiB after. These small samples do not establish a general bound.
+
+A fixed small program compiled in a five-run median **40.7ms / 41.2ms**, with
+identical bytecode and 10,664 KiB measured peak RSS for both seeds. On that same
+program, five explanation invocations had median **42.2ms / 43.7ms**; the latter
+includes the newly retained and rendered effect boundaries. Timings include
+process startup. Query timings ran before then after, not interleaved, and are
+observations rather than a statistical regression guarantee.
+
+Ordinary mode retains no effect entries, but the shared traversal returns a
+record containing diagnostics and an empty evidence array. It is not a zero-cost
+implementation claim. Query mode retains local boundaries for loaded definitions;
+large-query retention and U0's broader experiments remain open. Seed size grows
+from 309,613 to 316,297 bytes (+6,684), without a bytecode version change.
+
+Canonical clean `make check` passed in **150s** (unit 112s, functional 5s,
+bootstrap 19s, plus native/package setup). The full 120s and unit/incremental 15s
+budgets remain unmet under #106; no test was removed or skipped. The earlier
+PR #221 run was 186s on its then-current tree, not a controlled same-input pair.
+All 196 focused explanation assertions, 36 CLI assertions and 343 functional
+cases passed. A baseline/candidate comparison over 227 existing compiler-contract
+fixtures matched exit status, stdout, stderr and artifacts exactly (43 accepted,
+184 rejected). Independent review added seven targeted parity probes and found
+no actionable correctness issues.
+
 ## Compiler lookup and validation cost — 2026-10-02
 
 The user selected bounded performance work under #106 after PR #219 and asked

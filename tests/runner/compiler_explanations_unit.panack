@@ -36,6 +36,19 @@ pure evidence_summary(source: Str): Str {
   }
   output
 }
+pure effect_summary(program: Program): Str {
+  checked: CheckedEffects = check_program_effect_evidence(program, true)
+  mut output: Str = ""
+  for entry in checked.evidence {
+    if entry.function_name == "probe" {
+      if output != "" { output = output + "|"; }
+      output = output + entry.kind + ":" + entry.mode + ":" + entry.target + ":" + entry.target_effect +
+        if entry.awaited { ":awaited" } else { ":plain" }
+      for reason in entry.violations { output = output + ":" + reason; }
+    }
+  }
+  output
+}
 main(): Void {
   mut results: [TestResult] = []
   cases: [[Str]] = [
@@ -89,5 +102,56 @@ main(): Void {
     results = append(results, test_expect("unlocated evidence is not guessed", unlocated.evidence[0].span == None() &&
       unlocated.evidence[0].decision.rule == "constants", "incorrect source or proof"))
   }
+  effect_cases: [[Str]] = [
+    ["pure builtin rejection", "pure probe(): Void { print(1); }", "call:pure:print:ordinary:plain:pure function cannot call impure function print"],
+    ["ordinary builtin allowed", "probe(): Void { eprint(1); }", "call:ordinary:eprint:ordinary:plain"],
+    ["pure builtin allowed", "pure probe(): Nat { len(\"abc\") }", "call:pure:len:pure:plain"],
+    ["declaration rather than inferred body", "empty(): Void {} pure probe(): Void { empty(); }", "call:pure:empty:ordinary:plain:pure function cannot call impure function empty"],
+    ["recursive pure declaration", "pure probe(n: Nat): Nat { if n == 0 { 0 } else { probe(0) } }", "call:pure:probe:pure:plain"],
+    ["pure callable parameter", "pure probe(f: PureFn[Nat]): Nat { f.call() }", "call:pure:call:pure:plain"],
+    ["ordinary callable parameter", "pure probe(f: Fn[Nat]): Nat { f.call() }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
+    ["inferred callable", "pure answer(): Nat { 42 } pure probe(): Nat { f = @answer; f.call() }", "call:pure:call:pure:plain"],
+    ["declared widening is respected", "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; f.call() }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
+    ["async awaited call", "async child(): Nat { 1 } async probe(): Nat { await child() }", "await:async:::plain|call:async:child:async:awaited"],
+    ["async callable", "async probe(f: AsyncFn[Nat]): Nat { await f.call() }", "await:async:::plain|call:async:call:async:awaited"],
+    ["bare async", "async child(): Nat { 1 } async probe(): Nat { child() }", "call:async:child:async:plain:async call requires await inside an async function"],
+    ["ordinary await", "async child(): Nat { 1 } probe(): Nat { await child() }", "await:ordinary:::plain:await requires an async function|call:ordinary:child:async:awaited:async call requires await inside an async function"],
+    ["async blocking", "probe_block(): Nat { 1 } async probe(): Nat { probe_block() }", "call:async:probe_block:ordinary:plain:async function cannot call blocking function probe_block"],
+    ["await pure", "pure child(): Nat { 1 } async probe(): Nat { await child() }", "await:async:::plain|call:async:child:pure:awaited:await requires an async call"],
+    ["await non-call", "async probe(): Nat { await 42 }", "await:async:::plain|await operand:async:::awaited:await requires an async call"],
+    ["discarded await", "async child(): Nat { 1 } async probe(): Unit { await child(); () }", "await result:async::Nat:awaited:bind, match or return a non-Unit await result|await:async:::plain|call:async:child:async:awaited|call:async:$unit:pure:plain"],
+    ["nested arguments", "pure probe(): Nat { len(read_line()) }", "call:pure:len:pure:plain|call:pure:read_line:ordinary:plain:pure function cannot call impure function read_line"],
+    ["both branches checked", "pure probe(): Void { if true { print(1); } else { eprint(2); } }", "call:pure:print:ordinary:plain:pure function cannot call impure function print|call:pure:eprint:ordinary:plain:pure function cannot call impure function eprint"],
+    ["while and for", "probe(): Void { while false { print(1); } for x in [1] { eprint(x); } }", "call:ordinary:print:ordinary:plain|call:ordinary:eprint:ordinary:plain"],
+    ["generic definition once", "pure identity[T](n: T): T { n } pure probe[T](n: T): T { identity(n) }", "call:pure:identity:pure:plain"],
+    ["match callable payload", "enum Choice { Has(PureFn[Nat]) } pure probe(c: Choice): Nat { match c { Has(f) => f.call() } }", "call:pure:call:pure:plain"],
+    ["field callable", "record Box { f: Fn[Nat] } pure probe(box: Box): Nat { box.f.call() }", "call:pure:call:ordinary:plain:pure function cannot call impure function call"],
+    ["guard evidence excluded", "type Count = Nat where value > 0; pure probe(): Nat { 1 }", ""]
+  ]
+  for item in effect_cases {
+    program: Program = explanation_program(item[1])
+    results = append(results, test_expect(item[0] + " parsed", len(program.declarations) > 0, "fixture did not parse"))
+    results = append(results, test_equal_str(item[0], effect_summary(program), item[2]))
+    retained: CheckedEffects = check_program_effect_evidence(program, true)
+    results = append(results, test_expect(item[0] + " effect diagnostic parity",
+      retained.diagnostics == check_program_purity(program), "effect retention changed diagnostics"))
+    results = append(results, test_equal_nat(item[0] + " ordinary effects off",
+      len(check_program_effect_evidence(program, false).evidence), 0))
+  }
+  source: Str = "// λ🙂\npure probe(): Void { print(1); }"
+  retained: CheckedEffects = check_program_effect_evidence(explanation_program(source), true)
+  results = append(results, test_equal_nat("effect source count", len(retained.evidence), 1))
+  if len(retained.evidence) == 1 {
+    entry: EffectEvidence = retained.evidence[0]
+    match entry.span {
+      None() => { results = append(results, test_expect("effect source location", false, "missing source")); },
+      Some(span) => {
+        results = append(results, test_equal_str("effect source excerpt", slice(source, span.start.offset, span.end.offset), "print(1)"))
+        results = append(results, test_expect("effect source location", span.start.file == "sample.panack" && span.start.line == 2 && span.start.column == 22, "wrong location"))
+      }
+    }
+  }
+  bare: CheckedEffects = check_effect_expression(CallExpr("print", [NatExpr(1)], []), indexed_program([]), map(), false, true, None())
+  results = append(results, test_expect("unlocated effect is not guessed", len(bare.evidence) == 1 && bare.evidence[0].span == None(), "guessed location"))
   if test_report(results) > 0 { process_exit(1); }
 }

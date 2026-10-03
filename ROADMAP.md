@@ -31,6 +31,40 @@ installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
 
+## U3 effect explanation slice — 2026-10-03
+
+Selected by the user after performance PR #221 and backlog PR #223: extend the
+existing explanation command with retained local purity/ordinary/async call and
+await decisions, including callable types and imported/generic definitions.
+Medium / 1–2 PRs, targeting one end-to-end delivery. This follows the agreed
+return to programme #180; #134 remains open for broader type/proof explanations.
+U0 retention and non-impact experiments remain required before dependent work.
+No new release or website work is started. Owner: delivery agent.
+
+**Bounded outcome Done on this PR's merge:** shared effect checking retains actual
+local decisions without changing checking rules or user bytecode. Positive,
+rejected and unavailable output covers callable types, imported/generic definitions,
+nesting and source ranges. Local boundary status is separate from whole-program
+validity; no inferred transitive/runtime effects are claimed. Independent
+high-reasoning review found no actionable findings. All 196 focused explanation
+assertions, 36 CLI assertions and 343 functional cases passed. Canonical clean
+`make check` passed in **150s** (unit 112s, functional 5s, bootstrap 19s), with
+fresh compiler/library fixed points and package checks. Exact baseline parity
+holds for 227 compiler-contract fixtures (43 accepted artifacts, 184 rejected).
+
+The [validation profile](tests/VALIDATION_PROFILE.md#u3-local-effect-explanations--2026-10-03)
+records same-input timing and limitations: two-run compiler averages 5.977s before /
+6.127s after (+2.5%); small-program compilation and query medians differ by under
+2ms. This does not establish zero overhead. The 120s full and 15s incremental/unit
+budgets remain explicit #106 reminders; broader U0 retention experiments remain.
+
+The current ledger advances **1/3 to 2/3 on merge**, counted once for this bounded
+outcome; the next accepted principal outcome reaches the three-deliverable review.
+This is an intermediate programme slice, not completion of #134 or #180. Broader
+type/proof explanations remain. No post-merge acceptance remains for this local
+query; release/website adoption is a separate follow-up. Next principal work
+returns to programme prioritisation; no U4–U7 implementation is implied.
+
 ## Standard I/O, streaming and logging
 
 **Idea; awaiting planning, implementation unscheduled:**
@@ -401,8 +435,8 @@ Programme tracker: [#180](https://github.com/sproates/panackelty/issues/180).
 workstreams, not an effort percentage. The initial shared investigation is
 recorded in [ARCHITECTURE.md](ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01)
 with [reproducible probes](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
-The first U3 subtraction query is accepted through #219 (`f379c50`); broader
-type/effect explanations remain open. U2 provides production source maps; U3
+The first U3 subtraction query is accepted through #219 (`f379c50`); the local effect query is delivered on this PR's merge as recorded above. Broader
+type/proof and transitive-effect explanations remain open. U2 provides production source maps; U3
 retains subtraction decisions and guard origins. No retained static dependency
 or dynamic derivation graph exists.
 The bounded U1 experiment establishes sidecar identity/fallback evidence;
@@ -465,7 +499,7 @@ Report completed criteria and remaining work rather than invented effort weights
 | C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
 | U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
 | U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Accepted: frontend #209, emission #214, exact local-replay sidecar and public CLI #218 (`cbae41b`); [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
-| U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | First subtraction query accepted through #219; actual proof decisions, guard sources, rejected/unavailable results and CLI acceptance. Broader types/effects/proof scope remains | First slice delivered in 1 PR; remaining scope re-estimated at grooming |
+| U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | First subtraction query accepted through #219; actual proof decisions, guard sources, rejected/unavailable results and CLI acceptance. Local effect query delivered on this PR's merge; broader type/proof scope remains | First slice delivered in 1 PR; remaining scope re-estimated at grooming |
 | U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
 | U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
 | U6 | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
@@ -985,11 +1019,12 @@ update, correctness assessment, owner, state and acceptance evidence. Use a
 linked issue for detail; retain enough information here if GitHub is unavailable.
 Never mark an update complete merely because its PR merged: verify the live site.
 
-- **U3 subtraction explanation CLI:** promotion pending; owner is the core
+- **U3 subtraction and local effect explanation CLI:** promotion pending; owner is the core
   delivery agent until release/adoption handover. After a supporting native
   release, update command examples and feature claims with the bounded
-  Nat-subtraction scope, whole-program/local-proof distinction and unavailable
-  cases. Browser support must be verified separately before advertising it.
+  Nat-subtraction and local call/await effect scope, whole-program/local-boundary
+  distinction and unavailable cases. Explain declared/callable effects without
+  implying a transitive effect graph or runtime execution. Browser support must be verified separately before advertising it.
   Current published pins/examples remain unchanged; this change starts no site
   work. Broader demonstrations remain in U9.
 - **Programme #180 final website refresh (U9):** promotion pending; owner is the

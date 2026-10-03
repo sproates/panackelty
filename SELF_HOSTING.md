@@ -1,5 +1,14 @@
 # Self-hosting roadmap
 
+The U3 effect query extends opt-in explanations to actual local call/await
+decisions. Its v9 seed is regenerated from the prior indexed-lookup seed;
+fresh stages 2/3/4 converge to
+`777282023eab5e6d2760320fffb34dcefd86f281384203514bd2fdd29fad8580`
+(316,297 bytes), and the library fixed point remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Ordinary checking and user artifacts retain their contracts. Validation and
+measured overhead are recorded in the validation profile.
+
 The indexed-lookup performance change refreshes the v9 seed while preserving
 compiler semantics and user-program bytecode. The previous seed reproduces the
 new compiler, and fresh stages 2/3/4 converge with the unchanged standard-library

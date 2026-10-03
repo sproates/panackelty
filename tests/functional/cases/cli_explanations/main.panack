@@ -94,6 +94,36 @@ main(): Void {
           actual.exit_code == 1 && actual.signal == 0 && explain_contains(utf8_decode(actual.stderr), "standard library root is not configured") &&
           !explain_contains(utf8_decode(actual.stderr), "VM trap"), utf8_decode(actual.stderr))); }
       }
+      explain_write(library, "// λ🙂\npure inspect[T](item: T): Void { print(item); }\n")
+      explain_write(source, "import \"library.panack\"\nmain(): Void {}\n")
+      results = append(results, explain_run("imported generic effect rejection", ["explain", source, "--function", "inspect"], 1,
+        ["effect boundary: rejected", "source: project/library.panack:2:34-2:45", "expression: print(item)", "context: pure", "callee: print", "callee effect: ordinary", "pure function cannot call impure function print"], ["effect boundary: allowed"], "pure function cannot call impure function print"))
+      explain_write(source, "pure silent(): Nat { 1 } main(): Void { print(silent()); }")
+      results = append(results, explain_run("allowed effect boundaries", ["explain", source, "--function", "main"], 0,
+        ["effect boundary: allowed", "callee: print", "ordinary function permits", "callee: silent", "pure call is permitted"], ["effect boundary: rejected"], ""))
+      results = append(results, explain_run("no calls has no invented evidence", ["explain", source, "--function", "silent"], 0,
+        ["effects: unavailable", "no call or await boundary"], ["effect boundary:"], ""))
+      explain_write(source, "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; f.call() } main(): Void {}")
+      results = append(results, explain_run("callable declared effect", ["explain", source, "--function", "probe"], 1,
+        ["effect boundary: rejected", "expression: f.call()", "classification basis: callable type", "callee effect: ordinary"], [], "pure function cannot call impure function call"))
+      explain_write(source, "async child(): Nat { 42 } async main(): Unit { n = await child(); () }")
+      results = append(results, explain_run("allowed async await", ["explain", source, "--function", "main"], 0,
+        ["effect boundary: allowed", "context: async", "callee effect: async", "awaited: yes", "async call is awaited inside an async function"], ["effect boundary: rejected", "\n42\n"], ""))
+      explain_write(source, "async main(): Unit { print(42); () }")
+      results = append(results, explain_run("async blocking rejection", ["explain", source, "--function", "main"], 1,
+        ["effect boundary: rejected", "context: async", "async function cannot call blocking function print"], [], "async function cannot call blocking function print"))
+      explain_write(source, "async child(): Nat { 42 } async main(): Unit { await child(); () }")
+      results = append(results, explain_run("discarded await explains rejection", ["explain", source, "--function", "main"], 1,
+        ["effect boundary: rejected", "boundary: await result", "bind, match or return a non-Unit await result"], [], "non-Unit await result"))
+      explain_write(source, "main(): Void { n: Bool = 1; print(n); }")
+      results = append(results, explain_run("type failure skips effects", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable", "type checking prevented the effect pass"], ["effect boundary:"], "cannot assign"))
+      explain_write(source, "main(): Void { unknown(); }")
+      results = append(results, explain_run("resolution failure skips effects", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable", "resolution"], ["effect boundary:"], "unknown"))
+      explain_write(source, "main(): Void { ??? }")
+      results = append(results, explain_run("syntax failure skips effects", ["explain", source, "--function", "main"], 1,
+        ["effects: unavailable"], ["effect boundary:"], "error:"))
       for file in [source, library, artifact] {
         match fs_remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("cleanup", false, error.code)); } }
       }

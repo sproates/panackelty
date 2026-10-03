@@ -2673,3 +2673,38 @@ with bootstrap, release smoke and packaged quick start passing. The unit phase
 exceeded its 15s budget; the existing RM#28 / GI#106 reminder records this sample.
 The first clean attempt exposed the outdated PATH-only text assertion; no
 coverage was removed to resolve it. The successful run reused that build.
+
+
+## Website installation command parity — 2026-10-04
+
+[RM#118: Website installation command parity](../ROADMAP.md#rm-118) /
+[GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250)
+updates `site/index.html#start` to match the README delivered by
+[PR#251: Platform-specific installation instructions](https://github.com/sproates/panackelty/pull/251).
+Native alpha.10 and `site/playground.json` remain unchanged.
+
+Decoded both HTML platform code blocks and compared them byte-for-byte with the
+README's marked installation blocks: Linux x86_64 and macOS arm64 both match.
+The website greeting matches the README program apart from surrounding blank
+lines. Executed the website's Linux download/verification/extraction/version,
+local check/run and compile/bytecode blocks against a freshly downloaded public
+alpha.10 archive in a temporary directory on Ubuntu 24.04 x86_64. Every command
+returned zero, checksum reported `OK`, version was
+`panack 0.1.0-alpha.10 (bytecode 9)`, check printed `ok`, and both execution paths
+printed `Hello, Ada. The answer is 42.`. The temporary installation was removed.
+The identical macOS commands already passed native macOS arm64 CI in PR#251,
+linked in the preceding installation record; no new local macOS execution is
+claimed. That record also covers the six fail-before-extraction probes for these
+same shell blocks.
+
+`bash scripts/validate_change.sh --run origin/main` selected `route=website`:
+document/link/whitespace checks, all 38 website automation tests and Pages
+assembly/failure handling passed. The website-only route deliberately requires
+no new native `make check`. Hosted release-integrity and browser checks, visual
+preview acceptance before merge, and live verification after authorised deployment
+remain required. A clean preview can be built with
+`node scripts/preview.cjs build /absolute/fresh/output`; see
+[the preview workflow](../docs/PR_PREVIEWS.md) for private phone-accessible review.
+Neither a workspace HTTP check nor this local test report establishes iPhone
+access or user visual approval. The delivery agent owns those outstanding checks
+and must keep GI#250 open until live acceptance is recorded.

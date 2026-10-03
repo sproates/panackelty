@@ -9,6 +9,25 @@ assessment criteria, priorities, document ownership and review. Implementation
 items require their agreed scope, meaningful tests, affected documentation and
 canonical validation; documentation and design items use their applicable checks.
 
+## Roadmap identifiers
+
+Refer to work as **RM#n: short name**, issues as **GI#n: short name**, and
+pull requests as **PR#n: short name** in conversation and newly written records.
+These are separate number spaces; an RM number is not a GitHub issue number.
+Every independent work entry has an RM identity, including unissued ideas,
+programme workstreams and milestones, website follow-ups and completed work.
+Repeated summaries link to the same identity. Checklists describe their parent
+item's scope; policy, review history and navigation sections are not work items.
+
+The initial allocation contains **105 identities**. **Next available: RM#106.**
+Allocate the next unused number above the largest allocated number, updating this
+pointer in the same change. Never renumber or reuse IDs on reordering, completion,
+deferral or retirement. Retain a linked tombstone for a removed or merged item.
+Keep short names concise; an intentional rename preserves the ID and anchor.
+Existing section headings and legacy anchors remain available; `#rm-N` is the
+stable link for each item. No priority, scope or acceptance changes follow from
+this numbering. See the [reference convention](docs/ROADMAP_PROCESS.md#work-identifiers-and-references).
+
 ## Priority review policy — 2026-10-03
 
 At the user's request, the three-deliverable grooming rule and its completion
@@ -44,6 +63,10 @@ agents remains a hypothesis to test.
 
 ## U3 effect explanation slice — 2026-10-03
 
+<a id="rm-1"></a>
+
+**RM#1: Local effect explanations**.
+
 Selected by the user after performance PR #221 and backlog PR #223: extend the
 existing explanation command with retained local purity/ordinary/async call and
 await decisions, including callable types and imported/generic definitions.
@@ -75,6 +98,10 @@ query; release/website adoption is a separate follow-up. Next principal work
 returns to programme prioritisation; no U4–U7 implementation is implied.
 
 ## U0 bounded runtime-retention experiment — 2026-10-03
+
+<a id="rm-2"></a>
+
+**RM#2: Runtime retention experiment**.
 
 Selected by the user after the U3 local-effect delivery: investigate one actual
 arithmetic/function-call value derivation, repeated call/loop identity, bounded
@@ -117,6 +144,10 @@ remaining correctness findings. No release or website feature claim changes.
 
 ## Standard I/O, streaming and logging
 
+<a id="rm-3"></a>
+
+**RM#3: Streams and logging** · [GI#222: Streams and logging](https://github.com/sproates/panackelty/issues/222).
+
 **Idea; awaiting planning, implementation unscheduled:**
 [#222](https://github.com/sproates/panackelty/issues/222), requested 2026-10-03.
 Existing `read_line`, `print` and `eprint` cover basic stdin/stdout/stderr;
@@ -132,6 +163,10 @@ after assessment. Coordinate with subprocess POC #168 and build-tool POC #169.
 This records future planning without changing programme #180 priority. No release or website impact from this record.
 
 ## Compiler options and optimisation modes
+
+<a id="rm-4"></a>
+
+**RM#4: Compiler options** · [GI#220: Compiler options](https://github.com/sproates/panackelty/issues/220).
 
 **Idea; unscheduled:** [#220](https://github.com/sproates/panackelty/issues/220),
 requested during the 2026-10-02 performance discussion. Revisit compile-time speed,
@@ -187,6 +222,10 @@ The earlier #182 corrective release/adoption obligation is still separate. Furth
 
 ## Browser/WASM boundary investigation — 2026-10-01
 
+<a id="rm-5"></a>
+
+**RM#5: Browser ownership** · [GI#151: Browser ownership](https://github.com/sproates/panackelty/issues/151).
+
 Issue #151 records new evidence that browser-specific CI is imposing material
 feedback latency on unrelated core changes. The bounded investigation recommends
 a separate browser/playground repository **after one explicit core dependency
@@ -199,6 +238,10 @@ checkpoint. The proposed implementation sequence remains subject to review and
 merge approval.
 
 ### Browser website publication connection — verified
+
+<a id="rm-6"></a>
+
+**RM#6: Browser release integration**.
 
 The independent browser repository's architecture explanation from
 `sproates/panackelty-browser#3` is now live at
@@ -220,6 +263,8 @@ source link and exact `playground/release.json` pin. No publication acceptance
 remains for this slice.
 
 ### Browser repository separation — Done
+
+Roadmap item: [RM#5: Browser ownership](#rm-5).
 
 The user selected completion of #151's browser ownership and CI cleanup.
 Browser PR #5 moves the complete legacy suite: 15 runtime tests (145 VM corpus
@@ -260,6 +305,10 @@ Core hosted and post-merge acceptance are complete as recorded above.
 
 ### Completed: playground footer layout
 
+<a id="rm-7"></a>
+
+**RM#7: Playground footer** · [GI#163: Playground footer](https://github.com/sproates/panackelty/issues/163).
+
 **Done:** [#163](https://github.com/sproates/panackelty/issues/163), effective when
 this completion record merges. Browser PR #6 and core PR #177 are merged; the
 user accepted the homepage-style resource list preview. Browser v0.1.1 is pinned.
@@ -274,6 +323,10 @@ acceptance and live publication are complete; no acceptance remains.
 <a id="next-fast-website-ci-and-prepared-browser-test-environments"></a>
 
 ### Accepted website delivery; remaining CI follow-ups deferred
+
+<a id="rm-8"></a>
+
+**RM#8: Website CI follow-ups** · [GI#187: Website CI follow-ups](https://github.com/sproates/panackelty/issues/187).
 
 **User decision, 2026-10-02:** the delivered website and separate browsable
 coverage site are good enough for now. Accept the delivered outcome and shelve
@@ -470,6 +523,10 @@ mandatory. Detailed implementation evidence belongs in #187.
 
 ### Compiler and runtime understanding programme: delivery and resumption
 
+<a id="rm-9"></a>
+
+**RM#9: Compiler understanding programme** · [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180).
+
 **In progress:** the user authorised starting all five workstreams as one
 coordinated programme on 2026-10-01; #163 live acceptance is now verified. This
 expands the earlier #134-only selection. Work together on investigation, evidence design and delivery;
@@ -516,11 +573,11 @@ live verification remain separately recorded in the website follow-up register.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
-| [#134](https://github.com/sproates/panackelty/issues/134) Compiler explanations | Investigation in progress | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
-| [#173](https://github.com/sproates/panackelty/issues/173) Compilation provenance | Investigation in progress | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
-| [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
-| [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
-| [#172](https://github.com/sproates/panackelty/issues/172) Runtime value provenance | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
+| [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Investigation in progress | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
+| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Investigation in progress | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
+| <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
+| <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
+| [RM#68: Runtime value provenance](#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
 
 ### Programme delivery register
 
@@ -543,17 +600,17 @@ Report completed criteria and remaining work rather than invented effort weights
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
-| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; bounded runtime retention is investigated above; authenticated external producers and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
-| C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
-| U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
-| U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Accepted: frontend #209, emission #214, exact local-replay sidecar and public CLI #218 (`cbae41b`); [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
-| U3 | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | First subtraction query accepted through #219; actual proof decisions, guard sources, rejected/unavailable results and CLI acceptance. Local effect query delivered on this PR's merge; broader type/proof scope remains | First slice delivered in 1 PR; remaining scope re-estimated at grooming |
-| U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
-| U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
-| U6 | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
-| U7 | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Production unstarted; bounded retention experiment and go/no-go recommendation recorded above | First scalar production slice: large / 2–3 PRs, separately authorised |
-| U8 | Pass the realistic-program gate below across all five workstreams and complete release/docs acceptance | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
-| U9 | Final task: refresh website positioning and demonstrate the accepted compiler/runtime capabilities; deliberately adopt supporting releases and verify the live site | U8 accepted; published artifacts supporting advertised features | Planned, unstarted; tagline to be decided later with the user; acceptance below | Estimate after accepted capabilities and website scope are known |
+| <a id="rm-97"></a>**RM#97: Shared programme investigation** (U0) | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; bounded runtime retention is investigated above; authenticated external producers and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
+| <a id="rm-98"></a>**RM#98: Guard-fact correctness repair** (C0) · [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182) | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
+| <a id="rm-99"></a>**RM#99: Source attribution experiment** (U1) | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
+| <a id="rm-100"></a>**RM#100: Production source maps** (U2) | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Accepted: frontend #209, emission #214, exact local-replay sidecar and public CLI #218 (`cbae41b`); [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
+| [RM#48: Compiler explanations](#rm-48) (U3) | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | First subtraction query accepted through #219; actual proof decisions, guard sources, rejected/unavailable results and CLI acceptance. Local effect query delivered on this PR's merge; broader type/proof scope remains | First slice delivered in 1 PR; remaining scope re-estimated at grooming |
+| [RM#91: Compilation provenance](#rm-91) (U4) | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
+| [RM#92: Counterfactual compilation](#rm-92) (U5) | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
+| [RM#93: Semantic change prediction](#rm-93) (U6) | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
+| [RM#68: Runtime value provenance](#rm-68) (U7) | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Production unstarted; bounded retention experiment and go/no-go recommendation recorded above | First scalar production slice: large / 2–3 PRs, separately authorised |
+| [RM#10: Programme realistic evaluation](#rm-10) (U8) | Pass the realistic-program gate below across all five workstreams and complete release/docs acceptance | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
+| [RM#11: Programme website demonstrations](#rm-11) (U9) | Final task: refresh website positioning and demonstrate the accepted compiler/runtime capabilities; deliberately adopt supporting releases and verify the live site | U8 accepted; published artifacts supporting advertised features | Planned, unstarted; tagline to be decided later with the user; acceptance below | Estimate after accepted capabilities and website scope are known |
 
 U0 continues alongside production mapping and the later dependent workstreams. This is one coordinated
 programme with independently testable deliveries. It does not require every
@@ -629,6 +686,8 @@ correctness work and programme demonstrations remain separate.
 
 ### Source-to-bytecode mapping foundation: U1 and U2 done
 
+Roadmap item: [RM#100: Production source maps](#rm-100).
+
 U2 connects retained expression ranges to actual emitted instructions and
 provides validated local lookup with deterministic optional sidecars. It
 preserves v9 bytes and returns unavailable for missing, stale, forged or
@@ -688,6 +747,10 @@ Consumer delivery must assess its own website follow-up.
 
 ### Programme acceptance: trustworthy and useful on realistic programs
 
+<a id="rm-10"></a>
+
+**RM#10: Programme realistic evaluation**.
+
 **The explanations and predictions must be trustworthy and useful on realistic
 programs.** Completing five isolated demonstrations is insufficient to close the
 programme. Agree and record the representative programs and success criteria
@@ -721,6 +784,10 @@ Keep this gate pending until its evidence is linked from #180 and the roadmap.
 It supplements each child issue's acceptance and the release/website checks.
 
 ### Final task U9: website positioning and demonstrations
+
+<a id="rm-11"></a>
+
+**RM#11: Programme website demonstrations**.
 
 Agreed on 2026-10-02: finish the programme with a website marketing refresh that
 makes its demonstrated compiler and runtime understanding prominent alongside
@@ -769,6 +836,10 @@ making the entire programme an unconditional prerequisite for unrelated work.
 
 ### Completed: portable author-local previews
 
+<a id="rm-12"></a>
+
+**RM#12: Local website previews** · [GI#160: Local website previews](https://github.com/sproates/panackelty/issues/160).
+
 The user selected [#160](https://github.com/sproates/panackelty/issues/160) on
 2026-10-01. Previews must work independently of ChatGPT and contributor tooling.
 The user clarified the scope on the same date: a temporary local preview for
@@ -793,6 +864,10 @@ it does not make Sites a dependency of the portable local command or introduce
 automatic hosted PR publication. Production is unchanged. No acceptance remains
 for the agreed #160 scope. It counted once as the third accepted outcome
 reviewed at the 2026-10-01 grooming checkpoint below.
+
+<a id="rm-101"></a>
+
+**RM#101: Panackelty preview server** · [GI#162: Panackelty preview server](https://github.com/sproates/panackelty/issues/162).
 
 Backlog **Idea, unscheduled**: [#162](https://github.com/sproates/panackelty/issues/162)
 would replace the serving component with a Panackelty-written local HTTP server.
@@ -902,23 +977,27 @@ dependencies without replacing the current principal programme.
 
 | Candidate and work record | First useful outcome | Size / estimated PRs |
 | --- | --- | --- |
-| [.panack source coverage](#measure-panackelty-source-coverage--candidate-pending-assessment) ([#131](https://github.com/sproates/panackelty/issues/131)) | Prove exact source/execution attribution before collecting and publishing compiler/library baselines. Source branches, denominator correctness and collection failure remain explicit. | M / 1 feasibility; then provisionally 2–3 |
-| [Component readability and refactoring](#codebase-wide-human-readability-and-refactoring--candidate) ([#132](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
-| [Development workflow assessment](#development-workflow-assessment) ([#133](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
-| [Compiler explanations](#compiler-explanations) ([#134](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
-| [Systematic invariant testing](#systematic-invariant-testing) ([#135](https://github.com/sproates/panackelty/issues/135)) | Extend existing equivalence tests with one bounded, reproducible generated-input or semantics-preserving transformation family. | M / 1–2 for one family |
-| [Source-aware runtime errors](#source-aware-runtime-errors) ([#136](https://github.com/sproates/panackelty/issues/136)) | Explain a bounded set of runtime failures with source expressions and useful call context; validate through the debugging guide and preserve safe metadata fallback. | M–L / 1–2 after mapping design |
-| [Learning path and technical documentation](#learning-path-and-technical-documentation) ([#137](https://github.com/sproates/panackelty/issues/137)) | Deliver the installation-to-maintenance tutorial and an explicit debugging guide using available tools, with later source-aware updates. | M / 1–2 for first tutorial |
-| [Executable documentation](#executable-documentation) ([#138](https://github.com/sproates/panackelty/issues/138)) | Verify documentation commands and outputs, explicitly including the debugging guide’s failing examples, fixes and regression tests for its declared release. | M / 1–2 for one surface |
-| [Interactive debugger](#interactive-debugger--candidate-for-assessment) (no issue yet) | Assess a bounded synchronous CLI experiment for breakpoints, stepping, locals and call frames against observed debugging gaps. | M / 1 assessment; delivery estimate follows evidence |
-| [Editor support](#editor-support) ([#139](https://github.com/sproates/panackelty/issues/139)) | Provide highlighting and basic editing in one selected editor; assess compiler-backed features separately. | S–M / 1–2 for one editor |
-| [Technical showcase programs](#technical-showcase-programs) ([#140](https://github.com/sproates/panackelty/issues/140)) | Deliver one complete, tested demonstration combining existing language capabilities and explicit failure boundaries. | M / 1–2 for one demonstration |
-| [Performance and benchmarking](#performance-and-benchmarking) ([#141](https://github.com/sproates/panackelty/issues/141)) | Establish reproducible compile/run, memory and artifact-size benchmarks; use evidence to guide later profiling and optimisation. | M / 1–2 for initial baseline; later optimisation separately scoped |
-| [Independent contract implementation](#independent-contract-implementation) ([#142](https://github.com/sproates/panackelty/issues/142)) | Attempt a narrowly scoped independent implementation from the written bytecode contract and record ambiguities. | M / 1 bounded assessment |
+| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Prove exact source/execution attribution before collecting and publishing compiler/library baselines. Source branches, denominator correctness and collection failure remain explicit. | M / 1 feasibility; then provisionally 2–3 |
+| [RM#62: Component readability](#rm-62) ([GI#132: Component readability](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
+| [RM#47: Development workflow assessment](#rm-47) ([GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
+| [RM#48: Compiler explanations](#rm-48) ([GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
+| [RM#49: Invariant testing](#rm-49) ([GI#135: Invariant testing](https://github.com/sproates/panackelty/issues/135)) | Extend existing equivalence tests with one bounded, reproducible generated-input or semantics-preserving transformation family. | M / 1–2 for one family |
+| [RM#50: Source-aware runtime errors](#rm-50) ([GI#136: Source-aware runtime errors](https://github.com/sproates/panackelty/issues/136)) | Explain a bounded set of runtime failures with source expressions and useful call context; validate through the debugging guide and preserve safe metadata fallback. | M–L / 1–2 after mapping design |
+| [RM#51: Learning and debugging guides](#rm-51) ([GI#137: Learning and debugging guides](https://github.com/sproates/panackelty/issues/137)) | Deliver the installation-to-maintenance tutorial and an explicit debugging guide using available tools, with later source-aware updates. | M / 1–2 for first tutorial |
+| [RM#52: Executable documentation](#rm-52) ([GI#138: Executable documentation](https://github.com/sproates/panackelty/issues/138)) | Verify documentation commands and outputs, explicitly including the debugging guide’s failing examples, fixes and regression tests for its declared release. | M / 1–2 for one surface |
+| [RM#53: Interactive debugger](#rm-53) (no issue yet) | Assess a bounded synchronous CLI experiment for breakpoints, stepping, locals and call frames against observed debugging gaps. | M / 1 assessment; delivery estimate follows evidence |
+| [RM#54: Editor support](#rm-54) ([GI#139: Editor support](https://github.com/sproates/panackelty/issues/139)) | Provide highlighting and basic editing in one selected editor; assess compiler-backed features separately. | S–M / 1–2 for one editor |
+| [RM#55: Showcase programs](#rm-55) ([GI#140: Showcase programs](https://github.com/sproates/panackelty/issues/140)) | Deliver one complete, tested demonstration combining existing language capabilities and explicit failure boundaries. | M / 1–2 for one demonstration |
+| [RM#56: Performance baselines](#rm-56) ([GI#141: Performance baselines](https://github.com/sproates/panackelty/issues/141)) | Establish reproducible compile/run, memory and artifact-size benchmarks; use evidence to guide later profiling and optimisation. | M / 1–2 for initial baseline; later optimisation separately scoped |
+| [RM#57: Independent contract assessment](#rm-57) ([GI#142: Independent contract assessment](https://github.com/sproates/panackelty/issues/142)) | Attempt a narrowly scoped independent implementation from the written bytecode contract and record ambiguities. | M / 1 bounded assessment |
 
 <a id="proposed-first-step"></a>
 
 ### Completed: modular validation and component boundaries
+
+<a id="rm-13"></a>
+
+**RM#13: Modular validation route**.
 
 **Done: the bounded validation slice of [#106](https://github.com/sproates/panackelty/issues/106)**,
 effective when its delivery PR merges. The broader issue remains open for
@@ -962,17 +1041,17 @@ justify shared evidence rather than requiring a large common framework.
 
 | Work record | Bounded intent / relationship |
 | --- | --- |
-| [#164](https://github.com/sproates/panackelty/issues/164) Extensible numeric model | Assess real/complex representations, operations and exactness guarantees. |
-| [#165](https://github.com/sproates/panackelty/issues/165) Browser event POC | Repeated browser events invoke a bytecode handler through an explicit host boundary. |
-| [#166](https://github.com/sproates/panackelty/issues/166) Typed HTTP messages | Two independent Panackelty services exchange typed messages; assess HTTP and lifecycle gaps. |
-| [#167](https://github.com/sproates/panackelty/issues/167) File discovery | Deterministic recursive include/exclude matching with filesystem errors and symlink policy. |
-| [#168](https://github.com/sproates/panackelty/issues/168) Subprocess POC | Exercise process execution and standard streams, including failure boundaries. |
-| [#169](https://github.com/sproates/panackelty/issues/169) Tiny build tool | Dogfood discovery and processes in a bounded build workflow; establish prerequisites. |
-| [#170](https://github.com/sproates/panackelty/issues/170) Type inference | Demonstrate current inference limits and assess one predictable, sound expansion. |
-| [#172](https://github.com/sproates/panackelty/issues/172) Explainable values | Investigate opt-in runtime value derivations; distinguish provenance from instruction tracing. |
-| [#173](https://github.com/sproates/panackelty/issues/173) Explainable compilation | Connect one source construct through checking/lowering to actual emitted bytecode. |
-| [#174](https://github.com/sproates/panackelty/issues/174) Counterfactual compilation | Derive a sufficient requirement from checker evidence and verify it by recompilation. |
-| [#175](https://github.com/sproates/panackelty/issues/175) Semantic change prediction | Predict direct/transitive proof consequences and verify against an actual change; unaffected claims require evidence. |
+| <a id="rm-85"></a>**RM#85: Extensible numerics** · [GI#164: Extensible numerics](https://github.com/sproates/panackelty/issues/164) | Assess real/complex representations, operations and exactness guarantees. |
+| <a id="rm-86"></a>**RM#86: Browser event experiment** · [GI#165: Browser event experiment](https://github.com/sproates/panackelty/issues/165) | Repeated browser events invoke a bytecode handler through an explicit host boundary. |
+| <a id="rm-87"></a>**RM#87: Typed HTTP messages** · [GI#166: Typed HTTP messages](https://github.com/sproates/panackelty/issues/166) | Two independent Panackelty services exchange typed messages; assess HTTP and lifecycle gaps. |
+| <a id="rm-88"></a>**RM#88: File discovery** · [GI#167: File discovery](https://github.com/sproates/panackelty/issues/167) | Deterministic recursive include/exclude matching with filesystem errors and symlink policy. |
+| <a id="rm-89"></a>**RM#89: Subprocess experiment** · [GI#168: Subprocess experiment](https://github.com/sproates/panackelty/issues/168) | Exercise process execution and standard streams, including failure boundaries. |
+| <a id="rm-90"></a>**RM#90: Tiny build tool** · [GI#169: Tiny build tool](https://github.com/sproates/panackelty/issues/169) | Dogfood discovery and processes in a bounded build workflow; establish prerequisites. |
+| [RM#64: Inference and diagnostics](#rm-64) · [GI#170: Inference and diagnostics](https://github.com/sproates/panackelty/issues/170) | Demonstrate current inference limits and assess one predictable, sound expansion. |
+| [RM#68: Runtime value provenance](#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Investigate opt-in runtime value derivations; distinguish provenance from instruction tracing. |
+| [RM#91: Compilation provenance](#rm-91) · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Connect one source construct through checking/lowering to actual emitted bytecode. |
+| [RM#92: Counterfactual compilation](#rm-92) · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Derive a sufficient requirement from checker evidence and verify it by recompilation. |
+| [RM#93: Semantic change prediction](#rm-93) · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Predict direct/transitive proof consequences and verify against an actual change; unaffected claims require evidence. |
 
 Durable resumable execution remains in the existing exploration below: persisted
 checkpoints and crash recovery are not delivered by the completed in-memory VM
@@ -980,6 +1059,10 @@ suspension work. It is distinct from value provenance and remains unscheduled.
 #162, the Panackelty-written preview server, remains separate from completed #160.
 
 ## Independent website publishing
+
+<a id="rm-14"></a>
+
+**RM#14: Independent website publishing** · [GI#178: Independent website publishing](https://github.com/sproates/panackelty/issues/178).
 
 Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 
@@ -1031,7 +1114,7 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
 
 ### Website follow-up register
 
-- **#180 U2 public source-map commands:** pending promotion; owner: programme
+- <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
   delivery agent. The live site still advertises v0.1.1; no supporting release is
   assigned. After publishing and deliberately adopting a release containing U2,
   consider CLI documentation and a validated lookup example, stating exact-source
@@ -1041,7 +1124,7 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
   the adopted artifacts and verifying the published pages. Recording this entry
   does not start website work; U9's broader positioning remains separate.
 
-- **#187 separate coverage host:** website cutover and independent manual report
+- [RM#8: Website CI follow-ups](#rm-8) — **Separate coverage host:** website cutover and independent manual report
   refresh verified; owner: delivery agent. PR #203 / Pages `36935939432` passed
   live homepage, playground, both old entry points and website identity checks;
   landing layout inspected. Coverage run `36938575919` advanced the report to
@@ -1049,7 +1132,7 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
   Automatic scheduling, core-only no-publication and timing acceptance remain
   open but deferred under #187 by user decision; they no longer block other work.
 
-- **#182 compiler correctness follow-up:** owner is the #180 delivery agent until
+- <a id="rm-103"></a>**RM#103: Corrective compiler release adoption** — follow-up to [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182): owner is the #180 delivery agent until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as
   the affected core seed; plan a corrective compiler/browser release and explicit
   website pin update after the core repair is merged and released. No target release is
@@ -1066,7 +1149,7 @@ update, correctness assessment, owner, state and acceptance evidence. Use a
 linked issue for detail; retain enough information here if GitHub is unavailable.
 Never mark an update complete merely because its PR merged: verify the live site.
 
-- **U3 subtraction and local effect explanation CLI:** promotion pending; owner is the core
+- <a id="rm-104"></a>**RM#104: Explanation website adoption** — **U3 subtraction and local effect explanation CLI:** promotion pending; owner is the core
   delivery agent until release/adoption handover. After a supporting native
   release, update command examples and feature claims with the bounded
   Nat-subtraction and local call/await effect scope, whole-program/local-boundary
@@ -1074,7 +1157,7 @@ Never mark an update complete merely because its PR merged: verify the live site
   implying a transitive effect graph or runtime execution. Browser support must be verified separately before advertising it.
   Current published pins/examples remain unchanged; this change starts no site
   work. Broader demonstrations remain in U9.
-- **Programme #180 final website refresh (U9):** promotion pending; owner is the
+- [RM#11: Programme website demonstrations](#rm-11) — **Final website refresh (U9):** promotion pending; owner is the
   agent or maintainer delivering #180 until explicitly handed over. Affected
   surfaces: homepage capabilities, learning examples and playground where supported.
   Refresh the marketing blurb and capability presentation using U9 acceptance
@@ -1106,6 +1189,10 @@ These proposals do not change the current release support policy.
 
 #### Support Linux arm64 release artifacts
 
+<a id="rm-15"></a>
+
+**RM#15: Linux arm64 releases** · [GI#145: Linux arm64 releases](https://github.com/sproates/panackelty/issues/145).
+
 Work record: [#145](https://github.com/sproates/panackelty/issues/145).
 
 Linux x86-64 and macOS arm64 releases exist; Linux arm64 is missing. Native ARM containers, ARM cloud hosts and compatible Raspberry Pi systems would benefit. macOS arm64 binaries cannot run in Linux containers.
@@ -1117,6 +1204,10 @@ M / provisionally 1–2 PRs including tests, release integration and documentati
 <a id="container-distribution"></a>
 
 #### Publish versioned Panackelty Docker images
+
+<a id="rm-16"></a>
+
+**RM#16: Docker distribution** · [GI#146: Docker distribution](https://github.com/sproates/panackelty/issues/146).
 
 Work record: [#146](https://github.com/sproates/panackelty/issues/146).
 
@@ -1130,6 +1221,10 @@ M / provisionally 1–2 PRs. Depends on existing release gates; native multi-arc
 
 #### Provide Panackelty installation through a Homebrew tap
 
+<a id="rm-17"></a>
+
+**RM#17: Homebrew distribution** · [GI#147: Homebrew distribution](https://github.com/sproates/panackelty/issues/147).
+
 Work record: [#147](https://github.com/sproates/panackelty/issues/147).
 
 Manual archive installation is supported; a maintained Homebrew tap would simplify installation and upgrades for developers and coding agents.
@@ -1141,6 +1236,10 @@ S–M / provisionally 1–2 PRs including integration and documentation. Indepen
 <a id="debian-package-distribution"></a>
 
 #### Assess Debian packages and apt distribution
+
+<a id="rm-18"></a>
+
+**RM#18: Debian distribution** · [GI#148: Debian distribution](https://github.com/sproates/panackelty/issues/148).
 
 Work record: [#148](https://github.com/sproates/panackelty/issues/148).
 
@@ -1180,6 +1279,10 @@ questions should produce bounded outcomes rather than more prerequisites.
 
 ### Completed: expanded holistic and architectural gap assessment
 
+<a id="rm-19"></a>
+
+**RM#19: Architecture and adoption assessment** · [GI#85: Architecture and adoption assessment](https://github.com/sproates/panackelty/issues/85).
+
 Work record: [issue #85](https://github.com/sproates/panackelty/issues/85).
 The [assessment report](docs/ADOPTION_ASSESSMENT.md) was merged in PR #87; issue
 #85 is closed. Its implementation ordering remained provisional pending the pilot. Evidence covers host integration,
@@ -1212,6 +1315,10 @@ platforms or authorise implementation of every identified gap.
 
 ### Completed: AI-assisted delivery pilot
 
+<a id="rm-20"></a>
+
+**RM#20: AI delivery pilot** · [GI#86: AI delivery pilot](https://github.com/sproates/panackelty/issues/86).
+
 Work record: [issue #86](https://github.com/sproates/panackelty/issues/86).
 The [pilot report and evidence](docs/AGENT_DELIVERY_PILOT.md) record 12 fresh-context
 trials: Panackelty passed four of six initial and maintained tasks, with HTTP
@@ -1240,6 +1347,10 @@ experiment scope and budget before execution; do not introduce a Python runtime
 dependency into Panackelty's own development or validation workflow.
 
 ### Completed: sorting and literal suffix helpers
+
+<a id="rm-21"></a>
+
+**RM#21: Sorting and suffix helpers** · [GI#89: Sorting and suffix helpers](https://github.com/sproates/panackelty/issues/89).
 
 Work record: [issue #89](https://github.com/sproates/panackelty/issues/89).
 State: Done. PR #90 merged after all 21 CI jobs passed, including the three
@@ -1271,6 +1382,10 @@ the full sanitizer CI checks subsequently passed before merge.
 
 ### Completed: execution, concurrency and host integration design
 
+<a id="rm-22"></a>
+
+**RM#22: Execution architecture design** · [GI#91: Execution architecture design](https://github.com/sproates/panackelty/issues/91).
+
 Work record: [issue #91](https://github.com/sproates/panackelty/issues/91).
 State: Done. The [design report](docs/EXECUTION_CONCURRENCY_DESIGN.md) merged in
 PR #92 after all 21 CI jobs passed; issue #91 is closed. The report remains a
@@ -1300,6 +1415,10 @@ links and whitespace checks passed. These are regression checks, not evidence
 that the proposed scheduler or platform adapters have been implemented.
 
 ### Completed: resumable VM execution feasibility
+
+<a id="rm-23"></a>
+
+**RM#23: Resumable VM feasibility** · [GI#93: Resumable VM feasibility](https://github.com/sproates/panackelty/issues/93).
 
 Work record: [issue #93](https://github.com/sproates/panackelty/issues/93).
 State: Done. PR #94 merged after all 21 hosted checks passed, including sanitizer
@@ -1335,6 +1454,10 @@ The subsequent milestone was separately authorised in the decision below.
 <a id="now-task-and-lifecycle-feasibility"></a>
 
 ### Completed: task and lifecycle feasibility
+
+<a id="rm-24"></a>
+
+**RM#24: Task lifecycle feasibility** · [GI#95: Task lifecycle feasibility](https://github.com/sproates/panackelty/issues/95).
 
 Work record: [issue #95](https://github.com/sproates/panackelty/issues/95).
 State: Done. PR #96 merged with explicit approval on 2026-09-29 after all 21
@@ -1375,6 +1498,10 @@ complete; production concurrency support remains separate.
 
 ### Async programming interface: proposal for review
 
+<a id="rm-25"></a>
+
+**RM#25: Async interface design** · [GI#97: Async interface design](https://github.com/sproates/panackelty/issues/97).
+
 Work record: [issue #97](https://github.com/sproates/panackelty/issues/97).
 State: Done. The investigation report merged in PR #98 with explicit approval
 after all 21 hosted checks passed; issue #97 is closed. Its implementation
@@ -1414,6 +1541,10 @@ report, not automatic permission to implement its recommendation.
 
 ### Completed: bounded source-to-VM async/await slice
 
+<a id="rm-26"></a>
+
+**RM#26: Async source integration** · [GI#102: Async source integration](https://github.com/sproates/panackelty/issues/102).
+
 Work record: [issue #102](https://github.com/sproates/panackelty/issues/102).
 Selected on 2026-09-29 after comparing real TCP/timer investigation, targeted
 compiler assistance and website assessment. M–L, estimated one cohesive PR (two
@@ -1436,6 +1567,10 @@ the shared VM while compiler checks run. Real networking, spawning and resource
 scopes remain outside this delivered slice.
 
 ### Completed: bounded validation performance investigation
+
+<a id="rm-27"></a>
+
+**RM#27: Validation overlap investigation** · [GI#104: Validation overlap investigation](https://github.com/sproates/panackelty/issues/104).
 
 Work record: [issue #104](https://github.com/sproates/panackelty/issues/104).
 Approved on 2026-09-29 after the async slice: establish a same-host clean baseline,
@@ -1460,6 +1595,10 @@ warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
 is closed. The timing budgets remain open goals, not completed by this merge.
 
 ### Incremental and modular builds
+
+<a id="rm-28"></a>
+
+**RM#28: Incremental and modular builds** · [GI#106: Incremental and modular builds](https://github.com/sproates/panackelty/issues/106).
 
 <a id="future-candidate-incremental-and-modular-builds"></a>
 
@@ -1528,12 +1667,20 @@ its dependents, not every unrelated part, while retaining full final validation.
 
 ### Completed: VM/compiler boundary audit
 
+<a id="rm-29"></a>
+
+**RM#29: VM compiler boundary audit**.
+
 The user selected this bounded investigation on 2026-09-30, within
 [issue #106](https://github.com/sproates/panackelty/issues/106), before choosing
 browser or build implementation. The [audit evidence](ARCHITECTURE.md#vmcompiler-boundary-audit--2026-09-30)
 shows that the VM already builds and passes native tests and 145 fixed bytecode
 cases without compiler source, seed or stdlib. Launcher/package prerequisites
 and broader test orchestration are the remaining practical coupling.
+
+<a id="rm-105"></a>
+
+**RM#105: Runtime-only packaging** (unscheduled follow-up).
 
 No compiler/VM redesign is recommended. A runtime-only packaging/test entry point
 could be a small-to-medium one-PR slice; browser feasibility can proceed without
@@ -1543,6 +1690,10 @@ was subsequently selected below; runtime-only packaging remains unscheduled.
 The audit does not complete #106's caching or separate-compilation work.
 
 ### Completed: browser-playground feasibility
+
+<a id="rm-30"></a>
+
+**RM#30: Browser playground feasibility** · [GI#110: Browser playground feasibility](https://github.com/sproates/panackelty/issues/110).
 
 Work record: [issue #110](https://github.com/sproates/panackelty/issues/110).
 State: Done. PR #111 merged with explicit approval and successful documentation
@@ -1585,6 +1736,10 @@ production host adapter and public-site integration remain separate work.
 
 ### Completed: playground delivery preparation
 
+<a id="rm-31"></a>
+
+**RM#31: Playground delivery preparation** · [GI#112: Playground delivery preparation](https://github.com/sproates/panackelty/issues/112).
+
 Work record: [issue #112](https://github.com/sproates/panackelty/issues/112).
 State: Done. PR #113 merged on 2026-09-30 at `149d7d5` with explicit approval.
 Local `make check` passed in 297s; Check and Playground preparation workflows
@@ -1615,6 +1770,10 @@ task does not change those targets or claim improved native validation speed.
 
 ### Completed: website playground integration
 
+<a id="rm-32"></a>
+
+**RM#32: Website playground integration** · [GI#114: Website playground integration](https://github.com/sproates/panackelty/issues/114).
+
 Work record: [issue #114](https://github.com/sproates/panackelty/issues/114).
 State: Done. Delivered in PR #115; issue #114 is closed. The user subsequently
 tried the live playground and requested the core-library ergonomics work below.
@@ -1640,6 +1799,10 @@ Issue #114 is closed following delivery. The existing validation budget warnings
 remain applicable; no speed improvement is claimed.
 
 ### Completed: content-led website expansion
+
+<a id="rm-33"></a>
+
+**RM#33: Website content expansion** · [GI#99: Website content expansion](https://github.com/sproates/panackelty/issues/99).
 
 Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
 Selected and authorised on 2026-09-30 ahead of further build infrastructure:
@@ -1679,6 +1842,10 @@ and compiler-explanation candidates. Compare these against the changed baseline,
 not the pilot's earlier implementation recommendations.
 
 ### Developer experience: useful assistance from the compiler
+
+<a id="rm-34"></a>
+
+**RM#34: Compiler assistance**.
 
 The [workflow assessment](#development-workflow-assessment) and
 [compiler explanations](#compiler-explanations) now give these ideas bounded
@@ -1734,6 +1901,8 @@ The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules
 
 ## Improve and expand the website
 
+Roadmap item: [RM#33: Website content expansion](#rm-33).
+
 Work record: [issue #99](https://github.com/sproates/panackelty/issues/99).
 The [current decision and acceptance](#completed-content-led-website-expansion) above
 owns the state and scope. The initial unscheduled idea was recorded on
@@ -1741,6 +1910,10 @@ owns the state and scope. The initial unscheduled idea was recorded on
 The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
 ## Developer preview alpha.10 release
+
+<a id="rm-35"></a>
+
+**RM#35: Alpha.10 release**.
 
 State: Done. PR #122 merged and alpha.10 published on 2026-09-30 from
 `8cb6b75328aae8f6febf02529e9ac1798c7056b4`. Linux x86-64 and macOS arm64
@@ -1753,6 +1926,10 @@ The release aligns downloads with the playground's core language APIs and v9
 bytecode. Real networking and broader build-cache work remain separate.
 
 ## Real async TCP from Panackelty
+
+<a id="rm-36"></a>
+
+**RM#36: Finite TCP client** · [GI#126: Finite TCP client](https://github.com/sproates/panackelty/issues/126).
 
 Work record: [issue #126](https://github.com/sproates/panackelty/issues/126).
 State: Done. PR #127 merged on 2026-09-30 after all 23 hosted checks passed.
@@ -1780,6 +1957,10 @@ shipped below; broader server capabilities and build-cache improvements remain
 independently scoped follow-ups.
 
 ## Bounded async TCP server
+
+<a id="rm-37"></a>
+
+**RM#37: Finite TCP server** · [GI#128: Finite TCP server](https://github.com/sproates/panackelty/issues/128).
 
 Work record: [issue #128](https://github.com/sproates/panackelty/issues/128).
 State: Done. Contract PR #129 and implementation PR #130 merged on 2026-09-30;
@@ -1809,6 +1990,10 @@ spawning, DNS, TLS, HTTP and indefinite services remain separate proposals.
 
 ## Website deployment source selection
 
+<a id="rm-38"></a>
+
+**RM#38: Website source selection** · [GI#123: Website source selection](https://github.com/sproates/panackelty/issues/123).
+
 Work record: [issue #123](https://github.com/sproates/panackelty/issues/123).
 State: Done. PR #124 merged after all 23 checks passed. Production Pages run
 36723094458 passed build, deployment and live verification; public provenance
@@ -1835,6 +2020,10 @@ TCP/timer discovery; no compiler, website appearance or cache changes are needed
 
 ## Playground deployment cache consistency
 
+<a id="rm-39"></a>
+
+**RM#39: Playground cache consistency** · [GI#119: Playground cache consistency](https://github.com/sproates/panackelty/issues/119).
+
 Work record: [issue #119](https://github.com/sproates/panackelty/issues/119).
 State: Done. PR #120 merged and deployed on 2026-09-30. All 23 hosted checks
 passed; live reload loaded versioned assets and the import-free text example
@@ -1853,6 +2042,10 @@ the separate alpha.10 release, dependency-aware probe reuse and TCP/timer discov
 No language, bytecode or downloadable release-version change is included.
 
 ## Core types and discoverable text/collection methods
+
+<a id="rm-40"></a>
+
+**RM#40: Core types and methods** · [GI#116: Core types and methods](https://github.com/sproates/panackelty/issues/116).
 
 Work record: [issue #116](https://github.com/sproates/panackelty/issues/116).
 State: Done. Completed in PR #118, merged and deployed on 2026-09-30.
@@ -1997,6 +2190,10 @@ release PR. The bytecode format stays v9.
 
 ## Language namespaces — idea
 
+<a id="rm-41"></a>
+
+**RM#41: Language namespaces** · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198).
+
 Work record: [#198](https://github.com/sproates/panackelty/issues/198).
 State: Idea, unscheduled. Expanded at the user's request on 2026-10-01 to answer
 how code in one file references functions and types in another. Existing quoted
@@ -2030,6 +2227,10 @@ alone does not settle qualified symbol lookup or namespace semantics.
 
 ## Namespace the current standard library — idea
 
+<a id="rm-42"></a>
+
+**RM#42: Standard library namespaces**.
+
 Review how existing library APIs should be grouped, exported and referenced so
 users can discover them and avoid collisions. This is a separate deliverable
 from general namespace support, with an explicit dependency assessment.
@@ -2050,6 +2251,10 @@ Both items remain unscheduled assessment candidates. Preserve existing public
 contracts until the namespace design and any migration are explicitly agreed.
 
 ## Reusable modules and package structure — idea
+
+<a id="rm-43"></a>
+
+**RM#43: Reusable packages** · [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
 
 Work record: [#199](https://github.com/sproates/panackelty/issues/199).
 State: Idea, unscheduled; requested on 2026-10-01.
@@ -2072,6 +2277,10 @@ Public API compatibility and premature artifact-format commitments are key risks
 No registry, separate compiler/linker or package format is selected.
 
 ## Dependency management — idea
+
+<a id="rm-44"></a>
+
+**RM#44: Dependency management** · [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200).
 
 Work record: [#200](https://github.com/sproates/panackelty/issues/200).
 State: Idea, unscheduled; requested on 2026-10-01.
@@ -2100,6 +2309,10 @@ implementation outcomes remain independently scoped. Backlog recording leaves
 
 ## Review GitHub repository settings and tooling — idea
 
+<a id="rm-45"></a>
+
+**RM#45: Repository tooling review**.
+
 Assess whether repository configuration and available tooling can improve
 security, code quality and contributor experience. This is a backlog item, not
 an assertion that any particular feature is disabled or suitable. Include it in
@@ -2125,6 +2338,10 @@ recommendations. Enabling selected features is separately scoped work with
 its own verification; do not turn on every available feature by default.
 
 ## Measure Panackelty source coverage — candidate pending assessment
+
+<a id="rm-46"></a>
+
+**RM#46: Panackelty source coverage** · [GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131).
 
 Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131). State: Idea; implementation
 unscheduled. See the [current comparison](#proposed-first-step) for first-slice
@@ -2192,6 +2409,10 @@ hold detailed acceptance, risks and first-slice boundaries.
 
 ### Development workflow assessment
 
+<a id="rm-47"></a>
+
+**RM#47: Development workflow assessment** · [GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133).
+
 Work record: [#133](https://github.com/sproates/panackelty/issues/133).
 
 The earlier delivery pilot predates core-method and networking delivery. Observe
@@ -2208,6 +2429,10 @@ generator, formatter or package manager is needed.
 
 ### Compiler explanations
 
+<a id="rm-48"></a>
+
+**RM#48: Compiler explanations** · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134).
+
 Work record: [#134](https://github.com/sproates/panackelty/issues/134).
 
 The first U3 query is accepted through #219: `panack explain` reports
@@ -2222,6 +2447,10 @@ and automatic fixes remain outside #134.
 
 ### Systematic invariant testing
 
+<a id="rm-49"></a>
+
+**RM#49: Invariant testing** · [GI#135: Invariant testing](https://github.com/sproates/panackelty/issues/135).
+
 Work record: [#135](https://github.com/sproates/panackelty/issues/135).
 
 Extend existing source/bytecode comparisons, deterministic round trips and
@@ -2232,6 +2461,10 @@ perturbation. Shared implementation bugs and invalid transformations are risks;
 full random-language generation and a second execution engine are outside scope.
 
 ### Source-aware runtime errors
+
+<a id="rm-50"></a>
+
+**RM#50: Source-aware runtime errors** · [GI#136: Source-aware runtime errors](https://github.com/sproates/panackelty/issues/136).
 
 Work record: [#136](https://github.com/sproates/panackelty/issues/136).
 
@@ -2248,6 +2481,10 @@ Preserve error meaning and bytecode safety. A debugger and full async history
 are separate; report publication is not a prerequisite.
 
 ### Learning path and technical documentation
+
+<a id="rm-51"></a>
+
+**RM#51: Learning and debugging guides** · [GI#137: Learning and debugging guides](https://github.com/sproates/panackelty/issues/137).
 
 Work record: [#137](https://github.com/sproates/panackelty/issues/137).
 
@@ -2274,6 +2511,10 @@ Initial guide estimate: S–M / 1–2 PRs including examples and CI checks; late
 updates follow the capabilities they document.
 
 ### Executable documentation
+
+<a id="rm-52"></a>
+
+**RM#52: Executable documentation** · [GI#138: Executable documentation](https://github.com/sproates/panackelty/issues/138).
 
 Work record: [#138](https://github.com/sproates/panackelty/issues/138).
 
@@ -2317,6 +2558,10 @@ debugging capabilities must assess website follow-ups for their stated versions.
 
 ### Interactive debugger — candidate for assessment
 
+<a id="rm-53"></a>
+
+**RM#53: Interactive debugger**.
+
 **Idea; implementation unscheduled.** No dedicated issue yet; create its work
 record after checking existing issues when the bounded assessment is selected.
 
@@ -2342,6 +2587,10 @@ acceptance requirements for this synchronous experiment.
 
 ### Editor support
 
+<a id="rm-54"></a>
+
+**RM#54: Editor support** · [GI#139: Editor support](https://github.com/sproates/panackelty/issues/139).
+
 Work record: [#139](https://github.com/sproates/panackelty/issues/139).
 
 No dedicated editor extension or grammar package was found in the tracked tree
@@ -2353,6 +2602,10 @@ separate assessment; a language server, formatter and marketplace release are
 not prerequisites.
 
 ### Technical showcase programs
+
+<a id="rm-55"></a>
+
+**RM#55: Showcase programs** · [GI#140: Showcase programs](https://github.com/sproates/panackelty/issues/140).
 
 Work record: [#140](https://github.com/sproates/panackelty/issues/140).
 
@@ -2366,6 +2619,10 @@ feature or production HTTP claim is required.
 <a id="runtime-and-resource-baselines"></a>
 
 ### Performance and benchmarking
+
+<a id="rm-56"></a>
+
+**RM#56: Performance baselines** · [GI#141: Performance baselines](https://github.com/sproates/panackelty/issues/141).
 
 Work record: [#141](https://github.com/sproates/panackelty/issues/141).
 
@@ -2403,6 +2660,10 @@ initial scope. Recording this idea does not schedule benchmark implementation.
 
 ### Independent contract implementation
 
+<a id="rm-57"></a>
+
+**RM#57: Independent contract assessment** · [GI#142: Independent contract assessment](https://github.com/sproates/panackelty/issues/142).
+
 Work record: [#142](https://github.com/sproates/panackelty/issues/142).
 
 The bytecode format, fixed fixtures and VM/compiler audit already establish
@@ -2425,6 +2686,10 @@ may support future papers if their contributions are established; no separate
 paper is promised for any candidate.
 
 ### Compiler and runtime understanding paper — idea
+
+<a id="rm-58"></a>
+
+**RM#58: Compiler understanding paper** · [GI#211: Compiler understanding paper](https://github.com/sproates/panackelty/issues/211).
 
 Work record: [#211](https://github.com/sproates/panackelty/issues/211).
 Agreed for the backlog on 2026-10-02; assessment is unscheduled. Revisit after
@@ -2452,6 +2717,10 @@ Risks are overstated novelty, unsupported generalisation and distraction from
 delivery; do not expand compiler scope merely to obtain a paper.
 
 ### Independently checkable change-impact explanations — research idea
+
+<a id="rm-59"></a>
+
+**RM#59: Checkable change impact** · [GI#213: Checkable change impact](https://github.com/sproates/panackelty/issues/213).
 
 Work record: [#213](https://github.com/sproates/panackelty/issues/213).
 Agreed for the backlog on 2026-10-02: a bounded research assessment and prototype,
@@ -2513,6 +2782,10 @@ specification; do not promote them merely because other languages have them.
 
 ## Harden and expand test coverage — candidate; foundation delivered
 
+<a id="rm-60"></a>
+
+**RM#60: Test coverage hardening**.
+
 The [invariant-testing item](#systematic-invariant-testing) scopes generated inputs
 and equivalence checks separately from [source measurement](#measure-panackelty-source-coverage--candidate-pending-assessment).
 Both extend existing evidence; neither changes coverage status by being planned.
@@ -2546,6 +2819,10 @@ in both roadmaps when completed.
 
 ### Publish public native C coverage reports — complete
 
+<a id="rm-61"></a>
+
+**RM#61: Native coverage publication**.
+
 The native VM's LLVM line and branch coverage remains uploaded as a CI
 artifact. The coordinated Pages publisher makes the HTML report available at
 `https://panackelty.com/coverage/`, so readers can open it directly without
@@ -2570,6 +2847,10 @@ lines, 80.65% branches and 100% functions; it is not a `.panack` baseline.
       live entry-page, source-navigation and provenance checks
 
 ## Codebase-wide human readability and refactoring — candidate
+
+<a id="rm-62"></a>
+
+**RM#62: Component readability** · [GI#132: Component readability](https://github.com/sproates/panackelty/issues/132).
 
 Work record: [Component readability and refactoring](https://github.com/sproates/panackelty/issues/132). State: Idea; implementation
 unscheduled. See the [current comparison](#proposed-first-step) for first-slice
@@ -2603,6 +2884,10 @@ prerequisite; do not mix feature changes into readability refactors.
 
 ## Native VM readability and test hardening
 
+<a id="rm-63"></a>
+
+**RM#63: Native VM hardening**.
+
 - [x] Decompose native decoding, verification, values, arithmetic, execution,
       builtins and host services into separately compiled modules.
 - [x] Put shared declarations in self-contained headers, retain private local
@@ -2622,6 +2907,8 @@ Manual release initiation retains the full validation gates. Keep its metadata
 controls in the existing harness; retain timing warnings and the non-blocking
 performance backlog without weakening release tests.
 ## Keep validation within development budgets — non-blocking backlog
+
+Roadmap item: [RM#28: Incremental and modular builds](#rm-28).
 
 Retain timing warnings and strong coverage. This work no longer blocks source
 coverage, test hardening or readability work; the REPL has no scheduled slot.
@@ -2663,6 +2950,10 @@ Historical observations and the detailed optimisation sequence are retained in
 [the profiling report](tests/VALIDATION_PROFILE.md#archived-roadmap-performance-history--2026-09-28).
 
 ## Expand automation and host capabilities — foundation delivered; extensions unscheduled
+
+<a id="rm-84"></a>
+
+**RM#84: Host automation APIs**.
 
 Panackelty should gain the general host capabilities needed by dependable
 automation programs. These APIs
@@ -2715,6 +3006,10 @@ both the guarantees they provide and the clarity of the resulting workflow.
 
 ### Type inference and diagnostic experience
 
+<a id="rm-64"></a>
+
+**RM#64: Inference and diagnostics** · [GI#170: Inference and diagnostics](https://github.com/sproates/panackelty/issues/170).
+
 - [x] Add source excerpts and carets to existing positioned compiler errors,
       preserving imported-module ownership and source snapshots; cover tabs,
       Unicode, CRLF, EOF, and header-only fallback in renderer and CLI tests
@@ -2756,9 +3051,9 @@ or publication commitment follows from recording these candidates.
 
 | Candidate | Research question and bounded acceptance |
 | --- | --- |
-| [#215 Edit-stable type inference](https://github.com/sproates/panackelty/issues/215) | Define guarantees that selected edits preserve inferred types and operation meanings, and find sufficient annotation boundaries where needed. Start with expression extraction and expected-type context; compare local/bidirectional inference and refactoring research. Establish preservation within a defined fragment and measure annotation burden, usefulness and cost. Compilation depends on current source, never hidden edit history. |
-| [#216 Resource inference for exact arithmetic](https://github.com/sproates/panackelty/issues/216) | Infer conditional numerator/denominator bit-size, intermediate-growth and work bounds under explicit input/iteration assumptions and a normalization/cost model. Compare resource-aware and size analyses, prove supported rules and evaluate precision and overhead. Preserve exact semantics; distinguish proved bounds from measurements and runtime estimates, and report unknowns honestly. |
-| [#217 Ambiguity-guided annotation selection](https://github.com/sproates/panackelty/issues/217) | Select small, understandable sets of source annotation choices sufficient to resolve ambiguity, with consequences for each. Compare annotation synthesis and interactive/refinement inference; define the candidate language and minimality metric before claiming a minimum. Verify offered choices, retain genuine ambiguity, and measure burden, edit stability, developer usefulness and latency. Never guess intent or silently select semantics. |
+| <a id="rm-94"></a>**RM#94: Edit-stable inference** · [GI#215: Edit-stable inference](https://github.com/sproates/panackelty/issues/215) | Define guarantees that selected edits preserve inferred types and operation meanings, and find sufficient annotation boundaries where needed. Start with expression extraction and expected-type context; compare local/bidirectional inference and refactoring research. Establish preservation within a defined fragment and measure annotation burden, usefulness and cost. Compilation depends on current source, never hidden edit history. |
+| <a id="rm-95"></a>**RM#95: Exact arithmetic resource inference** · [GI#216: Exact arithmetic resource inference](https://github.com/sproates/panackelty/issues/216) | Infer conditional numerator/denominator bit-size, intermediate-growth and work bounds under explicit input/iteration assumptions and a normalization/cost model. Compare resource-aware and size analyses, prove supported rules and evaluate precision and overhead. Preserve exact semantics; distinguish proved bounds from measurements and runtime estimates, and report unknowns honestly. |
+| <a id="rm-96"></a>**RM#96: Annotation selection** · [GI#217: Annotation selection](https://github.com/sproates/panackelty/issues/217) | Select small, understandable sets of source annotation choices sufficient to resolve ambiguity, with consequences for each. Compare annotation synthesis and interactive/refinement inference; define the candidate language and minimality metric before claiming a minimum. Verify offered choices, retain genuine ambiguity, and measure burden, edit stability, developer usefulness and latency. Never guess intent or silently select semantics. |
 
 Each assessment should identify a precise potentially distinct contribution,
 reproducible evaluation and a proceed/defer recommendation, retaining unsupported
@@ -2769,6 +3064,10 @@ interfaces and explicit scope selection. Record any supported publication thesis
 in the [potential technical publications backlog](#potential-technical-publications).
 
 ### Core and standard-library types — planned exploration
+
+<a id="rm-65"></a>
+
+**RM#65: Core and library types**.
 
 Keep the primitive type set small while making common terminal-program concepts
 explicit in the standard library. Unfinished entries below are proposals;
@@ -2837,6 +3136,10 @@ required cross-VM and bootstrap evidence before it becomes a supported feature.
 
 ### Predictable deferred computation
 
+<a id="rm-66"></a>
+
+**RM#66: Lazy computation**.
+
 Explore `lazy` as a narrow, explicit form of call-by-need evaluation. The first
 form should be a typed local binding whose pure initializer is evaluated on its
 first read and then memoized. This can avoid unnecessary expensive work without
@@ -2871,6 +3174,10 @@ if should_save {
 
 ### Candidate differentiator: contract-driven automation
 
+<a id="rm-67"></a>
+
+**RM#67: Contract-driven automation**.
+
 The strongest current direction is to make Panackelty a contract-driven language for
 reliable automation: programs describe data, effects, and behavioral boundaries
 in forms the compiler, test runner, and tooling can all understand. This builds
@@ -2893,6 +3200,10 @@ headline feature.
       committing to a large ecosystem surface
 
 ### Candidate differentiator: explainable values — exploration
+
+<a id="rm-68"></a>
+
+**RM#68: Runtime value provenance** · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172).
 
 Explore built-in value provenance: an opt-in way to explain a result through the
 inputs, calculations, function calls, and branch decisions that produced it.
@@ -2935,6 +3246,10 @@ provenance or causal debugging.
 
 ### Candidate differentiator: previewable effects — exploration
 
+<a id="rm-69"></a>
+
+**RM#69: Previewable effects**.
+
 Explore a VM-enforced preview mode for dependable scripts. A program would
 produce an inspectable plan of supported changes before applying them, including
 content diffs and the inputs on which those changes depend. Proposed commands
@@ -2970,6 +3285,10 @@ The intended distinction is VM-enforced planning for a defined set of effects in
 ordinary imperative scripts, with explicit limits on what can be simulated.
 
 ### Candidate differentiator: resumable execution — exploration
+
+<a id="rm-70"></a>
+
+**RM#70: Durable execution**.
 
 Explore opt-in durable execution for ordinary local scripts: preserve progress
 across interruptions without requiring users to implement their own progress
@@ -3011,6 +3330,10 @@ The intended distinction is a local workflow integrated with the normal language
 runtime and command, with explicit recovery guarantees for supported operations.
 
 ### Candidate differentiator: enforceable data-flow restrictions — exploration
+
+<a id="rm-71"></a>
+
+**RM#71: Data-flow restrictions**.
 
 Explore data that carries enforceable rules about where its information may go.
 Restricted inputs would retain their confidentiality policies through function
@@ -3061,6 +3384,10 @@ an invention of information-flow security.
 
 ### Candidate differentiator: change contracts — exploration
 
+<a id="rm-72"></a>
+
+**RM#72: Change contracts**.
+
 Explore executable contracts describing which behavioural differences are allowed
 between a new implementation and a pinned older version. Users could require an
 optimisation to preserve results, permit a feature change only for selected inputs,
@@ -3109,6 +3436,10 @@ and release workflows, not a claim that arbitrary program equivalence is decidab
 
 ### JSON data support — exploration
 
+<a id="rm-73"></a>
+
+**RM#73: JSON support**.
+
 Explore a standard `Json` tagged value type and a coherent library workflow for
 configuration, data transformations, and future API clients: parse external text,
 validate it into domain types, work with ordinary typed values, and encode results.
@@ -3148,6 +3479,10 @@ priorities, not implemented features or accepted API syntax.
 
 ### Type-driven input handling — exploration
 
+<a id="rm-74"></a>
+
+**RM#74: Type-driven input handling**.
+
 Extend the JSON decoding foundation above into reusable type-driven input handling:
 record fields and guarded types should supply a coherent description for input
 validation, serialisation, and machine-readable schemas. Begin with JSON and
@@ -3177,6 +3512,10 @@ The goal is a native connection between Panackelty domain types and external dat
 building on the JSON backlog rather than a second independent validation system.
 
 ### Typed edits and patches — exploration
+
+<a id="rm-75"></a>
+
+**RM#75: Typed patches**.
 
 Explore scoped editing of persistent values that produces both a new value and a
 typed description of its changes. This could support concise nested updates,
@@ -3211,6 +3550,10 @@ composition, and conflict semantics across Panackelty data types.
 
 ### Useful execution of unfinished code — exploration
 
+<a id="rm-76"></a>
+
+**RM#76: Typed holes and partial execution**.
+
 Explore typed holes and development execution that keeps completed portions of a
 program inspectable while unfinished expressions remain explicitly unresolved.
 For example, a report's totals could be inspected while its title is still a hole.
@@ -3241,6 +3584,10 @@ source-file workflow, with an explicit boundary between partial and runnable cod
 
 ### Data and target-platform experiments
 
+<a id="rm-77"></a>
+
+**RM#77: Platform and ecosystem experiments**.
+
 - [x] Establish a bounded WebAssembly-hosted VM profile for the complete-program
       playground; PRs #111, #113 and #115 record feasibility and delivery
 - [ ] Assess broader browser application integration, including DOM/Web APIs,
@@ -3257,6 +3604,10 @@ maintenance estimates, and evidence that it strengthens Panackelty's identity mo
 than an ordinary library would.
 
 ## Interactive REPL — exploration; website learning use case identified
+
+<a id="rm-78"></a>
+
+**RM#78: Interactive REPL**.
 
 Add a read-evaluate-print loop for exploring Panackelty expressions, trying
 standard-library APIs and learning the language without creating a source file
@@ -3288,6 +3639,10 @@ The sections below record completed scope. Unfinished extensions are scheduled
 only by the priority table above, not by their position in this history.
 
 ## Deliver developer preview `0.1.0-alpha.1` — delivered
+
+<a id="rm-79"></a>
+
+**RM#79: Initial developer preview**.
 
 The delivered initial product goal was a public developer preview that lets a new user
 download Panackelty, put `panack` on `PATH`, and check, compile, and run a source
@@ -3417,6 +3772,10 @@ guarantee. Those remain independent follow-up initiatives.
 
 ## Ergonomic control flow and collection APIs — complete
 
+<a id="rm-80"></a>
+
+**RM#80: Control flow and collection ergonomics**.
+
 The algorithm examples show several places where the language's surface syntax
 is noisier than its semantics. Improve those areas as one staged initiative so
 that control flow, persistent collections, strings, and functional operations
@@ -3473,6 +3832,10 @@ local type inference if representative programs demonstrate a clear need.
 
 ## Make imports independent of repository paths — complete
 
+<a id="rm-81"></a>
+
+**RM#81: Logical imports**.
+
 User programs and examples no longer need to know the source-tree location of
 the standard library. The canonical `import stdlib/option` and
 `import project/shared/module` forms use reserved logical namespaces;
@@ -3503,6 +3866,10 @@ project root is the entry source file's directory.
 
 ## Self-hosted development toolchain — complete
 
+<a id="rm-82"></a>
+
+**RM#82: Self-hosted development tools**.
+
 The compiler and test probes run on the native VM. Shell harnesses cover build,
 repository and release contracts; fixed independent fixtures and bootstrap
 identity checks provide additional evidence. See [the testing guide](tests/README.md)
@@ -3515,6 +3882,10 @@ allowlisted `PATH`. Both supported platforms run this proof across five clean
 CI partitions, sharing canonical test targets.
 
 ## Change Panackelty syntax — complete
+
+<a id="rm-83"></a>
+
+**RM#83: Syntax simplification**.
 
 The accepted syntax removes redundant declaration keywords, uses a colon for
 function return types, and distinguishes no-return functions with `Void`.

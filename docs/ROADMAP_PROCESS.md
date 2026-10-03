@@ -26,6 +26,47 @@ State and priority are separate: an assessed idea need not become planned work.
 Record uncertainty rather than upgrading a hypothesis to a verified gap. An item
 can return to assessment when new evidence changes its scope or feasibility.
 
+## Work identifiers and references
+
+Use **RM#n: short name** for roadmap work, **GI#n: short name** for GitHub
+issues, and **PR#n: short name** for pull requests in conversation, handovers and
+new or substantially rewritten records. Include a concise, descriptive name so
+a reader can understand the reference without opening it. For example,
+[RM#56: Performance baselines](../ROADMAP.md#rm-56) maps to
+[GI#141: Performance baselines](https://github.com/sproates/panackelty/issues/141).
+For another repository, include its owner/repository as well as the typed reference.
+Use actual numbers and verified links; do not invent an issue for an unissued item.
+GitHub closing syntax remains `Closes #n` or `Refs #n` where required for automation;
+accompany it with the descriptive GI reference. Preserve literal commands, URLs,
+API fields and historical quotations where changing their syntax would be wrong.
+Existing historical prose need not be mechanically rewritten.
+
+Assign each independently tracked roadmap initiative, proposal, workstream,
+delivery milestone or follow-up one stable RM number and short name, whether or
+not it has a GitHub issue. Completed work retains its identity. A checklist of
+acceptance criteria belongs to its parent item; give a child its own ID when it
+has an independently tracked outcome. Policy, review history, navigation and
+repeated summaries do not receive separate IDs. A repeated entry links to its
+canonical `ROADMAP.md#rm-N` anchor. Programme stage labels such as U2 remain useful
+aliases; they do not replace RM identities or imply additional GitHub issues.
+
+Allocate the next unused integer above the maximum ever allocated, using the
+roadmap's next-available pointer and checking the branch against current main
+before publication. Resolve concurrent allocation collisions before merging.
+Never renumber IDs because items move, complete or change priority, and never
+reuse a retired number. Keep a tombstone and successor link if an item is merged,
+split or removed; new independently tracked outcomes receive new IDs. Rename a
+short name only deliberately, preserving its ID and stable anchor.
+
+Keep GitHub mappings explicit and distinct: one umbrella issue may cover several
+roadmap outcomes, and a roadmap item may have no issue or several related issues.
+An issue or PR number is never inferred from an RM number. Preserve existing
+section headings and old anchors when adding IDs so external links keep working.
+Before delivery, check unique RM allocations and anchors, coverage of independent
+work entries, consistent repeated references and the next-available pointer,
+alongside the applicable documentation and link validation. Numbering alone does
+not select implementation, alter priority or grant merge approval.
+
 ## Short candidate assessment
 
 Use enough detail to make a decision, proportional to the size and uncertainty

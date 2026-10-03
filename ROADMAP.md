@@ -63,7 +63,7 @@ agents remains a hypothesis to test.
 
 ## Newcomer developer feedback — unscheduled backlog
 
-Recorded on 2026-10-03; expanded on 2026-10-04. The three trials are **Idea / unscheduled**, outside the
+Recorded on 2026-10-03; expanded on 2026-10-04. The remaining basic and advanced trials are **Idea / unscheduled**, outside the
 modules/packages/HTTP programme. Recording them starts no setup, trial or coding.
 Each trial requires explicit user selection as a dedicated task; completing setup
 or another trial never triggers it automatically. No ad hoc implementation,
@@ -92,7 +92,8 @@ remains outside the repository; trials require separate explicit selection.
 
 **RM#116: Installation and Hello World trial** ·
 [GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
-Idea / unscheduled; depends on [RM#113: Newcomer trial setup](#rm-113).
+**Done — 2026-10-04:** explicitly selected installation trial completed after
+[RM#113: Newcomer trial setup](#rm-113).
 Suggested first dedicated trial before basic language feedback: start in a clean
 supported native environment, follow public getting-started material, find and
 install a published release, then write and run Hello World. Record the platform,
@@ -103,7 +104,15 @@ verify output and deliver reproducible findings with prioritised improvements,
 including failure or budget exhaustion. The usability target is an unaided first
 program using published instructions alone; a failed attempt remains useful trial
 evidence. Small / one trial and report after setup; cross-platform coverage and
-fix implementation are outside scope. Not started; explicit selection required.
+fix implementation are outside scope. Unaided Ubuntu x86_64 local installation
+of published alpha.10 reached verified Hello World in about 2m43s, with zero
+failed installation/check/run commands. Independent verification confirmed exact
+output and archive/installed-file consistency. See the
+[trial evidence and limitations](tests/VALIDATION_PROFILE.md#newcomer-installation-trial--2026-10-04).
+Minor opportunities are platform-specific unpack/download examples; no blocking
+product defect surfaced. This tested a fresh directory on a shared host starting
+at GitHub, not a clean OS, marketing-site navigation or human beginner usability.
+No fixes or further trials were started; each requires separate selection.
 
 <a id="rm-114"></a>
 

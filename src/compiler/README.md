@@ -168,3 +168,15 @@ matrix pairs stale-proof rejection with freshly guarded acceptance and actual
 VM execution against hand-calculated results. Existing public CLI failure tests
 exercise `check`, `compile`, `run` and `disasm` for the mutation fixtures and
 verify failed compilation leaves no artifact.
+
+## Retained effect decisions
+
+`purity.panack` runs a single shared traversal in ordinary and explanation modes.
+`CheckedEffects` returns unchanged diagnostics plus opt-in `EffectEvidence` for
+local calls and await constraints. The loader runs this pass only after successful
+resolution/type checking and records whether it ran. Function names are attached
+at definition boundaries; type guards retain diagnostics without function evidence.
+The explanation renderer consumes these decisions and loaded source spans, never
+reconstructing effects from diagnostic text. See
+[the explanation contract](../../docs/COMPILER_EXPLANATIONS.md) for local-versus-global
+status, declared callable effects and unsupported transitive/runtime questions.

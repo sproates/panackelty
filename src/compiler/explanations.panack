@@ -82,3 +82,55 @@ pure render_subtraction_explanations(project: LoadedProject, name: Str, root: St
   if count == 0 { output = output + "\n\nsubtraction: unavailable\nreason: no subtraction evidence was retained for this function"; }
   output
 }
+
+// Each status concerns one local rule boundary, never the execution of a path
+// or the validity of the complete expression/program.
+pure effect_display_target(name: Str): Str {
+  if name == "$unit" { "()" } else {
+    if starts_with(name, "$method_") { slice(name, 8, len(name)) } else {
+      if starts_with(name, "$core_") { slice(name, 6, len(name)) } else { name }
+    }
+  }
+}
+
+pure render_effect_evidence(entry: EffectEvidence, sources: Map[Str,Str], root: Str, stdlib_root: Str): Str {
+  status: Str = if len(entry.violations) == 0 { "allowed" } else { "rejected" }
+  mut output: Str = "effect boundary: ${status}\n" + explanation_location(entry.span, sources, root, stdlib_root) +
+    "\nboundary: " + entry.kind + "\ncontext: " + entry.mode
+  if entry.kind == "call" {
+    output = output + "\ncallee: " + source_map_escape(effect_display_target(entry.target)) + "\nclassification basis: " + entry.basis +
+      "\ncallee effect: " + entry.target_effect + if entry.awaited { "\nawaited: yes" } else { "\nawaited: no" }
+  }
+  if len(entry.violations) > 0 {
+    for reason in entry.violations { output = output + "\nreason: " + source_map_escape(reason); }
+  } else {
+    output = output + if entry.kind == "await" {
+      "\nreason: enclosing function is async; operand boundaries are checked separately"
+    } else { if entry.target_effect == "async" {
+      "\nreason: async call is awaited inside an async function"
+    } else { if entry.target_effect == "pure" {
+      "\nreason: pure call is permitted in this context"
+    } else {
+      "\nreason: ordinary function permits this effectful call"
+    } } }
+  }
+  output
+}
+
+pure render_function_explanations(project: LoadedProject, name: Str, root: Str, stdlib_root: Str): Str {
+  mut output: Str = render_subtraction_explanations(project, name, root, stdlib_root)
+  output = output + "\n\neffect scope: local call and await boundaries; declarations and callable types, not transitive/runtime effects"
+  if !project.effects_checked {
+    output = output + "\neffects: unavailable\nreason: loading, resolution or type checking prevented the effect pass"
+  } else {
+    mut count: Nat = 0
+    for entry in project.effects {
+      if entry.function_name == name {
+        output = output + "\n\n" + render_effect_evidence(entry, project.sources, root, stdlib_root)
+        count = count + 1
+      }
+    }
+    if count == 0 { output = output + "\neffects: unavailable\nreason: no call or await boundary was retained for this function"; }
+  }
+  output
+}

@@ -1109,11 +1109,16 @@ Lookup does not execute source, and ordinary runtime diagnostics do not consult
 maps. The [source-map contract](docs/SOURCE_MAPS.md) defines identity, source
 closure, compatibility, I/O bounds, output safety and source disclosure.
 
-## Compiler subtraction explanations
+## Compiler explanations
 
 `panack explain SOURCE.panack --function NAME` performs the ordinary frontend
 checks with opt-in evidence retention and reports binary `Nat` subtraction
-obligations from the named function. It exposes existing constant/lower-bound
+obligations and local call/await effect boundaries from the named function.
+Effect output retains existing pure/ordinary/async decisions and callable-type
+classification without inferring transitive or runtime effects. Effect evidence is
+unavailable if earlier loading, resolution or type errors prevent that pass. An
+allowed boundary does not imply valid arguments or whole-program acceptance.
+The command exposes existing constant/lower-bound
 proof decisions without adding proof rules or changing acceptance. A local
 proved obligation does not imply whole-program validity; unproved does not imply
 a runtime counterexample. Unsupported/invalid operands and unavailable evidence

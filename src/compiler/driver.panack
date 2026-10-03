@@ -92,7 +92,7 @@ run_explain_command(values: [Str]): Nat {
         stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
           path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
         } else { "" }
-        print(render_subtraction_explanations(loaded, name, path_parent(path_resolve(values[1])), stdlib_root))
+        print(render_function_explanations(loaded, name, path_parent(path_resolve(values[1])), stdlib_root))
         if valid { 0 } else { report_driver_error(diagnostic_messages(loaded.diagnostics, loaded.sources)) }
       }
     }

@@ -24,4 +24,14 @@ PASS invalid explain arguments
 PASS invalid explain arguments
 PASS invalid explain arguments
 PASS missing embedded stdlib configuration
-tests: 26, failures: 0
+PASS imported generic effect rejection
+PASS allowed effect boundaries
+PASS no calls has no invented evidence
+PASS callable declared effect
+PASS allowed async await
+PASS async blocking rejection
+PASS discarded await explains rejection
+PASS type failure skips effects
+PASS resolution failure skips effects
+PASS syntax failure skips effects
+tests: 36, failures: 0

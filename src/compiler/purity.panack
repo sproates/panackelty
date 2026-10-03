@@ -10,18 +10,43 @@ pure is_impure_builtin(name: Str): Bool {
   name == "run_bytecode_args"
 }
 
+record EffectEvidence {
+  function_name: Str, span: Option[SourceSpan], kind: Str, mode: Str,
+  target: Str, basis: Str, target_effect: Str, awaited: Bool, violations: [Str]
+}
+record CheckedEffects { diagnostics: [Diagnostic], evidence: [EffectEvidence] }
+
+pure combine_effects(left: CheckedEffects, right: CheckedEffects): CheckedEffects {
+  CheckedEffects(concat(left.diagnostics, right.diagnostics), concat(left.evidence, right.evidence))
+}
+
 pure check_expression_purity(expression: Expr, program: Program, environment: Map[Str,TypeInfo]): [Diagnostic] {
   check_expression_effects(expression, program, environment, false)
 }
-
 pure check_expression_effects(expression: Expr, program: Program, environment: Map[Str,TypeInfo], awaited: Bool): [Diagnostic] {
-  mut diagnostics: [Diagnostic] = []
+  check_effect_expression(expression, program, environment, awaited, false, None()).diagnostics
+}
+pure check_block_purity(block: Block, program: Program, parent: Map[Str,TypeInfo]): [Diagnostic] {
+  check_effect_block(block, program, parent, false).diagnostics
+}
+pure check_program_purity(program: Program): [Diagnostic] {
+  check_program_effect_evidence(program, false).diagnostics
+}
+
+pure check_effect_expression(expression: Expr, program: Program, environment: Map[Str,TypeInfo], awaited: Bool, retain: Bool, origin: Option[SourceSpan]): CheckedEffects {
+  mut result: CheckedEffects = CheckedEffects([], [])
   mode: Str = if map_has(environment, "$effect") { map_get(environment, "$effect").name } else { "pure" }
   mut await_call: Bool = false
+  mut kind: Str = ""
+  mut target_name: Str = ""
+  mut basis: Str = ""
+  mut target_effect: Str = ""
+  mut violations: [Str] = []
   match expression {
     LocatedExpr(position, value) => {
       await_call = true
-      diagnostics = checker_diagnostics_at(check_expression_effects(value, program, environment, awaited), position.start)
+      nested: CheckedEffects = check_effect_expression(value, program, environment, awaited, retain, if retain { Some(position) } else { None() })
+      result = CheckedEffects(checker_diagnostics_at(nested.diagnostics, position.start), nested.evidence)
     },
     NatExpr(value) => {},
     DecimalExpr(text) => {},
@@ -31,18 +56,23 @@ pure check_expression_effects(expression: Expr, program: Program, environment: M
     FunctionExpr(name) => {},
     ArrayExpr(items) => {
       for item in items {
-        diagnostics = concat(diagnostics, check_expression_purity(item, program, environment))
+        result = combine_effects(result, check_effect_expression(item, program, environment, false, retain, None()))
       }
     },
     UnaryExpr(operator, operand) => {
       if operator == "await" {
-        if mode != "async" { diagnostics = append(diagnostics, checker_diagnostic("await requires an async function")); }
-        diagnostics = concat(diagnostics, check_expression_effects(operand, program, environment, true))
-      } else { diagnostics = check_expression_purity(operand, program, environment); }
+        kind = "await"
+        if mode != "async" {
+          reason: Str = "await requires an async function"
+          result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+          if retain { violations = append(violations, reason); }
+        }
+        result = combine_effects(result, check_effect_expression(operand, program, environment, true, retain, None()))
+      } else { result = check_effect_expression(operand, program, environment, false, retain, None()); }
     },
     BinaryExpr(operator, left, right) => {
-      diagnostics = check_expression_purity(left, program, environment)
-      diagnostics = concat(diagnostics, check_expression_purity(right, program, environment))
+      result = check_effect_expression(left, program, environment, false, retain, None())
+      result = combine_effects(result, check_effect_expression(right, program, environment, false, retain, None()))
     },
     CallExpr(name, arguments, type_arguments) => {
       await_call = true
@@ -55,40 +85,56 @@ pure check_expression_effects(expression: Expr, program: Program, environment: M
         async_call = effect == "AsyncFn"
         impure = effect != "PureFn"
       }
+      if retain {
+        kind = "call"
+        target_name = if name == "$method_call" { "call" } else { name }
+        basis = if name == "$method_call" { "callable type" } else {
+          if function.found { "function declaration" } else { "builtin or constructor contract" }
+        }
+        target_effect = if async_call { "async" } else { if impure { "ordinary" } else { "pure" } }
+      }
       display_name: Str = if name == "$method_call" { "call" } else { name }
       if awaited && !async_call {
-        diagnostics = append(diagnostics, checker_diagnostic("await requires an async call"))
+        reason: Str = "await requires an async call"
+        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+        if retain { violations = append(violations, reason); }
       }
       if async_call && (!awaited || mode != "async") {
-        diagnostics = append(diagnostics, checker_diagnostic("async call requires await inside an async function"))
+        reason: Str = "async call requires await inside an async function"
+        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+        if retain { violations = append(violations, reason); }
       }
       if mode == "pure" && impure {
-        diagnostics = append(diagnostics, checker_diagnostic("pure function cannot call impure function ${display_name}"))
+        reason: Str = "pure function cannot call impure function ${display_name}"
+        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+        if retain { violations = append(violations, reason); }
       }
       if mode == "async" && impure && !async_call {
-        diagnostics = append(diagnostics, checker_diagnostic("async function cannot call blocking function ${display_name}"))
+        reason: Str = "async function cannot call blocking function ${display_name}"
+        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+        if retain { violations = append(violations, reason); }
       }
       for argument in arguments {
-        diagnostics = concat(diagnostics, check_expression_purity(argument, program, environment))
+        result = combine_effects(result, check_effect_expression(argument, program, environment, false, retain, None()))
       }
     },
     FieldExpr(target, field) => {
-      diagnostics = check_expression_purity(target, program, environment)
+      result = check_effect_expression(target, program, environment, false, retain, None())
     },
     IndexExpr(target, index) => {
-      diagnostics = check_expression_purity(target, program, environment)
-      diagnostics = concat(diagnostics, check_expression_purity(index, program, environment))
+      result = check_effect_expression(target, program, environment, false, retain, None())
+      result = combine_effects(result, check_effect_expression(index, program, environment, false, retain, None()))
     },
     IfExpr(condition, yes, no, has_else) => {
-      diagnostics = check_expression_purity(condition, program, environment)
-      diagnostics = concat(diagnostics, check_block_purity(yes, program, environment))
-      diagnostics = concat(diagnostics, check_block_purity(no, program, environment))
+      result = check_effect_expression(condition, program, environment, false, retain, None())
+      result = combine_effects(result, check_effect_block(yes, program, environment, retain))
+      result = combine_effects(result, check_effect_block(no, program, environment, retain))
     },
     BlockExpr(block) => {
-      diagnostics = check_block_purity(block, program, environment)
+      result = check_effect_block(block, program, environment, retain)
     },
     MatchExpr(subject, arms) => {
-      diagnostics = check_expression_purity(subject, program, environment)
+      result = check_effect_expression(subject, program, environment, false, retain, None())
       checked: CheckedExpression = check_expression(subject, environment, map(), program)
       shape: TypeShape = type_shape(checked.info.name)
       enum_value: EnumLookup = enum_type(program, shape.base)
@@ -112,21 +158,30 @@ pure check_expression_effects(expression: Expr, program: Program, environment: M
             }
           }
         }
-        diagnostics = concat(diagnostics, check_expression_purity(arm.body, program, arm_environment))
+        result = combine_effects(result, check_effect_expression(arm.body, program, arm_environment, false, retain, None()))
       }
     }
   }
-  if awaited && !await_call { diagnostics = append(diagnostics, checker_diagnostic("await requires an async call")); }
-  diagnostics
+  if awaited && !await_call {
+    kind = "await operand"
+    reason: Str = "await requires an async call"
+    result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+    if retain { violations = append(violations, reason); }
+  }
+  if retain && kind != "" {
+    entry: EffectEvidence = EffectEvidence("", origin, kind, mode, target_name, basis, target_effect, awaited, violations)
+    result = CheckedEffects(result.diagnostics, concat([entry], result.evidence))
+  }
+  result
 }
 
-pure check_block_purity(block: Block, program: Program, parent: Map[Str,TypeInfo]): [Diagnostic] {
-  mut diagnostics: [Diagnostic] = []
+pure check_effect_block(block: Block, program: Program, parent: Map[Str,TypeInfo], retain: Bool): CheckedEffects {
+  mut result: CheckedEffects = CheckedEffects([], [])
   mut environment: Map[Str,TypeInfo] = parent
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
-        diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+        result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
         if len(type_name) > 0 {
           environment = map_put(environment, name, TypeInfo(type_name, false, 0, mutable))
         } else {
@@ -135,7 +190,7 @@ pure check_block_purity(block: Block, program: Program, parent: Map[Str,TypeInfo
         }
       },
       AssignmentStatement(name, value) => {
-        diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+        result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
         if !map_has(environment, name) {
           checked: CheckedExpression = check_expression(value, environment, map(), program)
           environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
@@ -145,40 +200,46 @@ pure check_block_purity(block: Block, program: Program, parent: Map[Str,TypeInfo
         if expression_is_await(value) {
           checked: CheckedExpression = check_expression(value, environment, map(), program)
           if checked.info.name != "Unit" {
-            diagnostics = append(diagnostics, checker_diagnostic("bind, match or return a non-Unit await result"))
+            reason: Str = "bind, match or return a non-Unit await result"
+            result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+            if retain {
+              mode: Str = if map_has(environment, "$effect") { map_get(environment, "$effect").name } else { "pure" }
+              entry: EffectEvidence = EffectEvidence("", expression_span(value), "await result", mode, "", "result type", checked.info.name, true, [reason])
+              result = CheckedEffects(result.diagnostics, append(result.evidence, entry))
+            }
           }
         }
-        diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+        result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
       },
       WhileStatement(condition, body) => {
-        diagnostics = concat(diagnostics, check_expression_purity(condition, program, environment))
-        diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
+        result = combine_effects(result, check_effect_expression(condition, program, environment, false, retain, None()))
+        result = combine_effects(result, check_effect_block(body, program, environment, retain))
       },
       ForStatement(name, iterable, body) => {
-        diagnostics = concat(diagnostics, check_expression_purity(iterable, program, environment))
+        result = combine_effects(result, check_effect_expression(iterable, program, environment, false, retain, None()))
         checked: CheckedExpression = check_expression(iterable, environment, map(), program)
         shape: TypeShape = type_shape(checked.info.name)
         item: Str = if len(shape.arguments) > 0 { shape.arguments[0] } else { "Nat" }
         loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item))
-        diagnostics = concat(diagnostics, check_block_purity(body, program, loop_environment))
+        result = combine_effects(result, check_effect_block(body, program, loop_environment, retain))
       }
     }
   }
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      diagnostics = concat(diagnostics, check_expression_purity(value, program, environment))
+      result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
     }
   }
-  diagnostics
+  result
 }
 
-pure check_program_purity(program: Program): [Diagnostic] {
-  mut diagnostics: [Diagnostic] = []
+pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffects {
+  mut result: CheckedEffects = CheckedEffects([], [])
   for declaration in program.declarations {
     match declaration {
       TypeDeclaration(name, base, guard) => {
-        diagnostics = concat(diagnostics, check_expression_purity(guard, program, map()))
+        result = combine_effects(result, check_effect_expression(guard, program, map(), false, false, None()))
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         mut environment: Map[Str,TypeInfo] = map()
@@ -186,14 +247,22 @@ pure check_program_purity(program: Program): [Diagnostic] {
         for parameter in parameters {
           environment = map_put(environment, parameter.name, plain_type(parameter.type_name))
         }
-        diagnostics = concat(diagnostics, check_block_purity(body, program, environment))
+        checked: CheckedEffects = check_effect_block(body, program, environment, retain)
+        mut entries: [EffectEvidence] = []
+        if retain {
+          for entry in checked.evidence {
+            entries = append(entries, EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
+              entry.basis, entry.target_effect, entry.awaited, entry.violations))
+          }
+        }
+        result = combine_effects(result, CheckedEffects(checked.diagnostics, entries))
       },
       ImportDeclaration(path) => {},
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, variants) => {}
     }
   }
-  diagnostics
+  result
 }
 
 pure check_program_frontend(program: Program): [Diagnostic] {

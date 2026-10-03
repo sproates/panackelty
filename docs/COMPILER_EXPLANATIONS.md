@@ -1,7 +1,7 @@
-# Compiler explanations: first U3 query
+# Compiler explanations: subtraction and effect boundaries
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports retained natural-number subtraction evidence for one function. It reads
+reports retained natural-number subtraction and effect-boundary evidence for one function. It reads
 source; it does not execute the program, emit bytecode, write files, or consume a
 source-map sidecar. The command is implemented in unreleased core; existing
 published/browser versions do not acquire it automatically.
@@ -47,6 +47,38 @@ are escaped. Source excerpts are read from the loaded snapshot, not reread to
 reconstruct proofs. As with ordinary compilation, this is not an atomic snapshot
 of a concurrently edited source tree.
 
+## Effect-boundary explanations
+
+The same command also reports the effect pass's actual decisions for calls,
+`await` context/operands and rejected discarded non-Unit await results. For example,
+`pure report(): Void { print(1); }` reports a rejected call boundary at `print(1)`,
+with pure context, ordinary callee effect and the existing purity rejection reason.
+An ordinary function calling `print` reports an allowed local boundary.
+
+- `effect boundary: allowed` means that particular boundary passed its existing
+  effect rules. It does not imply that argument expressions, the surrounding await,
+  another function, or the complete program passed. Each nested boundary is checked
+  separately; use `program: accepted/rejected` for whole-project validity.
+- `effect boundary: rejected` reports each violation retained at that boundary by
+  the actual pass. The renderer does not parse diagnostics or recheck effects.
+- Calls show the enclosing mode (`pure`, `ordinary`, `async`), callee classification,
+  whether directly awaited, and whether classification came from a named declaration,
+  a callable type, or a builtin/constructor contract. An ordinary declaration stays
+  ordinary even when its body currently does nothing. A `PureFn` widened to `Fn`
+  is classified by its declared callable type, not the original function body.
+- Async calls require await in an async context; async contexts reject blocking
+  ordinary calls. Await context and operand checks are separate boundaries.
+- `effects: unavailable` explicitly reports when loading, resolution or type checking
+  prevented the effect pass from running, or no boundary was retained for the
+  selected function. A type error anywhere in the project can skip this pass.
+
+Both branches and loop bodies are checked statically. Output does not say a branch
+ran, infer transitive effects, identify a dynamic callable implementation, or follow
+callee bodies to find an ultimate I/O operation. Generic/imported definitions keep
+their own source positions and are checked once. Type-declaration guard diagnostics
+still run, but their evidence is outside this function query. There is no separate
+capability taxonomy such as Network or Filesystem in this output.
+
 ## Boundaries and cost
 
 This first query covers binary Nat subtraction in function definitions. Generic
@@ -60,12 +92,13 @@ relations, compound guard inference and arithmetic constant folding are not adde
 The original checker may reject mathematically safe expressions outside its
 supported proof rules. Constant values are retained, but declaration/initializer
 provenance chains are not; the operation range identifies the operands being
-checked. Type-declaration guards are not part of this function query. Type/effect
-explanations, general compilation provenance, suggested requirements, change
+checked. Type-declaration guards are not part of this function query. General type explanations, transitive effect explanations, compilation provenance, suggested requirements, change
 predictions and runtime value derivations remain separate programme work.
 
-Only the explicit query retains evidence and lower-bound origins. Ordinary
-checking carries empty evidence collections and omits guard origins. No evidence
+Only the explicit query retains subtraction/effect evidence and lower-bound origins. Ordinary
+checking carries empty evidence collections and omits guard origins. Effect decisions
+share the same traversal and predicates in both modes; opt-in records retain local
+reasons and source spans, with no extra analysis pass. No evidence
 is serialized into bytecode, and the bytecode format remains v9. The query checks
 the whole loaded project before filtering output to the function. It uses bounded
 source loading (1 MiB per file; 8 MiB and 256 files per closure); the existing

@@ -710,3 +710,20 @@ module indexes. `compiler_integration_unit.panack` executes the imported
 guarded values and forward function references. These run in both ordinary
 compiler validation and canonical `make check`; existing source-map and
 explanation tests continue to cover attribution and proof evidence.
+
+## U3 effect explanation acceptance
+
+The existing explanation unit probe adds fixed effect expectations for declarations,
+callable parameters/bindings/fields, widening, async/await, nested calls, branches,
+loops, generic definitions, match payloads, source ranges and unlocated ASTs.
+Retention-on/off diagnostics and empty ordinary evidence are compared. Public CLI
+coverage adds imported generic rejection, allowed ordinary/async calls, callable
+classification, discarded await and explicit unavailability after frontend errors.
+No tests are removed; existing subtraction cases remain. The contract is
+[documented here](../docs/COMPILER_EXPLANATIONS.md).
+
+Validation: 196 explanation unit assertions, 36 explanation CLI assertions and
+343 functional cases pass through canonical `make check` (150s). Existing
+compiler-contract fixtures also preserve exact baseline output/status/artifacts
+across 227 cases. Performance and fixed-point evidence are in
+[the validation profile](VALIDATION_PROFILE.md#u3-local-effect-explanations--2026-10-03).

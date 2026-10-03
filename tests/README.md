@@ -28,6 +28,11 @@ selected success cases, twenty examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
 
+`make semantic-impact-experiment` runs the bounded compiler-evidence prediction
+experiment with Node 24+. It is a separate Linux/macOS compiler CI step; native
+`make check` remains interpreter-free. See the
+[experiment report](experiments/semantic_impact/README.md) for scope and reproduction.
+
 Panackelty has six core validation paths, plus the repository policy and
 isolated-environment proof:
 

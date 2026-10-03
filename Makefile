@@ -439,6 +439,13 @@ $(BUILD_DIR)/experiments/source-mapping-vm: tests/experiments/source_mapping/tra
 	@mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_LIBRARY_OBJECTS)) -o "$@" $(LDLIBS)
 
+# Bounded test-only semantic evidence; no public prediction interface.
+.PHONY: semantic-impact-experiment
+semantic-impact-experiment: native
+	@mkdir -p "$(BUILD_DIR)/experiments"
+	@$(PROBE) --compile tests/experiments/semantic_impact/evidence.panack "$(BUILD_DIR)/experiments/semantic-impact.bc"
+	@node tests/experiments/semantic_impact/run.cjs "$(BUILD_DIR)/experiments/semantic-impact.bc"
+
 # Bounded test-only derivation retention; no production trace interface.
 .PHONY: runtime-provenance-experiment
 runtime-provenance-experiment: native $(BUILD_DIR)/experiments/runtime-provenance-vm

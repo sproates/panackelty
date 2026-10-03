@@ -1,0 +1,45 @@
+import "../../../src/compiler/loader.panack"
+
+// Private, fixture-only transport of actual checker records. No diagnostic parsing,
+// alternate checking or production serialization contract. Excerpts contain no tabs.
+pure excerpt(project: LoadedProject, origin: Option[SourceSpan]): Str {
+  match origin {
+    None() => "unavailable",
+    Some(span) => slice(project.sources.get(span.start.file), span.start.offset, span.end.offset)
+  }
+}
+
+main(): Void {
+  args: [Str] = command_args()
+  if len(args) != 1 { process_exit(2); }
+  project: LoadedProject = load_project_explained(args[0])
+  diagnostics: Nat = len(project.diagnostics)
+  effects_checked: Bool = project.effects_checked
+  print("project\t${diagnostics}\t${effects_checked}")
+  for entry in project.evidence {
+    decision: SubtractionDecision = entry.decision
+    mut guard: Str = "unavailable"
+    mut truth: Bool = false
+    match decision.guard {
+      None() => {},
+      Some(origin) => { guard = excerpt(project, origin.span); truth = origin.truth; }
+    }
+    proven: Bool = decision.proven
+    has_lower: Bool = decision.has_lower
+    lower: Nat = decision.lower
+    has_right: Bool = entry.right.has_nat
+    right: Nat = entry.right.nat_value
+    has_left: Bool = entry.left.has_nat
+    left: Nat = entry.left.nat_value
+    print("sub\t" + entry.function_name + "\t" + decision.rule +
+      "\t${proven}\t${has_lower}\t${lower}\t${has_right}\t${right}\t${guard}\t${truth}\t" + excerpt(project, entry.span) +
+      "\t" + entry.left.name + "\t" + entry.right.name + "\t${has_left}\t${left}")
+  }
+  for entry in project.effects {
+    violations: Nat = len(entry.violations)
+    awaited: Bool = entry.awaited
+    print("effect\t" + entry.function_name + "\t" + entry.kind + "\t" + entry.mode +
+      "\t" + entry.target + "\t" + entry.basis + "\t" + entry.target_effect +
+      "\t${awaited}\t${violations}\t" + excerpt(project, entry.span))
+  }
+}

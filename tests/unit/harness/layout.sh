@@ -62,11 +62,11 @@ contains CONTRIBUTING.md 'choose
 contains CONTRIBUTING.md 'private reporting channel'
 pass
 case_name=readme-quick-start-is-an-executable-release-gate
-contains README.md 'panack --version
-panack check hello.panack
-panack run hello.panack
-panack compile hello.panack
-panack run hello.bc'
+contains README.md './panackelty/bin/panack --version
+./panackelty/bin/panack check hello.panack
+./panackelty/bin/panack run hello.panack
+./panackelty/bin/panack compile hello.panack
+./panackelty/bin/panack run hello.bc'
 contains README.md '<!-- quick-start-program-begin -->'
 contains README.md '<!-- quick-start-program-end -->'
 contains README.md '<!-- quick-start-output-begin -->'

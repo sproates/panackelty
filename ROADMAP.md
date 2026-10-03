@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#118.**
+The initial allocation contains **105 identities**. **Next available: RM#120.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -119,16 +119,24 @@ No fixes or further trials were started; each requires separate selection.
 
 **RM#117: Platform-specific installation instructions** ·
 [GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
-Idea / unscheduled. Follow-up to [RM#116: Installation and Hello World trial](#rm-116):
-provide separate copy-paste Linux x86_64 and macOS arm64 download, platform-appropriate
-checksum verification, extraction and version-check examples, followed by Hello
-World check/run and clear local executable / optional PATH guidance. Validate real
-published assets and commands on each appropriate platform; disclose unavailable
-verification. Review README, release and website instruction consistency without
-silently changing release pins. Small / provisionally one documentation PR plus
-installation verification; no installer, packaging or new platform scope. Trial
-succeeded; these address minor friction, not a demonstrated installation failure.
-Implementation and additional trials are not started.
+**Done on merge of PR#251: Platform-specific installation instructions.** Selected follow-up
+to [RM#116: Installation and Hello World trial](#rm-116) and
+[GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
+The README now gives separate Linux x86_64 and macOS arm64 alpha.10 download,
+checksum, extraction and version blocks that stop on failures, followed by direct
+local check/run/compile commands and optional home-directory PATH setup. The
+published Linux archive passed the exact README commands on Ubuntu 24.04 x86_64;
+all six injected download/checksum failures stopped before extraction.
+[Installation verification](tests/VALIDATION_PROFILE.md#platform-installation-instructions--2026-10-03)
+records evidence and limitations. The existing two-platform packaging CI now
+executes the current README against real published assets. Both native hosted
+platforms passed those exact commands in [the acceptance run](https://github.com/sproates/panackelty/actions/runs/37160525736);
+independent source review also passed. Final-head checks and merge authorization
+remain prerequisites to merging. No local macOS execution is claimed. This is an
+installation documentation change, not another newcomer trial or a packaging,
+installer or new-platform change. Website parity remains separately unscheduled
+under [RM#118: Website installation command parity](#rm-118); release pins remain
+unchanged and the original trial record is preserved.
 
 <a id="rm-114"></a>
 
@@ -1462,6 +1470,32 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+- <a id="rm-119"></a>**RM#119: Cookie-free website analytics** ·
+  [GI#252: Cookie-free website analytics](https://github.com/sproates/panackelty/issues/252) — Idea / unscheduled.
+  Add basic aggregate visits, page views, popular pages and referrers, provisionally
+  using free Cloudflare Web Analytics with existing GitHub Pages hosting and DNS.
+  Acceptance: verify a configuration requiring no cookies or consent banner under
+  applicable rules; exclude fingerprinting, advertising, cross-site tracking,
+  playground contents and sensitive URL data. Provide an accurate footer privacy
+  notice, production-only collection, reviewed website preview and live dashboard
+  verification after authorised deployment. Account setup or the public snippet
+  is a prerequisite; no account API key belongs in the repository. Small: one
+  website PR plus setup and verification. Recording this starts no implementation.
+
+- <a id="rm-118"></a>**RM#118: Website installation command parity** ·
+  [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — Idea /
+  unscheduled follow-up to [RM#117: Platform-specific installation instructions](#rm-117)
+  and [GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
+  Owner: delivery agent until a maintainer accepts handover. `site/index.html#start`
+  already names alpha.10, links its release, separates platform checksum/extraction,
+  requires `OK` and uses local executable paths. Those instructions remain accurate;
+  this is an onboarding convenience improvement, not a broken release or version claim.
+  Consider copying the README's direct downloads and fail-fast blocks into the site,
+  preserving native alpha.10 and the independent browser pin. No new release is
+  prerequisite. Acceptance: check published assets and both platform snippets,
+  complete website validation/preview, and verify live instructions after an
+  explicitly authorised deployment. Recording this entry starts no website work.
 
 - <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
   delivery agent. The live site still advertises v0.1.1; no supporting release is
@@ -3286,6 +3320,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 
 | Measurement | Latest recorded evidence | Outstanding issue |
 | --- | --- | --- |
+| Local platform-installation instructions (2026-10-03; warm rerun after clean harness correction) | 119s; unit 84s; functional 4s; canonical checks passed | Existing unit 15s warning persists; retain profiling reminder under #106 |
 | Full cold hosted CI | Five follow-up runs: 88/106/107/103/97s, median 103s | Hosted scheduling/completion has no proven hard upper bound |
 | Local coverage-host cutover (2026-10-02; Linux workspace) | 196s; unit 135s; canonical checks passed | Existing full/unit budget warnings persist; retain profiling reminder under #106 |
 | Local clean check, append experiment | 107s | Environment-specific result, not a universal guarantee |

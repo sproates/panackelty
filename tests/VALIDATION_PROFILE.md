@@ -2616,3 +2616,60 @@ not verified. VM SHA-256:
 `cd7a46282ae771f741db9cd473bc11809a469415c904a710251d70ef03464338`.
 Independent verification record SHA-256:
 `a16a91172b64681e1c1c4029bcddd80ba1cc15feb980dcf940b2b19952ab861f`.
+
+
+## Platform installation instructions — 2026-10-03
+
+[RM#117: Platform-specific installation instructions](../ROADMAP.md#rm-117) /
+[GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249)
+implements the download/extraction follow-up from
+[RM#116: Installation and Hello World trial](../ROADMAP.md#rm-116) /
+[GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
+The earlier trial record above is unchanged; this is author verification, not a
+new independent newcomer trial.
+
+Fresh release API inspection confirmed the published `v0.1.0-alpha.10` Linux
+x86_64 and macOS arm64 archive/checksum names used by the README. On Ubuntu
+24.04.3 x86_64, `sh tests/release_install_readme.sh` downloaded the real Linux
+archive and checksum into a fresh temporary directory and executed the marked
+README blocks without substituting their URLs or commands. SHA-256 reported
+`OK`; the local executable produced this exact transcript:
+
+```text
+panack 0.1.0-alpha.10 (bytecode 9)
+ok
+Hello, Ada. The answer is 42.
+wrote hello.bc
+Hello, Ada. The answer is 42.
+```
+
+The optional home-directory move and command link also returned the expected
+version using an isolated temporary home. No source build or global installation
+was used for this released-archive check. The test extracts the current README
+program, commands and expected output, and cleans its temporary files.
+
+Six local failure probes executed the unchanged Linux and macOS installation
+blocks with controlled curl failures on the first or second download, or a
+mismatching checksum. All exited nonzero before invoking tar. The macOS shell
+block and `shasum` failure probe on Linux do **not** establish macOS native support.
+Hosted Check runs the real-release test once in each existing platform's
+`conformance-bytecode` job. On 2026-10-03 UTC, both native hosted platform jobs
+passed the exact README installation step at head `1607f577623ad02d4298ca73a258556a792d264e`:
+[Linux x86_64](https://github.com/sproates/panackelty/actions/runs/37160525736/job/111312898639)
+and [macOS arm64](https://github.com/sproates/panackelty/actions/runs/37160525736/job/111312898647).
+This online check is deliberately separate
+from the offline canonical `make check`.
+
+README minimum OS versions agree with `RELEASE_POLICY.md`; alpha.10 migration,
+archive layout and upgrade/removal guidance remain applicable. Website inspection
+found truthful alpha.10 links, separate platform extraction and local check/run
+paths. Optional direct-download/fail-fast parity is recorded as unscheduled
+[RM#118: Website installation command parity](../ROADMAP.md#rm-118), without
+changing the live site, release pins or original trial evidence.
+
+Canonical `make check` passed after the README harness assertion was updated to
+expect the direct local executable path: 119s total, unit 84s, functional 4s,
+with bootstrap, release smoke and packaged quick start passing. The unit phase
+exceeded its 15s budget; the existing RM#28 / GI#106 reminder records this sample.
+The first clean attempt exposed the outdated PATH-only text assertion; no
+coverage was removed to resolve it. The successful run reused that build.

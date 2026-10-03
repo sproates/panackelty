@@ -123,9 +123,9 @@ helpers. See the [migration notes](CHANGELOG.md#010-alpha10--2026-09-30).
 
 The initial preview supports:
 
-- Linux on x86-64
-- macOS on Apple silicon (arm64)
-- A terminal and `tar` for unpacking the download
+- Ubuntu 22.04 or newer on x86-64
+- macOS 14 or newer on Apple silicon (arm64)
+- A terminal, `curl` for the commands below, and `tar` for unpacking the download
 - `sha256sum` on Linux or `shasum` on macOS for verifying the download
 
 Download both the archive matching the operating system and processor and its
@@ -140,46 +140,54 @@ Windows and other architectures are not part of the initial preview.
 
 ### Install a downloaded release
 
-In the directory containing both downloaded files, verify the archive. On
-Linux, run:
+Start in a new, empty directory you own. Copy the complete block for your
+platform into a POSIX-compatible shell (such as Bash or zsh). Each block runs in
+a subshell and stops on any error, so a failed download or checksum prevents
+extraction without changing your terminal's shell settings. No administrator
+permissions or source checkout are needed.
 
+#### Linux x86-64
+
+<!-- release-install-linux-x86_64-begin -->
 ```sh
-sha256sum -c panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz.sha256
+(
+  set -eu
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
+  archive=panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz
+  curl --fail --location --show-error --output "$archive" "$release/$archive"
+  curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
+  sha256sum -c "$archive.sha256"
+  tar -xzf "$archive"
+  ./panackelty/bin/panack --version
+)
 ```
+<!-- release-install-linux-x86_64-end -->
 
-On macOS, run:
+#### macOS arm64 (Apple silicon)
 
+<!-- release-install-macos-arm64-begin -->
 ```sh
-shasum -a 256 -c panackelty-0.1.0-alpha.10-macos-arm64.tar.gz.sha256
+(
+  set -eu
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
+  archive=panackelty-0.1.0-alpha.10-macos-arm64.tar.gz
+  curl --fail --location --show-error --output "$archive" "$release/$archive"
+  curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
+  shasum -a 256 -c "$archive.sha256"
+  tar -xzf "$archive"
+  ./panackelty/bin/panack --version
+)
 ```
+<!-- release-install-macos-arm64-end -->
 
-The command must report the archive as `OK`. Then unpack the matching archive;
-the macOS name is shown here:
-
-```sh
-tar -xzf panackelty-0.1.0-alpha.10-macos-arm64.tar.gz
-./panackelty/bin/panack --version
-```
-
-The version command prints `panack 0.1.0-alpha.10 (bytecode 9)`. The Linux
-archive follows the same layout and uses `linux-x86_64` in its name. To make
-`panack` available in future terminal sessions, keep the whole extracted
-directory together and link its command into a directory on `PATH`:
-
-```sh
-mkdir -p "$HOME/.local/opt" "$HOME/.local/bin"
-mv panackelty "$HOME/.local/opt/panackelty"
-ln -s "$HOME/.local/opt/panackelty/bin/panack" "$HOME/.local/bin/panack"
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-Add the final `export` command to the shell's startup file if `~/.local/bin` is
-not already on `PATH`. The complete toolchain remains under
-`~/.local/opt/panackelty`.
+The checksum command must report the archive as `OK`, followed by
+`panack 0.1.0-alpha.10 (bytecode 9)`. If either download or verification fails,
+stop and resolve that error before continuing; do not extract or run the archive.
+Both archives expand into `panackelty/`. Keep that whole directory together.
 
 ### Write and run a first program
 
-Save this as `hello.panack`:
+Stay in the directory containing `panackelty/` and save this as `hello.panack`:
 
 <!-- quick-start-program-begin -->
 ```panackelty
@@ -194,15 +202,18 @@ main(): Void {
 <!-- quick-start-program-end -->
 
 Check the program, run its source, compile it to `hello.bc`, and run the saved
-bytecode:
+bytecode. The `./panackelty/bin/panack` path uses your extracted toolchain directly;
+there is no need to put it on `PATH` first:
 
+<!-- release-install-commands-begin -->
 ```sh
-panack --version
-panack check hello.panack
-panack run hello.panack
-panack compile hello.panack
-panack run hello.bc
+./panackelty/bin/panack --version
+./panackelty/bin/panack check hello.panack
+./panackelty/bin/panack run hello.panack
+./panackelty/bin/panack compile hello.panack
+./panackelty/bin/panack run hello.bc
 ```
+<!-- release-install-commands-end -->
 
 Primary lexer, parser, name, and type failures identify their owning source as
 `file:line:column`, including when the error is in an imported module.
@@ -226,10 +237,35 @@ Hello, Ada. The answer is 42.
 no `fn` keyword, and the final expression in a non-`Void` function is its return
 value.
 
+### Optional: use `panack` from any directory
+
+After the local check/run succeeds, you can move the whole toolchain into your
+home directory and link its command onto `PATH`. Start beside `panackelty/` and
+only use this first-install procedure if neither destination already exists;
+for an existing installation, use the upgrade procedure below.
+
+<!-- release-install-path-begin -->
+```sh
+mkdir -p "$HOME/.local/opt" "$HOME/.local/bin"
+mv panackelty "$HOME/.local/opt/panackelty"
+ln -s "$HOME/.local/opt/panackelty/bin/panack" "$HOME/.local/bin/panack"
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+<!-- release-install-path-end -->
+
+Add the final `export` command to the shell's startup file if `~/.local/bin` is
+not already on `PATH`. The complete toolchain remains under
+`~/.local/opt/panackelty`.
+
+You can now use `panack check hello.panack` and `panack run hello.panack` from
+the directory containing your program, or pass its path from another directory.
+
 ### Upgrade or remove Panackelty
 
-To upgrade, download and verify the new archive, extract it in a working
-directory, and replace the installed directory while keeping the command link:
+For the optional home-directory installation above, download and verify the new
+archive, extract it in a working directory, and replace the installed directory
+while keeping the command link:
 
 ```sh
 mv panackelty "$HOME/.local/opt/panackelty.new"

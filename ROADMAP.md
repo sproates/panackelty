@@ -2626,6 +2626,13 @@ feature or production HTTP claim is required.
 
 Work record: [#141](https://github.com/sproates/panackelty/issues/141).
 
+The [2026-10-03 source-based performance assessment](tests/VALIDATION_PROFILE.md#runtime-performance-assessment--2026-10-03)
+records architecture costs, exact-semantics comparison limits, finite TCP and
+cooperative-execution boundaries, existing compiler measurements and a proposed
+six-group baseline. No new benchmarks were run; neither broad inadequacy nor
+production adequacy is established. This research record does not schedule
+benchmark implementation, select optimisations or change programme priority.
+
 State: **Idea; unscheduled**. The 2026-10-02 user request broadens the existing
 runtime/resource baseline proposal rather than creating a duplicate. This does
 not change compiler-work priority or reopen the deferred website/CI work.

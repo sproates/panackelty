@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#108.**
+The initial allocation contains **105 identities**. **Next available: RM#113.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -60,6 +60,126 @@ reliability, useful compiler assistance, human-readable code, enjoyable tooling,
 installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
+
+## Modules, packages and HTTP programme — 2026-10-03
+
+<a id="rm-108"></a>
+
+**RM#108: Modules, packages and HTTP programme** ·
+[GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
+
+**Planned; 0 of 8 tasks accepted.** This is the selected next programme for
+planning. Creating this register does not start design or implementation.
+The compiler-understanding programme remains paused; its scope is retained.
+
+First concrete milestone: **a working independently consumed HTTP client package**.
+A clean native application imports its public client API, requests HTTP and HTTPS
+resources by hostname, obtains typed status/headers/body and handles explicit
+failures. HTTPS includes certificate and hostname verification. Deterministic local
+HTTP/TLS fixtures prove successes, rejected certificates, timeout, malformed
+responses and cleanup; a public-site smoke test is optional, not a CI dependency.
+Local packages suffice: an HTTP server implementation and remote package retrieval
+are not prerequisites for this milestone.
+
+The desired shape is illustrative proposed syntax, not a shipped contract:
+
+```panackelty
+import http/client as http
+
+async main(): Unit {
+  response = await http.get("https://example.com")
+  // Handle success or failure.
+}
+```
+
+P1 settles syntax, public types/errors, ownership, transport/DNS/TLS prerequisites,
+compatibility and migration before implementation. HTTP framing is distinct from
+today's finite EOF-framed TCP. Each implementation slice retains canonical tests,
+bootstrap, docs, independent review and explicit merge approval.
+
+| Stage | Task | State | Dependencies | Estimate |
+| --- | --- | --- | --- | --- |
+| P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Planned; not started | None | Medium / 1 design PR |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Planned; not started | P1 | Estimate after design |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Estimate after design |
+| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Estimate after design |
+| P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Estimate after design |
+| P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Estimate after design |
+| P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Estimate after design |
+| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Client gate P2/P3/P5; final all | Estimate after design |
+
+<a id="rm-109"></a>
+
+**RM#109: Module and package design** — P1 joint design in GI#234:
+worked multi-file examples, aliases and visibility, manifests/roots/exports,
+compatibility/migration, transport prerequisites and positive/negative acceptance.
+The existing GI#198/GI#199 investigations feed this shared design; their tracked
+production outcomes remain P2/P3 rather than being closed by a design document.
+
+<a id="rm-110"></a>
+
+**RM#110: HTTP client package** — P5 in GI#236: independently importable
+client, HTTP/HTTPS request/response and failure handling under an explicit bounded
+protocol/API contract. Native first; browser support is not implied.
+
+<a id="rm-111"></a>
+
+**RM#111: HTTP server package** — P6 in GI#237: importable handler/response
+API, bounded protocol/resource handling, tested lifecycle and graceful shutdown.
+Agree server TLS scope during design; first client acceptance need not wait.
+
+<a id="rm-112"></a>
+
+**RM#112: Package and HTTP acceptance** — P8 in GI#238: first verify the
+client milestone using local packages, then final clean-install/relocated package,
+pinned/offline dependency and separate client/server walkthroughs with executed
+documentation and supporting release availability. Full programme closure requires
+all eight outcomes accepted. GI#166 typed service exchange and GI#162 preview-server
+replacement remain separate followups, not silently completed by raw HTTP.
+
+P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
+their earlier Idea/unscheduled and assessment-only status: programme tasks are
+Planned, not started, with design questions retained and implementation estimates
+due after P1. No public registry, separate compilation, web framework or new engine
+is required. No effort percentage is assigned before credible estimates exist.
+
+Track each task as Planned, In progress, In review, Verification pending or
+Accepted. On selection record owner, PR/revision, evidence, blockers and next action
+in its issue and update this register at delivery. A design or experiment does not
+complete a production task. Website impact: planning only; record supporting
+release/adoption followups before feature promotion, and verify live claims before
+closing such followups. Next concrete action is selection of P1; no investigation
+or implementation starts from this tracking update alone.
+
+## Programme pause and resumption checkpoint — 2026-10-03
+
+**GI#180: Compiler understanding programme is temporarily paused at the user's request.**
+Scope and acceptance criteria are retained; this is neither cancellation nor completion.
+Resume only when the user selects programme work again; there is no automatic restart date.
+This checkpoint supersedes earlier active-priority and next-action wording below.
+
+Accepted foundations: RM#98 guard-fact repair (C0), RM#99 source attribution
+experiment (U1), and RM#100 production source maps (U2).
+U0 remains partial: initial investigation, RM#2 runtime retention experiment
+(PR#227) and RM#106 semantic-impact experiment (PR#230) are delivered.
+U3 remains partial: subtraction explanations (PR#219), RM#1 local effect
+explanations (PR#225), and RM#107 per-function effect recovery (PR#231) are delivered.
+Latest accepted main revision: `253ae966cebfd71848a976986eccbb70a34801ea`.
+PR#231's merged tree matches the independently reviewed tree; hosted Check and
+Pages passed before merge. No feature acceptance remains for that bounded slice.
+
+All five capability workstreams remain open. U4–U7 production, U8 realistic
+evaluation/release acceptance and U9 website demonstrations remain unfinished.
+Supporting release and website adoption remain separately tracked, including
+RM#104; this pause starts no release or website work.
+
+On resumption, verify current main, open PRs and child-issue evidence first.
+Compare a bounded U3 type/proof explanation, U0 declaration-effect dependency
+research for U6, and the separately scoped U7 scalar provenance delivery.
+U5 depends on sufficient retained checker evidence; U4 builds on accepted mapping.
+Broader dependency/trust questions and representative performance budgets remain
+explicit investigation work. Re-estimate and select one slice with the user;
+none of these candidates is currently authorised for implementation.
 
 ## U3 per-function effect recovery — 2026-10-03
 

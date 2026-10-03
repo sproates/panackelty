@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#117.**
+The initial allocation contains **105 identities**. **Next available: RM#118.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -63,7 +63,7 @@ agents remains a hypothesis to test.
 
 ## Newcomer developer feedback — unscheduled backlog
 
-Recorded on 2026-10-03; expanded on 2026-10-04. The three trials are **Idea / unscheduled**, outside the
+Recorded on 2026-10-03; expanded on 2026-10-04. The remaining basic and advanced trials are **Idea / unscheduled**, outside the
 modules/packages/HTTP programme. Recording them starts no setup, trial or coding.
 Each trial requires explicit user selection as a dedicated task; completing setup
 or another trial never triggers it automatically. No ad hoc implementation,
@@ -92,7 +92,8 @@ remains outside the repository; trials require separate explicit selection.
 
 **RM#116: Installation and Hello World trial** ·
 [GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
-Idea / unscheduled; depends on [RM#113: Newcomer trial setup](#rm-113).
+**Done — 2026-10-04:** explicitly selected installation trial completed after
+[RM#113: Newcomer trial setup](#rm-113).
 Suggested first dedicated trial before basic language feedback: start in a clean
 supported native environment, follow public getting-started material, find and
 install a published release, then write and run Hello World. Record the platform,
@@ -103,7 +104,31 @@ verify output and deliver reproducible findings with prioritised improvements,
 including failure or budget exhaustion. The usability target is an unaided first
 program using published instructions alone; a failed attempt remains useful trial
 evidence. Small / one trial and report after setup; cross-platform coverage and
-fix implementation are outside scope. Not started; explicit selection required.
+fix implementation are outside scope. Unaided Ubuntu x86_64 local installation
+of published alpha.10 reached verified Hello World in about 2m43s, with zero
+failed installation/check/run commands. Independent verification confirmed exact
+output and archive/installed-file consistency. See the
+[trial evidence and limitations](tests/VALIDATION_PROFILE.md#newcomer-installation-trial--2026-10-04).
+Follow-up [RM#117: Platform-specific installation instructions](#rm-117) tracks
+the unpack/download improvements; no blocking
+product defect surfaced. This tested a fresh directory on a shared host starting
+at GitHub, not a clean OS, marketing-site navigation or human beginner usability.
+No fixes or further trials were started; each requires separate selection.
+
+<a id="rm-117"></a>
+
+**RM#117: Platform-specific installation instructions** ·
+[GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
+Idea / unscheduled. Follow-up to [RM#116: Installation and Hello World trial](#rm-116):
+provide separate copy-paste Linux x86_64 and macOS arm64 download, platform-appropriate
+checksum verification, extraction and version-check examples, followed by Hello
+World check/run and clear local executable / optional PATH guidance. Validate real
+published assets and commands on each appropriate platform; disclose unavailable
+verification. Review README, release and website instruction consistency without
+silently changing release pins. Small / provisionally one documentation PR plus
+installation verification; no installer, packaging or new platform scope. Trial
+succeeded; these address minor friction, not a demonstrated installation failure.
+Implementation and additional trials are not started.
 
 <a id="rm-114"></a>
 

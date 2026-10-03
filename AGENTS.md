@@ -28,6 +28,26 @@ count, and give an ELI5 explanation. Use this repository copy for Panackelty if
 a personal copy is also available. Agents without automatic skill discovery
 should read the linked file directly; no personal skill installation is needed.
 
+## Programme progress
+
+When planning a programme, reporting its progress, or handing over each programme
+task delivery or completion, follow the repository's
+[Programme Status skill](.agents/skills/programme-status/SKILL.md). Report every
+scoped task, verified completion, stable scope-based weights and earned
+contributions; accepted-task counts alone are not overall progress. Use this
+repository copy if a personal copy also exists. Agents without automatic skill
+discovery should read the linked file directly. Keep baselines and evidence in
+the canonical programme register, following the
+[programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking).
+
+## Independent review
+
+Before requesting merge approval for a substantive delivery PR, obtain review
+from a reviewer who did not implement the change. Follow the
+[revision-pinned review rules](docs/ROADMAP_PROCESS.md#independent-review), record
+findings and their resolution, and identify the reviewed commit or tree. Review
+does not replace validation or explicit merge approval.
+
 ## Definition of done
 
 For every implementation change:

@@ -598,6 +598,17 @@ stage. Pull requests and workflow cancellation cannot deploy. Hosted production
 acceptance remains required because these tests do not emulate GitHub's scheduler.
 
 
+## Semantic-impact feasibility experiment
+
+`make semantic-impact-experiment` tests pre-change predictions from internal
+checker records against actually changed checking and public CLI acceptance.
+It covers direct guard/effect consequences, positively justified local proof and
+ordinary-call preservation, conditional two-edit effect propagation, skipped effect
+evidence, nested guard replacement and mutation invalidation. Compiler CI runs
+this separate Node-based experiment. This is not a general semantic-diff feature
+or proof of transitive return guarantees; see the
+[report and limitations](experiments/semantic_impact/README.md).
+
 ## Native source-map acceptance experiment
 
 `make source-mapping-experiment` now tests the production CLI against independently

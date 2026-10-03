@@ -1246,8 +1246,17 @@ The repair estimate is S–M / 1 PR, subject to nested-write and loop findings.
 These are provisional slices, not a total programme estimate or a promise that
 all acceptance fits in these PR counts. All five remain in scope. Shared
 evidence is a hypothesis to test, not a reason to block every workstream on one
-universal graph. Remaining shared investigation includes concrete experiments
-for sidecar integrity, runtime event retention and positive non-impact evidence.
+universal graph. Shared investigation now includes bounded sidecar-integrity,
+runtime-retention and positive non-impact experiments; broader dependency,
+retention and external-producer cases remain open.
+
+The [bounded semantic-impact experiment](tests/experiments/semantic_impact/README.md)
+now establishes direct guard/effect predictions and positive local non-impact
+from retained checker records. It also demonstrates why a selected guard origin
+is not a complete proof dependency graph and why declaration-based effects do
+not imply automatic transitive propagation. The test-only exporter and runner
+change no production checker semantics or public interface; broader dependency
+and guarantee machinery remains unimplemented.
 
 ### Realistic-program evaluation proposal
 

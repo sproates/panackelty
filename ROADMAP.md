@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#106.**
+The initial allocation contains **105 identities**. **Next available: RM#107.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -60,6 +60,39 @@ reliability, useful compiler assistance, human-readable code, enjoyable tooling,
 installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
+
+## U0 semantic-impact experiment — 2026-10-03
+
+<a id="rm-106"></a>
+
+**RM#106: Semantic-impact experiment** — bounded outcome **Done on this PR's
+merge**, under [RM#97: Shared programme investigation](#rm-97) and
+[GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175).
+The user selected one research PR; no separate issue exists for this bounded
+outcome. The [reproducible experiment and report](tests/experiments/semantic_impact/README.md)
+predict guard and declared-effect consequences from actual baseline compiler
+records before applying edits, then validate through changed checking and the
+public CLI. It positively substantiates one caller-local Nat obligation and an
+ordinary caller's permitted effect boundary. Nested guards, mutation and missing
+effect evidence challenge unsupported independence claims.
+
+The conditional two-edit effect cascade is verified; a single leaf edit does not
+infer transitive effects or export return-bound guarantees. That negative finding
+leaves GI#175's transitive acceptance unmet. The report measures metadata and
+latency and recommends bounded declaration-effect dependencies before any public
+prediction query. Production U6 is unstarted, broader GI#175/GI#180 remain open,
+and further production scope requires separate selection. No post-merge acceptance
+for this experiment. Website: no impact because no released behavior, command or
+feature claim changes.
+
+Acceptance evidence: 25 focused experiment assertions passed. Clean canonical
+`make check` passed in 150s (unit 113s, functional 4s / 343 cases, bootstrap 19s),
+including compiler/library fixed points and package/quick-start validation.
+The 120s full and 15s unit budgets were exceeded; retain the existing
+[GI#106: Validation performance](https://github.com/sproates/panackelty/issues/106)
+reminder for these measured overruns rather than relaxing budgets. Independent
+review found no blocking findings; its minor architecture wording correction
+was included. Final informational completion text is checked with `make docs`.
 
 ## U3 effect explanation slice — 2026-10-03
 
@@ -108,8 +141,9 @@ arithmetic/function-call value derivation, repeated call/loop identity, bounded
 retention, explicit missing/evicted/unsupported evidence, CPU/memory costs and
 sensitive-value policy. Medium / one experiment PR under
 [#172](https://github.com/sproates/panackelty/issues/172) and
-[#180](https://github.com/sproates/panackelty/issues/180). This is the current
-principal programme slice; broader production U7 is not selected.
+[#180](https://github.com/sproates/panackelty/issues/180). This completed experiment
+preceded [RM#106: Semantic-impact experiment](#rm-106); broader production U7 is
+not selected.
 
 **Bounded outcome Done on this PR's merge:** the test-only observer follows the
 actual VM's `multiply(6, 7)` return to its arithmetic/operand/call origins and
@@ -576,7 +610,7 @@ live verification remain separately recorded in the website follow-up register.
 | [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Investigation in progress | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
 | <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Investigation in progress | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
 | <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
-| <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Investigation in progress | Predict direct/transitive consequences and verify against actual changes; substantiate unaffected claims. No accepted delivery yet. |
+| <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Investigation in progress | [RM#106: Semantic-impact experiment](#rm-106) establishes bounded direct predictions and positive local non-impact; one-change transitive acceptance and production remain open. |
 | [RM#68: Runtime value provenance](#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
 
 ### Programme delivery register
@@ -600,14 +634,14 @@ Report completed criteria and remaining work rather than invented effort weights
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
-| <a id="rm-97"></a>**RM#97: Shared programme investigation** (U0) | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; bounded runtime retention is investigated above; authenticated external producers and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
+| <a id="rm-97"></a>**RM#97: Shared programme investigation** (U0) | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; bounded runtime retention and [positive local non-impact](#rm-106) are investigated; authenticated external producers and broader semantic dependencies remain | Remaining investigation still required before U5–U7 scope commitments |
 | <a id="rm-98"></a>**RM#98: Guard-fact correctness repair** (C0) · [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182) | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
 | <a id="rm-99"></a>**RM#99: Source attribution experiment** (U1) | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
 | <a id="rm-100"></a>**RM#100: Production source maps** (U2) | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Accepted: frontend #209, emission #214, exact local-replay sidecar and public CLI #218 (`cbae41b`); [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
 | [RM#48: Compiler explanations](#rm-48) (U3) | Retain checker evidence and deliver the first #134 explanation, then cover its agreed types/effects/proof scope; explain accepted and rejected obligations with source facts and honest unknowns | U1; production attribution from U2 before feature acceptance | First subtraction query accepted through #219; actual proof decisions, guard sources, rejected/unavailable results and CLI acceptance. Local effect query delivered on this PR's merge; broader type/proof scope remains | First slice delivered in 1 PR; remaining scope re-estimated at grooming |
 | [RM#91: Compilation provenance](#rm-91) (U4) | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
 | [RM#92: Counterfactual compilation](#rm-92) (U5) | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
-| [RM#93: Semantic change prediction](#rm-93) (U6) | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
+| [RM#93: Semantic change prediction](#rm-93) (U6) | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Production unstarted; [RM#106: Semantic-impact experiment](#rm-106) supports direct/local claims, not automatic transitive guarantees | Smallest evidence slice: medium / 1 PR, separately selected; broader scope unknown |
 | [RM#68: Runtime value provenance](#rm-68) (U7) | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Production unstarted; bounded retention experiment and go/no-go recommendation recorded above | First scalar production slice: large / 2–3 PRs, separately authorised |
 | [RM#10: Programme realistic evaluation](#rm-10) (U8) | Pass the realistic-program gate below across all five workstreams and complete release/docs acceptance | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
 | [RM#11: Programme website demonstrations](#rm-11) (U9) | Final task: refresh website positioning and demonstrate the accepted compiler/runtime capabilities; deliberately adopt supporting releases and verify the live site | U8 accepted; published artifacts supporting advertised features | Planned, unstarted; tagline to be decided later with the user; acceptance below | Estimate after accepted capabilities and website scope are known |

@@ -1,0 +1,14 @@
+pure safe_subtract(n: Nat): Nat {
+  if n >= 2 { n - 2 } else { 0 }
+}
+
+pure remaining(n: Nat): Nat { safe_subtract(n) }
+
+pure checkout(n: Nat): Nat {
+  balance: Nat = remaining(n)
+  if n >= 5 { n - 5 } else { balance }
+}
+
+audit(n: Nat): Nat { safe_subtract(n) }
+
+main(): Void { print(checkout(8)); print(audit(8)); }

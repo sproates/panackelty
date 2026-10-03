@@ -2487,3 +2487,30 @@ optimisation opportunities and real capability limits; broad practical adequacy
 remains unmeasured. This record adds research context to #141 without starting
 the six-group suite, selecting an optimisation, closing an issue or changing
 programme priority. It changes no release or website capability claim.
+
+## U3 per-function effect recovery — 2026-10-03
+
+The recovery feature retains function validity only in explanation mode; ordinary
+compilation keeps its type-first diagnostic gate. Rejected explanation queries
+may now run a filtered effect traversal; no extra type-analysis pass is added.
+This improves availability, not proof power or transitive effect inference. The
+semantic-impact report's original measurements are historical and do not measure
+the newly recovered traversal.
+
+Fresh seed stages 2/3/4 converge at compiler SHA-256
+`75b4d7cd92596ef6c5be871dfdda243b7ee02ff404f5adba2a21e94b814a6224`
+(318,005 bytes), with unchanged standard-library artifact
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Focused explanation probes pass 266 unit assertions and 53 public-CLI assertions.
+Exact baseline parity against the prior seed holds for all 227 compiler-contract
+fixtures: 43 accepted bytecode artifacts and 184 rejections have identical exit
+status, stdout and stderr (40.529s comparison). This is correctness evidence, not a
+performance comparison.
+
+Clean canonical `make check` passed in 154s: unit 116s, functional 5s (343 cases),
+bootstrap 19s, with compiler/library fixed points, seed refresh, release-smoke and
+quick-start validation. The updated semantic-impact experiment passes 25 assertions.
+The 120s full and 15s unit budgets were exceeded; existing GI#106 remains the
+performance reminder. These are environment-specific observations, not an
+attributed recovery overhead benchmark. Final informational acceptance edits are
+checked with `make docs`.

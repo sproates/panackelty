@@ -64,12 +64,14 @@ satisfy GI#175's original one-change transitive acceptance criterion.
   complete minimal dependency graph.
 - Assignment `n = 0` between guard and subtraction discards the bound. The
   unchanged guard text is insufficient; absent valid evidence returns unknown.
-- Guard/proof rejection skips the **entire** effect pass. The experiment asserts
-  `effects_checked=false` and no effect records, and reports unavailable rather
-  than preserving effects by silence. A separate conservative recovery slice
-  could check type-valid functions after unrelated body errors, with valid global
-  signatures and per-function availability. Removing the loader gate alone would
-  both trust erroneous inferred/callable types and risk overwriting type diagnostics.
+- The original measured baseline skipped the entire effect pass after guard/proof
+  rejection. With [RM#107: Per-function effect recovery](../../../ROADMAP.md#rm-107),
+  the runner instead verifies that the type-invalid leaf has no effect records and
+  the type-valid caller's declared boundary is positively re-established.
+  `effects_checked=true` means the filtered pass ran, not that every function was
+  eligible. Global signature/declaration type failures still suppress recovery; original
+  type diagnostics remain intact. A caller boundary does not validate its callee
+  body, infer transitive effects or prove preserved behavior.
 - Constant proofs can depend on initializer values without retained initializer
   provenance. Callable types, generic capabilities, imported aliases, recursion,
   loops, type-declaration guards, exhaustiveness and multi-cause edits are outside
@@ -89,7 +91,9 @@ reused. A universal proof graph is not justified by this evidence.
 
 ## Cost and recommendation
 
-Measured on Linux x86-64, Node 24.19.0, native `-O2`, compiler baseline `2957915`.
+Historical measurements before per-function recovery, on Linux x86-64,
+Node 24.19.0, native `-O2`, compiler baseline `2957915`. These samples do not
+measure the later recovered effect traversal on rejected projects.
 Fixture SHA-256: `4c10a346859a4f89ffd9521febbd2f18d0c5b47a0b3db8bbb5d45bebb7e59762`.
 The 316-byte source loads standard-library core definitions too: **3 subtraction
 records, 31 effect records, 3,407 transport bytes**, plus a 180-byte prediction
@@ -109,7 +113,8 @@ formatting and output. The binaries have different drivers. It does not isolate
 retention cost, bound memory, demonstrate scalability or establish zero overhead.
 The target rebuilds the probe when compiler/source inputs change and reports fresh
 samples; timing is informational, never a brittle acceptance threshold. Ordinary
-builds gain no analysis pass or metadata because no production sources change.
+builds gained no analysis pass or metadata from the original experiment; the later
+recovery feature is separately scoped and opt-in.
 
 **Recommendation:** retain this experiment and do not ship a general prediction
 command yet. The smallest independently testable production slice would be opt-in

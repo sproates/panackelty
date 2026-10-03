@@ -235,6 +235,10 @@ pure check_effect_block(block: Block, program: Program, parent: Map[Str,TypeInfo
 }
 
 pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffects {
+  check_selected_effect_evidence(program, retain, false, map())
+}
+
+pure check_selected_effect_evidence(program: Program, retain: Bool, selected: Bool, function_types: Map[Str,Bool]): CheckedEffects {
   mut result: CheckedEffects = CheckedEffects([], [])
   for declaration in program.declarations {
     match declaration {
@@ -242,20 +246,22 @@ pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffec
         result = combine_effects(result, check_effect_expression(guard, program, map(), false, false, None()))
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        mut environment: Map[Str,TypeInfo] = map()
-        environment = map_put(environment, "$effect", plain_type(if is_async { "async" } else { if is_pure { "pure" } else { "ordinary" } }))
-        for parameter in parameters {
-          environment = map_put(environment, parameter.name, plain_type(parameter.type_name))
-        }
-        checked: CheckedEffects = check_effect_block(body, program, environment, retain)
-        mut entries: [EffectEvidence] = []
-        if retain {
-          for entry in checked.evidence {
-            entries = append(entries, EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
-              entry.basis, entry.target_effect, entry.awaited, entry.violations))
+        if !selected || (function_types.has(name) && function_types.get(name)) {
+          mut environment: Map[Str,TypeInfo] = map()
+          environment = map_put(environment, "$effect", plain_type(if is_async { "async" } else { if is_pure { "pure" } else { "ordinary" } }))
+          for parameter in parameters {
+            environment = map_put(environment, parameter.name, plain_type(parameter.type_name))
           }
+          checked: CheckedEffects = check_effect_block(body, program, environment, retain)
+          mut entries: [EffectEvidence] = []
+          if retain {
+            for entry in checked.evidence {
+              entries = append(entries, EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
+                entry.basis, entry.target_effect, entry.awaited, entry.violations))
+            }
+          }
+          result = combine_effects(result, CheckedEffects(checked.diagnostics, entries))
         }
-        result = combine_effects(result, CheckedEffects(checked.diagnostics, entries))
       },
       ImportDeclaration(path) => {},
       RecordDeclaration(name, parameters, fields) => {},
@@ -265,13 +271,23 @@ pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffec
   result
 }
 
-pure check_program_frontend(program: Program): [Diagnostic] {
-  type_diagnostics: [Diagnostic] = check_program_types(program)
-  if len(type_diagnostics) > 0 {
-    type_diagnostics
+// Ordinary compilation preserves the type-first diagnostic contract. Recovery
+// is evidence-only: effect violations remain on local records, never replacing
+// or extending the original type diagnostics for an already rejected program.
+pure check_frontend_effects(program: Program, checked: CheckedProgram, retain: Bool): CheckedEffects {
+  if len(checked.diagnostics) == 0 {
+    check_program_effect_evidence(program, retain)
   } else {
-    check_program_purity(program)
+    if retain && checked.declarations_valid {
+      recovered: CheckedEffects = check_selected_effect_evidence(program, true, true, checked.function_types)
+      CheckedEffects(checked.diagnostics, recovered.evidence)
+    } else { CheckedEffects(checked.diagnostics, []) }
   }
+}
+
+pure check_program_frontend(program: Program): [Diagnostic] {
+  checked: CheckedProgram = check_program_evidence(program, false)
+  check_frontend_effects(program, checked, false).diagnostics
 }
 
 pure check_source_frontend(source: Str): Str {

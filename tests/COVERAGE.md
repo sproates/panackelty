@@ -603,8 +603,8 @@ acceptance remains required because these tests do not emulate GitHub's schedule
 `make semantic-impact-experiment` tests pre-change predictions from internal
 checker records against actually changed checking and public CLI acceptance.
 It covers direct guard/effect consequences, positively justified local proof and
-ordinary-call preservation, conditional two-edit effect propagation, skipped effect
-evidence, nested guard replacement and mutation invalidation. Compiler CI runs
+ordinary-call preservation, conditional two-edit effect propagation, recovered
+caller boundaries after a type-invalid leaf, nested guard replacement and mutation invalidation. Compiler CI runs
 this separate Node-based experiment. This is not a general semantic-diff feature
 or proof of transitive return guarantees; see the
 [report and limitations](experiments/semantic_impact/README.md).
@@ -732,6 +732,26 @@ Validation: 196 explanation unit assertions, 36 explanation CLI assertions and
 compiler-contract fixtures also preserve exact baseline output/status/artifacts
 across 227 cases. Performance and fixed-point evidence are in
 [the validation profile](VALIDATION_PROFILE.md#u3-local-effect-explanations--2026-10-03).
+
+## U3 per-function effect recovery acceptance
+
+Explanation unit and public-CLI tests cover valid and rejected siblings after body
+errors; invalid callable annotations/receivers, await return types and iterables;
+return mismatches; late global signatures, guarded types, records/enums and resolver
+failures; imported generic source origins; unchanged ordered stderr; and refreshed
+evidence after repair. Invalid callee bodies do not invalidate an otherwise valid
+local declaration boundary, nor does that boundary establish callee correctness.
+Ordinary mode retains no function availability or recovered effect evidence.
+The semantic-impact experiment positively checks a caller boundary after leaf
+proof rejection rather than treating missing evidence as non-impact. A type-valid
+but impure guard plus an unrelated body error preserves local evidence and
+original diagnostics without implying guard or project validity.
+
+Validation: 266 explanation unit assertions, 53 CLI assertions, 25 experiment
+assertions and all 343 functional cases pass. Clean canonical `make check` passed
+in 154s with compiler/library fixed points; 227 baseline compiler-contract fixtures
+preserve exact diagnostics/status and 43 accepted artifacts. See the
+[validation profile](VALIDATION_PROFILE.md#u3-per-function-effect-recovery--2026-10-03).
 
 ## Runtime provenance feasibility evidence
 

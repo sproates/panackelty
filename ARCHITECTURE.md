@@ -1464,7 +1464,8 @@ with the bound. Evidence reflects the actual bound in use, including insufficien
 ones. It does not reconstruct a proof from surrounding syntax or diagnostic text.
 
 The loader's bounded explanation path retains checker results on type failure;
-it runs purity checking only after successful type checking, as before. Resolver
+ordinary compilation runs purity only after successful type checking, while
+explanations can check separately type-valid functions with valid declarations. Resolver
 or loading errors yield no partial fabricated proofs. `explanations.panack`
 formats retained decisions against loaded source snapshots; `driver.panack`
 selects a function with `explain`. Whole-project validity, local proof status and
@@ -1479,9 +1480,16 @@ open. The earlier investigation tables are historical inventories.
 The effect traversal returns `CheckedEffects`: ordered diagnostics and opt-in
 `EffectEvidence` containing the function, expression span, boundary kind, enclosing
 mode, callee classification/basis, awaited state and local violation reasons.
-Ordinary and explained checking use the same predicates and recursion. The loader
-retains a pass-ran flag so earlier frontend failures cannot look like successful
-effect checks. The renderer reports local boundaries separately from whole-program
+Ordinary and explained checking use the same predicates and recursion.
+`CheckedProgram` retains global declaration validity and, only for explanation
+queries, a function-name map of type validity including final return checks.
+The same traversal detects global type errors in signatures and type declarations without
+reordering diagnostics or repeating type analysis. `check_frontend_effects` is
+shared by the frontend and loader: ordinary checking preserves its type-first
+gate; explanations recover only eligible functions when declarations are valid.
+Recovered effect diagnostics stay in evidence while original type diagnostics
+remain unchanged. The loader carries global and per-function availability so
+invalid functions cannot be mistaken for checked functions with no boundaries. The renderer reports local boundaries separately from whole-program
 acceptance. Calls are classified from declarations, callable types and builtin or
 constructor contracts; no transitive dependency graph, inferred effect expansion,
 runtime execution or bytecode metadata is introduced. Definition evidence is

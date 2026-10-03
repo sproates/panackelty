@@ -121,7 +121,9 @@ pure render_function_explanations(project: LoadedProject, name: Str, root: Str, 
   mut output: Str = render_subtraction_explanations(project, name, root, stdlib_root)
   output = output + "\n\neffect scope: local call and await boundaries; declarations and callable types, not transitive/runtime effects"
   if !project.effects_checked {
-    output = output + "\neffects: unavailable\nreason: loading, resolution or type checking prevented the effect pass"
+    output = output + "\neffects: unavailable\nreason: loading, resolution or global declaration checking prevented the effect pass"
+  } else { if project.function_types.has(name) && !project.function_types.get(name) {
+    output = output + "\neffects: unavailable\nreason: function body type checking prevented the effect pass for this function"
   } else {
     mut count: Nat = 0
     for entry in project.effects {
@@ -131,6 +133,6 @@ pure render_function_explanations(project: LoadedProject, name: Str, root: Str, 
       }
     }
     if count == 0 { output = output + "\neffects: unavailable\nreason: no call or await boundary was retained for this function"; }
-  }
+  } }
   output
 }

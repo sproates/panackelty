@@ -1116,8 +1116,12 @@ checks with opt-in evidence retention and reports binary `Nat` subtraction
 obligations and local call/await effect boundaries from the named function.
 Effect output retains existing pure/ordinary/async decisions and callable-type
 classification without inferring transitive or runtime effects. Effect evidence is
-unavailable if earlier loading, resolution or type errors prevent that pass. An
-allowed boundary does not imply valid arguments or whole-program acceptance.
+unavailable for type-invalid functions. The query can retain boundaries for
+separately type-valid functions after a body error; global loading, resolution,
+signature or declaration type errors suppress all recovery. Ordinary compilation and
+original diagnostics remain unchanged; recovered effect violations appear only in
+the local explanation. An allowed boundary does not imply that a callee body or
+the whole program is valid.
 The command exposes existing constant/lower-bound
 proof decisions without adding proof rules or changing acceptance. A local
 proved obligation does not imply whole-program validity; unproved does not imply

@@ -42,6 +42,15 @@ branch clutter. `AGENTS.md` requires a lightweight run after major/principal
 task completion; it is also the shared procedure for an explicit repository
 health or housekeeping request.
 
+### Programme status skill
+
+The [Programme Status skill](.agents/skills/programme-status/SKILL.md) establishes
+provisional scope-based weights when planning and reports all scoped tasks after
+each programme task delivery or completion. It distinguishes evidenced progress
+from formal acceptance and preserves paused work in the denominator. Baselines
+and evidence belong in the roadmap's programme register; see the
+[programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking).
+
 ### Branches, commits and pull requests
 
 - Branch from current `main` using `<kind>/<short-kebab-case-description>`.
@@ -60,6 +69,9 @@ health or housekeeping request.
 - Keep each PR reviewable around one coherent outcome. Update affected docs,
   report actual test results and preserve unrelated work. Follow the
   [roadmap process](docs/ROADMAP_PROCESS.md) for priorities and decisions.
+- Obtain independent review of substantive delivery revisions before merge approval;
+  record the reviewed commit or tree, findings and resolution under the
+  [review rules](docs/ROADMAP_PROCESS.md#independent-review).
 - Never push directly to `main`. Obtain explicit user permission for each PR
   merge; scope approval and green checks alone are not merge permission.
 

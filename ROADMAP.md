@@ -68,7 +68,7 @@ agents remains a hypothesis to test.
 **RM#108: Modules, packages and HTTP programme** ·
 [GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
 
-**Planned; 0 of 8 tasks accepted.** This is the selected next programme for
+**Planned; estimated completion 0%; 0 of 8 tasks accepted.** This is the selected next programme for
 planning. Creating this register does not start design or implementation.
 The compiler-understanding programme remains paused; its scope is retained.
 
@@ -141,7 +141,33 @@ P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
 their earlier Idea/unscheduled and assessment-only status: programme tasks are
 Planned, not started, with design questions retained and implementation estimates
 due after P1. No public registry, separate compilation, web framework or new engine
-is required. No effort percentage is assigned before credible estimates exist.
+is required.
+
+Provisional scope/effort baseline recorded on 2026-10-03 in
+[GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233):
+
+| Stage / task | Programme weight | Task completion | Earned contribution |
+| --- | ---: | ---: | ---: |
+| P1 / [RM#109: Module and package design](#rm-109) | 10% | 0% | 0 pp |
+| P2 / [RM#41: Language namespaces](#rm-41) | 20% | 0% | 0 pp |
+| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
+| P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
+| P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
+| P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
+| P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
+| P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
+| **Total** | **100%** | — | **0 pp (0%)** |
+
+All eight tasks remain Planned and unstarted, as in the dependency register above;
+planning records earn no task credit. Namespace/compiler integration and HTTPS
+client correctness carry the largest shares; local packages and server lifecycle
+follow, with smaller shares for design, reproducibility, migration and final
+cross-task acceptance. These coarse estimates include each task's own tests/docs;
+P8 covers the separate integration/release acceptance, without counting them twice.
+P1 may change estimates once protocol and transport scope is known. Keep this
+baseline stable until explicitly revised with its reason and effect on the total;
+implementation sizes remain uncertain. Follow the shared
+[programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking).
 
 Track each task as Planned, In progress, In review, Verification pending or
 Accepted. On selection record owner, PR/revision, evidence, blockers and next action
@@ -272,7 +298,7 @@ local decisions without changing checking rules or user bytecode. Positive,
 rejected and unavailable output covers callable types, imported/generic definitions,
 nesting and source ranges. Local boundary status is separate from whole-program
 validity; no inferred transitive/runtime effects are claimed. Independent
-high-reasoning review found no actionable findings. All 196 focused explanation
+review found no actionable findings. All 196 focused explanation
 assertions, 36 CLI assertions and 343 functional cases passed. Canonical clean
 `make check` passed in **150s** (unit 112s, functional 5s, bootstrap 19s), with
 fresh compiler/library fixed points and package checks. Exact baseline parity
@@ -789,7 +815,12 @@ mappings (#214), and public sidecar/lookup (#218, `cbae41b`) are accepted. PR #2
 delivers U3's first working guarded-subtraction explanation.
 It does not complete #134's full scope. All five workstreams remain open, with
 **0 of 5 accepted**. This is an acceptance count, not an effort percentage.
-Report completed criteria and remaining work rather than invented effort weights.
+This historical snapshot has no weighted baseline. The programme remains paused;
+this tracking update does not estimate its weights or restart it. On a requested
+progress report or resumption, establish a provisional scope-based baseline from
+the complete register and current evidence using the
+[programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking). Do not
+interpret its acceptance count as 0% estimated completion.
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
@@ -830,7 +861,7 @@ validity from local proof status. See the [contract](docs/COMPILER_EXPLANATIONS.
 and [validation evidence](tests/VALIDATION_PROFILE.md).
 
 The query has no remaining acceptance; full local validation and all hosted
-checks passed, and Dave's independent review found no actionable findings.
+checks passed, and independent review found no actionable findings.
 There is no release/live-site acceptance prerequisite for this core slice.
 No child issue closes. The three-outcome grooming review selected bounded
 performance work under #106 before the next principal programme feature; see
@@ -3132,7 +3163,9 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 - [ ] Revisit compiler/nested-runner and collection costs when the developer
       feedback delay justifies it; use current measurements before changing code
 - [ ] Retain the local full-check warning observed during preview work (208s
-      against 120s on 2026-10-01); this remains a non-blocking validation-cost item
+      against 120s on 2026-10-01), also observed during shared programme-skill
+      validation (Linux workspace, clean check 153s on 2026-10-03); this remains
+      a non-blocking validation-cost item
 - [ ] Keep runner queue/completion tails distinct from actual execution time
 - [ ] Demonstrate the 120s clean and 15s focused budgets on named reference
       environments; never remove tests, widen budgets or hide failing samples

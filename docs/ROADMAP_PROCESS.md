@@ -137,6 +137,40 @@ Historical snapshots may retain their original status when clearly labelled as
 historical. Existing duplicated or stale entries should be reconciled during
 the roadmap refresh, not silently treated as current commitments.
 
+## Programme tracking
+
+Use the repository [Programme Status skill](../.agents/skills/programme-status/SKILL.md)
+when planning a programme, reporting progress, and at every programme task delivery
+or completion. `ROADMAP.md` owns the programme scope, baseline and concise current
+evidence; linked issues hold delivery detail. Report every scoped task, including
+accepted, blocked, deferred and paused work, with its stable RM identity, state,
+programme weight, evidenced task completion and earned contribution. Keep stage
+aliases and GI/PR mappings explicit. Accepted means Done under the item states;
+In review describes delivery awaiting review or merge, not accepted work.
+
+Establish coarse provisional weights from relative implementation, testing,
+integration, migration, documentation and acceptance effort when planning. Explain
+uncertainty and major differences; do not divide equally by task count. Weights
+sum to 100%. Retain the baseline between reports; explain re-estimation or scope
+changes and their effect on the previous total. Paused/deferred scope stays in the
+denominator unless explicitly removed. Count parent outcomes or allocated child
+weights, never both. Programme tracking does not change priority or start work.
+
+Task completion follows delivered criteria, not time, commits, PR counts or
+activity. Explain partial credit; remaining acceptance prevents 100% completion.
+Planning alone earns no implementation credit, though an explicitly scoped design
+task can be accepted against its own criteria. Earned contribution in percentage
+points is weight (%) times task completion (%) divided by 100; sum contributions
+for estimated overall completion. Distinguish this estimate from formal acceptance.
+If evidence is unavailable or uncertain, show unknown completion and a defensible
+range or known subtotal, not an invented exact overall percentage.
+
+Each report leads with the total and latest meaningful change, includes the full
+task table and baseline assumptions, and states blockers and the next action.
+Update the canonical register as part of authorised delivery and preserve evidence
+links. Reporting alone does not authorise tracker edits, implementation, scope
+reduction, merges, automation or messages to others. Follow existing approval rules.
+
 ## GitHub Issues workflow
 
 Start from this repository, not remembered conversations. Read this process and
@@ -251,6 +285,28 @@ Finish against that scope, not broad wording such as "comprehensive". Follow
 repository validation requirements; informational documentation uses its
 applicable checks, while implementation work retains canonical validation.
 
+### Independent review
+
+Before requesting merge approval for a substantive delivery PR, obtain an
+independent review from someone other than its implementer, proportionate to the
+changed scope. This includes code, tests, CI/configuration, releases, design, public
+contracts and contributor instructions. Routine status-only or typo changes may
+use self-review.
+Review correctness, acceptance evidence, regression risks and affected records;
+for documentation, review substantive claims and process consistency as well as
+links. Record the exact reviewed commit SHA or tree, findings, their resolution
+and any remaining limitations in the delivery evidence. If independent review is
+unavailable, report that gap rather than describing self-review as independent.
+
+Any later change invalidates coverage of the affected content until the reviewer
+checks the new revision. Before merge approval, verify that the PR head matches
+the reviewed revision or record evidence that its tree is identical. After merge,
+verify that the delivered change matches the reviewed content, inspecting any
+merge resolutions or changes affecting that content before claiming acceptance.
+Identical trees suffice when the base is unchanged; unrelated changes on main do
+not alone invalidate the review. Review, green checks and scope approval never replace
+explicit permission to merge each PR.
+
 ### Completion handover
 
 Completion bookkeeping belongs to the delivery work. Before requesting merge
@@ -285,8 +341,11 @@ with the concrete blocker, next action and responsible person or agent; do not
 claim completion or defer an unexplained status to future grooming.
 
 Every final handover states the task's completion status and any remaining
-acceptance. For work without a linked issue, record that fact; do not create an
-issue solely for closure. These rules apply to investigations and documentation
+acceptance. For programme deliveries, include the complete weighted programme
+report required by [programme tracking](#programme-tracking), even for an
+intermediate slice; do not present an unmerged change as accepted progress. For
+work without a linked issue, record that fact; do not create an issue solely for
+closure. These rules apply to investigations and documentation
 tasks as well as implementation. An investigation closes against its agreed
 decision or evidence, not delivery of the feature it investigated.
 

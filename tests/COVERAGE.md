@@ -721,3 +721,16 @@ Validation: 196 explanation unit assertions, 36 explanation CLI assertions and
 compiler-contract fixtures also preserve exact baseline output/status/artifacts
 across 227 cases. Performance and fixed-point evidence are in
 [the validation profile](VALIDATION_PROFILE.md#u3-local-effect-explanations--2026-10-03).
+
+## Runtime provenance feasibility evidence
+
+`make runtime-provenance-experiment` executes the actual native VM and checks
+fixed arithmetic/function-return derivations, repeated call/loop/recursive
+occurrences, chronological branch context, ring eviction/prefix discard,
+frame/local/capacity limits, unsupported host/async/collection/indirect evidence,
+redaction and oversized scalar refusal. Public CLI source and bytecode runs
+both print 42, and production source mapping confirms the observed multiplication
+PC. Native unit validation includes retention ID/edge lookup checks. Linux/macOS
+compiler CI also runs the full experiment. This tests a bounded observer, not a
+public tracing feature or coverage of general value provenance. See the
+[report and limitations](experiments/runtime_provenance/README.md).

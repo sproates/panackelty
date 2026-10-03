@@ -2300,3 +2300,30 @@ expected total changes from 340 to 343. The case list was already updated; the
 footer is now corrected as well. That failed run took 300s (unit 281s) and did
 not complete functional/bootstrap acceptance. The final canonical rerun is
 reported separately in the delivery PR; no test was skipped or weakened.
+
+## U0 runtime provenance retention — 2026-10-03
+
+The [reproducible experiment](experiments/runtime_provenance/README.md#cost-and-decision)
+records five process-CPU samples for bulk VM, single-step baseline, bounded prefix
+and bounded ring observation. GCC 13.3.0 `-O2`, Linux x86_64; a 30,000-iteration
+scalar/call fixture produces 570,010 events and 1,260,000. Ring medians are
+54.612ms versus 27.676ms single-step and 24.764ms bulk. All observed modes produce
+the same value. These short synthetic measurements are not production budgets.
+
+At 1,024 events the complete requested provenance allocation is 238,648 bytes,
+including fixed shadow frame/stack/local metadata; no retained runtime values
+or dynamic rendering allocations. First-run RSS was 4,431,872 bytes in every
+mode, a noisy whole-process high-water figure that does not isolate retention.
+The linked report defines timing exclusions and bounds, retention trade-offs,
+redaction limits and separately estimated production work. No compiler seed,
+bytecode/runtime semantics, production source or published feature changes.
+
+Final clean canonical `make check` passed in 151s (unit 114s, functional 4s),
+including all 343 functional cases, native retention units, compiler/library
+bootstrap fixed points and package/release/quick-start checks. The 120s total
+and 15s unit budgets remain #106 concerns. The separate focused experiment passes
+65 assertions. Independent review reproduced an out-of-bounds pre-instruction
+inspection on a verified function-fallthrough path; the observer now delegates
+the bounds check to the VM before dereferencing the instruction. Both scalar
+and already-unsupported frontier regressions pass; independent ASan verification
+confirms the repair. No production source or seed changed.

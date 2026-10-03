@@ -2708,3 +2708,14 @@ remain required. A clean preview can be built with
 Neither a workspace HTTP check nor this local test report establishes iPhone
 access or user visual approval. The delivery agent owns those outstanding checks
 and must keep GI#250 open until live acceptance is recorded.
+
+### Website installation live acceptance
+
+PR#253 merged as `81b5a4d7a2b901bd27135afd96c1839d4c70c3c3` after
+owner preview approval, independent source review and successful current-head
+checks. Main Check 37163114763 and production Pages 37163232362 succeeded.
+On 2026-10-04 (Europe/Gibraltar), a fresh fetch of `https://panackelty.com/`
+with a verification query confirmed that the complete `#start` section matched
+merged `site/index.html` exactly, including both release download/checksum links,
+alpha.10 labels, fail-fast blocks and local first-program commands.
+This completes GI#250 / RM#118 acceptance.

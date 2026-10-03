@@ -124,6 +124,13 @@ standalone proof. CI uses these shared targets:
 | `conformance-source` | Every native source conformance program |
 | `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
 
+After each platform's `conformance-bytecode` partition, CI separately runs
+`sh tests/release_install_readme.sh` with network access. It downloads the pinned
+public release by executing the current README's platform block, then checks the
+README program/transcript and optional home-directory installation in a temporary
+workspace. This tests released user instructions on Ubuntu x86_64 and macOS arm64;
+it is separate from the offline `make check` and freshly built archive gates.
+
 Ubuntu validation runs the first three suites, three sanitizer partitions
 (`sanitize-vm`, `sanitize-oracle`, `sanitize-runner`), and independent coverage.
 These jobs use Ubuntu 24.04. Coverage uses its preinstalled, explicitly versioned

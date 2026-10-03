@@ -82,6 +82,10 @@ jobs:
         if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
         run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}
 
+      - name: Verify README installation against the published release
+        if: matrix.suite == 'conformance-bytecode'
+        run: sh tests/release_install_readme.sh
+
       - name: Set up experiment test tooling
         if: matrix.suite == 'compiler'
         uses: actions/setup-node@v6

@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#116.**
+The initial allocation contains **105 identities**. **Next available: RM#117.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -63,7 +63,7 @@ agents remains a hypothesis to test.
 
 ## Newcomer developer feedback — unscheduled backlog
 
-Recorded on 2026-10-03. These three items are **Idea / unscheduled**, outside the
+Recorded on 2026-10-03; expanded on 2026-10-04. These four items are **Idea / unscheduled**, outside the
 modules/packages/HTTP programme. Recording them starts no setup, trial or coding.
 Each trial requires explicit user selection as a dedicated task; completing setup
 or another trial never triggers it automatically. No ad hoc implementation,
@@ -80,6 +80,23 @@ Capture observable actions, diagnostics, recovery and outcomes; do not manufactu
 mistakes or infer human beginner performance from an AI trial. Setup acceptance
 is a ready-to-run protocol and task proposal, not an executed trial. Provisional
 size: small–medium / one setup delivery; not started.
+
+<a id="rm-116"></a>
+
+**RM#116: Installation and Hello World trial** ·
+[GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
+Idea / unscheduled; depends on [RM#113: Newcomer trial setup](#rm-113).
+Suggested first dedicated trial before basic language feedback: start in a clean
+supported native environment, follow public getting-started material, find and
+install a published release, then write and run Hello World. Record the platform,
+release and instructions used, commands, confusion, missing prerequisites,
+diagnostics, recovery attempts and time to first successful run. Use a bounded
+attempt budget without coaching; report any assistance separately. Independently
+verify output and deliver reproducible findings with prioritised improvements,
+including failure or budget exhaustion. The usability target is an unaided first
+program using published instructions alone; a failed attempt remains useful trial
+evidence. Small / one trial and report after setup; cross-platform coverage and
+fix implementation are outside scope. Not started; explicit selection required.
 
 <a id="rm-114"></a>
 

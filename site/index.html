@@ -145,20 +145,37 @@ main(): Void {
 
       <section class="content-section" id="start" aria-labelledby="start-title">
         <div class="section-heading"><p class="eyebrow">Your first program</p><h2 id="start-title">From download<br>to “Hello, Ada.”</h2></div>
-        <p class="section-intro">Start with developer preview <strong>0.1.0-alpha.10</strong>. It includes the command, VM, compiler and standard library. Initial downloads support Linux x86-64 and macOS on Apple silicon; Windows is not part of this preview.</p>
+        <p class="section-intro">Start with developer preview <strong>0.1.0-alpha.10</strong>. It includes the command, VM, compiler and standard library. Initial downloads support Ubuntu 22.04 or newer on x86-64 and macOS 14 or newer on Apple silicon; Windows is not part of this preview.</p>
         <ol class="steps">
-          <li><h3>Download and verify</h3><p>Get the archive for your platform and its matching <code>.sha256</code> file from the <a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">release page</a>. In your download directory, verify the checksum. It must report <code>OK</code>.</p>
-            <details open><summary>Linux x86-64</summary><pre><code>sha256sum -c panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz.sha256
-tar -xzf panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz</code></pre></details>
-            <details><summary>macOS Apple silicon</summary><pre><code>shasum -a 256 -c panackelty-0.1.0-alpha.10-macos-arm64.tar.gz.sha256
-tar -xzf panackelty-0.1.0-alpha.10-macos-arm64.tar.gz</code></pre></details>
+          <li><h3>Download and verify</h3><p>Start in a new, empty directory you own. You need a terminal with Bash or zsh, <code>curl</code>, <code>tar</code> and your platform's SHA-256 utility. Copy the complete block for your platform to download the archive and matching checksum from the <a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">alpha.10 release</a>. No administrator permissions or source checkout are needed.</p>
+            <details open><summary>Linux x86-64</summary><pre><code>(
+  set -eu
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
+  archive=panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz
+  curl --fail --location --show-error --output "$archive" "$release/$archive"
+  curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
+  sha256sum -c "$archive.sha256"
+  tar -xzf "$archive"
+  ./panackelty/bin/panack --version
+)</code></pre></details>
+            <details><summary>macOS arm64 (Apple silicon)</summary><pre><code>(
+  set -eu
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
+  archive=panackelty-0.1.0-alpha.10-macos-arm64.tar.gz
+  curl --fail --location --show-error --output "$archive" "$release/$archive"
+  curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
+  shasum -a 256 -c "$archive.sha256"
+  tar -xzf "$archive"
+  ./panackelty/bin/panack --version
+)</code></pre></details>
+            <p>A failed download or checksum stops the block before extraction; your terminal's shell settings stay unchanged. The checksum must report <code>OK</code>, followed by <code>panack 0.1.0-alpha.10 (bytecode 9)</code>. If download or verification fails, resolve the error before continuing; do not extract or run the archive.</p>
           </li>
           <li><h3>Save the greeting</h3><p>Copy the <a href="#hello-example">complete greeting example above</a> into a file named <code>hello.panack</code> beside the extracted <code>panackelty</code> directory. Keep the extracted directory together: it contains the whole toolchain.</p></li>
-          <li><h3>Check it, then run it</h3><pre><code>./panackelty/bin/panack --version
+          <li><h3>Check it, then run it</h3><p>Stay beside the extracted <code>panackelty</code> directory. These commands use its executable directly; you do not need to change <code>PATH</code>.</p><pre><code>./panackelty/bin/panack --version
 ./panackelty/bin/panack check hello.panack
 ./panackelty/bin/panack run hello.panack</code></pre><p>The version reports <code>panack 0.1.0-alpha.10 (bytecode 9)</code>. The program prints <code>Hello, Ada. The answer is 42.</code></p></li>
           <li><h3>Save a compiled program</h3><pre><code>./panackelty/bin/panack compile hello.panack -o hello.bc
-./panackelty/bin/panack run hello.bc</code></pre><p>You get the same greeting through saved bytecode. For a permanent installation or a build of the newer source, follow the <a href="https://github.com/sproates/panackelty/blob/main/README.md">full setup guide</a>.</p></li>
+./panackelty/bin/panack run hello.bc</code></pre><p>You get the same greeting through saved bytecode. For optional home-directory installation and <code>PATH</code> setup, or a build of the newer source, follow the <a href="https://github.com/sproates/panackelty/blob/main/README.md">full setup guide</a>.</p></li>
         </ol>
       </section>
       <section class="closing" aria-labelledby="explore-title"><div><p class="eyebrow">Keep exploring</p><h2 id="explore-title">Read. Run.<br>Ask questions.</h2></div><div class="closing-links"><a href="https://github.com/sproates/panackelty/blob/main/SPEC.md">Language specification <span aria-hidden="true">→</span></a><a href="https://github.com/sproates/panackelty/tree/main/examples">More examples <span aria-hidden="true">→</span></a><a href="https://sproates.github.io/panackelty-coverage/">Native VM coverage <span aria-hidden="true">→</span></a><a href="https://github.com/sproates/panackelty/issues">Feedback and ideas <span aria-hidden="true">→</span></a></div></section>

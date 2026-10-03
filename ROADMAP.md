@@ -1484,18 +1484,23 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
   website PR plus setup and verification. Recording this starts no implementation.
 
 - <a id="rm-118"></a>**RM#118: Website installation command parity** ·
-  [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — Idea /
-  unscheduled follow-up to [RM#117: Platform-specific installation instructions](#rm-117)
+  [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — **Verification pending on merge.**
+  Selected follow-up to [RM#117: Platform-specific installation instructions](#rm-117)
   and [GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
   Owner: delivery agent until a maintainer accepts handover. `site/index.html#start`
-  already names alpha.10, links its release, separates platform checksum/extraction,
-  requires `OK` and uses local executable paths. Those instructions remain accurate;
-  this is an onboarding convenience improvement, not a broken release or version claim.
-  Consider copying the README's direct downloads and fail-fast blocks into the site,
-  preserving native alpha.10 and the independent browser pin. No new release is
-  prerequisite. Acceptance: check published assets and both platform snippets,
-  complete website validation/preview, and verify live instructions after an
-  explicitly authorised deployment. Recording this entry starts no website work.
+  now includes the README's exact Linux x86_64 and macOS arm64 alpha.10
+  download/checksum/extraction/version blocks, which stop on failures, and explicit
+  prerequisites, minimum OS versions, local executable use and optional PATH guidance.
+  Native alpha.10 and the independent browser pin are unchanged. This improves
+  onboarding convenience; it does not introduce an installer or new platform.
+  Local website-route validation and command-parity evidence are recorded in
+  [website installation verification](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
+  Before merge, the delivery agent must obtain hosted website release/browser
+  checks, independent review and the user's visual-preview acceptance. After
+  explicitly authorised merge/deployment, the delivery agent must verify the live
+  instructions, release links, version labels and local first-program commands,
+  then record completion. Keep GI#250 open until that live verification succeeds;
+  the PR uses `Refs #250`, not automatic closure.
 
 - <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
   delivery agent. The live site still advertises v0.1.1; no supporting release is

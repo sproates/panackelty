@@ -116,10 +116,10 @@ none from these backlog records; shipped capabilities are unchanged.
 **RM#108: Modules, packages and HTTP programme** ·
 [GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
 
-**Planned for implementation; estimated completion 10%; 1 of 8 tasks accepted
-on the P1 design delivery PR's merge.** P1 completes the selected design outcome;
-P2–P8 remain planned and unstarted. Until that PR merges, accepted completion
-remains 0%. Design acceptance does not start implementation.
+**Planned for implementation; estimated completion 10%; 1 of 8 tasks accepted.**
+P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
+merged on 2026-10-03 as `80cd50f`. P2–P8 remain planned and unstarted.
+Design acceptance does not start implementation.
 The compiler-understanding programme remains paused; its scope is retained.
 
 First concrete milestone: **a working independently consumed HTTP client package**.
@@ -150,7 +150,7 @@ bootstrap, docs, independent review and explicit merge approval.
 
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
-| P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done on design PR merge | None | Medium / 1 design PR |
+| P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Planned; not started | P1 | Large / 3–5 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
@@ -161,7 +161,7 @@ bootstrap, docs, independent review and explicit merge approval.
 
 <a id="rm-109"></a>
 
-**RM#109: Module and package design** — **Done on this design PR's merge**;
+**RM#109: Module and package design** — **Done**;
 [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234).
 Delivered [source-grounded design](docs/MODULE_PACKAGE_DESIGN.md): module identity,
 private/public APIs, aliases/re-exports, explicit local-package manifests and root
@@ -205,7 +205,7 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
-| P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% on merge | 10 pp on merge |
+| P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 0% | 0 pp |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
@@ -213,12 +213,12 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | — | **10 pp (10%) on merge** |
+| **Total** | **100%** | — | **10 pp (10%)** |
 
-P1 earns its own design-task credit on merge, supported by the deliverable above;
+P1 has earned its design-task credit through merged PR#240, supported by the deliverable above;
 P2–P8 remain Planned and earn no implementation credit from that design. The
 baseline weights are unchanged; latest change is P1 contributing 10 percentage
-points on merge, with zero accepted contribution before merge. Namespace/compiler
+points from the accepted design. Namespace/compiler
 integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
 cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -233,10 +233,25 @@ Accepted. On selection record owner, PR/revision, evidence, blockers and next ac
 in its issue and update this register at delivery. A design or experiment does not
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
-closing such followups. Current delivery is P1 design acceptance; the proposed
-next action after merge is selecting P2 module/binding implementation. No P2–P8
+closing such followups. P1 design acceptance is complete; the proposed
+next action is selecting P2 module/binding implementation. No P2–P8
 implementation starts from design acceptance. Website impact: none from P1 because
 shipped syntax, release artifacts and public capabilities are unchanged.
+
+### Namespace release checkpoint
+
+Agreed on 2026-10-03: use the completed, coherent namespace migration as the next
+release checkpoint. It need not wait for the HTTP client or full programme.
+Release readiness requires the compiler, required standard-library exports,
+examples and tests to be migrated; fresh bootstrap fixed-point and installed
+workflow validation; and before/after migration notes explaining breaking import,
+visibility and name-resolution changes. An internal implementation slice alone
+is not release-ready. Coordinate relevant P2/P4 migration work without claiming
+all package capabilities are delivered. Select the version after checking the
+current release history and preview-version policy; no version is allocated here.
+Record website adoption follow-ups and retain truthful version-pinned examples.
+This records the agreed checkpoint, not execution of a release or permission to
+merge future PRs. It adds no task weight or completion credit to the programme.
 
 ## Programme pause and resumption checkpoint — 2026-10-03
 
@@ -2932,6 +2947,13 @@ cooperative-execution boundaries, existing compiler measurements and a proposed
 six-group baseline. No new benchmarks were run; neither broad inadequacy nor
 production adequacy is established. This research record does not schedule
 benchmark implementation, select optimisations or change programme priority.
+
+Additional questions recorded on 2026-10-03 in GI#141: investigate JIT feasibility,
+optimising ahead-of-time compilation directly to native executables, and how those
+choices affect startup, sustained throughput, memory use and the cost of preserving
+exact semantics in performance comparisons. These are **unscheduled research
+questions only**; no investigation, backend implementation or architecture change
+is selected by this record.
 
 State: **Idea; unscheduled**. The 2026-10-02 user request broadens the existing
 runtime/resource baseline proposal rather than creating a duplicate. This does

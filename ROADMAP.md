@@ -68,8 +68,10 @@ agents remains a hypothesis to test.
 **RM#108: Modules, packages and HTTP programme** ·
 [GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
 
-**Planned; estimated completion 0%; 0 of 8 tasks accepted.** This is the selected next programme for
-planning. Creating this register does not start design or implementation.
+**Planned for implementation; estimated completion 10%; 1 of 8 tasks accepted
+on the P1 design delivery PR's merge.** P1 completes the selected design outcome;
+P2–P8 remain planned and unstarted. Until that PR merges, accepted completion
+remains 0%. Design acceptance does not start implementation.
 The compiler-understanding programme remains paused; its scope is retained.
 
 First concrete milestone: **a working independently consumed HTTP client package**.
@@ -89,30 +91,37 @@ import http/client as http
 async main(): Unit {
   response = await http.get("https://example.com")
   // Handle success or failure.
+  ()
 }
 ```
 
-P1 settles syntax, public types/errors, ownership, transport/DNS/TLS prerequisites,
-compatibility and migration before implementation. HTTP framing is distinct from
+The [P1 design](docs/MODULE_PACKAGE_DESIGN.md) selects syntax, public types/errors,
+ownership, transport/DNS/TLS prerequisites, compatibility and migration. HTTP framing is distinct from
 today's finite EOF-framed TCP. Each implementation slice retains canonical tests,
 bootstrap, docs, independent review and explicit merge approval.
 
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
-| P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Planned; not started | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Planned; not started | P1 | Estimate after design |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Estimate after design |
-| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Estimate after design |
-| P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Estimate after design |
-| P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Estimate after design |
-| P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Estimate after design |
-| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Client gate P2/P3/P5; final all | Estimate after design |
+| P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done on design PR merge | None | Medium / 1 design PR |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Planned; not started | P1 | Large / 3–5 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
+| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
+| P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
+| P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
+| P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
+| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Client gate P2/P3/P5; final all | Medium / 1–2 PRs |
 
 <a id="rm-109"></a>
 
-**RM#109: Module and package design** — P1 joint design in GI#234:
-worked multi-file examples, aliases and visibility, manifests/roots/exports,
-compatibility/migration, transport prerequisites and positive/negative acceptance.
+**RM#109: Module and package design** — **Done on this design PR's merge**;
+[GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234).
+Delivered [source-grounded design](docs/MODULE_PACKAGE_DESIGN.md): module identity,
+private/public APIs, aliases/re-exports, explicit local-package manifests and root
+confinement, two consuming applications, coordinated breaking migration, bounded HTTP
+client/server contracts, DNS/TLS ownership prerequisites, acceptance matrix and
+P2–P8 delivery estimates. Independent revision-pinned review and repository
+validation are recorded in the delivery PR. No post-merge live acceptance is
+needed for this design; no production syntax or package/HTTP capability is shipped.
 The existing GI#198/GI#199 investigations feed this shared design; their tracked
 production outcomes remain P2/P3 rather than being closed by a design document.
 
@@ -139,16 +148,16 @@ replacement remain separate followups, not silently completed by raw HTTP.
 
 P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
 their earlier Idea/unscheduled and assessment-only status: programme tasks are
-Planned, not started, with design questions retained and implementation estimates
-due after P1. No public registry, separate compilation, web framework or new engine
-is required.
+Planned, not started; their shared design is now recorded in P1, with provisional
+implementation estimates above and detailed slices in the design. No public
+registry, separate compilation, web framework or new engine is required.
 
 Provisional scope/effort baseline recorded on 2026-10-03 in
 [GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233):
 
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
-| P1 / [RM#109: Module and package design](#rm-109) | 10% | 0% | 0 pp |
+| P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% on merge | 10 pp on merge |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 0% | 0 pp |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
@@ -156,16 +165,18 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | — | **0 pp (0%)** |
+| **Total** | **100%** | — | **10 pp (10%) on merge** |
 
-All eight tasks remain Planned and unstarted, as in the dependency register above;
-planning records earn no task credit. Namespace/compiler integration and HTTPS
-client correctness carry the largest shares; local packages and server lifecycle
+P1 earns its own design-task credit on merge, supported by the deliverable above;
+P2–P8 remain Planned and earn no implementation credit from that design. The
+baseline weights are unchanged; latest change is P1 contributing 10 percentage
+points on merge, with zero accepted contribution before merge. Namespace/compiler
+integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
 cross-task acceptance. These coarse estimates include each task's own tests/docs;
 P8 covers the separate integration/release acceptance, without counting them twice.
-P1 may change estimates once protocol and transport scope is known. Keep this
-baseline stable until explicitly revised with its reason and effect on the total;
+P1 records bounded protocol scope; transport/backend feasibility remains a P5
+prerequisite and may change its estimate. Keep this baseline stable until explicitly revised with its reason and effect on the total;
 implementation sizes remain uncertain. Follow the shared
 [programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking).
 
@@ -174,8 +185,10 @@ Accepted. On selection record owner, PR/revision, evidence, blockers and next ac
 in its issue and update this register at delivery. A design or experiment does not
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
-closing such followups. Next concrete action is selection of P1; no investigation
-or implementation starts from this tracking update alone.
+closing such followups. Current delivery is P1 design acceptance; the proposed
+next action after merge is selecting P2 module/binding implementation. No P2–P8
+implementation starts from design acceptance. Website impact: none from P1 because
+shipped syntax, release artifacts and public capabilities are unchanged.
 
 ## Programme pause and resumption checkpoint — 2026-10-03
 
@@ -2422,7 +2435,9 @@ release PR. The bytecode format stays v9.
 **RM#41: Language namespaces** · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198).
 
 Work record: [#198](https://github.com/sproates/panackelty/issues/198).
-State: Idea, unscheduled. Expanded at the user's request on 2026-10-01 to answer
+Current state: Planned as P2 in the [programme register](#rm-108); P1 supplies
+the [shared design](docs/MODULE_PACKAGE_DESIGN.md). The following assessment
+originated on 2026-10-01 and does not override that production scope. It asks
 how code in one file references functions and types in another. Existing quoted
 file-relative and logical imports already work; declarations currently share one
 program namespace. This extends the namespace idea, not completed import work.
@@ -2458,6 +2473,10 @@ alone does not settle qualified symbol lookup or namespace semantics.
 
 **RM#42: Standard library namespaces**.
 
+Current state: Planned as P4 in the [programme register](#rm-108); the
+[shared design](docs/MODULE_PACKAGE_DESIGN.md) sets migration dependencies.
+The historical assessment below remains acceptance input.
+
 Review how existing library APIs should be grouped, exported and referenced so
 users can discover them and avoid collisions. This is a separate deliverable
 from general namespace support, with an explicit dependency assessment.
@@ -2474,8 +2493,9 @@ from general namespace support, with an explicit dependency assessment.
 - [ ] Define acceptance evidence that public APIs remain accessible, names resolve
       predictably and existing behavior is preserved through the migration
 
-Both items remain unscheduled assessment candidates. Preserve existing public
-contracts until the namespace design and any migration are explicitly agreed.
+Both production outcomes remain open and Planned in the programme register.
+P1 design acceptance does not ship them; preserve current public contracts until
+their separately selected implementation and migration deliveries.
 
 ## Reusable modules and package structure — idea
 
@@ -2483,8 +2503,10 @@ contracts until the namespace design and any migration are explicitly agreed.
 
 **RM#43: Reusable packages** · [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
 
-Work record: [#199](https://github.com/sproates/panackelty/issues/199).
-State: Idea, unscheduled; requested on 2026-10-01.
+Work record: [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
+Current state: Planned as P3 in the [programme register](#rm-108).
+The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
+assessment-only scope below; production acceptance remains open.
 
 Define how related files form a reusable library with a deliberate public API,
 and how another application consumes it. Distinguish files, source modules,
@@ -2509,8 +2531,10 @@ No registry, separate compiler/linker or package format is selected.
 
 **RM#44: Dependency management** · [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200).
 
-Work record: [#200](https://github.com/sproates/panackelty/issues/200).
-State: Idea, unscheduled; requested on 2026-10-01.
+Work record: [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200).
+Current state: Planned as P7 in the [programme register](#rm-108).
+The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
+assessment-only scope below; production acceptance remains open.
 
 Design how applications declare, obtain, update and reproduce direct/transitive
 and development dependencies. Third-party packages remain pending in the current
@@ -2530,9 +2554,10 @@ provisionally medium / one design PR; implementation/operations may be large.
 Supply-chain trust, reproducibility and surprising upgrades are principal risks.
 No implementation priority, version policy, network service or ecosystem chosen.
 
-These three linked investigations can inform one coherent design, but their
-implementation outcomes remain independently scoped. Backlog recording leaves
-#187 active, programme #180 paused and the accepted-outcome ledger at 2/3.
+These linked investigations informed P1, while their production outcomes remain
+independently scoped and unstarted. Historical sizes and idea headings above are
+retained for context; current state, estimates and priority come from the
+[programme register](#rm-108), not the original assessment notes.
 
 ## Review GitHub repository settings and tooling — idea
 

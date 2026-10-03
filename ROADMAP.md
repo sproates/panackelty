@@ -65,6 +65,47 @@ type/proof explanations remain. No post-merge acceptance remains for this local
 query; release/website adoption is a separate follow-up. Next principal work
 returns to programme prioritisation; no U4–U7 implementation is implied.
 
+## U0 bounded runtime-retention experiment — 2026-10-03
+
+Selected by the user after the U3 local-effect delivery: investigate one actual
+arithmetic/function-call value derivation, repeated call/loop identity, bounded
+retention, explicit missing/evicted/unsupported evidence, CPU/memory costs and
+sensitive-value policy. Medium / one experiment PR under
+[#172](https://github.com/sproates/panackelty/issues/172) and
+[#180](https://github.com/sproates/panackelty/issues/180). This is the current
+principal programme slice; broader production U7 is not selected.
+
+**Bounded outcome Done on this PR's merge:** the test-only observer follows the
+actual VM's `multiply(6, 7)` return to its arithmetic/operand/call origins and
+validates the actual PC against production source attribution. Repeated calls,
+loops and recursion have distinct occurrence IDs. Ring and prefix policies
+retain fixed memory and report evicted/discarded ancestry; metadata limits and
+unsupported collection/host/async/indirect boundaries give explicit unavailable
+roots without inventing a derivation. Payloads are opt-in fixed-width Nat/Bool;
+metadata itself is not confidential. Chronological branch context is explicitly
+not a proven control-dependence graph.
+
+[Experiment, acceptance and measurements](tests/experiments/runtime_provenance/README.md):
+570,010 events in the scalar loop, 238,648 bytes total retained metadata at
+1,024 slots (including all shadow state), approximately 2.21× bulk CPU and
+1.97× single-step CPU for ring observation in the recorded five-run sample.
+A retained final root can still have evicted ancestry. Equal observed process
+RSS does not establish zero allocation overhead. Recommend a separately scoped
+U7 scalar slice, large / 2–3 PRs, with disabled-by-default hooks, validated
+source/session identity, explicit queries and gaps, privacy controls and new
+representative performance acceptance. Do not ship the experiment as a feature.
+
+This finishes only the bounded U0 retention question. U7/#172 and all five
+programme workstreams remain open; other U0 investigations, including positive
+non-impact evidence, remain. No post-merge execution acceptance is required for
+this experiment. Acceptance: 65 focused real-VM/CLI assertions, native retention
+unit checks, and clean canonical `make check` pass (151s total, unit 114s,
+functional 4s, all 343 functional cases, bootstrap and package gates). The
+120s full and 15s unit budgets remain explicit #106 reminders. Independent
+review found and verified a fix for unsafe observer PC inspection on a verified
+fallthrough path; scalar and unsupported-frontier regressions now pass. No
+remaining correctness findings. No release or website feature claim changes.
+
 ## Standard I/O, streaming and logging
 
 **Idea; awaiting planning, implementation unscheduled:**
@@ -437,11 +478,11 @@ recorded in [ARCHITECTURE.md](ARCHITECTURE.md#compiler-and-runtime-understanding
 with [reproducible probes](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
 The first U3 subtraction query is accepted through #219 (`f379c50`); the local effect query is delivered on this PR's merge as recorded above. Broader
 type/proof and transitive-effect explanations remain open. U2 provides production source maps; U3
-retains subtraction decisions and guard origins. No retained static dependency
-or dynamic derivation graph exists.
+retains subtraction decisions and guard origins. No production retained static
+dependency or dynamic derivation graph exists.
 The bounded U1 experiment establishes sidecar identity/fallback evidence;
-producer authenticity, runtime retention and positive non-impact experiments
-remain open.
+producer authenticity and positive non-impact experiments remain open. The
+bounded runtime-retention experiment is recorded above; production U7 remains open.
 
 **Correctness prerequisite #182: accepted and closed.** PR #185 merged as
 `81ba7b1`; its checker and public-CLI regression evidence is recorded in #180. The checker invalidates bounds across
@@ -495,7 +536,7 @@ Report completed criteria and remaining work rather than invented effort weights
 
 | ID | Outcome and acceptance | Dependencies | Current state / evidence | Initial size and PR estimate |
 | --- | --- | --- | --- | --- |
-| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; authenticated external producers, runtime retention and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
+| U0 | Complete shared investigation across all five: evidence inventory, source identity, runtime retention, positive non-impact probes, budgets and revised scope estimates | Existing #183 findings | Partial: #183 establishes the inventory; U1 supplies bounded identity/fallback evidence; local replay resolves U2 attribution trust; bounded runtime retention is investigated above; authenticated external producers and positive non-impact evidence remain | Remaining investigation still required before U5–U7 scope commitments |
 | C0 | Invalidate stale guard facts and preserve valid refreshed guards | None | Accepted: #182 closed by #185; 25 fixed fixtures and 48 generated pairs with VM execution | Delivered |
 | U1 | Prove exact source attribution for a bounded runtime trap; local, imported and generic cases; reject stale/malformed/mismatched maps; compare representations and measure overhead | C0 and existing investigation | Accepted: PR #208 (`de26483`); [experiment, decision and limits](tests/experiments/source_mapping/README.md); no production ABI | Delivered in 1 feasibility PR |
 | U2 | Deliver the production source-map contract chosen from U1: deterministic identity, validation, compatibility and safe missing-map behaviour, with public-CLI tests | U1 design decision | Accepted: frontend #209, emission #214, exact local-replay sidecar and public CLI #218 (`cbae41b`); [contract](docs/SOURCE_MAPS.md) and [evidence](tests/VALIDATION_PROFILE.md) | Delivered in 3 PRs |
@@ -503,7 +544,7 @@ Report completed criteria and remaining work rather than invented effort weights
 | U4 | Complete #173 compilation provenance, connecting source, checking, lowering and actual emitted bytecode; include generated instructions with unavailable attribution | U2 and relevant U0 design evidence | Unstarted; mapping alone does not complete provenance | Estimate after U1/U3 evidence |
 | U5 | Complete #174 inferred requirements; recompile proposed requirements and distinguish sufficient conditions from unsupported/minimality claims | Retained checker evidence from U3 and U0 constraint experiments | Unstarted | Estimate after U3 |
 | U6 | Complete #175 semantic change prediction; apply changes and verify direct/transitive effects and claimed non-impact | U3 evidence and U0 dependency experiments; reuse U4/U5 where justified | Unstarted | Estimate after dependency experiments |
-| U7 | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Unstarted; investigate retention early rather than leaving it until final integration | Estimate after runtime experiment |
+| U7 | Complete #172 opt-in runtime value derivations, including retention, privacy and overhead controls | U0 runtime feasibility and U2 source identity; does not need to wait for U5/U6 | Production unstarted; bounded retention experiment and go/no-go recommendation recorded above | First scalar production slice: large / 2–3 PRs, separately authorised |
 | U8 | Pass the realistic-program gate below across all five workstreams and complete release/docs acceptance | Accepted child scope from U3–U7 | Unstarted; corpus and budgets must be agreed before final evaluation | Estimate after investigation and representative corpus selection |
 | U9 | Final task: refresh website positioning and demonstrate the accepted compiler/runtime capabilities; deliberately adopt supporting releases and verify the live site | U8 accepted; published artifacts supporting advertised features | Planned, unstarted; tagline to be decided later with the user; acceptance below | Estimate after accepted capabilities and website scope are known |
 

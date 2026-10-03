@@ -727,3 +727,12 @@ Validation: 196 explanation unit assertions, 36 explanation CLI assertions and
 compiler-contract fixtures also preserve exact baseline output/status/artifacts
 across 227 cases. Performance and fixed-point evidence are in
 [the validation profile](VALIDATION_PROFILE.md#u3-local-effect-explanations--2026-10-03).
+
+### Runtime provenance experiment
+
+`make runtime-provenance-experiment` requires Node 24+ and the native toolchain.
+It runs real-VM derivation, bounded-history, unavailable-evidence and public-CLI
+assertions plus CPU/RSS observations. The retention unit checks also run in
+`make check`; the complete experiment runs in Linux/macOS compiler CI. See its
+[scope, privacy policy and findings](experiments/runtime_provenance/README.md).
+No production runtime tracing command or alternate interpreter is added.

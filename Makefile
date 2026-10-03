@@ -121,7 +121,8 @@ unit-runtime: native native-module-build native-fault-build
 	@sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes
 
 .PHONY: unit-runtime-native unit-runtime-probes
-unit-runtime-native:
+unit-runtime-native: $(BUILD_DIR)/experiments/runtime-provenance-vm
+	@$(BUILD_DIR)/experiments/runtime-provenance-vm --self-test
 	@$(PROFILE) native-contracts $(MAKE) --no-print-directory native-vm-contracts native-oracle-contracts
 
 unit-runtime-probes:
@@ -435,5 +436,14 @@ source-mapping-experiment: native $(BUILD_DIR)/experiments/source-mapping-vm
 	@node tests/experiments/source_mapping/run.cjs "$(BUILD_DIR)/experiments/source-mapping-vm"
 
 $(BUILD_DIR)/experiments/source-mapping-vm: tests/experiments/source_mapping/trap_probe.c src/vm/execute.c $(VM_LIBRARY_OBJECTS)
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_LIBRARY_OBJECTS)) -o "$@" $(LDLIBS)
+
+# Bounded test-only derivation retention; no production trace interface.
+.PHONY: runtime-provenance-experiment
+runtime-provenance-experiment: native $(BUILD_DIR)/experiments/runtime-provenance-vm
+	@node tests/experiments/runtime_provenance/run.cjs "$(BUILD_DIR)/experiments/runtime-provenance-vm"
+
+$(BUILD_DIR)/experiments/runtime-provenance-vm: tests/experiments/runtime_provenance/probe.c src/vm/execute.c $(VM_LIBRARY_OBJECTS)
 	@mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_LIBRARY_OBJECTS)) -o "$@" $(LDLIBS)

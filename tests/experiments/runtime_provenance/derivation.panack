@@ -1,0 +1,2 @@
+pure multiply(a: Nat, b: Nat): Nat { a * b }
+main(): Nat { multiply(6, 7) }

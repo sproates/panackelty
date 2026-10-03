@@ -1477,3 +1477,27 @@ acceptance. Calls are classified from declarations, callable types and builtin o
 constructor contracts; no transitive dependency graph, inferred effect expansion,
 runtime execution or bytecode metadata is introduced. Definition evidence is
 associated once and filtered by the requested function during rendering.
+
+## Bounded runtime value provenance investigation, 2026-10-03
+
+The [U0 experiment](tests/experiments/runtime_provenance/README.md) observes the
+actual native dispatcher through the established test-only inclusion approach.
+It attaches monotonic occurrence IDs to operand/local origins, direct calls,
+returns and chronological conditional context, with bounded ring/prefix event
+storage and fixed shadow metadata. It does not change the VM, bytecode, compiler
+seed, source semantics or resumable execution API. Values remain owned and
+computed by the VM; no runtime Value references are retained by the observer.
+
+Evicted, discarded and unsupported evidence stays unavailable. Branch context
+is execution history, not a proven causal dependency. Unsupported collections,
+indirect/host/async boundaries disable further observation rather than guessing
+stack effects. Payloads default to redacted; opted-in small Nat/Bool snapshots
+are fixed-width, and metadata remains potentially sensitive. Source lookup in
+the experiment uses the exact artifact with the existing validated U2 contract.
+
+The evidence supports a separately scoped production scalar derivation slice,
+not shipping this instrumentation: the measured recent-event observer roughly
+doubles execution cost on a small loop. The linked report compares retention,
+accounts for all shadow metadata, defines privacy/identity limits and estimates
+2–3 production PRs. U7 and broader #172 remain unimplemented; other U0 evidence
+and the programme's real-application gate remain open. ROADMAP.md owns priority.

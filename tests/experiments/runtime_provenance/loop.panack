@@ -1,0 +1,10 @@
+pure multiply(a: Nat, b: Nat): Nat { a * b }
+main(): Nat {
+  mut i: Nat = 0
+  mut total: Nat = 0
+  while i < 30000 {
+    total = total + multiply(6, 7)
+    i = i + 1
+  }
+  total
+}

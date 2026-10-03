@@ -92,6 +92,10 @@ jobs:
         if: matrix.suite == 'compiler'
         run: make source-mapping-experiment
 
+      - name: Test bounded runtime-provenance experiment
+        if: matrix.suite == 'compiler'
+        run: make runtime-provenance-experiment
+
       - name: Archive detailed validation profile
         if: always() && needs.changes.result == 'success' && needs.changes.outputs.route == 'full'
         uses: actions/upload-artifact@v6

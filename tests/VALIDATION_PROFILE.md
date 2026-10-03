@@ -2327,3 +2327,163 @@ inspection on a verified function-fallthrough path; the observer now delegates
 the bounds check to the VM before dereferencing the instruction. Both scalar
 and already-unsupported frontier regressions pass; independent ASan verification
 confirms the repair. No production source or seed changed.
+
+## Runtime performance assessment — 2026-10-03
+
+This is a read-only research assessment requested after an external Gemini
+performance critique. It records source inspection and existing measurements,
+not a new benchmark run, performance guarantee, optimisation commitment or
+priority change. The inspected baseline is
+[`8b9c45c478b93d111807a0d6d7f6a20458b0aa5d`](https://github.com/sproates/panackelty/tree/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d).
+Pinned source links below refer to that revision. The current work record remains
+[#141](https://github.com/sproates/panackelty/issues/141), **Idea; unscheduled**,
+as recorded in [the roadmap](../ROADMAP.md#performance-and-benchmarking).
+
+### Assessment and limits of the criticism
+
+The critique described performance as adequate for scripting, tool integration
+and structural validation, but rejected raw number-crunching, high-throughput
+backends and CPU-bound graphics as fundamental fits. Those negative claims are
+too categorical, and the positive adequacy claims are also unmeasured. An interpreted, boxed, reference-counted VM with exact arithmetic
+can have significant overhead; its importance depends on workload size, value
+sizes, operation mix, I/O waits and latency requirements. Equally, the repository
+does not yet establish that performance is adequate for representative production
+applications. Neither a negative universal verdict nor a positive adequacy claim
+is supported by the current small set of measurements.
+
+Exact numerical algorithms are an explicit language design target. Panackelty
+deliberately provides exact numeric semantics. Comparing its growing
+integers, rational normalization or exact decimals directly with fixed-width
+IEEE floating-point arithmetic measures different contracts. A floating-point
+graphics kernel is therefore a poor sole acceptance test for the existing exact
+numeric design. This does not make graphics performance irrelevant: an integer
+image workload with a checked output is a useful controlled probe, while a real
+floating-point rendering workload would require a separately selected numeric
+and platform contract. Exactness is not a reason to avoid measuring costs or a
+license to promise competitive throughput.
+
+See the pinned [numeric specification](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/SPEC.md#values-and-numeric-semantics)
+and [rational contract](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/SPEC.md#rational-arithmetic-and-exact-conversions).
+These are semantic requirements, not evidence about achievable runtime speed.
+
+### Costs visible in the current implementation
+
+| Source evidence | Likely cost and what remains unmeasured |
+| --- | --- |
+| [`Value` representation and ownership](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/value.h), [allocation/retain/release implementation](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/value.c) | Boxed values, allocation and reference-count ownership can dominate tiny operations and produce cache traffic. Their share of real-program cost needs profiles; reference counting alone does not prove a prohibitive slowdown. |
+| [Dispatcher, `local_get` and `local_put`](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/execute.c) | Stack-machine dispatch adds work per instruction. Local names are found by linear scans with `strcmp`, so larger local sets can add lookup work. Source inspection identifies a hypothesis, not a measured ranking of bottlenecks. |
+| [Map/Set builtins](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/builtins_collections.c) | Map and Set membership scan sequences; updates can allocate/copy while preserving persistent semantics. Repeated growth or lookup at larger sizes can amplify cost. Small collections can behave differently, and equality cost depends on keys. |
+| [`pn_big_mul` and `pn_big_divmod`](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/bigint.c) | Multiplication has nested limb loops. Division performs per-limb quotient search and temporary big-integer operations. Numeric magnitude, not just source loop count, controls work and allocation. |
+| [`big_gcd` and rational operations](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/numeric.c) | Exact rational operations invoke multiplication/division and GCD normalization. Repeated rational work can be expensive, particularly with growing numerators/denominators; input distributions and reduction opportunities matter. |
+
+Array append already has a bounded sharing optimization, described in the
+pinned [value model](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/VALUE_MODEL.md).
+Immutable semantics therefore do not imply copying everything.
+
+These observations justify targeted experiments. They do not demonstrate that a
+JIT, new execution engine, tracing collector, numeric-semantic change or broad
+rewrite is necessary. Several costs could be reduced within the existing VM.
+
+### Concurrency and networking are bounded capabilities
+
+The existing transport is a finite TCP experiment/development capability, not a
+production HTTP stack. The pinned [exchange contract](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/SPEC.md#native-tcp-exchange-development-toolchain)
+uses numeric IPv4, sends a bounded request, shuts down the write side and reads
+a bounded response until peer EOF. It offers neither DNS nor IPv6, TLS, HTTP
+framing or general connection reuse. Source async activation does not itself
+spawn parallel work. Supported native development behavior must not be confused
+with the older alpha.10 downloads or browser capabilities.
+
+The [finite server contract](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/SPEC.md#native-tcp-server-development-toolchain)
+allows **1–256 total admissions** and **1–32 concurrent clients**, with explicit
+request/response limits and timeouts. Those admission and concurrency bounds
+are different quantities; neither is measured requests per second. The
+[server owner](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/tcp_server.c)
+cooperatively advances bounded child instruction budgets around socket polling.
+That is useful for interleaving I/O, but it is not evidence of multicore CPU
+parallelism, unlimited service lifetime or production tail-latency guarantees.
+
+A current VM execution context is single-threaded and cooperatively advanced;
+separate contexts can be interleaved by a host. The
+[resumable dispatcher](https://github.com/sproates/panackelty/blob/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d/src/vm/execute.c)
+counts instructions, not elapsed time inside one instruction. A large exact
+arithmetic operation, destructor or native callback cannot be preempted by that
+instruction budget. Consequently, a CPU-heavy handler could delay other work on
+the same pumping thread even when network operations are nonblocking. This is a
+specific latency risk to measure, not proof that every I/O workload is slow.
+
+### Existing evidence: one targeted compiler improvement
+
+The [compiler lookup investigation](#compiler-lookup-and-validation-cost--2026-10-02)
+already demonstrates that implementation choices can matter materially without
+changing exact semantics or replacing the VM. On fixed U1 compiler source, the
+recorded final pair fell from **16.7896s to 6.5460s**, producing byte-identical
+output. It replaced repeated interpreted declaration scans with per-kind
+indexes; native Maps still have linear lookup. This is a measured improvement
+for that compiler workload, not proof that all collection access is fast.
+
+Peak child RSS in that pair moved from **103,576 KiB to 103,692 KiB**. One pair
+does not establish a memory regression, general allocation bound or broad
+speedup distribution. Compiler implementation, source size, startup, test inputs,
+cache state and repeated build work are distinct costs. The existing validation
+and compiler measurements must not be extrapolated into claims about image
+rendering, arbitrary user-program arithmetic, network throughput or service
+latency. No new measurement was performed for this assessment.
+
+### Proposed six-group baseline, still unscheduled
+
+The next useful evidence would be a small correctness-checked baseline spanning
+these groups, subject to separate scope and priority agreement:
+
+| Group | Representative experiment | Evidence to retain |
+| --- | --- | --- |
+| Startup and execution | Tiny saved-bytecode program and a bounded pure loop; separate source compilation from execution | Cold/warm startup, wall/CPU time, peak memory, artifact size and exact output |
+| Structural validation | Small, medium and large document or AST validation workloads with realistic key distributions; retain the compiler as an additional real workload | Known expected answers, dataset sizes, latency and peak memory; separate compiler compilation and build-validation costs |
+| Exact numerics | Small and growing Nat/Int operations, multiplication/division, rational reduction and finite decimals | Magnitudes/bit sizes, operation counts, exact expected values, CPU/allocation or RSS evidence and growth behavior |
+| Collections and text | Map/Set lookup and persistent updates across sizes; arrays and Unicode string processing | Correct output, collection/key sizes, hit/miss patterns, sharing behavior and scaling curves |
+| Network throughput and tail latency | Finite loopback TCP run with controlled fast, slow and CPU-heavy handlers, within admitted/concurrent bounds | Completed/error counts, throughput, latency distribution including tails, timeouts, resource cleanup and fairness observations |
+| Integer image computation | Fixed dimensions and deterministic integer-only pixel calculation, with output checksum | Correct checksum, compute-only versus encoding/I/O time, memory and operation/input dimensions |
+
+Correctness must be checked outside the timed region where possible, while
+retaining enough end-to-end checks to detect skipped or changed work. A checksum
+validates the chosen image output; it does not establish visual quality or
+floating-point rendering performance. Network measurements must disclose the
+finite protocol, peer behavior and limits rather than label the result as an
+HTTP-server benchmark.
+
+Pin source/seed/runtime revisions, compiler flags, workload inputs and expected
+outputs. Record hardware, OS, architecture, power settings where available and
+measurement tools. Use repeated samples, alternating revision order where
+appropriate, warmups and explicit cold/warm definitions; report variability and
+unavailable metrics. Separate compile/startup/run and wall/CPU/peak-memory
+quantities. Avoid concurrent benchmark or validation interference. Compare
+identical workloads and equivalent semantics, including exactness, overflow,
+normalization, Unicode and persistent-collection behavior; otherwise label the
+semantic difference instead of presenting a language ranking. Cross-language
+results should use comparable exact-number/data contracts and disclose libraries.
+Define application-specific acceptance only after observing baseline noise.
+
+### Optimisation hypotheses, not selected implementation
+
+If profiles confirm the relevant costs, candidates include resolved/indexed
+local slots in place of repeated string lookup; lower allocation/refcount churn
+while preserving ownership; small-number representations with transparent
+big-number promotion that preserve exactness; better collection representations with unchanged
+persistent/equality behavior; and improved bigint division, multiplication or
+normalization algorithms. Dispatch specialization or carefully scoped native
+primitives might help a demonstrated hotspot, but need separate safety, code-size
+and maintenance evaluation. Network fairness may require budgeting work inside
+long operations or an explicitly designed scheduling boundary; instruction
+counts alone cannot provide a wall-clock preemption guarantee.
+
+Every candidate needs semantic-equivalence checks, targeted failure tests and
+before/after measurements. Preserve exactness, proof rules, runtime verification,
+purity/effect boundaries and stable bytecode/CLI contracts unless a separately
+approved migration requires otherwise. Choosing silent floating-point
+approximation to improve a score would answer a different question.
+
+The resulting position is deliberately evidence-limited: there are concrete
+optimisation opportunities and real capability limits; broad practical adequacy
+remains unmeasured. This record adds research context to #141 without starting
+the six-group suite, selecting an optimisation, closing an issue or changing
+programme priority. It changes no release or website capability claim.

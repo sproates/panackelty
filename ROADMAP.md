@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#119.**
+The initial allocation contains **105 identities**. **Next available: RM#120.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -1470,6 +1470,18 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+- <a id="rm-119"></a>**RM#119: Cookie-free website analytics** ·
+  [GI#252: Cookie-free website analytics](https://github.com/sproates/panackelty/issues/252) — Idea / unscheduled.
+  Add basic aggregate visits, page views, popular pages and referrers, provisionally
+  using free Cloudflare Web Analytics with existing GitHub Pages hosting and DNS.
+  Acceptance: verify a configuration requiring no cookies or consent banner under
+  applicable rules; exclude fingerprinting, advertising, cross-site tracking,
+  playground contents and sensitive URL data. Provide an accurate footer privacy
+  notice, production-only collection, reviewed website preview and live dashboard
+  verification after authorised deployment. Account setup or the public snippet
+  is a prerequisite; no account API key belongs in the repository. Small: one
+  website PR plus setup and verification. Recording this starts no implementation.
 
 - <a id="rm-118"></a>**RM#118: Website installation command parity** ·
   [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — Idea /

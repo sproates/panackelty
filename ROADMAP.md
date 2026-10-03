@@ -63,7 +63,7 @@ agents remains a hypothesis to test.
 
 ## Newcomer developer feedback — unscheduled backlog
 
-Recorded on 2026-10-03; expanded on 2026-10-04. These four items are **Idea / unscheduled**, outside the
+Recorded on 2026-10-03; expanded on 2026-10-04. The three trials are **Idea / unscheduled**, outside the
 modules/packages/HTTP programme. Recording them starts no setup, trial or coding.
 Each trial requires explicit user selection as a dedicated task; completing setup
 or another trial never triggers it automatically. No ad hoc implementation,
@@ -79,7 +79,14 @@ public documentation, bounded task/attempt budget and independent success checks
 Capture observable actions, diagnostics, recovery and outcomes; do not manufacture
 mistakes or infer human beginner performance from an AI trial. Setup acceptance
 is a ready-to-run protocol and task proposal, not an executed trial. Provisional
-size: small–medium / one setup delivery; not started.
+size: small–medium / one setup delivery. **Done — 2026-10-04:** reusable
+private protocol and participant configuration saved and independently reviewed.
+The protocol defines fresh-context public inputs, isolated workspace, explicit
+selection, a default 30-minute / 12-failed-attempt budget, observable evidence,
+independent outcome verification and limitations. A ready-to-run installation
+and Hello World brief is prepared under [RM#116](#rm-116). Setup acceptance is
+complete; no participant session, pilot or trial was started. Private configuration
+remains outside the repository; trials require separate explicit selection.
 
 <a id="rm-116"></a>
 

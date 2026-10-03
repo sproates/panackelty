@@ -9,6 +9,17 @@ assessment criteria, priorities, document ownership and review. Implementation
 items require their agreed scope, meaningful tests, affected documentation and
 canonical validation; documentation and design items use their applicable checks.
 
+## Priority review policy — 2026-10-03
+
+At the user's request, the three-deliverable grooming rule and its completion
+counter are retired. Review priorities on user request or when material evidence
+changes assumptions, dependencies, scope, effort or value. Continue agreed work
+without task-count gates; maintain delivery status and acceptance evidence.
+Earlier review notes and outcome counts below are historical records only and
+must not be used to schedule a review or block work. This supersedes count-based
+wording in older issue histories as well. See the
+[review process](docs/ROADMAP_PROCESS.md#review-and-completion).
+
 ## Ambition and adoption focus
 
 Panackelty aims to be a broadly useful general-purpose language that developers
@@ -58,8 +69,6 @@ records same-input timing and limitations: two-run compiler averages 5.977s befo
 2ms. This does not establish zero overhead. The 120s full and 15s incremental/unit
 budgets remain explicit #106 reminders; broader U0 retention experiments remain.
 
-The current ledger advances **1/3 to 2/3 on merge**, counted once for this bounded
-outcome; the next accepted principal outcome reaches the three-deliverable review.
 This is an intermediate programme slice, not completion of #134 or #180. Broader
 type/proof explanations remain. No post-merge acceptance remains for this local
 query; release/website adoption is a separate follow-up. Next principal work
@@ -120,8 +129,7 @@ The first outcome is a capability matrix, examples, API/lifecycle recommendation
 and prioritised implementation slices, not a delivered logging framework.
 Medium / provisionally 1–2 investigation/design PRs; implementation estimated
 after assessment. Coordinate with subprocess POC #168 and build-tool POC #169.
-This records future planning without changing programme #180 priority or the
-1/3 accepted-outcome ledger. No release or website impact from this record.
+This records future planning without changing programme #180 priority. No release or website impact from this record.
 
 ## Compiler options and optimisation modes
 
@@ -173,8 +181,7 @@ seed reproduction and independent correctness review are complete. Final clean
 and 15s incremental/unit budgets remain open #106 concerns; warm compiler checks
 measured 33s before / 32s after, so no material warm-path improvement is claimed.
 No tests were removed.
-The performance outcome advances the current review ledger from **0/3 to 1/3
-on merge**, counted once. Broader #106 cache/design work remains open. No website correction or release promotion is required for this internal
+Broader #106 cache/design work remains open. No website correction or release promotion is required for this internal
 speedup; emitted user-program bytes and advertised features remain unchanged.
 The earlier #182 corrective release/adoption obligation is still separate. Further PR merges still require explicit user approval.
 
@@ -587,7 +594,7 @@ An agent resuming this work should:
 2. Check the actual checkout, current main, open PRs and worktrees. A different
    chat may have advanced the programme. Preserve unrelated work and never infer
    progress from this conversation or a stale branch.
-3. Reconcile the register with merged evidence. Check the priority-review ledger
+3. Reconcile the register with merged evidence. Check current priorities
    and any unresolved release correctness obligation. If a milestone already has
    an owner or active PR, continue that delivery or agree a separate bounded
    scope rather than duplicating it.
@@ -747,8 +754,8 @@ their own agreed acceptance is met. A narrow first experiment does not complete
 an entire workstream unless it fulfils that scope. Any deferral or scope reduction
 requires an explicit user decision. Close the programme only after all five
 workstreams, U8 evaluation/release acceptance and U9 website acceptance, or an explicitly
-approved scope revision. Track independently accepted outcomes once in the
-normal grooming ledger; umbrella closure does not count them again.
+approved scope revision. Preserve completion evidence for independently accepted
+outcomes without treating a bounded slice as completion of its umbrella issue.
 
 Overall effort and PR count await the shared investigation. The previous
 M / 1–2 PR estimate covers only the narrow #134 slice. Normal-build and runtime
@@ -843,7 +850,7 @@ count within U2, not again. The subsequent performance priority review above
 considers these outcomes and starts the current 0/3 baseline. No workstream or
 programme closes from these bounded outcomes.
 
-### Grooming checkpoint ledger
+### Historical delivery record
 
 Previous baseline and completion history (superseded by the review above on merge): the 2026-10-01 review, agreed with the user: fix #163 first, then
 the compiler and runtime understanding programme #180, expanded from #134
@@ -977,8 +984,7 @@ suspension work. It is distinct from value provenance and remains unscheduled.
 Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 
 State: **Idea; unscheduled**. Recorded at the user's request on 2026-10-01.
-Scope: maintenance. This does not select the repository migration or change the
-grooming ledger. The separate [planned #187 CI improvement](#next-fast-website-ci-and-prepared-browser-test-environments)
+Scope: maintenance. This does not select the repository migration. The separate [planned #187 CI improvement](#next-fast-website-ci-and-prepared-browser-test-environments)
 can proceed before this split.
 
 Website edits still share core validation and coverage publication through
@@ -1087,7 +1093,7 @@ Never mark an update complete merely because its PR merged: verify the live site
 
 Recorded at the user's request on 2026-09-30 for future grooming. All four
 items are **Idea**, with implementation unscheduled; this adds no priority,
-release commitment or completed deliverable to the grooming ledger. Relate
+release commitment or completed implementation. Relate
 installation friction to the [development workflow assessment](#development-workflow-assessment)
 (#133) when comparing these with other candidates.
 
@@ -2210,7 +2216,7 @@ locations with explicit unavailable results. Diagnostic parity, public-CLI
 acceptance and cost are recorded in the [query contract](docs/COMPILER_EXPLANATIONS.md)
 and validation profile. Full types/effects/proof explanations remain open within
 [programme #180](#compiler-and-runtime-understanding-programme); re-estimate and
-select the next slice at the due grooming checkpoint.
+select the next slice through programme prioritisation.
 Runtime value provenance is its own linked workstream #172; new inference rules
 and automatic fixes remain outside #134.
 

@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#113.**
+The initial allocation contains **105 identities**. **Next available: RM#116.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -60,6 +60,54 @@ reliability, useful compiler assistance, human-readable code, enjoyable tooling,
 installation, deployment and discoverable libraries alongside language features.
 Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
 agents remains a hypothesis to test.
+
+## Newcomer developer feedback — unscheduled backlog
+
+Recorded on 2026-10-03. These three items are **Idea / unscheduled**, outside the
+modules/packages/HTTP programme. Recording them starts no setup, trial or coding.
+Each trial requires explicit user selection as a dedicated task; completing setup
+or another trial never triggers it automatically. No ad hoc implementation,
+periodic runs or automatic fixes are authorised. Private participant configuration
+stays outside repository records.
+
+<a id="rm-113"></a>
+
+**RM#113: Newcomer trial setup** ·
+[GI#241: Newcomer trial setup](https://github.com/sproates/panackelty/issues/241).
+Prepare a reusable fresh-context protocol, isolated workspace, pinned toolchain,
+public documentation, bounded task/attempt budget and independent success checks.
+Capture observable actions, diagnostics, recovery and outcomes; do not manufacture
+mistakes or infer human beginner performance from an AI trial. Setup acceptance
+is a ready-to-run protocol and task proposal, not an executed trial. Provisional
+size: small–medium / one setup delivery; not started.
+
+<a id="rm-114"></a>
+
+**RM#114: Basic language feedback** ·
+[GI#242: Basic language feedback](https://github.com/sproates/panackelty/issues/242).
+Depends on [RM#113: Newcomer trial setup](#rm-113). Use a bounded practical exercise
+to assess types, bindings, functions, control flow, collections, records/enums,
+pattern matching, errors and the basic purity distinction. Deliver reproducible
+attempt evidence, independently checked programs and ranked usability findings.
+Provisional size: small–medium / one assessment delivery; not started.
+
+<a id="rm-115"></a>
+
+**RM#115: Advanced language feedback** ·
+[GI#243: Advanced language feedback](https://github.com/sproates/panackelty/issues/243).
+Depends on [RM#113: Newcomer trial setup](#rm-113). Select a small application and
+maintenance change combining supported generics, guarded types, higher-order
+functions, effects, async and multi-file organisation. Include namespaces,
+packages or HTTP only once supported by the selected toolchain. Deliver checked
+outcomes and evidence of feature-interaction and recovery friction. Use fresh
+context for independent trials; label retained learning as progression.
+Provisional size: medium / one assessment delivery; not started.
+
+Detailed acceptance and explicit-invocation rules live in the linked issues.
+These trials complement [GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133),
+which retains its broader installation-to-maintenance and human-walkthrough scope.
+Findings may propose follow-up work; they do not authorise fixes. Website impact:
+none from these backlog records; shipped capabilities are unchanged.
 
 ## Modules, packages and HTTP programme — 2026-10-03
 

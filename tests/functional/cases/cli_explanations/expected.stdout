@@ -32,6 +32,23 @@ PASS allowed async await
 PASS async blocking rejection
 PASS discarded await explains rejection
 PASS type failure skips effects
+PASS valid caller with invalid callee body
+PASS invalid body explicitly unavailable
+PASS recover imported generic rejection
+PASS recovery diagnostic parity
+PASS invalid inferred types never yield effects
+PASS valid sibling survives invalid inferred types
+PASS invalid inferred types never yield effects
+PASS valid sibling survives invalid inferred types
+PASS invalid inferred types never yield effects
+PASS valid sibling survives invalid inferred types
+PASS invalid inferred types never yield effects
+PASS valid sibling survives invalid inferred types
+PASS global declaration prevents recovery
+PASS global declaration prevents recovery
+PASS global declaration prevents recovery
+PASS global declaration prevents recovery
+PASS repaired source has fresh accepted evidence
 PASS resolution failure skips effects
 PASS syntax failure skips effects
-tests: 36, failures: 0
+tests: 53, failures: 0

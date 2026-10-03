@@ -16,7 +16,8 @@ record LoadedProject {
   source_paths: [Str],
   evidence: [SubtractionEvidence],
   effects: [EffectEvidence],
-  effects_checked: Bool
+  effects_checked: Bool,
+  function_types: Map[Str,Bool]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -257,16 +258,15 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
   mut evidence: [SubtractionEvidence] = []
   mut effects: [EffectEvidence] = []
   mut effects_checked: Bool = false
+  mut function_types: Map[Str,Bool] = map()
   if len(diagnostics) == 0 {
     checked: CheckedProgram = check_program_evidence(program, retain)
-    diagnostics = checked.diagnostics
+    checked_effects: CheckedEffects = check_frontend_effects(program, checked, retain)
+    diagnostics = checked_effects.diagnostics
     evidence = checked.evidence
-    if len(diagnostics) == 0 {
-      checked_effects: CheckedEffects = check_program_effect_evidence(program, retain)
-      diagnostics = checked_effects.diagnostics
-      effects = checked_effects.evidence
-      effects_checked = true
-    }
+    effects = checked_effects.evidence
+    function_types = checked.function_types
+    effects_checked = len(checked.diagnostics) == 0 || (retain && checked.declarations_valid)
   }
-  LoadedProject(program, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked)
+  LoadedProject(program, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked, function_types)
 }

@@ -504,7 +504,9 @@ using the checker's actual constants or guard bounds and their source locations.
 It also explains local call and await effect boundaries, including why pure or
 async code rejects a call, and reports whole-program acceptance separately. Unproved does not
 mean a runtime failure was demonstrated; unsupported explanations remain explicit.
-The command does not execute your program. See the
+A body type error in another function need not hide valid local effect evidence;
+global declaration type errors still make it unavailable. Original diagnostics and
+whole-program rejection are preserved. The command does not execute your program. See the
 [query contract and example](docs/COMPILER_EXPLANATIONS.md) for scope and limits.
 
 ### Locate an instruction in its source

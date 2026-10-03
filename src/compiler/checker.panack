@@ -91,7 +91,9 @@ record SubtractionEvidence {
 
 record CheckedProgram {
   diagnostics: [Diagnostic],
-  evidence: [SubtractionEvidence]
+  evidence: [SubtractionEvidence],
+  declarations_valid: Bool,
+  function_types: Map[Str,Bool]
 }
 
 pure evidence_for_function(entries: [SubtractionEvidence], name: Str): [SubtractionEvidence] {
@@ -1404,10 +1406,17 @@ pure check_block_evidence(block: Block, parent: Map[Str,TypeInfo], incoming_fact
 
 pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
   mut evidence: [SubtractionEvidence] = []
+  // Only the explanation path retains function availability. Global errors
+  // invalidate all recovery, even when discovered after a valid body.
+  mut function_types: Map[Str,Bool] = map()
+  mut declarations_valid: Bool = true
   mut diagnostics: [Diagnostic] = resolve_program(program)
+  if len(diagnostics) > 0 { declarations_valid = false; }
   if len(diagnostics) == 0 {
     mut has_main: Bool = false
     for declaration in program.declarations {
+      declaration_start: Nat = len(diagnostics)
+      mut function_declaration: Bool = false
       match declaration {
         TypeDeclaration(name, base, guard) => {
           if !is_scalar_base(base) || base == "Rat" || base == "Unit" { diagnostics = append(diagnostics, checker_diagnostic("guarded type base must be a scalar, got ${base}")); } else {}
@@ -1427,6 +1436,7 @@ pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
           for variant in variants { for payload in variant.payload { diagnostics = concat(diagnostics, require_type(program, payload, parameters, false)); } }
         },
         FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
+          function_declaration = true
           mut seen_type_parameters: Set[Str] = set()
           for parameter in type_parameters {
             if seen_type_parameters.has(parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in function ${name}")); }
@@ -1441,20 +1451,32 @@ pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
           if name == "main" { has_main = true; if len(parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters")); } else {} } else {}
           environment: Map[Str,TypeInfo] = map(); mut values: Map[Str,TypeInfo] = environment
           for parameter in parameters { diagnostics = concat(diagnostics, require_type(program, parameter.type_name, type_parameters, false)); values = map_put(values, parameter.name, plain_type(parameter.type_name)); }
-          diagnostics = concat(diagnostics, require_type(program, return_type, type_parameters, true)); facts: Map[Str,Bounds] = map(); checked: CheckedBlock = check_block_evidence(body, values, facts, program, type_parameters, retain); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, evidence_for_function(checked.evidence, name)); }
+          diagnostics = concat(diagnostics, require_type(program, return_type, type_parameters, true))
+          if len(diagnostics) != declaration_start { declarations_valid = false; }
+          facts: Map[Str,Bounds] = map()
+          checked: CheckedBlock = check_block_evidence(body, values, facts, program, type_parameters, retain)
+          diagnostics = concat(diagnostics, checked.diagnostics)
+          if retain { evidence = concat(evidence, evidence_for_function(checked.evidence, name)); }
           mut return_ok: Bool = assignable(program, checked.info.name, return_type)
           guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
           if !return_ok && guarded_return.found && checked.info.has_nat && base_type(program, checked.info.name) == guarded_return.base {
             return_ok = evaluate_nat_guard(guarded_return.guard, checked.info.nat_value)
           } else {}
           if !return_ok { actual_return: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("function ${name} returns ${actual_return}, expected ${return_type}")); } else {}
+          if retain { function_types = function_types.put(name, len(diagnostics) == declaration_start); }
         },
         ImportDeclaration(path) => {}
       }
+      if !function_declaration && len(diagnostics) != declaration_start {
+        declarations_valid = false
+      }
     }
-    if !has_main { diagnostics = append(diagnostics, checker_diagnostic("program has no main function")); } else {}
+    if !has_main {
+      diagnostics = append(diagnostics, checker_diagnostic("program has no main function"))
+      declarations_valid = false
+    }
   } else {}
-  CheckedProgram(diagnostics, evidence)
+  CheckedProgram(diagnostics, evidence, declarations_valid, function_types)
 }
 
 pure check_source_types(source: Str): Str {

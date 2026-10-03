@@ -173,8 +173,12 @@ verify failed compilation leaves no artifact.
 
 `purity.panack` runs a single shared traversal in ordinary and explanation modes.
 `CheckedEffects` returns unchanged diagnostics plus opt-in `EffectEvidence` for
-local calls and await constraints. The loader runs this pass only after successful
-resolution/type checking and records whether it ran. Function names are attached
+local calls and await constraints. Ordinary compilation runs the pass only after
+successful type checking. Explanation queries can select type-valid functions
+after a sibling body error, using global declaration validity and per-function
+status from `CheckedProgram`. Global frontend failures suppress recovery; invalid
+bodies yield no effect records. The shared frontend/loader helper preserves original
+type diagnostics, exposing recovered violations only as local evidence. Function names are attached
 at definition boundaries; type guards retain diagnostics without function evidence.
 The explanation renderer consumes these decisions and loaded source spans, never
 reconstructing effects from diagnostic text. See

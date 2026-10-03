@@ -138,6 +138,51 @@ main(): Void {
     results = append(results, test_equal_nat(item[0] + " ordinary effects off",
       len(check_program_effect_evidence(program, false).evidence), 0))
   }
+  recovery_cases: [[Str]] = [
+    ["body assignment", "bad(): Void { n: Bool = 1; print(n); }", "local"],
+    ["return mismatch", "bad(): Bool { print(1); 1 }", "local"],
+    ["invalid callable assignment", "ordinary(): Nat { 1 } pure bad(): Nat { cb: PureFn[Nat] = @ordinary; cb.call() }", "local"],
+    ["invalid callable receiver", "bad(): Void { 42.call(); }", "local"],
+    ["invalid awaited result", "async child(): Nat { 1 } async bad(): Bool { await child() }", "local"],
+    ["invalid iterable", "bad(): Void { for cb in 42 { cb.call(); } }", "local"],
+    ["invalid signature", "bad(x: Missing): Void {}", "global"],
+    ["invalid return signature", "bad(): Missing { 1 }", "global"],
+    ["duplicate generic header", "bad[T,T](): Void {}", "global"],
+    ["invalid async header", "async bad(): Void {}", "global"],
+    ["invalid guarded declaration", "type Bad = Nat where 1; bad(): Void {}", "global"],
+    ["invalid record declaration", "record Bad { x: Nat, x: Bool } bad(): Void {}", "global"],
+    ["invalid enum declaration", "enum Bad { Value(Missing) } bad(): Void {}", "global"],
+    ["resolver failure", "bad(): Void { missing(); }", "global"],
+    ["duplicate function", "bad(): Void {} bad(): Void {}", "global"]
+  ]
+  for item in recovery_cases {
+    // Put the invalid declaration last to ensure earlier eligible functions
+    // cannot escape a subsequently discovered global failure.
+    program: Program = explanation_program("main(): Void { print(1); } pure probe(): Void { print(2); } " + item[1])
+    checked: CheckedProgram = check_program_evidence(program, true)
+    recovered: CheckedEffects = check_frontend_effects(program, checked, true)
+    results = append(results, test_expect(item[0] + " rejects", len(checked.diagnostics) > 0, "fixture must fail type checking"))
+    results = append(results, test_expect(item[0] + " frontend diagnostic parity", recovered.diagnostics == check_program_frontend(program), "recovery changed diagnostics"))
+    results = append(results, test_expect(item[0] + " ordinary availability off", check_program_evidence(program, false).function_types == map(), "ordinary mode retained availability"))
+    if item[2] == "local" {
+      results = append(results, test_expect(item[0] + " function availability", checked.declarations_valid && checked.function_types.has("bad") && !checked.function_types.get("bad") && checked.function_types.get("main"), "wrong eligibility"))
+      results = append(results, test_expect(item[0] + " valid siblings recovered", len(recovered.evidence) == 2 && recovered.evidence[0].function_name == "main" && len(recovered.evidence[0].violations) == 0 && recovered.evidence[1].function_name == "probe" && len(recovered.evidence[1].violations) == 1, "missing or unsafe effect evidence"))
+    } else {
+      results = append(results, test_expect(item[0] + " global gate", !checked.declarations_valid && len(recovered.evidence) == 0, "global failure allowed recovery"))
+    }
+  }
+  impure_guard_program: Program = explanation_program("type Enabled = Bool where read_line() == \"yes\"; main(): Void { print(1); } bad(): Bool { 1 }")
+  impure_guard_checked: CheckedProgram = check_program_evidence(impure_guard_program, true)
+  impure_guard_effects: CheckedEffects = check_frontend_effects(impure_guard_program, impure_guard_checked, true)
+  results = append(results, test_expect("guard purity does not claim project validity", impure_guard_checked.declarations_valid && len(impure_guard_effects.evidence) == 1 && impure_guard_effects.evidence[0].function_name == "main" && len(check_program_purity(impure_guard_program)) > 0 && len(impure_guard_effects.diagnostics) > 0 && impure_guard_effects.diagnostics == check_program_frontend(impure_guard_program), "guard purity changed original diagnostics or local eligibility"))
+  no_main_program: Program = explanation_program("probe(): Void { print(1); }")
+  no_main_checked: CheckedProgram = check_program_evidence(no_main_program, true)
+  results = append(results, test_expect("missing main globally gates recovery", !no_main_checked.declarations_valid && len(check_frontend_effects(no_main_program, no_main_checked, true).evidence) == 0, "missing entry point allowed recovery"))
+  results = append(results, test_equal_nat("empty selection checks no functions", len(check_selected_effect_evidence(no_main_program, true, true, map()).evidence), 0))
+  callee_program: Program = explanation_program("pure broken(): Nat { true } pure probe(): Nat { broken() } main(): Void {}")
+  callee_checked: CheckedProgram = check_program_evidence(callee_program, true)
+  callee_effects: CheckedEffects = check_frontend_effects(callee_program, callee_checked, true)
+  results = append(results, test_expect("invalid callee body keeps declaration boundary", len(callee_effects.evidence) == 1 && callee_effects.evidence[0].function_name == "probe" && callee_effects.evidence[0].target_effect == "pure" && len(callee_effects.evidence[0].violations) == 0 && len(callee_effects.diagnostics) > 0, "body validity confused with local declaration boundary"))
   source: Str = "// λ🙂\npure probe(): Void { print(1); }"
   retained: CheckedEffects = check_program_effect_evidence(explanation_program(source), true)
   results = append(results, test_equal_nat("effect source count", len(retained.evidence), 1))

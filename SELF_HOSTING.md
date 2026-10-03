@@ -1,5 +1,13 @@
 # Self-hosting roadmap
 
+Per-function effect recovery refreshes the v9 seed while preserving ordinary
+compilation diagnostics and artifacts. Fresh stages 2/3/4 converge to
+`75b4d7cd92596ef6c5be871dfdda243b7ee02ff404f5adba2a21e94b814a6224`
+(318,005 bytes); the standard-library fixed point remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Recovery is opt-in explanation evidence for type-valid functions, with global
+declaration failures and invalid function bodies explicitly unavailable.
+
 The U3 effect query extends opt-in explanations to actual local call/await
 decisions. Its v9 seed is regenerated from the prior indexed-lookup seed;
 fresh stages 2/3/4 converge to

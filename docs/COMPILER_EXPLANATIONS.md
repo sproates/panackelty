@@ -68,15 +68,28 @@ An ordinary function calling `print` reports an allowed local boundary.
   is classified by its declared callable type, not the original function body.
 - Async calls require await in an async context; async contexts reject blocking
   ordinary calls. Await context and operand checks are separate boundaries.
-- `effects: unavailable` explicitly reports when loading, resolution or type checking
-  prevented the effect pass from running, or no boundary was retained for the
-  selected function. A type error anywhere in the project can skip this pass.
+- After a function body type error, the query still checks local effect boundaries
+  in separately type-valid functions. Eligibility includes the complete body and
+  return type check; it never recovers individual expressions inside an invalid
+  function. Loading, parsing, resolution or type errors in signatures or type declarations
+  prevent recovery throughout the project, including earlier valid functions.
+- `effects: unavailable` distinguishes a global frontend failure, an invalid
+  selected function, and a checked function with no call/await boundary.
+- Recovery is explanation-only. Original diagnostics on stderr, their order, exit
+  status and ordinary compilation's type-first behavior are unchanged. Recovered
+  effect violations appear in the local explanation, not as additional stderr
+  diagnostics. The project remains rejected. An allowed call to a valid declaration
+  does not establish that the callee body type-checks or that a transitive call is safe.
 
 Both branches and loop bodies are checked statically. Output does not say a branch
 ran, infer transitive effects, identify a dynamic callable implementation, or follow
 callee bodies to find an ultimate I/O operation. Generic/imported definitions keep
 their own source positions and are checked once. Type-declaration guard diagnostics
-still run, but their evidence is outside this function query. There is no separate
+still run when effects are checked, but their evidence is outside this function
+query. A type-valid guard with an effect violation does not disable local function
+evidence. After unrelated body type errors, that guard violation is not added to
+stderr: the original type-first diagnostics are preserved, and the project remains
+rejected. There is no separate
 capability taxonomy such as Network or Filesystem in this output.
 
 ## Boundaries and cost
@@ -96,9 +109,10 @@ checked. Type-declaration guards are not part of this function query. General ty
 predictions and runtime value derivations remain separate programme work.
 
 Only the explicit query retains subtraction/effect evidence and lower-bound origins. Ordinary
-checking carries empty evidence collections and omits guard origins. Effect decisions
+checking carries empty evidence/availability collections and omits guard origins. Effect decisions
 share the same traversal and predicates in both modes; opt-in records retain local
-reasons and source spans, with no extra analysis pass. No evidence
+reasons and source spans, with no extra type analysis pass. After body errors only the query runs the
+filtered effect traversal; ordinary compilation skips it. No evidence
 is serialized into bytecode, and the bytecode format remains v9. The query checks
 the whole loaded project before filtering output to the function. It uses bounded
 source loading (1 MiB per file; 8 MiB and 256 files per closure); the existing

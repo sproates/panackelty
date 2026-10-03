@@ -97,7 +97,7 @@ try {
   run('./panack', ['check', weakened], 1);
   check(one(weak.sub, 'safe_subtract')[3] === 'false', 'guard prediction matches real checking');
   check(one(weak.sub, 'safe_subtract')[5] === '1', 'weakened lower bound retained');
-  check(weak.rows[0][2] === 'false' && weak.effects.length === 0, 'type/proof failure suppresses effect evidence: unavailable, not unaffected');
+  check(weak.rows[0][2] === 'true' && !weak.effects.some(row => row[1] === 'safe_subtract') && one(weak.effects, 'remaining').join('|') === one(initial.effects, 'remaining').join('|'), 'invalid leaf has no effects; type-valid caller boundary is positively re-established from declared effect');
   check(one(weak.sub, 'checkout').join('|') === local.join('|'), 'caller-local obligation positively re-established with same guard, bound and operands');
   const widenedSource = replaceOnce(source, 'pure safe_subtract', 'safe_subtract');
   const widened = write('widened', widenedSource), wide = evidence(widened);

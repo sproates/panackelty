@@ -118,6 +118,43 @@ main(): Void {
       explain_write(source, "main(): Void { n: Bool = 1; print(n); }")
       results = append(results, explain_run("type failure skips effects", ["explain", source, "--function", "main"], 1,
         ["effects: unavailable", "type checking prevented the effect pass"], ["effect boundary:"], "cannot assign"))
+      explain_write(source, "pure broken(): Nat { true } pure probe(): Nat { broken() } main(): Void { print(1); }")
+      results = append(results, explain_run("valid caller with invalid callee body", ["explain", source, "--function", "probe"], 1,
+        ["program: rejected", "effect boundary: allowed", "callee: broken", "classification basis: function declaration", "callee effect: pure"], ["effect boundary: rejected"], "function broken returns Bool"))
+      results = append(results, explain_run("invalid body explicitly unavailable", ["explain", source, "--function", "broken"], 1,
+        ["effects: unavailable", "function body type checking"], ["effect boundary:"], "function broken returns Bool"))
+      explain_write(library, "// λ🙂\npure inspect[T](item: T): Void { print(item); }\n")
+      explain_write(source, "import \"library.panack\"\nmain(): Void { n: Bool = 1; m: Nat = true; }\n")
+      results = append(results, explain_run("recover imported generic rejection", ["explain", source, "--function", "inspect"], 1,
+        ["program: rejected", "effect boundary: rejected", "source: project/library.panack:2:34-2:45", "expression: print(item)", "pure function cannot call impure function print"], ["effect boundary: allowed"], "cannot assign"))
+      // The explanation's stderr must equal ordinary diagnostics byte for byte,
+      // including order; recovered purity violations appear only in evidence.
+      match process_run(explain_path("./panack"), ["check", source], bytes(), path_current(), [], duration_seconds(15), 1048576) {
+        Error(error) => { results = append(results, test_expect("recovery diagnostic parity", false, "check failed")); },
+        Ok(ordinary) => {
+          match process_run(explain_path("./panack"), ["explain", source, "--function", "inspect"], bytes(), path_current(), [], duration_seconds(15), 1048576) {
+            Error(error) => { results = append(results, test_expect("recovery diagnostic parity", false, "explain failed")); },
+            Ok(explained) => { results = append(results, test_expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, utf8_decode(explained.stderr))); }
+          }
+        }
+      }
+      for invalid in ["ordinary(): Nat { 1 } pure bad(): Nat { cb: PureFn[Nat] = @ordinary; cb.call() }",
+          "bad(): Void { 42.call(); }", "async child(): Nat { 1 } async bad(): Bool { await child() }",
+          "bad(): Void { for cb in 42 { cb.call(); } }"] {
+        explain_write(source, "main(): Void { print(1); } " + invalid)
+        results = append(results, explain_run("invalid inferred types never yield effects", ["explain", source, "--function", "bad"], 1,
+          ["effects: unavailable", "function body type checking"], ["effect boundary:"], "error:"))
+        results = append(results, explain_run("valid sibling survives invalid inferred types", ["explain", source, "--function", "main"], 1,
+          ["program: rejected", "effect boundary: allowed", "callee: print"], ["effects: unavailable"], "error:"))
+      }
+      for invalid in ["bad(x: Missing): Void {}", "type Bad = Nat where 1;", "record Bad { x: Nat, x: Bool }", "enum Bad { Value(Missing) }"] {
+        explain_write(source, "main(): Void { print(1); } " + invalid)
+        results = append(results, explain_run("global declaration prevents recovery", ["explain", source, "--function", "main"], 1,
+          ["effects: unavailable", "global declaration checking"], ["effect boundary:"], "error:"))
+      }
+      explain_write(source, "main(): Void { print(1); }")
+      results = append(results, explain_run("repaired source has fresh accepted evidence", ["explain", source, "--function", "main"], 0,
+        ["program: accepted", "effect boundary: allowed"], ["effects: unavailable"], ""))
       explain_write(source, "main(): Void { unknown(); }")
       results = append(results, explain_run("resolution failure skips effects", ["explain", source, "--function", "main"], 1,
         ["effects: unavailable", "resolution"], ["effect boundary:"], "unknown"))

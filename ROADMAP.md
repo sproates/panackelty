@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#131.**
+The initial allocation contains **105 identities**. **Next available: RM#134.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -3300,6 +3300,68 @@ Update the guide when source-aware locations and call context ship under #136.
 Coordinate executable examples with #138 and usability evidence with #133.
 Initial guide estimate: S–M / 1–2 PRs including examples and CI checks; later
 updates follow the capabilities they document.
+
+### Public Markdown quality
+
+<a id="rm-131"></a>
+
+**RM#131: Public Markdown quality** · [GI#281: Public Markdown quality](https://github.com/sproates/panackelty/issues/281).
+
+**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. Review,
+expand and improve all public Markdown, including `SPEC.md`, `ARCHITECTURE.md`,
+the README, contributor material and guides. Inventory the documents and assess
+accuracy, completeness, readability, examples, cross-links and version claims;
+reconcile language and architecture descriptions with the implementation.
+Complement [RM#51: Learning and debugging guides](#rm-51) and
+[RM#52: Executable documentation](#rm-52), preserving their existing scope.
+
+Acceptance: account for every inventoried document, fix or explicitly track
+remaining gaps, verify examples against declared versions and check links and
+consistency between references and guides. Provisional effort: M–L across staged
+PRs; the inventory determines dependencies and final scope. This records a
+documentation review, not approval to change language behavior or priorities.
+
+### Separate agent-instructions repository
+
+<a id="rm-132"></a>
+
+**RM#132: Separate agent-instructions repository** · [GI#282: Separate agent-instructions repository](https://github.com/sproates/panackelty/issues/282).
+
+**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. Inventory
+`AGENTS.md`, `.agents/` and related agent-only files, then plan their move to a
+separate repository. Choose destination, visibility, versioning, discovery and
+setup during assessment. Preserve public contributor documentation, test rules
+and working links; retain current guidance until the migration is accepted.
+Coordinate with [RM#47: Development workflow assessment](#rm-47).
+
+Acceptance: agree the file boundary, remove or update every affected reference,
+and verify that a fresh checkout has usable contributor instructions and a
+documented, reproducible way to obtain the matching agent guidance. Keep
+private configuration out of public material. Effort is unknown;
+repository access and the distribution/versioning contract remain
+unknown dependencies. Recording this starts no repository creation or file move.
+
+### Definitive Panackelty style guide
+
+<a id="rm-133"></a>
+
+**RM#133: Definitive Panackelty style guide** · [GI#283: Definitive Panackelty style guide](https://github.com/sproates/panackelty/issues/283).
+
+**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. Build on
+the existing [Panackelty source conventions](CONTRIBUTING.md#panackelty-source)
+to establish one authoritative guide for Panackelty code, covering formatting,
+naming, declarations, types, control flow, error handling, effects and examples.
+Consolidate overlapping guidance and explain decisions with idiomatic examples;
+coordinate with [RM#51: Learning and debugging guides](#rm-51),
+[RM#52: Executable documentation](#rm-52) and
+[RM#47: Development workflow assessment](#rm-47).
+
+Acceptance: resolve conflicting conventions, link the definitive guide from
+contributor material, check examples against their declared language version and
+distinguish stylistic recommendations from language requirements. Provisional
+effort: M; detailed scope and disputed conventions need assessment. Existing
+guidance remains authoritative until the replacement is accepted. This records
+no wholesale reformat, formatter implementation or change to programme priorities.
 
 ### Website capabilities guide
 

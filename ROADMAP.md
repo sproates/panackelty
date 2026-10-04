@@ -103,9 +103,10 @@ establishment tranche below has its own stable denominator.
 
 The modules/packages/HTTP programme remains the principal feature initiative;
 its next checked-identity implementation has not started. Compiler understanding
-remains paused. This policy delivery starts no optimisation, benchmark execution,
-backend investigation or automation. Baseline scope is planned below; execution
-still requires its separately selected delivery. Website performance work remains
+remains paused. The selected build/validation baseline is established below;
+no optimisation, runtime/resource benchmark execution, backend investigation or
+automation starts with it. Remaining baseline scope requires separately selected
+delivery. Website performance work remains
 deferred, and ordinary website content updates wait for the next supporting
 release; existing publication correctness defects retain their separate treatment.
 
@@ -113,13 +114,14 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Clean full check ≤120s on the reference host; focused incremental check ≤15s with native tools built. PR#262 recorded 211s full and 168s aggregate unit after source/seed changes; these are neither a controlled clean sample nor a focused incremental sample. The earlier 126s observation does not establish causation. | Open performance concern. Delivery owner retains handover until the baseline maintainer accepts it. Next: agree the reproducible clean/warm/edit workload and compare pinned inputs/revisions under the planned baseline; disposition must be reviewed before the next affected compiler delivery. Existing build/cache optimisations remain separately selected. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. All validation passes; both timing targets remain missed. [Exact inputs, counts and limitations](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. Proposed disposition: accept the measurement baseline, retaining unchanged targets and coverage. Delivery owner retains GI#106 until a baseline maintainer accepts handover. Next: attribute the representative critical path, then compare a separately selected reuse candidate against this pinned matrix; review remediation scope before the next affected compiler delivery. No optimisation or causal regression claim is made. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty/issues/187) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
-The PR#262 timing observations are an open concern, not a retroactive rejection of
-its already authorised merge or proof of a compiler regression's cause. The next
-baseline/comparison must establish applicable workload evidence. Future affected
+The controlled baseline now establishes applicable full/focused observations; both
+targets remain missed. Earlier PR#262 timings remain historical evidence, not a
+retroactive rejection of its already authorised merge or proof of regression's cause.
+The next critical-path/candidate comparison must retain the pinned workload evidence. Future affected
 deliveries must present a mitigation, justified trade-off or owned remediation
 proposal for explicit acceptance with merge approval; copying a warning is not acceptance. See
 [the recorded measurements and limits](tests/VALIDATION_PROFILE.md#namespace-raw-references-and-binding-resolution--2026-10-04).
@@ -135,25 +137,25 @@ under the standing parent. Later scope/weight changes require an explained revis
 
 | Task | Scope and status | Weight | Completion / earned contribution |
 | --- | --- | ---: | ---: |
-| <a id="rm-124"></a>**RM#124: Performance governance** | Establish ownership, mandatory proportionate delivery assessment, scorecard and explicit regression disposition. Delivered by this policy PR; acceptance takes effect on merge. | 20% | 100% on merge / 20 pp on merge |
-| [RM#28: Incremental and modular builds](#rm-28), baseline slice · GI#106 | Planned; execution not started. Establish repeatable clean, unchanged warm, unrelated-edit and dependency-edit observations with pinned source/toolchain/cache state and variability. Existing implementation history does not accept this maintained baseline. | 30% | 0% / 0 pp |
+| <a id="rm-124"></a>**RM#124: Performance governance** | Done through PR#264: ownership, mandatory proportionate delivery assessment, scorecard and explicit regression disposition. | 20% | 100% / 20 pp |
+| [RM#28: Incremental and modular builds](#rm-28), baseline slice · GI#106 | Done on this baseline delivery's merge: bounded isolated harness, three repeats of clean/full, warm/focused and unrelated/direct/transitive edit observations, pinned inputs and explicit budget disposition. | 30% | 100% on merge / 30 pp on merge |
 | [RM#56: Performance baselines](#rm-56) · GI#141 | Planned; execution not started. Correctness-checked compile/startup/run workloads, meaningful throughput/latency, memory and artifact-size evidence; calibrate noise before general thresholds. | 40% | 0% / 0 pp |
 | <a id="rm-125"></a>**RM#125: Initial performance scorecard acceptance** | Planned; execution not started. Independent reproduction/review of both core baselines, qualified target applicability and initial scorecard acceptance. Requires RM#28/RM#56 baseline evidence. | 10% | 0% / 0 pp |
-| **Total** | **Core establishment only** | **100%** | **20% on governance merge; 0% accepted before it** |
+| **Total** | **Core establishment only** | **100%** | **50% on baseline merge; 20% accepted before it** |
 
 RM#124 and RM#125 are scoped under GI#263; no duplicate implementation issues are
-created. On this policy's merge, governance alone earns 20 pp. This does not claim
-baseline measurement or performance improvement. Delivery owners maintain evidence
+created. Governance earns 20 pp; this bounded build baseline adds 30 pp on merge.
+This accepts measurement, not resolution of the measured performance concerns. Delivery owners maintain evidence
 and unresolved actions until a named maintainer accepts handover; independent
 reviewers assess measurements and dispositions, and the user selects priorities
-and accepts trade-offs. The next action is to select the bounded baseline delivery
-and assign its owner, while applying the policy to every intervening substantive
-change. No fixed-count review or scheduled automation is introduced.
+and accepts trade-offs. The build baseline's owned remediation action is recorded
+in the scorecard; runtime/resource measurements and combined initial acceptance
+remain planned and require separately selected execution. No fixed-count review or scheduled automation is introduced.
 
-Policy acceptance: reconcile contributor instructions and PR prompts, validate the
-informational route, and independently review this revision for consistent scope,
-budget applicability and ownership. Website impact: no public feature, artifact,
-page or release pin changes; this records release-time follow-up policy only.
+Governance acceptance was recorded in PR#264. The build baseline adds repeated
+correctness-checked evidence and independent review of scope, budget applicability
+and the outstanding remediation disposition. Website impact: no public feature,
+artifact, page or release pin changes; this is contributor tooling and policy.
 
 ## Ambition and adoption focus
 
@@ -2211,11 +2213,18 @@ ownership, conservative integration selection and failure regressions are
 implemented. The supported native/Panackelty/POSIX tooling, canonical full
 checks, bootstrap, sanitizer, release and stable required-check contracts remain.
 
-The reproducible validation/build baseline is now **Planned; execution not
-started** within [RM#123: Standing performance engineering](#rm-123). It owns the
-current full/focused feedback concern and the first measurement step below.
+The reproducible validation/build baseline is **Done on this delivery's merge**
+within [RM#123: Standing performance engineering](#rm-123). The bounded POSIX
+[harness](tests/README.md#reproducible-build-and-validation-baseline) retains an
+exact isolated candidate archive, environment/seed/VM identities and repeated
+clean/full, unchanged warm/focused and unrelated/direct/transitive edit observations.
+All 18 observations pass, with correct outputs and explicit compile/execution counts;
+the [measured evidence and reviewed disposition](tests/VALIDATION_PROFILE.md#reproducible-build-baseline)
+retain full/focused budget misses. No post-merge acceptance is needed for this
+measurement slice; the broader GI#106 remains open. Website impact: none, because
+this changes contributor measurement tooling, not public language/release claims.
 Dependency-aware probe reuse and separate-compilation design remain unscheduled;
-planning the baseline authorises neither optimisation nor a compiler redesign.
+establishing the baseline authorises neither optimisation nor a compiler redesign.
 Completing the earlier slice does not close the broader issue. The existing broad
 invalidation concern follows.
 
@@ -2228,10 +2237,10 @@ source files do not yet provide independently compiled module artifacts.
 
 Later cache/design slices, separately selected:
 
-1. Measure clean, unchanged warm, unrelated-edit and dependency-edit workflows
-   on a named host/toolchain, separating compilation from test execution and
-   counting actual rebuilds. Existing 346s clean-check evidence does not quantify
-   incremental-cache savings.
+1. The bounded baseline above completes the first measurement step. Attribute
+   the representative critical path before selecting further optimisation;
+   compare any candidate against the same clean/warm/edit workloads and preserve
+   all assertions. Tiny-fixture rebuild cost does not predict whole-suite savings.
 2. Deliver dependency-aware compiled-probe reuse if justified, using canonical
    import resolution and retaining compiler/seed/VM identity and other inputs.
    Unknown dependencies must conservatively invalidate reuse. Tests must prove

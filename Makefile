@@ -405,6 +405,7 @@ ci-check:
 	@bash tests/ci_scope.sh
 
 policy:
+	@sh tests/build_baseline.sh
 	@bash tests/ci_scope.sh
 	@sh tests/no_python.sh
 	@sh tests/no_python_test.sh

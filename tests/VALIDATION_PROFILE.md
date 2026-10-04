@@ -2887,3 +2887,126 @@ No performance acceptance or removal of the GI#106 reminder is claimed.
 
 Only this evidence record and roadmap timing prose changed after that final code/
 seed validation; they are informational allowlist files validated with `make docs`.
+
+<a id="reproducible-build-baseline"></a>
+
+## Reproducible build and validation baseline — 2026-10-04
+
+The bounded [baseline harness](README.md#reproducible-build-and-validation-baseline)
+implements the first measurement step under
+[RM#28: Incremental and modular builds](../ROADMAP.md#rm-28) /
+[GI#106: Incremental and modular builds](https://github.com/sproates/panackelty/issues/106).
+It changes measurement tooling, not compilation, caching or test selection.
+Three clean full validations, three unchanged warm compiler checks and three
+observations of each isolated probe state use the same source/toolchain/worker
+configuration. The tiny probe imports a direct dependency that imports a second
+module; the direct/transitive edits change the expected answer from 42 to 43,
+while the unrelated edit retains 42. This separates correctness and rebuild
+observations without attributing fixture latency to the complete compiler suite.
+
+The archived candidate includes tracked edits, deletions and untracked additions;
+its base Git commit alone is not the measured tree. The archive/content manifest,
+seed and VM identities, toolchain/host metadata, sample-level logs, instrumented
+rows and success marker remain in the external report directory. OS caches are
+uncontrolled; clean means project outputs removed. Trials are sequential with two
+normal internal validation workers and no concurrent builds. Component durations
+are inclusive whole seconds, and their sums can overlap; POSIX elapsed observations
+and min/median/max are the top-level comparison. Counts represent completed
+instrumented calls, not all compiler-internal operations. No assertion about an
+optimisation speedup or causal comparison with historical machines is made.
+
+Measured host: `macos-arm64-local`, Apple M5 Pro / Mac17,8, macOS 26.5
+(Darwin 25.5.0), Apple Clang 21.0.0 (`clang-2100.1.1.101`), GNU Make 3.81,
+`-O2`, serial Make and two validation workers. The base revision is
+`68d8ee0ca5bc28d62d8d3e2607eb204d1ce2ccbd` (tree
+`8ccf99323e5c81f045548f8f24741f92063def50`) plus the archived baseline-tooling
+candidate. The source archive SHA-256 is
+`203fe2da07cd11315938f85b2304ec8dfb21967b77e30271a9e9c58cd1a59b20`;
+its relative-path content-manifest SHA-256 is
+`a027c6113b9814973c849c5a2aafb905ef32d1d771786e5ebbf14696b1c7d831`.
+The bootstrap seed SHA-256 is
+`ef788384cb2d33d7d908253fd7311bb1e52cebc4483e69d7ca649118090187df`.
+
+The measured harness preceded the review fix that clears four inherited
+budget variables and the CI portability fix that explicitly invokes external
+POSIX `time -p` in the C locale. The archived macOS harness used the shell
+`time -p` form with the same real elapsed-time definition and decimal output;
+the final restricted-PATH regression verifies the external timer on sh and dash
+when available. The native-tool allowlist now includes that executable; it adds
+no language interpreter. The actual trials used the repository's unchanged
+120/15/75/60-second full/focused/functional/bootstrap budgets, verified in their
+timing output; the final regression explicitly supplies four conflicting overrides
+and requires them to be removed. These fixes normalize the environment and timer lookup without changing the
+recorded workloads or the elapsed-time meaning of these observations. The extra
+external timer process and final independent workload-status recording can
+change the last digits for tiny fixtures; the table
+retains the archived measurements and does not claim a rerun of the final timer.
+The final timer wrapper also records the workload exit status separately from
+the timer exit status, preserving failures even if a timer wrapper normalizes
+the child status. Normalization is an injected robustness case, not an observed
+BSD timer behavior. The final dispatch resolves an absolute executable and
+disables implicit shell exit only while explicitly capturing the timer result. Regression mocks reproduce both normalized failure and a timer
+failure after a successful workload. Final candidate validation is separate from
+the archived measurement snapshot.
+
+Measured VM SHA-256:
+`d0b2bd45d05e89391e64bdfa586fb1ca58bcca186fdb2254e5c9e5a2df722934`.
+The stage-2 compiler is byte-identical to the recorded bootstrap seed. All
+18 command observations and all exact probe outputs passed; the report has its
+`COMPLETE` marker.
+
+| Workload | Three elapsed samples (seconds) | Min / median / max (seconds) | Applicable target |
+| --- | --- | --- | --- |
+| Clean full `make check` | 133.98, 134.42, 136.10 | 133.98 / 134.42 / 136.10 | 120s; all three exceed |
+| Unchanged warm `make check-compiler` | 27.77, 26.40, 26.46 | 26.40 / 26.46 / 27.77 | 15s; all three exceed |
+| Unchanged tiny probe | 0.04, 0.04, 0.04 | 0.04 / 0.04 / 0.04 | Diagnostic workload only |
+| Unrelated source edit | 0.11, 0.11, 0.10 | 0.10 / 0.11 / 0.11 | Diagnostic workload only |
+| Direct imported dependency edit | 0.10, 0.10, 0.11 | 0.10 / 0.10 / 0.11 | Diagnostic workload only |
+| Transitive imported dependency edit | 0.11, 0.10, 0.10 | 0.10 / 0.10 / 0.11 | Diagnostic workload only |
+
+Counts were identical across each workload's repeats:
+
+| Workload | Ordinary probe-driver compile / execution calls | Cache-contract fixture compile / execution rows | Native build/link command rows |
+| --- | ---: | ---: | ---: |
+| Clean full | 24 / 21 | 12 / 13 | 118 |
+| Warm focused compiler | 0 / 16 | 12 / 13 | 23 |
+| Unchanged tiny probe | 0 / 1 | 0 / 0 | 0 |
+| Each edited tiny probe | 1 / 1 | 0 / 0 | 0 |
+
+Raw sample totals include deliberately adversarial `harness/probes` work:
+its mock toolchain contributes 12 compile and 13 execution rows per full/focused
+sample. These are cache-contract observations, not production compiler invocations
+or evidence of unnecessary warm recompilation. The raw full totals are therefore
+36/34 and the raw warm totals 12/29. All 23 warm native command rows belong to
+`harness/bootstrap`: that contract deliberately builds an isolated VM (22 objects
+and its link). They are not ordinary workspace invalidation. The complete logs
+retain other compiler/oracle/bootstrap labels; the table is not a total count of
+all compiler-internal work or individual assertions.
+
+Raw inclusive probe compile/run seconds were 49/16, 48/16 and 51/18 for the clean
+samples, and 0/12, 0/11 and 0/11 for warm focused samples. Concurrent workers and
+nested timings prohibit interpreting these as an additive elapsed breakdown.
+The tiny probe's component rows mostly round to zero, with one transitive compile
+crossing a whole-second clock boundary despite a 0.10s elapsed observation.
+Use the higher-resolution top-level samples for latency, and the rows for counts.
+
+The unchanged tiny probe reuses its compiled artifact while every invocation
+executes. Unrelated, direct and transitive changes each rebuild once; dependency
+changes execute the new answer. This establishes the current conservative
+invalidation behavior. The approximately 0.07s median unrelated-edit penalty on
+this tiny fixture cannot explain either full-suite budget miss or predict savings
+for a larger compiler probe. Warm ordinary compiler probes already reuse their
+artifacts; removing safety fixture work is not an optimisation proposal.
+
+**Proposed performance disposition for delivery approval:** accept the finite
+measurement baseline while keeping both measured budget misses open under GI#106.
+The delivery owner retains the concern until a baseline maintainer accepts
+handover. The next bounded action is to attribute the representative full/focused
+critical path from these pinned observations, then compare any separately selected
+reuse candidate with this matrix and unchanged correctness coverage. Review that
+comparison/remediation scope before the next affected compiler delivery. No cache
+optimisation, budget increase, test removal or claim of regression causation is
+part of this delivery. The 120s/15s targets remain unchanged; historical 211s/225s
+runs and a built-checkout 112s sample have different conditions and are not paired
+speedup/regression evidence. Runtime/resource baseline and combined independent
+scorecard acceptance remain separate, unstarted tasks.

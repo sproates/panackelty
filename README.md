@@ -739,6 +739,11 @@ make native-coverage  # LLVM line/branch report and HTML under build/coverage
 ```
 
 
+For reproducible local build/validation measurements, see the
+[bounded baseline harness](tests/README.md#reproducible-build-and-validation-baseline).
+It runs in a disposable checkout and retains exact candidate inputs and repeated
+clean, warm and dependency-edit observations outside the source tree.
+
 Browse the [public native VM coverage report](https://sproates.github.io/panackelty-coverage/)
 for LLVM line/branch results and source navigation without downloading an
 artifact. The landing page identifies the coverage commit, archive date and

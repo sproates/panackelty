@@ -2755,3 +2755,14 @@ Canonical `make check` also passed for the follow-up in 152s: unit 115s,
 functional 5s, bootstrap 18s, release smoke and packaged quick start passed.
 The full-check and unit budget warnings remain under the existing GI#106
 profiling reminder; no coverage was removed. Documentation/link checks passed.
+
+The installer command also has a labelled, keyboard-focusable copy button with
+visible live-region feedback. Its actual inline event handler passed focused
+checks for exact README command text, disabled/pending state, resolved writes,
+rejected writes and an unavailable clipboard API; these use simulated DOM and
+clipboard objects, not browser acceptance. The incremental HTML/CSS change takes
+the website validation route; all 38 automation tests and Pages assembly passed.
+Local Playwright Chromium installation failed because its CDN download returned
+a truncated/non-ZIP archive, so real clipboard permission, keyboard interaction
+and narrow-screen acceptance remain for the browser preview. The button reports
+success only after the write resolves and otherwise offers manual copying.

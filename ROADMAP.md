@@ -3492,34 +3492,30 @@ no wholesale reformat, formatter implementation or change to programme prioritie
 
 **RM#130: Website capabilities guide** · [GI#279: Website capabilities guide](https://github.com/sproates/panackelty/issues/279).
 
-**Verification pending (effective on merge) — selected by the user on 2026-10-04.**
-The capabilities page provides shared navigation, homepage topic links and a
-responsive contents menu. Desktop and mobile preview checks verified the layout,
-code readability and navigation. The approved copy gives
-async/await and other language features dedicated sections and expands upcoming
-namespaces, modules/packages, compiler explanations, HTTP, source coverage and
-performance work. Native alpha.11 is the released baseline; browser differences
-and future work remain explicit. This selected website task may proceed before
-repository separation without displacing the current core implementation.
+**Done.** Delivered by [PR#290: Website capabilities guide](https://github.com/sproates/panackelty/pull/290).
+The [live capabilities page](https://panackelty.com/capabilities/) provides friendly
+feature explanations, four tested code examples, responsive contents navigation,
+shared site navigation and homepage links to individual topics. Async/await has
+its own section; upcoming namespaces, modules/packages, compiler explanations,
+HTTP, source coverage and performance are explained separately from released
+native alpha.11 and browser v0.1.1 capabilities.
 
-The homepage
-capability cards mostly send readers to specification or reference material.
-Add a friendly `/capabilities/` page explaining all features available in the
-advertised releases, grouped by practical use, with contents navigation and
-homepage cards linking to the relevant sections. Explain each feature's purpose
-in plain language, with small explained examples, native/browser availability,
-version limits and onward links to tutorials, the playground and specification.
+Acceptance: independent review, desktop/mobile preview checks, all eight preview
+regressions, Pages/link validation and the full native suite passed. All four
+examples passed against checksum-verified native alpha.11 through source and
+saved bytecode. The user approved the hosted staging preview before merge.
+[Main validation](https://github.com/sproates/panackelty/actions/runs/37239178241)
+and [publication with live-byte verification](https://github.com/sproates/panackelty/actions/runs/37239451252)
+passed. Live page, contents anchors and homepage topic navigation were verified;
+publication provenance identifies `2d3c96630cf0966ee2ba6bc7902a71c8941206fe`.
+No release pins or programme weights changed. The local 146s full-suite observation
+remains above the unchanged 120s target under the existing [RM#123](#rm-123) /
+[GI#106](https://github.com/sproates/panackelty/issues/106) validation-cost concern;
+this single observation does not establish a causal regression.
 
-Coordinate with [RM#51: Learning and debugging guides](#rm-51) /
-[GI#137: Learning and debugging guides](https://github.com/sproates/panackelty/issues/137)
-and [RM#52: Executable documentation](#rm-52) /
-[GI#138: Executable documentation](https://github.com/sproates/panackelty/issues/138).
-Acceptance: inventory the current advertised releases' features, execute examples
-against their declared versions, check links, review an accessible desktop/mobile
-preview and verify the live page after authorised publication. Provisional medium
-effort, around 1–2 PRs. The delivery owner will verify the published capabilities
-page and navigation after an explicitly authorised merge; keep GI#279 open until
-that live acceptance is complete. No programme weights or release pins change.
+Related learning guides ([RM#51](#rm-51) / [GI#137](https://github.com/sproates/panackelty/issues/137))
+and executable documentation ([RM#52](#rm-52) / [GI#138](https://github.com/sproates/panackelty/issues/138))
+remain separate work.
 
 ### Executable documentation
 

@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#130.**
+The initial allocation contains **105 identities**. **Next available: RM#131.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -3300,6 +3300,31 @@ Update the guide when source-aware locations and call context ship under #136.
 Coordinate executable examples with #138 and usability evidence with #133.
 Initial guide estimate: S–M / 1–2 PRs including examples and CI checks; later
 updates follow the capabilities they document.
+
+### Website capabilities guide
+
+<a id="rm-130"></a>
+
+**RM#130: Website capabilities guide** · [GI#279: Website capabilities guide](https://github.com/sproates/panackelty/issues/279).
+
+**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. The homepage
+capability cards mostly send readers to specification or reference material.
+Add a friendly `/capabilities/` page explaining all features available in the
+advertised releases, grouped by practical use, with contents navigation and
+homepage cards linking to the relevant sections. Explain each feature's purpose
+in plain language, with small explained examples, native/browser availability,
+version limits and onward links to tutorials, the playground and specification.
+
+Coordinate with [RM#51: Learning and debugging guides](#rm-51) /
+[GI#137: Learning and debugging guides](https://github.com/sproates/panackelty/issues/137)
+and [RM#52: Executable documentation](#rm-52) /
+[GI#138: Executable documentation](https://github.com/sproates/panackelty/issues/138).
+Acceptance: inventory the current advertised releases' features, execute examples
+against their declared versions, check links, review an accessible desktop/mobile
+preview and verify the live page after authorised publication. Provisional medium
+effort, around 1–2 PRs, to refine after inventory. Recording this idea starts no
+page implementation and changes no
+priority, programme weight or existing website scheduling decision.
 
 ### Executable documentation
 

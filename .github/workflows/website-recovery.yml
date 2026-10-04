@@ -1,0 +1,68 @@
+name: Website recovery
+
+# Emergency replay only. No source build, automatic publishing, or domain changes.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-production
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Fetch only the approved original artifact
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('node:fs');
+            const {data: artifact} = await github.rest.actions.getArtifact({
+              ...context.repo, artifact_id: 11317802847,
+            });
+            require('./scripts/verify_website_recovery.cjs').validateArtifact(artifact);
+            const archive = await github.rest.actions.downloadArtifact({
+              ...context.repo, artifact_id: artifact.id, archive_format: 'zip',
+            });
+            fs.writeFileSync(`${process.env.RUNNER_TEMP}/recovery.zip`, Buffer.from(archive.data));
+      - name: Verify exact previously published archive
+        run: |
+          mkdir recovery-artifact
+          unzip -p "$RUNNER_TEMP/recovery.zip" artifact.tar > recovery-artifact/artifact.tar
+          node scripts/verify_website_recovery.cjs recovery-artifact/artifact.tar
+      - uses: actions/upload-artifact@v7
+        with:
+          name: github-pages
+          path: recovery-artifact/artifact.tar
+          if-no-files-found: error
+          retention-days: 7
+      - name: Require current main and unchanged production domain
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {data: main} = await github.rest.repos.getBranch({...context.repo, branch:'main'});
+            const {data: pages} = await github.request('GET /repos/{owner}/{repo}/pages', context.repo);
+            if (main.commit.sha !== context.sha || pages.cname !== 'panackelty.com') {
+              throw new Error('Recovery requires current main and the existing panackelty.com assignment');
+            }
+      - uses: actions/deploy-pages@v5
+        id: deploy

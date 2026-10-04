@@ -33,6 +33,16 @@ should read the linked file directly; no personal skill installation is needed.
 Use [reusable scripts](docs/PROJECT_OPERATIONS.md) for deterministic, repeated
 repository mechanics and return compact results. Reserve model reasoning for
 design, implementation, test design, review, research and unexpected failures.
+Whenever a task takes unexpectedly long outside substantive reasoning work,
+identify the slow operational step and assess whether a reusable script could
+reduce future delay, repeated calls or manual handling. This applies when the
+delay occurs, not only at scheduled reviews or after repeated incidents. Record
+a concrete improvement in the current task's handover or existing workflow
+record, or explain briefly why scripting would not help. Keep this assessment
+proportionate; it must not become another lengthy administrative task. Put
+implemented reusable scripts and their usage instructions in the repository.
+Preserve required validation and approvals; do not treat time spent on necessary
+development, test design, review or research as waste.
 At existing planning and delivery checkpoints, identify repeated workflow/token
 friction and batch improvement recommendations; do not create extra scheduled
 checks or tickets automatically. Record observed time or output size, without

@@ -9,6 +9,9 @@ in `RELEASE_POLICY.md`.
 - Check staged namespace declaration/signature identities and public access,
   including generic/callable types and guard-helper dependencies. Namespace
   execution remains gated; this internal preparation adds no executable syntax.
+- Retain identity-bound staged function bodies and check a bounded annotated-local,
+  direct-call, explicit-generic and return subset. Deferred inference, proofs,
+  effects and emission still block namespace execution.
 
 ## 0.1.0-alpha.11 — 2026-10-04
 

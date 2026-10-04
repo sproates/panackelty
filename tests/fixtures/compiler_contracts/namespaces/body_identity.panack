@@ -1,0 +1,7 @@
+record Left { value: Nat }
+record Right { value: Nat }
+pure accept(value: Left): Left { value }
+pub main(): Void {
+  value: Right = Right(1)
+  accept(value)
+}

@@ -103,7 +103,8 @@ establishment tranche below has its own stable denominator.
 
 The modules/packages/HTTP programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
-body/effect/emission integration remains pending. Compiler understanding
+the next bounded body-identity integration slice is in progress; full body/effect/
+emission integration remains pending. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -340,7 +341,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — checked declaration/signature identities | P1 | Large / 3–5 PRs |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — checked signatures; bounded body identities in review | P1 | Large; original 3–5 PR estimate requires reassessment |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -445,8 +446,8 @@ in its issue and update this register at delivery. A design or experiment does n
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. The next action is
-body/effect/emission identity integration following the merged checked-signature
-delivery, then the remaining P2 acceptance and the selected P3/P4 sequence. P3–P8 have not started.
+review and validate the bounded body-identity slice, then complete remaining
+body inference/proofs, effect/emission/tooling integration and P2 acceptance and the selected P3/P4 sequence. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -2959,6 +2960,24 @@ compiler and standard-library fixed points. This is an intermediate GI#198
 slice, not full P2 acceptance; partial completion remains unknown and the accepted
 programme contribution remains 10 pp. See the
 [performance disposition](tests/VALIDATION_PROFILE.md#namespace-checked-signatures--2026-10-04).
+
+**Proposed bound function-body slice:** the loader now prepares callable contracts
+before retaining structural function bodies with original call identities, lexical
+binder identities and source spans. Bounded checks cover annotated locals,
+assignment, direct/qualified/helper argument and return identity compatibility,
+explicit generic substitution and callable reference effects. Unknown inference,
+constructors, core operations and guard proofs remain explicitly deferred; no
+body is claimed effect-checked or executable. The production full-module raw walk
+is replaced, without a synthetic-name bridge into the legacy checker. Unit and
+public CLI regression evidence, fresh seed and final validation belong to this
+intermediate delivery; GI#198 stays open and accepted programme credit remains
+10 pp with P2 partial progress unknown. See the
+[body identity performance disposition](tests/VALIDATION_PROFILE.md#namespace-bound-function-bodies--2026-10-04).
+
+P2's original large/3–5 PR estimate requires reassessment. Remaining delivery
+count is unquantified pending decomposition of effect/emission integration,
+guard/general inference, coordinated migration and acceptance. This changes no
+scope or weight and awards no additional completion credit.
 
 Remaining P2 scope: precise type/pattern use spans; uniform identity-based body
 checking, purity/effect evidence, emission and tooling; audited stdlib exports, coordinated source

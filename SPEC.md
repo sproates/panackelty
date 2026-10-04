@@ -744,11 +744,14 @@ and `import ...::{...}` fail with an explicit namespace-migration diagnostic.
 They cannot execute with today's combined-name semantics. The raw frontend also
 parses qualified types, named function references and variant patterns, and retains
 dot calls until binding; qualified uses through a default namespace alias fail
-closed too. Staged declaration signatures now check tagged type/callable identity
+closed too. Staged declaration signatures check tagged type/callable identity
 and public reachability, including private type and guard-helper leaks. These
 diagnostics do not enable executable
-namespace calls/types, public visibility or re-exports;
-see [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
+namespace calls/types, public visibility or re-exports.
+Staged function bodies additionally retain declaration/local identities and check
+a bounded annotation/direct-call/return type subset. Deferred inference, proof and
+effect checks still prevent namespace execution; this is not a new language mode.
+See [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
 
 ## Compilation and the Panackelty VM
 

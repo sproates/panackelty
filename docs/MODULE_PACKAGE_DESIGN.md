@@ -12,7 +12,12 @@ release and website adoption require their own selected deliveries. P1 closes
 only the design investigation. P2 is in progress with fail-closed raw qualified
 syntax, cross-module binding resolution and checked declaration/signature
 identities built on its merged module foundation. The checked-signature slice
-merged in PR#275 as `0bcf092`; body/effect/emission migration remains pending.
+merged in PR#275 as `0bcf092`. The next proposed P2 delivery retains identity-bound
+function bodies in the loader and checks annotated locals, direct call contracts,
+explicit generic substitution and returns against the same tagged signatures.
+Unknown inference/proofs remain explicitly deferred; effect checking, emission,
+tooling and coordinated migration remain pending. This intermediate slice does
+not enable namespaces or complete P2.
 P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
@@ -587,7 +592,7 @@ baseline change. A larger PR count is not a larger completion percentage.
 | Stage | Proposed slices / acceptance | Estimate and dependencies |
 | --- | --- | --- |
 | P1 / RM#109 | Current audit, selected semantics/migration, examples, gates and estimates in this document | Medium; 1 design PR; accepted only on merge |
-| P2 / RM#41 | AST/bindings and diagnostics; qualified type/effect/emission identity; stdlib adapter/bootstrap/tooling conformance | Large; 3–5 PRs after P1; parser/checker identity migration drives risk |
+| P2 / RM#41 | AST/bindings and diagnostics; qualified type/effect/emission identity; stdlib adapter/bootstrap/tooling conformance | Large; original 3–5 PR estimate requires reassessment; remaining count unquantified pending effect/emission, guard/general inference, migration and acceptance decomposition |
 | P3 / RM#43 | Strict manifest/explicit CLI; physical root confinement/graph identity; two-app and relocated-install acceptance | Large; 2–4 PRs after P1/P2; host path identity/race safety is a prerequisite, not existing capability |
 | P4 / RM#42 | Public stdlib inventory/names; explicit exports/re-exports and prefix migration; remove bootstrap adapter with coordinated source migration verified | Medium; 1–2 PRs after P2/P3; preserve core identity and existing API behavior |
 | P5 / RM#110 | Backend decision; bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large, uncertain; 4–7 PRs after P1–P3; DNS/TLS packaging and cancellation may require re-estimation before coding |

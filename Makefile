@@ -76,6 +76,7 @@ check-compiler-impl:
 		tests/runner/compiler_purity_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
+		tests/runner/compiler_module_bindings_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \
@@ -139,6 +140,7 @@ unit-compiler: native
 		tests/runner/compiler_purity_unit.panack \
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
+		tests/runner/compiler_module_bindings_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \

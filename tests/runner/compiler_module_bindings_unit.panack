@@ -1,0 +1,163 @@
+import "../../src/compiler/loader.panack"
+import stdlib/testing
+
+pure namespace_parse(source: Str): Result[ParsedModule,Diagnostic] {
+  match lex_file(source, "module.panack") {
+    Ok(tokens) => parse_module_complete(tokens),
+    Error(errors) => Error(errors[0])
+  }
+}
+
+pure namespace_parse_error(source: Str): Str {
+  match namespace_parse(source) {
+    Error(error) => diagnostic_text(error),
+    Ok(parsed) => "unexpected success"
+  }
+}
+
+pure namespace_export_name(bindings: ModuleBindings, selector: Str): Str {
+  match module_export(bindings, selector) {
+    Error(message) => message,
+    Ok(binding) => binding.identity.module.path + ":" + binding.identity.name
+  }
+}
+
+pure namespace_syntax_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  source: Str = "// heading\nimport project/math as arithmetic\npub import project/errors::{HttpError.Timeout as timed_out, HttpError}\npub pure answer(): Nat { 42 }\nrecord Private { value: Nat }"
+  match namespace_parse(source) {
+    Error(error) => { results = append(results, test_expect("namespace metadata parses", false, diagnostic_text(error))) },
+    Ok(parsed) => {
+      results = append(results, test_equal_nat("retained declaration count", len(parsed.program.declarations), 4))
+      results = append(results, test_equal_nat("one metadata row per declaration", len(parsed.syntax), 4))
+      results = append(results, test_equal_nat("import source line", parsed.syntax[0].span.start.line, 2))
+      results = append(results, test_equal_str("import source file", parsed.syntax[0].span.start.file, "module.panack"))
+      results = append(results, test_equal_nat("import span end", parsed.syntax[0].span.end.column, 34))
+      results = append(results, test_expect("visibility remains per declaration", !parsed.syntax[0].is_public && parsed.syntax[1].is_public && parsed.syntax[2].is_public && !parsed.syntax[3].is_public, "wrong visibility"))
+      match parsed.syntax[0].binding {
+        NamespaceImportBinding(alias, explicit_alias) => {
+          results = append(results, test_expect("explicit namespace alias retained", alias == "arithmetic" && explicit_alias, "wrong alias"))
+        },
+        NoImportBinding() => { results = append(results, test_expect("alias kind", false, "missing binding")) },
+        SelectiveImportBinding(selectors) => { results = append(results, test_expect("alias kind", false, "selective binding")) }
+      }
+      match parsed.syntax[1].binding {
+        SelectiveImportBinding(selectors) => {
+          results = append(results, test_equal_nat("selector count", len(selectors), 2))
+          results = append(results, test_equal_str("qualified variant selector", selectors[0].name, "HttpError.Timeout"))
+          results = append(results, test_equal_str("selective alias", selectors[0].alias, "timed_out"))
+          results = append(results, test_equal_str("default selective alias", selectors[1].alias, "HttpError"))
+          results = append(results, test_equal_nat("selector span", selectors[0].span.start.column, 29))
+        },
+        NoImportBinding() => { results = append(results, test_expect("selector kind", false, "missing binding")) },
+        NamespaceImportBinding(alias, explicit_alias) => { results = append(results, test_expect("selector kind", false, "namespace binding")) }
+      }
+      results = append(results, test_equal_nat("staged forms all rejected", len(module_execution_diagnostics(parsed)), 3))
+    }
+  }
+  results = append(results, test_equal_str("logical default alias", default_import_alias("project/shared/math"), "math"))
+  results = append(results, test_equal_str("quoted default alias", default_import_alias("../shared/math.panack"), "math"))
+  results = append(results, test_equal_str("missing alias", namespace_parse_error("import project/math as"), "module.panack:1:23: expected namespace alias after as"))
+  results = append(results, test_equal_str("empty selectors", namespace_parse_error("import project/math::{}"), "module.panack:1:23: expected imported declaration name"))
+  results = append(results, test_equal_str("missing selective alias", namespace_parse_error("import project/math::{sum as}"), "module.panack:1:29: expected import alias after as"))
+  results
+}
+
+pure namespace_binding_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), "math.panack")
+  match namespace_parse("pub record Vector { value: Nat }\npub enum Failure { Missing, Detail(Str) }\npure helper(): Nat { 1 }\npub pure answer(): Nat { helper() }") {
+    Error(error) => { results = append(results, test_expect("bindings parse", false, diagnostic_text(error))) },
+    Ok(parsed) => {
+      bindings: ModuleBindings = collect_module_bindings(identity, parsed)
+      results = append(results, test_equal_nat("type variant function inventory", len(bindings.declarations), 6))
+      results = append(results, test_equal_str("record exported identity", namespace_export_name(bindings, "Vector"), "math.panack:Vector"))
+      results = append(results, test_equal_str("enum exported identity", namespace_export_name(bindings, "Failure"), "math.panack:Failure"))
+      results = append(results, test_equal_str("variant exported identity", namespace_export_name(bindings, "Failure.Detail"), "math.panack:Detail"))
+      results = append(results, test_equal_str("variant selection must be explicit", namespace_export_name(bindings, "Detail"), "module has no exported declaration Detail"))
+      results = append(results, test_equal_str("private helper rejected", namespace_export_name(bindings, "helper"), "module declaration helper is private"))
+      other: ModuleBindings = collect_module_bindings(ModuleIdentity(StandaloneModulePackage(), "other.panack"), parsed)
+      results = append(results, test_expect("same spelling distinct module identity", bindings.declarations[0].identity != other.declarations[0].identity, "identities collapsed"))
+      results = append(results, test_expect("package identity is tagged", identity != ModuleIdentity(ToolchainModulePackage(), "math.panack"), "package tags collapsed"))
+    }
+  }
+  match namespace_parse("import project/one as shared\nimport project/one as shared\nimport project/two::{answer as local}\npure local(): Nat { 1 }\nimport project/three as print") {
+    Error(error) => { results = append(results, test_expect("conflicts parse", false, diagnostic_text(error))) },
+    Ok(parsed) => {
+      errors: [Diagnostic] = module_binding_diagnostics(collect_module_bindings(identity, parsed))
+      results = append(results, test_equal_nat("all binding collisions rejected", len(errors), 3))
+      results = append(results, test_equal_str("repeated identical alias rejected", diagnostic_text(errors[0]), "module.panack:2:1: import binding shared conflicts with an existing module binding"))
+      results = append(results, test_equal_str("declaration alias collision", errors[1].message, "import binding local conflicts with an existing module binding"))
+      results = append(results, test_equal_str("builtin alias collision", errors[2].message, "import binding print conflicts with a built-in"))
+    }
+  }
+  results = append(results, test_equal_str("standalone relative path", source_module_identity("/one/app/lib/math.panack", "/one/app", "/tool/stdlib").path, "lib/math.panack"))
+  results = append(results, test_expect("relocation preserves semantic identity", source_module_identity("/one/app/lib/math.panack", "/one/app", "/tool/stdlib") == source_module_identity("/two/app/lib/math.panack", "/two/app", "/other/stdlib"), "relocation changed identity"))
+  results = append(results, test_equal_str("bootstrap parent path is relative", module_relative_path("/repo/src/bytecode/codec.panack", "/repo/src/compiler"), "../bytecode/codec.panack"))
+  results = append(results, test_equal_str("root path identity", module_relative_path("/main.panack", "/"), "main.panack"))
+  results
+}
+
+pure namespace_execution_boundary_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  message: Str = "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
+  for source in ["pub main(): Void {}", "import project/math as api; main(): Void {}", "import project/math::{answer}; main(): Void {}", "pub import project/math; main(): Void {}"] {
+    results = append(results, test_equal_str("resolver fails closed", resolve_source(source), message))
+    results = append(results, test_equal_str("checker fails closed", check_source_types(source), message))
+    results = append(results, test_equal_str("purity fails closed", check_source_frontend(source), message))
+    results = append(results, test_equal_str("emitter fails closed", compile_source_disassembly(source), message))
+    results = append(results, test_expect("codec emits no runnable artifact", compile_source_bytecode(source) == bytes(), "namespace syntax emitted bytecode"))
+  }
+  results
+}
+
+pure namespace_origin_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  mut modules: [LoadedModule] = []
+  for source in [LoadedSource("first.panack", "pure helper(): Nat { 1 }"),
+      LoadedSource("second.panack", "\npure helper(): Nat { 2 }"),
+      LoadedSource("third.panack", "\n\npure helper(): Nat { 3 }")] {
+    match lex_file(source.source, source.path) {
+      Error(errors) => { results = append(results, test_expect("origin source lexes", false, "lex failure")) },
+      Ok(tokens) => match parse_module_complete(tokens) {
+        Error(error) => { results = append(results, test_expect("origin source parses", false, error.message)) },
+        Ok(parsed) => {
+          bindings: ModuleBindings = collect_module_bindings(ModuleIdentity(StandaloneModulePackage(), source.path), parsed)
+          modules = append(modules, LoadedModule(source.path, parsed, parsed.program, bindings))
+        }
+      }
+    }
+  }
+  errors: [Diagnostic] = resolve_program_at(append_program_declarations(module_programs(modules)), module_declaration_positions(modules))
+  results = append(results, test_equal_str("three duplicates retain separate origins", render_resolver_diagnostics(errors),
+    "second.panack:2:1: top-level name helper is already declared\nthird.panack:3:1: top-level name helper is already declared"))
+  match namespace_parse("pure Pick(): Nat { 1 }\nenum Choice { Pick }") {
+    Error(error) => { results = append(results, test_expect("variant source parses", false, error.message)) },
+    Ok(parsed) => {
+      errors2: [Diagnostic] = resolve_program_at(parsed.program, [parsed.syntax[0].span.start, parsed.syntax[1].span.start])
+      results = append(results, test_equal_str("function conflict attributed to function", render_resolver_diagnostics(errors2),
+        "module.panack:1:1: top-level name Pick conflicts with a constructor or built-in"))
+    }
+  }
+  results
+}
+
+
+main(): Void {
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests())
+  loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
+  results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
+  mut saw_main: Bool = false
+  mut saw_core: Bool = false
+  for module in loaded.modules {
+    if module.bindings.identity.path == "main.panack" { saw_main = len(module.bindings.declarations) > 0 } else {}
+    if module.bindings.identity == ModuleIdentity(ToolchainModulePackage(), "core.panack") {
+      for declaration in module.bindings.declarations {
+        if declaration.identity.name == "core_first" { saw_core = true } else {}
+      }
+    } else {}
+  }
+  results = append(results, test_expect("loader retains entry module bindings", saw_main, "missing entry metadata"))
+  results = append(results, test_expect("core origin precedes internalization", saw_core, "missing original core name"))
+  if test_report(results) > 0 { process_exit(1) }
+}

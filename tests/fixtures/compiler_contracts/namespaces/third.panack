@@ -1,0 +1,3 @@
+// A third duplicate must retain its own location.
+
+pure answer(): Nat { 9 }

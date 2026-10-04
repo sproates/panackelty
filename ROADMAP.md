@@ -173,10 +173,11 @@ none from these backlog records; shipped capabilities are unchanged.
 **RM#108: Modules, packages and HTTP programme** ·
 [GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
 
-**Planned for implementation; estimated completion 10%; 1 of 8 tasks accepted.**
+**P2 implementation in progress; estimated accepted completion 10%; 1 of 8 tasks accepted.**
 P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
-merged on 2026-10-03 as `80cd50f`. P2–P8 remain planned and unstarted.
-Design acceptance does not start implementation.
+merged on 2026-10-03 as `80cd50f`. The user selected P2 on 2026-10-04;
+its first module/binding foundation is in progress. P3–P8 remain planned and
+unstarted. P2 selection is separate from design acceptance.
 The compiler-understanding programme remains paused; its scope is retained.
 
 First concrete milestone: **a working independently consumed HTTP client package**.
@@ -208,7 +209,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Planned; not started | P1 | Large / 3–5 PRs |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — first foundation slice | P1 | Large / 3–5 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -252,8 +253,8 @@ all eight outcomes accepted. GI#166 typed service exchange and GI#162 preview-se
 replacement remain separate followups, not silently completed by raw HTTP.
 
 P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
-their earlier Idea/unscheduled and assessment-only status: programme tasks are
-Planned, not started; their shared design is now recorded in P1, with provisional
+their earlier Idea/unscheduled and assessment-only status: P2 is In progress;
+P3–P8 are Planned, not started. Their shared design is recorded in P1, with provisional
 implementation estimates above and detailed slices in the design. No public
 registry, separate compilation, web framework or new engine is required.
 
@@ -273,9 +274,10 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | **Total** | **100%** | — | **10 pp (10%)** |
 
 P1 has earned its design-task credit through merged PR#240, supported by the deliverable above;
-P2–P8 remain Planned and earn no implementation credit from that design. The
-baseline weights are unchanged; latest change is P1 contributing 10 percentage
-points from the accepted design. Namespace/compiler
+P2 is In progress and its first foundation awaits review and merge; it earns
+no accepted implementation credit yet. P3–P8 remain Planned. The baseline weights
+and accepted subtotal are unchanged; the latest change is P2 selection and the
+module/binding foundation, not acceptance of namespace execution. Namespace/compiler
 integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
 cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -290,10 +292,12 @@ Accepted. On selection record owner, PR/revision, evidence, blockers and next ac
 in its issue and update this register at delivery. A design or experiment does not
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
-closing such followups. P1 design acceptance is complete; the proposed
-next action is selecting P2 module/binding implementation. No P2–P8
-implementation starts from design acceptance. Website impact: none from P1 because
-shipped syntax, release artifacts and public capabilities are unchanged.
+closing such followups. P1 design acceptance is complete. The next action is
+independent review and explicit merge approval for the first P2 foundation, then
+qualified-reference and checked-identity integration. P3–P8 have not started.
+Website impact: no adoption update for this internal P2 slice; namespaces remain
+unavailable for execution and version-pinned examples remain accurate. The later
+namespace release checkpoint requires its own adoption follow-up.
 
 ### Namespace release checkpoint
 
@@ -2659,13 +2663,39 @@ release PR. The bytecode format stays v9.
 **RM#41: Language namespaces** · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198).
 
 Work record: [#198](https://github.com/sproates/panackelty/issues/198).
-Current state: Planned as P2 in the [programme register](#rm-108); P1 supplies
-the [shared design](docs/MODULE_PACKAGE_DESIGN.md). The following assessment
+Current state: **In progress / Now** as P2 in the [programme register](#rm-108),
+explicitly selected on 2026-10-04. P1 supplies the accepted
+[shared design](docs/MODULE_PACKAGE_DESIGN.md). The following assessment
 originated on 2026-10-01 and does not override that production scope. It asks
 how code in one file references functions and types in another. Existing quoted
 file-relative and logical imports already work; declarations currently share one
 program namespace. This extends the namespace idea, not completed import work.
 
+**Intermediate foundation — awaiting review and merge:** retain per-file import,
+visibility and declaration-span metadata; tagged standalone/toolchain module and
+declaration identities; local binding/export inventories and collision/private
+lookup diagnostics; attach existing resolver conflict diagnostics to their owning
+declarations. Public `pub`, alias and selective-import forms fail closed while the
+checked/emitted AST still uses current names. There is no executable namespace
+mode or permanent compatibility switch. Unit and public-CLI fixtures cover the
+staged boundary and repeated cross-module diagnostic origins. The refreshed v9
+seed reaches the fresh compiler/library fixed points; 59 namespace assertions,
+91 CLI integration assertions and all 343 functional cases pass under canonical
+`make check` (126s, unit 91s, functional 5s, bootstrap 20s). The full 120s and unit
+15s budgets remain exceeded: retain the prioritized
+[GI#106: Validation performance](https://github.com/sproates/panackelty/issues/106)
+reminder. See [validation evidence](tests/VALIDATION_PROFILE.md#namespace-modulebinding-foundation--2026-10-04).
+GI#198 remains open.
+
+Remaining P2 scope: unresolved qualified expression/type/pattern syntax; resolved
+cross-module imports/re-exports and visibility/signature checks; local/type-parameter
+shadowing; uniform nominal/callable identities through checker, purity, generic
+substitution, emission and tooling; audited stdlib exports, coordinated source
+migration, native/browser and installed/bootstrap conformance. Remove the staged
+execution gate and current flattening only with that identity integration and
+fresh namespace-capable seed/source migration. This slice is not release-ready.
+
+The following original assessment is historical; P1 delivered its design outcome.
 The first outcome is a reviewed design with worked multi-file examples, a current
 behavior audit, compatibility/migration decisions and positive/negative acceptance
 cases. Cover private helpers, public entry points, aliases, selective imports,

@@ -1,0 +1,2 @@
+pub pure answer(): Nat { 42 }
+main(): Void { print(answer()) }

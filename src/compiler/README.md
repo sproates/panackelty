@@ -16,8 +16,8 @@ refer to the original module and use Unicode code-point offsets with one-based
 line/column coordinates. Ranges include delimiters and explicit generic arguments;
 method lowering retains the written receiver/method range. Parentheses extend the
 outer range without changing rendering or child expression ranges. Synthetic
-unlocated expressions return `None` from `expression_span`. This is expression
-attribution, not spans for every declaration, statement or generated instruction.
+unlocated expressions return `None` from `expression_span`. The separate module syntax metadata also retains top-level declaration/import
+spans. Statement and generated-instruction attribution remain separate.
 The emitter can retain these ranges through `compile_program_with_sources`.
 Its sparse entries identify function-local instruction indices and distinguish
 expression operations from lowered machinery. Missing entries mean unavailable;
@@ -36,8 +36,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   with complete nested generic and
   array type references. Generic record fields and enum variant payloads are
   parsed alongside pure and impure functions with scoped type parameters and
-  optional explicit type arguments at direct and receiver-first calls. The parser now covers the complete
-  accepted language grammar. `indexed_program` retains declaration order while
+  optional explicit type arguments at direct and receiver-first calls. The parser covers the complete
+  accepted executable grammar; raw module parsing also retains staged namespace
+  declaration/import forms without enabling their execution. `indexed_program` retains declaration order while
   building separate type/record/enum/function indexes and variant metadata.
   Construct programs through this factory, including synthetic test ASTs.
   Module combination rebuilds indexes; checker lookups preserve last-match
@@ -52,6 +53,17 @@ documented in `../../docs/SOURCE_MAPS.md`.
   their combined namespace without performing file I/O. Plain `name = value`
   introduces an immutable local only when no local or parameter is visible;
   explicit declarations retain the no-shadowing rule.
+- `module_bindings.panack` builds per-module declaration/import inventories from
+  `ParsedModule`, with visibility, declaration spans, tagged package/module/name
+  identities, enum ownership and private/ambiguous export lookup. The loader
+  retains these before combination, separates physical source paths from relative
+  semantic identity, and passes declaration origins into resolver diagnostics.
+  This foundation does not resolve cross-module aliases/re-exports or enforce
+  public signatures/local shadowing. The raw module parser retains `pub`, alias
+  and selective import syntax, while `parse_program_complete` and the loader fail
+  closed on it pending qualified syntax, checked/emitted identities and coordinated
+  compiler/stdlib/fixture migration. Remove this temporary bootstrap boundary only
+  with those integrations and fresh seed conformance; it is not a second mode.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete

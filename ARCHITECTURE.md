@@ -229,6 +229,24 @@ root `VERSION` file in a checkout or the installed copy and handles
 `panack --version` without altering the reproducible compiler bytecode. The
 checked program then crosses back into the pure emitter and serializer.
 
+Before combination, `ParsedModule` retains declaration spans, visibility and import
+binding syntax alongside each per-file `Program`. `module_bindings.panack` builds
+local declaration/export inventories with tagged standalone/toolchain package,
+relative module path and declaration name identities. Physical source paths remain
+separate; original core bindings precede its existing internal callable renaming.
+`LoadedProject.modules` preserves those source units. The resolver receives the
+aligned declaration origins while creating diagnostics, so repeated name conflicts
+in different files retain distinct locations.
+
+This is the first namespace foundation, not resolved namespace execution. Import
+paths/selectors remain unresolved binding metadata; cross-module aliases/re-exports,
+qualified expressions/types, nominal/effect/emission identity and source migration
+remain P2 work. `parse_program_complete` and the loader reject explicit namespace
+syntax before checked emission. The temporary gate has no user-selectable mode;
+remove it with complete downstream identity integration and bootstrap migration.
+Ordinary method lowering, including `.get`/`.first`, is still the current value
+receiver lowering and must move behind binding resolution in that later slice.
+
 Parsed `Program` values retain declarations in source order and immutable
 per-kind name indexes constructed by `indexed_program`. Module combination
 rebuilds the indexes against the combined declaration array; it never carries

@@ -1,0 +1,2 @@
+import "helper.panack"::{answer}
+main(): Void { print(42) }

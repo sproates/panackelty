@@ -656,6 +656,11 @@ a pure comparator. Other library APIs remain explicit: import a module such as
 from a checkout and an installed toolchain. See the
 [standard-library guide](src/stdlib/README.md) and
 [collections example](examples/collections_and_bytes.panack).
+Language namespaces are under development. Current imports still combine names;
+`pub`, import aliases and selective imports are rejected pending the coordinated
+migration. See [the current import contract](SPEC.md#modules) and
+[namespace progress](ROADMAP.md#rm-41).
+
 The separately imported `stdlib/testing` module provides pure assertions and
 ordered result reporting for Panackelty test programs.
 `stdlib/testing_files` adds sorted fixture-directory discovery and explicitly

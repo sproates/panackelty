@@ -141,10 +141,8 @@ Windows and other architectures are not part of the initial preview.
 ### Optional: install with one command
 
 This is an additional route for readers who prefer an installer. The manual
-archive instructions below remain supported. The script in this branch is under
-verification; the public command below becomes available when this change merges
-to `main`. Until then, use the manual instructions or run `sh scripts/install.sh`
-from this checkout.
+archive instructions below remain supported. The public installer supports the
+same Ubuntu and macOS release targets.
 
 ```sh
 curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh

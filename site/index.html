@@ -146,6 +146,14 @@ main(): Void {
       <section class="content-section" id="start" aria-labelledby="start-title">
         <div class="section-heading"><p class="eyebrow">Your first program</p><h2 id="start-title">From download<br>to “Hello, Ada.”</h2></div>
         <p class="section-intro">Start with developer preview <strong>0.1.0-alpha.10</strong>. It includes the command, VM, compiler and standard library. Initial downloads support Ubuntu 22.04 or newer on x86-64 and macOS 14 or newer on Apple silicon; Windows is not part of this preview.</p>
+        <div class="development-note" id="optional-installer">
+          <span class="badge">Optional installation route</span><h3>Install with one command</h3>
+          <p>The installer selects <strong>0.1.0-alpha.10</strong> for the supported Ubuntu x86-64 and macOS Apple silicon versions above. It verifies the release checksum and installs in your home directory without <code>sudo</code>. <a href="https://github.com/sproates/panackelty/blob/main/scripts/install.sh">Inspect the script</a> before running it; the <a href="https://github.com/sproates/panackelty/blob/main/README.md#optional-install-with-one-command">installer guide</a> explains trust, version selection, upgrades and removal.</p>
+          <pre><code id="optional-install-command">curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh</code></pre>
+          <p>Save the <a href="#hello-example">greeting example</a> as <code>hello.panack</code> in a directory you own. Use the check, run and compile commands below, replacing <code>./panackelty/bin/panack</code> with <code>"$HOME/.local/bin/panack"</code>. For optional command discovery in this shell:</p>
+          <pre><code>export PATH="$HOME/.local/bin:$PATH"</code></pre>
+          <p>The script never edits shell startup files. With that PATH choice, you can use <code>panack</code> directly. Prefer downloading and extracting the archive yourself? All manual steps follow below.</p>
+        </div>
         <ol class="steps">
           <li><h3>Download and verify</h3><p>Start in a new, empty directory you own. You need a terminal with Bash or zsh, <code>curl</code>, <code>tar</code> and your platform's SHA-256 utility. Copy the complete block for your platform to download the archive and matching checksum from the <a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">alpha.10 release</a>. No administrator permissions or source checkout are needed.</p>
             <details open><summary>Linux x86-64</summary><pre><code>(

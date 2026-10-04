@@ -101,6 +101,13 @@ printf 'untracked candidate\n' > addition.txt
 before=$(git status --porcelain)
 LC_ALL=POSIX CHECK_BUDGET_SECONDS=999 INCREMENTAL_BUDGET_SECONDS=999 FUNCTIONAL_BUDGET_SECONDS=999 BOOTSTRAP_BUDGET_SECONDS=999 \
 BASELINE_TEST_OUTPUT="$work/report" sh tests/without_interpreter.sh compiler > "$work/output" 2>&1 || { cat "$work/output" >&2; exit 1; }
+if grep 'sw_vers:.*not found' "$work/output" >/dev/null; then
+    fail 'missing optional macOS metadata command leaked into output'
+fi
+if [ "$(uname -s)" = Darwin ]; then
+    expected_os=$(sw_vers -productVersion 2>/dev/null || printf unavailable)
+    grep -F -x "os_version=$expected_os" "$work/report/environment.txt" >/dev/null || fail 'isolated macOS metadata differs from available host evidence'
+fi
 [ "$(wc -l < "$work/time-calls" | tr -d ' ')" = 12 ] || fail 'isolated external timer not used for every sample'
 [ "$(git status --porcelain)" = "$before" ] || fail 'source worktree changed'
 [ -f "$work/report/COMPLETE" ] || fail 'completion marker missing'

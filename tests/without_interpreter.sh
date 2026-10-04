@@ -16,7 +16,7 @@ mkdir "$work/bin"
 for utility in sh bash git make cc gcc clang as ld ar ranlib xcrun xcodebuild \
     awk basename cat chmod cmp comm cp cut date dd diff dirname env find grep gzip \
     head install ln mkdir mkfifo mktemp mv od readlink realpath rm rmdir sed sha256sum shasum \
-    sleep sort stat tail tar tee time touch tr uname wc which xargs; do
+    sleep sort stat sw_vers sysctl tail tar tee time touch tr uname wc which xargs; do
     if [ "$utility" = time ]; then
         # bash reports its keyword from command -v; the isolated PATH needs the
         # external POSIX utility used by dash and command time alike.

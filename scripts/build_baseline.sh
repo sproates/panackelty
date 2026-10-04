@@ -73,7 +73,7 @@ while IFS= read -r file; do hash "$file"; done < "$work/archive-paths" > "$out/s
     if [ "$(uname -s)" = Darwin ]; then
         printf 'hardware=%s\n' "$(sysctl -n hw.model 2>/dev/null || printf unavailable)"
         printf 'cpu=%s\n' "$(sysctl -n machdep.cpu.brand_string 2>/dev/null || printf unavailable)"
-        printf 'os_version=%s\n' "$(sw_vers -productVersion)"
+        printf 'os_version=%s\n' "$(sw_vers -productVersion 2>/dev/null || printf unavailable)"
     elif [ -f /etc/os-release ]; then sed -n '/^PRETTY_NAME=/p' /etc/os-release; fi
 } > "$out/environment.txt"
 printf 'scenario\trepeat\tseconds\tstatus\tprobe_compiles\tprobe_runs\tnative_build_commands\tprobe_compile_seconds\tprobe_run_seconds\n' > "$out/samples.tsv"
@@ -81,17 +81,22 @@ observe() {
     observed_scenario=$1; observed_repeat=$2; shift 2
     run=$observed_scenario-$observed_repeat
     export VALIDATION_PROFILE_RUN="$run"
-    timer_status=0
     # Some time implementations normalize a failed child's exit status. Keep
     # the workload result independently, while retaining timer failures too.
-    { command time -p sh -c '
+    # Use a direct conditional: older sh can exit before a brace-group OR
+    # handler records a failing timer when errexit is enabled.
+    if command time -p sh -c '
         errors=$1; result=$2; shift 2
         status=0
         "$@" 2>"$errors" || status=$?
         printf "%s\n" "$status" > "$result" || exit 125
         exit "$status"
-    ' sh "$out/$run.stderr" "$out/$run.status" "$@" > "$out/$run.log"; } \
-        2> "$out/$run.time" || timer_status=$?
+    ' sh "$out/$run.stderr" "$out/$run.status" "$@" \
+        > "$out/$run.log" 2> "$out/$run.time"; then
+        timer_status=0
+    else
+        timer_status=$?
+    fi
     printf '%s\n' "$timer_status" > "$out/$run.timer-status"
     status=125
     if [ -f "$out/$run.status" ]; then

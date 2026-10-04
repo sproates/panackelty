@@ -800,6 +800,8 @@ local development content. The original checkout and its caches are not modified
 fixed `-O2`, serial Make dispatch, two validation workers and seed/VM/stage-2 hashes.
 Inherited build/test overrides and budget overrides are cleared, retaining the
 repository targets of 120/15/75/60 seconds for full/focused/functional/bootstrap.
+The native-tool allowlist retains available `sysctl`/`sw_vers` host metadata;
+platform commands absent from a restricted PATH report `unavailable`.
 Project caches are removed before each clean full check; OS page caches are
 uncontrolled. Warm focused runs reuse the final clean run's artifacts. Each probe
 trial starts with a copy of the same successfully primed baseline cache at the same

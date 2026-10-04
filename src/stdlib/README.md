@@ -148,4 +148,5 @@ public behaviour on both supported platforms.
 native servers. The compiler builtin `tcp_serve` checks its named async handler
 and returns ordered per-client outcomes. See the [TCP server contract](../../SPEC.md#native-tcp-server-development-toolchain)
 for field order, bounds, EOF framing and shutdown. Raw TCP is unavailable in the
-browser and absent from alpha.10 downloads.
+browser. These native operations are included in alpha.11 and were absent from
+alpha.10 downloads.

@@ -67,26 +67,22 @@ The [API specification](SPEC.md#paths-and-monotonic-time) and
 [executable example](tests/functional/cases/host_types/main.panack) show their
 contracts and use.
 
-## Alpha.11 release preparation
+## Native alpha.11 capabilities
 
-The current source identifies itself as `0.1.0-alpha.11`. Its release candidate
-includes native TCP client/server operations, corrected guard invalidation,
+Alpha.11 adds native TCP client/server operations, corrected guard invalidation,
 optional source maps and bounded compiler explanations. See the
 [alpha.11 notes](CHANGELOG.md#010-alpha11--2026-10-04) for limits and migration.
-Publication and exact public-archive acceptance are still pending. Download and
-installer instructions below deliberately remain on verified alpha.10; the
-browser playground is independently pinned. Namespace execution is not included.
+The browser playground is independently pinned; namespace execution is not included.
 
 ## Experimental async source support
 
-The alpha.10 toolchain supports `async` functions, explicit `await` and
-`AsyncFn` references with a fixed fake read service. The
-[executable example](tests/functional/cases/async_await/main.panack) checks typed
-success/error results and nested suspension. This is a bounded language/runtime
-slice, not networking support; source spawning and resource scopes remain future
-work. It uses bytecode v9, so saved v8 programs need recompilation.
+The alpha.11 native toolchain supports `async` functions, explicit `await` and
+`AsyncFn` references. The [executable example](tests/functional/cases/async_await/main.panack)
+checks typed success/error results and nested suspension through a fixed fake
+read service. Source spawning and resource scopes remain future work. It uses
+bytecode v9, so saved v8 programs need recompilation.
 
-The development checkout additionally supports a bounded native TCP client:
+A bounded native TCP client is also available:
 
 ```panack
 async request(): Result[Bytes,Str] {
@@ -97,15 +93,14 @@ async request(): Result[Bytes,Str] {
 It sends the request, closes the sending side, waits for the peer's response EOF,
 and returns bytes or an error. See the [runnable echo-client example](examples/network/tcp_exchange.panack)
 and [TCP contract](SPEC.md#native-tcp-exchange-development-toolchain).
-This feature is not in the alpha.10 downloads. It supports numeric IPv4 on
-Linux/macOS, with response limits and timeouts. The development checkout also
-supports [finite concurrent TCP servers](examples/network/tcp_serve.panack):
+It supports numeric IPv4 on Linux/macOS, with response limits and timeouts.
+Alpha.11 also supports [finite concurrent TCP servers](examples/network/tcp_serve.panack):
 import `stdlib/tcp`, supply explicit `TcpServerLimits`, and await `tcp_serve`
 with a named async byte-request handler. The runtime owns accepted connections,
 schedules handlers and drains or cancels clients on shutdown. See the
 [server contract](SPEC.md#native-tcp-server-development-toolchain).
-DNS, TLS, HTTP and general source spawning remain future work. Neither native
-networking feature is in alpha.10; the browser cannot open raw TCP sockets.
+DNS, TLS, HTTP and general source spawning remain future work. These native
+networking operations were absent from alpha.10; the browser cannot open raw TCP sockets.
 
 ## Start writing Panackelty
 
@@ -113,15 +108,25 @@ The developer preview is designed to be downloaded and run directly. The
 download contains everything needed to check, compile, and run programs: the
 `panack` command, native VM, self-hosted compiler, and standard library.
 
-Developer-preview archives for `0.1.0-alpha.10` are available from the
-[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10).
+Developer-preview archives for `0.1.0-alpha.11` are available from the
+[GitHub release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.11).
 The [release policy](RELEASE_POLICY.md) defines the preview's support and
 compatibility boundaries.
+
+### Upgrading from alpha.10
+
+Use the matching alpha.11 compiler, VM and standard library together. Bytecode
+remains v9, but alpha.10 runtimes do not implement the new TCP builtins. The
+checker now invalidates guard proofs after mutation: re-establish the proof for
+the current value if a program relied on a stale fact. Optional source-map
+sidecars contain source text; review them before sharing. Namespaces remain
+staged and unavailable for execution. See the
+[alpha.11 migration notes](CHANGELOG.md#010-alpha11--2026-10-04).
 
 ### Upgrading from alpha.9
 
 This preview deliberately changes source APIs and saved bytecode. Recompile v8
-bytecode from source with alpha.10; the VM accepts bytecode v9 only.
+bytecode from source with alpha.11; the VM accepts bytecode v9 only.
 
 `Option`, `Result` and their constructors are now available without imports.
 Remove `stdlib/text` and `stdlib/collections` imports and use methods such as
@@ -143,8 +148,8 @@ adjacent `.sha256` file from the Releases page:
 
 | System | Archive |
 | --- | --- |
-| Linux x86-64 | `panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz` |
-| macOS arm64 | `panackelty-0.1.0-alpha.10-macos-arm64.tar.gz` |
+| Linux x86-64 | `panackelty-0.1.0-alpha.11-linux-x86_64.tar.gz` |
+| macOS arm64 | `panackelty-0.1.0-alpha.11-macos-arm64.tar.gz` |
 
 Windows and other architectures are not part of the initial preview.
 
@@ -159,7 +164,7 @@ curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-
 ```
 
 The command executes the [inspectable installer](scripts/install.sh) from the
-repository's current `main`. It selects `0.1.0-alpha.10` by default, checks the
+repository's current `main`. It selects `0.1.0-alpha.11` by default, checks the
 supported OS/architecture, downloads the release and its SHA-256 file over HTTPS,
 and verifies the checksum before unpacking or activating it. Trust includes
 GitHub, this repository and your local tools. Same-source checksums detect damaged
@@ -195,7 +200,7 @@ With your downloaded, reviewed `install.sh`, select a published version, repeat
 an installation, upgrade (or return to a retained version), and remove:
 
 ```sh
-sh install.sh --version 0.1.0-alpha.10
+sh install.sh --version 0.1.0-alpha.11
 sh install.sh --uninstall
 ```
 
@@ -229,8 +234,8 @@ permissions or source checkout are needed.
 ```sh
 (
   set -eu
-  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
-  archive=panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.11
+  archive=panackelty-0.1.0-alpha.11-linux-x86_64.tar.gz
   curl --fail --location --show-error --output "$archive" "$release/$archive"
   curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
   sha256sum -c "$archive.sha256"
@@ -246,8 +251,8 @@ permissions or source checkout are needed.
 ```sh
 (
   set -eu
-  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
-  archive=panackelty-0.1.0-alpha.10-macos-arm64.tar.gz
+  release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.11
+  archive=panackelty-0.1.0-alpha.11-macos-arm64.tar.gz
   curl --fail --location --show-error --output "$archive" "$release/$archive"
   curl --fail --location --show-error --output "$archive.sha256" "$release/$archive.sha256"
   shasum -a 256 -c "$archive.sha256"
@@ -258,7 +263,7 @@ permissions or source checkout are needed.
 <!-- release-install-macos-arm64-end -->
 
 The checksum command must report the archive as `OK`, followed by
-`panack 0.1.0-alpha.10 (bytecode 9)`. If either download or verification fails,
+`panack 0.1.0-alpha.11 (bytecode 9)`. If either download or verification fails,
 stop and resolve that error before continuing; do not extract or run the archive.
 Both archives expand into `panackelty/`. Keep that whole directory together.
 
@@ -298,11 +303,11 @@ Positioned errors also show the source line and a caret. Tabs expand to
 four-column stops; Unicode and control characters appear as `\u{hex}` escapes
 to keep the caret aligned.
 
-The alpha.10 toolchain produces the output below.
+The alpha.11 toolchain produces the output below.
 
 <!-- quick-start-output-begin -->
 ```text
-panack 0.1.0-alpha.10 (bytecode 9)
+panack 0.1.0-alpha.11 (bytecode 9)
 ok
 Hello, Ada. The answer is 42.
 wrote hello.bc

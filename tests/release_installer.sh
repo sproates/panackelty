@@ -27,7 +27,7 @@ sh -eu installed-commands > actual 2> errors
 test ! -s errors
 cmp expected actual
 cat actual
-sh "$root/scripts/install.sh" --version 0.1.0-alpha.10
+sh "$root/scripts/install.sh" --version 0.1.0-alpha.11
 sh "$root/scripts/install.sh" --uninstall
 test ! -e "$HOME/.local/opt/panackelty-installer"
 test ! -L "$HOME/.local/bin/panack"

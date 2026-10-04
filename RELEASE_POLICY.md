@@ -1,8 +1,6 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.11` is the developer-preview release candidate.
-Published download defaults remain alpha.10 until alpha.11 public artifacts pass
-verification. It is intended for learning,
+Panackelty `0.1.0-alpha.11` is a published developer preview. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 

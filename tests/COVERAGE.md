@@ -773,7 +773,7 @@ target rejection, repeat installs, version changes/rollback, transport/checksum
 failures, unsafe archive paths and links, wrong executable versions, locally
 modified/non-executable installs, native compiler startup failures, locking,
 signal cleanup and owned removal (including a dangling owned command link).
-`tests/release_installer.sh` independently downloads the published alpha.10
+`tests/release_installer.sh` independently downloads the published alpha.11
 archive and asserts the complete README Hello World/check/run/compile/bytecode
 output, repeat installation and removal. Check runs it on Ubuntu 22.04 x86_64 and
 macOS 14 arm64; network acceptance is separate from offline `make check`.

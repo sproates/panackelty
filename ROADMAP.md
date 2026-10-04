@@ -103,8 +103,8 @@ establishment tranche below has its own stable denominator.
 
 The modules/packages/HTTP programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
-the next bounded body-identity integration slice is in progress; full body/effect/
-emission integration remains pending. Compiler understanding
+bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and
+control flow are next; full body/effect/emission integration remains pending. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -300,7 +300,9 @@ its first module/binding foundation merged in
 [PR#261: Establish module binding identities](https://github.com/sproates/panackelty/pull/261)
 as `a5cdb1a`, followed by qualified-reference syntax and cross-module binding
 resolution in PR#262. [PR#275: Checked namespace signatures](https://github.com/sproates/panackelty/pull/275)
-merged checked declaration/signature identities as `0bcf092`. P3–P8 remain planned and unstarted. P2 selection is separate from design acceptance.
+merged checked declaration/signature identities as `0bcf092`. PR#284 merged bounded
+function-body identities as `9f8f8a0`. These four foundations are delivered; P3–P8
+remain planned and unstarted. P2 selection is separate from design acceptance.
 The compiler-understanding programme remains paused; its scope is retained.
 
 User decision, 2026-10-04: **P2 → P3 → P4 → language/local-package release,
@@ -341,7 +343,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — checked signatures; bounded body identities in review | P1 | Large; original 3–5 PR estimate requires reassessment |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — four foundations merged; remaining checklist below | P1 | Large; provisionally 10–18 remaining PRs; reassess after checklist slices 1–3 |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -424,7 +426,8 @@ P1 has earned its design-task credit through merged PR#240, supported by the del
 P2 is In progress: PR#261 merged its metadata/identity foundation and PR#262
 merged raw qualified syntax, cross-module binding/re-export resolution and
 diagnostics. PR#275 merged checked declaration/signature identities as `0bcf092`;
-body/effect/emission identity integration and migration remain. These provide
+PR#284 merged bounded function-body identities as `9f8f8a0`. Remaining body
+checking, effect/emission identity integration and migration remain. These provide
 partial implementation evidence without executable namespace acceptance. No stable sub-outcome
 allocation exists within P2, so its partial completion and estimated contribution
 remain unquantified rather than assigning credit by PR count. P3–P8 remain Planned.
@@ -446,8 +449,9 @@ in its issue and update this register at delivery. A design or experiment does n
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. The next action is
-review and validate the bounded body-identity slice, then complete remaining
-body inference/proofs, effect/emission/tooling integration and P2 acceptance and the selected P3/P4 sequence. P3–P8 have not started.
+slice 1 of the [P2 delivery checklist](#p2-delivery-checklist), ordinary expressions
+and control flow, followed by the remaining P2 acceptance and selected P3/P4
+sequence. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -2995,7 +2999,7 @@ slice, not full P2 acceptance; partial completion remains unknown and the accept
 programme contribution remains 10 pp. See the
 [performance disposition](tests/VALIDATION_PROFILE.md#namespace-checked-signatures--2026-10-04).
 
-**Proposed bound function-body slice:** the loader now prepares callable contracts
+**Merged bound function-body slice — PR#284, `9f8f8a0`:** the loader now prepares callable contracts
 before retaining structural function bodies with original call identities, lexical
 binder identities and source spans. Bounded checks cover annotated locals,
 assignment, direct/qualified/helper argument and return identity compatibility,
@@ -3008,10 +3012,68 @@ intermediate delivery; GI#198 stays open and accepted programme credit remains
 10 pp with P2 partial progress unknown. See the
 [body identity performance disposition](tests/VALIDATION_PROFILE.md#namespace-bound-function-bodies--2026-10-04).
 
-P2's original large/3–5 PR estimate requires reassessment. Remaining delivery
-count is unquantified pending decomposition of effect/emission integration,
-guard/general inference, coordinated migration and acceptance. This changes no
-scope or weight and awards no additional completion credit.
+P2's original large/3–5 total-PR estimate is superseded by the provisional
+remaining-work decomposition below, not by counting completed PRs. This changes
+no scope or weight and awards no additional completion credit.
+
+### P2 delivery checklist — remaining work
+
+<a id="p2-delivery-checklist"></a>
+
+User decision, 2026-10-04: P2 is the sole current implementation priority. Record
+the eight remaining slices for handoff; this documentation change starts no code
+implementation. These are ordered acceptance checklists within RM#41 / GI#198,
+not eight independently tracked initiatives. PR#261, PR#262, PR#275 and PR#284 are
+merged foundations, not complete executable namespace acceptance. The next slice
+is **1: ordinary expressions and control flow**.
+
+| Slice | Finish line and required evidence | Dependencies | Provisional remaining PRs |
+| --- | --- | --- | ---: |
+| 1. Ordinary expressions and control flow | Identity-based checking covers operators, bindings/assignments, branches, loops and returns, including locals referenced within interpolation. Positive and rejected cases preserve lexical identity, evaluation/checking rules and source spans; unsupported paths remain explicit. | Merged body/signature foundations | 1–2 |
+| 2. Aggregates, patterns and generic inference | Records/enums, constructors, collection values, destructuring/matching and inferred generic arguments use declaration identities. Same-spelled nominal types remain distinct inside nested types and patterns; arity, exhaustiveness and inference failures remain useful. | 1; existing generic contracts | 2–3 |
+| 3. Core and indirect-call contracts | Core operations/methods, receiver calls and indirect callable values share checked contracts with direct calls. Reserved core identity cannot be forged; wrong arguments/results and ambiguous receiver/namespace uses reject correctly. | 1–2 | 1–2 |
+| 4. Guard proofs | Guarded conversions, arithmetic obligations and mutation invalidation use identity-aware facts through the completed body checker. Positive, rejected and unavailable proofs preserve existing soundness and exact semantics. | 1–3 | 1–2 |
+| 5. Effects and await | Purity, callable effects, ordinary/async calls and await use the checked graph consistently, including imported/generic/indirect paths and recovered local explanation evidence. Invalid boundaries reject without implying whole-program validity. | 1–4 and callable contracts | 1–2 |
+| 6. Identity emission and standalone loading | Lower checked identities to unique emitted symbols and execute complete standalone programs through source and saved bytecode; no same-name collisions. All FILE-loaded modules use one namespace model; only the selected entry's main launches. Use reserved standalone compilation identity, the entry-directory root and local/toolchain-only imports; quoted paths cannot escape that root. Establish core loading and isolated bootstrap-root staging. Prove v9 conformance or justify a format change. | 1–5 | 1–2 |
+| 7. Diagnostics, explain and locate | Preserve original module/source identity and precise expression/type/pattern spans across checking and lowering. Qualified selectors are unambiguous; unqualified selectors work only when unique. Wrong identity, ambiguous selectors and stale mappings fail safely. | 1–6; span preservation applies throughout | 1–2 |
+| 8. Coordinated seed/source cutover and acceptance | Audit initial stdlib exports; migrate compiler, tests, examples and package inputs under one namespace model. Produce the namespace-capable seed, prove fresh compiler/stdlib fixed points and native/browser/installed conformance, document breaking migration, and remove obsolete flat execution and transitional code when its removal criterion is met. | 1–7; bootstrap-root staging established before source cutover | 2–3 |
+
+Total: **10–18 provisional remaining PRs**, including implementation, tests,
+documentation and integration; this is a forecast, not a commitment. Reassess
+after slices 1–3 using actual checker gaps, evidence and integration costs.
+Splitting or combining PRs must preserve these finish lines. Each handoff records
+the checklist slice, exact revision, positive/negative evidence, remaining gaps,
+performance disposition and next action. No slice is complete from assertion
+counts alone. Programme weights remain unchanged; P2 retains 20% weight with
+partial completion unquantified and the programme retains 10 pp accepted.
+
+Keep the public namespace execution gate until the checked/effect/emission path
+and coordinated migration are accepted; zero deferred checks in a bounded subset
+does not establish readiness. Preserve source identity and spans from the start,
+rather than rebuilding them at slice 7. Before P3 manifests exist, bootstrap a
+root-level entry in an isolated snapshot of the compiler/bytecode closure; do not
+permit parent-path escape from a `src/compiler/` confinement root. Remove staging
+outputs after each build. Temporary bootstrap inputs need explicit removal
+criteria and must not become a second installed language mode.
+
+P2 owns standalone namespace semantics, entry selection and entry-directory
+root confinement, necessary initial stdlib exports and its own
+bootstrap/native/browser/installed acceptance. P3 owns manifests, explicit
+project selection, dependency/package roots, physical identity and race-safe
+confinement hardening, and local-package consumption,
+including replacement of temporary root staging with a compiler manifest. P4
+owns final stdlib grouping/re-exports/prefix migration and obsolete adapter
+removal. P8 independently accepts the combined clean/relocated two-application
+local-package release after P1–P4; it is not counted again as P2 implementation.
+The P2 → P3 → P4 → release → HTTP sequence and the later conditional
+[next integration workflow](#rm-135) remain unchanged.
+
+Per-delivery performance checks and GI#106's owned comparison/remediation review
+remain part of P2 delivery. [RM#134: Compiler performance investigation](#rm-134)
+/ GI#285 remains unscheduled; neither deep profiling nor another workstream
+starts through this plan. Compiler understanding stays paused. This planning
+record changes no executable behavior or published capability; no runtime
+measurement or website promotion is needed for the record itself.
 
 Remaining P2 scope: precise type/pattern use spans; uniform identity-based body
 checking, purity/effect evidence, emission and tooling; audited stdlib exports, coordinated source

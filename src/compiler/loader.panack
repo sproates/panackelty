@@ -1,5 +1,5 @@
 import "../bytecode/decoder.panack"
-import "module_signatures.panack"
+import "module_bodies.panack"
 import "../stdlib/filesystem.panack"
 
 record ProjectLoadState {
@@ -20,7 +20,8 @@ record LoadedProject {
   effects: [EffectEvidence],
   effects_checked: Bool,
   function_types: Map[Str,Bool],
-  module_signatures: [ModuleSignature]
+  module_signatures: [ModuleSignature],
+  module_bodies: [BoundFunctionBody]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -268,6 +269,7 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
   program: Program = append_program_declarations(module_programs(loaded.modules))
   mut diagnostics: [Diagnostic] = loaded.diagnostics
   mut signatures: [ModuleSignature] = []
+  mut bodies: [BoundFunctionBody] = []
   mut staged: Bool = false
   for module in loaded.modules { staged = staged || len(module_execution_diagnostics(module.parsed)) > 0 }
   if staged {
@@ -275,12 +277,20 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
     graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
     diagnostics = concat(diagnostics, graph_errors)
     if len(graph_errors) == 0 {
+      // Complete contracts before bodies: source/import order and recursion
+      // cannot select a different callable identity or miss a later contract.
+      for module in loaded.modules {
+        checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, loaded.modules, module)
+        signatures = concat(signatures, checked_signatures.declarations)
+        if len(module_execution_diagnostics(module.parsed)) > 0 {
+          diagnostics = concat(diagnostics, checked_signatures.diagnostics)
+        }
+      }
       for module in loaded.modules {
         if len(module_execution_diagnostics(module.parsed)) > 0 {
-          diagnostics = concat(diagnostics, resolve_module_uses(graph, module.bindings.identity, module.parsed).diagnostics)
-          checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, loaded.modules, module)
-          diagnostics = concat(diagnostics, checked_signatures.diagnostics)
-          signatures = concat(signatures, checked_signatures.declarations)
+          checked_bodies: CheckedModuleBodies = check_module_bodies(graph, loaded.modules, signatures, module)
+          diagnostics = concat(diagnostics, checked_bodies.diagnostics)
+          bodies = concat(bodies, checked_bodies.functions)
         }
       }
     }
@@ -301,7 +311,7 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
     function_types = checked.function_types
     effects_checked = len(checked.diagnostics) == 0 || (retain && checked.declarations_valid)
   }
-  LoadedProject(program, loaded.modules, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked, function_types, signatures)
+  LoadedProject(program, loaded.modules, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked, function_types, signatures, bodies)
 }
 
 // Build semantic edges only from the loader's normalized path decisions.

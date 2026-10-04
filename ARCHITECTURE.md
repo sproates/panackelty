@@ -250,8 +250,9 @@ explicit graph of module bindings and resolved import edges, follows selective a
 namespace re-exports without changing declaration identity, and distinguishes a
 namespace call from a value method before reserved `.get`/`.first` lowering.
 A completed-node graph walk shares diamond dependencies while detecting cycles.
-The raw-use pass retains resolved reference identities and rejects private or
-missing bindings, namespace values and import/local/type-parameter collisions.
+The raw expression resolver retains identities for guarded-type accessibility;
+function bodies use the bound representation below. Both reject private or missing
+bindings, namespace values and import/local/type-parameter collisions.
 Expression references retain their original expression spans; type references and
 pattern selectors currently use their owning declaration or match span.
 
@@ -261,13 +262,34 @@ identities. Public signature reachability follows explicit exports by original
 identity, including alternate aliases and transitive re-exports. It checks nested
 array/generic/callable types, origin arity and guard helper accessibility; public
 function bodies may still call private helpers. Substitution follows the owning
-binder rather than source spelling. The loader retains valid signatures and
-positioned diagnostics only for staged modules, without traversing this layer for
-ordinary legacy programs. Nominal declaration lookup and export reachability still
+binder rather than source spelling. The loader first collects contracts across the loaded graph, then binds staged
+function bodies, so recursion and declaration/import order cannot hide a callee.
+Ordinary legacy programs do not traverse either pass. Nominal declaration lookup and export reachability still
 scan the small loaded graph; this is not a scaling or indexing claim.
 
-This is a checked signature layer, not checked namespace execution. Identity-based
-body checking, effect evidence, emission and source/explanation tooling integration,
+`module_bodies.panack` retains a structural body tree with original declaration
+call targets, tagged core operations, function-scoped lexical binder paths,
+statement/branch order, tail-value distinction and source spans. Namespace calls
+resolve before receiver helpers; direct core calls retain their spelling while
+value methods select reserved lowering before user helpers. The loader uses this
+representation instead of the old full-module raw-reference walk. Its bounded
+identity-type checks cover literals, parameter/local references, annotations,
+assignment, non-generic callable references, direct/qualified/helper calls with
+explicit generic substitution, and return compatibility. Nominals compare original
+identities; callable effects remain distinct, with the existing PureFn-to-Fn and
+Nat-to-Int compatibility rules. Public function bodies can use private helpers.
+
+A missing type is not successful validation. Deferred spans record operations
+awaiting inference or proof checking: core operations, constructors, fields,
+operators, control-flow joins, inferred generic calls and async call/await results.
+Even an empty deferred list certifies only this identity-type subset, not purity,
+await legality or executable code. Checked signatures and the bound body tree are
+the input boundary for subsequent consumer migration; no identity is encoded as a
+synthetic name or fed through a flattened legacy checker. The raw full-module
+projection survives only as a test adapter for lower-level binding contracts.
+
+This is not checked namespace execution. Remaining body inference/proofs,
+effect evidence, emission and source/explanation tooling integration,
 more precise type/pattern use spans and coordinated source migration remain P2 work. `parse_program_complete` and the loader fail closed on staged
 syntax, including qualified uses with default imports or no explicit `pub`.
 Only the gated legacy execution tree lowers value methods and combines names;

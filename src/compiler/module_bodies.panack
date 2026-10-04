@@ -1,0 +1,414 @@
+import "module_signatures.panack"
+
+// Structural lexical paths are identities, never names lowered into Program.
+record BodyLocalIdentity { owner: DeclarationIdentity, path: [Nat], name: Str }
+record BodyLocal { identity: BodyLocalIdentity, type: Option[SignatureType], mutable: Bool }
+enum BodyTarget { BodyDeclaration(ModuleDeclarationBinding), BodyCore(Str) }
+enum BodyNode {
+  BodyLiteral(Expr), BodyLocalUse(BodyLocalIdentity), BodyFunction(ModuleDeclarationBinding),
+  BodyCall(BodyTarget, [SignatureType]), BodyArray, BodyUnary(Str), BodyBinary(Str),
+  BodyField(Str), BodyIndex, BodyIf(Bool), BodyBlock(Bool),
+  BodyMatch([BodyTarget], [[BodyLocalIdentity]]),
+  BodyBinding(BodyLocalIdentity, Option[SignatureType], Bool), BodyAssignment(BodyLocalIdentity),
+  BodyWhile, BodyFor(BodyLocalIdentity), BodyEmpty
+}
+record BoundBody {
+  node: BodyNode, span: SourceSpan, children: [BoundBody], type: Option[SignatureType]
+}
+record BodyContext {
+  graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature],
+  owner: DeclarationIdentity, parameters: [Str]
+}
+record BodyResult { body: BoundBody, diagnostics: [Diagnostic], deferred: [SourceSpan] }
+record BoundFunctionBody { signature: ModuleSignature, parameters: [BodyLocal], body: BoundBody, deferred: [SourceSpan] }
+record CheckedModuleBodies { functions: [BoundFunctionBody], diagnostics: [Diagnostic] }
+
+pure body_core_type(name: Str): Option[SignatureType] { Some(SignatureType(SignatureCore(name), [])) }
+pure body_result(node: BodyNode, span: SourceSpan, children: [BoundBody], type: Option[SignatureType]): BodyResult {
+  BodyResult(BoundBody(node, span, children, type), [], [])
+}
+pure body_failure(message: Str, span: SourceSpan): BodyResult {
+  BodyResult(BoundBody(BodyEmpty(), span, [], None()), [Diagnostic(message, span.start)], [])
+}
+pure body_signature(signatures: [ModuleSignature], identity: DeclarationIdentity): Option[ModuleSignature] {
+  mut found: Option[ModuleSignature] = None()
+  for signature in signatures { if signature.binding.identity == identity { found = Some(signature) } }
+  found
+}
+pure body_type_text(type: SignatureType): Str {
+  head: Str = match type.identity {
+    SignatureCore(name) => name,
+    SignatureNominal(identity) => identity.module.path + ":" + identity.name,
+    SignatureParameter(owner, index) => owner.module.path + ":" + owner.name + " parameter ${index}",
+    SignatureCallable(effect) => match effect { SignaturePure() => "PureFn", SignatureOrdinary() => "Fn", SignatureAsync() => "AsyncFn" }
+  }
+  mut arguments: [Str] = []
+  for argument in type.arguments { arguments = append(arguments, body_type_text(argument)) }
+  if len(arguments) == 0 { head } else { render_type(head, arguments) }
+}
+// This subset has no proof/inference placeholders. Guard conversions require
+// the shared proof checker; do not reject or approve them by spelling.
+pure body_compatibility(context: BodyContext, actual: SignatureType, expected: SignatureType): Option[Bool] {
+  if actual == expected || (actual == SignatureType(SignatureCore("Nat"), []) && expected == SignatureType(SignatureCore("Int"), [])) { Some(true) }
+  else {
+    mut guarded: Bool = false
+    for type in [actual, expected] {
+      match type.identity {
+        SignatureNominal(identity) => match signature_declaration(context.modules, identity) {
+          Error(message) => {},
+          Ok(declaration) => match declaration {
+            TypeDeclaration(name, base, guard) => { guarded = true },
+            ImportDeclaration(path) => {}, RecordDeclaration(name, types, fields) => {},
+            EnumDeclaration(name, types, variants) => {}, FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => {}
+          }
+        },
+        SignatureCore(name) => {}, SignatureParameter(owner, index) => {}, SignatureCallable(effect) => {}
+      }
+    }
+    if guarded { None() }
+    else {
+      mut callable: Bool = false
+      match actual.identity { SignatureCallable(effect) => { callable = true }, SignatureCore(name) => {}, SignatureNominal(identity) => {}, SignatureParameter(owner, index) => {} }
+      match expected.identity { SignatureCallable(effect) => { callable = true }, SignatureCore(name) => {}, SignatureNominal(identity) => {}, SignatureParameter(owner, index) => {} }
+      if callable { Some(actual.identity == SignatureCallable(SignaturePure()) && expected.identity == SignatureCallable(SignatureOrdinary()) && actual.arguments == expected.arguments) }
+      else {
+        if actual.identity != expected.identity || len(actual.arguments) != len(expected.arguments) { Some(false) }
+        else {
+          mut compatible: Bool = true
+          mut deferred: Bool = false
+          mut index: Nat = 0
+          for argument in actual.arguments {
+            match body_compatibility(context, argument, expected.arguments[index]) { None() => { deferred = true }, Some(valid) => { compatible = compatible && valid } }
+            index = index + 1
+          }
+          if !compatible { Some(false) } else { if deferred { None() } else { Some(true) } }
+        }
+      }
+    }
+  }
+}
+pure body_require(context: BodyContext, actual: Option[SignatureType], expected: SignatureType, label: Str, span: SourceSpan): BodyResult {
+  mut result: BodyResult = body_result(BodyEmpty(), span, [], None())
+  match actual {
+    None() => { result = BodyResult(result.body, [], [span]) },
+    Some(type) => match body_compatibility(context, type, expected) {
+      None() => { result = BodyResult(result.body, [], [span]) },
+      Some(valid) => { if !valid { result = body_failure(label + " is " + body_type_text(type) + ", expected " + body_type_text(expected), span) } }
+    }
+  }
+  result
+}
+pure body_target(context: BodyContext, name: Str, function_only: Bool): Result[BodyTarget,Str] {
+  if !function_only && module_reserved_binding(name) { Ok(BodyCore(name)) }
+  else {
+    match resolve_module_path(context.graph, context.owner.module, name) {
+      Error(message) => Error(message),
+      Ok(target) => match target {
+        NamespaceTarget(owner) => Error("namespace cannot be called: " + name),
+        DeclarationTarget(binding) => {
+          if function_only && binding.kind != ModuleFunction() { Error("declaration is not a function: " + name) }
+          else { if binding.kind == ModuleEnum() { Error("enum type cannot be called: " + name) } else { Ok(BodyDeclaration(binding)) } }
+        }
+      }
+    }
+  }
+}
+pure body_call(context: BodyContext, target: BodyTarget, arguments: [Expr], types: [Str], span: SourceSpan, locals: Map[Str,BodyLocal], path: [Nat]): BodyResult {
+  mut children: [BoundBody] = []
+  mut diagnostics: [Diagnostic] = []
+  mut deferred: [SourceSpan] = []
+  mut index: Nat = 0
+  for argument in arguments {
+    checked: BodyResult = bind_body_expression(context, argument, span, locals, append(path, index))
+    children = append(children, checked.body); diagnostics = concat(diagnostics, checked.diagnostics); deferred = concat(deferred, checked.deferred)
+    index = index + 1
+  }
+  mut resolved_types: [SignatureType] = []
+  for type in types {
+    match signature_type(context.graph, context.modules, context.owner, context.parameters, type, false, false) {
+      Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, span.start)) },
+      Ok(resolved) => { resolved_types = append(resolved_types, resolved) }
+    }
+  }
+  mut output: Option[SignatureType] = None()
+  match target {
+    BodyCore(name) => { deferred = append(deferred, span) },
+    BodyDeclaration(binding) => {
+      match body_signature(context.signatures, binding.identity) {
+        None() => {
+          if binding.kind == ModuleFunction() { diagnostics = append(diagnostics, Diagnostic("call signature unavailable for " + binding.identity.module.path + ":" + binding.identity.name, span.start)) }
+          else { deferred = append(deferred, span) }
+        },
+        Some(signature) => {
+          if binding.kind != ModuleFunction() { deferred = append(deferred, span) }
+          else {
+            slot_count: Nat = len(signature.slots)
+            parameter_count: Nat = if slot_count > 0 { slot_count - 1 } else { 0 }
+            if len(children) != parameter_count { diagnostics = append(diagnostics, Diagnostic("call " + binding.identity.name + " has incorrect argument count", span.start)) }
+            if len(types) != len(signature.parameters) {
+              if len(types) == 0 && len(signature.parameters) > 0 { deferred = append(deferred, span) }
+              else { diagnostics = append(diagnostics, Diagnostic("call " + binding.identity.name + " has incorrect type argument count", span.start)) }
+            } else {
+              if len(resolved_types) == len(types) {
+                index = 0
+                for slot in signature.slots {
+                  match substitute_signature_type(slot.type, binding.identity, resolved_types) {
+                    Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, span.start)) },
+                    Ok(type) => {
+                      if index == parameter_count {
+                        if signature.effect == Some(SignatureAsync()) { deferred = append(deferred, span) } else { output = Some(type) }
+                      }
+                      else { if index < len(children) {
+                        argument_number: Nat = index + 1
+                        required: BodyResult = body_require(context, children[index].type, type, "argument ${argument_number} to " + binding.identity.name, children[index].span)
+                        diagnostics = concat(diagnostics, required.diagnostics); deferred = concat(deferred, required.deferred)
+                      } }
+                    }
+                  }
+                  index = index + 1
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  BodyResult(BoundBody(BodyCall(target, resolved_types), span, children, output), diagnostics, deferred)
+}
+
+pure bind_body_expression(context: BodyContext, expression: Expr, origin: SourceSpan, locals: Map[Str,BodyLocal], path: [Nat]): BodyResult {
+  mut result: BodyResult = body_result(BodyEmpty(), origin, [], None())
+  match expression {
+    LocatedExpr(span, value) => { result = bind_body_expression(context, value, span, locals, path) },
+    NatExpr(value) => { result = body_result(BodyLiteral(expression), origin, [], body_core_type("Nat")) },
+    DecimalExpr(value) => { result = body_result(BodyLiteral(expression), origin, [], body_core_type("Dec")) },
+    StringExpr(value) => { result = body_result(BodyLiteral(expression), origin, [], body_core_type("Str")) },
+    BoolExpr(value) => { result = body_result(BodyLiteral(expression), origin, [], body_core_type("Bool")) },
+    NameExpr(name) => {
+      if !locals.has(name) { result = body_failure("unknown local value " + name, origin) }
+      else { local: BodyLocal = locals.get(name); result = body_result(BodyLocalUse(local.identity), origin, [], local.type) }
+    },
+    FunctionExpr(name) => {
+      match resolve_module_function(context.graph, context.owner.module, name) {
+        Error(message) => { result = body_failure(message, origin) },
+        Ok(binding) => {
+          mut type: Option[SignatureType] = None()
+          mut deferred: [SourceSpan] = []
+          match body_signature(context.signatures, binding.identity) {
+            None() => { deferred = [origin] },
+            Some(signature) => {
+              if len(signature.parameters) > 0 { result = body_failure("generic function references require a non-generic wrapper", origin) }
+              else {
+                mut arguments: [SignatureType] = []
+                for slot in signature.slots { arguments = append(arguments, slot.type) }
+                match signature.effect { None() => {}, Some(effect) => { type = Some(SignatureType(SignatureCallable(effect), arguments)) } }
+              }
+            }
+          }
+          result = BodyResult(BoundBody(BodyFunction(binding), origin, [], type), result.diagnostics, deferred)
+        }
+      }
+    },
+    CallExpr(name, arguments, types) => {
+      match body_target(context, name, false) { Error(message) => { result = body_failure(message, origin) }, Ok(target) => { result = body_call(context, target, arguments, types, origin, locals, path) } }
+    },
+    DotCallExpr(receiver, name, arguments, types) => {
+      mut visible: Set[Str] = set()
+      head: Str = reference_head(expression_reference_path(receiver))
+      if locals.has(head) { visible = visible.add(head) }
+      match resolve_module_dot_call_scoped(context.graph, context.owner.module, receiver, name, arguments, types, visible) {
+        Error(message) => { result = body_failure(message, origin) },
+        Ok(call) => match call {
+          NamespaceCall(binding, values, type_arguments) => { result = body_call(context, BodyDeclaration(binding), values, type_arguments, origin, locals, path) },
+          ValueMethodCall(value, method, values, type_arguments) => {
+            if module_reserved_binding(method) || lowered_method_name(method) != method {
+              result = body_call(context, BodyCore(lowered_method_name(method)), concat([value], values), type_arguments, origin, locals, path)
+            } else {
+              match body_target(context, method, true) {
+                Error(message) => { result = body_failure(message, origin) },
+                Ok(target) => { result = body_call(context, target, concat([value], values), type_arguments, origin, locals, path) }
+              }
+            }
+          }
+        }
+      }
+    },
+    BlockExpr(block) => { result = bind_body_block(context, block, origin, locals, path) },
+    ArrayExpr(items) => { result = bind_body_children(context, BodyArray(), items, origin, locals, path) },
+    UnaryExpr(operator, operand) => { result = bind_body_children(context, BodyUnary(operator), [operand], origin, locals, path) },
+    BinaryExpr(operator, left, right) => { result = bind_body_children(context, BodyBinary(operator), [left, right], origin, locals, path) },
+    FieldExpr(target, field) => {
+      raw_path: Str = expression_reference_path(expression)
+      if raw_path != "" && !locals.has(reference_head(raw_path)) && module_head_is_namespace(context.graph, context.owner.module, raw_path) { result = body_failure("qualified binding is not a value: " + raw_path, origin) }
+      else { result = bind_body_children(context, BodyField(field), [target], origin, locals, path) }
+    },
+    IndexExpr(target, index) => { result = bind_body_children(context, BodyIndex(), [target, index], origin, locals, path) },
+    IfExpr(condition, yes, no, has_else) => { result = bind_body_children(context, BodyIf(has_else), [condition, BlockExpr(yes), BlockExpr(no)], origin, locals, path) },
+    MatchExpr(subject, arms) => {
+      subject_result: BodyResult = bind_body_expression(context, subject, origin, locals, append(path, 0))
+      mut children: [BoundBody] = [subject_result.body]
+      mut targets: [BodyTarget] = []
+      mut bindings: [[BodyLocalIdentity]] = []
+      mut diagnostics: [Diagnostic] = subject_result.diagnostics
+      mut deferred: [SourceSpan] = concat(subject_result.deferred, [origin])
+      mut index: Nat = 1
+      for arm in arms {
+        mut arm_locals: Map[Str,BodyLocal] = locals
+        mut arm_bindings: [BodyLocalIdentity] = []
+        mut binding_index: Nat = 0
+        for name in arm.pattern.bindings {
+          if arm_locals.has(name) { diagnostics = append(diagnostics, Diagnostic("pattern binding " + name + " shadows an existing binding", origin.start)) }
+          local: BodyLocalIdentity = BodyLocalIdentity(context.owner, concat(path, [index, 0, binding_index]), name)
+          arm_bindings = append(arm_bindings, local); arm_locals = arm_locals.put(name, BodyLocal(local, None(), false)); binding_index = binding_index + 1
+        }
+        match body_target(context, arm.pattern.variant, false) {
+          Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, origin.start)) },
+          Ok(target) => {
+            targets = append(targets, target)
+            match target {
+              BodyCore(name) => { if name != "Some" && name != "None" && name != "Ok" && name != "Error" { diagnostics = append(diagnostics, Diagnostic("pattern is not a variant: " + name, origin.start)) } },
+              BodyDeclaration(binding) => match binding.kind {
+                ModuleVariant(parent) => {},
+                ModuleFunction() => { diagnostics = append(diagnostics, Diagnostic("pattern is not a variant: " + binding.identity.name, origin.start)) },
+                ModuleRecord() => { diagnostics = append(diagnostics, Diagnostic("pattern is not a variant: " + binding.identity.name, origin.start)) },
+                ModuleGuardedType() => { diagnostics = append(diagnostics, Diagnostic("pattern is not a variant: " + binding.identity.name, origin.start)) }, ModuleEnum() => {}
+              }
+            }
+          }
+        }
+        checked: BodyResult = bind_body_expression(context, arm.body, origin, arm_locals, concat(path, [index, 1]))
+        children = append(children, checked.body); bindings = append(bindings, arm_bindings)
+        diagnostics = concat(diagnostics, checked.diagnostics); deferred = concat(deferred, checked.deferred); index = index + 1
+      }
+      result = BodyResult(BoundBody(BodyMatch(targets, bindings), origin, children, None()), diagnostics, deferred)
+    }
+  }
+  result
+}
+
+pure bind_body_children(context: BodyContext, node: BodyNode, expressions: [Expr], span: SourceSpan, locals: Map[Str,BodyLocal], path: [Nat]): BodyResult {
+  mut children: [BoundBody] = []
+  mut diagnostics: [Diagnostic] = []
+  mut deferred: [SourceSpan] = [span]
+  mut index: Nat = 0
+  for expression in expressions {
+    checked: BodyResult = bind_body_expression(context, expression, span, locals, append(path, index))
+    children = append(children, checked.body); diagnostics = concat(diagnostics, checked.diagnostics); deferred = concat(deferred, checked.deferred); index = index + 1
+  }
+  BodyResult(BoundBody(node, span, children, None()), diagnostics, deferred)
+}
+
+pure bind_body_block(context: BodyContext, block: Block, span: SourceSpan, locals: Map[Str,BodyLocal], path: [Nat]): BodyResult {
+  mut visible: Map[Str,BodyLocal] = locals
+  mut children: [BoundBody] = []
+  mut diagnostics: [Diagnostic] = []
+  mut deferred: [SourceSpan] = []
+  mut index: Nat = 0
+  for statement in block.statements {
+    statement_path: [Nat] = append(path, index)
+    mut checked: BodyResult = body_result(BodyEmpty(), span, [], None())
+    match statement {
+      BindingStatement(name, spelling, mutable, value) => {
+        if visible.has(name) { diagnostics = append(diagnostics, Diagnostic("local " + name + " shadows an existing binding", span.start)) }
+        checked = bind_body_expression(context, value, span, visible, append(statement_path, 0))
+        if checked.body.type == body_core_type("Void") { diagnostics = append(diagnostics, Diagnostic("Void is not a value and cannot be stored in binding " + name, checked.body.span.start)) }
+        mut type: Option[SignatureType] = checked.body.type;
+        if spelling != "" {
+          match signature_type(context.graph, context.modules, context.owner, context.parameters, spelling, false, false) {
+            Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, checked.body.span.start)) },
+            Ok(annotation) => {
+              required: BodyResult = body_require(context, checked.body.type, annotation, "binding " + name, checked.body.span)
+              diagnostics = concat(diagnostics, required.diagnostics); deferred = concat(deferred, required.deferred); type = Some(annotation)
+            }
+          }
+        }
+        local: BodyLocalIdentity = BodyLocalIdentity(context.owner, statement_path, name)
+        visible = visible.put(name, BodyLocal(local, type, mutable))
+        checked = BodyResult(BoundBody(BodyBinding(local, type, mutable), checked.body.span, [checked.body], body_core_type("Void")), checked.diagnostics, checked.deferred)
+      },
+      AssignmentStatement(name, value) => {
+        checked = bind_body_expression(context, value, span, visible, append(statement_path, 0))
+        if !visible.has(name) {
+            if checked.body.type == body_core_type("Void") { diagnostics = append(diagnostics, Diagnostic("Void is not a value and cannot be stored in binding " + name, checked.body.span.start)) }
+            local: BodyLocalIdentity = BodyLocalIdentity(context.owner, statement_path, name)
+            visible = visible.put(name, BodyLocal(local, checked.body.type, false))
+            checked = BodyResult(BoundBody(BodyBinding(local, checked.body.type, false), checked.body.span, [checked.body], body_core_type("Void")), checked.diagnostics, checked.deferred)
+        } else {
+            local: BodyLocal = visible.get(name)
+            if !local.mutable { diagnostics = append(diagnostics, Diagnostic("cannot assign immutable binding " + name, checked.body.span.start)) }
+            match local.type {
+              None() => { deferred = append(deferred, checked.body.span) },
+              Some(type) => {
+                required: BodyResult = body_require(context, checked.body.type, type, "assignment " + name, checked.body.span)
+                diagnostics = concat(diagnostics, required.diagnostics); deferred = concat(deferred, required.deferred)
+              }
+            }
+            checked = BodyResult(BoundBody(BodyAssignment(local.identity), checked.body.span, [checked.body], body_core_type("Void")), checked.diagnostics, checked.deferred)
+        }
+      },
+      ExpressionStatement(value) => { checked = bind_body_expression(context, value, span, visible, statement_path) },
+      WhileStatement(condition, body) => { checked = bind_body_children(context, BodyWhile(), [condition, BlockExpr(body)], span, visible, statement_path) },
+      ForStatement(name, values, body) => {
+        if visible.has(name) { diagnostics = append(diagnostics, Diagnostic("loop variable " + name + " shadows an existing binding", span.start)) }
+        local: BodyLocalIdentity = BodyLocalIdentity(context.owner, append(statement_path, 0), name)
+        iterable: BodyResult = bind_body_expression(context, values, span, visible, append(statement_path, 1))
+        nested: BodyResult = bind_body_block(context, body, span, visible.put(name, BodyLocal(local, None(), false)), append(statement_path, 2))
+        checked = BodyResult(BoundBody(BodyFor(local), span, [iterable.body, nested.body], None()), concat(iterable.diagnostics, nested.diagnostics), concat([span], concat(iterable.deferred, nested.deferred)))
+      }
+    }
+    children = append(children, checked.body); diagnostics = concat(diagnostics, checked.diagnostics); deferred = concat(deferred, checked.deferred); index = index + 1
+  }
+  mut output: Option[SignatureType] = body_core_type("Void")
+  match block.value {
+    NoBlockValue() => {},
+    TailBlockValue(value) => {
+      checked: BodyResult = bind_body_expression(context, value, span, visible, append(path, index))
+      children = append(children, checked.body); diagnostics = concat(diagnostics, checked.diagnostics); deferred = concat(deferred, checked.deferred); output = checked.body.type
+    }
+  }
+  BodyResult(BoundBody(BodyBlock(block.value != NoBlockValue()), span, children, output), diagnostics, deferred)
+}
+
+pure check_module_bodies(graph: ModuleBindingGraph, modules: [LoadedModule], signatures: [ModuleSignature], module: LoadedModule): CheckedModuleBodies {
+  mut functions: [BoundFunctionBody] = []
+  mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(module.bindings, module.parsed)
+  if len(diagnostics) == 0 {
+    for declaration in module.parsed.program.declarations {
+      match declaration {
+        FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {
+          owner: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
+          match body_signature(signatures, owner) {
+            None() => {},
+            Some(signature) => {
+              context: BodyContext = BodyContext(graph, modules, signatures, owner, type_parameters)
+              mut locals: Map[Str,BodyLocal] = map()
+              mut bound_parameters: [BodyLocal] = []
+              mut index: Nat = 0
+              for parameter in parameters {
+                local: BodyLocal = BodyLocal(BodyLocalIdentity(owner, [0, index], parameter.name), Some(signature.slots[index].type), false)
+                if locals.has(parameter.name) { diagnostics = append(diagnostics, Diagnostic("duplicate parameter " + parameter.name, signature.binding.span.start)) }
+                locals = locals.put(parameter.name, local); bound_parameters = append(bound_parameters, local); index = index + 1
+              }
+              checked: BodyResult = bind_body_block(context, body, signature.binding.span, locals, [1])
+              expected: SignatureType = signature.slots[len(parameters)].type;
+              required: BodyResult = body_require(context, checked.body.type, expected, "return of " + name, checked.body.span)
+              diagnostics = concat(diagnostics, concat(checked.diagnostics, required.diagnostics))
+              functions = append(functions, BoundFunctionBody(signature, bound_parameters, checked.body, concat(checked.deferred, required.deferred)))
+            }
+          }
+        },
+        TypeDeclaration(name, base, guard) => {
+          for binding in module.bindings.declarations {
+            if binding.identity.name == name {
+              diagnostics = concat(diagnostics, resolve_module_expression_uses(graph, module.bindings.identity, guard, binding.span, set_add(set(), "value")).diagnostics)
+            }
+          }
+        },
+        ImportDeclaration(path) => {},
+        RecordDeclaration(name, types, fields) => {}, EnumDeclaration(name, types, variants) => {}
+      }
+    }
+  }
+  CheckedModuleBodies(functions, diagnostics)
+}

@@ -6,7 +6,8 @@ html=${PANACK_SITE_HTML:-site/index.html}
 case "${1:-all}" in
     all) examples='hello guards exact' ;;
     release) examples=hello ;;
-    *) echo 'expected all or release' >&2; exit 2 ;;
+    capabilities) examples='cap-exact cap-types cap-pure cap-result'; html=site/capabilities/index.html ;;
+    *) echo 'expected all, release or capabilities' >&2; exit 2 ;;
 esac
 work=$(mktemp -d "${TMPDIR:-/tmp}/panack-site-examples.XXXXXX")
 trap 'rm -rf "$work"' 0
@@ -21,6 +22,18 @@ extract() {
 for example in $examples; do
     extract "$example-source" > "$work/$example.panack"
     extract "$example-output" > "$work/expected"
+    case "$example" in
+      cap-exact) printf '10\n0.125\n' > "$work/expected" ;;
+      cap-types)
+        printf '\nmain(): Void {\n  n: Positive = 42\n  port: Port = 8080\n  print(n)\n  print(port)\n}\n' >> "$work/$example.panack"
+        printf '42\n8080\n' > "$work/expected" ;;
+      cap-pure)
+        printf '\nmain(): Void { print(twice(21)) }\n' >> "$work/$example.panack"
+        printf '42\n' > "$work/expected" ;;
+      cap-result)
+        printf '\nmain(): Void {\n  print(value_or(Some(42), 7))\n  print(value_or(None(), 7))\n}\n' >> "$work/$example.panack"
+        printf '42\n7\n' > "$work/expected" ;;
+    esac
     test -s "$work/$example.panack" && test -s "$work/expected"
     "$command" check "$work/$example.panack" > "$work/check"
     "$command" run "$work/$example.panack" > "$work/actual"

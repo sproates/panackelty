@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#15130f">
+    <meta name="description" content="Explore Panackelty’s language features, native tools and runtime, and upcoming work: exact arithmetic, guarded types, effects, async/await and more.">
+    <link rel="canonical" href="https://panackelty.com/capabilities/">
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="../chrome.css">
+    <title>Capabilities — Panackelty</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <!-- SITE_HEADER -->
+    <main id="main" class="capabilities-page">
+      <section class="capabilities-hero" aria-labelledby="page-title">
+        <p class="eyebrow">Explore Panackelty</p>
+        <h1 id="page-title">Small language.<br><em>Serious capabilities.</em></h1>
+<p class="lede">Exact arithmetic. Types that express your rules. Compiler-checked effects. Generic functions, exhaustive pattern matching and async/await.</p>
+<p class="section-intro">Panackelty brings these together in a language for building terminal tools, processing data and exploring algorithms. Its compiler is written in Panackelty itself—and the toolchain can explain selected parts of its reasoning.</p>
+<div class="release-note"><p><strong>Available today:</strong> native developer preview <strong>0.1.0-alpha.11</strong> for Linux x86-64 and Apple silicon. The browser playground runs a separately pinned version with different host capabilities.</p><p><a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.11">Native alpha.11</a> · <a href="https://github.com/sproates/panackelty-browser/releases/tag/v0.1.1">Browser v0.1.1</a></p></div>
+</section>
+<div class="capabilities-layout">
+<nav class="capabilities-toc" aria-label="On this page"><p class="eyebrow">On this page</p>
+<a class="toc-group" href="#language-features">Language features</a>
+<ul>
+<li><a href="#exact-values">Exact answers, without hidden rounding</a></li>
+<li><a href="#guarded-types">Types that express your rules</a></li>
+<li><a href="#data-models">Data models with every case accounted for</a></li>
+<li><a href="#generics">Reusable code, checked across types</a></li>
+<li><a href="#purity">Pure calculations. Explicit interactions.</a></li>
+<li><a href="#callbacks">Pass behaviour without losing its contract</a></li>
+<li><a href="#collections">Transform data without changing the original</a></li>
+<li><a href="#option-result">Make absence and failure visible</a></li>
+<li><a href="#async-await">Async/await as a language feature</a></li>
+<li><a href="#text-bytes">Text and bytes, with an explicit boundary</a></li>
+</ul>
+<a class="toc-group" href="#tools-runtime">Tools and runtime</a>
+<ul>
+<li><a href="#host">Practical access to the host</a></li>
+<li><a href="#tcp">Bounded TCP clients and servers</a></li>
+<li><a href="#imports">Build programs across files</a></li>
+<li><a href="#explain">A compiler you can question</a></li>
+<li><a href="#tooling">Check, run, compile and inspect</a></li>
+<li><a href="#self-hosting">Written in the language it compiles</a></li>
+</ul>
+<a class="toc-group" href="#coming-next">What’s coming next</a>
+<ul>
+<li><a href="#namespaces">Namespaces that let projects grow</a></li>
+<li><a href="#packages">Reusable modules and packages</a></li>
+<li><a href="#http">HTTP built on the networking foundation</a></li>
+<li><a href="#compiler-insight">More insight from the compiler</a></li>
+<li><a href="#source-coverage">Better evidence about what our tests exercise</a></li>
+<li><a href="#performance">Faster development feedback</a></li>
+</ul>
+</nav>
+<div class="capabilities-content">
+<section class="capabilities-group" aria-labelledby="language-features"><p class="eyebrow">Native alpha.11 · experimental</p><h2 id="language-features">Language features</h2>
+<article class="capability-detail" aria-labelledby="exact-values"><h3 id="exact-values">Exact answers, without hidden rounding</h3>
+<p>A third should stay a third until your program decides otherwise.</p>
+<p>Panackelty supports arbitrary-precision whole numbers, exact base-10 decimals and exact fractions. Calculations preserve their meaning without silently substituting floating-point approximations.</p>
+<pre id="cap-exact-source" tabindex="0" aria-label="Panackelty code example"><code>
+main(): Void {
+  third = 1/3
+  print((third * 30).nat())  // 10
+  print((1/8).dec())        // 0.125
+}
+</code></pre>
+<p>Choose <code>Nat</code>, <code>Int</code>, <code>Dec</code> or <code>Rat</code> to describe the values you need. Conversions are explicit: an exact conversion that cannot represent its input fails rather than quietly rounding.</p>
+<p>Use exact values for totals, proportions, unit calculations and algorithms where a small approximation can change the answer.</p>
+</article>
+<article class="capability-detail" aria-labelledby="guarded-types"><h3 id="guarded-types">Types that express your rules</h3>
+<p>“An integer” is often too broad. Your program may need a positive quantity, a bounded index or a valid port number.</p>
+<p>Guarded types put those constraints into the type itself:</p>
+<pre id="cap-types-source" tabindex="0" aria-label="Panackelty code example"><code>
+type Positive = Int where value &gt; 0
+type Port = Nat where value &gt;= 1 &amp;&amp; value &lt;= 65535
+</code></pre>
+<p>The compiler checks that values satisfy supported constraints before accepting their use. It can reason from literals and facts established by surrounding conditions.</p>
+<p>That moves some checks out of comments and into the language.</p>
+<p>The current proof system is deliberately bounded. It does not prove arbitrary properties or silently add runtime validation for untrusted input.</p>
+</article>
+<article class="capability-detail" aria-labelledby="data-models"><h3 id="data-models">Data models with every case accounted for</h3>
+<p>Records give related values named fields. Tagged unions describe alternatives explicitly. Exhaustive pattern matching makes you account for every variant.</p>
+<p>Represent a result, a state or a command as the data it actually is, then handle its possibilities with <code>match</code>.</p>
+<p>When a type describes several cases, the compiler checks that your match covers them. Missing a case becomes something you fix while writing the program.</p>
+</article>
+<article class="capability-detail" aria-labelledby="generics"><h3 id="generics">Reusable code, checked across types</h3>
+<p>Generic functions and data types let one implementation work with different value types.</p>
+<p>Build reusable containers, helpers and transformations while retaining checks on what goes in and what comes out. Where enough information is available, type inference keeps calls and local declarations concise.</p>
+<p>Explicit annotations remain available where they clarify the contract or resolve ambiguity.</p>
+</article>
+<article class="capability-detail" aria-labelledby="purity"><h3 id="purity">Pure calculations. Explicit interactions.</h3>
+<p>Panackelty makes the boundary between calculation and interaction part of the function’s type.</p>
+<pre id="cap-pure-source" tabindex="0" aria-label="Panackelty code example"><code>
+pure twice(n: Nat): Nat {
+  n * 2
+}
+</code></pre>
+<p>A <code>pure</code> function cannot print, read files, inspect the clock or call effectful code. The compiler enforces that boundary.</p>
+<p>You can still use loops and local mutable variables inside a pure function. Purity controls interaction with the outside world; it does not force every algorithm into the same shape.</p>
+<p>Pure functions can still fail—for example through an invalid index. Purity is an effect guarantee, not a promise that execution cannot trap.</p>
+</article>
+<article class="capability-detail" aria-labelledby="callbacks"><h3 id="callbacks">Pass behaviour without losing its contract</h3>
+<p>Functions can accept named functions as typed callbacks.</p>
+<p>The callback’s type describes its arguments, result and whether it is pure, effectful or asynchronous. Those distinctions remain checked when the callback is called.</p>
+<p>That lets collection operations and reusable algorithms accept behaviour without weakening the surrounding effect rules.</p>
+<p>Current callbacks use named function references. Capturing closures and references to generic functions are not yet supported.</p>
+</article>
+<article class="capability-detail" aria-labelledby="collections"><h3 id="collections">Transform data without changing the original</h3>
+<p>Arrays, maps and sets support everyday data processing. Their persistent operations produce new values while preserving the original collection.</p>
+<p>Use iteration, <code>map</code>, <code>reduce</code> and stable sorting to organise and transform data. Method-style calls keep operations close to the values they act on.</p>
+<p>Keeping earlier values intact makes it easier to follow how a result was produced and reason about what each part of a program can change.</p>
+</article>
+<article class="capability-detail" aria-labelledby="option-result"><h3 id="option-result">Make absence and failure visible</h3>
+<p>A lookup might find nothing. A file operation might fail. Those possibilities belong in the function’s contract.</p>
+<p><code>Option[T]</code> represents a value that may be absent. <code>Result[T,E]</code> represents either a successful value or an error.</p>
+<pre id="cap-result-source" tabindex="0" aria-label="Panackelty code example"><code>
+pure value_or(option: Option[Nat], fallback: Nat): Nat {
+  match option {
+    Some(value) =&gt; value,
+    None() =&gt; fallback
+  }
+}
+</code></pre>
+<p>Callers can inspect the result, choose a fallback or pass the error onward.</p>
+<p>Panackelty currently handles recoverable failures through explicit results. It has no <code>try</code>/<code>catch</code>, and runtime traps remain distinct from returned errors.</p>
+</article>
+<article class="capability-detail" aria-labelledby="async-await"><h3 id="async-await">Async/await as a language feature</h3>
+<p>Declare asynchronous functions with <code>async</code> and use <code>await</code> to compose operations that may suspend.</p>
+<p>Inputs, results and error values remain typed. Asynchronous functions can call other asynchronous functions, keeping a sequence of waiting operations readable.</p>
+<p>The runtime supports suspension and resumption, while the compiler checks where asynchronous calls are allowed.</p>
+<p>An <code>async</code> declaration does not automatically launch work in the background or make a calculation parallel. General-purpose task spawning is not available yet.</p>
+</article>
+<article class="capability-detail" aria-labelledby="text-bytes"><h3 id="text-bytes">Text and bytes, with an explicit boundary</h3>
+<p>Work with Unicode strings, interpolation and familiar text operations. Use byte values when the contents are binary.</p>
+<p>String indexing follows Unicode code points. Explicit UTF-8 encoding and decoding make it clear when a program crosses between text and bytes.</p>
+<p>That distinction matters for file formats, command output and network protocols. Code points are not always the same as the visible characters a reader perceives.</p>
+</article>
+</section>
+<section class="capabilities-group" aria-labelledby="tools-runtime"><p class="eyebrow">Native alpha.11 · experimental</p><h2 id="tools-runtime">Tools and runtime</h2>
+<article class="capability-detail" aria-labelledby="host"><h3 id="host">Practical access to the host</h3>
+<p>The native toolchain provides typed paths, filesystem operations, process execution and elapsed-time measurement.</p>
+<p>Read and write files, inspect directories and work with temporary resources. Run commands with explicit arguments, working directories, environment overrides, output limits and timeouts.</p>
+<p><code>Duration</code> represents exact nanosecond durations. Monotonic <code>Instant</code> values support elapsed-time calculations and deadlines.</p>
+<p>Host APIs expose expected failures through structured results. Availability depends on the runtime: the browser playground does not offer unrestricted filesystem or process access.</p>
+</article>
+<article class="capability-detail" aria-labelledby="tcp"><h3 id="tcp">Bounded TCP clients and servers</h3>
+<p>Native alpha.11 puts async/await to work with TCP request/response operations and finite servers with concurrent handlers.</p>
+<p>Connection limits, payload bounds, deadlines and shutdown rules are explicit parts of the API.</p>
+<p>This is a working, experimental networking foundation. DNS, TLS, HTTP and indefinitely running servers are not included. Raw TCP is unavailable in the browser playground.</p>
+</article>
+<article class="capability-detail" aria-labelledby="imports"><h3 id="imports">Build programs across files</h3>
+<p>Imports let you organise code into separate source files and use the standard library.</p>
+<p>Logical paths such as <code>stdlib/path</code> and <code>project/shared/module</code> keep imports independent of where the toolchain is installed.</p>
+<p>Alpha.11 combines ordinary imported declarations into a program-wide namespace. The richer namespace and package model described below is upcoming work.</p>
+</article>
+<article class="capability-detail" aria-labelledby="explain"><h3 id="explain">A compiler you can question</h3>
+<p>Checking a program is useful. Understanding the reason behind a decision is useful too.</p>
+<p>Alpha.11 introduces <code>panack explain</code> for selected compiler reasoning, including supported natural-number subtraction proofs and local call/await effect boundaries.</p>
+<p>Use it to inspect the facts behind a supported decision instead of treating the compiler as a black box.</p>
+<p>Its scope is currently limited. It does not explain every diagnostic or certify an entire program.</p>
+</article>
+<article class="capability-detail" aria-labelledby="tooling"><h3 id="tooling">Check, run, compile and inspect</h3>
+<p>The <code>panack</code> command supports source checking, execution, compilation to saved bytecode and disassembly.</p>
+<p>Optional source maps and <code>panack locate</code> connect a bytecode instruction with its source. This provides a foundation for investigation; it is not yet an interactive debugger or an automatic source-level stack trace.</p>
+<p>The testing library provides assertions, reporting and helpers for command and filesystem tests.</p>
+<p>Programs execute through a bytecode VM that verifies bytecode before running it.</p>
+</article>
+<article class="capability-detail" aria-labelledby="self-hosting"><h3 id="self-hosting">Written in the language it compiles</h3>
+<p>Panackelty’s compiler is written in Panackelty.</p>
+<p>The project uses its own language to implement a substantial compiler, alongside bootstrap and reproducibility checks. The language is exercised by the toolchain that develops it, not only by demonstration programs.</p>
+<p>Testing includes compiler, runtime and complete-program checks. Published native coverage measures the C VM; measured <code>.panack</code> source coverage remains an explicit development priority.</p>
+</article>
+</section>
+<section class="capabilities-group" aria-labelledby="coming-next"><p class="eyebrow">Upcoming · roadmap</p><h2 id="coming-next">What’s coming next</h2>
+<p>Panackelty’s next steps aim to make larger programs easier to organise, networked applications easier to build, and compiler decisions easier to understand.</p>
+<p>These are roadmap items, not promises about the current download. Scope and sequencing may change; no release dates are implied.</p>
+<article class="capability-detail" aria-labelledby="namespaces"><h3 id="namespaces">Namespaces that let projects grow</h3>
+<p>Namespaces will give declarations an explicit home, making it easier to organise APIs and use code from different modules without name collisions.</p>
+<p>The work includes checked naming and visibility boundaries, so a module can expose its intended interface while keeping implementation details internal.</p>
+<p>Namespace implementation is progressing in development. Executable namespace support is not included in alpha.11.</p>
+</article>
+<article class="capability-detail" aria-labelledby="packages"><h3 id="packages">Reusable modules and packages</h3>
+<p>The module and package programme extends code organisation beyond importing files into one application.</p>
+<p>The goal is a clear structure for reusable libraries, explicit package relationships and reproducible builds. Programs should be able to depend on well-defined interfaces without depending on an author’s checkout layout.</p>
+<p>The work covers package structure, dependency handling, installation and acceptance through real applications.</p>
+</article>
+<article class="capability-detail" aria-labelledby="http"><h3 id="http">HTTP built on the networking foundation</h3>
+<p>TCP supplies the transport. HTTP adds the request, response and protocol behaviour that many applications need.</p>
+<p>Planned HTTP client and server packages will build on the language’s typed results and asynchronous execution, with explicit limits and failure handling.</p>
+<p>This should open a more practical path towards service clients and small networked applications. The exact supported protocol scope belongs to the package design; HTTP, HTTPS and production-server capabilities should not be assumed from today’s TCP support.</p>
+</article>
+<article class="capability-detail" aria-labelledby="compiler-insight"><h3 id="compiler-insight">More insight from the compiler</h3>
+<p>The current explanations are a starting point.</p>
+<p>Planned work explores richer explanations of checked types, effects and proof obligations, alongside clearer connections between source code and generated instructions.</p>
+<p>The aim is to help answer practical questions:</p>
+<ul><li>Why was this operation rejected?</li><li>Which fact allowed the compiler to accept it?</li><li>Where did an effect enter this calculation?</li><li>Which source expression corresponds to this instruction?</li></ul>
+<p>Broader explanations and source-aware runtime diagnostics remain separate pieces of work, each with its own limits and acceptance evidence.</p>
+</article>
+<article class="capability-detail" aria-labelledby="source-coverage"><h3 id="source-coverage">Better evidence about what our tests exercise</h3>
+<p>Measured <code>.panack</code> source coverage is a high-urgency roadmap item.</p>
+<p>The goal is to show which compiler, library and tooling lines, functions and branches execute during testing—including eligible code that is never reached.</p>
+<p>That evidence will help target missing tests. Coverage numbers will support testing decisions; they will not substitute for meaningful assertions.</p>
+</article>
+<article class="capability-detail" aria-labelledby="performance"><h3 id="performance">Faster development feedback</h3>
+<p>Compiler and build performance are ongoing engineering priorities.</p>
+<p>The work starts with reproducible measurements, then targets the costs that matter during editing, checking, testing and packaging. Improvements must preserve correctness, bootstrap guarantees and required validation.</p>
+<p>We will publish measured results with their workload and limitations rather than promise a speedup for every program.</p>
+</article>
+</section>
+<section class="capabilities-explore" aria-labelledby="explore"><h2 id="explore">Explore what works today. Follow what comes next.</h2>
+<p>Try the language in your browser, install the native preview, or follow the roadmap and help shape the next stage.</p>
+<div class="actions"><a class="button primary" href="../playground/">Try Panackelty →</a><a class="button secondary" href="../#start">Install the native preview →</a></div>
+<p class="release-links"><a href="https://github.com/sproates/panackelty/blob/main/ROADMAP.md">Explore the roadmap →</a><a href="https://github.com/sproates/panackelty/blob/v0.1.0-alpha.11/SPEC.md">Read the specification →</a></p></section>
+</div></div></main>
+<!-- SITE_FOOTER -->
+</body>
+</html>

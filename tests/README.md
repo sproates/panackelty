@@ -1,5 +1,12 @@
 # Tests
 
+`make project-operations-test` runs the optional Node connector-operation tests
+for PR snapshots, committed delivery manifests and exact-tree publication. See
+[project operations](../docs/PROJECT_OPERATIONS.md). It is separate from native
+`make check`, which retains its interpreter-free dependency contract. Changes to
+these helpers must run this additional suite; hosted Check does not currently run
+it automatically.
+
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 WASI/native compatibility and actual browser suites. Pages checks out an exact
 reviewed browser test commit and runs its 24 Chromium/Firefox/WebKit scenarios

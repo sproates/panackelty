@@ -28,6 +28,18 @@ count, and give an ELI5 explanation. Use this repository copy for Panackelty if
 a personal copy is also available. Agents without automatic skill discovery
 should read the linked file directly; no personal skill installation is needed.
 
+## Reusable project operations
+
+Use [reusable scripts](docs/PROJECT_OPERATIONS.md) for deterministic, repeated
+repository mechanics and return compact results. Reserve model reasoning for
+design, implementation, test design, review, research and unexpected failures.
+At existing planning and delivery checkpoints, identify repeated workflow/token
+friction and batch improvement recommendations; do not create extra scheduled
+checks or tickets automatically. Record observed time or output size, without
+inferring token billing. During long operations, give concise progress updates
+that explain the actual wait. Changes to the optional connector helpers must run
+`make project-operations-test` in addition to the applicable native validation.
+
 ## Programme progress
 
 When planning a programme, reporting its progress, or handing over each programme

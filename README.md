@@ -4,7 +4,7 @@
 exact numerical work.**
 
 [Website](https://panackelty.com) · [Native VM coverage](https://sproates.github.io/panackelty-coverage/) · [Specification](SPEC.md) ·
-[Releases](../../releases) · [Contributing](CONTRIBUTING.md)
+[Releases](../../releases) · [Contributing](CONTRIBUTING.md) · [Project operations](docs/PROJECT_OPERATIONS.md)
 
 The website consumes a pinned release from
 [Panackelty Browser](https://github.com/sproates/panackelty-browser), selected in

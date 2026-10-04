@@ -1484,23 +1484,17 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
   website PR plus setup and verification. Recording this starts no implementation.
 
 - <a id="rm-118"></a>**RM#118: Website installation command parity** ·
-  [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — **Verification pending on merge.**
-  Selected follow-up to [RM#117: Platform-specific installation instructions](#rm-117)
-  and [GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
-  Owner: delivery agent until a maintainer accepts handover. `site/index.html#start`
-  now includes the README's exact Linux x86_64 and macOS arm64 alpha.10
-  download/checksum/extraction/version blocks, which stop on failures, and explicit
-  prerequisites, minimum OS versions, local executable use and optional PATH guidance.
-  Native alpha.10 and the independent browser pin are unchanged. This improves
-  onboarding convenience; it does not introduce an installer or new platform.
-  Local website-route validation and command-parity evidence are recorded in
-  [website installation verification](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
-  Before merge, the delivery agent must obtain hosted website release/browser
-  checks, independent review and the user's visual-preview acceptance. After
-  explicitly authorised merge/deployment, the delivery agent must verify the live
-  instructions, release links, version labels and local first-program commands,
-  then record completion. Keep GI#250 open until that live verification succeeds;
-  the PR uses `Refs #250`, not automatic closure.
+  [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — **Done**.
+  Delivered in [PR#253: Website installation instructions](https://github.com/sproates/panackelty/pull/253).
+  Website Linux x86_64 and macOS arm64 alpha.10 download, checksum, extraction
+  and version commands match the tested README blocks and stop on failures.
+  Prerequisites, supported OS versions, local first-program commands and optional
+  PATH guidance are explicit. Release and browser pins remain unchanged.
+  Local validation, independent review, hosted browser/release checks and owner
+  preview acceptance passed. On 2026-10-04, production Pages deployment
+  [37163232362](https://github.com/sproates/panackelty/actions/runs/37163232362)
+  succeeded; the live installation section matched the merged source exactly.
+  See [verification evidence](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
 
 - <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
   delivery agent. The live site still advertises v0.1.1; no supporting release is

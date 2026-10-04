@@ -24,6 +24,21 @@ case "$out/" in "$root/"*) fail 'output must be outside the source checkout' ;; 
 # Use explicit settings, not inherited alternate VM/seed/cache/flags or make jobs.
 cc=${CC:-cc}
 command -v "$cc" >/dev/null 2>&1 || fail 'CC must name one compiler executable (no shell arguments)'
+# Resolve an executable, not a shell keyword or command-builtin dispatch.
+# Keep it absolute because observations run after changing directory.
+timer=$(
+    set -f
+    IFS=:
+    for directory in $PATH; do
+        directory=${directory:-.}
+        if [ -f "$directory/time" ] && [ -x "$directory/time" ]; then
+            directory=$(CDPATH= cd "$directory" && pwd -P)
+            printf '%s/time\n' "$directory"
+            break
+        fi
+    done
+)
+[ -n "$timer" ] || fail 'external POSIX time executable unavailable'
 mkdir "$out"
 work=$(mktemp -d "$out/work.XXXXXX")
 trap 'rm -rf "$work"' 0
@@ -81,11 +96,10 @@ observe() {
     observed_scenario=$1; observed_repeat=$2; shift 2
     run=$observed_scenario-$observed_repeat
     export VALIDATION_PROFILE_RUN="$run"
-    # Some time implementations normalize a failed child's exit status. Keep
-    # the workload result independently, while retaining timer failures too.
-    # Use a direct conditional: older sh can exit before a brace-group OR
-    # handler records a failing timer when errexit is enabled.
-    if command time -p sh -c '
+    # Workload and timer failures are recorded explicitly. Disable implicit
+    # errexit only across timer dispatch/capture, then restore it immediately.
+    set +e
+    if "$timer" -p sh -c '
         errors=$1; result=$2; shift 2
         status=0
         "$@" 2>"$errors" || status=$?
@@ -97,6 +111,7 @@ observe() {
     else
         timer_status=$?
     fi
+    set -e
     printf '%s\n' "$timer_status" > "$out/$run.timer-status"
     status=125
     if [ -f "$out/$run.status" ]; then

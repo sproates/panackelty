@@ -824,7 +824,9 @@ to clean full validation and 15 seconds to the measured focused compiler check.
 `summary.tsv` reports every scenario's sample count/minimum/median/maximum.
 Individual logs, stderr, timing, workload `.status` and `.timer-status` files
 remain available, including failed runs. The timed shell records the workload
-status independently because external timers can normalize nonzero exit codes.
+status independently so a timer or wrapper cannot replace the workload result.
+The timer is resolved to an absolute executable path; implicit shell exit is
+disabled only while capturing its explicitly checked status.
 A failed workload retains its original status; a failed timer also prevents a
 successful sample even if the workload passed.
 A `COMPLETE` marker appears only after every command and exact probe output passes;

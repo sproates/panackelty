@@ -2942,8 +2942,10 @@ external timer process and final independent workload-status recording can
 change the last digits for tiny fixtures; the table
 retains the archived measurements and does not claim a rerun of the final timer.
 The final timer wrapper also records the workload exit status separately from
-the timer exit status, preserving failures on BSD implementations that normalize
-the child status. Regression mocks reproduce both normalized failure and a timer
+the timer exit status, preserving failures even if a timer wrapper normalizes
+the child status. Normalization is an injected robustness case, not an observed
+BSD timer behavior. The final dispatch resolves an absolute executable and
+disables implicit shell exit only while explicitly capturing the timer result. Regression mocks reproduce both normalized failure and a timer
 failure after a successful workload. Final candidate validation is separate from
 the archived measurement snapshot.
 

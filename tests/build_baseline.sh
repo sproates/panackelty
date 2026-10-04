@@ -124,7 +124,7 @@ if find "$work/report" -type d -name 'work.*' | grep . >/dev/null; then fail 'di
 if sh scripts/build_baseline.sh "$work/report" fixture-host 1 probes > "$work/reject" 2>&1; then fail 'overwrote existing report'; fi
 if sh scripts/build_baseline.sh "$PWD/output" fixture-host 1 probes > "$work/reject" 2>&1; then fail 'accepted source-local output'; fi
 if sh scripts/build_baseline.sh "$work/invalid" fixture-host 0 probes > "$work/reject" 2>&1; then fail 'accepted invalid repeat count'; fi
-if BASELINE_TEST_TIMER_MODE=normalize BASELINE_TEST_FAIL=1 sh scripts/build_baseline.sh "$work/failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored failed validation'; fi
+if BASELINE_TEST_TIMER_MODE=normalize BASELINE_TEST_FAIL=1 sh -x scripts/build_baseline.sh "$work/failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored failed validation'; fi
 [ ! -e "$work/failed/COMPLETE" ] || fail 'failed run claimed complete'
 require_failure_sample "$work/failed" "$work/failure"
 recorded_status=$(awk -F '\t' '$1 == "clean-full" { print $4 }' "$work/failed/samples.tsv")

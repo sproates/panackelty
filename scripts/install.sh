@@ -6,13 +6,13 @@ LC_ALL=C
 export LC_ALL
 umask 077
 fail() { printf 'panack installer: %s\n' "$*" >&2; exit 1; }
-version=0.1.0-alpha.10
+version=0.1.0-alpha.11
 remove=false
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --version) [ "$#" -ge 2 ] || fail '--version requires a value'; version=$2; shift ;;
         --uninstall) remove=true ;;
-        --help) printf '%s\n' 'Usage: sh install.sh [--version 0.1.0-alpha.10 | --uninstall]' 'Uses $HOME/.local/opt/panackelty-installer and $HOME/.local/bin/panack.' 'Never edits shell startup files; do not run with sudo.'; exit 0 ;;
+        --help) printf '%s\n' 'Usage: sh install.sh [--version 0.1.0-alpha.11 | --uninstall]' 'Uses $HOME/.local/opt/panackelty-installer and $HOME/.local/bin/panack.' 'Never edits shell startup files; do not run with sudo.'; exit 0 ;;
         *) fail "unknown argument: $1" ;;
     esac
     shift

@@ -91,53 +91,53 @@ reject 'refusing unmarked location'
 rmdir "$prefix"
 pass
 case_name=installer-clean-repeat-upgrade-and-rollback
-fixture 0.1.0-alpha.10
+fixture 0.1.0-alpha.11
 cp "$work/assets/$asset" "$work/pristine.tar.gz"
 cp "$work/assets/$asset.sha256" "$work/pristine.sha256"
 install_ok
 contains "$work/out" 'export PATH='
 first=$(readlink "$prefix/current")
-test "$("$link" --version)" = 'panack 0.1.0-alpha.10 (bytecode 9)' || fail 'installed command'
+test "$("$link" --version)" = 'panack 0.1.0-alpha.11 (bytecode 9)' || fail 'installed command'
 install_ok
 test "$(readlink "$prefix/current")" = "$first" || fail repeat-link
-fixture 0.1.0-alpha.11
-install_ok --version 0.1.0-alpha.11
-test "$("$link" --version)" = 'panack 0.1.0-alpha.11 (bytecode 9)' || fail upgraded-command
+fixture 0.1.0-alpha.12
+install_ok --version 0.1.0-alpha.12
+test "$("$link" --version)" = 'panack 0.1.0-alpha.12 (bytecode 9)' || fail upgraded-command
 test -d "$prefix/$first" || fail 'old release not retained'
-install_ok --version 0.1.0-alpha.10
+install_ok --version 0.1.0-alpha.11
 test "$(readlink "$prefix/current")" = "$first" || fail rollback-link
 pass
 case_name=installer-failures-preserve-existing-command
 INSTALL_FAILURE=network; export INSTALL_FAILURE
 # Check transport failure status without depending on curl's platform-specific wording.
-if run_install --version 0.1.0-alpha.11; then fail network; fi
+if run_install --version 0.1.0-alpha.12; then fail network; fi
 unset INSTALL_FAILURE
 printf 'corrupt' >> "$work/assets/$asset"
-reject 'checksum mismatch' --version 0.1.0-alpha.11
+reject 'checksum mismatch' --version 0.1.0-alpha.12
 test "$(readlink "$prefix/current")" = "$first" || fail 'activated failed download'
 printf '%s\n' 'malformed checksum' > "$work/assets/$asset.sha256"
-reject 'invalid checksum file' --version 0.1.0-alpha.11
-fixture 0.1.0-alpha.11
+reject 'invalid checksum file' --version 0.1.0-alpha.12
+fixture 0.1.0-alpha.12
 ln -s /tmp "$work/package/panackelty/escape"
-fixture 0.1.0-alpha.11
-reject 'unsafe archive member types' --version 0.1.0-alpha.11
+fixture 0.1.0-alpha.12
+reject 'unsafe archive member types' --version 0.1.0-alpha.12
 rm "$work/package/panackelty/escape"
 # An archive with another root must fail even with a correct checksum.
 tar -czf "$work/assets/$asset" -C "$work/package/panackelty" bin
 checksum
-reject 'unsafe archive paths' --version 0.1.0-alpha.11
-fixture 0.1.0-alpha.11
+reject 'unsafe archive paths' --version 0.1.0-alpha.12
+fixture 0.1.0-alpha.12
 printf '#!/bin/sh\nprintf "wrong version\\n"\n' > "$work/package/panackelty/bin/panack"
 tar -czf "$work/assets/$asset" -C "$work/package" panackelty
 checksum
-reject 'version mismatch' --version 0.1.0-alpha.11
-fixture 0.1.0-alpha.11
+reject 'version mismatch' --version 0.1.0-alpha.12
+fixture 0.1.0-alpha.12
 printf '#!/bin/sh\nexit 1\n' > "$work/package/panackelty/bin/panack-native"
 tar -czf "$work/assets/$asset" -C "$work/package" panackelty
 checksum
-reject 'downloaded toolchain cannot run native compiler' --version 0.1.0-alpha.11
+reject 'downloaded toolchain cannot run native compiler' --version 0.1.0-alpha.12
 test "$(readlink "$prefix/current")" = "$first" || fail 'activated unusable native toolchain'
-asset=panackelty-0.1.0-alpha.10-$platform.tar.gz
+asset=panackelty-0.1.0-alpha.11-$platform.tar.gz
 cp "$work/pristine.tar.gz" "$work/assets/$asset"
 cp "$work/pristine.sha256" "$work/assets/$asset.sha256"
 chmod -x "$prefix/$first/bin/panack-native"

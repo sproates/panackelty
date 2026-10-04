@@ -11,7 +11,7 @@ cp CHANGELOG.md "$work/CHANGELOG.md"
 render() { sh "$root/scripts/release_history.sh" "$work"; }
 render > "$work/first"
 grep -q '<details class="release-pending">' "$work/first"
-grep -q 'releases/tag/v0.1.0-alpha.10' "$work/first"
+grep -q 'releases/tag/v0.1.0-alpha.11' "$work/first"
 grep -q '0.1.0-alpha.1</h2>' "$work/first"
 ! grep -q 'releases/tag/vUnreleased' "$work/first"
 # Prepared version does not become downloadable just because notes were merged.

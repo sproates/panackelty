@@ -1202,8 +1202,8 @@ U2 has no separate issue; track it through #180/#173. This completes the shared
 mapping milestone, while checker evidence, compilation reasons, runtime
 provenance, source-aware errors (#136) and coverage (#131) retain their scope.
 No live website claim needs correction for these commands. Alpha.11 is their
-planned native supporting release; publication and explicit website/browser
-adoption remain pending in the follow-up register.
+published native supporting release; explicit website/browser adoption remains
+pending in the follow-up register.
 
 The following U1 experiment scope is retained as historical decision context.
 The smallest useful outcome is a bounded experiment mapping one runtime trap
@@ -1371,8 +1371,8 @@ Assess HTTP, file-I/O and long-running lifecycle needs first; this dogfooding
 follow-up does not block the current Node-based workflow.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
-server contract PR #129 and server implementation PR #130. Both operations are included in the alpha.11 release candidate, pending public
-artifact acceptance, and are absent from alpha.10 downloads. The server completion evidence
+server contract PR #129 and server implementation PR #130. Both operations are included in the published alpha.11 native release and were
+absent from alpha.10 downloads. The server completion evidence
 is recorded [below](#bounded-async-tcp-server).
 
 The user selected backlog grooming after this milestone. The agreed scope covers
@@ -1669,8 +1669,8 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   See [verification evidence](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
 
 - <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
-  delivery agent. The browser still advertises v0.1.1; alpha.11 is the planned native
-  supporting release, with publication and website adoption pending. After publishing and deliberately adopting a release containing U2,
+  delivery agent. The browser still advertises v0.1.1; alpha.11 is the published native
+  supporting release, with explicit website/browser adoption pending. After publishing and deliberately adopting a release containing U2,
   consider CLI documentation and a validated lookup example, stating exact-source
   reproduction, unavailable fallback, lookup cost and full-source sidecar privacy.
   Current pinned examples and release links are unaffected. Do not advertise
@@ -1690,7 +1690,7 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as
   the affected core seed; plan a corrective compiler/browser release and explicit
   website pin update after the core repair is merged and released. Alpha.11
-  is the planned native corrective release; browser adoption remains unassigned. Review static-safety and guarded-type claims against the actual
+  is the published native corrective release; browser adoption remains unassigned. Review static-safety and guarded-type claims against the actual
   published runtime; the homepage's literal guarded-type example does not exercise
   the reproduced mutation defect. Keep this follow-up open through public
   verification that the unsafe examples are rejected and valid examples still run.
@@ -1710,7 +1710,7 @@ Never mark an update complete merely because its PR merged: verify the live site
   distinction and unavailable cases. After a release supporting
   [RM#107: Per-function effect recovery](#rm-107), explain valid sibling recovery,
   global declaration gating, invalid-function unavailability and unchanged original
-  diagnostics; alpha.11 is the planned native supporting release, not yet published. Explain declared/callable effects without
+  diagnostics; alpha.11 is the published native supporting release; explicit adoption remains pending. Explain declared/callable effects without
   implying a transitive effect graph or runtime execution. Browser support must be verified separately before advertising it.
   Current published pins/examples remain unchanged; this change starts no site
   work. Broader demonstrations remain in U9.
@@ -2545,25 +2545,34 @@ owns the state and scope. The initial unscheduled idea was recorded on
 2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
 The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
-## Developer preview alpha.11 release preparation
+## Developer preview alpha.11 release
 
 <a id="rm-128"></a>
 
-**RM#128: Alpha.11 release** — In progress, selected on 2026-10-04.
-Release delivery owner: maintainer delivering this candidate. Prepare the existing
-native TCP client/server, guard-fact repair, optional source maps, bounded
-subtraction/effect explanations and declaration-lookup improvements as
-`0.1.0-alpha.11`. Include measured build baselines and generated website history;
-namespace metadata/binding work remains internal staged infrastructure, not an
-executable namespace feature. No new language or platform scope is added.
+**RM#128: Alpha.11 release** — Published; promotion acceptance pending.
+Selected on 2026-10-04. Release delivery owner: maintainer delivering the promotion.
+[PR#271: Alpha.11 release preparation](https://github.com/sproates/panackelty/pull/271)
+merged as `f1d37b46145b502f7e38e674d0f071934f85166a`. The
+[Release workflow](https://github.com/sproates/panackelty/actions/runs/37214140201)
+passed validation, Linux/macOS packaging and publication. The
+[alpha.11 release](https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.11)
+was published on 2026-10-04 at 15:51:12 UTC from that exact source commit.
 
-Acceptance remains pending: independent review, canonical and hosted exact-package
-validation, separately approved merge, release workflow publication, verification
-of both supported public native archives/checksums/provenance and installed
-commands. Only then promote `site/native-release.txt`, homepage/README downloads
-and installer defaults. Keep browser v0.1.1 pinned until its separate adoption
-is tested; RM#102, RM#103 and RM#104 are not closed by native publication alone.
-This preparation is not a published release or production acceptance claim.
+All eight public assets were downloaded. Checksums matched all three archives;
+both native provenance records matched the release source. The public macOS
+archive passed release smoke testing. This release includes existing native TCP
+client/server operations, guard-fact repair, optional source maps, bounded
+subtraction/effect explanations, declaration-lookup improvements, measured build
+baselines and generated website history. Namespace metadata/binding work remains
+internal staged infrastructure, not executable namespace support.
+
+The promotion updates the verified native pin, homepage/README download commands
+and installer defaults to alpha.11. Acceptance remains pending: promotion PR
+checks must run public README/installer acceptance on Linux and macOS; independent
+review, owner preview and explicit merge approval are still required. After
+approved merge, verify the live website/download instructions before marking
+this item complete. Browser v0.1.1 remains pinned until separate adoption is
+tested; RM#102, RM#103 and RM#104 are not closed by native publication alone.
 
 Performance disposition proposed for release review: retain all safety/coverage
 and unchanged 120s full / 15s focused targets. The controlled RM#28 baseline has
@@ -2599,8 +2608,8 @@ Work record: [issue #126](https://github.com/sproates/panackelty/issues/126).
 State: Done. PR #127 merged on 2026-09-30 after all 23 hosted checks passed.
 Canonical validation passed in 117s, with native sanitizer, independent-peer
 source/bytecode tests, bootstrap and browser rejection evidence in the PR.
-This functionality is included in the alpha.11 release candidate, with public
-artifact acceptance pending; it is not part of alpha.10.
+This functionality is included in the published alpha.11 native release; it is
+not part of alpha.10.
 Issue #126 was closed during the subsequent grooming pass.
 Selected on 2026-09-30 after deployment
 reliability, explicitly ahead of build-cache work and a C-only networking spike.

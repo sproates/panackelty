@@ -6,6 +6,29 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/panack-baseline-test.XXXXXX")
 trap 'rm -rf "$work"' 0
 trap 'exit 1' HUP INT TERM
 fail() { printf 'build baseline regression: %s\n' "$*" >&2; exit 1; }
+# Expected failures must not hide an earlier setup/timer failure behind a
+# secondary missing-file error. Keep the original bounded evidence in CI logs.
+show_failure_evidence() {
+    evidence_report=$1
+    evidence_invocation=$2
+    for evidence in "$evidence_invocation" "$evidence_report/clone.log" \
+        "$evidence_report"/clean-*.log "$evidence_report"/*.time \
+        "$evidence_report"/*.stderr "$evidence_report"/*.status \
+        "$evidence_report"/*.timer-status; do
+        if [ -f "$evidence" ]; then
+            printf '%s\n' "--- failure evidence: ${evidence##*/} ---" >&2
+            tail -n 40 "$evidence" >&2
+        fi
+    done
+}
+require_failure_sample() {
+    for artifact in samples.tsv clean-full-1.status clean-full-1.timer-status; do
+        if [ ! -f "$1/$artifact" ]; then
+            show_failure_evidence "$1" "$2"
+            fail "missing failure artifact: $artifact; original evidence above"
+        fi
+    done
+}
 mkdir -p "$work/source/scripts" "$work/source/tests" "$work/source/src/stdlib" "$work/source/examples" "$work/source/bootstrap" "$work/bin"
 cp scripts/build_baseline.sh "$work/source/scripts/"
 cp tests/run_probe.sh tests/profile_command.sh tests/without_interpreter.sh "$work/source/tests/"
@@ -96,16 +119,24 @@ if sh scripts/build_baseline.sh "$PWD/output" fixture-host 1 probes > "$work/rej
 if sh scripts/build_baseline.sh "$work/invalid" fixture-host 0 probes > "$work/reject" 2>&1; then fail 'accepted invalid repeat count'; fi
 if BASELINE_TEST_TIMER_MODE=normalize BASELINE_TEST_FAIL=1 sh scripts/build_baseline.sh "$work/failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored failed validation'; fi
 [ ! -e "$work/failed/COMPLETE" ] || fail 'failed run claimed complete'
+require_failure_sample "$work/failed" "$work/failure"
 recorded_status=$(awk -F '\t' '$1 == "clean-full" { print $4 }' "$work/failed/samples.tsv")
 recorded_timer=$(cat "$work/failed/clean-full-1.timer-status")
-[ "$recorded_status" = 9 ] || fail "failed sample not recorded: expected=9 sample=$recorded_status timer=$recorded_timer"
+if [ "$recorded_status" != 9 ]; then
+    show_failure_evidence "$work/failed" "$work/failure"
+    fail "failed sample not recorded: expected=9 sample=$recorded_status timer=$recorded_timer"
+fi
 [ "$recorded_timer" = 1 ] || fail "normalizing timer fixture not exercised: sample=$recorded_status timer=$recorded_timer"
 if BASELINE_TEST_TIMER_MODE=fail sh scripts/build_baseline.sh "$work/timer-failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored timer failure'; fi
 [ ! -e "$work/timer-failed/COMPLETE" ] || fail 'timer failure claimed complete'
+require_failure_sample "$work/timer-failed" "$work/failure"
 [ "$(cat "$work/timer-failed/clean-full-1.status")" = 0 ] || fail 'timer-failure workload did not succeed'
 recorded_status=$(awk -F '\t' '$1 == "clean-full" { print $4 }' "$work/timer-failed/samples.tsv")
 recorded_timer=$(cat "$work/timer-failed/clean-full-1.timer-status")
-[ "$recorded_status" = 7 ] || fail "timer failure not recorded: expected=7 sample=$recorded_status timer=$recorded_timer"
+if [ "$recorded_status" != 7 ]; then
+    show_failure_evidence "$work/timer-failed" "$work/failure"
+    fail "timer failure not recorded: expected=7 sample=$recorded_status timer=$recorded_timer"
+fi
 if BASELINE_TEST_BAD_OUTPUT=1 sh scripts/build_baseline.sh "$work/wrong" fixture-host 1 probes > "$work/failure" 2>&1; then fail 'ignored incorrect probe output'; fi
 [ ! -e "$work/wrong/COMPLETE" ] || fail 'incorrect output claimed complete'
 if command -v dash >/dev/null 2>&1; then

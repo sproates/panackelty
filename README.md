@@ -138,6 +138,75 @@ adjacent `.sha256` file from the Releases page:
 
 Windows and other architectures are not part of the initial preview.
 
+### Optional: install with one command
+
+This is an additional route for readers who prefer an installer. The manual
+archive instructions below remain supported. The script in this branch is under
+verification; the public command below becomes available when this change merges
+to `main`. Until then, use the manual instructions or run `sh scripts/install.sh`
+from this checkout.
+
+```sh
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh
+```
+
+The command executes the [inspectable installer](scripts/install.sh) from the
+repository's current `main`. It selects `0.1.0-alpha.10` by default, checks the
+supported OS/architecture, downloads the release and its SHA-256 file over HTTPS,
+and verifies the checksum before unpacking or activating it. Trust includes
+GitHub, this repository and your local tools. Same-source checksums detect damaged
+or mismatched downloads; they do **not** independently authenticate a compromised
+publisher. To review before executing (and avoid a pipeline hiding curl's exit
+status), download a local copy first:
+
+```sh
+curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error --output install.sh https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh
+# Read install.sh, then execute your reviewed local copy:
+sh install.sh
+```
+
+For a pinned installer revision, replace `main` in the URL with a reviewed full
+commit ID. No `sudo` is needed. The dedicated directory
+`~/.local/opt/panackelty-installer` owns the downloaded toolchains; keep your
+programs elsewhere. The command link is `~/.local/bin/panack`. An existing manual
+installation or another command at that path causes a safe refusal; keep using
+that installation or move/remove it yourself before choosing this alternative.
+The script never edits shell startup files. Use the printed absolute command
+path, or explicitly opt in for the current shell:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Add that line to your chosen shell startup file only if you want a persistent
+PATH change. `command -v panack` shows which installation your shell finds. After
+installation, use the Hello World program below, replacing
+`./panackelty/bin/panack` with `"$HOME/.local/bin/panack"`.
+
+With your downloaded, reviewed `install.sh`, select a published version, repeat
+an installation, upgrade (or return to a retained version), and remove:
+
+```sh
+sh install.sh --version 0.1.0-alpha.10
+sh install.sh --uninstall
+```
+
+A version must provide the same supported archive layout. Repeating a version
+checks it against a fresh verified download and refuses locally modified files.
+Activation switches a symlink atomically after verification and version and native compiler smoke
+tests. Upgrades retain older toolchains until uninstall; uninstall removes the
+entire dedicated installer directory and its owned command link. It refuses
+unrelated command links. It does not remove projects or edit PATH configuration.
+
+Handled interruptions clean the staging directory and lock. After a power loss
+or uncatchable kill, first ensure no installer is still running, then remove only
+`~/.local/opt/panackelty-installer/.lock` and any `.stage.*` directories inside
+that dedicated directory, and rerun. A completed release left before activation
+is reused after verification; the previously active command stays usable until
+activation. If a first-ever installation stopped before creating `.installer`,
+remove the empty dedicated directory before retrying. Network, checksum, layout
+and smoke-test failures never replace the active toolchain.
+
 ### Install a downloaded release
 
 Start in a new, empty directory you own. Copy the complete block for your

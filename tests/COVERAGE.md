@@ -765,3 +765,14 @@ PC. Native unit validation includes retention ID/edge lookup checks. Linux/macOS
 compiler CI also runs the full experiment. This tests a bounded observer, not a
 public tracing feature or coverage of general value provenance. See the
 [report and limitations](experiments/runtime_provenance/README.md).
+
+Optional installer coverage (`tests/unit/harness/installer.sh`) checks argument
+validation, hostile/space-containing HOME paths, foreign destinations, supported
+target rejection, repeat installs, version changes/rollback, transport/checksum
+failures, unsafe archive paths and links, wrong executable versions, locally
+modified/non-executable installs, native compiler startup failures, locking,
+signal cleanup and owned removal (including a dangling owned command link).
+`tests/release_installer.sh` independently downloads the published alpha.10
+archive and asserts the complete README Hello World/check/run/compile/bytecode
+output, repeat installation and removal. Check runs it on Ubuntu 22.04 x86_64 and
+macOS 14 arm64; network acceptance is separate from offline `make check`.

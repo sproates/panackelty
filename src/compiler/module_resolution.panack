@@ -490,32 +490,6 @@ pure resolve_module_block_uses(graph: ModuleBindingGraph, identity: ModuleIdenti
   result
 }
 
-pure resolve_module_uses_unchecked(graph: ModuleBindingGraph, identity: ModuleIdentity, parsed: ParsedModule): ResolvedModuleUses {
-  mut result: ResolvedModuleUses = ResolvedModuleUses([], [])
-  mut index: Nat = 0
-  for declaration in parsed.program.declarations {
-    origin: SourceSpan = parsed.syntax[index].span
-    match declaration {
-      ImportDeclaration(path) => {},
-      TypeDeclaration(name, base, guard) => {
-        result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, base, origin))
-        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, guard, origin, set_add(set(), "value")))
-      },
-      RecordDeclaration(name, parameters, fields) => { for field in fields { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, field.type_name, origin)) } },
-      EnumDeclaration(name, parameters, variants) => { for variant in variants { for type_name in variant.payload { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, type_name, origin)) } } },
-      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, return_type, origin))
-        for parameter in parameters { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, parameter.type_name, origin)) }
-        mut parameters_in_scope: Set[Str] = set()
-        for parameter in parameters { parameters_in_scope = parameters_in_scope.add(parameter.name) }
-        result = combine_module_uses(result, resolve_module_block_uses(graph, identity, body, origin, parameters_in_scope))
-      }
-    }
-    index = index + 1
-  }
-  result
-}
-
 pure imported_binding_names(module: ModuleBindings): Set[Str] {
   mut names: Set[Str] = set()
   for imported in module.imports {
@@ -620,18 +594,6 @@ pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModu
     index = index + 1
   }
   diagnostics
-}
-
-// An invalid lexical scope cannot yield misleading namespace identities.
-pure resolve_module_uses(graph: ModuleBindingGraph, identity: ModuleIdentity, parsed: ParsedModule): ResolvedModuleUses {
-  match binding_graph_module(graph, identity) {
-    Error(message) => ResolvedModuleUses([], [Diagnostic(message, SourcePos("", 0, 1, 1))]),
-    Ok(module) => {
-      diagnostics: [Diagnostic] = concat(module_binding_diagnostics(module), module_import_shadow_diagnostics(module, parsed))
-      if len(diagnostics) > 0 { ResolvedModuleUses([], diagnostics) }
-      else { resolve_module_uses_unchecked(graph, identity, parsed) }
-    }
-  }
 }
 
 pure resolve_module_dot_call(graph: ModuleBindingGraph, identity: ModuleIdentity, target: Expr, name: Str, arguments: [Expr], types: [Str]): Result[ResolvedDotCall,Str] {

@@ -74,15 +74,26 @@ documented in `../../docs/SOURCE_MAPS.md`.
   type and pattern diagnostics currently fall back to declaration/match spans.
   Receiver-first nonbuiltin helper uses retain their declaration identity too,
   so public guards cannot hide private helpers behind method spelling.
-  This does not integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary
+  The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary
   execution gate until compiler/stdlib/fixture migration and fresh conformance.
 - `module_signatures.panack` resolves staged declaration signatures to tagged core,
   nominal, binder-position parameter and callable-effect identities. Original-ID
   public reachability validates nested fields/payloads/parameters/returns and
   guard dependencies; generic substitution cannot capture another declaration's
   parameters. `LoadedProject.module_signatures` retains the valid contracts for
-  later body/effect/emission/tooling migration. Only staged modules invoke this
-  layer; namespace execution remains rejected. Graph scans are not yet indexed.
+  body/effect/emission/tooling migration. When any module is staged, the loader
+  prepares contracts across the graph before binding staged function bodies;
+  ordinary legacy projects skip both passes. Graph scans are not yet indexed.
+- `module_bodies.panack` retains structural bodies with original declaration/core
+  targets, lexical binder paths, source spans and tagged local/callable types.
+  It checks a bounded literal/local/annotation/direct-call/explicit-generic/return
+  subset, preserving numeric and callable compatibility. Deferred spans distinguish
+  unknown inference/proofs, constructors, core operations and async results from
+  successful identity-type checks. Even zero deferred spans does not certify
+  effects or executable code. `LoadedProject.module_bodies` supplies the new
+  consumer boundary; the legacy checker/emitter and namespace execution gate
+  remain until coordinated migration. The obsolete full-module raw walk is
+  removed from production; its low-level contracts use a test-only adapter.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete

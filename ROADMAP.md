@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#123.**
+The initial allocation contains **105 identities**. **Next available: RM#127.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -38,6 +38,122 @@ Earlier review notes and outcome counts below are historical records only and
 must not be used to schedule a review or block work. This supersedes count-based
 wording in older issue histories as well. See the
 [review process](docs/ROADMAP_PROCESS.md#review-and-completion).
+
+## First non-alpha release — milestone definition
+
+<a id="rm-126"></a>
+
+**RM#126: First non-alpha release** ·
+[GI#265: First non-alpha release](https://github.com/sproates/panackelty/issues/265).
+
+User decision, 2026-10-04: this is an overarching release-readiness milestone
+bringing programmes and workstreams together, not another programme. Version,
+date and final scope remain undecided; further alpha releases may continue.
+The following minimum outcomes are required, with detailed acceptance still to
+be defined where stated. Open scope prevents a credible overall completion
+percentage; do not double-count contributing programmes or call planning delivery.
+
+| Required outcome | Existing work and remaining definition |
+| --- | --- |
+| Compiler work | Complete the agreed compiler-understanding scope in GI#180; confirm detailed release mapping and acceptance evidence. Its current pause remains in effect. |
+| Namespaces, packages and HTTP | Complete GI#233, including migration, reusable packages, HTTP client/server, reproducibility and integrated acceptance. |
+| Performance of a good standard | GI#263 supplies maintained measurements and explicit regression decisions. Agree representative compile/startup/run, resource and developer-feedback targets from repeatable evidence; no unmeasured performance claim. |
+| Expanded standard library | Define practical application coverage, consistent APIs, tests and examples. This is broader than GI#235's namespace migration; detailed scope is open. |
+| Expanded tooling and developer helpers | Define supported creation/edit/build/test/inspect/debug/maintenance workflows; reuse GI#139 editor work and relevant existing tool proposals. The full tooling/helper set remains open. |
+| Code tidying | GI#132 / RM#62 component cleanup, maintainability and removal of obsolete transitional code with behavior protection. |
+| Documentation | Coherent installation, learning path, language/library references, tooling guides, worked applications and migration notes; reuse GI#137/GI#138 and verify documented workflows. |
+| Website outside the main repository | GI#178 / RM#14: source ownership/extraction and independent development/publication. The existing browser repository alone does not meet this requirement. |
+| Faster local and collaboration workflow | GI#133/GI#106 cover developer feedback and build costs. Explicitly assess task-tracking/edit/review/publication latency too: elapsed time, active work versus waiting, repeated tool/review/approval overhead and resource/token use where observable. Administrative tracking overhead is a remaining scope gap, not a claimed existing acceptance criterion or measured cause. |
+| Release readiness | Proposed supporting gates: reliable installation, packaging/upgrade, supported-platform evidence, compatibility/migration and support expectations; refine these with the owner. |
+| Further requirements | Maintain an explicit open-scope list. Additional release requirements may be agreed; omission is not acceptance or a waiver. |
+
+Release acceptance requires agreed bounded criteria for each area, evidence-linked
+gate status and an independently verified clean-install walkthrough building a
+useful multi-file application from public documentation. Resolve open scope before
+choosing the release version; record limitations and accepted trade-offs. Individual
+PR checks alone do not establish this milestone. Track gates as scope-to-define,
+planned, in progress or accepted rather than inventing a total percentage.
+
+Immediate workflow response: batch related bookkeeping into existing delivery or
+planning PRs, use the established informational-document validation route, reuse
+verified evidence and keep review proportionate to changed scope. Avoid repeated
+status-only polling and duplicate approval rounds. This records the excessive
+task-tracking delay as a concern; it does not claim the bottlenecks are measured or
+fixed. No runtime/build measurements are required for this informational update.
+
+Namespaces remains the principal feature initiative; this record starts no new
+implementation or release. Ordinary website content updates remain deferred until
+a supporting release, while repository extraction must be complete by this
+milestone. Detailed decisions and future gate evidence belong in GI#265 and this
+register, reusing existing child work rather than duplicating it.
+
+## Standing performance engineering — ongoing
+
+<a id="rm-123"></a>
+
+**RM#123: Standing performance engineering** ·
+[GI#263: Standing performance engineering](https://github.com/sproates/panackelty/issues/263).
+
+**User decision, 2026-10-04:** performance is a continuing programme and a
+cross-cutting requirement of substantive deliveries, not an occasional backlog
+reminder. Maintain the scorecard below through deliveries, releases and planning
+reports under the [performance review process](docs/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions).
+The standing programme has no lifetime completion percentage. The finite core
+establishment tranche below has its own stable denominator.
+
+The modules/packages/HTTP programme remains the principal feature initiative;
+its next checked-identity implementation has not started. Compiler understanding
+remains paused. This policy delivery starts no optimisation, benchmark execution,
+backend investigation or automation. Baseline scope is planned below; execution
+still requires its separately selected delivery. Website performance work remains
+deferred, and ordinary website content updates wait for the next supporting
+release; existing publication correctness defects retain their separate treatment.
+
+### Continuous scorecard
+
+| Area / existing work | Established target and current evidence | State, responsible role and next action |
+| --- | --- | --- |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Clean full check ≤120s on the reference host; focused incremental check ≤15s with native tools built. PR#262 recorded 211s full and 168s aggregate unit after source/seed changes; these are neither a controlled clean sample nor a focused incremental sample. The earlier 126s observation does not establish causation. | Open performance concern. Delivery owner retains handover until the baseline maintainer accepts it. Next: agree the reproducible clean/warm/edit workload and compare pinned inputs/revisions under the planned baseline; disposition must be reviewed before the next affected compiler delivery. Existing build/cache optimisations remain separately selected. |
+| Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
+| Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty/issues/187) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
+
+The PR#262 timing observations are an open concern, not a retroactive rejection of
+its already authorised merge or proof of a compiler regression's cause. The next
+baseline/comparison must establish applicable workload evidence. Future affected
+deliveries must present a mitigation, justified trade-off or owned remediation
+proposal for explicit acceptance with merge approval; copying a warning is not acceptance. See
+[the recorded measurements and limits](tests/VALIDATION_PROFILE.md#namespace-raw-references-and-binding-resolution--2026-10-04).
+
+### Finite core establishment tranche
+
+Provisional scope-based estimates established on 2026-10-04 total 100%. The larger shares
+cover reproducible harness/workload design, repeated samples and resource evidence;
+policy and independent acceptance are smaller. This denominator includes only the
+initial core establishment, not endless maintenance or the explicitly deferred
+website work retained above. Existing child outcomes are counted once, not again
+under the standing parent. Later scope/weight changes require an explained revision.
+
+| Task | Scope and status | Weight | Completion / earned contribution |
+| --- | --- | ---: | ---: |
+| <a id="rm-124"></a>**RM#124: Performance governance** | Establish ownership, mandatory proportionate delivery assessment, scorecard and explicit regression disposition. Delivered by this policy PR; acceptance takes effect on merge. | 20% | 100% on merge / 20 pp on merge |
+| [RM#28: Incremental and modular builds](#rm-28), baseline slice · GI#106 | Planned; execution not started. Establish repeatable clean, unchanged warm, unrelated-edit and dependency-edit observations with pinned source/toolchain/cache state and variability. Existing implementation history does not accept this maintained baseline. | 30% | 0% / 0 pp |
+| [RM#56: Performance baselines](#rm-56) · GI#141 | Planned; execution not started. Correctness-checked compile/startup/run workloads, meaningful throughput/latency, memory and artifact-size evidence; calibrate noise before general thresholds. | 40% | 0% / 0 pp |
+| <a id="rm-125"></a>**RM#125: Initial performance scorecard acceptance** | Planned; execution not started. Independent reproduction/review of both core baselines, qualified target applicability and initial scorecard acceptance. Requires RM#28/RM#56 baseline evidence. | 10% | 0% / 0 pp |
+| **Total** | **Core establishment only** | **100%** | **20% on governance merge; 0% accepted before it** |
+
+RM#124 and RM#125 are scoped under GI#263; no duplicate implementation issues are
+created. On this policy's merge, governance alone earns 20 pp. This does not claim
+baseline measurement or performance improvement. Delivery owners maintain evidence
+and unresolved actions until a named maintainer accepts handover; independent
+reviewers assess measurements and dispositions, and the user selects priorities
+and accepts trade-offs. The next action is to select the bounded baseline delivery
+and assign its owner, while applying the policy to every intervening substantive
+change. No fixed-count review or scheduled automation is introduced.
+
+Policy acceptance: reconcile contributor instructions and PR prompts, validate the
+informational route, and independently review this revision for consistent scope,
+budget applicability and ownership. Website impact: no public feature, artifact,
+page or release pin changes; this records release-time follow-up policy only.
 
 ## Ambition and adoption focus
 
@@ -544,6 +660,9 @@ evidence and a separately estimated implementation recommendation. Relates to
 #106, #141, #134 and #173; does not replace current performance work or expand #180.
 
 ## Performance priority review — 2026-10-02
+
+Historical bounded investigation; ongoing obligations now belong to
+[RM#123: Standing performance engineering](#rm-123).
 
 **Agreed with the user after PR #219:** take a bounded validation-performance
 investigation under [#106](https://github.com/sproates/panackelty/issues/106)
@@ -1356,7 +1475,7 @@ dependencies without replacing the current principal programme.
 | [RM#53: Interactive debugger](#rm-53) (no issue yet) | Assess a bounded synchronous CLI experiment for breakpoints, stepping, locals and call frames against observed debugging gaps. | M / 1 assessment; delivery estimate follows evidence |
 | [RM#54: Editor support](#rm-54) ([GI#139: Editor support](https://github.com/sproates/panackelty/issues/139)) | Provide highlighting and basic editing in one selected editor; assess compiler-backed features separately. | S–M / 1–2 for one editor |
 | [RM#55: Showcase programs](#rm-55) ([GI#140: Showcase programs](https://github.com/sproates/panackelty/issues/140)) | Deliver one complete, tested demonstration combining existing language capabilities and explicit failure boundaries. | M / 1–2 for one demonstration |
-| [RM#56: Performance baselines](#rm-56) ([GI#141: Performance baselines](https://github.com/sproates/panackelty/issues/141)) | Establish reproducible compile/run, memory and artifact-size benchmarks; use evidence to guide later profiling and optimisation. | M / 1–2 for initial baseline; later optimisation separately scoped |
+| [RM#56: Performance baselines](#rm-56) ([GI#141: Performance baselines](https://github.com/sproates/panackelty/issues/141)) | Planned core baseline under [RM#123](#rm-123); execution not started. Reproducible compile/run, memory and artifact-size evidence guides separately selected profiling/optimisation. | M / 1–2 for initial baseline; later optimisation separately scoped |
 | [RM#57: Independent contract assessment](#rm-57) ([GI#142: Independent contract assessment](https://github.com/sproates/panackelty/issues/142)) | Attempt a narrowly scoped independent implementation from the written bytecode contract and record ambiguities. | M / 1 bounded assessment |
 
 <a id="proposed-first-step"></a>
@@ -1481,6 +1600,12 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+User decision, 2026-10-04: ordinary website content/promotion updates wait for
+the next supporting release. Retain these entries and release prerequisites;
+this does not schedule website implementation or reopen deferred GI#187 trials.
+Existing broken links, failing advertised examples or false claims remain
+correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md#website-impact-and-follow-ups).
 
 - <a id="rm-122"></a>**RM#122: Optional one-command installation guidance** ·
   Follow-up to [RM#121 / GI#256](#rm-121) — **Done (2026-10-04)**.
@@ -2086,8 +2211,12 @@ ownership, conservative integration selection and failure regressions are
 implemented. The supported native/Panackelty/POSIX tooling, canonical full
 checks, bootstrap, sanitizer, release and stable required-check contracts remain.
 
-Dependency-aware probe reuse and separate-compilation design remain unscheduled.
-Completing this slice does not close the broader issue. The existing broad
+The reproducible validation/build baseline is now **Planned; execution not
+started** within [RM#123: Standing performance engineering](#rm-123). It owns the
+current full/focused feedback concern and the first measurement step below.
+Dependency-aware probe reuse and separate-compilation design remain unscheduled;
+planning the baseline authorises neither optimisation nor a compiler redesign.
+Completing the earlier slice does not close the broader issue. The existing broad
 invalidation concern follows.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
@@ -3186,9 +3315,11 @@ exact semantics in performance comparisons. These are **unscheduled research
 questions only**; no investigation, backend implementation or architecture change
 is selected by this record.
 
-State: **Idea; unscheduled**. The 2026-10-02 user request broadens the existing
-runtime/resource baseline proposal rather than creating a duplicate. This does
-not change compiler-work priority or reopen the deferred website/CI work.
+State: **Planned baseline; execution not started**, selected as a scoped outcome
+of [RM#123: Standing performance engineering](#rm-123) on 2026-10-04. This updates
+the earlier Idea/unscheduled baseline status while preserving the principal
+feature priority and deferred website/CI work. It authorises no benchmark run,
+optimisation or backend implementation in the current policy delivery.
 
 Existing validation profiles and paired experiments are useful evidence but do
 not form a general maintained performance baseline. Start with a small suite of
@@ -3209,7 +3340,8 @@ with before/after evidence. Set regression budgets or automation only after
 baseline noise is understood. Optimisation is separately scoped, not part of the
 initial baseline commitment; preserve exactness, safety and correctness.
 Universal thresholds and cross-language superiority claims are outside the
-initial scope. Recording this idea does not schedule benchmark implementation.
+initial scope. The planned baseline requires its own selected implementation
+delivery; JIT/AOT and other backend investigations remain unselected.
 
 ### Independent contract implementation
 

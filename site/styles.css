@@ -233,3 +233,19 @@ footer { color: var(--muted); }
 .copy-command-button:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
 .copy-command-button:disabled { cursor: wait; opacity: .6; }
 .copy-command-status { min-height: 1.6em; margin: .35rem 0 0; font-size: .85rem; }
+
+/* Generated release history shares the homepage palette and typography. */
+.release-history { max-width: 900px; padding-top: 4rem; padding-bottom: 5rem; }
+.release-history h1 { font: 400 clamp(2.6rem, 7vw, 5rem)/1.08 var(--serif); }
+.release-intro, .release-availability { color: var(--muted); max-width: 70ch; line-height: 1.7; }
+.release-availability { padding: 1.3rem 0 2rem; }
+.release-entry { border-top: 1px solid var(--line); padding: 2.5rem 0; }
+.release-entry h2 { font: 400 clamp(1.8rem, 5vw, 2.8rem)/1.2 var(--serif); overflow-wrap: anywhere; }
+.release-entry h3, .release-body h3 { margin-top: 2rem; font-size: 1.1rem; }
+.release-history li { margin: .8rem 0; line-height: 1.7; color: var(--muted); }
+.release-history code { color: var(--ink); overflow-wrap: anywhere; }
+.release-history ul { padding-left: 1.3rem; }
+.release-links { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2rem; }
+.release-pending { background: var(--panel); border: 1px solid var(--line); border-radius: .5rem; margin-bottom: 2.5rem; }
+.release-pending summary { cursor: pointer; padding: 1.3rem; color: var(--signal); line-height: 1.5; }
+.release-body { padding: 0 1.3rem 1.3rem; }

@@ -9,6 +9,7 @@
     <link rel="canonical" href="https://panackelty.com/">
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="chrome.css">
     <title>Panackelty — exact values, clear intent</title>
   </head>
   <body>
@@ -16,6 +17,7 @@
     <header class="site-header">
       <a class="brand" href="./" aria-label="Panackelty home"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a>
       <nav aria-label="Primary navigation">
+        <a href="releases.html">What’s changed</a>
         <a href="#capabilities">Capabilities</a>
         <a href="#examples">Examples</a>
         <a href="#engineering">Under the hood</a>
@@ -59,6 +61,7 @@ main(): Void {
         <h2 id="versions-title">Know which version you’re exploring.</h2>
         <p><strong>Download:</strong> alpha.10, using bytecode v9. It includes import-free <code>Option</code>/<code>Result</code>, text and collection methods, and experimental async/await. Upgrading from alpha.9? Recompile saved v8 programs and replace obsolete text/collection imports with methods.</p>
         <p><a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">Download alpha.10</a> · <a href="https://github.com/sproates/panackelty/blob/main/README.md#experimental-async-source-support">Read the async notes</a></p>
+      <p><a href="releases.html">What’s changed → release history and migration notes</a></p>
       </aside>
 
       <section class="content-section" id="capabilities" aria-labelledby="capabilities-title">
@@ -195,7 +198,7 @@ main(): Void {
         </li></ul>
       </section>
     </main>
-    <footer><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a><p>Experimental. Open source. Still evolving.</p><p><a href="https://github.com/sproates/panackelty/blob/main/LICENSE">BSD-3-Clause</a> · <a href="https://github.com/sproates/panackelty">GitHub</a> · <a href="#main">Back to top</a></p></footer>
+    <footer><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a><p>Experimental. Open source. Still evolving.</p><p><a href="https://github.com/sproates/panackelty/blob/main/LICENSE">MIT</a> · <a href="https://github.com/sproates/panackelty">GitHub</a> · <a href="#main">Back to top</a></p></footer>
     <script>
       document.querySelectorAll('[data-copy-target]').forEach((copyButton) => {
         const copySource = document.getElementById(copyButton.dataset.copyTarget);

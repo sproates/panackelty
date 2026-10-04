@@ -93,3 +93,14 @@ or the local preview command. No automatic hosted PR publication is introduced.
 idea of replacing the Node serving component with a Panackelty-written local
 HTTP/static-file server. It does not block this workflow or require rewriting
 the build tooling.
+
+The generated `releases.html` history uses the candidate’s `CHANGELOG.md` and
+availability pins. It receives the same preview identity banner as the homepage
+and playground. Restart the preview after editing notes; generated output is not
+committed back into the source tree.
+
+Assembly derives the shared header and footer on release history and playground
+pages from the homepage, adapting relative links and current-page indicators.
+A small website-owned chrome stylesheet keeps navigation wrapping consistent. The playground’s resource links are retained; this website-owned
+HTML shell addition does not change any versioned browser runtime asset or pin.
+Live verification covers the assembled playground HTML as well as its assets.

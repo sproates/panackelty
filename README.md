@@ -698,6 +698,10 @@ and bytecode.
   **Bug report** form and covers development expectations.
 - Panackelty is available under the [MIT License](LICENSE).
 
+The website’s **What’s changed** page is generated from [CHANGELOG.md](CHANGELOG.md)
+during every preview and Pages build. Published native availability is pinned
+separately from prepared notes; see [release-history maintenance](RELEASE_POLICY.md#website-release-history).
+
 ## Preview website changes locally
 
 From a clone, run `node scripts/preview.cjs` with Node 24 to build the current

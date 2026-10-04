@@ -122,7 +122,7 @@ pure subtraction_decision(left: Expr, left_info: TypeInfo, right_info: TypeInfo,
     LocatedExpr(span, value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {},
     StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(name) => {},
     ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {},
-    CallExpr(name, args, types) => {}, FieldExpr(value, field) => {},
+    CallExpr(name, args, types) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(value, field) => {},
     IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {},
     BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
@@ -149,7 +149,7 @@ pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
     StringExpr(text) => checker_diagnostic(message), BoolExpr(value) => checker_diagnostic(message),
     NameExpr(name) => checker_diagnostic(message), FunctionExpr(name) => checker_diagnostic(message),
     ArrayExpr(items) => checker_diagnostic(message), UnaryExpr(operator, operand) => checker_diagnostic(message),
-    BinaryExpr(operator, left, right) => checker_diagnostic(message), CallExpr(name, arguments, type_arguments) => checker_diagnostic(message),
+    BinaryExpr(operator, left, right) => checker_diagnostic(message), CallExpr(name, arguments, type_arguments) => checker_diagnostic(message), DotCallExpr(target, name, arguments, types) => checker_diagnostic(message),
     FieldExpr(target, field) => checker_diagnostic(message), IndexExpr(target, index) => checker_diagnostic(message),
     IfExpr(condition, yes, no, has_else) => checker_diagnostic(message), BlockExpr(block) => checker_diagnostic(message),
     MatchExpr(subject, arms) => checker_diagnostic(message)
@@ -475,16 +475,16 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
                     if operator == "==" { result = value == bound; } else {}
                     if operator == "!=" { result = value != bound; } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
           }
         }
       }
     },
-    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
 }
@@ -509,16 +509,16 @@ pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
                     if operator == "<=" { result = bounds.has_upper && bounds.upper <= bound; } else {}
                     if operator == "==" { result = bounds.has_lower && bounds.has_upper && bounds.lower == bound && bounds.upper == bound; } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
           }
         }
       }
     },
-    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
 }
@@ -540,7 +540,7 @@ pure assignable_checked(program: Program, value: TypeInfo, target: Str, source: 
         match unlocated_expression(source) {
           LocatedExpr(position, inner) => {},
           NameExpr(name) => { if map_has(facts, name) { proven = prove_guard_bounds(guarded.guard, map_get(facts, name)); } else {} },
-          NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(flag) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(field_target, field) => {}, IndexExpr(collection, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+          NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(flag) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(field_target, field) => {}, IndexExpr(collection, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
         }
         proven
       }
@@ -870,6 +870,10 @@ pure facts_after_expression(expression: Expr, facts: Map[Str,Bounds]): Map[Str,B
       BinaryExpr(operator, left, right) => {
         result = facts_after_expression(right, facts_after_expression(left, result))
       },
+      DotCallExpr(target, name, arguments, types) => {
+        result = facts_after_expression(target, result)
+        for argument in arguments { result = facts_after_expression(argument, result) }
+      },
       CallExpr(name, arguments, type_arguments) => {
         for argument in arguments { result = facts_after_expression(argument, result) }
       },
@@ -1034,6 +1038,9 @@ pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo],
           }
         }
       }
+    },
+    DotCallExpr(target, name, arguments, types) => {
+      diagnostics = append(diagnostics, checker_diagnostic("unresolved dot call requires module binding resolution"))
     },
     CallExpr(name, arguments, type_arguments) => {
       operation: Str = method_operation(name)
@@ -1303,13 +1310,13 @@ pure condition_facts_evidence(condition: Expr, facts: Map[Str,Bounds], truth: Bo
               } else {}
               result = map_put(result, name, next)
             },
-            LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection,other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+            LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection,other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
           }
         },
-        LocatedExpr(other_position, other_value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+        LocatedExpr(other_position, other_value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
       }
     },
-    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
 }

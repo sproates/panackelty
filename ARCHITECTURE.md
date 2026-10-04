@@ -238,14 +238,28 @@ separate; original core bindings precede its existing internal callable renaming
 aligned declaration origins while creating diagnostics, so repeated name conflicts
 in different files retain distinct locations.
 
-This is the first namespace foundation, not resolved namespace execution. Import
-paths/selectors remain unresolved binding metadata; cross-module aliases/re-exports,
-qualified expressions/types, nominal/effect/emission identity and source migration
-remain P2 work. `parse_program_complete` and the loader reject explicit namespace
-syntax before checked emission. The temporary gate has no user-selectable mode;
-remove it with complete downstream identity integration and bootstrap migration.
-Ordinary method lowering, including `.get`/`.first`, is still the current value
-receiver lowering and must move behind binding resolution in that later slice.
+Raw `ParsedModule` trees now retain `DotCallExpr` receivers, written method names,
+arguments and explicit type arguments. Qualified type, function-reference and
+variant-pattern spellings survive parsing. `module_resolution.panack` accepts an
+explicit graph of module bindings and resolved import edges, follows selective and
+namespace re-exports without changing declaration identity, and distinguishes a
+namespace call from a value method before reserved `.get`/`.first` lowering.
+A completed-node graph walk shares diamond dependencies while detecting cycles.
+The raw-use pass retains resolved reference identities and rejects private or
+missing bindings, namespace values and import/local/type-parameter collisions.
+Expression references retain their original expression spans; type references and
+pattern selectors currently use their owning declaration or match span.
+
+This is an intermediate resolution API, not checked namespace execution. Public
+signature accessibility, complete core/nominal/callable identities through the
+checker, effects, substitutions and emission, and coordinated source migration
+remain P2 work. `parse_program_complete` and the loader fail closed on staged
+syntax, including qualified uses with default imports or no explicit `pub`.
+Only the gated legacy execution tree lowers value methods and combines names;
+raw trees remain intact. The temporary boundary has no user-selectable mode and
+must disappear with downstream identity integration and bootstrap migration.
+The loader supplies normalized path-derived graph edges and reports staged graph
+and use diagnostics without emitting executable namespace programs.
 
 Parsed `Program` values retain declarations in source order and immutable
 per-kind name indexes constructed by `indexed_program`. Module combination

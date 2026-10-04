@@ -27,7 +27,7 @@ documented in `../../docs/SOURCE_MAPS.md`.
 
 - `parser.panack` contains the recursive expression AST and parser for literals,
   operators, calls, explicit named function references, receiver-first
-  method-call lowering, field access, indexing,
+  retained dot calls, field access, indexing,
   blocks, bindings, assignments, and
   optional local type annotations, including exhaustive value conditionals, optional
   `else` for `Void` conditionals, and `while` and `for` statements. Pattern matching supports variant payload bindings plus
@@ -38,7 +38,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   parsed alongside pure and impure functions with scoped type parameters and
   optional explicit type arguments at direct and receiver-first calls. The parser covers the complete
   accepted executable grammar; raw module parsing also retains staged namespace
-  declaration/import forms without enabling their execution. `indexed_program` retains declaration order while
+  declaration/import forms and qualified types/references/patterns without enabling
+  their execution. Gated legacy parsing lowers dot calls to receiver-first calls.
+  `indexed_program` retains declaration order while
   building separate type/record/enum/function indexes and variant metadata.
   Construct programs through this factory, including synthetic test ASTs.
   Module combination rebuilds indexes; checker lookups preserve last-match
@@ -58,12 +60,21 @@ documented in `../../docs/SOURCE_MAPS.md`.
   identities, enum ownership and private/ambiguous export lookup. The loader
   retains these before combination, separates physical source paths from relative
   semantic identity, and passes declaration origins into resolver diagnostics.
-  This foundation does not resolve cross-module aliases/re-exports or enforce
-  public signatures/local shadowing. The raw module parser retains `pub`, alias
-  and selective import syntax, while `parse_program_complete` and the loader fail
-  closed on it pending qualified syntax, checked/emitted identities and coordinated
-  compiler/stdlib/fixture migration. Remove this temporary bootstrap boundary only
-  with those integrations and fresh seed conformance; it is not a second mode.
+- `module_resolution.panack` resolves an explicit binding graph with namespace and
+  selective imports, original-identity re-exports, enum selectors and qualified
+  functions/types. It validates missing/private/conflicting imports and cycles,
+  sharing completed graph nodes across diamonds. Raw use traversal distinguishes
+  namespace receivers before core method lowering and rejects imported aliases
+  colliding with parameters, type parameters, locals, loops or pattern bindings.
+  The raw-use traversal and legacy gate track value scopes independently, preserving
+  value receivers sharing an enum name or legacy default import basename. The
+  implicit guarded-type `value` also participates in import collision checks.
+  Invalid lexical scopes return no misleading reference identities. Core reserved
+  names remain for later checked resolution. Expression use spans are exact;
+  type and pattern diagnostics currently fall back to declaration/match spans.
+  This does not check public signatures or integrate checked nominal/effect/emission
+  identities. `parse_program_complete` and the loader retain the temporary
+  execution gate until compiler/stdlib/fixture migration and fresh conformance.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete

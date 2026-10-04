@@ -648,6 +648,8 @@ pure emit_expression_at(expression: Expr, program: Program, next_temporary: Nat,
         EmittedCode(instructions, right_code.next_temporary, sources)
       }
     },
+    // Defensive trap for internal callers bypassing the checked frontend.
+    DotCallExpr(target, name, arguments, types) => EmittedCode([MatchFailInstruction()], next_temporary, []),
     CallExpr(name, arguments, type_arguments) => emit_call(name, arguments, program, next_temporary, offset, retain_sources, origin),
     FieldExpr(target, field) => {
       emitted: EmittedCode = emit_expression(target, program, next_temporary, offset, retain_sources)

@@ -748,3 +748,16 @@ assertions plus CPU/RSS observations. The retention unit checks also run in
 `make check`; the complete experiment runs in Linux/macOS compiler CI. See its
 [scope, privacy policy and findings](experiments/runtime_provenance/README.md).
 No production runtime tracing command or alternate interpreter is added.
+
+### Staged namespace resolution
+
+`compiler_module_bindings_unit.panack` checks raw qualified syntax and original
+cross-module declaration identities through selective aliases, namespace/enum
+re-exports and repeated aliases. Negative cases cover private or hidden transitive
+bindings, wrong binding kinds, conflicting lexical imports, missing/duplicate/cyclic
+graphs and namespace values. A layered diamond checks one completed visit per
+module. The existing diagnostic functional case runs qualified default-import,
+type, function-reference and pattern sources through `panack check`, `compile`
+and `run`, asserting the migration diagnostic and absence of bytecode output.
+These tests exercise an internal, fail-closed resolution slice; checked namespace
+execution and coordinated source migration remain pending.

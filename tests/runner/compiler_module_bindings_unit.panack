@@ -144,7 +144,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -160,4 +160,246 @@ main(): Void {
   results = append(results, test_expect("loader retains entry module bindings", saw_main, "missing entry metadata"))
   results = append(results, test_expect("core origin precedes internalization", saw_core, "missing original core name"))
   if test_report(results) > 0 { process_exit(1) }
+}
+
+pure namespace_identity(path: Str): ModuleIdentity {
+  ModuleIdentity(StandaloneModulePackage(), path)
+}
+
+pure namespace_test_bindings(path: Str, source: Str): ModuleBindings {
+  match namespace_parse(source) {
+    Error(error) => ModuleBindings(namespace_identity("PARSE FAILURE: " + error.message), [], []),
+    Ok(parsed) => collect_module_bindings(namespace_identity(path), parsed)
+  }
+}
+
+pure namespace_target_text(result: Result[ResolvedModuleTarget,Str]): Str {
+  match result {
+    Error(message) => message,
+    Ok(target) => match target {
+      NamespaceTarget(identity) => "namespace:" + identity.path,
+      DeclarationTarget(declaration) => declaration.identity.module.path + ":" + declaration.identity.name
+    }
+  }
+}
+
+pure namespace_resolution_graph(): ModuleBindingGraph {
+  library: ModuleBindings = namespace_test_bindings("library", "pub pure get(): Nat { 1 }\npub pure first(): Nat { 2 }\npure helper(): Nat { 3 }\npub record Box[T] { value: T }\npub enum Failure { Timeout, Detail(Str) }\nenum Hidden { Secret }\npub type Positive = Nat where value > 0")
+  facade: ModuleBindings = namespace_test_bindings("facade", "pub import project/library as api\npub import project/library::{get as answer, Box as Crate, Failure, Failure.Timeout as expired}\nimport project/library as hidden")
+  application: ModuleBindings = namespace_test_bindings("app", "import project/facade as facade\nimport project/library as api\nimport project/facade::{answer, Crate, expired}\nimport project/library as second\nmain(): Void {}")
+  other: ModuleBindings = namespace_test_bindings("other", "pub record Box[T] { value: T }\npure helper(): Nat { 4 }")
+  ModuleBindingGraph([application, other, facade, library], [
+    ModuleImportEdge(namespace_identity("facade"), 0, namespace_identity("library")),
+    ModuleImportEdge(namespace_identity("facade"), 1, namespace_identity("library")),
+    ModuleImportEdge(namespace_identity("facade"), 2, namespace_identity("library")),
+    ModuleImportEdge(namespace_identity("app"), 0, namespace_identity("facade")),
+    ModuleImportEdge(namespace_identity("app"), 1, namespace_identity("library")),
+    ModuleImportEdge(namespace_identity("app"), 2, namespace_identity("facade")),
+    ModuleImportEdge(namespace_identity("app"), 3, namespace_identity("library"))])
+}
+
+pure namespace_resolution_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  graph: ModuleBindingGraph = namespace_resolution_graph()
+  app: ModuleIdentity = namespace_identity("app")
+  results = append(results, test_equal_nat("valid diamond graph has no diagnostics", len(module_graph_diagnostics(graph)), 0))
+  walked: ModuleGraphWalk = walk_module_graph(graph)
+  results = append(results, test_equal_nat("shared modules visited once", len(walked.completed), 4))
+  for spelling in ["api.get", "second.get", "facade.api.get", "facade.answer", "answer"] {
+    results = append(results, test_equal_str("function aliases retain origin/" + spelling, namespace_target_text(resolve_module_path(graph, app, spelling)), "library:get"))
+  }
+  for spelling in ["api.Box", "facade.Crate", "Crate"] {
+    results = append(results, test_equal_str("type aliases retain origin/" + spelling, namespace_target_text(resolve_module_path(graph, app, spelling)), "library:Box"))
+  }
+  for spelling in ["api.Failure.Timeout", "facade.Failure.Timeout", "facade.expired", "expired"] {
+    results = append(results, test_equal_str("variants retain origin/" + spelling, namespace_target_text(resolve_module_path(graph, app, spelling)), "library:Timeout"))
+  }
+  results = append(results, test_equal_str("namespace export retained", namespace_target_text(resolve_module_path(graph, app, "facade.api")), "namespace:library"))
+  results = append(results, test_equal_str("private helper rejected across module", namespace_target_text(resolve_module_path(graph, app, "api.helper")), "module declaration helper is private in library"))
+  results = append(results, test_equal_str("private enum cannot export variants", namespace_target_text(resolve_module_path(graph, app, "api.Hidden.Secret")), "module declaration Hidden is private in library"))
+  results = append(results, test_equal_str("bare private variant unavailable", namespace_target_text(resolve_module_path(graph, app, "api.Secret")), "module library has no binding Secret"))
+  results = append(results, test_equal_str("public enum does not open bare variants", namespace_target_text(resolve_module_path(graph, app, "facade.Timeout")), "module facade has no binding Timeout"))
+  results = append(results, test_equal_str("imports do not open transitively", namespace_target_text(resolve_module_path(graph, app, "get")), "module app has no binding get"))
+  results = append(results, test_equal_str("private namespace reexport rejected", namespace_target_text(resolve_module_path(graph, app, "facade.hidden.get")), "import binding hidden is private in facade"))
+  results = append(results, test_equal_str("own helper remains visible", namespace_target_text(resolve_module_path(graph, namespace_identity("library"), "helper")), "library:helper"))
+  results = append(results, test_expect("same named nominal origins differ", resolve_module_type(graph, namespace_identity("library"), "Box") != resolve_module_type(graph, namespace_identity("other"), "Box"), "nominal identities collapsed"))
+  results = append(results, test_expect("guarded type resolves", match resolve_module_type(graph, app, "api.Positive") { Ok(binding) => binding.kind == ModuleGuardedType(), Error(message) => false }, "guarded type lookup failed"))
+  results = append(results, test_expect("function cannot resolve as type", match resolve_module_type(graph, app, "api.get") { Ok(binding) => false, Error(message) => message == "function is not a type: api.get" }, "wrong kind accepted"))
+  results = append(results, test_expect("record cannot resolve as function reference", match resolve_module_function(graph, app, "api.Box") { Ok(binding) => false, Error(message) => message == "declaration is not a function: api.Box" }, "constructor accepted as function"))
+  for method in ["get", "first"] {
+    results = append(results, test_expect("namespace call precedes method lowering/" + method,
+      match resolve_module_dot_call(graph, app, NameExpr("api"), method, [], []) {
+        Error(message) => false,
+        Ok(call) => match call {
+          NamespaceCall(binding, arguments, types) => binding.identity.name == method && len(arguments) == 0,
+          ValueMethodCall(target, name, arguments, types) => false
+        }
+      }, "namespace call was lowered as value method"))
+    results = append(results, test_expect("ordinary receiver remains value method/" + method,
+      match resolve_module_dot_call(graph, app, NameExpr("items"), method, [NatExpr(0)], []) {
+        Error(message) => false,
+        Ok(call) => match call {
+          NamespaceCall(binding, arguments, types) => false,
+          ValueMethodCall(target, name, arguments, types) => name == method && target == NameExpr("items") && len(arguments) == 1
+        }
+      }, "value receiver mistaken for namespace"))
+  }
+  missing: ModuleBindingGraph = ModuleBindingGraph(graph.modules, [])
+  results = append(results, test_expect("missing import edges diagnosed", len(module_graph_diagnostics(missing)) > 0, "missing edge accepted"))
+  duplicate: ModuleBindingGraph = ModuleBindingGraph(append(graph.modules, graph.modules[0]), graph.edges)
+  results = append(results, test_expect("duplicate graph identity diagnosed", len(module_graph_diagnostics(duplicate)) > 0, "duplicate module accepted"))
+  a: ModuleBindings = namespace_test_bindings("a", "pub import project/b as b")
+  b: ModuleBindings = namespace_test_bindings("b", "import project/a as a")
+  cycle: ModuleBindingGraph = ModuleBindingGraph([a, b], [ModuleImportEdge(a.identity, 0, b.identity), ModuleImportEdge(b.identity, 0, a.identity)])
+  results = append(results, test_equal_str("unused reexport cycle ordered diagnostic", module_graph_diagnostics(cycle)[0].message, "module import cycle: a -> b -> a"))
+  bad: ModuleBindings = namespace_test_bindings("bad", "pub import project/library::{helper as exposed}")
+  bad_graph: ModuleBindingGraph = ModuleBindingGraph(append(graph.modules, bad), append(graph.edges, ModuleImportEdge(bad.identity, 0, namespace_identity("library"))))
+  bad_errors: [Diagnostic] = module_graph_diagnostics(bad_graph)
+  results = append(results, test_equal_nat("private selective reexport rejected even unused", len(bad_errors), 1))
+  results = append(results, test_equal_str("private reexport error", bad_errors[0].message, "module declaration helper is private in library"))
+  results = append(results, test_equal_nat("selector diagnostic retains source column", bad_errors[0].position.column, 30))
+  results
+}
+
+pure namespace_qualified_syntax_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  graph: ModuleBindingGraph = namespace_resolution_graph()
+  source: Str = "import project/library as api\npure use(value: api.Box[[api.Positive]]): api.Positive {\n  callback: PureFn[Nat] = @api.get\n  item = api.Box[api.Positive](1)\n  code = api.Failure.Timeout()\n  match code { api.Failure.Timeout() => api.first(), api.Failure.Detail(text) => api.get() }\n}"
+  match namespace_parse(source) {
+    Error(error) => { results = append(results, test_expect("qualified syntax parses", false, diagnostic_text(error))) },
+    Ok(parsed) => {
+      uses: ResolvedModuleUses = resolve_module_uses(graph, namespace_identity("app"), parsed)
+      results = append(results, test_equal_nat("qualified uses resolve", len(uses.diagnostics), 0))
+      results = append(results, test_equal_nat("all nested types calls references and patterns retained", len(uses.references), 11))
+      mut saw_reference: Bool = false
+      mut saw_call: Bool = false
+      for reference in uses.references {
+        if reference.spelling == "api.get" && reference.span.start.line == 3 {
+          saw_reference = reference.span.start.column == 27 && reference.span.end.column == 35
+        }
+        if reference.spelling == "api.Box" && reference.span.start.line == 4 { saw_call = true }
+      }
+      results = append(results, test_expect("function reference keeps complete written span", saw_reference, "reference span lost"))
+      results = append(results, test_expect("qualified generic constructor retained", saw_call, "constructor missing"))
+    }
+  }
+  match namespace_parse("pure f(): Nat { api.get(1) }") {
+    Error(error) => { results = append(results, test_expect("raw dot call parses", false, diagnostic_text(error))) },
+    Ok(parsed) => match parsed.program.declarations[0] {
+      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => match body.value {
+        NoBlockValue() => { results = append(results, test_expect("raw dot call tail", false, "missing tail")) },
+        TailBlockValue(value) => {
+          results = append(results, test_expect("raw dot call preserves receiver spelling arguments", raw_namespace_dot_call(value), "raw dot call was lowered"))
+        }
+      },
+      ImportDeclaration(path) => {}, TypeDeclaration(name, base, guard) => {}, RecordDeclaration(name, parameters, fields) => {}, EnumDeclaration(name, parameters, variants) => {}
+    }
+  }
+  results
+}
+
+pure raw_namespace_dot_call(expression: Expr): Bool {
+  match unlocated_expression(expression) {
+    DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && len(arguments) == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
+    LocatedExpr(span, value) => false, NatExpr(value) => false, DecimalExpr(text) => false,
+    StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
+    FunctionExpr(name) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
+    BinaryExpr(operator, left, right) => false, CallExpr(name, arguments, types) => false,
+    FieldExpr(target, field) => false, IndexExpr(target, index) => false,
+    IfExpr(condition, yes, no, has_else) => false, BlockExpr(block) => false, MatchExpr(subject, arms) => false
+  }
+}
+
+pure namespace_resolution_failure_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  graph: ModuleBindingGraph = namespace_resolution_graph()
+  for body in ["pure f(api: Nat): Nat { api.get() }", "pure f[api](value: api): Nat { api.get() }", "pure f(): Nat { api: Nat = 1; api.get() }", "pure f(): Nat { api = 1; api.get() }", "pure f(): Nat { for api in [1] { api.get() }; 0 }", "pure f(): Nat { match Some(1) { Some(api) => api.get(), None() => 0 } }"] {
+    match namespace_parse("import project/library as api\n" + body) {
+      Error(error) => { results = append(results, test_expect("shadow fixture parses", false, diagnostic_text(error))) },
+      Ok(parsed) => {
+        uses: ResolvedModuleUses = resolve_module_uses(graph, namespace_identity("app"), parsed)
+        results = append(results, test_equal_nat("import shadow yields no misleading references", len(uses.references), 0))
+        results = append(results, test_expect("import shadow rejected", len(uses.diagnostics) > 0 && uses.diagnostics[0].message == "local binding api conflicts with an import binding", "missing shadow diagnostic"))
+      }
+    }
+  }
+  for expression in ["api", "api.Box", "api.helper()", "@api.Box", "api.missing()", "facade.hidden.get()"] {
+    match namespace_parse("import project/library as api\npure f(): Nat { " + expression + " }") {
+      Error(error) => { results = append(results, test_expect("invalid use parses", false, diagnostic_text(error))) },
+      Ok(parsed) => {
+        uses: ResolvedModuleUses = resolve_module_uses(graph, namespace_identity("app"), parsed)
+        results = append(results, test_expect("invalid namespace use rejected/" + expression, len(uses.diagnostics) > 0, "bad use accepted"))
+      }
+    }
+  }
+  match namespace_parse("pub pure f(): Option[Nat] { Some(1) }") {
+    Error(error) => { results = append(results, test_expect("core use parses", false, diagnostic_text(error))) },
+    Ok(parsed) => {
+      uses: ResolvedModuleUses = resolve_module_uses(graph, namespace_identity("app"), parsed)
+      results = append(results, test_equal_nat("implicit core constructor not falsely rejected", len(uses.diagnostics), 0))
+    }
+  }
+  message: Str = "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
+  for source in ["import project/api; main(): Void { api.get() }", "import project/api; main(): Void { api.first() }", "pure f(value: api.Box[other.Item]): Nat { 1 }", "pure f(): PureFn[Nat] { @api.get }", "enum Choice { Pick }; pure f(): Choice { Choice.Pick() }", "pure f(): Nat { match 1 { api.Choice.Pick() => 1 } }"] {
+    results = append(results, test_equal_str("unmarked qualified syntax fails closed", check_source_frontend(source), message))
+    results = append(results, test_expect("unmarked qualified source emits no bytecode", compile_source_bytecode(source) == bytes(), "staged syntax emitted bytecode"))
+  }
+  results = append(results, test_equal_str("legacy value method still lowers", check_source_types("pure f(): Nat { [1].len() }; main(): Void {}"), "ok"))
+  mut modules: [ModuleBindings] = [namespace_test_bindings("leaf", "pub pure answer(): Nat { 1 }")]
+  mut edges: [ModuleImportEdge] = []
+  mut previous: ModuleIdentity = namespace_identity("leaf")
+  for index in 0..16 {
+    name: Str = "layer${index}"
+    module: ModuleBindings = namespace_test_bindings(name, "import project/next as left\nimport project/next as right")
+    modules = append(modules, module)
+    edges = append(edges, ModuleImportEdge(module.identity, 0, previous))
+    edges = append(edges, ModuleImportEdge(module.identity, 1, previous))
+    previous = module.identity
+  }
+  diamond: ModuleBindingGraph = ModuleBindingGraph(modules, edges)
+  walked: ModuleGraphWalk = walk_module_graph(diamond)
+  results = append(results, test_equal_nat("layered diamond completes each module once", len(walked.completed), 17))
+  results = append(results, test_equal_nat("layered diamond validates without repeated subtree work", len(module_graph_diagnostics(diamond)), 0))
+  results
+}
+
+
+pure namespace_lexical_receiver_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for function_source in [
+    "pure f(Choice: [Nat]): Nat { Choice.len() }",
+    "pure f(): Nat { Choice = [1]; Choice.len() }",
+    "pure f(): Nat { for Choice in [[1]] { Choice.len() }; 0 }",
+    "pure f(input: Wrap): Nat { match input { Wrapped(Choice) => Choice.len(), Empty() => 0 } }"] {
+    source: Str = "enum Wrap { Wrapped([Nat]), Empty }; enum Choice { Pick(Nat) }; " + function_source + "; main(): Void {}"
+    results = append(results, test_equal_str("legacy enum-spelled value receiver remains executable", check_source_types(source), "ok"))
+    match namespace_parse(source + "; pure actual(): Choice { Choice.Pick(1) }") {
+      Error(error) => { results = append(results, test_expect("lexical receiver fixture parses", false, diagnostic_text(error))) },
+      Ok(parsed) => {
+        identity: ModuleIdentity = namespace_identity("lexical")
+        graph: ModuleBindingGraph = ModuleBindingGraph([collect_module_bindings(identity, parsed)], [])
+        uses: ResolvedModuleUses = resolve_module_uses(graph, identity, parsed)
+        results = append(results, test_equal_nat("value receiver scope produces no errors", len(uses.diagnostics), 0))
+        results = append(results, test_equal_nat("value scope does not hide other function enum qualification", len(uses.references), 1))
+        results = append(results, test_equal_nat("only actual qualified enum declaration is gated", len(module_execution_diagnostics(parsed)), 1))
+      }
+    }
+  }
+  match namespace_parse("import project/library as value; type Positive = Nat where value.get()") {
+    Error(error) => { results = append(results, test_expect("guard shadow fixture parses", false, diagnostic_text(error))) },
+    Ok(parsed) => {
+      identity: ModuleIdentity = namespace_identity("guard")
+      graph: ModuleBindingGraph = ModuleBindingGraph([
+        collect_module_bindings(identity, parsed), namespace_test_bindings("library", "pub pure get(): Bool { true }")],
+        [ModuleImportEdge(identity, 0, namespace_identity("library"))])
+      uses: ResolvedModuleUses = resolve_module_uses(graph, identity, parsed)
+      results = append(results, test_equal_nat("implicit guarded value gives no namespace reference", len(uses.references), 0))
+      results = append(results, test_equal_str("implicit guarded value import collision diagnosed", uses.diagnostics[0].message, "local binding value conflicts with an import binding"))
+    }
+  }
+  match namespace_parse("import stdlib/result; record Item { outcome: Nat }; pure f(result: Item): Nat { result.outcome }") {
+    Error(error) => { results = append(results, test_expect("default basename fixture parses", false, diagnostic_text(error))) },
+    Ok(parsed) => { results = append(results, test_equal_nat("legacy default import basename is not a reserved value name", len(module_execution_diagnostics(parsed)), 0)) }
+  }
+  results
 }

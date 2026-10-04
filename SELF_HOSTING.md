@@ -1,12 +1,17 @@
 # Self-hosting roadmap
 
-The P2 module/binding foundation refreshes the v9 seed using the existing source
-syntax. Per-file metadata and tagged identities are retained before combination;
-new public/import-binding forms are rejected before execution. The compiler and
+The P2 raw-reference and binding-resolution slice refreshes the v9 seed using
+existing executable source syntax. Raw dot calls and qualified type/reference/
+pattern spellings are retained alongside per-module tagged identities. Namespace
+and selective bindings/re-exports resolve internally, while staged source forms
+continue to be rejected before execution. The compiler and
 stdlib remain on current syntax until the later namespace identity/migration
 slices. No namespace-capable source migration or bytecode version bump is claimed.
-Fresh compiler/library fixed points and public-CLI rejection tests validate this
-intermediate seed; see the [namespace validation evidence](tests/VALIDATION_PROFILE.md#namespace-modulebinding-foundation--2026-10-04).
+Fresh stages 2/3/4 converge to compiler SHA-256
+`ef788384cb2d33d7d908253fd7311bb1e52cebc4483e69d7ca649118090187df`;
+stdlib conformance remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Public-CLI rejection tests validate this intermediate seed; see the [namespace validation evidence](tests/VALIDATION_PROFILE.md#namespace-modulebinding-foundation--2026-10-04).
 
 Per-function effect recovery refreshes the v9 seed while preserving ordinary
 compilation diagnostics and artifacts. Fresh stages 2/3/4 converge to

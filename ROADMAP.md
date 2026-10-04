@@ -1668,12 +1668,13 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   succeeded; the live installation section matched the merged source exactly.
   See [verification evidence](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
 
-- <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
+- <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): dedicated examples/documentation pending; owner: programme
   delivery agent. The browser still advertises v0.1.1; alpha.11 is the published native
-  supporting release, with explicit website/browser adoption pending. After publishing and deliberately adopting a release containing U2,
+  supporting release and is adopted by native downloads/installer through PR #272.
+  Dedicated source-map documentation and example acceptance remain pending. Next,
   consider CLI documentation and a validated lookup example, stating exact-source
   reproduction, unavailable fallback, lookup cost and full-source sidecar privacy.
-  Current pinned examples and release links are unaffected. Do not advertise
+  Browser examples remain unchanged. Do not advertise
   automatic runtime explanations. Acceptance requires checking the example against
   the adopted artifacts and verifying the published pages. Recording this entry
   does not start website work; U9's broader positioning remains separate.
@@ -1694,7 +1695,7 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   published runtime; the homepage's literal guarded-type example does not exercise
   the reproduced mutation defect. Keep this follow-up open through public
   verification that the unsafe examples are rejected and valid examples still run.
-  Recording it does not start website implementation or imply the fix is released.
+  Recording it does not start browser implementation or imply browser adoption.
 
 Record concrete follow-ups here until ownership moves explicitly to the website
 repository. Each entry needs the source issue/PR, affected pages and claims,
@@ -1703,17 +1704,18 @@ update, correctness assessment, owner, state and acceptance evidence. Use a
 linked issue for detail; retain enough information here if GitHub is unavailable.
 Never mark an update complete merely because its PR merged: verify the live site.
 
-- <a id="rm-104"></a>**RM#104: Explanation website adoption** — **U3 subtraction and local effect explanation CLI:** promotion pending; owner is the core
+- <a id="rm-104"></a>**RM#104: Explanation website adoption** — **U3 subtraction and local effect explanation CLI:** examples/documentation pending; owner is the core
   delivery agent until release/adoption handover. After a supporting native
   release, update command examples and feature claims with the bounded
   Nat-subtraction and local call/await effect scope, whole-program/local-boundary
   distinction and unavailable cases. After a release supporting
   [RM#107: Per-function effect recovery](#rm-107), explain valid sibling recovery,
   global declaration gating, invalid-function unavailability and unchanged original
-  diagnostics; alpha.11 is the published native supporting release; explicit adoption remains pending. Explain declared/callable effects without
+  diagnostics. Alpha.11 is published and adopted by native downloads/installer
+  through PR #272; dedicated explanation examples remain pending. Explain declared/callable effects without
   implying a transitive effect graph or runtime execution. Browser support must be verified separately before advertising it.
-  Current published pins/examples remain unchanged; this change starts no site
-  work. Broader demonstrations remain in U9.
+  The native version promotion does not complete those examples or browser
+  adoption. Broader demonstrations remain in U9.
 - [RM#11: Programme website demonstrations](#rm-11) — **Final website refresh (U9):** promotion pending; owner is the
   agent or maintainer delivering #180 until explicitly handed over. Affected
   surfaces: homepage capabilities, learning examples and playground where supported.
@@ -1721,7 +1723,7 @@ Never mark an update complete merely because its PR merged: verify the live site
   above, with the tagline left undecided. Add tested demonstrations, including a
   rejected/explained/corrected example, and describe each delivered capability
   accurately. Current baseline: browser pin v0.1.1 and native download
-  alpha.10 in this roadmap; recheck actual advertised versions when implementing.
+  alpha.11, verified after PR #272; recheck actual advertised versions when implementing.
   Target release is not assigned. Prerequisites: feature acceptance, published
   native/browser artifacts supporting each example, and explicit website adoption.
   Keep existing claims unchanged until supported; no current-site defect is
@@ -2549,7 +2551,7 @@ The existing static GitHub Pages and coverage flow remains in use. PR #108 was a
 
 <a id="rm-128"></a>
 
-**RM#128: Alpha.11 release** — Published; promotion acceptance pending.
+**RM#128: Alpha.11 release** — Done (2026-10-04).
 Selected on 2026-10-04. Release delivery owner: maintainer delivering the promotion.
 [PR#271: Alpha.11 release preparation](https://github.com/sproates/panackelty/pull/271)
 merged as `f1d37b46145b502f7e38e674d0f071934f85166a`. The
@@ -2566,15 +2568,18 @@ subtraction/effect explanations, declaration-lookup improvements, measured build
 baselines and generated website history. Namespace metadata/binding work remains
 internal staged infrastructure, not executable namespace support.
 
-The promotion updates the verified native pin, homepage/README download commands
-and installer defaults to alpha.11. Acceptance remains pending: promotion PR
-checks must run public README/installer acceptance on Linux and macOS; independent
-review, owner preview and explicit merge approval are still required. After
-approved merge, verify the live website/download instructions before marking
-this item complete. Browser v0.1.1 remains pinned until separate adoption is
-tested; RM#102, RM#103 and RM#104 are not closed by native publication alone.
+[PR#272: Alpha.11 downloads and installer](https://github.com/sproates/panackelty/pull/272)
+merged as `23e20c07397790be0b4b6a450283a15fa57902a7`, promoting native
+homepage/README downloads and installer defaults. Independent review, owner
+preview approval and public README/installer acceptance on Linux and macOS passed.
+[Production Check](https://github.com/sproates/panackelty/actions/runs/37215512240)
+and [Pages deployment and live verification](https://github.com/sproates/panackelty/actions/runs/37215665667)
+passed for that revision, including byte comparisons of published pages,
+playground assets and publication provenance. No dedicated issue.
+Browser v0.1.1 remains pinned; RM#102, RM#103 and RM#104 retain their separate
+example, documentation and browser-adoption acceptance.
 
-Performance disposition proposed for release review: retain all safety/coverage
+Performance disposition retained through the approved release: retain all safety/coverage
 and unchanged 120s full / 15s focused targets. The controlled RM#28 baseline has
 clean median 134.42s and unchanged focused median 26.46s, above those targets.
 The performance delivery owner retains GI#106: inspect the measured critical path

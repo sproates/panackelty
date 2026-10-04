@@ -160,6 +160,7 @@ contains site/index.html "Developer preview $published_version is available"
 pass
 case_name=website-examples-run-as-displayed
 capture 0 30 sh tests/site_examples.sh
+capture 0 30 sh tests/site_examples.sh capabilities
 pass
 case_name=tour-example-and-specification-links
 awk '/^## A quick language tour$/ { active=1; next } /^## Language highlights/ { active=0 } active' README.md > "$work/tour"

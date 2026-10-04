@@ -249,3 +249,40 @@ footer { color: var(--muted); }
 .release-pending { background: var(--panel); border: 1px solid var(--line); border-radius: .5rem; margin-bottom: 2.5rem; }
 .release-pending summary { cursor: pointer; padding: 1.3rem; color: var(--signal); line-height: 1.5; }
 .release-body { padding: 0 1.3rem 1.3rem; }
+
+/* Long-form capabilities retain the site palette with a readable text measure. */
+.capabilities-hero { padding-block: 5rem 3.5rem; }
+.capabilities-hero h1 { max-width: 1000px; font-size: clamp(3.4rem, 7.4vw, 6.5rem); }
+.capabilities-hero .section-intro { max-width: 75ch; }
+.capabilities-hero .release-note { margin-top: 2rem; }
+.capabilities-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: clamp(2rem, 5vw, 5rem); align-items: start; }
+.capabilities-toc { display: block; position: sticky; top: 1.5rem; max-height: calc(100vh - 3rem); overflow-y: auto; padding: .5rem .75rem 1rem .25rem; }
+.capabilities-toc .eyebrow { margin-bottom: .75rem; }
+.capabilities-toc .toc-group { font-weight: 700; color: var(--ink); }
+.capabilities-toc ul { list-style: none; padding: 0; margin: .25rem 0 1.25rem; }
+.capabilities-toc a { display: block; font-size: .8rem; line-height: 1.45; padding: .35rem 0; }
+.capabilities-toc a:hover { text-decoration: underline; text-underline-offset: .2em; }
+.capabilities-content { min-width: 0; max-width: 76ch; }
+.capabilities-group { padding-top: 1.5rem; margin-bottom: 4rem; }
+.capabilities-group h2 { font-size: clamp(2.6rem, 4.8vw, 4rem); margin-bottom: 2rem; }
+.capabilities-group > p:not(.eyebrow), .capability-detail p, .capability-detail li, .capabilities-explore p { color: var(--muted); }
+.capability-detail { border-top: 1px solid var(--line); padding-block: 2rem; }
+.capability-detail h3 { font: 400 clamp(1.65rem, 3vw, 2.2rem)/1.2 var(--serif); letter-spacing: -.025em; margin: 0 0 1.5rem; color: var(--ink); }
+.capability-detail p { margin-block: 1rem; }
+.capability-detail code { color: var(--accent); }
+.capability-detail pre { margin-block: 1.75rem; }
+.capabilities-explore { padding: 2.5rem 0 5rem; border-top: 1px solid var(--line); }
+.capabilities-explore h2 { font-size: clamp(2.2rem, 4vw, 3.2rem); line-height: 1.12; }
+@media (max-width: 900px) {
+  .capabilities-layout { grid-template-columns: 1fr; gap: 2rem; }
+  .capabilities-toc { position: static; max-height: none; width: 100%; padding: 1.5rem; background: var(--panel); border: 1px solid var(--line); }
+  .capabilities-toc ul { columns: 2; column-gap: 2rem; }
+  .capabilities-toc li { break-inside: avoid; }
+  .capabilities-content { max-width: none; }
+}
+@media (max-width: 600px) {
+  .capabilities-hero { padding-block: 3rem 2rem; }
+  .capabilities-toc ul { columns: 1; }
+  .capabilities-toc a { padding-block: .5rem; }
+  .capability-detail { padding-block: 1.5rem; }
+}

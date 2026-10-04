@@ -16,15 +16,17 @@ function replace_once(text, needle, replacement, position) {
 }
 END {
     if(headers!=1 || footers!=1 || reading) { print "site chrome: invalid homepage chrome" > "/dev/stderr"; exit 1 }
-    root=(page=="playground" ? "../" : "./")
+    root=((page=="playground" || page=="capabilities") ? "../" : "./")
     gsub(/href="#/, "href=\"" root "#", header)
     gsub(/href="\.\/"/, "href=\"" root "\"", header)
     gsub(/href="releases.html"/, "href=\"" root "releases.html\"", header)
     gsub(/href="playground\/"/, "href=\"" root "playground/\"", header)
-    current=(page=="home" ? root : root (page=="history" ? "releases.html" : "playground/"))
+    gsub(/href="capabilities\/"/, "href=\"" root "capabilities/\"", header)
+    current=(page=="home" ? root : root (page=="history" ? "releases.html" : page=="capabilities" ? "capabilities/" : "playground/"))
     header=replace_once(header,"href=\"" current "\"", "href=\"" current "\" aria-current=\"page\"")
     sub(/href="\.\/"/, "href=\"" root "\"", footer)
-    if(page=="history") {
+    gsub(/href="capabilities\/"/, "href=\"" root "capabilities/\"", footer)
+    if(page=="history" || page=="capabilities") {
         output=replace_once(output,"<!-- SITE_HEADER -->",header)
         output=replace_once(output,"<!-- SITE_FOOTER -->",footer)
     } else {

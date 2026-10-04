@@ -46,7 +46,7 @@ deletes that directory. Defaults for these commands remain `build/preview`
 and port 4173.
 
 Production and previews share `scripts/assemble_site.sh` for website/playground
-assembly. The preview adds identity on the home and playground pages,
+assembly. The preview adds identity on the home, capabilities, release history and playground pages,
 `preview.json`, and no-index hints; browser runtime bytes stay unchanged.
 Coverage is published independently at
 [the coverage site](https://sproates.github.io/panackelty-coverage/). The shared
@@ -99,7 +99,7 @@ availability pins. It receives the same preview identity banner as the homepage
 and playground. Restart the preview after editing notes; generated output is not
 committed back into the source tree.
 
-Assembly derives the shared header and footer on release history and playground
+Assembly derives the shared header and footer on capabilities, release history and playground
 pages from the homepage, adapting relative links and current-page indicators.
 A small website-owned chrome stylesheet keeps navigation wrapping consistent. The playground’s resource links are retained; this website-owned
 HTML shell addition does not change any versioned browser runtime asset or pin.

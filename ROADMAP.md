@@ -3492,7 +3492,17 @@ no wholesale reformat, formatter implementation or change to programme prioritie
 
 **RM#130: Website capabilities guide** · [GI#279: Website capabilities guide](https://github.com/sproates/panackelty/issues/279).
 
-**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. The homepage
+**Verification pending (effective on merge) — selected by the user on 2026-10-04.**
+The capabilities page provides shared navigation, homepage topic links and a
+responsive contents menu. Desktop and mobile preview checks verified the layout,
+code readability and navigation. The approved copy gives
+async/await and other language features dedicated sections and expands upcoming
+namespaces, modules/packages, compiler explanations, HTTP, source coverage and
+performance work. Native alpha.11 is the released baseline; browser differences
+and future work remain explicit. This selected website task may proceed before
+repository separation without displacing the current core implementation.
+
+The homepage
 capability cards mostly send readers to specification or reference material.
 Add a friendly `/capabilities/` page explaining all features available in the
 advertised releases, grouped by practical use, with contents navigation and
@@ -3507,9 +3517,9 @@ and [RM#52: Executable documentation](#rm-52) /
 Acceptance: inventory the current advertised releases' features, execute examples
 against their declared versions, check links, review an accessible desktop/mobile
 preview and verify the live page after authorised publication. Provisional medium
-effort, around 1–2 PRs, to refine after inventory. Recording this idea starts no
-page implementation and changes no
-priority, programme weight or existing website scheduling decision.
+effort, around 1–2 PRs. The delivery owner will verify the published capabilities
+page and navigation after an explicitly authorised merge; keep GI#279 open until
+that live acceptance is complete. No programme weights or release pins change.
 
 ### Executable documentation
 

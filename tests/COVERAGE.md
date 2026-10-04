@@ -792,3 +792,10 @@ real probe-driver compilation versus execution counts, output validation, failed
 command propagation, repeat bounds and output-directory protection. The controlled
 real-toolchain observations and their limitations are recorded in
 [the validation profile](VALIDATION_PROFILE.md). No language/VM coverage is replaced.
+
+The capabilities page (`site/capabilities/index.html`) is assembled with shared
+navigation and preview identity. Pages/preview regressions cover its nested URL,
+current-page indicator and local links/anchors. The layout harness executes all
+four displayed code fragments via `tests/site_examples.sh capabilities`, adding
+entry points for the declaration-only fragments and checking source and saved
+bytecode output. Native alpha.11 validation is recorded in the delivery PR.

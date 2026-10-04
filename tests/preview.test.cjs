@@ -36,11 +36,34 @@ test('portable build preserves assets, records identity, and separates coverage'
   assert.equal(JSON.parse(read('preview.json')).headCommit, '2'.repeat(40));
   assert.match(read('index.html'), /Review preview: 222222/);
   assert.match(read('releases.html'), /Review preview: 222222/);
+  assert.match(read('capabilities/index.html'), /Review preview: 222222/);
+  assert.match(read('capabilities/index.html'), /href="..\/capabilities\/" aria-current="page"/);
   assert.match(read('playground/index.html'), /merged with PR base/);
   assert.match(read('coverage/index.html'), /different revision/);
   assert.equal(read(`playground/assets/${'a'.repeat(64)}/vm.wasm`),'fixture');
   assert.equal(read('styles.css'),fs.readFileSync(path.join(f.root,'site/styles.css'),'utf8'));
   await assert.rejects(build(f.root,f.output,f.metadata,f.archive),/already exists/);
+});
+
+test('capabilities navigation and homepage topic links resolve in the assembled site', async t => {
+  const f = fixture(t);
+  await build(f.root, f.output, f.metadata, f.archive);
+  for (const page of ['index.html', 'capabilities/index.html', 'releases.html', 'playground/index.html']) {
+    const html = fs.readFileSync(path.join(f.output, page), 'utf8');
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+    assert.equal(new Set(ids).size, ids.length, `${page}: duplicate IDs`);
+    for (const [, href] of html.matchAll(/\bhref="([^"]+)"/g)) {
+      const url = new URL(href, `https://preview.invalid/${page}`);
+      if (url.origin !== 'https://preview.invalid') continue;
+      let target = path.join(f.output, url.pathname);
+      if (fs.statSync(target).isDirectory()) target = path.join(target, 'index.html');
+      assert.ok(fs.statSync(target).isFile(), `${page}: missing ${href}`);
+      if (url.hash) {
+        const targetHtml = fs.readFileSync(target, 'utf8');
+        assert.ok(targetHtml.includes(`id="${decodeURIComponent(url.hash.slice(1))}"`), `${page}: missing ${href}`);
+      }
+    }
+  }
 });
 
 test('corrupt release, symlink and invalid identity never publish partial output', async t => {
@@ -67,6 +90,9 @@ test('server serves Wasm with correct MIME and rejects traversal, links and writ
     }).on('error',reject).end();
   });
   assert.match((await request('/')).body,/local changes/);
+  const capabilities = await request('/capabilities/');
+  assert.equal(capabilities.status, 200);
+  assert.match(capabilities.body, /local changes/);
   const wasm=await request(`/playground/assets/${'a'.repeat(64)}/vm.wasm`);
   assert.equal(wasm.status,200);assert.equal(wasm.headers['content-type'],'application/wasm');
   assert.equal(wasm.headers['cache-control'],'no-store');

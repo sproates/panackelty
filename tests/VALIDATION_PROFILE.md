@@ -2779,3 +2779,25 @@ pending/success/reset behavior and independent failure feedback. These remain
 simulated DOM/clipboard checks; real phone/browser clipboard and layout acceptance
 remain pending as described above. The incremental website gate again passes
 all 38 automation tests and Pages assembly/failure handling.
+
+
+### Installer and website final acceptance — 2026-10-04
+
+This final record supersedes the pending acceptance statements above.
+PR#259 merged as `3ee554fbb532120e996f332f1c9a07c3b2592f39` after
+current-head checks passed or were intentionally skipped and independent review
+of tree `db9918c643a8f06d31b1cffc5ede06d6b2354c56` found no blockers.
+[Main Check](https://github.com/sproates/panackelty/actions/runs/37171515647)
+and [production Pages](https://github.com/sproates/panackelty/actions/runs/37171626046)
+completed successfully. A fresh HTTPS retrieval from `https://panackelty.com/`
+matched merged `site/index.html` byte-for-byte, including all eight copy controls,
+manual commands and optional installer links. The public raw installer likewise
+matched merged `scripts/install.sh`. Earlier post-merge native release acceptance
+passed on Linux and macOS; the isolated public-script Linux Hello World/check/
+run/compile/bytecode/removal workflow also passed.
+
+After receiving the live installer and multiline copy/paste plus phone layout
+check instructions, the owner responded “Lgtm”. This is owner acceptance, not a
+claim that the unavailable local browser automation was run. RM#121 and RM#122
+are complete; this informational update closes GI#256 on merge. Existing manual
+installation remains supported. No executable or website source changes here.

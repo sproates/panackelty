@@ -820,7 +820,11 @@ timings are a substitute for the 15-second focused target. Apply 120 seconds onl
 to clean full validation and 15 seconds to the measured focused compiler check.
 
 `summary.tsv` reports every scenario's sample count/minimum/median/maximum.
-Individual logs, stderr and timing files remain available, including failed runs.
+Individual logs, stderr, timing, workload `.status` and `.timer-status` files
+remain available, including failed runs. The timed shell records the workload
+status independently because external timers can normalize nonzero exit codes.
+A failed workload retains its original status; a failed timer also prevents a
+successful sample even if the workload passed.
 A `COMPLETE` marker appears only after every command and exact probe output passes;
 failure stops the sequence with a nonzero status. Disposable work is removed on
 completion or interruption. Results measure one host/revision, not a universal
@@ -831,7 +835,9 @@ fixture repository, fake toolchain and the real compiled-probe cache driver to
 check isolation, candidate snapshot fidelity, actual cache-hit/miss counts,
 output checking, failure propagation, repeat bounds and overwrite rejection.
 The timing regression runs through the restricted native-tool PATH, verifies
-every sample invokes its external timer, and also exercises dash when available.
+every sample invokes its external timer, preserves workload failure 9 when a
+mock timer returns 1, rejects timer failure after workload success, and also
+exercises dash when available.
 The native-tool allowlist resolves the executable from PATH because some shells
 report a `time` keyword rather than an executable from `command -v`.
 These regression tests do not substitute for real-toolchain baseline trials.

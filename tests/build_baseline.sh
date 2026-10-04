@@ -58,7 +58,13 @@ cat > "$work/bin/time" <<'TIME'
 #!/bin/sh
 [ "${LC_ALL:-}" = C ] || exit 8
 printf 'external timer\n' >> "$BASELINE_TEST_TIME_CALLS"
-exec "$BASELINE_TEST_REAL_TIME" "$@"
+timer_status=0
+"$BASELINE_TEST_REAL_TIME" "$@" || timer_status=$?
+case "${BASELINE_TEST_TIMER_MODE:-normal}" in
+ normalize) [ "$timer_status" = 0 ] || exit 1 ;;
+ fail) [ "$timer_status" != 0 ] || exit 7 ;;
+esac
+exit "$timer_status"
 TIME
 chmod +x "$work/bin/time"
 export PATH="$work/bin:$PATH"
@@ -88,9 +94,18 @@ if find "$work/report" -type d -name 'work.*' | grep . >/dev/null; then fail 'di
 if sh scripts/build_baseline.sh "$work/report" fixture-host 1 probes > "$work/reject" 2>&1; then fail 'overwrote existing report'; fi
 if sh scripts/build_baseline.sh "$PWD/output" fixture-host 1 probes > "$work/reject" 2>&1; then fail 'accepted source-local output'; fi
 if sh scripts/build_baseline.sh "$work/invalid" fixture-host 0 probes > "$work/reject" 2>&1; then fail 'accepted invalid repeat count'; fi
-if BASELINE_TEST_FAIL=1 sh scripts/build_baseline.sh "$work/failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored failed validation'; fi
+if BASELINE_TEST_TIMER_MODE=normalize BASELINE_TEST_FAIL=1 sh scripts/build_baseline.sh "$work/failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored failed validation'; fi
 [ ! -e "$work/failed/COMPLETE" ] || fail 'failed run claimed complete'
-awk -F '\t' '$1 == "clean-full" && $4 == 9 { found=1 } END { exit !found }' "$work/failed/samples.tsv" || fail 'failed sample not recorded'
+recorded_status=$(awk -F '\t' '$1 == "clean-full" { print $4 }' "$work/failed/samples.tsv")
+recorded_timer=$(cat "$work/failed/clean-full-1.timer-status")
+[ "$recorded_status" = 9 ] || fail "failed sample not recorded: expected=9 sample=$recorded_status timer=$recorded_timer"
+[ "$recorded_timer" = 1 ] || fail "normalizing timer fixture not exercised: sample=$recorded_status timer=$recorded_timer"
+if BASELINE_TEST_TIMER_MODE=fail sh scripts/build_baseline.sh "$work/timer-failed" fixture-host 1 all > "$work/failure" 2>&1; then fail 'ignored timer failure'; fi
+[ ! -e "$work/timer-failed/COMPLETE" ] || fail 'timer failure claimed complete'
+[ "$(cat "$work/timer-failed/clean-full-1.status")" = 0 ] || fail 'timer-failure workload did not succeed'
+recorded_status=$(awk -F '\t' '$1 == "clean-full" { print $4 }' "$work/timer-failed/samples.tsv")
+recorded_timer=$(cat "$work/timer-failed/clean-full-1.timer-status")
+[ "$recorded_status" = 7 ] || fail "timer failure not recorded: expected=7 sample=$recorded_status timer=$recorded_timer"
 if BASELINE_TEST_BAD_OUTPUT=1 sh scripts/build_baseline.sh "$work/wrong" fixture-host 1 probes > "$work/failure" 2>&1; then fail 'ignored incorrect probe output'; fi
 [ ! -e "$work/wrong/COMPLETE" ] || fail 'incorrect output claimed complete'
 if command -v dash >/dev/null 2>&1; then

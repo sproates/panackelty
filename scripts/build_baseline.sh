@@ -81,9 +81,25 @@ observe() {
     observed_scenario=$1; observed_repeat=$2; shift 2
     run=$observed_scenario-$observed_repeat
     export VALIDATION_PROFILE_RUN="$run"
-    status=0
-    { command time -p sh -c 'errors=$1; shift; exec "$@" 2>"$errors"' sh \
-        "$out/$run.stderr" "$@" > "$out/$run.log"; } 2> "$out/$run.time" || status=$?
+    timer_status=0
+    # Some time implementations normalize a failed child's exit status. Keep
+    # the workload result independently, while retaining timer failures too.
+    { command time -p sh -c '
+        errors=$1; result=$2; shift 2
+        status=0
+        "$@" 2>"$errors" || status=$?
+        printf "%s\n" "$status" > "$result" || exit 125
+        exit "$status"
+    ' sh "$out/$run.stderr" "$out/$run.status" "$@" > "$out/$run.log"; } \
+        2> "$out/$run.time" || timer_status=$?
+    printf '%s\n' "$timer_status" > "$out/$run.timer-status"
+    status=125
+    if [ -f "$out/$run.status" ]; then
+        status=$(cat "$out/$run.status")
+        case "$status" in ''|*[!0-9]*) fail "invalid workload status for $run" ;; esac
+        [ "$status" -le 255 ] || fail "invalid workload status for $run"
+        if [ "$status" = 0 ] && [ "$timer_status" != 0 ]; then status=$timer_status; fi
+    fi
     elapsed=$(awk '$1 == "real" { print $2 }' "$out/$run.time")
     [ -n "$elapsed" ] || fail "missing wall time for $run"
     # Counts are completed instrumented invocations, not compiler-internal work.

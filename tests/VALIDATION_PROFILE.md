@@ -2938,9 +2938,13 @@ no language interpreter. The actual trials used the repository's unchanged
 timing output; the final regression explicitly supplies four conflicting overrides
 and requires them to be removed. These fixes normalize the environment and timer lookup without changing the
 recorded workloads or the elapsed-time meaning of these observations. The extra
-external timer process can change the last digits for tiny fixtures; the table
+external timer process and final independent workload-status recording can
+change the last digits for tiny fixtures; the table
 retains the archived measurements and does not claim a rerun of the final timer.
-Final candidate validation is separate from
+The final timer wrapper also records the workload exit status separately from
+the timer exit status, preserving failures on BSD implementations that normalize
+the child status. Regression mocks reproduce both normalized failure and a timer
+failure after a successful workload. Final candidate validation is separate from
 the archived measurement snapshot.
 
 Measured VM SHA-256:

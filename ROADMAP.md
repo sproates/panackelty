@@ -3126,6 +3126,14 @@ Work record: [.panack source coverage](https://github.com/sproates/panackelty/is
 unscheduled. See the [current comparison](#proposed-first-step) for first-slice
 estimates and recommendation.
 
+**Urgency: High — user decision, 2026-10-04.** As the language grows, missing
+measured `.panack` compiler, tooling and library coverage makes source line,
+function and branch reach harder to assess; existing tests and C coverage do
+not establish it. Bring the bounded source-mapping and measurement feasibility
+slice forward for consideration at the next work review. State remains
+**Idea / unscheduled**: this urgency change starts no implementation, displaces
+no current programme work and changes no programme weights or deadlines.
+
 The public LLVM report measures the native C VM only. Existing `.panack` tests
 exercise the compiler and libraries, but there is no measured source-line or
 branch baseline for those files. Publishing C coverage did not close this gap.

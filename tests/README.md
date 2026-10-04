@@ -768,3 +768,65 @@ type, function-reference and pattern sources through `panack check`, `compile`
 and `run`, asserting the migration diagnostic and absence of bytecode output.
 These tests exercise an internal, fail-closed resolution slice; checked namespace
 execution and coordinated source migration remain pending.
+
+## Reproducible build and validation baseline
+
+Run the bounded baseline from the checkout root, with no other builds or trials
+running on the host:
+
+```sh
+sh scripts/build_baseline.sh /tmp/panack-build-baseline macos-arm64-local 3 all
+```
+
+The output directory must be new and outside the checkout. Use a neutral host
+label, without a login, hostname or personal identity. The default three repeats
+are bounded to 1–5. `all` observes three clean `make check` runs, three unchanged
+warm `make check-compiler` runs, then three runs of each small probe scenario:
+unchanged, unrelated source edit, direct imported dependency edit and transitive
+imported dependency edit. `probes` runs only the probe matrix after native setup;
+it does not establish full/focused validation performance. Every trial is
+sequential; normal validation retains its two internal workers.
+
+The harness clones into an owned disposable directory and overlays the candidate,
+including tracked changes/deletions and untracked non-ignored files. It retains
+`source.tar`, `source.sha256` and the base commit/tree so the exact candidate can
+be reconstructed even before publication. The archive includes the harness;
+the probe fixture is generated afterward from that pinned script, with a relative
+input manifest per observation. Ignored local configuration is excluded. Keep the
+external evidence private until reviewed: raw source archives and logs can contain
+local development content. The original checkout and its caches are not modified.
+
+`environment.txt` records neutral host/OS/hardware, compiler and Make versions,
+fixed `-O2`, serial Make dispatch, two validation workers and seed/VM/stage-2 hashes.
+Inherited build/test overrides and budget overrides are cleared, retaining the
+repository targets of 120/15/75/60 seconds for full/focused/functional/bootstrap.
+Project caches are removed before each clean full check; OS page caches are
+uncontrolled. Warm focused runs reuse the final clean run's artifacts. Each probe
+trial starts with a copy of the same successfully primed baseline cache at the same
+path. Unrelated edits preserve output `42`; direct/transitive edits must output
+`43`. All probes execute; cached test results are never used. The existing broad
+source fingerprint and all compiler/seed/VM invalidation controls remain intact.
+
+`samples.tsv` records POSIX `time -p` elapsed seconds, status and completed
+instrumented probe-build/probe-run/native-build command counts. Native build
+commands include both compilation and linking; they are not translation-unit
+counts. `profile.tsv` preserves existing whole-second inclusive component rows.
+Summed probe compilation/execution seconds are aggregate observed worker time,
+not a wall-clock decomposition: concurrent and nested observations overlap.
+Within the standalone tiny probe, compile and execution labels are separate, but
+whole-second resolution can report zero. Neither probe timings nor aggregate unit
+timings are a substitute for the 15-second focused target. Apply 120 seconds only
+to clean full validation and 15 seconds to the measured focused compiler check.
+
+`summary.tsv` reports every scenario's sample count/minimum/median/maximum.
+Individual logs, stderr and timing files remain available, including failed runs.
+A `COMPLETE` marker appears only after every command and exact probe output passes;
+failure stops the sequence with a nonzero status. Disposable work is removed on
+completion or interruption. Results measure one host/revision, not a universal
+budget guarantee or evidence of a before/after speedup.
+
+`tests/build_baseline.sh`, included in canonical policy validation, uses a tiny
+fixture repository, fake toolchain and the real compiled-probe cache driver to
+check isolation, candidate snapshot fidelity, actual cache-hit/miss counts,
+output checking, failure propagation, repeat bounds and overwrite rejection.
+These regression tests do not substitute for real-toolchain baseline trials.

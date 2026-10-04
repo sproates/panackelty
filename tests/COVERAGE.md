@@ -784,3 +784,11 @@ macOS 14 arm64; network acceptance is separate from offline `make check`.
 runs, rerun ordering and connector failures), exact committed binary/mode/deletion
 manifests and new-branch publication with blob/tree identity checks. These Node
 tests exercise contributor tooling outside native/compiler and public CLI scope.
+
+
+Build-baseline harness regression coverage runs in canonical policy validation.
+It verifies source isolation, exact tracked/untracked/deleted candidate snapshots,
+real probe-driver compilation versus execution counts, output validation, failed
+command propagation, repeat bounds and output-directory protection. The controlled
+real-toolchain observations and their limitations are recorded in
+[the validation profile](VALIDATION_PROFILE.md). No language/VM coverage is replaced.

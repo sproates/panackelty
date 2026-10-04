@@ -40,6 +40,17 @@ discovery should read the linked file directly. Keep baselines and evidence in
 the canonical programme register, following the
 [programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking).
 
+## Performance
+
+For every substantive delivery, follow the
+[performance impact and regression decisions](docs/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions).
+Record relevant impact and proportionate evidence, or a concrete no-impact reason.
+Known budget breaches or material regressions require a responsible role, tracking,
+next action and a reviewable proposed disposition for merge approval; a warning or
+backlog reminder alone is insufficient. Keep unresolved concerns visible in the
+[standing performance scorecard](ROADMAP.md#rm-123) during delivery, release and
+programme reporting. Preserve correctness, safety and required coverage.
+
 ## Independent review
 
 Before requesting merge approval for a substantive delivery PR, obtain review
@@ -192,9 +203,10 @@ Validation performance is an internal nonfunctional requirement:
 - A focused incremental check, with the native toolchain already built, should
   complete within 15 seconds.
 - Validation commands must report enough timing information to identify a
-  budget regression. When an observed run exceeds its budget, emit or report a
-  warning and add or update a prioritized reminder in `ROADMAP.md`; do not let a
-  known regression become the unrecorded norm.
+  budget regression. Apply each budget to its stated workload; aggregate unit
+  time is not a focused incremental sample. Report observed breaches and follow
+  the performance disposition process above; do not leave them as repeated
+  warnings without an owned next action and explicit review decision.
 - Never skip, weaken, or silently move required coverage merely to meet a time
   budget. Remove duplicated work, reuse safe artifacts, improve test selection,
   or optimize the implementation instead.

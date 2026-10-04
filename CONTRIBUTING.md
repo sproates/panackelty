@@ -66,6 +66,10 @@ and evidence belong in the roadmap's programme register; see the
 - Give PRs a descriptive title and explain the problem, resulting behavior,
   scope, validation and material limitations. Link related issues and roadmap
   items; reserve automatic issue-closing links for work completed on merge.
+- Include a proportionate [performance assessment](docs/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions)
+  for substantive deliveries: relevant evidence and comparability limits, or a
+  reasoned no-impact statement. Present unresolved regressions and their explicit
+  disposition; passing correctness checks alone do not establish performance acceptance.
 - Keep each PR reviewable around one coherent outcome. Update affected docs,
   report actual test results and preserve unrelated work. Follow the
   [roadmap process](docs/ROADMAP_PROCESS.md) for priorities and decisions.

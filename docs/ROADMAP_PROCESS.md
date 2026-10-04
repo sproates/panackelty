@@ -3,8 +3,7 @@
 Use this lightweight process to choose Panackelty work deliberately. Strong
 correctness and test evidence, useful capabilities, and an enjoyable developer
 experience are strategic goals. Compiler assistance deserves explicit attention
-beyond the presentation of error messages. Evaluate adoption by human developers
-and AI coding agents, while retaining human readability and maintainability.
+beyond the presentation of error messages. Evaluate adoption by developers, while retaining human readability and maintainability.
 Use the ambition in [ROADMAP.md](../ROADMAP.md) to guide assessment, not to
 claim current platform support or superiority. This process does not predetermine
 which implementation should come next.
@@ -110,8 +109,8 @@ and deferred items separate. Keep one principal implementation initiative active
 unless there is a clear, recorded reason to overlap work. Consider known defects
 promptly according to actual risk rather than blindly following queue order.
 
-The assistant maintains evidence and proposes changes. The user and assistant
-agree priorities in conversation; provide a concise review there so opening a
+Contributors maintain evidence and propose changes. Maintainers agree priorities
+through discussion; provide a concise review there so opening a
 PR is not required to understand the decision. Discussion or process approval
 is not approval for every listed feature. PR approval and permission to merge
 remain explicit; agreement on priorities alone does not authorize a merge.
@@ -129,7 +128,7 @@ remain explicit; agreement on priorities alone does not authorize a merge.
 | `SELF_HOSTING.md` | Bootstrap evidence and milestone history |
 | `CHANGELOG.md` and release records | Delivered release changes |
 
-The assistant handling a change is responsible for reconciling affected status
+The contributor handling a change is responsible for reconciling affected status
 and evidence as part of that change's handover, with priority decisions owned
 by the user. Keep one authoritative status per active item in `ROADMAP.md`;
 supporting documents link to it rather than maintaining competing priority lists.
@@ -139,9 +138,8 @@ the roadmap refresh, not silently treated as current commitments.
 
 ## Programme tracking
 
-Use the repository [Programme Status skill](../.agents/skills/programme-status/SKILL.md)
-when planning a programme, reporting progress, and at every programme task delivery
-or completion. `ROADMAP.md` owns the programme scope, baseline and concise current
+Apply these rules when planning a programme, reporting progress, and at every
+programme task delivery or completion. `ROADMAP.md` owns the programme scope, baseline and concise current
 evidence; linked issues hold delivery detail. Report every scoped task, including
 accepted, blocked, deferred and paused work, with its stable RM identity, state,
 programme weight, evidenced task completion and earned contribution. Keep stage
@@ -249,7 +247,7 @@ decisions must not exist only in a chat, issue comment or GitHub Project.
    matching roadmap section and related issues/PRs. Split independently
    deliverable work; do not bulk-migrate the historical backlog.
 2. In the issue body, record the candidate assessment above: problem/evidence,
-   users and agents affected, value, effort, risk, dependencies/confidence,
+   users affected, value, effort, risk, dependencies/confidence,
    smallest outcome/non-goals and acceptance evidence. Unknowns are acceptable.
    Identify the scope as a feature, investigation, maintenance or defect.
 3. Treat new proposals as **Idea** unless another state is explicitly agreed.
@@ -287,14 +285,14 @@ settings changes or subsequent merges.
 
 ## Website impact and follow-ups
 
-For every core change and release, the author or agent must assess whether the
+For every core change and release, the author must assess whether the
 website needs an update. Consider syntax, APIs, semantics, examples, supported
 platforms, installation commands, download links and version/feature claims.
 Record the outcome in the PR: no impact with a reason, or a link to a concrete
 entry in the [website follow-up register](../ROADMAP.md#website-follow-up-register).
 An existing entry can be updated rather than duplicated. Record it in the same
 PR as the core change, before completion handover; do not leave it only in chat.
-The author or agent owns recording and handover until a named maintainer accepts
+The author owns recording and handover until a named maintainer accepts
 ownership. An unknown release version must be recorded as a prerequisite, not
 invented as a download target.
 
@@ -380,7 +378,7 @@ whether semantic acceptance is actually complete.
 | PR outcome | Required roadmap update | Issue linkage |
 | --- | --- | --- |
 | Final delivery; acceptance can be verified before merge | Include Done status, delivered scope and verified acceptance in this PR, effective when merged | Use `Closes #...` in the PR body for each completed issue |
-| Implementation complete; acceptance requires deployment or another post-merge check | Include Verification pending, the exact remaining checks and the person or agent responsible | Use `Refs #...`; keep the issue open |
+| Implementation complete; acceptance requires deployment or another post-merge check | Include Verification pending, the exact remaining checks and the person responsible | Use `Refs #...`; keep the issue open |
 | Intermediate slice | Record delivered scope and concrete remaining work; retain In progress only while implementation is active | Use `Refs #...`; do not close the parent task |
 
 For a final delivery PR, ensure all required checks have passed on the reviewed
@@ -390,7 +388,7 @@ a merge SHA or date in advance, and do not make a routine second bookkeeping PR
 a prerequisite when acceptance is already complete. Optional future extensions
 do not keep an otherwise completed, bounded task open.
 
-After an explicitly authorised merge, the agent handling delivery must verify
+After an explicitly authorised merge, the author handling delivery must verify
 the merged roadmap state and linked issue closure before its final handover.
 If automatic closure did not occur, close the issue once acceptance and the
 merged completion summary are confirmed. Keep released, implemented-unreleased
@@ -400,7 +398,7 @@ Where post-merge acceptance is required, perform the authorised checks in the
 same delivery session where possible. Once they pass, promptly prepare the
 completion-summary PR with the evidence and closing keyword. That PR still needs
 separate merge approval. If verification is blocked, retain Verification pending
-with the concrete blocker, next action and responsible person or agent; do not
+with the concrete blocker, next action and responsible person; do not
 claim completion or defer an unexplained status to future grooming.
 
 Every final handover states the task's completion status and any remaining
@@ -422,10 +420,10 @@ decision or evidence, not delivery of the feature it investigated.
 
 The process was adopted in PR #83 on 2026-09-29. In the subsequent discussion,
 the user agreed the broad general-purpose ambition and explicit adoption focus
-on developers and AI coding agents, and approved repository-led use of Issues.
+on developers, and approved repository-led use of Issues.
 This refresh records that direction and defines the workflow. An initial review
 has not settled implementation priorities: the expanded architectural assessment
-and bounded comparative experiment precede that decision. Compiler assistance,
+precedes that decision. Compiler assistance,
 source coverage and other candidates must still be compared on evidence, value,
 effort and dependencies. REPL and further validation speed work remain lower
 priority; no platform backend, toolkit or interoperability strategy is selected.

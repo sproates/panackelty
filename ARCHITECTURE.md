@@ -9,11 +9,6 @@ into a fresh OS temporary directory, serves on loopback and removes its own
 files on stop or startup failure. Explicit build/serve commands preserve saved
 artifacts. No hosted preview publisher is part of this design.
 
-Contributor [project operations](docs/PROJECT_OPERATIONS.md) are separate from
-the native toolchain: pure injected connector modules provide bounded snapshots
-and exact-tree publication; a Node/Git helper creates committed manifests. They
-neither store credentials nor perform approval or merge.
-
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual
@@ -90,7 +85,7 @@ The major components are:
 
 ```text
 panackelty/
-├── AGENTS.md                development definition of done
+├── CONTRIBUTING.md          contributor conventions and validation
 ├── Makefile                 canonical validation command
 ├── panack                    stable command-line entry point
 ├── bootstrap/               audited stage-1 compiler seed
@@ -1104,27 +1099,6 @@ API. The current CLI execution path is reused; budgeted cooperative execution is
 not required for this disposable-worker experiment.
 
 ### Reproduction and review source
-
-The private [review prototype](https://panackelty-browser-experiment.sproates846529.chatgpt.site)
-contains an **Experiment source** download with the adapter, build recipe,
-worker/UI sources, generated artifacts, tests, evidence and license notices.
-The Site source snapshot is `ad906be11f5e2e3057fbaee64275cefa9db92423`.
-The downloadable `experiment-source.tar.gz` SHA-256 is
-`2c05eb2851863f126c99d41bae8d527a6d1fd22cee68bef8e4e9b0005d652785`.
-This owner-private research artifact is separate from the public website and
-native toolchain. The repository records essential evidence even if that preview
-is unavailable; its source snapshot is not a supported package release.
-
-In the extracted experiment directory, with the baseline checkout available:
-
-```sh
-sh build-experiment.sh /path/to/panackelty /path/to/emcc "$PWD/dist"
-node prepare-assets.cjs /path/to/panackelty
-node test-worker.cjs
-node test-ui.cjs
-make -C /path/to/panackelty native
-node test-vm.cjs /path/to/panackelty
-```
 
 The measured toolchain is Emscripten 6.0.10, SDK release
 `666337b525e673e769121856d175f6f52b8ead64`, with Node 24.19.0 on Linux x86_64.

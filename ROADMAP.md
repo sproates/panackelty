@@ -162,8 +162,7 @@ artifact, page or release pin changes; this is contributor tooling and policy.
 ## Ambition and adoption focus
 
 Panackelty aims to be a broadly useful general-purpose language that developers
-and AI coding agents choose to build real applications, with AI-assisted
-development as an explicit adoption focus. The ambition is to become a better
+choose to build real applications. The ambition is to become a better
 choice for real development than Python or JavaScript/TypeScript on Node.js;
 this is a goal to demonstrate, not a claim of current superiority.
 
@@ -174,74 +173,20 @@ it is not a claim of current support or a requirement to build every subsystem
 before anyone can use the language. Interoperability with existing libraries,
 runtimes and platform toolkits is a candidate enabling strategy.
 
-Success means independent developers and coding agents can finish useful
+Success means independent developers can finish useful
 applications, maintain and change them, and choose Panackelty again. Prioritise
 reliability, useful compiler assistance, human-readable code, enjoyable tooling,
 installation, deployment and discoverable libraries alongside language features.
-Whether these strengths can overcome unfamiliarity and ecosystem gaps for AI
-agents remains a hypothesis to test.
+Whether these strengths can overcome unfamiliarity and ecosystem gaps remains
+a hypothesis to test.
 
-## Newcomer developer feedback — unscheduled backlog
-
-Recorded on 2026-10-03; expanded on 2026-10-04. The remaining basic and advanced trials are **Idea / unscheduled**, outside the
-modules/packages/HTTP programme. Recording them starts no setup, trial or coding.
-Each trial requires explicit user selection as a dedicated task; completing setup
-or another trial never triggers it automatically. No ad hoc implementation,
-periodic runs or automatic fixes are authorised. Private participant configuration
-stays outside repository records.
-
-<a id="rm-113"></a>
-
-**RM#113: Newcomer trial setup** ·
-[GI#241: Newcomer trial setup](https://github.com/sproates/panackelty/issues/241).
-Prepare a reusable fresh-context protocol, isolated workspace, pinned toolchain,
-public documentation, bounded task/attempt budget and independent success checks.
-Capture observable actions, diagnostics, recovery and outcomes; do not manufacture
-mistakes or infer human beginner performance from an AI trial. Setup acceptance
-is a ready-to-run protocol and task proposal, not an executed trial. Provisional
-size: small–medium / one setup delivery. **Done — 2026-10-04:** reusable
-private protocol and participant configuration saved and independently reviewed.
-The protocol defines fresh-context public inputs, isolated workspace, explicit
-selection, a default 30-minute / 12-failed-attempt budget, observable evidence,
-independent outcome verification and limitations. A ready-to-run installation
-and Hello World brief is prepared under [RM#116](#rm-116). Setup acceptance is
-complete; no participant session, pilot or trial was started. Private configuration
-remains outside the repository; trials require separate explicit selection.
-
-<a id="rm-116"></a>
-
-**RM#116: Installation and Hello World trial** ·
-[GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
-**Done — 2026-10-04:** explicitly selected installation trial completed after
-[RM#113: Newcomer trial setup](#rm-113).
-Suggested first dedicated trial before basic language feedback: start in a clean
-supported native environment, follow public getting-started material, find and
-install a published release, then write and run Hello World. Record the platform,
-release and instructions used, commands, confusion, missing prerequisites,
-diagnostics, recovery attempts and time to first successful run. Use a bounded
-attempt budget without coaching; report any assistance separately. Independently
-verify output and deliver reproducible findings with prioritised improvements,
-including failure or budget exhaustion. The usability target is an unaided first
-program using published instructions alone; a failed attempt remains useful trial
-evidence. Small / one trial and report after setup; cross-platform coverage and
-fix implementation are outside scope. Unaided Ubuntu x86_64 local installation
-of published alpha.10 reached verified Hello World in about 2m43s, with zero
-failed installation/check/run commands. Independent verification confirmed exact
-output and archive/installed-file consistency. See the
-[trial evidence and limitations](tests/VALIDATION_PROFILE.md#newcomer-installation-trial--2026-10-04).
-Follow-up [RM#117: Platform-specific installation instructions](#rm-117) tracks
-the unpack/download improvements; no blocking
-product defect surfaced. This tested a fresh directory on a shared host starting
-at GitHub, not a clean OS, marketing-site navigation or human beginner usability.
-No fixes or further trials were started; each requires separate selection.
+## Platform-specific installation instructions
 
 <a id="rm-117"></a>
 
 **RM#117: Platform-specific installation instructions** ·
 [GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249).
-**Done on merge of PR#251: Platform-specific installation instructions.** Selected follow-up
-to [RM#116: Installation and Hello World trial](#rm-116) and
-[GI#245: Installation and Hello World trial](https://github.com/sproates/panackelty/issues/245).
+**Done on merge of PR#251: Platform-specific installation instructions.**
 The README now gives separate Linux x86_64 and macOS arm64 alpha.10 download,
 checksum, extraction and version blocks that stop on failures, followed by direct
 local check/run/compile commands and optional home-directory PATH setup. The
@@ -253,38 +198,10 @@ executes the current README against real published assets. Both native hosted
 platforms passed those exact commands in [the acceptance run](https://github.com/sproates/panackelty/actions/runs/37160525736);
 independent source review also passed. Final-head checks and merge authorization
 remain prerequisites to merging. No local macOS execution is claimed. This is an
-installation documentation change, not another newcomer trial or a packaging,
+installation documentation change, not a packaging,
 installer or new-platform change. Website parity remains separately unscheduled
 under [RM#118: Website installation command parity](#rm-118); release pins remain
-unchanged and the original trial record is preserved.
-
-<a id="rm-114"></a>
-
-**RM#114: Basic language feedback** ·
-[GI#242: Basic language feedback](https://github.com/sproates/panackelty/issues/242).
-Depends on [RM#113: Newcomer trial setup](#rm-113). Use a bounded practical exercise
-to assess types, bindings, functions, control flow, collections, records/enums,
-pattern matching, errors and the basic purity distinction. Deliver reproducible
-attempt evidence, independently checked programs and ranked usability findings.
-Provisional size: small–medium / one assessment delivery; not started.
-
-<a id="rm-115"></a>
-
-**RM#115: Advanced language feedback** ·
-[GI#243: Advanced language feedback](https://github.com/sproates/panackelty/issues/243).
-Depends on [RM#113: Newcomer trial setup](#rm-113). Select a small application and
-maintenance change combining supported generics, guarded types, higher-order
-functions, effects, async and multi-file organisation. Include namespaces,
-packages or HTTP only once supported by the selected toolchain. Deliver checked
-outcomes and evidence of feature-interaction and recovery friction. Use fresh
-context for independent trials; label retained learning as progression.
-Provisional size: medium / one assessment delivery; not started.
-
-Detailed acceptance and explicit-invocation rules live in the linked issues.
-These trials complement [GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133),
-which retains its broader installation-to-maintenance and human-walkthrough scope.
-Findings may propose follow-up work; they do not authorise fixes. Website impact:
-none from these backlog records; shipped capabilities are unchanged.
+unchanged.
 
 ## Modules, packages and HTTP programme — 2026-10-03
 
@@ -592,7 +509,7 @@ await decisions, including callable types and imported/generic definitions.
 Medium / 1–2 PRs, targeting one end-to-end delivery. This follows the agreed
 return to programme #180; #134 remains open for broader type/proof explanations.
 U0 retention and non-impact experiments remain required before dependent work.
-No new release or website work is started. Owner: delivery agent.
+No new release or website work is started. Owner: delivery author.
 
 **Bounded outcome Done on this PR's merge:** shared effect checking retains actual
 local decisions without changing checking rules or user bytecode. Positive,
@@ -727,7 +644,7 @@ publication correctness evidence or release preparation; no release is started.
 This review considered U1 (#208), U2 (#209/#214/#218 counted once), and U3's first
 query (#219, `f379c50`) as three accepted outcomes. The new baseline is **0 of 3
 accepted outcomes** since this review; grooming itself does not add an outcome.
-The performance delivery agent owns measurements, validation, the PR and tracker
+The performance delivery author owns measurements, validation, the PR and tracker
 handover. The bounded implementation replaces repeated interpreted declaration
 scans with per-kind indexes, preserving declaration order and lookup semantics.
 The [validation profile](tests/VALIDATION_PROFILE.md#compiler-lookup-and-validation-cost--2026-10-02)
@@ -893,7 +810,7 @@ repeated assembly/browser work despite matching inputs. The user selected repair
 of artifact reuse and redundant publication next, after Node 24 action maintenance
 (PR #190). The repair uses per-run artifact discovery and exact live provenance
 comparison; hosted reuse, duplicate-skip and changed-coverage publication remain
-acceptance requirements owned by the delivery agent. #187 stays open; neither
+acceptance requirements owned by the delivery author. #187 stays open; neither
 this repair nor the action upgrade establishes the agreed timing budgets.
 PR #191 is merged as `67fa8f0`. Production run `36910124129` passed live byte
 and provenance verification: validation was 132s excluding observed dispatch,
@@ -902,7 +819,7 @@ the trusted artifact and skipped browsers, packaging and deployment. This proves
 duplicate suppression, not warm restoration with changed coverage. The next
 repair overlaps bounded artifact-history reads and shortens exact-source polling,
 preserving all validation gates. Hosted timing and changed-coverage publication
-remain post-merge acceptance owned by the delivery agent; #187 and ledger 2/3
+remain post-merge acceptance owned by the delivery author; #187 and ledger 2/3
 remain unchanged until the full outcome is accepted.
 
 PR #192 is merged as `58a07bd`; production run `36912354959` passed live
@@ -946,7 +863,7 @@ but GitHub's implicit job success condition propagated the browser skip into
 deployment and live verification. No deployment occurred. The follow-up gives
 those jobs explicit cancellation and direct-prerequisite success guards, with
 regressions for skipped, failed and cancelled prerequisites. Actual deployment
-and live verification remain post-merge acceptance owned by the delivery agent;
+and live verification remain post-merge acceptance owned by the delivery author;
 #187 stays open and ledger remains 2/3. This is a correctness repair within the
 active website CI task, not completion or performance acceptance.
 
@@ -1104,7 +1021,7 @@ live verification remain separately recorded in the website follow-up register.
 
 ### Programme delivery register
 
-This register is the implementation plan for #180. It gives an agent enough
+This register is the implementation plan for #180. It gives a contributor enough
 context to resume without the originating conversation. ROADMAP.md owns scope,
 priority, milestone state and the next action. Issue #180 links PRs and detailed
 findings; the five child issues retain their full acceptance criteria.
@@ -1154,7 +1071,7 @@ other genuinely independent work may be proposed. A merged experiment does not
 close a workstream. Acceptance requires linked tests and review evidence, and
 release or live checks where its scope requires them.
 
-### Next action and agent handover
+### Next action and delivery handover
 
 **U3 first query: accepted in PR #219 (`f379c50`).** The user selected
 this bounded slice after U2 (#218) merged. Delivered command:
@@ -1172,7 +1089,7 @@ performance work under #106 before the next principal programme feature; see
 [the current priority decision](#performance-priority-review--2026-10-02).
 U0 investigations remain open and U2 mapping alone does not complete #173.
 
-An agent resuming this work should:
+A contributor resuming this work should:
 
 1. Read local and repository instructions, this programme section, #180, the
    relevant child issue and the linked investigation/acceptance evidence.
@@ -1183,8 +1100,8 @@ An agent resuming this work should:
    and any unresolved release correctness obligation. If a milestone already has
    an owner or active PR, continue that delivery or agree a separate bounded
    scope rather than duplicating it.
-4. Record the selected milestone, branch/PR, responsible agent or maintainer,
-   acceptance cases, dependencies and next concrete action in #180. The agent
+4. Record the selected milestone, branch/PR, responsible maintainer,
+   acceptance cases, dependencies and next concrete action in #180. The contributor
    doing the work owns validation, documentation and post-merge handover until
    explicitly handed over. Do not record personal identity details.
 5. Deliver through a dedicated branch and PR, with unit/public-CLI regressions
@@ -1198,11 +1115,11 @@ An agent resuming this work should:
 
 Use this compact handover record in #180 for each active delivery:
 
-- Milestone and child issue; state; responsible agent/maintainer.
+- Milestone and child issue; state; responsible maintainer.
 - Branch, PR, tested commit and merged commit if applicable.
 - Accepted criteria and linked commands/results; independent review and findings.
 - Decisions, unresolved questions, blockers and remaining acceptance.
-- Next concrete action, with enough context for another agent to execute it.
+- Next concrete action, with enough context for another contributor to execute it.
 - Website/release impact, including explicit no-impact reasoning where applicable.
 
 U1 was accepted through merged [PR #208](https://github.com/sproates/panackelty/pull/208)
@@ -1370,7 +1287,7 @@ making the entire programme an unconditional prerequisite for unrelated work.
 **RM#12: Local website previews** · [GI#160: Local website previews](https://github.com/sproates/panackelty/issues/160).
 
 The user selected [#160](https://github.com/sproates/panackelty/issues/160) on
-2026-10-01. Previews must work independently of ChatGPT and contributor tooling.
+2026-10-01. Previews must work independently of contributor tooling.
 The user clarified the scope on the same date: a temporary local preview for
 the author, not a public URL or permanent staging site. The hosted-publication
 proposal is superseded; no hosting provider or contributor account is required.
@@ -1381,18 +1298,8 @@ temporary output, stop/cleanup and explicit rebuild instructions. See
 
 **Done: PR #171 merged on 2026-10-01; #160 is closed.** Local validation passes: 24 website tests, complete
 site assembly, a real default-command HTTP/Wasm/start-stop check, and canonical
-`make check` (137s; existing non-blocking timing warning). The local browser route
-was policy-blocked, so the user explicitly requested the existing private Sites
-review route. The Sites skill published the exact clean PR build at
-`c843571d07a7fb78fcfc34338372af29f4c8383b` to the owner-only
-[review site](https://panackelty-staging.sproates846529.chatgpt.site).
-The user confirmed it was working on their iPhone on 2026-10-01.
-
-This verifies an optional private snapshot for this author's cloud workflow;
-it does not make Sites a dependency of the portable local command or introduce
-automatic hosted PR publication. Production is unchanged. No acceptance remains
-for the agreed #160 scope. It counted once as the third accepted outcome
-reviewed at the 2026-10-01 grooming checkpoint below.
+`make check` (137s; existing non-blocking timing warning). Production is unchanged.
+No acceptance remains for the agreed #160 scope.
 
 <a id="rm-101"></a>
 
@@ -1468,7 +1375,7 @@ The review considered these three completed outcomes once each:
 2. Browser ownership and CI cleanup under #151, completed through browser #5,
    core #158 and the [verified completion record](#browser-repository-separation--done) in #159.
 3. Author-local website previews under #160, delivered through #161 and #171,
-   including the [user-accepted private iPhone review route](#completed-portable-author-local-previews).
+   with the [documented local review workflow](#completed-portable-author-local-previews).
 
 Accepted deliverables since that previous baseline: **3 of 3**, considered by
 the 2026-10-02 review above.
@@ -1736,7 +1643,7 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   See [verification evidence](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
 
 - <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): dedicated examples/documentation pending; owner: programme
-  delivery agent. The browser still advertises v0.1.1; alpha.11 is the published native
+  delivery author. The browser still advertises v0.1.1; alpha.11 is the published native
   supporting release and is adopted by native downloads/installer through PR #272.
   Dedicated source-map documentation and example acceptance remain pending. Next,
   consider CLI documentation and a validated lookup example, stating exact-source
@@ -1747,14 +1654,14 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   does not start website work; U9's broader positioning remains separate.
 
 - [RM#8: Website CI follow-ups](#rm-8) — **Separate coverage host:** website cutover and independent manual report
-  refresh verified; owner: delivery agent. PR #203 / Pages `36935939432` passed
+  refresh verified; owner: delivery author. PR #203 / Pages `36935939432` passed
   live homepage, playground, both old entry points and website identity checks;
   landing layout inspected. Coverage run `36938575919` advanced the report to
   core `5381bc5` without another website deployment. No runtime version change.
   Automatic scheduling, core-only no-publication and timing acceptance remain
   open but deferred under #187 by user decision; they no longer block other work.
 
-- <a id="rm-103"></a>**RM#103: Corrective compiler release adoption** — follow-up to [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182): owner is the #180 delivery agent until
+- <a id="rm-103"></a>**RM#103: Corrective compiler release adoption** — follow-up to [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182): owner is the #180 delivery author until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as
   the affected core seed; plan a corrective compiler/browser release and explicit
   website pin update after the core repair is merged and released. Alpha.11
@@ -1772,7 +1679,7 @@ linked issue for detail; retain enough information here if GitHub is unavailable
 Never mark an update complete merely because its PR merged: verify the live site.
 
 - <a id="rm-104"></a>**RM#104: Explanation website adoption** — **U3 subtraction and local effect explanation CLI:** examples/documentation pending; owner is the core
-  delivery agent until release/adoption handover. After a supporting native
+  delivery author until release/adoption handover. After a supporting native
   release, update command examples and feature claims with the bounded
   Nat-subtraction and local call/await effect scope, whole-program/local-boundary
   distinction and unavailable cases. After a release supporting
@@ -1784,7 +1691,7 @@ Never mark an update complete merely because its PR merged: verify the live site
   The native version promotion does not complete those examples or browser
   adoption. Broader demonstrations remain in U9.
 - [RM#11: Programme website demonstrations](#rm-11) — **Final website refresh (U9):** promotion pending; owner is the
-  agent or maintainer delivering #180 until explicitly handed over. Affected
+  maintainer delivering #180 until explicitly handed over. Affected
   surfaces: homepage capabilities, learning examples and playground where supported.
   Refresh the marketing blurb and capability presentation using U9 acceptance
   above, with the tagline left undecided. Add tested demonstrations, including a
@@ -1837,7 +1744,7 @@ M / provisionally 1–2 PRs including tests, release integration and documentati
 
 Work record: [#146](https://github.com/sproates/panackelty/issues/146).
 
-The self-contained release archives are suitable inputs for repeatable CI and agent environments, but no maintained container image is currently provided.
+The self-contained release archives are suitable inputs for repeatable CI environments, but no maintained container image is currently provided.
 
 Publish a toolchain image to GHCR from validated release artifacts. Verify version/checksum provenance, check/compile/run workflows, bind-mounted projects and output ownership. Use explicit version tags and document digest pinning and base-image maintenance. Publish amd64/arm64 manifests only after both Linux targets pass release gates. Exclude application hosting and runtime-only images.
 
@@ -1853,7 +1760,7 @@ M / provisionally 1–2 PRs. Depends on existing release gates; native multi-arc
 
 Work record: [#147](https://github.com/sproates/panackelty/issues/147).
 
-Manual archive installation is supported; a maintained Homebrew tap would simplify installation and upgrades for developers and coding agents.
+Manual archive installation is supported; a maintained Homebrew tap would simplify installation and upgrades for developers.
 
 Create a project-owned tap with pinned release/checksum inputs and an explicit supported-platform policy. Assess source builds versus binary packaging, then verify clean installation, check/compile/run, upgrades and removal. Automate or document release updates. Exclude homebrew/core admission while the project remains an alpha.
 
@@ -1979,8 +1886,8 @@ questions should produce bounded outcomes rather than more prerequisites.
 
 Work record: [issue #85](https://github.com/sproates/panackelty/issues/85).
 The [assessment report](docs/ADOPTION_ASSESSMENT.md) was merged in PR #87; issue
-#85 is closed. Its implementation ordering remained provisional pending the pilot. Evidence covers host integration,
-execution lifecycle, composition, developer/agent assistance, platform/library
+#85 is closed. Its implementation ordering remained provisional. Evidence covers host integration,
+execution lifecycle, composition, developer assistance, platform/library
 gaps, resources, performance, distribution, security and maintainability.
 
 - [x] Assess execution targets, embedding/interoperability, concurrency and
@@ -1992,7 +1899,7 @@ gaps, resources, performance, distribution, security and maintainability.
       include repository settings/tooling and human-readable code refactoring
 - [x] Distinguish observed defects, verified omissions, deliberate limitations,
       stale documentation and hypotheses, citing current repository evidence
-- [x] For each finding, record value, affected users/agents, effort including
+- [x] For each finding, record value, affected users, effort including
       tests/docs/maintenance, risk, dependencies, confidence and a smallest
       useful PR or investigation; compare useful assistance with infrastructure
 - [x] Reconcile stale roadmap states, record remaining documentation drift
@@ -2005,41 +1912,6 @@ Acceptance: evidence-backed assessment across the intended application range,
 with effort and architectural uncertainty explicit. It does not promise all
 platforms or authorise implementation of every identified gap.
 
-<a id="next-bounded-ai-assisted-development-experiment"></a>
-
-### Completed: AI-assisted delivery pilot
-
-<a id="rm-20"></a>
-
-**RM#20: AI delivery pilot** · [GI#86: AI delivery pilot](https://github.com/sproates/panackelty/issues/86).
-
-Work record: [issue #86](https://github.com/sproates/panackelty/issues/86).
-The [pilot report and evidence](docs/AGENT_DELIVERY_PILOT.md) record 12 fresh-context
-trials: Panackelty passed four of six initial and maintained tasks, with HTTP
-blocked twice; Python passed six of six. Token usage/cost were unavailable.
-The bounded delivery arm and report review are complete; PR #88 is merged.
-The free-choice arm, TypeScript comparison and human onboarding were not run.
-
-- [x] Select a few small representative application/change tasks and define
-      independent acceptance tests before running agents; include a later
-      maintenance change and human readability review
-- [x] Compare Panackelty with Python or JavaScript/TypeScript on Node.js using
-      recorded model/tool versions, equivalent resource budgets, task briefs
-      and access to documentation; record language-specific setup differences
-- [x] Measure correctness, elapsed time, cost where observable, repair attempts,
-      human intervention, setup/library failures and subsequent-change success
-- [x] Preserve prompts, revisions, commands and results sufficiently to reproduce
-      the experiment; disclose model familiarity, run variation and sample limits
-- [x] Include unsupported tasks and failures; separate missing capabilities from
-      language/tooling friction, and do not generalise a small study to all models
-- [x] Review results alongside the assessment and agree the first implementation
-      milestone with the user before scheduling feature work
-
-Acceptance: a reproducible feasibility report, limitations and proposed priority
-changes, not a predetermined win or a claim of mainstream adoption. Bound the
-experiment scope and budget before execution; do not introduce a Python runtime
-dependency into Panackelty's own development or validation workflow.
-
 ### Completed: sorting and literal suffix helpers
 
 <a id="rm-21"></a>
@@ -2050,22 +1922,17 @@ Work record: [issue #89](https://github.com/sproates/panackelty/issues/89).
 State: Done. PR #90 merged after all 21 CI jobs passed, including the three
 sanitizer partitions and Linux/macOS packages; issue #89 is closed.
 
-The user selected this S–M item on 2026-09-29 because both ledger trials wrote
-sorting helpers and both inventory trials wrote suffix helpers. It offers a
-small, directly evidenced reduction in application code before broader host
-architecture work. Additive portable APIs keep compatibility risk low.
+The user selected this S–M item on 2026-09-29. Additive portable sorting and
+suffix APIs reduce application code while keeping compatibility risk low.
 
 Scope: stable generic `array_sort_by` with a pure strict-order comparator and
 literal, case-sensitive `text_ends_with`; tests, contracts and an executable
 example. No syntax, VM, namespace, networking or diagnostics changes. Acceptance
 requires `make check`, comparator/Unicode edge cases, unchanged input and equal-key
-order, and replay of the four affected maintained pilot applications after
-replacing their local helpers. Private pilot sources remain private.
+order.
 
 Focused evidence: 24 direct library assertions and three comparator type/effect
-contracts pass. Both maintained inventory programs pass 9/9 original checks
-after suffix replacement; both ledgers pass 14/14 after sort replacement
-(46 checks total, unchanged evaluator). The collections case passes source,
+contracts pass. The collections case passes source,
 compile and saved-bytecode execution. The new stdlib artifact matches the
 unmodified historical compiler; existing disassembled functions are unchanged.
 Canonical `make check` passed in 148s (unit 102s), including bootstrap and
@@ -2085,12 +1952,12 @@ State: Done. The [design report](docs/EXECUTION_CONCURRENCY_DESIGN.md) merged in
 PR #92 after all 21 CI jobs passed; issue #91 is closed. The report remains a
 proposal for later stages rather than a frozen public language contract.
 
-Reason: networking was absent in both HTTP pilot trials, but the VM's synchronous
+Reason: networking was absent, and the VM's synchronous
 execution and host ownership make a concurrency decision a prerequisite to
 coherent public networking APIs. Compare blocking calls, callback/event loops,
 cooperative tasks with explicit suspension, and threads against server, daemon,
 GUI, game, browser and mobile workflows. Weigh effort, safety and readable code
-for developers and AI agents rather than selecting syntax by familiarity alone.
+for developers rather than selecting syntax by familiarity alone.
 
 The proposal recommends one VM-owning thread, resumable cooperative tasks,
 structured task/resource lifetime and host-driven event pumping, with an eventual
@@ -2158,8 +2025,7 @@ State: Done. PR #96 merged with explicit approval on 2026-09-29 after all 21
 hosted checks passed, including sanitizer partitions and Linux/macOS packages;
 issue #95 is closed.
 
-Decision: prioritise enabling network services and host-driven applications. Both
-HTTP pilot attempts were blocked by missing capability; targeted compiler/API
+Decision: prioritise enabling network services and host-driven applications. Targeted compiler/API
 assistance remains the strongest smaller alternative because it improves tasks
 that already succeed. Source mapping/coverage, namespaces, focused quality work
 and validation speed remain candidates, not an automatically scheduled sequence.
@@ -2361,7 +2227,7 @@ Initial priority comparison — historical recommendation before website selecti
 | Candidate / bounded outcome | Why worthwhile and relative priority | Size / estimated PRs |
 | --- | --- | --- |
 | Dependency-aware reuse and modular-build design (#106) | Proposed Next: observed rebuild friction affects work across the project; bound the effort before committing to a compiler redesign | Medium / 2–3 |
-| Native TCP/timer feasibility | Strongest alternative: unlocks network applications blocked in the delivery pilot; choose first if a near-term network application becomes the main goal or cache measurements show poor value | Medium–large investigation / 1–2, not production networking |
+| Native TCP/timer feasibility | Strongest alternative: unlocks network applications; choose first if a near-term network application becomes the main goal or cache measurements show poor value | Medium–large investigation / 1–2, not production networking |
 | Targeted compiler/API assistance | Addresses observed interpolation, numeric-proof and discovery friction; valuable but narrower than the current cross-project rebuild issue | Medium for one selected pain point / 1–2 |
 | Website assessment (#99) | Useful for onboarding, but concrete gaps remain unaudited and it does not shorten current development loops | Small assessment / 1; implementation separately estimated |
 
@@ -2537,15 +2403,6 @@ The subsequent embedded playground shipped in PR #115 after feasibility and
 real-browser preparation in PRs #111 and #113. Persistent REPL sessions remain
 independently scoped; the completed website work does not select them.
 
-### Remaining findings from the delivery pilot
-
-Core library ergonomics shipped in PR #118, and finite TCP client/server support
-shipped in PRs #127 and #130. HTTP framing and indefinite services remain absent;
-the blocked HTTP pilot tasks have not been rerun or declared successful.
-Interpolation, numeric-proof and API discovery friction feed the current workflow
-and compiler-explanation candidates. Compare these against the changed baseline,
-not the pilot's earlier implementation recommendations.
-
 ### Developer experience: useful assistance from the compiler
 
 <a id="rm-34"></a>
@@ -2590,7 +2447,7 @@ retain their evidence below and in the historical sections.
 
 The [decision process](docs/ROADMAP_PROCESS.md) is authoritative for these rules.
 
-- The assessment and delivery pilot are complete. Choose the next principal
+- The architecture assessment is complete. Choose the next principal
   initiative from the current comparison after reviewing its scope and evidence;
   the placement of a detailed proposal does not assign priority.
 - Before implementation, define scope, dependencies, explicit non-goals, failure
@@ -2824,8 +2681,7 @@ receiver-type lookup rather than merely shorten prefixed function names.
       tests, source/saved-bytecode parity, installed-package/bootstrap checks,
       browser integration and updated language/library examples and contracts
 
-Value: less import ceremony and a more consistent API for developers and coding
-agents. Estimated M for core availability and M–L for methods and migration,
+Value: less import ceremony and a more consistent API for developers. Estimated M for core availability and M–L for methods and migration,
 including tests, docs and integration; one cohesive implementation PR, as selected by the user.
 Resolve the bounded design decisions within the relevant PR rather than requiring
 a separate design report up front. Confidence in the friction is high; lookup rules and
@@ -2853,7 +2709,7 @@ earlier spellings; this was a reasoned expectation, not a measured adoption resu
 | --- | --- | --- |
 | Core types and standard methods (#116) | Recommended Next: direct user feedback, immediate benefit in ordinary programs, and existing method machinery to build on | M–L overall / 1 |
 | Dependency-aware probe reuse (#106), excluding separate compilation | Strongest alternative: slow validation affects every change, but savings from narrower invalidation remain unmeasured | M / 1–2 |
-| Native TCP/timer feasibility | Enables applications blocked in the pilot, but carries greater lifecycle uncertainty and does not resolve basic API friction | M–L investigation / 1–2 |
+| Native TCP/timer feasibility | Enables network applications, but carries greater lifecycle uncertainty and does not resolve basic API friction | M–L investigation / 1–2 |
 
 Choose caching first if measurements show iteration cost obstructs this work;
 choose transport feasibility first if a concrete network application becomes the
@@ -3317,29 +3173,15 @@ hold detailed acceptance, risks and first-slice boundaries.
 
 Work record: [#133](https://github.com/sproates/panackelty/issues/133).
 
-The earlier delivery pilot predates core-method and networking delivery. Observe
-a fixed installation-to-maintenance task, including API discovery, errors and
+Observe a fixed installation-to-maintenance task, including API discovery, errors and
 focused tests. Include reproducible debugging tasks covering a runtime trap, an
 external-operation failure and an incorrect result. Observe whether a developer
 can identify the cause, fix it and add a regression test; record time to a correct
 fix, misleading diagnostics and missing tooling, without treating speed alone as
 success. Use these findings to improve the debugging guide and bound any debugger
-assessment. Record reproducible obstacles and feedback latency, with human
-and fresh-context agent evidence where available. Distinguish release and
+assessment. Record reproducible obstacles and feedback latency. Distinguish release and
 development toolchains. Produce bounded fixes rather than assuming a project
 generator, formatter or package manager is needed.
-
-This delivery adds [reusable project operations](docs/PROJECT_OPERATIONS.md): a
-compact head-specific PR snapshot, an exact committed-tree publication manifest
-and a checked new-branch publisher. Regression tests cover stale/missing evidence
-and identity failures. This is a bounded workflow improvement, not completion of
-the broader assessment. Tracking reconciliation and existing-branch publication
-remain follow-ups; no new issue or programme is introduced. Website impact: none,
-because contributor operations do not change published language/release claims.
-Validation: 13 operation tests pass separately; clean-worktree `make check` passes
-in 225s (unit 177s, functional 6s, bootstrap 27s). The full-check budget warning
-remains an active GI#106 follow-up; this observation is not a controlled baseline
-or evidence of a compiler regression caused by these optional scripts.
 
 ### Compiler explanations
 
@@ -3443,26 +3285,6 @@ remaining gaps, verify examples against declared versions and check links and
 consistency between references and guides. Provisional effort: M–L across staged
 PRs; the inventory determines dependencies and final scope. This records a
 documentation review, not approval to change language behavior or priorities.
-
-### Separate agent-instructions repository
-
-<a id="rm-132"></a>
-
-**RM#132: Separate agent-instructions repository** · [GI#282: Separate agent-instructions repository](https://github.com/sproates/panackelty/issues/282).
-
-**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. Inventory
-`AGENTS.md`, `.agents/` and related agent-only files, then plan their move to a
-separate repository. Choose destination, visibility, versioning, discovery and
-setup during assessment. Preserve public contributor documentation, test rules
-and working links; retain current guidance until the migration is accepted.
-Coordinate with [RM#47: Development workflow assessment](#rm-47).
-
-Acceptance: agree the file boundary, remove or update every affected reference,
-and verify that a fresh checkout has usable contributor instructions and a
-documented, reproducible way to obtain the matching agent guidance. Keep
-private configuration out of public material. Effort is unknown;
-repository access and the distribution/versioning contract remain
-unknown dependencies. Recording this starts no repository creation or file move.
 
 ### Definitive Panackelty style guide
 
@@ -3964,13 +3786,12 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Local clean check, coverage publication | 145s, then final 144s; unit phase 99s | Existing clean/unit warning budgets still exceeded in this workspace |
 | Local clean check, adoption/workflow docs (2026-09-29) | 147s; conventions follow-up 152s (unit 104s); all checks passed | Existing clean/unit budget warnings persist; remains non-blocking |
 | Local assessment validation (2026-09-29; native build already present) | 144s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
-| Local delivery-pilot report validation (2026-09-29; native build already present) | 148s; all checks passed | Existing full-check budget warning persists; remains non-blocking |
 | Local sorting/suffix validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Local execution-design validation (2026-09-29; clean build) | 148s; unit 102s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Local resumable-VM validation (2026-09-29; clean rebuild, native prerequisites prepared first) | 150s; unit 105s; all canonical checks passed | Existing full-check/unit budget warnings persist; remains non-blocking |
 | Local task/lifecycle validation sample (2026-09-29; macOS arm64, clean build) | 103s; unit 69s; canonical checks passed | Full check within 120s; unit warning persists; cross-host timings are not directly comparable |
 | Local async-interface proposal validation (2026-09-29; macOS arm64, clean build) | 106s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
-| Local shared-skill validation (2026-09-29; macOS arm64, clean build) | 104s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
+| Local validation sample (2026-09-29; macOS arm64, clean build) | 104s; unit 70s; canonical checks passed | Full check within 120s; existing unit warning remains non-blocking |
 | Local async implementation validation (2026-09-29; Linux workspace) | Final isolated checks passed in 360s and 358s; initial 370s sample overlapped sanitizer work | Existing full-check/unit warnings persist |
 | Controlled clean comparison (#104; same Linux workspace) | Pre-async 341s / unit 231s; merged async 362s / unit 245s; both passed | Most cost predates async; prioritise bounded scheduling and retain all coverage |
 | Bounded local overlap (#104; same Linux workspace) | 346s / unit 224s; all checks passed; 16s (4.4%) faster in one sample | Full/unit budgets still exceeded; bootstrap warned at 61s / 60s |
@@ -3979,7 +3800,7 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 - [ ] Revisit compiler/nested-runner and collection costs when the developer
       feedback delay justifies it; use current measurements before changing code
 - [ ] Retain the local full-check warning observed during preview work (208s
-      against 120s on 2026-10-01), also observed during shared programme-skill
+      against 120s on 2026-10-01), also observed during later documentation
       validation (Linux workspace, clean check 153s on 2026-10-03); this remains
       a non-blocking validation-cost item
 - [ ] Keep runner queue/completion tails distinct from actual execution time

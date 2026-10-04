@@ -1,4 +1,4 @@
-# Developer and AI-agent adoption: architectural assessment
+# Developer adoption: architectural assessment
 
 Assessment date: 2026-09-29. Source baseline: `cf834bf68a26c7d43a1db58b2e95a5cd430bcbf6`
 (PR #84). Work record: [issue #85](https://github.com/sproates/panackelty/issues/85).
@@ -10,8 +10,8 @@ evidence and a proposal awaiting user review, not an implementation commitment.
 Panackelty has a credible compiler/runtime foundation, but it is not yet a broadly
 connected application platform. The largest verified blockers are host/platform
 integration, application lifecycle/concurrency, and reusable modules/packages.
-Developer and agent assistance can deliver smaller improvements without waiting
-for all of those foundations. No evidence yet establishes agent preference,
+Developer assistance can deliver smaller improvements without waiting
+for all of those foundations. No evidence yet establishes
 comparative productivity, mainstream adoption or performance superiority.
 
 Keep the VM, exact numerics and purity boundary as current design constraints.
@@ -51,7 +51,7 @@ docs, integration and maintenance; discovery effort is separate from delivery.
 | E1 | Host extension/embedding interface: verified omission | [builtins.c](../src/vm/builtins.c) has a fixed registry; [vm.h](../src/vm/vm.h) exposes an internal invocation struct and synchronous `execute`, not a documented embedder API. [host.c](../src/vm/host.c) calls native `exit` for `process_exit`. Existing host services are useful but cannot be assumed safe to expose unchanged inside a GUI or browser host. |
 | E2 | Concurrency/lifecycle: deliberate limit plus architectural gap | [SPEC effects](../SPEC.md#effects-and-purity) permit named callable references without captured state; concurrency is postponed. [execute.c](../src/vm/execute.c) uses native recursive calls and a run-to-completion instruction loop. [value model](../src/vm/VALUE_MODEL.md#ownership-and-reclamation) uses non-atomic counts for a single-threaded invocation. No public suspension, cancellation or signal-handler API was found. Internal subprocess `poll` is not language-level async support. |
 | E3 | Namespace/package composition: verified limitation | [SPEC modules](../SPEC.md#modules), [loader](../src/compiler/loader.panack) and stdlib README describe one combined declaration namespace. Visibility, selective imports, third-party packages and configurable roots are pending. Two imported files declaring `answer` fail with a duplicate declaration. |
-| E4 | Agent/compiler assistance: mixed strengths and omissions | [Diagnostic](../src/compiler/types.panack) carries message/position; [driver](../src/compiler/driver.panack) renders text for check/compile/run/disasm. Caret locations, inference and missing-match-case feedback exist. Stable diagnostic codes, machine-readable diagnostics and type/effect queries are absent from the documented CLI. The typo/unused probes below demonstrate bounded opportunities, not proof of every possible diagnostic deficiency. |
+| E4 | Compiler assistance: mixed strengths and omissions | [Diagnostic](../src/compiler/types.panack) carries message/position; [driver](../src/compiler/driver.panack) renders text for check/compile/run/disasm. Caret locations, inference and missing-match-case feedback exist. Stable diagnostic codes, machine-readable diagnostics and type/effect queries are absent from the documented CLI. The typo/unused probes below demonstrate bounded opportunities, not proof of every possible diagnostic deficiency. |
 | E5 | Runtime observability and source measurement: verified gap | [emitter FunctionCode](../src/compiler/emitter.panack) has no instruction-to-source map; [bytecode format](../src/bytecode/FORMAT.md) is strict/versioned. The bounds-trap probe lacks a source location or stack. `.panack` coverage remains unmeasured. Mapping may serve both, but tracing and coverage collection have different acceptance criteria. |
 | E6 | Application libraries/platforms: verified repository omissions | The [stdlib inventory](../src/stdlib/README.md) and builtin registry contain no networking/HTTP/TLS, database, graphics/audio, GUI or JavaScript interop API. No browser/mobile build target or supported Windows release is documented. JSON files in test fixtures do not constitute a JSON application library. External-process delegation is possible but is not equivalent to integrated platform support. |
 | E7 | Long-running resource behavior: needs investigation | Bytecode decode limits and process time/output limits exist. The VM invocation has no visible execution-fuel or allocation-budget field. Native recursive calls, whole-file operations and fatal memory exhaustion merit bounded stress/embedding review. Purity and bytecode verification do not restrict an effectful program's host authority. No exploit or newly proven memory-safety defect is claimed. |
@@ -59,7 +59,7 @@ docs, integration and maintenance; discovery effort is separate from delivery.
 | E9 | Onboarding/tooling: partial foundation | Tour/examples, source/install instructions and test libraries exist. No repository implementation of a formatter, LSP, debugger, package resolver or project-init command was found. CLI/API discoverability and a complete small application tutorial can be assessed before a full IDE toolchain. |
 | E10 | Maintainability/documentation: observed drift | The compiler loader nests path/loading/error work; checker/parser combine substantial responsibilities. This warrants focused review, not a rewrite based on size. SPEC's promise/Euler-first selection text predates the broader ambition; SECURITY's public-repository wording is stale; parts of [coverage matrix](../tests/COVERAGE.md) retain old test descriptions. PR #84 established conventions and planning ownership. |
 | E11 | Repository security/tooling: partial inventory | Read-only GitHub metadata on the assessment date shows a public repo, Issues/Projects enabled and main protected with `test` and Linux/macOS package checks. Ruleset list is empty; classic protection exists. `security_and_analysis` was not returned; full protection administration is unavailable to this integration. Hosted scanner/private-reporting configuration is unknown, not proven disabled. No dedicated scanner/update workflow is present among the tracked workflows. |
-| E12 | Adoption/differentiation: untested hypothesis | The repo demonstrates self-hosting and examples, not independent developer retention or agent preference. Reliable AI-assisted delivery and useful compiler assistance are candidate advantages. No agent comparison or free-choice study was run in this assessment. |
+| E12 | Adoption/differentiation: untested hypothesis | The repo demonstrates self-hosting and examples, not independent developer retention. Useful compiler assistance is a candidate advantage; adoption remains unmeasured. |
 
 ### CLI probe reproduction
 
@@ -113,15 +113,14 @@ Delay risk is developer friction or architectural rework unless otherwise stated
 
 | Candidate / evidence | Value and smallest useful outcome with acceptance | Effort, dependencies, risk and maintenance |
 | --- | --- | --- |
-| Agent delivery pilot (E12) | Establish where agents fail, then compare fixes; reproducible runs and a maintenance task, including unsuccessful results | S–M; task/budget review first; high confidence in evidence gap, unknown benefit. Maintain versioned briefs/results rather than a broad benchmark service. |
 | Structured diagnostics (E4) | Let tools identify errors reliably: stable codes, file/range and machine-readable output for a bounded diagnostic family, preserving human output | M; no source map needed for frontend errors. High confidence; schema compatibility and escaping/Unicode need tests. Machine-readable output does not require shipping a full JSON parser library. |
-| Name suggestions / API discovery (E4,E9) | One small resolver suggestion slice, or a discoverable API query; tests for irrelevant/ambiguous names and imported code | S suggestions, M queries; select using pilot failures. High confidence in omission, usefulness unmeasured. False suggestions and ongoing ranking rules are the main costs. |
+| Name suggestions / API discovery (E4,E9) | One small resolver suggestion slice, or a discoverable API query; tests for irrelevant/ambiguous names and imported code | S suggestions, M queries; select using observed application blockers. High confidence in omission, usefulness unmeasured. False suggestions and ongoing ranking rules are the main costs. |
 | Host/embedding contract (E1,E2,E7) | Design plus bounded native harness: invoke core logic twice, return failures/exits to host, demonstrate owned host-call values and cleanup | S–M discovery, L full support; high enabling value for server/GUI/browser/mobile. Medium feasibility confidence; ABI, re-entry and security authority need explicit contracts. |
 | Event/cancellation model (E2,E7) | Compare host-driven callbacks and resumable VM execution with explicit state; show cancellation/cleanup in a bounded prototype before platform integration | M discovery, L delivery; depends on host ownership decisions. High confidence in gap, medium solution confidence. Scheduler, shutdown and race semantics create enduring complexity. |
 | Namespaces/exports (E3) | Two libraries may use the same private helper; defined imports, qualification, visibility and failures | M design, L delivery including bootstrap. High confidence; prerequisite for stdlib migration and scalable dependencies. Compatibility and diagnostics matter more than syntax alone. |
 | Dependency/project workflow (E3,E9) | One reproducible local third-party dependency with explicit identity/root and useful missing/conflicting-version errors | M discovery, L resolver/registry; depends on module design. Medium confidence in chosen scope; supply-chain policy and version support add maintenance. Defer hosted registry. |
 | Source mapping, runtime diagnosis and coverage (E5) | First decide sidecar vs versioned metadata; validate cross-file trap locations and mapping stability. Then separate PRs for stack diagnostics and trustworthy coverage denominators/aggregation | S–M design, L combined delivery; high confidence. Preserve deterministic bytecode and bootstrap, never silently change v8. Metadata/debug data lifetime and report accuracy add maintenance. |
-| Application library slice (E6) | A complete data tool may justify JSON; a service milestone may justify networking. Specify malformed input, resource bounds, errors and full application acceptance | M JSON estimate, L network/TLS/service stack; scope confidence low until pilot. Prefer reviewed library bridges where suitable; third-party security updates remain project work. |
+| Application library slice (E6) | A complete data tool may justify JSON; a service milestone may justify networking. Specify malformed input, resource bounds, errors and full application acceptance | M JSON estimate, L network/TLS/service stack; scope confidence low until application assessment. Prefer reviewed library bridges where suitable; third-party security updates remain project work. |
 | Resource/authority contract (E7) | Document trusted-code boundaries and specify bounded invocation/cancellation/allocation behavior for an embedding or service proof | S assessment, M–L implementation; high confidence in unbounded dimensions, no proven exploit. Must precede claims of safe untrusted execution; test cleanup and nested runs. |
 | Workload performance (E8) | Measure scaling at named input sizes, compile/run time, memory and collection/numeric hotspots; optimise only demonstrated bottlenecks | S profiling, M–L fixes; no arbitrary throughput promise. Keep exact semantics; approximate numerics would need explicit types/conversions and separate approval. |
 | Human onboarding/formatter/editor (E9) | One complete small app guide plus discoverable commands; test it with an unfamiliar developer. Formatter/editor work follows observed friction | S guide, M formatter, L mature editor tooling. Medium value confidence; syntax evolution and editor integration create maintenance. Avoid making LSP a prerequisite for CLI assistance. |
@@ -130,23 +129,23 @@ Delay risk is developer friction or architectural rework unless otherwise stated
 
 ## Proposed ordering and trade-offs
 
-**Now:** review this assessment, agree pilot tasks/budget and reconcile the small
+**Now:** review this assessment, reconcile the small
 set of stale product/security/test statements in scoped follow-up work. The
 assessment issue stays open until the report and completion summary are merged.
 This report records the mismatch instead of silently changing language contracts.
 
-**Next:** run the bounded pilot. Use its failures to choose one main delivery
+**Next:** assess representative application tasks. Use observed blockers to choose one main delivery
 initiative; structured diagnostics plus a narrowly justified assistance slice is
 the leading small candidate, not an already approved bundle. A host/embedding
 contract investigation is the leading enabling candidate. It can be scheduled
-after the pilot without committing to a GUI, browser or server implementation.
+after application assessment without committing to a GUI, browser or server implementation.
 If unsupported integration dominates results, give that foundation priority over
 polishing name suggestions. Security defects discovered meanwhile take precedence
 according to actual risk.
 
 **Later:** namespaces then stdlib organisation/dependency workflow; source mapping
 and its separate diagnostics/coverage outcomes; event integration and one chosen
-platform/application milestone. Relative order depends on pilot and design evidence.
+platform/application milestone. Relative order depends on application and design evidence.
 Keep application performance, readability and test quality visible throughout;
 none is satisfied by a coverage percentage alone.
 
@@ -156,74 +155,3 @@ registry until basic project workflows create demand; broad game/mobile/browser
 backends until a host contract and representative app validate cost. This defers
 implementation, not the general-purpose ambition. Avoid simultaneously building
 all targets or unrelated differentiators from the older roadmap.
-
-## Proposed experiment for issue #86 — not run
-
-Historical proposal as reviewed in PR #87. The subsequent authorised delivery
-pilot has now run; see [its report](AGENT_DELIVERY_PILOT.md) for results and
-protocol deviations. The section below preserves the original proposal.
-
-[Issue #86](https://github.com/sproates/panackelty/issues/86) tracks the subsequent
-experiment. Agent competence and agent choice are different questions.
-
-### Delivery arm
-
-Propose three small briefs, Panackelty versus Python initially, two independent
-runs per language/task (12 runs). A later TypeScript/Node.js comparison follows
-only if this pilot is informative. Use the same model version, tool permissions,
-clean fixture, documentation access and acceptance harness per pair; disclose
-training familiarity rather than claiming equal familiarity. Give Panackelty a
-concise language/library entry point without task-specific solutions.
-
-1. **File inventory CLI:** list immediate files in a supplied fixture, emit a
-   deterministic summary and report inaccessible inputs. Follow-up: filter by
-   suffix. Acceptance includes spaces, Unicode, empty input, byte counts and
-   predictable exit/output behavior; stay within the current filesystem surface.
-2. **Exact ledger summary:** parse a specified simple delimited format (explicitly
-   not full CSV), aggregate amounts by account, reject malformed data and apply
-   a stated rounding rule only at the reporting boundary. Follow-up: add refunds.
-   Exact rational expectations prevent a benchmark that silently excuses numeric
-   errors in either language; do not tune the task to guarantee a Panackelty win.
-3. **Small JSON HTTP service:** read/write an in-memory record with validated
-   input and specified error responses. Follow-up: a query filter. This probes a
-   currently unsupported application path; missing JSON/networking must count as
-   a blocked task, not be excluded. Do not build a runtime or delegate the whole
-   service to another language within the trial to hide that result.
-
-Proposed per-run cap: 15 minutes including the maintenance change, 12,000 model
-tokens and 40 tool calls; stop at the first cap. Maximum model-token envelope is
-144,000 plus evaluation, at most three aggregate agent-hours. These are proposed
-bounds, not cost quotes or an instruction to launch concurrent agents. Confirm
-available execution tooling, price/cost ceiling and the final budget before runs.
-Use one model initially; label two repeats exploratory, not statistically decisive.
-
-Predefine public requirements and withheld edge-case acceptance tests. Record
-initial and changed-task pass rates, setup failures, repairs, intervention,
-elapsed time and cost where observable; separate input/output tokens if exposed.
-Review naming, structure and change readability using the same rubric. Archive
-briefs, toolchain/model versions, commands, dependency versions, outputs and patches.
-Score completion quality first; compare speed/cost only alongside correctness.
-Use temporary test data and bounded local services; do not expose test servers or
-provide access to unrelated user files. Do not add Python to repository CI.
-
-### Choice and adoption arm
-
-In separate fresh sessions, offer the same task with no mandated language, list
-available toolchains symmetrically and record choice plus stated reasons. Choice
-under an explicit Panackelty instruction is compliance, not adoption. Familiarity,
-installation effort and missing dependencies may dominate; report those reasons.
-Scope and budget this arm separately after the delivery pilot, rather than
-expanding the initial 12 runs automatically.
-
-Neither arm substitutes for independent human use. A subsequent volunteer should
-install a release, finish and modify a small app without maintainer intervention;
-observe blockers and willingness to return. Do not equate agent preference on
-three tasks with mainstream language adoption.
-
-## Review decisions requested
-
-- Accept or amend the proposed pilot briefs and resource ceiling.
-- Confirm the proposed small delivery candidate and enabling investigation remain
-  conditional on evidence, rather than declaring a feature-first roadmap now.
-- Select the first complete application milestone after the pilot. Broad platform
-  ambition remains intact; no toolkit, backend or concurrency model is chosen here.

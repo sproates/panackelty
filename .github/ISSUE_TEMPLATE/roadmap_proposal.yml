@@ -23,7 +23,7 @@ body:
     id: problem
     attributes:
       label: Problem, evidence and affected users
-      description: Include developer or coding-agent workflows, current evidence and expected value.
+      description: Include developer workflows, current evidence and expected value.
     validations:
       required: true
   - type: textarea

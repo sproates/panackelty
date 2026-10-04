@@ -1,12 +1,5 @@
 # Tests
 
-`make project-operations-test` runs the optional Node connector-operation tests
-for PR snapshots, committed delivery manifests and exact-tree publication. See
-[project operations](../docs/PROJECT_OPERATIONS.md). It is separate from native
-`make check`, which retains its interpreter-free dependency contract. Changes to
-these helpers must run this additional suite; hosted Check does not currently run
-it automatically.
-
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 WASI/native compatibility and actual browser suites. Pages checks out an exact
 reviewed browser test commit and runs its 24 Chromium/Firefox/WebKit scenarios
@@ -500,7 +493,7 @@ without building the compiler, and remains part of `make check` through policy.
 | Changes | Check workflow |
 | --- | --- |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
-| Only `AGENTS.md`, `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.agents/skills/next-item/SKILL.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
 | Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages; Pages for website/package/shared/unknown inputs |
 | Only `site/index.html`, `site/styles.css`, `site/favicon.svg`, `site/playground.json`, optionally with informational documents | Complete website validation and certified artifact; no native matrices; existing required names depend on website success |
 | Missing revisions/history or empty/unknown diff | Full validation |

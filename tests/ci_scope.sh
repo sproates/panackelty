@@ -76,7 +76,7 @@ for path in README.md SPEC.md VERSION CHANGELOG.md RELEASE_POLICY.md \
     commit; route full
 done
 # Reviewed process prose is not consumed by builds, packages or fixtures.
-for path in AGENTS.md CONTRIBUTING.md docs/ROADMAP_PROCESS.md .agents/skills/next-item/SKILL.md .github/pull_request_template.md; do
+for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md .github/pull_request_template.md; do
     fixture
     mkdir -p "$(dirname "$path")"
     printf '# Process\n' > "$path"
@@ -86,7 +86,7 @@ for path in AGENTS.md CONTRIBUTING.md docs/ROADMAP_PROCESS.md .agents/skills/nex
 done
 fixture
 mkdir -p .github docs tests
-for path in .github/pull_request_template.md AGENTS.md ROADMAP.md docs/ROADMAP_PROCESS.md tests/COVERAGE.md; do
+for path in .github/pull_request_template.md ROADMAP.md docs/ROADMAP_PROCESS.md tests/COVERAGE.md; do
     printf '\nProcess handover update\n' >> "$path"
 done
 commit; route docs

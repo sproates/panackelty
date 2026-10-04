@@ -457,8 +457,3 @@ runtime-provenance-experiment: native $(BUILD_DIR)/experiments/runtime-provenanc
 $(BUILD_DIR)/experiments/runtime-provenance-vm: tests/experiments/runtime_provenance/probe.c src/vm/execute.c $(VM_LIBRARY_OBJECTS)
 	@mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_LIBRARY_OBJECTS)) -o "$@" $(LDLIBS)
-
-# Optional connector operations use Node; native validation stays interpreter-free.
-.PHONY: project-operations-test
-project-operations-test:
-	@node --test tests/project_status.test.cjs tests/project_manifest.test.cjs tests/project_publish.cjs

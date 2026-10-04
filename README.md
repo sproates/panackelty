@@ -4,7 +4,7 @@
 exact numerical work.**
 
 [Website](https://panackelty.com) · [Native VM coverage](https://sproates.github.io/panackelty-coverage/) · [Specification](SPEC.md) ·
-[Releases](../../releases) · [Contributing](CONTRIBUTING.md) · [Project operations](docs/PROJECT_OPERATIONS.md)
+[Releases](../../releases) · [Contributing](CONTRIBUTING.md)
 
 The website consumes a pinned release from
 [Panackelty Browser](https://github.com/sproates/panackelty-browser), selected in
@@ -873,7 +873,7 @@ then publishes a GitHub prerelease. Validation and package jobs are read-only;
 repository write permission is scoped to the final publication job.
 
 Project-wide contribution and validation expectations are documented in
-[AGENTS.md](AGENTS.md).
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and

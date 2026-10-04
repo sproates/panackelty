@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#134.**
+The initial allocation contains **105 identities**. **Next available: RM#135.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -1582,6 +1582,35 @@ checkpoints and crash recovery are not delivered by the completed in-memory VM
 suspension work. It is distinct from value provenance and remains unscheduled.
 #162, the Panackelty-written preview server, remains separate from completed #160.
 
+## Next integration workflow — planned, gated and unstarted
+
+<a id="rm-134"></a>
+
+**RM#134: Next integration workflow** · [GI#287: Next integration workflow](https://github.com/sproates/panackelty/issues/287).
+
+**Planned; gated and unstarted — user decision, 2026-10-04.** Introduce a core
+`next` integration branch only after both the next release is complete and
+[RM#14: Independent website publishing](#rm-14) /
+[GI#178: Independent website publishing](https://github.com/sproates/panackelty/issues/178)
+has completed its repository separation and acceptance. These are two activation
+prerequisites; no relative ordering between the release and website separation
+is selected here.
+
+Once activated, scoped core feature PRs target `next` and may auto-merge after
+the applicable independent review and required checks, without separate user
+approval for each merge to `next`. Every promotion to `main` still requires
+explicit user approval. Until activation is accepted, existing branch and merge
+approval rules remain in force; this record creates no branch, changes no
+protection and enables no auto-merge.
+
+Acceptance must cover CI for pushes to `next`, validation against the actual PR
+target, release ancestry on `main`, and an agreed strategy for promoting and
+realigning branches. Verify that website, browser and coverage publication remain
+independent of core integration and retain their own accepted release/publication
+boundaries. Reconcile contributor and automation guidance before activation.
+Implementation effort and detailed branch mechanics need assessment; this
+sequencing decision changes no other programme scope, weights or priorities.
+
 ## Independent website publishing
 
 <a id="rm-14"></a>
@@ -1593,6 +1622,11 @@ Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 State: **Idea; unscheduled**. Recorded at the user's request on 2026-10-01.
 Scope: maintenance. This does not select the repository migration. The separate [planned #187 CI improvement](#next-fast-website-ci-and-prepared-browser-test-environments)
 can proceed before this split.
+
+Sequencing decision, 2026-10-04: complete and accept this repository separation
+before activating [RM#134: Next integration workflow](#rm-134). That workflow
+also waits for the next release; this records no ordering between those two
+prerequisites and starts no migration or branch configuration now.
 
 Website edits still share core validation and coverage publication through
 `.github/workflows/pages.yml`, despite consuming a pinned browser release.

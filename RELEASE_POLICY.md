@@ -1,6 +1,8 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.10` is a developer preview. It is intended for learning,
+Panackelty `0.1.0-alpha.11` is the developer-preview release candidate.
+Published download defaults remain alpha.10 until alpha.11 public artifacts pass
+verification. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 
@@ -23,7 +25,9 @@ includes the compiler, VM, and standard library needed to build and run programs
 ## Release gate
 
 Merging to `main` runs checks and creates CI artifacts; it does not publish a
-release. Prepare version, changelog, and download-link updates in a release PR.
+release. Prepare version and changelog updates in a release PR. Keep verified download
+links and installer defaults on the published version until the new archives
+pass public-artifact verification, then promote them in a follow-up.
 After its required checks pass and it is merged, use either release entry point:
 
 - Push an annotated version tag on the merged commit. Its message supplies the
@@ -67,7 +71,9 @@ is in alpha:
   distribution format. The VM currently accepts bytecode version 9 only, and
   compatibility with bytecode produced by another Panackelty release is not
   promised. Version 8 artifacts must be recompiled from source; loaders reject
-  them explicitly. The alpha.10 v9 seed replaces the alpha.9 v8 seed.
+  them explicitly. The alpha.10 v9 seed replaced the alpha.9 v8 seed; alpha.11 retains v9
+  with an updated compiler and additive TCP operations. Use the matching compiler,
+  VM and standard library together.
 - Patch releases in the same preview series should correct defects without
   deliberately changing accepted source programs.
 

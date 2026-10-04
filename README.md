@@ -67,6 +67,16 @@ The [API specification](SPEC.md#paths-and-monotonic-time) and
 [executable example](tests/functional/cases/host_types/main.panack) show their
 contracts and use.
 
+## Alpha.11 release preparation
+
+The current source identifies itself as `0.1.0-alpha.11`. Its release candidate
+includes native TCP client/server operations, corrected guard invalidation,
+optional source maps and bounded compiler explanations. See the
+[alpha.11 notes](CHANGELOG.md#010-alpha11--2026-10-04) for limits and migration.
+Publication and exact public-archive acceptance are still pending. Download and
+installer instructions below deliberately remain on verified alpha.10; the
+browser playground is independently pinned. Namespace execution is not included.
+
 ## Experimental async source support
 
 The alpha.10 toolchain supports `async` functions, explicit `await` and

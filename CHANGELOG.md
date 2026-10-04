@@ -6,12 +6,16 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
-### Features and fixes in current source
+- No additional changes recorded after the alpha.11 release candidate.
+
+## 0.1.0-alpha.11 — 2026-10-04
+
+### Features and fixes
 
 - Add finite concurrent TCP servers through `await tcp_serve`, named async
   handlers and `TcpServerLimits` from `stdlib/tcp`. Native Linux/macOS execution
   owns connections, deadlines and drain/cancellation cleanup; embedded listening
-  is separately opt-in and browsers return unavailable. This unreleased API
+  is separately opt-in and browsers return unavailable. This additive API
   retains bytecode v9 and is not part of alpha.10 downloads.
 
 - Add `await tcp_exchange(...)` for bounded native IPv4 request/response, with
@@ -38,8 +42,19 @@ in `RELEASE_POLICY.md`.
 - Invalidate guard proofs when mutable values change. Programs incorrectly
   accepted using stale guard facts can now be rejected; establish the required
   proof again after mutation rather than relying on the old value's guard.
-- Bytecode remains v9. The current-source commands and TCP additions above are
+- Bytecode remains v9. The alpha.11 commands and TCP additions above are
   not available in the alpha.10 native downloads or the pinned playground.
+
+### Development and website
+
+- Add a reproducible isolated build/validation baseline with explicit source,
+  toolchain, cache and workload records. This measures existing behavior; it does
+  not introduce dependency-aware compilation or weaken invalidation checks.
+  Controlled clean validation remains above its 120-second target, and warm
+  compiler validation remains above 15 seconds; performance work continues.
+- Generate website release history from this changelog, distinguish prepared
+  notes from verified downloads, and share navigation and footers across the
+  homepage, history and playground without changing the pinned browser runtime.
 
 ### Installation and staged development
 

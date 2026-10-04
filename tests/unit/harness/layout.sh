@@ -154,8 +154,9 @@ case_name=website-files-and-version
 find site -maxdepth 1 -type f -exec basename {} \; | sort > "$work/files"
 printf 'chrome.css\nfavicon.svg\nindex.html\nnative-release.txt\nplayground.json\nstyles.css\n' > "$work/expected"
 equal_files "$work/files" "$work/expected"
-contains site/index.html "https://github.com/sproates/panackelty/releases/tag/v$version"
-contains site/index.html "Developer preview $version is available"
+published_version=$(cat site/native-release.txt)
+contains site/index.html "https://github.com/sproates/panackelty/releases/tag/v$published_version"
+contains site/index.html "Developer preview $published_version is available"
 pass
 case_name=website-examples-run-as-displayed
 capture 0 30 sh tests/site_examples.sh

@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#128.**
+The initial allocation contains **105 identities**. **Next available: RM#129.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -426,7 +426,13 @@ namespace release checkpoint requires its own adoption follow-up.
 
 ### Namespace release checkpoint
 
-Agreed on 2026-10-03: use the completed, coherent namespace migration as the next
+User decision, 2026-10-04: prepare [RM#128: Alpha.11 release](#rm-128) now
+from already delivered features rather than waiting for namespaces. This
+supersedes only the ordering of the 2026-10-03 decision below. The coherent
+namespace migration remains a later release checkpoint, with no extra programme
+completion credit and no claim that staged namespace forms can execute.
+
+Agreed on 2026-10-03: use the completed, coherent namespace migration as a
 release checkpoint. It need not wait for the HTTP client or full programme.
 Release readiness requires the compiler, required standard-library exports,
 examples and tests to be migrated; fresh bootstrap fixed-point and installed
@@ -1195,8 +1201,9 @@ lookup timing sample, fixed by reusing the single captured output.
 U2 has no separate issue; track it through #180/#173. This completes the shared
 mapping milestone, while checker evidence, compilation reasons, runtime
 provenance, source-aware errors (#136) and coverage (#131) retain their scope.
-No live website claim needs correction for these unreleased commands. Promotion
-is recorded in the website follow-up register and waits for a supporting release.
+No live website claim needs correction for these commands. Alpha.11 is their
+planned native supporting release; publication and explicit website/browser
+adoption remain pending in the follow-up register.
 
 The following U1 experiment scope is retained as historical decision context.
 The smallest useful outcome is a bounded experiment mapping one runtime trap
@@ -1364,8 +1371,8 @@ Assess HTTP, file-I/O and long-running lifecycle needs first; this dogfooding
 follow-up does not block the current Node-based workflow.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
-server contract PR #129 and server implementation PR #130. Both operations remain
-unreleased and are absent from alpha.10 downloads. The server completion evidence
+server contract PR #129 and server implementation PR #130. Both operations are included in the alpha.11 release candidate, pending public
+artifact acceptance, and are absent from alpha.10 downloads. The server completion evidence
 is recorded [below](#bounded-async-tcp-server).
 
 The user selected backlog grooming after this milestone. The agreed scope covers
@@ -1662,8 +1669,8 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   See [verification evidence](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
 
 - <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): pending promotion; owner: programme
-  delivery agent. The live site still advertises v0.1.1; no supporting release is
-  assigned. After publishing and deliberately adopting a release containing U2,
+  delivery agent. The browser still advertises v0.1.1; alpha.11 is the planned native
+  supporting release, with publication and website adoption pending. After publishing and deliberately adopting a release containing U2,
   consider CLI documentation and a validated lookup example, stating exact-source
   reproduction, unavailable fallback, lookup cost and full-source sidecar privacy.
   Current pinned examples and release links are unaffected. Do not advertise
@@ -1682,8 +1689,8 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
 - <a id="rm-103"></a>**RM#103: Corrective compiler release adoption** — follow-up to [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182): owner is the #180 delivery agent until
   handed over. The published v0.1.1 playground compiler has the same SHA-256 as
   the affected core seed; plan a corrective compiler/browser release and explicit
-  website pin update after the core repair is merged and released. No target release is
-  assigned. Review static-safety and guarded-type claims against the actual
+  website pin update after the core repair is merged and released. Alpha.11
+  is the planned native corrective release; browser adoption remains unassigned. Review static-safety and guarded-type claims against the actual
   published runtime; the homepage's literal guarded-type example does not exercise
   the reproduced mutation defect. Keep this follow-up open through public
   verification that the unsafe examples are rejected and valid examples still run.
@@ -1703,7 +1710,7 @@ Never mark an update complete merely because its PR merged: verify the live site
   distinction and unavailable cases. After a release supporting
   [RM#107: Per-function effect recovery](#rm-107), explain valid sibling recovery,
   global declaration gating, invalid-function unavailability and unchanged original
-  diagnostics; target release remains unassigned. Explain declared/callable effects without
+  diagnostics; alpha.11 is the planned native supporting release, not yet published. Explain declared/callable effects without
   implying a transitive effect graph or runtime execution. Browser support must be verified separately before advertising it.
   Current published pins/examples remain unchanged; this change starts no site
   work. Broader demonstrations remain in U9.
@@ -2538,6 +2545,34 @@ owns the state and scope. The initial unscheduled idea was recorded on
 2026-09-29; the user selected and authorised the content expansion on 2026-09-30.
 The existing static GitHub Pages and coverage flow remains in use. PR #108 was approved, merged and live-verified; the issue is closed.
 
+## Developer preview alpha.11 release preparation
+
+<a id="rm-128"></a>
+
+**RM#128: Alpha.11 release** — In progress, selected on 2026-10-04.
+Release delivery owner: maintainer delivering this candidate. Prepare the existing
+native TCP client/server, guard-fact repair, optional source maps, bounded
+subtraction/effect explanations and declaration-lookup improvements as
+`0.1.0-alpha.11`. Include measured build baselines and generated website history;
+namespace metadata/binding work remains internal staged infrastructure, not an
+executable namespace feature. No new language or platform scope is added.
+
+Acceptance remains pending: independent review, canonical and hosted exact-package
+validation, separately approved merge, release workflow publication, verification
+of both supported public native archives/checksums/provenance and installed
+commands. Only then promote `site/native-release.txt`, homepage/README downloads
+and installer defaults. Keep browser v0.1.1 pinned until its separate adoption
+is tested; RM#102, RM#103 and RM#104 are not closed by native publication alone.
+This preparation is not a published release or production acceptance claim.
+
+Performance disposition proposed for release review: retain all safety/coverage
+and unchanged 120s full / 15s focused targets. The controlled RM#28 baseline has
+clean median 134.42s and unchanged focused median 26.46s, above those targets.
+The performance delivery owner retains GI#106: inspect the measured critical path
+and evaluate a bounded reuse candidate before the next affected compiler delivery.
+The release carries this known development-latency limitation; it makes no runtime
+performance adequacy claim and does not reopen deferred runtime benchmarks.
+
 ## Developer preview alpha.10 release
 
 <a id="rm-35"></a>
@@ -2564,7 +2599,8 @@ Work record: [issue #126](https://github.com/sproates/panackelty/issues/126).
 State: Done. PR #127 merged on 2026-09-30 after all 23 hosted checks passed.
 Canonical validation passed in 117s, with native sanitizer, independent-peer
 source/bytecode tests, bootstrap and browser rejection evidence in the PR.
-This remains unreleased development functionality, not part of alpha.10.
+This functionality is included in the alpha.11 release candidate, with public
+artifact acceptance pending; it is not part of alpha.10.
 Issue #126 was closed during the subsequent grooming pass.
 Selected on 2026-09-30 after deployment
 reliability, explicitly ahead of build-cache work and a C-only networking spike.

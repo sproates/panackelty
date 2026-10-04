@@ -851,3 +851,9 @@ canonical changelog edits, prepared-versus-published availability, escaping,
 malformed/duplicate notes and Pages fingerprint inputs. Assembly rejects bad
 notes before creating an output directory; Node Pages/preview tests verify links,
 preview identity and deployed bytes for the generated history page.
+
+Release preparation keeps download documentation pinned until public acceptance.
+The local quick-start archive test substitutes only the explicitly tested archive
+version in the documented transcript; it still checks all remaining output
+byte-for-byte and rejects malformed documented version lines. The distribution
+harness exercises this rejection with an otherwise valid checksummed archive.

@@ -3034,7 +3034,7 @@ is **1: ordinary expressions and control flow**.
 | 3. Core and indirect-call contracts | Core operations/methods, receiver calls and indirect callable values share checked contracts with direct calls. Reserved core identity cannot be forged; wrong arguments/results and ambiguous receiver/namespace uses reject correctly. | 1–2 | 1–2 |
 | 4. Guard proofs | Guarded conversions, arithmetic obligations and mutation invalidation use identity-aware facts through the completed body checker. Positive, rejected and unavailable proofs preserve existing soundness and exact semantics. | 1–3 | 1–2 |
 | 5. Effects and await | Purity, callable effects, ordinary/async calls and await use the checked graph consistently, including imported/generic/indirect paths and recovered local explanation evidence. Invalid boundaries reject without implying whole-program validity. | 1–4 and callable contracts | 1–2 |
-| 6. Identity emission and standalone loading | Lower checked identities to unique emitted symbols and execute complete standalone programs through source and saved bytecode; no same-name collisions. Establish entry-root/core loading and the isolated bootstrap-root staging prerequisite. Prove v9 conformance or justify a format change. | 1–5 | 1–2 |
+| 6. Identity emission and standalone loading | Lower checked identities to unique emitted symbols and execute complete standalone programs through source and saved bytecode; no same-name collisions. All FILE-loaded modules use one namespace model; only the selected entry's main launches. Use reserved standalone compilation identity, the entry-directory root and local/toolchain-only imports; quoted paths cannot escape that root. Establish core loading and isolated bootstrap-root staging. Prove v9 conformance or justify a format change. | 1–5 | 1–2 |
 | 7. Diagnostics, explain and locate | Preserve original module/source identity and precise expression/type/pattern spans across checking and lowering. Qualified selectors are unambiguous; unqualified selectors work only when unique. Wrong identity, ambiguous selectors and stale mappings fail safely. | 1–6; span preservation applies throughout | 1–2 |
 | 8. Coordinated seed/source cutover and acceptance | Audit initial stdlib exports; migrate compiler, tests, examples and package inputs under one namespace model. Produce the namespace-capable seed, prove fresh compiler/stdlib fixed points and native/browser/installed conformance, document breaking migration, and remove obsolete flat execution and transitional code when its removal criterion is met. | 1–7; bootstrap-root staging established before source cutover | 2–3 |
 
@@ -3056,9 +3056,11 @@ permit parent-path escape from a `src/compiler/` confinement root. Remove stagin
 outputs after each build. Temporary bootstrap inputs need explicit removal
 criteria and must not become a second installed language mode.
 
-P2 owns standalone namespace semantics, necessary initial stdlib exports and its
-own bootstrap/native/browser/installed acceptance. P3 owns manifests, explicit
-project selection, package roots/confinement and local-package consumption,
+P2 owns standalone namespace semantics, entry selection and entry-directory
+root confinement, necessary initial stdlib exports and its own
+bootstrap/native/browser/installed acceptance. P3 owns manifests, explicit
+project selection, dependency/package roots, physical identity and race-safe
+confinement hardening, and local-package consumption,
 including replacement of temporary root staging with a compiler manifest. P4
 owns final stdlib grouping/re-exports/prefix migration and obsolete adapter
 removal. P8 independently accepts the combined clean/relocated two-application

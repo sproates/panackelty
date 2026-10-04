@@ -807,7 +807,8 @@ path. Unrelated edits preserve output `42`; direct/transitive edits must output
 `43`. All probes execute; cached test results are never used. The existing broad
 source fingerprint and all compiler/seed/VM invalidation controls remain intact.
 
-`samples.tsv` records POSIX `time -p` elapsed seconds, status and completed
+`samples.tsv` records external POSIX `time -p` elapsed seconds in the C locale,
+status and completed
 instrumented probe-build/probe-run/native-build command counts. Native build
 commands include both compilation and linking; they are not translation-unit
 counts. `profile.tsv` preserves existing whole-second inclusive component rows.
@@ -829,4 +830,8 @@ budget guarantee or evidence of a before/after speedup.
 fixture repository, fake toolchain and the real compiled-probe cache driver to
 check isolation, candidate snapshot fidelity, actual cache-hit/miss counts,
 output checking, failure propagation, repeat bounds and overwrite rejection.
+The timing regression runs through the restricted native-tool PATH, verifies
+every sample invokes its external timer, and also exercises dash when available.
+The native-tool allowlist resolves the executable from PATH because some shells
+report a `time` keyword rather than an executable from `command -v`.
 These regression tests do not substitute for real-toolchain baseline trials.

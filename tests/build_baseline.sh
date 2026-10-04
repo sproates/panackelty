@@ -8,7 +8,7 @@ trap 'exit 1' HUP INT TERM
 fail() { printf 'build baseline regression: %s\n' "$*" >&2; exit 1; }
 mkdir -p "$work/source/scripts" "$work/source/tests" "$work/source/src/stdlib" "$work/source/examples" "$work/source/bootstrap" "$work/bin"
 cp scripts/build_baseline.sh "$work/source/scripts/"
-cp tests/run_probe.sh tests/profile_command.sh "$work/source/tests/"
+cp tests/run_probe.sh tests/profile_command.sh tests/without_interpreter.sh "$work/source/tests/"
 touch "$work/source/examples/.keep" "$work/source/src/stdlib/.keep"
 printf 'seed\n' > "$work/source/bootstrap/compiler-v9.bc"
 printf 'tracked\n' > "$work/source/deleted.txt"
@@ -32,9 +32,13 @@ VM
 chmod +x "$work/source/panack-vm"
 cat > "$work/bin/make" <<'MAKE'
 #!/bin/sh
-[ -z "${CHECK_BUDGET_SECONDS-}${INCREMENTAL_BUDGET_SECONDS-}${FUNCTIONAL_BUDGET_SECONDS-}${BOOTSTRAP_BUDGET_SECONDS-}" ] || exit 7
+case "$*" in
+ clean|ci-compiler) ;;
+ *) [ -z "${CHECK_BUDGET_SECONDS-}${INCREMENTAL_BUDGET_SECONDS-}${FUNCTIONAL_BUDGET_SECONDS-}${BOOTSTRAP_BUDGET_SECONDS-}" ] || exit 7 ;;
+esac
 case "$*" in
  --version) printf 'Fixture make\n' ;;
+ ci-compiler) exec "${BASELINE_TEST_SHELL:-sh}" scripts/build_baseline.sh "$BASELINE_TEST_OUTPUT" fixture-host "${BASELINE_TEST_REPEATS:-2}" "${BASELINE_TEST_MODE:-all}" ;;
  clean) rm -rf build ;;
  '-j1 native') : ;;
  '-j1 check'|'-j1 check-compiler')
@@ -44,6 +48,19 @@ case "$*" in
 esac
 MAKE
 chmod +x "$work/bin/make"
+# A wrapper proves the external timer survives isolation even when the calling
+# shell has a time keyword. Resolve the real utility before changing PATH.
+BASELINE_TEST_REAL_TIME=$(which time)
+[ -x "$BASELINE_TEST_REAL_TIME" ] || fail 'external POSIX time unavailable'
+BASELINE_TEST_TIME_CALLS=$work/time-calls
+export BASELINE_TEST_REAL_TIME BASELINE_TEST_TIME_CALLS
+cat > "$work/bin/time" <<'TIME'
+#!/bin/sh
+[ "${LC_ALL:-}" = C ] || exit 8
+printf 'external timer\n' >> "$BASELINE_TEST_TIME_CALLS"
+exec "$BASELINE_TEST_REAL_TIME" "$@"
+TIME
+chmod +x "$work/bin/time"
 export PATH="$work/bin:$PATH"
 cd "$work/source"
 git init -q
@@ -53,8 +70,9 @@ git -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixtur
 rm deleted.txt
 printf 'untracked candidate\n' > addition.txt
 before=$(git status --porcelain)
-CHECK_BUDGET_SECONDS=999 INCREMENTAL_BUDGET_SECONDS=999 FUNCTIONAL_BUDGET_SECONDS=999 BOOTSTRAP_BUDGET_SECONDS=999 \
-sh scripts/build_baseline.sh "$work/report" fixture-host 2 all > "$work/output" 2>&1 || { cat "$work/output" >&2; exit 1; }
+LC_ALL=POSIX CHECK_BUDGET_SECONDS=999 INCREMENTAL_BUDGET_SECONDS=999 FUNCTIONAL_BUDGET_SECONDS=999 BOOTSTRAP_BUDGET_SECONDS=999 \
+BASELINE_TEST_OUTPUT="$work/report" sh tests/without_interpreter.sh compiler > "$work/output" 2>&1 || { cat "$work/output" >&2; exit 1; }
+[ "$(wc -l < "$work/time-calls" | tr -d ' ')" = 12 ] || fail 'isolated external timer not used for every sample'
 [ "$(git status --porcelain)" = "$before" ] || fail 'source worktree changed'
 [ -f "$work/report/COMPLETE" ] || fail 'completion marker missing'
 [ "$(wc -l < "$work/report/samples.tsv" | tr -d ' ')" = 13 ] || fail 'sample count'
@@ -75,4 +93,12 @@ if BASELINE_TEST_FAIL=1 sh scripts/build_baseline.sh "$work/failed" fixture-host
 awk -F '\t' '$1 == "clean-full" && $4 == 9 { found=1 } END { exit !found }' "$work/failed/samples.tsv" || fail 'failed sample not recorded'
 if BASELINE_TEST_BAD_OUTPUT=1 sh scripts/build_baseline.sh "$work/wrong" fixture-host 1 probes > "$work/failure" 2>&1; then fail 'ignored incorrect probe output'; fi
 [ ! -e "$work/wrong/COMPLETE" ] || fail 'incorrect output claimed complete'
-printf 'Build baseline isolation, snapshot, cache counts, output and failure contracts passed.\n'
+if command -v dash >/dev/null 2>&1; then
+    BASELINE_TEST_SHELL=$(command -v dash) BASELINE_TEST_OUTPUT="$work/dash-report" \
+    BASELINE_TEST_REPEATS=1 BASELINE_TEST_MODE=probes \
+    sh tests/without_interpreter.sh compiler > "$work/dash-output" 2>&1 || {
+        cat "$work/dash-output" >&2; fail 'dash isolated timing failed'
+    }
+    [ -f "$work/dash-report/COMPLETE" ] || fail 'dash report incomplete'
+fi
+printf 'Build baseline isolation, snapshot, cache counts, output, external timing and failure contracts passed.\n'

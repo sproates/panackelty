@@ -1,6 +1,9 @@
 #!/bin/sh
 # Bounded, isolated observations; no cache policy changes or automatic optimisation.
 set -eu
+# POSIX time and awk must share a stable decimal separator.
+LC_ALL=C
+export LC_ALL
 fail() { printf 'build baseline: %s\n' "$*" >&2; exit 1; }
 usage() { fail 'usage: build_baseline.sh OUTPUT_DIRECTORY HOST_LABEL [REPEATS (1..5)] [all|probes]'; }
 [ "$#" -ge 2 ] && [ "$#" -le 4 ] || usage
@@ -79,7 +82,7 @@ observe() {
     run=$observed_scenario-$observed_repeat
     export VALIDATION_PROFILE_RUN="$run"
     status=0
-    { time -p sh -c 'errors=$1; shift; exec "$@" 2>"$errors"' sh \
+    { command time -p sh -c 'errors=$1; shift; exec "$@" 2>"$errors"' sh \
         "$out/$run.stderr" "$@" > "$out/$run.log"; } 2> "$out/$run.time" || status=$?
     elapsed=$(awk '$1 == "real" { print $2 }' "$out/$run.time")
     [ -n "$elapsed" ] || fail "missing wall time for $run"

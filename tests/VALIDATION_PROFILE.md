@@ -2927,12 +2927,20 @@ its relative-path content-manifest SHA-256 is
 The bootstrap seed SHA-256 is
 `ef788384cb2d33d7d908253fd7311bb1e52cebc4483e69d7ca649118090187df`.
 
-The measured harness preceded the final review fix that clears four inherited
-budget variables. The actual trials used the repository's unchanged
+The measured harness preceded the review fix that clears four inherited
+budget variables and the CI portability fix that explicitly invokes external
+POSIX `time -p` in the C locale. The archived macOS harness used the shell
+`time -p` form with the same real elapsed-time definition and decimal output;
+the final restricted-PATH regression verifies the external timer on sh and dash
+when available. The native-tool allowlist now includes that executable; it adds
+no language interpreter. The actual trials used the repository's unchanged
 120/15/75/60-second full/focused/functional/bootstrap budgets, verified in their
 timing output; the final regression explicitly supplies four conflicting overrides
-and requires them to be removed. This fix changes environment normalization, not
-these observed workloads or timings. Final candidate validation is separate from
+and requires them to be removed. These fixes normalize the environment and timer lookup without changing the
+recorded workloads or the elapsed-time meaning of these observations. The extra
+external timer process can change the last digits for tiny fixtures; the table
+retains the archived measurements and does not claim a rerun of the final timer.
+Final candidate validation is separate from
 the archived measurement snapshot.
 
 Measured VM SHA-256:

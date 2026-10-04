@@ -777,3 +777,10 @@ signal cleanup and owned removal (including a dangling owned command link).
 archive and asserts the complete README Hello World/check/run/compile/bytecode
 output, repeat installation and removal. Check runs it on Ubuntu 22.04 x86_64 and
 macOS 14 arm64; network acceptance is separate from offline `make check`.
+
+## Contributor operation scripts
+
+`make project-operations-test` covers bounded PR snapshots (stale heads, missing
+runs, rerun ordering and connector failures), exact committed binary/mode/deletion
+manifests and new-branch publication with blob/tree identity checks. These Node
+tests exercise contributor tooling outside native/compiler and public CLI scope.

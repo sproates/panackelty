@@ -9,6 +9,11 @@ into a fresh OS temporary directory, serves on loopback and removes its own
 files on stop or startup failure. Explicit build/serve commands preserve saved
 artifacts. No hosted preview publisher is part of this design.
 
+Contributor [project operations](docs/PROJECT_OPERATIONS.md) are separate from
+the native toolchain: pure injected connector modules provide bounded snapshots
+and exact-tree publication; a Node/Git helper creates committed manifests. They
+neither store credentials nor perform approval or merge.
+
 ## Overview
 
 Panackelty is a compiled language whose execution contract is its bytecode virtual

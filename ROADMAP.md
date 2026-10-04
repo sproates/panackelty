@@ -2961,6 +2961,18 @@ and fresh-context agent evidence where available. Distinguish release and
 development toolchains. Produce bounded fixes rather than assuming a project
 generator, formatter or package manager is needed.
 
+This delivery adds [reusable project operations](docs/PROJECT_OPERATIONS.md): a
+compact head-specific PR snapshot, an exact committed-tree publication manifest
+and a checked new-branch publisher. Regression tests cover stale/missing evidence
+and identity failures. This is a bounded workflow improvement, not completion of
+the broader assessment. Tracking reconciliation and existing-branch publication
+remain follow-ups; no new issue or programme is introduced. Website impact: none,
+because contributor operations do not change published language/release claims.
+Validation: 13 operation tests pass separately; clean-worktree `make check` passes
+in 225s (unit 177s, functional 6s, bootstrap 27s). The full-check budget warning
+remains an active GI#106 follow-up; this observation is not a controlled baseline
+or evidence of a compiler regression caused by these optional scripts.
+
 ### Compiler explanations
 
 <a id="rm-48"></a>

@@ -3010,3 +3010,90 @@ part of this delivery. The 120s/15s targets remain unchanged; historical 211s/22
 runs and a built-checkout 112s sample have different conditions and are not paired
 speedup/regression evidence. Runtime/resource baseline and combined independent
 scorecard acceptance remain separate, unstarted tasks.
+
+## Namespace checked signatures — 2026-10-04
+
+The next GI#198 slice adds a staged-only declaration/signature pass. Legacy
+execution does not invoke it, but the extra compiler source can still affect
+bootstrap, compiler-probe and ordinary compilation costs, even without signature
+traversal on legacy inputs. Focused coverage passes 206 namespace
+assertions: distinct same-spelled nominals, alias/re-export identity, lexical and
+alpha-renamed type parameters, capture-free substitution, callable effects,
+recursive public-type reachability, core identity ownership and direct/receiver/
+function-reference guard privacy. Review additionally covered reserved core-method
+lowering, private aliases of implicit core types/constructors, and variants
+reachable through selective enum exports without reverse type leakage. The public CLI retains its execution gate and
+checks positioned private-signature failures without writing artifacts.
+
+The GI#106 review trigger is reached for this compiler delivery. Inspection of
+the retained controlled baseline profile and `Makefile`/`tests/harness.sh`
+sequencing attributes the largest recorded warm serial component to the initial
+harness: 17/16/15s within focused wall observations of 28/27/26s. Nested runner
+work records 9/9/9s and installer work 4/4/3s; later functional-failure contracts
+record 4/5/4s. Nested or overlapping rows are not added into a purported elapsed
+breakdown. Warm ordinary probes already compile zero times: the 12/13 mock
+compile/run rows and 23 native build rows are deliberate safety contracts.
+
+Proposed disposition: preserve the known 120s full and 15s focused targets and
+all safety coverage. The performance delivery owner retains GI#106 and the next
+bounded attribution action: obtain subcommand timings for repeated runner
+compiler/runtime subprocess work, then compare a separately selected reuse
+candidate without weakening negative-artifact or cleanup semantics. Review this
+remediation scope with this delivery; no fixture deletion or claimed cache
+speedup is justified. The staged signature graph currently scans declarations
+and export paths, so small-fixture evidence does not establish large-graph
+scalability. Identity indexes remain a possible follow-up when measured.
+
+The refreshed compiler seed is 394,040 bytes versus the 380,205-byte alpha.11
+input: +13,835 bytes (about 3.64%). Compiler stages 2/3/4 agree at
+`aa82e3d6114e66ab1515b9e39586b111da568d2b5454e2926953660a841cd625`;
+standard-library bytecode/output retains its existing fixed point. Size growth
+is recorded separately from runtime/compile latency, not treated as its cause.
+
+The final paired comparison used the same candidate source and VM, three
+sequential before/after pairs per workload, no competing builds and uncontrolled
+OS caches. A monotonic host timer measured each compiler subprocess; successful
+outputs were compared byte-for-byte. The baseline seed came from
+`56103f60e29d49b21a16e7dc9c0ce8ae6ba8cb90`:
+`ef788384cb2d33d7d908253fd7311bb1e52cebc4483e69d7ca649118090187df`.
+Candidate seed SHA-256 is recorded above. VM SHA-256 was
+`67675eab5af136c85751d3e695a4f875623ec38b174dce4029a393f484485911`.
+The source manifest digest was
+`4b9f7c73581b2318ea8d3764a39f03ea3b5e28487e83f7f896812870cd9d60dc`,
+computed over JSON pairs of sorted repository-relative `src/**/*.panack` paths
+and their SHA-256 hashes; source bytes were checked unchanged after measurement.
+
+Reproduce the workload with `PANACKELTY_STDLIB_PATH=src/stdlib`, alternating the
+retained baseline seed and candidate seed three times for each source:
+
+```sh
+build/vm/panack-vm run "$seed" compile "$source" -o "$output"
+```
+
+The compiler input is `src/compiler/main.panack`; the tiny input is exactly
+`main(): Void { print(42) }` followed by a newline. Use distinct output paths,
+measure subprocess wall time, require successful status and compare all six
+outputs of each workload. The one-off measurement helper and raw logs remain
+external; no interpreter dependency or new production harness is introduced.
+
+| Workload | Baseline samples (s) | Candidate samples (s) | Median change |
+| --- | --- | --- | --- |
+| Compiler source | 4.019560, 5.098041, 4.226154 | 4.542555, 4.205131, 4.300726 | 4.226154 → 4.300726s; +1.76% |
+| Tiny legacy program | 0.031859, 0.032426, 0.036565 | 0.036646, 0.035602, 0.027375 | 0.032426 → 0.035602s; +3.176ms / +9.79% |
+
+All outputs were byte-identical. Compiler output matches the candidate seed;
+tiny-program SHA-256 is
+`c67b2c08c5482dc52179d1b0569ac595641a51f1a3dffea79070a8edeb207a1d`.
+Three-sample ranges overlap and OS cache state was uncontrolled. This is bounded,
+noisy comparison evidence, not proof of no regression or a scaling result. These
+individual compilations are not the full/focused validation workloads and do not
+satisfy their 120s/15s budgets.
+
+Proposed delivery disposition: accept this staged identity slice with the measured
+seed growth and uncertain ordinary-compilation cost disclosed, while retaining
+the GI#106 owner, unchanged targets/coverage and bounded next attribution action
+above. Final canonical `make check` passed in 136s, including the unit and
+functional suites, bootstrap checks, release smoke and quick-start. This exceeds
+the 120s target and remains within the same open GI#106 disposition; it is not a
+paired full-suite regression measurement. The subsequent changes are confined to
+allowlisted informational delivery records and validated with `make docs`.

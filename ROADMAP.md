@@ -102,7 +102,8 @@ The standing programme has no lifetime completion percentage. The finite core
 establishment tranche below has its own stable denominator.
 
 The modules/packages/HTTP programme remains the principal feature initiative;
-its next checked-identity implementation has not started. Compiler understanding
+its checked declaration/signature identity slice is in progress; body/effect/emission
+integration remains pending. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -296,8 +297,8 @@ P1 was completed by [PR#240: Module and package design](https://github.com/sproa
 merged on 2026-10-03 as `80cd50f`. The user selected P2 on 2026-10-04;
 its first module/binding foundation merged in
 [PR#261: Establish module binding identities](https://github.com/sproates/panackelty/pull/261)
-as `a5cdb1a`. The current slice adds qualified-reference syntax and cross-module binding
-resolution. P3–P8 remain planned and unstarted. P2 selection is separate from design acceptance.
+as `a5cdb1a`, followed by qualified-reference syntax and cross-module binding
+resolution in PR#262. The current slice adds checked declaration/signature identities. P3–P8 remain planned and unstarted. P2 selection is separate from design acceptance.
 The compiler-understanding programme remains paused; its scope is retained.
 
 First concrete milestone: **a working independently consumed HTTP client package**.
@@ -329,7 +330,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — qualified references and binding resolution | P1 | Large / 3–5 PRs |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — checked declaration/signature identities | P1 | Large / 3–5 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -394,10 +395,11 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | **Total** | **100%** | Partial implementation unquantified | **10 pp accepted; estimated total unquantified** |
 
 P1 has earned its design-task credit through merged PR#240, supported by the deliverable above;
-P2 is In progress: PR#261 merged its metadata/identity foundation, providing
-partial implementation evidence without executable namespace acceptance. The
-next slice adds raw qualified syntax, cross-module binding/re-export resolution
-and diagnostics. No stable sub-outcome
+P2 is In progress: PR#261 merged its metadata/identity foundation and PR#262
+merged raw qualified syntax, cross-module binding/re-export resolution and
+diagnostics. The current checked declaration/signature slice awaits merge;
+body/effect/emission identity integration and migration remain. These provide
+partial implementation evidence without executable namespace acceptance. No stable sub-outcome
 allocation exists within P2, so its partial completion and estimated contribution
 remain unquantified rather than assigning credit by PR count. P3–P8 remain Planned.
 The baseline weights and accepted subtotal are unchanged at 10 pp; the overall
@@ -418,8 +420,8 @@ in its issue and update this register at delivery. A design or experiment does n
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. The next action is
-checked-identity integration after this intermediate qualified-reference and
-binding-resolution delivery is merged with the required review and approval. P3–P8 have not started.
+body/effect/emission identity integration after this intermediate checked-signature
+delivery is merged with the required review and approval. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -2918,9 +2920,22 @@ change is not an isolated performance attribution. Measurements are recorded in 
 This is an
 intermediate GI#198 delivery, not namespace feature acceptance or a release.
 
-Remaining P2 scope: public signature accessibility and precise type/pattern use
-spans; uniform core/nominal/callable identities through checker, purity, generic
-substitution, emission and tooling; audited stdlib exports, coordinated source
+**Current checked declaration/signature slice:** tagged core/nominal/callable and
+binder-position parameter identities replace spelling-based contracts at this
+staged boundary. Alias/re-export reachability preserves original identities;
+public fields, enum payloads, parameters, results, nested generic/callable types
+and guard helpers reject inaccessible dependencies. Public bodies may retain
+private helper calls. Identity-based substitution is capture-free. The loader
+retains valid contracts and owner-positioned diagnostics while preserving the
+execution gate; legacy execution does not run the signature graph pass.
+Focused namespace coverage passes 206 assertions. Seed refresh verifies fresh
+compiler and standard-library fixed points. This is an intermediate GI#198
+slice, not full P2 acceptance; partial completion remains unknown and the accepted
+programme contribution remains 10 pp. See the
+[performance disposition](tests/VALIDATION_PROFILE.md#namespace-checked-signatures--2026-10-04).
+
+Remaining P2 scope: precise type/pattern use spans; uniform identity-based body
+checking, purity/effect evidence, emission and tooling; audited stdlib exports, coordinated source
 migration, native/browser and installed/bootstrap conformance. Remove the staged
 execution gate and current flattening only with that identity integration and
 fresh namespace-capable seed/source migration. GI#198 remains open. Website

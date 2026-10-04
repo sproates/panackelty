@@ -6,7 +6,9 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
-- No additional changes recorded after the alpha.11 release candidate.
+- Check staged namespace declaration/signature identities and public access,
+  including generic/callable types and guard-helper dependencies. Namespace
+  execution remains gated; this internal preparation adds no executable syntax.
 
 ## 0.1.0-alpha.11 — 2026-10-04
 

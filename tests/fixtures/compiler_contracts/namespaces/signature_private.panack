@@ -1,0 +1,3 @@
+record Hidden { value: Nat }
+pub record Visible { value: Hidden }
+main(): Void {}

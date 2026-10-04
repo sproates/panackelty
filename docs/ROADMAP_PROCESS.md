@@ -325,7 +325,7 @@ before withdrawal. Keep correction work open until live verification confirms
 links, examples, version labels and relevant claims are accurate.
 
 This is a contribution and review requirement now. Automated website gates and
-independent publishing remain part of the unscheduled website proposal.
+independent publishing are tracked under [RM#14: Independent website publishing](../ROADMAP.md#rm-14).
 
 ## Review and completion
 

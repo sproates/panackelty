@@ -365,9 +365,9 @@ Accepted. On selection record owner, PR/revision, evidence, blockers and next ac
 in its issue and update this register at delivery. A design or experiment does not
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
-closing such followups. P1 design acceptance is complete. The next action is
-slice 1 of the [P2 delivery checklist](#p2-delivery-checklist), ordinary expressions
-and control flow, followed by the remaining P2 acceptance and selected P3/P4
+closing such followups. P1 design acceptance is complete. When core programme
+implementation is selected again, its next action is slice 1 of the
+[P2 delivery checklist](#p2-delivery-checklist), ordinary expressions and control flow, followed by the remaining P2 acceptance and selected P3/P4
 sequence. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -1531,17 +1531,30 @@ sequencing decision changes no other programme scope, weights or priorities.
 
 Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 
-State: **Idea; unscheduled**. Recorded at the user's request on 2026-10-01.
-Scope: maintenance. This does not select the repository migration. The separate [planned #187 CI improvement](#next-fast-website-ci-and-prepared-browser-test-environments)
-can proceed before this split.
+State: **In progress — selected by the owner on 2026-10-05**.
+Scope: maintenance. Website separation is the current implementation priority.
+The public `sproates/panackelty-website` repository has been created with an
+owner-authorised empty base commit; all website content goes through reviewed
+PRs. Main requires current passing website checks, PR-only squash merges,
+conversation resolution and linear history, with force pushes/deletion disabled.
+The same owner-review exception applies only to `sproates` through PRs;
+independent review and explicit approval of each merge remain required.
+
+The first delivery prepares standalone source, release pins, validation and
+previews. The existing publisher remains authoritative until staged hosting,
+URL/asset preservation and rollback are verified and the cutover is approved.
+Repository setup alone does not satisfy migration acceptance. The separate
+GI#187 timing/scheduling follow-up remains deferred; this selection does not
+restart its broader scope.
 
 Sequencing decision, 2026-10-04: complete and accept this repository separation
 before activating [RM#135: Next integration workflow](#rm-135). That workflow
 also waits for the next release; this records no ordering between those two
-prerequisites and starts no migration or branch configuration now.
+prerequisites. Migration is now selected; the `next` workflow remains unstarted.
 
-Website edits still share core validation and coverage publication through
+Website edits still share core validation and website publication through
 `.github/workflows/pages.yml`, despite consuming a pinned browser release.
+Coverage already has an independent publisher; preserve its compatibility URLs.
 The user reports that simple website publication can take half an hour; current
 hosted timings need measuring. This slows content corrections and site work.
 
@@ -1551,8 +1564,11 @@ bundle contract in core, and browser adaptation/playground releases in
 `sproates/panackelty-browser`. The site explicitly pins tested browser artifacts
 and advertised native releases. A new core or browser release must not change
 the live site until a separately reviewed website update is published.
+Release notes are an intentionally promoted snapshot, and installer source and
+requested release must be pinned too; following core `main` would violate this
+boundary. The existing installer command needs that correction during migration.
 
-Acceptance for the eventual implementation:
+Acceptance for this migration:
 
 - Website-only changes validate and publish without core builds or waiting for
   core CI. Use focused content/link/assembly checks and a browser smoke test;
@@ -2876,9 +2892,11 @@ no scope or weight and awards no additional completion credit.
 
 <a id="p2-delivery-checklist"></a>
 
-User decision, 2026-10-04: P2 is the sole current implementation priority. Record
-the eight remaining slices for handoff; this documentation change starts no code
-implementation. These are ordered acceptance checklists within RM#41 / GI#198,
+The 2026-10-04 selection of P2 as sole implementation priority is superseded
+by the owner's 2026-10-05 selection of [RM#14: Website separation](#rm-14).
+Retain these eight remaining slices for the next core programme handoff; no
+P2 scope, weight or accepted progress changes with this sequencing decision.
+These are ordered acceptance checklists within RM#41 / GI#198,
 not eight independently tracked initiatives. PR#261, PR#262, PR#275 and PR#284 are
 merged foundations, not complete executable namespace acceptance. The next slice
 is **1: ordinary expressions and control flow**.

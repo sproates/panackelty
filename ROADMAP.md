@@ -1472,16 +1472,15 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
 ### Website follow-up register
 
 - <a id="rm-122"></a>**RM#122: Optional one-command installation guidance** ·
-  Follow-up to [RM#121 / GI#256](#rm-121) — **Verification pending**.
-  The optional installer merged in PR#258; its public script is available and
-  matches the reviewed implementation. This delivery adds a compact optional
-  route alongside all existing alpha.10 manual archive instructions, preserving
-  the completed RM#118/GI#250 parity work. It explains script inspection, the
-  pinned default version, supported targets, command paths and opt-in PATH.
-  Owner preview acceptance, successful current-head checks and authorised merge
-  are required before deployment. The delivery maintainer must then verify the
-  live optional command and links, manual blocks and greeting workflow before
-  closing RM#122 or GI#256. No platform or release support changes.
+  Follow-up to [RM#121 / GI#256](#rm-121) — **Done (2026-10-04)**.
+  [PR#259: Optional installation guidance](https://github.com/sproates/panackelty/pull/259)
+  merged as `3ee554f`. The optional route preserves all manual alpha.10 commands
+  and adds eight independently labelled copy controls. Main checks and
+  [Pages publication](https://github.com/sproates/panackelty/actions/runs/37171626046)
+  passed. The live page exactly matches merged HTML, including command/link
+  targets; the public installer matches reviewed bytes. The owner accepted the
+  live phone clipboard/layout verification on 2026-10-04. No platform or release
+  support changes. See [acceptance evidence](tests/VALIDATION_PROFILE.md).
 
 - <a id="rm-119"></a>**RM#119: Cookie-free website analytics** ·
   [GI#252: Cookie-free website analytics](https://github.com/sproates/panackelty/issues/252) — Idea / unscheduled.
@@ -1693,7 +1692,7 @@ Independent of Homebrew and the graphical installer; existing supported release
 artifacts are prerequisites. Portability, file ownership and ongoing maintenance
 have been assessed for the bounded installer implementation.
 
-State: **Verification pending**. Selected with owner approval on 2026-10-04;
+State: **Done (2026-10-04)**. Selected with owner approval on 2026-10-04;
 [PR#258: Optional one-command installer](https://github.com/sproates/panackelty/pull/258)
 merged as `28f3605`. It adds `scripts/install.sh`, offline regressions and
 published-release acceptance in the Ubuntu 22.04/macOS 14 CI matrix. The installer
@@ -1706,9 +1705,10 @@ passed after merge. Platform and public-availability evidence is recorded in
 [the validation profile](tests/VALIDATION_PROFILE.md).
 
 The optional website route is tracked as RM#122 in the website follow-up register.
-Use `Refs #256` while live website acceptance remains. After authorised deployment,
-the delivery maintainer must verify the public command and links plus preserved
-manual installation guidance, then prepare the Done summary and issue completion.
+PR#259 delivered that route; post-merge checks and production publication passed.
+Live HTML and installer bytes match the merged versions, preserving manual command
+text. The owner accepted the live clipboard/layout check on 2026-10-04. Linux and
+macOS published-release acceptance passed; this completion update closes GI#256.
 The clean local check still exceeds the 120s full-check budget; keep
 [GI#106: Validation performance](https://github.com/sproates/panackelty/issues/106)
 as the existing prioritized profiling reminder, without reducing coverage.

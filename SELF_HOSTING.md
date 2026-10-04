@@ -1,5 +1,14 @@
 # Self-hosting roadmap
 
+The P2 checked-signature slice refreshes the v9 seed without enabling namespace
+execution. Fresh stages 2/3/4 produce the same compiler digest
+`aa82e3d6114e66ab1515b9e39586b111da568d2b5454e2926953660a841cd625`
+(394,040 bytes), and the standard-library artifact remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+with unchanged expected output. Source and stdlib migration remain future work;
+the checked signature table is not an executable namespace AST. See the
+[validation evidence](tests/VALIDATION_PROFILE.md#namespace-checked-signatures--2026-10-04).
+
 The P2 raw-reference and binding-resolution slice refreshes the v9 seed using
 existing executable source syntax. Raw dot calls and qualified type/reference/
 pattern spellings are retained alongside per-module tagged identities. Namespace

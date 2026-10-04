@@ -371,6 +371,12 @@ pure resolve_module_expression_uses(graph: ModuleBindingGraph, identity: ModuleI
           },
           ValueMethodCall(receiver, method, values, type_arguments) => {
             result = resolve_module_expression_uses(graph, identity, receiver, origin, locals)
+            if !module_reserved_binding(method) && lowered_method_name(method) == method {
+              method_target: Result[ResolvedModuleTarget,Str] = match resolve_module_function(graph, identity, method) {
+                Error(message) => Error(message), Ok(binding) => Ok(DeclarationTarget(binding))
+              }
+              result = combine_module_uses(result, module_use_result(method, origin, method_target))
+            }
           }
         }
       }

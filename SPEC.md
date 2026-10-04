@@ -744,7 +744,9 @@ and `import ...::{...}` fail with an explicit namespace-migration diagnostic.
 They cannot execute with today's combined-name semantics. The raw frontend also
 parses qualified types, named function references and variant patterns, and retains
 dot calls until binding; qualified uses through a default namespace alias fail
-closed too. Its internal cross-module resolution does not enable executable
+closed too. Staged declaration signatures now check tagged type/callable identity
+and public reachability, including private type and guard-helper leaks. These
+diagnostics do not enable executable
 namespace calls/types, public visibility or re-exports;
 see [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
 

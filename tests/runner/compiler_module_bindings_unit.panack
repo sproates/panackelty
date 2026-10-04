@@ -144,7 +144,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -401,5 +401,108 @@ pure namespace_lexical_receiver_tests(): [TestResult] {
     Error(error) => { results = append(results, test_expect("default basename fixture parses", false, diagnostic_text(error))) },
     Ok(parsed) => { results = append(results, test_equal_nat("legacy default import basename is not a reserved value name", len(module_execution_diagnostics(parsed)), 0)) }
   }
+  results
+}
+
+pure signature_test_module(identity: ModuleIdentity, source: Str): LoadedModule {
+  parsed: ParsedModule = match namespace_parse(source) {
+    Ok(value) => value,
+    Error(error) => ParsedModule(indexed_program([]), [])
+  }
+  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+}
+pure signature_test_error(source: Str): Str {
+  module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
+  result: CheckedModuleSignatures = check_module_signatures(ModuleBindingGraph([module.bindings], []), [module], module)
+  if len(result.diagnostics) == 0 { "ok" } else { result.diagnostics[0].message }
+}
+pure signature_test_type(graph: ModuleBindingGraph, modules: [LoadedModule], binder: DeclarationIdentity, parameters: [Str], spelling: Str, public_flag: Bool): SignatureType {
+  match signature_type(graph, modules, binder, parameters, spelling, public_flag, true) {
+    Ok(value) => value, Error(message) => SignatureType(SignatureCore("ERROR:" + message), [])
+  }
+}
+pure namespace_signature_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item[T] { value: T }; pub async fetch(): Nat { 1 }")
+  right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item[T] { value: T }")
+  app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as private_alias; pub import project/left as public_alias; pub import project/right as other; pub pure wrap[T](value: private_alias.Item[PureFn[T,Nat]]): other.Item[T] { 0 }")
+  modules: [LoadedModule] = [left, right, app]
+  graph: ModuleBindingGraph = ModuleBindingGraph([left.bindings, right.bindings, app.bindings], [ModuleImportEdge(app.bindings.identity, 0, left.bindings.identity), ModuleImportEdge(app.bindings.identity, 1, left.bindings.identity), ModuleImportEdge(app.bindings.identity, 2, right.bindings.identity)])
+  binder: DeclarationIdentity = DeclarationIdentity(app.bindings.identity, "wrap")
+  a: SignatureType = signature_test_type(graph, modules, binder, [], "private_alias.Item[Nat]", true)
+  b: SignatureType = signature_test_type(graph, modules, binder, [], "public_alias.Item[Nat]", true)
+  c: SignatureType = signature_test_type(graph, modules, binder, [], "other.Item[Nat]", true)
+  results = append(results, test_expect("same-spelled module nominals are distinct", a != c && a.identity == SignatureNominal(DeclarationIdentity(left.bindings.identity, "Item")), "lost nominal identity"))
+  results = append(results, test_expect("private spelling publicly reachable by alias preserves identity", a == b, "alias minted identity"))
+  checked: CheckedModuleSignatures = check_module_signatures(graph, modules, app)
+  results = append(results, test_equal_nat("nested generic callable public signature accepted", len(checked.diagnostics), 0))
+  results = append(results, test_equal_nat("signature table retains one function", len(checked.declarations), 1))
+  results = append(results, test_expect("pure signature keeps classification", checked.declarations[0].effect == Some(SignaturePure()), "lost pure effect"))
+  async_signature: CheckedModuleSignatures = check_module_signatures(graph, modules, left)
+  results = append(results, test_expect("async declaration keeps classification", async_signature.declarations[1].effect == Some(SignatureAsync()), "lost async effect"))
+  parameter: SignatureType = signature_test_type(graph, modules, binder, ["Item"], "Item", false)
+  results = append(results, test_expect("lexical type parameter wins over another module spelling", parameter.identity == SignatureParameter(binder, 0), "captured parameter"))
+  another: DeclarationIdentity = DeclarationIdentity(app.bindings.identity, "another")
+  results = append(results, test_expect("type parameter binder identity distinguishes declarations", parameter != signature_test_type(graph, modules, another, ["Item"], "Item", false), "parameter capture"))
+  renamed: SignatureType = signature_test_type(graph, modules, binder, ["Renamed"], "Renamed", false)
+  results = append(results, test_expect("type parameter alpha rename preserves position", parameter == renamed, "spelling controls parameter identity"))
+  results = append(results, test_expect("substitution uses binder identity", substitute_signature_type(parameter, binder, [a]) == Ok(a) && substitute_signature_type(parameter, another, [c]) == Ok(parameter), "capture during substitution"))
+  results = append(results, test_expect("missing substitution rejects safely", substitute_signature_type(parameter, binder, []) == Error("missing signature substitution"), "missing argument accepted"))
+  for spelling in ["PureFn[Nat,Void]", "Fn[Nat,Void]", "AsyncFn[Nat,Nat]"] {
+    resolved: SignatureType = signature_test_type(graph, modules, binder, [], spelling, true)
+    expected: SignatureEffect = signature_effect(starts_with(spelling, "Pure"), starts_with(spelling, "Async"))
+    results = append(results, test_expect("callable signature effect/" + spelling, resolved.identity == SignatureCallable(expected), "effect erased"))
+  }
+  results = append(results, test_equal_str("record private field leak", signature_test_error("record Hidden { value: Nat }; pub record Box { value: Hidden }"), "signature Box.value: public signature exposes inaccessible type Hidden from signature.panack"))
+  results = append(results, test_equal_str("enum nested private payload leak", signature_test_error("record Hidden { value: Nat }; pub enum Box { Wrap(Option[[Hidden]]) }"), "signature Box.Wrap:0: public signature exposes inaccessible type Hidden from signature.panack"))
+  results = append(results, test_equal_str("callable private parameter leak", signature_test_error("record Hidden { value: Nat }; pub pure f(value: PureFn[Hidden,Nat]): Nat { 0 }"), "signature f.value: public signature exposes inaccessible type Hidden from signature.panack"))
+  results = append(results, test_equal_str("private return leak", signature_test_error("record Hidden { value: Nat }; pub pure f(): Hidden { 0 }"), "signature f.return: public signature exposes inaccessible type Hidden from signature.panack"))
+  results = append(results, test_equal_str("public wrapper may call private body helper", signature_test_error("pure helper(): Nat { 1 }; pub pure wrap(): Nat { helper() }"), "ok"))
+  results = append(results, test_equal_str("public guard direct helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where hidden(value)"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = append(results, test_equal_str("public guard receiver helper leak", signature_test_error("pure hidden(value: Nat): Bool { true }; pub type Good = Nat where value.hidden()"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = append(results, test_equal_str("public guard accessible helper", signature_test_error("pub pure exposed(value: Nat): Bool { true }; pub type Good = Nat where exposed(value)"), "ok"))
+  results = append(results, test_equal_str("reserved core nominal rejected", signature_test_error("pub record Option[T] { value: T }"), "declaration Option conflicts with a reserved core identity"))
+  results = append(results, test_equal_str("reserved scalar nominal rejected", signature_test_error("pub record Nat { value: Int }"), "declaration Nat conflicts with a reserved core identity"))
+  results = append(results, test_equal_str("duplicate parameter rejected", signature_test_error("pub record Pair[T,T] { value: T }"), "invalid or duplicate type parameter T"))
+  results = append(results, test_equal_str("callable Void parameter rejected", signature_test_error("pub pure f(value: Fn[Void,Nat]): Nat { 0 }"), "signature f.value: Void is only valid as a function return type"))
+  results = append(results, test_equal_str("async Void result rejected", signature_test_error("pub async f(): Void {}"), "signature f.return: Void is only valid as a function return type"))
+  leaked: LoadedModule = signature_test_module(namespace_identity("leaked"), "import project/left as api; pub pure expose(): api.Item[Nat] { 0 }")
+  leak_graph: ModuleBindingGraph = ModuleBindingGraph([left.bindings, leaked.bindings], [ModuleImportEdge(leaked.bindings.identity, 0, left.bindings.identity)])
+  leak_result: CheckedModuleSignatures = check_module_signatures(leak_graph, [left, leaked], leaked)
+  results = append(results, test_equal_str("imported public type without export route leaks", leak_result.diagnostics[0].message, "signature expose.return: public signature exposes inaccessible type api.Item from left"))
+  results = append(results, test_equal_str("signature errors retain owner source", leak_result.diagnostics[0].position.file, "module.panack"))
+  results = append(results, test_equal_nat("invalid signature not retained", len(leak_result.declarations), 0))
+  facade: LoadedModule = signature_test_module(namespace_identity("facade"), "pub import project/left::{Item as Reexported, fetch as load}")
+  use: LoadedModule = signature_test_module(namespace_identity("use"), "pub import project/facade as api; pub pure f(): api.Reexported[Nat] { 0 }")
+  reexports: ModuleBindingGraph = ModuleBindingGraph([left.bindings, facade.bindings, use.bindings], [ModuleImportEdge(facade.bindings.identity, 0, left.bindings.identity), ModuleImportEdge(use.bindings.identity, 0, facade.bindings.identity)])
+  results = append(results, test_expect("selective transitive reexport retains nominal identity", signature_test_type(reexports, [left, facade, use], DeclarationIdentity(use.bindings.identity, "f"), [], "api.Reexported[Nat]", true) == a, "reexport changed identity"))
+  results = append(results, test_expect("reexport generic arity checked at origin", signature_type(reexports, [left, facade, use], DeclarationIdentity(use.bindings.identity, "f"), [], "api.Reexported", true, true) == Error("api.Reexported has incorrect type argument count"), "arity not checked"))
+  core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }")
+  core_use: LoadedModule = signature_test_module(namespace_identity("core_use"), "import stdlib/core::{Option as Maybe, Result as Outcome}; pub pure f(): Maybe[Nat] { 0 }")
+  core_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_use.bindings], [ModuleImportEdge(core_use.bindings.identity, 0, core.bindings.identity)])
+  core_owner: DeclarationIdentity = DeclarationIdentity(core_use.bindings.identity, "f")
+  results = append(results, test_expect("toolchain core alias equals implicit core identity", signature_test_type(core_graph, [core, core_use], core_owner, [], "Maybe[Nat]", true) == signature_test_type(core_graph, [core, core_use], core_owner, [], "Option[Nat]", true), "second core identity"))
+  results = append(results, test_equal_str("guard function reference retains privacy", signature_test_error("pure hidden(): Bool { true }; pub type Good = Nat where @hidden"), "public guard depends on inaccessible declaration hidden from signature.panack"))
+  results = append(results, test_equal_str("empty callable signature rejects", signature_test_error("pub pure f(value: Fn): Nat { 0 }"), "signature f.value: Fn expects at least a return type"))
+  results = append(results, test_expect("private Result alias equals implicit core identity", signature_test_type(core_graph, [core, core_use], core_owner, [], "Outcome[Nat,Str]", true) == signature_test_type(core_graph, [core, core_use], core_owner, [], "Result[Nat,Str]", true), "second Result identity"))
+  results = append(results, test_equal_nat("private implicit-core alias public contract accepted", len(check_module_signatures(core_graph, [core, core_use], core_use).diagnostics), 0))
+  core_guard: LoadedModule = signature_test_module(namespace_identity("core_guard"), "import stdlib/core::{Option as Maybe}; pub type Good = Nat where Maybe.Some(value) == Maybe.Some(value)")
+  core_guard_graph: ModuleBindingGraph = ModuleBindingGraph([core.bindings, core_guard.bindings], [ModuleImportEdge(core_guard.bindings.identity, 0, core.bindings.identity)])
+  results = append(results, test_equal_nat("private core alias qualified guard constructor is reachable", len(check_module_signatures(core_guard_graph, [core, core_guard], core_guard).diagnostics), 0))
+  results = append(results, test_equal_str("core string method in public guard remains available", signature_test_error("pub type Good = Str where value.ends_with(\"x\")"), "ok"))
+  for method in ["first", "ends_with", "sort_by", "parse_nat", "get", "put", "has", "add", "call", "map", "reduce"] {
+    method_module: LoadedModule = signature_test_module(namespace_identity("method"), "pub pure f(value: Nat): Nat { value." + method + "() }")
+    method_graph: ModuleBindingGraph = ModuleBindingGraph([method_module.bindings], [])
+    results = append(results, test_equal_nat("reserved value method remains a checker responsibility/" + method,
+      len(resolve_module_uses(method_graph, method_module.bindings.identity, method_module.parsed).diagnostics), 0))
+  }
+  choices: LoadedModule = signature_test_module(namespace_identity("choices"), "pub enum Choice { Pick(Nat) }")
+  choice_guard: LoadedModule = signature_test_module(namespace_identity("choice_guard"), "pub import project/choices::{Choice}; pub type Good = Nat where Choice.Pick(value)")
+  choice_graph: ModuleBindingGraph = ModuleBindingGraph([choices.bindings, choice_guard.bindings], [ModuleImportEdge(choice_guard.bindings.identity, 0, choices.bindings.identity)])
+  results = append(results, test_equal_nat("public enum reexport exposes qualified guard constructor", len(check_module_signatures(choice_graph, [choices, choice_guard], choice_guard).diagnostics), 0))
+  results = append(results, test_expect("public enum route reaches original variant identity", signature_public_identity(choice_graph, choice_guard.bindings.identity, DeclarationIdentity(choices.bindings.identity, "Pick"), []), "variant inaccessible"))
+  only_variant: LoadedModule = signature_test_module(namespace_identity("only_variant"), "pub import project/choices::{Choice.Pick as picked}; main(): Void {}")
+  only_graph: ModuleBindingGraph = ModuleBindingGraph([choices.bindings, only_variant.bindings], [ModuleImportEdge(only_variant.bindings.identity, 0, choices.bindings.identity)])
+  results = append(results, test_expect("variant-only export does not expose parent type", !signature_public_identity(only_graph, only_variant.bindings.identity, DeclarationIdentity(choices.bindings.identity, "Choice"), []), "variant leaked parent"))
   results
 }

@@ -99,6 +99,13 @@ main(): Void {
           [operation, "tests/fixtures/compiler_contracts/namespaces/duplicate.panack"], 1, "",
           "namespaces/other.panack:2:1: top-level name answer is already declared\n  2 | pure answer(): Nat { 7 }\n    | ^"))
       }
+      for operation in ["check", "run", "compile"] {
+        results = results.append(integration_error("public signature privacy/" + operation,
+          [operation, "tests/fixtures/compiler_contracts/namespaces/signature_private.panack"], 1, "",
+          "namespaces/signature_private.panack:2:1: signature Visible.value: public signature exposes inaccessible type Hidden from signature_private.panack"))
+        results = results.append(test_expect("signature failure writes no bytecode/" + operation,
+          !file_exists("tests/fixtures/compiler_contracts/namespaces/signature_private.bc"), "invalid signature emitted bytecode"))
+      }
       for location in ["other.panack:2:1", "third.panack:3:1"] {
         results = results.append(integration_error("three duplicate module origins/" + location,
           ["check", "tests/fixtures/compiler_contracts/namespaces/triple.panack"], 1, "",

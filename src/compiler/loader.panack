@@ -1,5 +1,5 @@
 import "../bytecode/decoder.panack"
-import "module_resolution.panack"
+import "module_signatures.panack"
 import "../stdlib/filesystem.panack"
 
 record ProjectLoadState {
@@ -19,7 +19,8 @@ record LoadedProject {
   evidence: [SubtractionEvidence],
   effects: [EffectEvidence],
   effects_checked: Bool,
-  function_types: Map[Str,Bool]
+  function_types: Map[Str,Bool],
+  module_signatures: [ModuleSignature]
 }
 
 pure path_in_stack(stack: [Str], path: Str): Bool {
@@ -266,6 +267,7 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
   } else { core }
   program: Program = append_program_declarations(module_programs(loaded.modules))
   mut diagnostics: [Diagnostic] = loaded.diagnostics
+  mut signatures: [ModuleSignature] = []
   mut staged: Bool = false
   for module in loaded.modules { staged = staged || len(module_execution_diagnostics(module.parsed)) > 0 }
   if staged {
@@ -276,6 +278,9 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
       for module in loaded.modules {
         if len(module_execution_diagnostics(module.parsed)) > 0 {
           diagnostics = concat(diagnostics, resolve_module_uses(graph, module.bindings.identity, module.parsed).diagnostics)
+          checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, loaded.modules, module)
+          diagnostics = concat(diagnostics, checked_signatures.diagnostics)
+          signatures = concat(signatures, checked_signatures.declarations)
         }
       }
     }
@@ -296,7 +301,7 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
     function_types = checked.function_types
     effects_checked = len(checked.diagnostics) == 0 || (retain && checked.declarations_valid)
   }
-  LoadedProject(program, loaded.modules, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked, function_types)
+  LoadedProject(program, loaded.modules, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked, function_types, signatures)
 }
 
 // Build semantic edges only from the loader's normalized path decisions.

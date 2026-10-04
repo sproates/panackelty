@@ -255,10 +255,20 @@ missing bindings, namespace values and import/local/type-parameter collisions.
 Expression references retain their original expression spans; type references and
 pattern selectors currently use their owning declaration or match span.
 
-This is an intermediate resolution API, not checked namespace execution. Public
-signature accessibility, complete core/nominal/callable identities through the
-checker, effects, substitutions and emission, and coordinated source migration
-remain P2 work. `parse_program_complete` and the loader fail closed on staged
+`module_signatures.panack` now checks staged declaration signatures into tagged
+core, original nominal, binder/position type-parameter and callable-effect
+identities. Public signature reachability follows explicit exports by original
+identity, including alternate aliases and transitive re-exports. It checks nested
+array/generic/callable types, origin arity and guard helper accessibility; public
+function bodies may still call private helpers. Substitution follows the owning
+binder rather than source spelling. The loader retains valid signatures and
+positioned diagnostics only for staged modules, without traversing this layer for
+ordinary legacy programs. Nominal declaration lookup and export reachability still
+scan the small loaded graph; this is not a scaling or indexing claim.
+
+This is a checked signature layer, not checked namespace execution. Identity-based
+body checking, effect evidence, emission and source/explanation tooling integration,
+more precise type/pattern use spans and coordinated source migration remain P2 work. `parse_program_complete` and the loader fail closed on staged
 syntax, including qualified uses with default imports or no explicit `pub`.
 Only the gated legacy execution tree lowers value methods and combines names;
 raw trees remain intact. The temporary boundary has no user-selectable mode and

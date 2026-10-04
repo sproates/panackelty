@@ -83,7 +83,7 @@ pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): Mo
 
 pure module_reserved_binding(name: Str): Bool {
   is_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
-  name == "Bool" || name == "Str" || name == "Bytes" || name == "Unit" ||
+  name == "Rat" || name == "Array" || name == "Bool" || name == "Str" || name == "Bytes" || name == "Unit" ||
   name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
   name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
   name == "PureFn" || name == "Fn" || name == "AsyncFn" ||

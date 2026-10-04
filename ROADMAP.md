@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#129.**
+The initial allocation contains **105 identities**. **Next available: RM#130.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -3807,6 +3807,28 @@ Panackelty should combine strong static guarantees with a low-friction programmi
 experience. Powerful checking is useful only when programmers can understand a
 failure and act on it quickly. New features should therefore be evaluated on
 both the guarantees they provide and the clarity of the resulting workflow.
+
+### Error propagation shorthand
+
+<a id="rm-129"></a>
+
+**RM#129: Error propagation shorthand** ·
+[GI#274: Consider error propagation shorthand](https://github.com/sproates/panackelty/issues/274).
+
+**Idea / unscheduled.** Recorded at the user's request on 2026-10-04.
+
+Consider shorthand for repeated `Result` handling that extracts an `Ok` value
+and returns an `Error` from the enclosing function. Assess readability and
+boilerplate in representative programs against explicit matching. Syntax,
+error-type compatibility, propagation boundaries, async/effect interactions and
+cleanup implications remain to be assessed; preserve explicit typed failures
+and the purity boundary.
+
+The smallest outcome is an evidence-based recommendation, including retaining
+explicit matching if shorthand offers insufficient value. Assessment is small;
+implementation effort and dependencies remain unknown. No urgency is established.
+This records an idea, not a syntax decision, exception system or implementation
+commitment.
 
 ### Type inference and diagnostic experience
 

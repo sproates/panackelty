@@ -42,7 +42,7 @@ For PR #150 (run 36785380904):
 
 A nearby run (36781512371) spent **~7 m 51 s** installing browser engines and ~1 m 41 s testing. Thus the expensive repeated provisioning is predominantly Playwright browser installation, not WASI SDK acquisition.
 
-PR #150 changed only agent/process documentation yet both Pages and Playground browser jobs ran for about 6–7 minutes because the current conservative `full` route reaches browser consumers. This is real feedback latency even though browser correctness was unaffected.
+PR #150 changed only process documentation yet both Pages and Playground browser jobs ran for about 6–7 minutes because the current conservative `full` route reaches browser consumers. This is real feedback latency even though browser correctness was unaffected.
 
 ## Alternatives considered
 

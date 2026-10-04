@@ -11,7 +11,7 @@ validation_website_only_path() {
 validation_component() {
     if ci_informational_doc "$1"; then
         case "$1" in
-            AGENTS.md|CONTRIBUTING.md|docs/ROADMAP_PROCESS.md|.agents/skills/next-item/SKILL.md|.github/pull_request_template.md) printf 'process\n' ;;
+            CONTRIBUTING.md|docs/ROADMAP_PROCESS.md|.github/pull_request_template.md) printf 'process\n' ;;
             *) printf 'documentation\n' ;;
         esac
         return

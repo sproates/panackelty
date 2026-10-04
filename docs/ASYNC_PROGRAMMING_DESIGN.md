@@ -167,7 +167,7 @@ an explicit failure, rather than discarding a completion needed for cleanup. The
 
 Prefer await for sequential application work. Callback state machines remain a
 useful host boundary. This is a design judgement from the worked example, not a
-measured usability result. A small programmer/agent trial should challenge it
+measured usability result. A small programmer trial should challenge it
 before we describe the syntax as easy to use.
 
 ## Activation and types
@@ -344,6 +344,6 @@ Primary sources reviewed on 2026-09-29; none is a selected dependency.
 The remaining review decisions are the restricted await/spawn activation model,
 the initial ban on ordinary impure calls in async bodies, and the explicit
 collect-cancellation scope policy. Exact resource grammar and backend choices
-remain provisional. No user/agent usability study or real-network test was run
+remain provisional. No user usability study or real-network test was run
 for this proposal. We should review those trade-offs before authorising the first
 implementation slice.

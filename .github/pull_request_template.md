@@ -23,7 +23,7 @@ Merging still requires explicit user approval. -->
 
 - Outcome and roadmap entry:
 - Issue linkage:
-- Remaining acceptance and responsible person or agent, or none:
+- Remaining acceptance and responsible person, or none:
 
 ## Website impact
 

@@ -778,14 +778,6 @@ archive and asserts the complete README Hello World/check/run/compile/bytecode
 output, repeat installation and removal. Check runs it on Ubuntu 22.04 x86_64 and
 macOS 14 arm64; network acceptance is separate from offline `make check`.
 
-## Contributor operation scripts
-
-`make project-operations-test` covers bounded PR snapshots (stale heads, missing
-runs, rerun ordering and connector failures), exact committed binary/mode/deletion
-manifests and new-branch publication with blob/tree identity checks. These Node
-tests exercise contributor tooling outside native/compiler and public CLI scope.
-
-
 Build-baseline harness regression coverage runs in canonical policy validation.
 It verifies source isolation, exact tracked/untracked/deleted candidate snapshots,
 real probe-driver compilation versus execution counts, output validation, failed

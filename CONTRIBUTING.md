@@ -23,34 +23,6 @@ These conventions apply to new and substantially changed work. Preserve existing
 public names and keep unrelated formatting or renaming out of focused changes.
 Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
 
-### Shared agent skills
-
-Repository skills live in `.agents/skills/` and travel with a clone. The
-[Next Item skill](.agents/skills/next-item/SKILL.md) guides answers to "what's
-next?", including alternatives, recommendation rationale, size, PR estimates
-and a simple explanation. Codex supports this repository skill location;
-other agents can follow the file directly through the link in `AGENTS.md`.
-See the [official skill documentation](https://learn.chatgpt.com/docs/build-skills)
-for discovery details. Maintain the repository copy through normal PR review;
-personal copies are independent and do not update it automatically.
-
-### Repository health skill
-
-The [Repository Health skill](.agents/skills/repository-health/SKILL.md) audits
-dangling PRs, issue/completion bookkeeping, default-branch health and merged
-branch clutter. `AGENTS.md` requires a lightweight run after major/principal
-task completion; it is also the shared procedure for an explicit repository
-health or housekeeping request.
-
-### Programme status skill
-
-The [Programme Status skill](.agents/skills/programme-status/SKILL.md) establishes
-provisional scope-based weights when planning and reports all scoped tasks after
-each programme task delivery or completion. It distinguishes evidenced progress
-from formal acceptance and preserves paused work in the denominator. Baselines
-and evidence belong in the roadmap's programme register; see the
-[programme tracking rules](docs/ROADMAP_PROCESS.md#programme-tracking).
-
 ### Branches, commits and pull requests
 
 - Branch from current `main` using `<kind>/<short-kebab-case-description>`.
@@ -108,7 +80,7 @@ and evidence belong in the roadmap's programme register; see the
   for file placement and responsibility boundaries. Keep implementation in
   `src/`, user examples in `examples/`, and tests in the documented test layout.
 - Follow [tests/README.md](tests/README.md) for fixtures, runners and assertions,
-  and [AGENTS.md](AGENTS.md) for meaningful coverage, cleanup and validation.
+  and the validation requirements below for meaningful coverage and cleanup.
   Test names should describe the behavior or failure being checked.
 - Follow [RELEASE_POLICY.md](RELEASE_POLICY.md) for versions, tags, compatibility
   and release gates rather than defining a separate release naming scheme here.
@@ -148,8 +120,29 @@ dependencies; `make check-no-interpreter` repeats the complete development and
 package workflow with an allowlisted command environment. See
 [the testing guide](tests/README.md) for the validation commands.
 
-Repository-specific requirements for documentation, cleanup, validation budgets,
-and commits are defined in `AGENTS.md` and apply to every contribution.
+### Documentation and cleanup
+
+Update the documents affected by a change: language contracts in `SPEC.md`,
+component boundaries in `ARCHITECTURE.md`, user workflows in `README.md`, bootstrap
+progress in `SELF_HOSTING.md`, delivery state in `ROADMAP.md`, and test evidence in
+`tests/COVERAGE.md`. Keep component READMEs accurate. Explain when documentation
+was reviewed and no update was needed.
+
+Remove obsolete files, callers, fixtures and references in the same change.
+Preserve unrelated work and user-owned configuration. Remove generated outputs
+with `make clean` where applicable, then inspect `git status` and the final diff.
+Never weaken required coverage to make validation pass. If checks cannot run,
+identify the limitation and unverified behavior.
+
+A clean `make check` has a 120-second reference-environment budget; a focused
+incremental check with the toolchain built has a 15-second budget. Report timing,
+apply each budget to its stated workload, and follow the performance disposition
+process for breaches. Preserve required coverage when improving validation speed.
+
+Keep the VM as the only execution engine, source compilation before execution,
+the purity boundary, exact numeric semantics, bytecode verification and runtime
+safety checks. Preserve the stable `panack` command unless the agreed change
+explicitly alters it.
 
 ## Report a bug
 

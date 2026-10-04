@@ -1,4 +1,0 @@
-interface:
-  display_name: "Next Item"
-  short_description: "Compare viable next tasks and explain the recommendation"
-  default_prompt: "Use $next-item to compare viable next tasks, recommend one, estimate size and PR count, and explain it simply."

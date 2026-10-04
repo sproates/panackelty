@@ -32,7 +32,7 @@ Do not begin with shared-memory language threads, unrestricted FFI or a mandator
 global event loop. CPU parallelism should remain possible through later isolated
 workers, without pretending it has already been designed or implemented.
 
-Why: the pilot's two HTTP failures establish missing capability, not a preferred
+Why: the absence of HTTP establishes missing capability, not a preferred
 scheduler. The architecture supports immutable data and explicit effects, but
 has no suspendable call stack. A cooperative model could give readable sequential
 I/O code while respecting existing single-threaded ownership. This is a design
@@ -280,7 +280,7 @@ functional, bootstrap, sanitizer, fault-injection and packaging checks.
 | 2. Task/lifecycle feasibility, M–L | Minimal scoped tasks, virtual clock and fake pending operations; bounded queues and deterministic completion tests | Parent/child join, cancellation at every wait transition, completion-before-cancel and cancel-before-completion, duplicate/late completion, stale handles, session destruction with pending work, no double release or orphaned tasks. |
 | 3. Public syntax/effects decision, M design then L implementation | Compare callback and explicit-await workflows; define async callable typing, activation, scope/resource syntax and bytecode migration | Readable server and GUI examples with handled failure paths; negative checks for pure/async misuse, escaping resources and unobserved work; coordinated compiler/verifier/seed tests. Separate implementation PR if design remains disputed. |
 | 4. First native transport, M–L after backend review | Loopback TCP and timers through the chosen lifecycle, Linux/macOS first; bounded echo service before HTTP | Slow client does not stall a fast one; partial writes/reads, EOF, refusal, timeout, overload, close/cancel races and graceful shutdown; sanitizer/fault coverage, no descriptor or task leaks. |
-| 5. Useful service and host demonstrations, separately scoped | HTTP pilot plus one host-driven UI/event demonstration | Original HTTP acceptance plus adversarial framing/size cases; UI remains responsive, repeated refresh and close-in-flight work safely; independently review networking security before wider exposure. |
+| 5. Useful service and host demonstrations, separately scoped | HTTP service plus one host-driven UI/event demonstration | HTTP acceptance plus adversarial framing/size cases; UI remains responsive, repeated refresh and close-in-flight work safely; independently review networking security before wider exposure. |
 
 A platform backend decision should compare a small POSIX adapter, a maintained
 event library and host-native integration: cancellation/teardown guarantees,

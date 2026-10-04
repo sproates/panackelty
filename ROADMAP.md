@@ -1603,19 +1603,19 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
 
 ### Website follow-up register
 
-- <a id="rm-127"></a>**RM#127: Website release history** — In progress;
-  selected by the user on 2026-10-04. This bounded exception to the ordinary
-  promotion deferral adds a generated “What’s changed” page from canonical
-  `CHANGELOG.md`, with dated historical notes, migration guidance, release links,
-  collapsed current-source changes and independently pinned native/browser
-  availability. Prepared notes never imply published downloads. No runtime
-  promotion, release publication or broader website refresh is included.
-  Acceptance: generator failure/staleness tests, complete Pages/preview checks,
-  canonical validation, independent review and a working owner preview before
-  merge; production acceptance remains pending authorised deployment and live
-  byte verification. Delivery owner: website delivery role. Performance impact
-  is limited to a small static-page generation step during website builds; no
-  compiler/runtime path changes or validation-budget improvement are claimed.
+- <a id="rm-127"></a>**RM#127: Website release history** — Done
+  (2026-10-04, PR #269). Added changelog-generated release history with dated
+  notes, migration guidance, release links, labelled current-source changes and
+  independently pinned native/browser availability. Homepage, release history
+  and playground share navigation and footer markup; playground resource links
+  and versioned assets are preserved. Prepared notes never imply published
+  downloads. No release was created and native/browser pins are unchanged.
+  Owner preview acceptance, independent review and required checks passed.
+  Production deployment and live byte verification passed for merged revision
+  `5bbbd29d9c718764bd4a2056431963fea16f5152`
+  ([Pages evidence](https://github.com/sproates/panackelty/actions/runs/37211779050)).
+  No dedicated issue. Performance impact is limited to static website assembly;
+  no compiler/runtime path changes or validation-budget improvement are claimed.
   Existing RM#123 budget disposition and GI#106 follow-up remain unchanged.
 
 

@@ -2,6 +2,16 @@
 
 Describe the problem, resulting behaviour and relevant validation evidence.
 
+## Performance impact
+
+<!-- Follow docs/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions.
+Keep evidence proportionate; do not rerun the whole suite just for this section.
+A warning or issue link alone does not dispose of a known regression. -->
+
+- Affected dimensions and representative evidence, or no impact with reason:
+- Baseline/revisions, environment, cache/load state, repetitions/variability and comparison limits:
+- Proposed/accepted regression or budget disposition, responsible role, tracking and next action, or none:
+
 ## Task completion
 
 <!-- Follow docs/ROADMAP_PROCESS.md#completion-handover. Choose the actual

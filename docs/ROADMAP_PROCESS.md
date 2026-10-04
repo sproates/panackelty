@@ -171,6 +171,69 @@ Update the canonical register as part of authorised delivery and preserve eviden
 links. Reporting alone does not authorise tracker edits, implementation, scope
 reduction, merges, automation or messages to others. Follow existing approval rules.
 
+## Performance impact and regression decisions
+
+Performance is a standing engineering concern across compiler, runtime, libraries,
+builds, validation and delivery. The [standing performance programme](../ROADMAP.md#rm-123)
+owns the current scorecard, open regressions and finite baseline work. It does not
+replace the principal feature programme or authorise unselected optimisation.
+
+Every substantive delivery must include a proportionate performance assessment in
+its PR and handover. The delivery owner records affected dimensions: compile/check
+or startup latency, execution throughput/latency, memory/allocation, artifact size,
+and build/test/publication latency as relevant. Documentation or other changes with
+no plausible measurable effect may state no impact with a concrete reason.
+
+For plausible impact, use representative measurements proportionate to the risk.
+Prefer paired revisions on the same inputs and host; record commands, revisions,
+toolchain/environment, input sizes, cache state, concurrent load, repetitions and
+observed variability. Separate compilation from execution, cold from warm work,
+and aggregate validation from focused checks. Reuse trustworthy existing evidence
+and required validation; do not duplicate the full suite solely for a performance
+section. When measurements are unavailable or incomparable, state the limitation
+and the review decision; absence of measurement is not evidence of no regression.
+Correctness, exact semantics, safety and required coverage remain unchanged.
+
+Apply established budgets only to their defined workloads and environments.
+The existing native targets are a clean `make check` within 120 seconds on the
+reference host and a focused incremental check within 15 seconds with the native
+toolchain already built. An aggregate unit phase is not that focused workload.
+Runtime/resource thresholds require representative baselines, repetitions and
+noise calibration first; do not invent a universal percentage threshold or reset
+a baseline to conceal a regression.
+
+A known budget breach or material deterioration requires a reviewable proposed
+disposition before requesting merge approval. Materiality follows the applicable contract,
+representative user impact and observed variance, not an arbitrary percentage.
+Every unresolved concern needs a responsible role, work record, next action and
+review trigger, including an accepted trade-off. The delivery owner and independent
+reviewer must record one of:
+
+- a mitigation and comparable verification;
+- a justified trade-off, explicitly presented for acceptance with the delivery;
+- a bounded remediation plan identifying the responsible role, existing/new work
+  record, next action and a concrete review trigger, stating which performance
+  acceptance remains open.
+
+The independent reviewer checks the evidence and proposed disposition before
+readiness. The user's ordinary explicit merge approval can accept a clearly
+disclosed unresolved trade-off or remediation plan; record that decision, or an
+already recorded acceptance, before merging. No separate approval round is required.
+A warning or backlog link alone is insufficient. Uncertain causal attribution does
+not erase a measured budget concern: state what is known and what comparison is
+still needed. Keep the concern visible in the scorecard until verified resolved
+or explicitly accepted; accepted trade-offs retain their evidence and revisit
+condition. Repeated carry-over requires a renewed disposition when the agreed
+trigger arrives or material evidence changes, rather than silently copying a note.
+
+The delivery owner retains responsibility until a maintainer accepts handover;
+the independent reviewer checks comparability and disposition, and the user owns
+priority and explicit trade-off decisions.
+At every delivery, release preparation and programme/planning status report, review
+the affected scorecard entries and report unresolved concerns or a reasoned
+no-impact result. Deferred areas remain visible without automatically restarting
+them. There is no task-count timer, scheduled monitoring or new benchmark automation.
+
 ## GitHub Issues workflow
 
 Start from this repository, not remembered conversations. Read this process and

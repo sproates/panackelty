@@ -1518,3 +1518,11 @@ doubles execution cost on a small loop. The linked report compares retention,
 accounts for all shadow metadata, defines privacy/identity limits and estimates
 2–3 production PRs. U7 and broader #172 remain unimplemented; other U0 evidence
 and the programme's real-application gate remain open. ROADMAP.md owns priority.
+
+The optional `scripts/install.sh` distribution entry point consumes published
+native archives, independent of the manual archive workflow. It stages verified
+files in a dedicated user-owned prefix, activates a digest-addressed release with
+an atomic `current` symlink rename (GNU/BSD platform-specific flags), and provides
+an owned command link without editing shell profiles. Offline harness cases
+exercise failure/recovery contracts; `tests/release_installer.sh` runs the README
+program through a real downloaded release on both supported CI targets.

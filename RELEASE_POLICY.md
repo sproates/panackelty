@@ -80,3 +80,15 @@ contract.
 Only the latest developer-preview release receives fixes. A newer preview
 supersedes earlier preview artifacts. Security handling is described in
 `SECURITY.md`.
+
+## Optional installer maintenance
+
+The optional `scripts/install.sh` has an explicit default release version; it
+never guesses GitHub's latest release (which may omit prereleases). After a new
+release's supported archives and checksums are public and verified, update that
+default, README installer examples, and `tests/release_installer.sh`'s explicit
+repeat-version check together. Run the published-release acceptance on both
+supported platforms before promoting the new default or website guidance.
+Preserve manual installation as an alternative. Changes to archive layout,
+platform baselines or installer ownership markers require corresponding safety
+and upgrade tests; never overwrite existing release assets to repair them.

@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#122.**
+The initial allocation contains **105 identities**. **Next available: RM#123.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -1471,6 +1471,17 @@ remain to be assessed. No compiler changes or automatic upgrade bot are included
 
 ### Website follow-up register
 
+- <a id="rm-122"></a>**RM#122: Optional one-command installation guidance** ·
+  Follow-up to [RM#121 / GI#256](#rm-121) — **Blocked on public installer verification**.
+  After the installer delivery merges and its public URL plus Linux/macOS
+  acceptance are verified, the website maintainer should add the optional route
+  alongside the existing alpha.10 manual archive instructions. Preserve those
+  instructions and the completed RM#118/GI#250 parity work. Explain inspection,
+  the pinned default version and opt-in PATH behavior; do not imply new platform
+  support or replace the manual route. A separate website PR needs preview and
+  live verification before this entry closes. No website files change in the
+  installer delivery, so the current site remains truthful for alpha.10.
+
 - <a id="rm-119"></a>**RM#119: Cookie-free website analytics** ·
   [GI#252: Cookie-free website analytics](https://github.com/sproates/panackelty/issues/252) — Idea / unscheduled.
   Add basic aggregate visits, page views, popular pages and referrers, provisionally
@@ -1636,8 +1647,9 @@ M / provisionally 1–2 PRs for a downloadable package; hosted apt repository ef
 
 ### Additional installation proposals — 2026-10-04
 
-Both entries are **Idea / unscheduled**. Recording them does not start
-implementation or select a preferred installation route. They complement
+RM#120 remains **Idea / unscheduled**. RM#121 was selected on 2026-10-04 as
+an optional alternative to the existing manual installation, which stays supported.
+Neither route replaces the other. These proposals complement
 [RM#17: Homebrew distribution](#rm-17) and
 [RM#18: Debian distribution](#rm-18).
 
@@ -1678,7 +1690,29 @@ website/README guidance only when the installer is available and verified.
 Provisional M / 1–2 PRs including platform tests and release/documentation work.
 Independent of Homebrew and the graphical installer; existing supported release
 artifacts are prerequisites. Portability, file ownership and ongoing maintenance
-need assessment. Priority remains unset.
+have been assessed for the bounded installer implementation.
+
+State: **In progress — verification pending**. Selected with owner approval on
+2026-10-04. This delivery adds `scripts/install.sh`, offline regression cases and
+published-release acceptance in the existing Ubuntu 22.04/macOS 14 CI matrix.
+It uses a dedicated user-owned directory, validated HTTPS/checksum downloads,
+archive path/type checks, immutable release directories, atomic activation,
+conflict refusal, retained versions, explicit removal and opt-in PATH guidance.
+The README presents it as an alternative and preserves all manual instructions.
+Local published alpha.10 installation exercises the exact README Hello World,
+check, source run, compile and saved-bytecode workflow. Hosted macOS acceptance
+must pass before merge; local Linux alone does not establish both-platform support.
+The clean local check still exceeds the 120s full-check budget; keep
+[GI#106: Validation performance](https://github.com/sproates/panackelty/issues/106)
+as the existing prioritized profiling reminder, without reducing coverage.
+
+This PR is an intermediate delivery and must use `Refs #256`. After merge, the
+maintainer must verify the public raw-script URL serves the reviewed script and
+execute the documented one-command install on both supported targets; remove the
+README's pending-availability note only after those checks. Website adoption is
+tracked separately as RM#122 in the website follow-up register. Keep GI#256 open until public availability
+and the optional website guidance are verified; prepare a completion update with
+that evidence. This does not close the task merely because source code exists.
 
 ### Scope retained outside this grooming batch
 

@@ -86,6 +86,10 @@ jobs:
         if: matrix.suite == 'conformance-bytecode'
         run: sh tests/release_install_readme.sh
 
+      - name: Verify optional installer against the published release
+        if: matrix.suite == 'conformance-bytecode'
+        run: sh tests/release_installer.sh
+
       - name: Set up experiment test tooling
         if: matrix.suite == 'compiler'
         uses: actions/setup-node@v6

@@ -102,8 +102,8 @@ The standing programme has no lifetime completion percentage. The finite core
 establishment tranche below has its own stable denominator.
 
 The modules/packages/HTTP programme remains the principal feature initiative;
-its checked declaration/signature identity slice is in progress; body/effect/emission
-integration remains pending. Compiler understanding
+its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
+body/effect/emission integration remains pending. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -298,10 +298,20 @@ merged on 2026-10-03 as `80cd50f`. The user selected P2 on 2026-10-04;
 its first module/binding foundation merged in
 [PR#261: Establish module binding identities](https://github.com/sproates/panackelty/pull/261)
 as `a5cdb1a`, followed by qualified-reference syntax and cross-module binding
-resolution in PR#262. The current slice adds checked declaration/signature identities. P3–P8 remain planned and unstarted. P2 selection is separate from design acceptance.
+resolution in PR#262. [PR#275: Checked namespace signatures](https://github.com/sproates/panackelty/pull/275)
+merged checked declaration/signature identities as `0bcf092`. P3–P8 remain planned and unstarted. P2 selection is separate from design acceptance.
 The compiler-understanding programme remains paused; its scope is retained.
 
-First concrete milestone: **a working independently consumed HTTP client package**.
+User decision, 2026-10-04: **P2 → P3 → P4 → language/local-package release,
+then HTTP client work (P5)**. The first release checkpoint demonstrates complete
+namespace and local-package use before adding HTTP. Its acceptance is the first
+of [P8's three gates](#rm-112); it does not claim whole-programme completion.
+P7 can proceed independently once P1/P3 are accepted, but is not a prerequisite
+for this release or the client milestone. This changes sequencing and partitions
+acceptance, without adding scope, changing programme weights or allocating a
+version. It does not imply that the release must leave alpha.
+
+The following milestone is **a working independently consumed HTTP client package**.
 A clean native application imports its public client API, requests HTTP and HTTPS
 resources by hostname, obtains typed status/headers/body and handles explicit
 failures. HTTPS includes certificate and hostname verification. Deterministic local
@@ -336,7 +346,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
 | P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
-| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Client gate P2/P3/P5; final all | Medium / 1–2 PRs |
+| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Language/local-package gate P1–P4; client gate after P5; final all including P6/P7 | Medium / 1–2 PRs, provisional; reassess across three gates |
 
 <a id="rm-109"></a>
 
@@ -366,11 +376,26 @@ Agree server TLS scope during design; first client acceptance need not wait.
 
 <a id="rm-112"></a>
 
-**RM#112: Package and HTTP acceptance** — P8 in GI#238: first verify the
-client milestone using local packages, then final clean-install/relocated package,
-pinned/offline dependency and separate client/server walkthroughs with executed
-documentation and supporting release availability. Full programme closure requires
-all eight outcomes accepted. GI#166 typed service exchange and GI#162 preview-server
+**RM#112: Package and HTTP acceptance** — P8 in GI#238 has three gates:
+
+1. **Language/local-package release after P1–P4.** A clean installed toolchain
+   builds and runs two independent applications consuming the same local library;
+   relocated installations and package trees work. Namespace/stdlib migration,
+   executed documentation, fresh bootstrap and the required native/browser
+   baseline pass. Publish the supporting release through the normal reviewed
+   release process. HTTP, server support and P7 remote/offline dependency
+   reproduction are not prerequisites for this gate.
+2. **HTTP-client acceptance after P5.** Verify the independently consumed client
+   with local packages, including the bounded hostname HTTP/HTTPS, TLS rejection,
+   failure and cleanup evidence above. P6/P7 do not block this gate.
+3. **Final programme acceptance.** Verify all outcomes, including P6 server
+   lifecycle/walkthroughs and P7 pinned remote restore plus verified offline
+   reproduction, with clean/relocated workflows, executed documentation and
+   supporting release availability. All eight outcomes must be accepted before
+   closing the programme; neither earlier gate closes P8 as a whole.
+
+The gates partition P8's existing scope and weight; they do not create three new
+tasks or award completion merely for announcing a checkpoint. GI#166 typed service exchange and GI#162 preview-server
 replacement remain separate followups, not silently completed by raw HTTP.
 
 P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
@@ -397,7 +422,7 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 P1 has earned its design-task credit through merged PR#240, supported by the deliverable above;
 P2 is In progress: PR#261 merged its metadata/identity foundation and PR#262
 merged raw qualified syntax, cross-module binding/re-export resolution and
-diagnostics. The current checked declaration/signature slice awaits merge;
+diagnostics. PR#275 merged checked declaration/signature identities as `0bcf092`;
 body/effect/emission identity integration and migration remain. These provide
 partial implementation evidence without executable namespace acceptance. No stable sub-outcome
 allocation exists within P2, so its partial completion and estimated contribution
@@ -420,32 +445,33 @@ in its issue and update this register at delivery. A design or experiment does n
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. The next action is
-body/effect/emission identity integration after this intermediate checked-signature
-delivery is merged with the required review and approval. P3–P8 have not started.
+body/effect/emission identity integration following the merged checked-signature
+delivery, then the remaining P2 acceptance and the selected P3/P4 sequence. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
 
 ### Namespace release checkpoint
 
-User decision, 2026-10-04: prepare [RM#128: Alpha.11 release](#rm-128) now
-from already delivered features rather than waiting for namespaces. This
-supersedes only the ordering of the 2026-10-03 decision below. The coherent
-namespace migration remains a later release checkpoint, with no extra programme
-completion credit and no claim that staged namespace forms can execute.
+The 2026-10-04 sequencing decision refines this checkpoint to the
+[language/local-package release gate in P8](#rm-112): complete P2, P3 and P4,
+then release before starting HTTP client work. A namespace-only internal slice
+is insufficient; clean installed two-application local-package use, relocation,
+coordinated stdlib/source migration and required native/browser baseline evidence
+must pass. P7 remains independent after P1/P3 and is not a release prerequisite.
 
-Agreed on 2026-10-03: use the completed, coherent namespace migration as a
-release checkpoint. It need not wait for the HTTP client or full programme.
-Release readiness requires the compiler, required standard-library exports,
-examples and tests to be migrated; fresh bootstrap fixed-point and installed
-workflow validation; and before/after migration notes explaining breaking import,
-visibility and name-resolution changes. An internal implementation slice alone
-is not release-ready. Coordinate relevant P2/P4 migration work without claiming
-all package capabilities are delivered. Select the version after checking the
-current release history and preview-version policy; no version is allocated here.
-Record website adoption follow-ups and retain truthful version-pinned examples.
-This records the agreed checkpoint, not execution of a release or permission to
-merge future PRs. It adds no task weight or completion credit to the programme.
+The 2026-10-03 decision originally selected coherent namespace migration as a
+release checkpoint. The intervening [RM#128: Alpha.11 release](#rm-128), selected
+on 2026-10-04, shipped already delivered features without waiting for namespaces.
+The current checkpoint follows that release and retains the namespace migration
+requirements; it makes local-package readiness and standard-library migration
+explicit before HTTP. Record before/after import, visibility and name-resolution
+migration notes and website adoption follow-ups, preserving truthful pinned claims.
+
+Choose the version under the release policy when this gate is ready. No version
+is allocated, no move beyond alpha is implied, and no future merge or publication
+is approved by this planning record. Scope, weights and completion credit remain
+unchanged; P2 is partial and the accepted programme contribution remains 10 pp.
 
 ## Programme pause and resumption checkpoint — 2026-10-03
 
@@ -2920,7 +2946,7 @@ change is not an isolated performance attribution. Measurements are recorded in 
 This is an
 intermediate GI#198 delivery, not namespace feature acceptance or a release.
 
-**Current checked declaration/signature slice:** tagged core/nominal/callable and
+**Merged checked declaration/signature slice — PR#275, `0bcf092`:** tagged core/nominal/callable and
 binder-position parameter identities replace spelling-based contracts at this
 staged boundary. Alias/re-export reachability preserves original identities;
 public fields, enum payloads, parameters, results, nested generic/callable types

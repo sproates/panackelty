@@ -11,7 +11,9 @@ are proposed future contracts, not runnable examples for the current toolchain.
 release and website adoption require their own selected deliveries. P1 closes
 only the design investigation. P2 is in progress with fail-closed raw qualified
 syntax, cross-module binding resolution and checked declaration/signature
-identities built on its merged module foundation; P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
+identities built on its merged module foundation. The checked-signature slice
+merged in PR#275 as `0bcf092`; body/effect/emission migration remains pending.
+P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
 ## Current implementation audit
@@ -518,8 +520,9 @@ code. Existing host capability controls still apply.
 
 ## Dependency reproduction (P7)
 
-Keep local paths as the baseline; remote retrieval is not needed for first-client
-acceptance. P7 first adds a committed `panack.lock.json` containing exact graph
+Keep local paths as the baseline. P7 is independently schedulable after P1/P3;
+remote retrieval is not required for the language/local-package release or
+first-client acceptance. P7 first adds a committed `panack.lock.json` containing exact graph
 identities, toolchain/language version, normalized source locations and SHA-256
 content digests, plus explicit immutable Git acquisition and a vendor directory for offline use. Define the
 canonical file-set digest over sorted relative paths and file bytes, excluding
@@ -567,8 +570,9 @@ A clean second machine must restore a pinned remote application/library/transiti
 graph, then reproduce it offline from verified cache/vendor data. Reject changed
 or unavailable commit content, lock mismatch, corrupt cache, path traversal,
 source conflicts and unavailable uncached sources. Archive downloads and a public
-registry remain outside the initial scope. The first client does not wait for P7,
-but full programme acceptance does require its immutable remote restore outcome.
+registry remain outside the initial scope. Neither the language/local-package
+release nor the first client waits for P7, but final programme acceptance requires
+its immutable remote restore and verified offline outcomes.
 Tests with separate
 application manifests have separately reproducible graphs; production dependencies
 cannot acquire test-only packages by incidental load order.
@@ -588,16 +592,34 @@ baseline change. A larger PR count is not a larger completion percentage.
 | P4 / RM#42 | Public stdlib inventory/names; explicit exports/re-exports and prefix migration; remove bootstrap adapter with coordinated source migration verified | Medium; 1–2 PRs after P2/P3; preserve core identity and existing API behavior |
 | P5 / RM#110 | Backend decision; bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large, uncertain; 4–7 PRs after P1–P3; DNS/TLS packaging and cancellation may require re-estimation before coding |
 | P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3 and accepted transport mechanism; initial client does not wait for it |
-| P7 / RM#44 | Lock/digest model; bounded immutable Git restore; explicit vendor/offline workflow; corrupt/conflicting graph and cross-machine acceptance | Large; 3–5 PRs after P3; remote acquisition/backend packaging add uncertainty |
-| P8 / RM#112 | First independent client milestone after P2/P3/P5; final clean install, client/server examples, reproducible/offline graph and supporting release | Medium; 1–2 acceptance/release PRs; final closure waits for P2–P7 |
+| P7 / RM#44 | Lock/digest model; bounded immutable Git restore; explicit vendor/offline workflow; corrupt/conflicting graph and cross-machine acceptance | Large; 3–5 PRs independently after P1/P3; remote acquisition/backend packaging add uncertainty |
+| P8 / RM#112 | Language/local-package release gate after P1–P4; HTTP-client gate after P5; final all-outcomes gate including P6/P7 pinned/offline reproduction | Medium; 1–2 acceptance/release PRs, provisional and to be reassessed across three gates; final closure waits for P2–P7 |
 
-First useful implementation recommendation is P2's explicit module/binding model,
-then P3's local library consumed by two applications. Do not start it merely
-because P1 merges. Revisit transport/backend feasibility before fixing P5's detailed
-size. Browser namespace conformance belongs to P2/P4; browser HTTP support is not
-implied. P4, P6 and P7 remain full programme requirements even though they do not
-all block the first client milestone. GI#166 typed service exchange and GI#162
-preview-server replacement remain separate work.
+The selected sequence, agreed on 2026-10-04, is P2 → P3 → P4 → release before
+HTTP client work. P8 has three distinct acceptance gates:
+
+1. **Language/local-package release after P1–P4:** a clean installed toolchain
+   builds and runs two independent applications consuming one local library;
+   relocated toolchain/package trees, namespace/stdlib migration, executed docs,
+   fresh bootstrap and required native/browser baseline conformance pass. Use the
+   normal release review/publication process. Neither HTTP nor P7 is required.
+2. **HTTP-client gate after P5:** validate the independent local-package client
+   against the bounded HTTP/HTTPS, TLS rejection, timeout, malformed-response and
+   cleanup contracts. The server (P6) and dependency reproduction (P7) may follow.
+3. **Final all-outcomes gate:** accept every task, including P6's server
+   lifecycle/walkthrough and P7's pinned remote restore and verified offline
+   reproduction, with clean/relocated workflows, executed docs and supporting
+   releases. Earlier gates do not close P8 or the programme as a whole.
+
+These gates partition existing P8 acceptance without changing scope or weights.
+P7 is independent once P1/P3 are accepted, not a prerequisite for the first release
+or client. No version is allocated and the checkpoint does not imply leaving
+alpha. Revisit transport/backend feasibility before fixing P5's detailed size.
+Browser namespace conformance belongs to P2/P4; browser HTTP support is not
+implied. GI#166 typed service exchange and GI#162 preview-server replacement
+remain separate work. The [roadmap checkpoint](../ROADMAP.md#namespace-release-checkpoint)
+reconciles this decision with the earlier namespace and intervening alpha.11
+release decisions; each merge and release still needs its normal approval.
 
 P1 design acceptance evidence consists of this source-grounded audit, concrete
 language/package decisions, two-app and HTTP examples, migration/ownership rules,

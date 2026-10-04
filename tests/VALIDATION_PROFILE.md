@@ -2719,3 +2719,63 @@ with a verification query confirmed that the complete `#start` section matched
 merged `site/index.html` exactly, including both release download/checksum links,
 alpha.10 labels, fail-fast blocks and local first-program commands.
 This completes GI#250 / RM#118 acceptance.
+
+
+## Optional installer and website follow-up — 2026-10-04
+
+[PR#258: Optional one-command installer](https://github.com/sproates/panackelty/pull/258)
+merged as `28f36052034ab6cb94bba23553b1017f744ad62d`.
+[Main Check 37169413177](https://github.com/sproates/panackelty/actions/runs/37169413177)
+succeeded, including the actual published-release installer acceptance on
+[Ubuntu x86_64](https://github.com/sproates/panackelty/actions/runs/37169413177/job/111339164694)
+and [macOS arm64](https://github.com/sproates/panackelty/actions/runs/37169413177/job/111339164685).
+These jobs execute the merged installer against alpha.10, verify the exact README
+Hello World/check/source-run/compile/saved-bytecode output, repeat installation
+and remove the installer-owned files.
+
+After merge, the delivery maintainer fetched the public raw `main/scripts/install.sh`
+and verified that its bytes match the merged reviewed script, then executed the
+documented public one-command installation and complete greeting workflow on Linux.
+The macOS evidence is the merged-script CI acceptance above; a separate public
+shell-pipeline invocation on macOS is not claimed. The stale README availability
+note is therefore removed. The installer remains optional; native release version,
+platform support and all manual installation steps remain unchanged.
+
+The RM#122 website follow-up adds the optional command, script inspection and
+setup-guide links, explicit command-path substitution and opt-in PATH instructions.
+The website's new installer command matches the README exactly; the text of all
+manual command blocks is byte-for-byte unchanged from merged `28f3605`. Copy
+controls wrap those blocks without changing their command text.
+All 38 website automation tests and Pages assembly/failure handling pass locally.
+Owner preview acceptance, successful current-head hosted checks and authorised
+merge are required. The delivery maintainer must verify the live command, links
+and preserved manual instructions after deployment before recording RM#121/RM#122
+Done or completing GI#256. This record does not claim live website acceptance.
+
+Canonical `make check` also passed for the follow-up in 152s: unit 115s,
+functional 5s, bootstrap 18s, release smoke and packaged quick start passed.
+The full-check and unit budget warnings remain under the existing GI#106
+profiling reminder; no coverage was removed. Documentation/link checks passed.
+
+The installer command also has a labelled, keyboard-focusable copy button with
+visible live-region feedback. Its actual inline event handler passed focused
+checks for exact README command text, disabled/pending state, resolved writes,
+rejected writes and an unavailable clipboard API; these use simulated DOM and
+clipboard objects, not browser acceptance. The incremental HTML/CSS change takes
+the website validation route; all 38 automation tests and Pages assembly passed.
+Local Playwright Chromium installation failed because its CDN download returned
+a truncated/non-ZIP archive, so real clipboard permission, keyboard interaction
+and narrow-screen acceptance remain for the browser preview. The button reports
+success only after the write resolves and otherwise offers manual copying.
+
+
+The shared copy control now covers all six installation-guide code boxes plus
+the greeting program and its output. Each of the eight controls has its own
+accessible name, target and live feedback region. All displayed `pre` text,
+including multiline commands, indentation and trailing newlines, matches the
+preceding revision byte-for-byte; only wrappers and controls change. Focused
+checks execute the shared handler for every target and verify exact copied text,
+pending/success/reset behavior and independent failure feedback. These remain
+simulated DOM/clipboard checks; real phone/browser clipboard and layout acceptance
+remain pending as described above. The incremental website gate again passes
+all 38 automation tests and Pages assembly/failure handling.

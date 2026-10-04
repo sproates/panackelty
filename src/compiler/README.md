@@ -72,9 +72,17 @@ documented in `../../docs/SOURCE_MAPS.md`.
   Invalid lexical scopes return no misleading reference identities. Core reserved
   names remain for later checked resolution. Expression use spans are exact;
   type and pattern diagnostics currently fall back to declaration/match spans.
-  This does not check public signatures or integrate checked nominal/effect/emission
-  identities. `parse_program_complete` and the loader retain the temporary
+  Receiver-first nonbuiltin helper uses retain their declaration identity too,
+  so public guards cannot hide private helpers behind method spelling.
+  This does not integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary
   execution gate until compiler/stdlib/fixture migration and fresh conformance.
+- `module_signatures.panack` resolves staged declaration signatures to tagged core,
+  nominal, binder-position parameter and callable-effect identities. Original-ID
+  public reachability validates nested fields/payloads/parameters/returns and
+  guard dependencies; generic substitution cannot capture another declaration's
+  parameters. `LoadedProject.module_signatures` retains the valid contracts for
+  later body/effect/emission/tooling migration. Only staged modules invoke this
+  layer; namespace execution remains rejected. Graph scans are not yet indexed.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete

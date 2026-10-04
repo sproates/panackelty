@@ -149,7 +149,11 @@ main(): Void {
         <div class="development-note" id="optional-installer">
           <span class="badge">Optional installation route</span><h3>Install with one command</h3>
           <p>The installer selects <strong>0.1.0-alpha.10</strong> for the supported Ubuntu x86-64 and macOS Apple silicon versions above. It verifies the release checksum and installs in your home directory without <code>sudo</code>. <a href="https://github.com/sproates/panackelty/blob/main/scripts/install.sh">Inspect the script</a> before running it; the <a href="https://github.com/sproates/panackelty/blob/main/README.md#optional-install-with-one-command">installer guide</a> explains trust, version selection, upgrades and removal.</p>
+          <div class="copy-command">
           <pre><code id="optional-install-command">curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh</code></pre>
+            <button id="copy-install-command" class="copy-command-button" type="button" aria-label="Copy installer command" aria-describedby="copy-install-status" title="Copy installer command" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>
+          </div>
+          <p id="copy-install-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <p>Save the <a href="#hello-example">greeting example</a> as <code>hello.panack</code> in a directory you own. Use the check, run and compile commands below, replacing <code>./panackelty/bin/panack</code> with <code>"$HOME/.local/bin/panack"</code>. For optional command discovery in this shell:</p>
           <pre><code>export PATH="$HOME/.local/bin:$PATH"</code></pre>
           <p>The script never edits shell startup files. With that PATH choice, you can use <code>panack</code> directly. Prefer downloading and extracting the archive yourself? All manual steps follow below.</p>
@@ -196,5 +200,22 @@ main(): Void {
       </section>
     </main>
     <footer><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a><p>Experimental. Open source. Still evolving.</p><p><a href="https://github.com/sproates/panackelty/blob/main/LICENSE">BSD-3-Clause</a> · <a href="https://github.com/sproates/panackelty">GitHub</a> · <a href="#main">Back to top</a></p></footer>
+    <script>
+      const copyButton = document.getElementById('copy-install-command');
+      const copyStatus = document.getElementById('copy-install-status');
+      copyButton.hidden = false;
+      copyButton.addEventListener('click', async () => {
+        copyButton.disabled = true;
+        copyStatus.textContent = '';
+        try {
+          await navigator.clipboard.writeText(document.getElementById('optional-install-command').textContent);
+          copyStatus.textContent = 'Copied to clipboard.';
+        } catch {
+          copyStatus.textContent = 'Could not copy. Select and copy the command manually.';
+        } finally {
+          copyButton.disabled = false;
+        }
+      });
+    </script>
   </body>
 </html>

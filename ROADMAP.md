@@ -103,8 +103,8 @@ establishment tranche below has its own stable denominator.
 
 The modules/packages/HTTP programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
-the next bounded body-identity integration slice is in progress; full body/effect/
-emission integration remains pending. Compiler understanding
+bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and
+control flow are next; full body/effect/emission integration remains pending. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected

@@ -3097,3 +3097,121 @@ functional suites, bootstrap checks, release smoke and quick-start. This exceeds
 the 120s target and remains within the same open GI#106 disposition; it is not a
 paired full-suite regression measurement. The subsequent changes are confined to
 allowlisted informational delivery records and validated with `make docs`.
+
+## Namespace bound function bodies — 2026-10-04
+
+This proposed GI#198/P2 intermediate slice replaces the staged full-module raw
+reference walk with a structural body representation and bounded identity-type
+checks. Legacy input still skips the staged signature/body graph passes. Added
+compiler code and seed size can nevertheless affect ordinary compilation and
+bootstrap costs. The checked subset does not claim complete inference, guard
+proofs, effects or emission; unsupported checks retain explicit deferred spans.
+A fresh seed, focused public CLI regressions and canonical validation are required
+before delivery acceptance. Final candidate timings are recorded separately from
+the attribution observations below.
+
+The GI#106 review trigger for this delivery was addressed with bounded additional
+attribution on an isolated tracked `5241bb5` checkout. The seed was
+`aa82e3d6114e66ab1515b9e39586b111da568d2b5454e2926953660a841cd625`
+and native VM SHA-256 was
+`d0b2bd45d05e89391e64bdfa586fb1ca58bcca186fdb2254e5c9e5a2df722934`.
+With a precompiled `HARNESS_COMMAND` from `tests/runner/harness_command.panack`
+and one cache-priming pass, three sequential `tests/unit/harness/runner.sh` samples passed in
+9.047664, 9.116305 and 9.155647s. An external native fork/wait wrapper recorded
+parent IDs and inclusive command wall times; its source and raw logs stayed
+outside the repository, with no production instrumentation or interpreter added.
+
+The failure corpus was the largest measured root subprocess: 4.680/4.662/4.719s.
+Each sample made 138 direct CLI calls (55 check, 55 compile, 14 run, 14 disasm),
+whose elapsed times summed to 4.251614/4.225311/4.281346s. The next largest root
+was `cli_environment_files`, at 1.635/1.658/1.644s. Each whole runner sample had
+249 CLI invocations including nesting; nested timings must not be summed as a
+wall-time breakdown. Wrapper overhead and uncontrolled host caches limit this
+attribution. These are neither budget samples nor a before/after comparison, and
+they do not explain the complete 26.46s controlled focused baseline.
+
+Source inspection identifies a repeated path: `driver.panack` prepares and loads
+the project before distinguishing check from compile; failed checks return before
+emission. `loader.panack` reconstructs state and loads bundled core on every
+invocation. The observations do not separate startup, core loading, parsing and
+checking, or establish which dominates.
+
+Proposed disposition for review: retain the established 134.42s clean/full and
+26.46s warm/focused baseline misses, unchanged 120s/15s targets and every safety
+contract. The performance delivery owner retains GI#106. The next bounded
+comparison separates startup/loading from checking for representative repeated
+check/compile failures, identifying any reusable immutable cost before proposing
+a cache. Preserve all public command statuses, diagnostics, artifact absence and
+cleanup assertions. No optimisation is selected here; review that comparison and
+candidate scope before the next affected compiler delivery. The body layer still
+uses linear signature/declaration searches: small fixture coverage does not prove
+large-graph scalability. Final candidate cost and bootstrap evidence must inform
+merge approval, without claiming these attribution samples establish no regression.
+
+Focused identity/binding coverage passes 279 assertions, including original-ID
+qualified calls, same-spelled nominal rejection, lexical assignment reuse,
+explicit nested generic substitution, Nat-to-Int and PureFn-to-Fn compatibility,
+Void non-values, core-method target priority and deferred core-alias constructors.
+Fresh compiler stages 2/3/4 agree at
+`9944c75c33c7bbac4311190f198f82b3870e5ad7f12619f2bbecfa35ec80839e`.
+The seed is 418,426 bytes versus 394,040: +24,386 bytes (about 6.19%). Standard-library
+bytecode remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+with unchanged expected output. Size growth is not an attribution of latency.
+
+The public CLI integration suite passes 103 assertions against the refreshed
+seed, including check/run/compile rejection of incompatible nominal arguments at
+the owning source position and absence of bytecode. The existing namespace
+migration gate remains in every invocation.
+
+The final candidate comparison used the same candidate source and native VM for
+both seeds. Baseline revision was `00940c68f2756ca5e2da31df4ad5edb9e0ae1c5b`,
+with the baseline seed and VM digests recorded above. Candidate source-manifest
+SHA-256 was
+`3a53300a9993762044f01ec6b38db38dd0ff93b1cff967dfcf017c4859c1081e`;
+the manifest contains sorted repository-relative `src/**/*.panack` paths and
+SHA-256 hashes. Candidate seed digest is recorded above. Source and binary pins
+remained unchanged for both sets of measurements.
+
+A monotonic host timer measured subprocess wall time for two workloads:
+`src/compiler/main.panack` and a tiny legacy source containing exactly
+`main(): Void { print(42) }` followed by a newline. Reproduce each invocation with
+`PANACKELTY_STDLIB_PATH=src/stdlib` and separate output paths:
+
+```sh
+build/vm/panack-vm run "$seed" compile "$source" -o "$output"
+```
+
+The first set ran three sequential baseline/candidate pairs for each workload.
+Its compiler median increase of 11.37% prompted one bounded confirmation set:
+five pairs per workload, alternating pair order, starting candidate/baseline,
+then baseline/candidate. No agent builds ran concurrently. OS caches and other
+host activity remained uncontrolled. All invocations succeeded; every output was
+compared byte-for-byte, rather than treating timing success as correctness.
+
+| Set / workload | Baseline samples (s) | Candidate samples (s) | Median change |
+| --- | --- | --- | --- |
+| Initial / compiler | 4.228602, 4.655732, 4.313250 | 5.519993, 4.672491, 4.803714 | 4.313250 → 4.803714s; +11.37% |
+| Initial / tiny legacy | 0.029225, 0.031352, 0.035327 | 0.038955, 0.032519, 0.032430 | 31.352 → 32.519ms; +1.167ms |
+| Confirmation / compiler | 4.852288, 4.333690, 5.164779, 6.196833, 5.900958 | 4.311501, 5.543759, 5.185563, 5.786047, 5.237086 | 5.164779 → 5.237086s; +1.40% |
+| Confirmation / tiny legacy | 0.031481, 0.035283, 0.032383, 0.031975, 0.037358 | 0.038058, 0.037518, 0.036485, 0.032977, 0.036850 | 32.383 → 36.850ms; +4.467ms / +13.79% |
+
+Both sets produced identical bytes for both workloads. Compiler output matches
+the candidate seed; tiny-program SHA-256 is
+`c67b2c08c5482dc52179d1b0569ac595641a51f1a3dffea79070a8edeb207a1d`.
+Broad compiler ranges and conflicting median changes do not bound the regression
+or establish no regression. The confirmation does not replace the initial signal.
+These individual compilations do not satisfy or measure the 120s full / 15s
+focused validation budgets. Raw measurement helpers and logs remain external.
+
+Proposed candidate disposition: accept this bounded staged slice with the 6.19%
+seed growth and uncertain ordinary-compilation cost explicitly disclosed. Retain
+GI#106 ownership, unchanged targets and all coverage. The next startup/loading
+versus checking comparison above must improve noise control before selecting a
+reuse optimisation or claiming a latency result. Review that scope before the
+next affected compiler delivery. Final canonical `make check` passed in 140s,
+including unit and functional suites, bootstrap, release smoke and quick-start.
+The 120s full-validation target remains breached under the same disposition;
+this is not a paired full-suite regression measurement. Subsequent changes were
+confined to this allowlisted informational record and passed `make docs`.
+No further repetition of the noisy measurements is justified for this slice.

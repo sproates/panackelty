@@ -106,6 +106,13 @@ main(): Void {
         results = results.append(test_expect("signature failure writes no bytecode/" + operation,
           !file_exists("tests/fixtures/compiler_contracts/namespaces/signature_private.bc"), "invalid signature emitted bytecode"))
       }
+      for operation in ["check", "run", "compile"] {
+        results = results.append(integration_error("body nominal identity/" + operation,
+          [operation, "tests/fixtures/compiler_contracts/namespaces/body_identity.panack"], 1, "",
+          "namespaces/body_identity.panack:6:10: argument 1 to accept is body_identity.panack:Right, expected body_identity.panack:Left"))
+        results = results.append(test_expect("body identity failure writes no bytecode/" + operation,
+          !file_exists("tests/fixtures/compiler_contracts/namespaces/body_identity.bc"), "invalid body emitted bytecode"))
+      }
       for location in ["other.panack:2:1", "third.panack:3:1"] {
         results = results.append(integration_error("three duplicate module origins/" + location,
           ["check", "tests/fixtures/compiler_contracts/namespaces/triple.panack"], 1, "",

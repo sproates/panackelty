@@ -1,6 +1,15 @@
 # Self-hosting roadmap
 
-The P2 checked-signature slice refreshes the v9 seed without enabling namespace
+The proposed P2 bound-body slice refreshes the v9 seed to
+`9944c75c33c7bbac4311190f198f82b3870e5ad7f12619f2bbecfa35ec80839e`
+(418,426 bytes). Fresh compiler stages 2/3/4 agree, and standard-library artifact
+and expected output retain the fixed point below. The loader retains structural
+body identities and checks a bounded type subset; inference/proofs, effects,
+emission and coordinated namespace migration remain incomplete. No executable
+namespace syntax or bytecode format change is enabled. See the
+[body validation evidence](tests/VALIDATION_PROFILE.md#namespace-bound-function-bodies--2026-10-04).
+
+The preceding P2 checked-signature slice refreshed the v9 seed without enabling namespace
 execution. Fresh stages 2/3/4 produce the same compiler digest
 `aa82e3d6114e66ab1515b9e39586b111da568d2b5454e2926953660a841cd625`
 (394,040 bytes), and the standard-library artifact remains

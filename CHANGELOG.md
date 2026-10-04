@@ -6,6 +6,8 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
+### Features and fixes in current source
+
 - Add finite concurrent TCP servers through `await tcp_serve`, named async
   handlers and `TcpServerLimits` from `stdlib/tcp`. Native Linux/macOS execution
   owns connections, deadlines and drain/cancellation cleanup; embedded listening
@@ -16,9 +18,36 @@ in `RELEASE_POLICY.md`.
   nonblocking partial I/O, total timeout, response limits and owned cleanup.
   Source and saved-bytecode clients work on Linux/macOS; WASI returns an explicit
   unavailable error. Embedded native execution requires opt-in. DNS, TLS,
-  listening, stream handles and source spawning are not included.
+  stream handles and source spawning are not included in this client API.
 - Refresh the v9 compiler seed and both verifiers for the additive async builtin;
   existing v9 artifacts keep their meaning. Alpha.10 lacks the new builtin.
+
+- Add optional compiler source-map sidecars and `panack locate` for bounded
+  instruction lookup against exactly reproduced local source. Sidecars contain
+  source text: review them before sharing. Unavailable lookup is explicit;
+  automatic runtime source errors and stack explanations are not included.
+- Add `panack explain` for bounded natural-number subtraction proofs and local
+  call/await effect boundaries. Valid sibling functions can still be explained
+  after a function-body type error. Explanations do not certify whole-program
+  validity or provide transitive effects or runtime provenance.
+- Index declaration lookup to improve compiler-sized workloads without changing
+  language behavior or promising a speedup for every program.
+
+### Checking changes and migration
+
+- Invalidate guard proofs when mutable values change. Programs incorrectly
+  accepted using stale guard facts can now be rejected; establish the required
+  proof again after mutation rather than relying on the old value's guard.
+- Bytecode remains v9. The current-source commands and TCP additions above are
+  not available in the alpha.10 native downloads or the pinned playground.
+
+### Installation and staged development
+
+- Add an optional installer for the already published alpha.10 native archives,
+  with checksum verification and versioned ownership-safe installation. This is
+  an installation convenience, not a new binary release or supported platform.
+- Stage namespace metadata and binding infrastructure. Public namespace forms
+  still fail closed; executable namespace support has not shipped.
 
 ## 0.1.0-alpha.10 — 2026-09-30
 

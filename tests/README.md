@@ -845,3 +845,9 @@ exercises dash when available.
 The native-tool allowlist resolves the executable from PATH because some shells
 report a `time` keyword rather than an executable from `command -v`.
 These regression tests do not substitute for real-toolchain baseline trials.
+
+The Pages harness also runs `tests/release_history.sh`: native-tool checks cover
+canonical changelog edits, prepared-versus-published availability, escaping,
+malformed/duplicate notes and Pages fingerprint inputs. Assembly rejects bad
+notes before creating an output directory; Node Pages/preview tests verify links,
+preview identity and deployed bytes for the generated history page.

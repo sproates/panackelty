@@ -92,3 +92,35 @@ supported platforms before promoting the new default or website guidance.
 Preserve manual installation as an alternative. Changes to archive layout,
 platform baselines or installer ownership markers require corresponding safety
 and upgrade tests; never overwrite existing release assets to repair them.
+
+## Website release history
+
+`CHANGELOG.md` is the sole source of release-note content. Every website assembly
+and local preview generates `releases.html` with `scripts/release_history.sh`;
+no generated notes are maintained in `site/`. The shared Pages assembly and
+canonical `tests/pages.sh` gate run this without Node or Python. Website validation
+also checks the generated page’s links and deployed bytes. Changelog, generator,
+template and availability pins all invalidate the Pages input fingerprint.
+
+Use a first `## Unreleased` section, followed by descending dated alpha headings
+such as `## 0.1.0-alpha.10 — 2026-09-30`. Supported content is plain paragraphs,
+`###` categories, hyphen bullets with two-space continuations and inline backtick
+code. Unsupported Markdown, duplicate/empty sections, malformed dates and a
+missing published version fail generation. Keep compatibility and migration
+instructions with their version; do not describe staged infrastructure as an
+executable feature. Historical entries retain their original scope.
+
+`site/native-release.txt` records the latest **verified published** native release,
+independently of `VERSION`. Promote it only after supported public archives and
+checksums have been verified; keep homepage and installer guidance consistent.
+A release preparation PR may add newer dated notes without promoting that pin:
+the page labels those notes as prepared and provides no download links. Unreleased
+source changes remain collapsed and explicitly unavailable in published binaries.
+`site/playground.json` independently pins the browser package; native notes never
+imply that the playground supports the same host capabilities. This page does not
+publish a release, promote either runtime, or replace exact-artifact acceptance.
+
+Before proposing release preparation, run `sh tests/pages.sh` and build a local
+preview. Review the generated history alongside the canonical changelog and then
+follow the existing release gate. Every visual update still requires a working
+preview before merge approval and live verification after authorised publication.

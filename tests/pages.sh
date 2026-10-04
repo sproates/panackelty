@@ -17,6 +17,7 @@ assemble() {
     sh "$root/scripts/assemble_site.sh" "$root/site" "$work/playground" "$work/pages"
 }
 assemble
+grep -q 'id="v0.1.0-alpha.10"' "$work/pages/releases.html"
 cmp site/index.html "$work/pages/index.html"
 cmp "$assets/vm.wasm" "$work/pages/playground/assets/$version/vm.wasm"
 for landing in coverage/index.html coverage/html/index.html; do
@@ -48,4 +49,13 @@ if sh "$root/scripts/assemble_site.sh" "$work/site" "$work/playground" "$work/pa
     echo 'Accepted site symlink' >&2; exit 1
 fi
 test ! -e "$work/pages"
+# A malformed canonical changelog fails before creating any publishable output.
+rm "$work/site/coverage/leak"
+printf '## Unreleased\n\n' > "$work/CHANGELOG.md"
+if sh "$root/scripts/assemble_site.sh" "$work/site" "$work/playground" "$work/pages" 2>/dev/null; then
+    echo 'Accepted invalid canonical changelog' >&2; exit 1
+fi
+test ! -e "$work/pages"
 echo 'PASS Pages assembly, coverage landing and failure handling'
+
+sh tests/release_history.sh

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const selectSource = require('../scripts/pages_source.cjs');
+const {execFileSync} = require('node:child_process');
 const checkPages = require('../scripts/check_pages.cjs');
 const repo = {owner: 'sproates', repo: 'panackelty'};
 const run = (id, overrides = {}) => ({id, run_number: id, head_sha: String(id).padStart(40, '0'),
@@ -58,6 +59,7 @@ test('assembled website navigation and deployed bytes resolve; failures remain v
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pages-links-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.cpSync('site', root, {recursive: true});
+  fs.writeFileSync(path.join(root, 'releases.html'), execFileSync('sh', ['scripts/release_history.sh', '.']));
   fs.mkdirSync(path.join(root, 'playground'));
   fs.writeFileSync(path.join(root, 'playground/index.html'), '<a href="../">home</a>');
   const version = 'a'.repeat(64);

@@ -93,3 +93,8 @@ or the local preview command. No automatic hosted PR publication is introduced.
 idea of replacing the Node serving component with a Panackelty-written local
 HTTP/static-file server. It does not block this workflow or require rewriting
 the build tooling.
+
+The generated `releases.html` history uses the candidate’s `CHANGELOG.md` and
+availability pins. It receives the same preview identity banner as the homepage
+and playground. Restart the preview after editing notes; generated output is not
+committed back into the source tree.

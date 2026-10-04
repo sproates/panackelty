@@ -13,6 +13,7 @@ function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'preview-test-'));
   t.after(() => fs.rmSync(root, {recursive:true, force:true}));
   fs.cpSync(path.join(__dirname, '../site'), path.join(root, 'site'), {recursive:true});
+  fs.copyFileSync(path.join(__dirname, '../CHANGELOG.md'), path.join(root, 'CHANGELOG.md'));
   const version = 'a'.repeat(64);
   const browser = path.join(root, 'browser');
   fs.mkdirSync(path.join(browser, `assets/${version}/vendor`), {recursive:true});
@@ -34,6 +35,7 @@ test('portable build preserves assets, records identity, and separates coverage'
   assert.equal(JSON.parse(read('preview.json')).commit, f.metadata.commit);
   assert.equal(JSON.parse(read('preview.json')).headCommit, '2'.repeat(40));
   assert.match(read('index.html'), /Review preview: 222222/);
+  assert.match(read('releases.html'), /Review preview: 222222/);
   assert.match(read('playground/index.html'), /merged with PR base/);
   assert.match(read('coverage/index.html'), /different revision/);
   assert.equal(read(`playground/assets/${'a'.repeat(64)}/vm.wasm`),'fixture');

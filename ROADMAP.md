@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#127.**
+The initial allocation contains **105 identities**. **Next available: RM#128.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -1602,6 +1602,22 @@ version claims. The artifact boundary already exists; hosting cutover and timing
 remain to be assessed. No compiler changes or automatic upgrade bot are included.
 
 ### Website follow-up register
+
+- <a id="rm-127"></a>**RM#127: Website release history** — In progress;
+  selected by the user on 2026-10-04. This bounded exception to the ordinary
+  promotion deferral adds a generated “What’s changed” page from canonical
+  `CHANGELOG.md`, with dated historical notes, migration guidance, release links,
+  collapsed current-source changes and independently pinned native/browser
+  availability. Prepared notes never imply published downloads. No runtime
+  promotion, release publication or broader website refresh is included.
+  Acceptance: generator failure/staleness tests, complete Pages/preview checks,
+  canonical validation, independent review and a working owner preview before
+  merge; production acceptance remains pending authorised deployment and live
+  byte verification. Delivery owner: website delivery role. Performance impact
+  is limited to a small static-page generation step during website builds; no
+  compiler/runtime path changes or validation-budget improvement are claimed.
+  Existing RM#123 budget disposition and GI#106 follow-up remain unchanged.
+
 
 User decision, 2026-10-04: ordinary website content/promotion updates wait for
 the next supporting release. Retain these entries and release prerequisites;

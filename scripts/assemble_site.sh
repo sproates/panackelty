@@ -19,7 +19,12 @@ test -s "$site/coverage/html/index.html"
 test ! -e "$site/coverage/summary.txt"
 test ! -e "$site/coverage/provenance.txt"
 test -z "$(find "$site" "$playground" -type l -print)"
+history=$(mktemp)
+trap 'rm -f "$history"' 0
+trap 'exit 1' HUP INT TERM
+sh "$(dirname "$0")/release_history.sh" "$site/.." > "$history"
 mkdir -p "$destination"
 cp -R "$site/." "$destination/"
 mkdir "$destination/playground"
 cp -R "$playground/." "$destination/playground/"
+cp "$history" "$destination/releases.html"

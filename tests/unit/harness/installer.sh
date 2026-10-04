@@ -64,6 +64,12 @@ checksum() {
     (cd "$work/assets"; if command -v sha256sum >/dev/null; then sha256sum "$asset"; else shasum -a 256 "$asset"; fi) > "$work/assets/$asset.sha256"
 }
 run_install() { env -u SUDO_USER HOME="$work/home ' dollar\$ back\\slash space" sh "$script" "$@" > "$work/out" 2> "$work/error"; }
+install_ok() {
+    if ! run_install "$@"; then
+        cat "$work/error" >&2
+        fail "installer failed: $*"
+    fi
+}
 reject() {
     message=$1; shift
     if run_install "$@"; then fail "accepted: $message"; fi
@@ -88,17 +94,17 @@ case_name=installer-clean-repeat-upgrade-and-rollback
 fixture 0.1.0-alpha.10
 cp "$work/assets/$asset" "$work/pristine.tar.gz"
 cp "$work/assets/$asset.sha256" "$work/pristine.sha256"
-run_install || { cat "$work/error"; fail install; }
+install_ok
 contains "$work/out" 'export PATH='
 first=$(readlink "$prefix/current")
 test "$("$link" --version)" = 'panack 0.1.0-alpha.10 (bytecode 9)' || fail 'installed command'
-run_install || fail repeat
+install_ok
 test "$(readlink "$prefix/current")" = "$first" || fail repeat-link
 fixture 0.1.0-alpha.11
-run_install --version 0.1.0-alpha.11 || fail upgrade
+install_ok --version 0.1.0-alpha.11
 test "$("$link" --version)" = 'panack 0.1.0-alpha.11 (bytecode 9)' || fail upgraded-command
 test -d "$prefix/$first" || fail 'old release not retained'
-run_install --version 0.1.0-alpha.10 || fail rollback
+install_ok --version 0.1.0-alpha.10
 test "$(readlink "$prefix/current")" = "$first" || fail rollback-link
 pass
 case_name=installer-failures-preserve-existing-command
@@ -160,11 +166,11 @@ reject 'refusing unrelated command' --uninstall
 test -d "$prefix/$first" || fail 'removed toolchain after conflict'
 rm "$link"
 ln -s "$prefix/current/bin/panack" "$link"
-run_install --uninstall || fail uninstall
+install_ok --uninstall
 test ! -e "$prefix" && test ! -L "$link" || fail 'removal incomplete'
-run_install --uninstall || fail 'repeat uninstall'
+install_ok --uninstall
 ln -s "$prefix/current/bin/panack" "$link"
-run_install --uninstall || fail 'dangling owned link uninstall'
+install_ok --uninstall
 test ! -L "$link" || fail 'dangling owned link remains'
 pass
 case_name=installer-unsupported-target

@@ -17,7 +17,7 @@ function fixture(t) {
   const version = 'a'.repeat(64);
   const browser = path.join(root, 'browser');
   fs.mkdirSync(path.join(browser, `assets/${version}/vendor`), {recursive:true});
-  fs.writeFileSync(path.join(browser, 'index.html'), '<!doctype html><body>Playground</body>');
+  fs.writeFileSync(path.join(browser, 'index.html'), '<!doctype html><head></head><body><header class="site-header">Old</header><main id="main">Playground</main></body>');
   fs.writeFileSync(path.join(browser, 'asset-version.txt'), version);
   for (const file of ['style.css','app.mjs','examples.mjs','controller.mjs','worker.mjs','runtime.mjs','vm.wasm','compiler.bc','stdlib.json','provenance.json','LICENSE','vendor/index.js','vendor/LICENSE-MIT'])
     fs.writeFileSync(path.join(browser, `assets/${version}`, file), 'fixture');

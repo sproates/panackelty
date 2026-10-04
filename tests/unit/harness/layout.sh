@@ -152,7 +152,7 @@ equal_files .github/ISSUE_TEMPLATE/config.yml "$work/expected"
 pass
 case_name=website-files-and-version
 find site -maxdepth 1 -type f -exec basename {} \; | sort > "$work/files"
-printf 'favicon.svg\nindex.html\nnative-release.txt\nplayground.json\nstyles.css\n' > "$work/expected"
+printf 'chrome.css\nfavicon.svg\nindex.html\nnative-release.txt\nplayground.json\nstyles.css\n' > "$work/expected"
 equal_files "$work/files" "$work/expected"
 contains site/index.html "https://github.com/sproates/panackelty/releases/tag/v$version"
 contains site/index.html "Developer preview $version is available"

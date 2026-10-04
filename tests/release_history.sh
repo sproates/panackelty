@@ -6,7 +6,7 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/panack-history.XXXXXX")
 trap 'rm -rf "$work"' 0
 trap 'exit 1' HUP INT TERM
 mkdir "$work/site"
-cp site/native-release.txt site/playground.json "$work/site/"
+cp site/index.html site/native-release.txt site/playground.json "$work/site/"
 cp CHANGELOG.md "$work/CHANGELOG.md"
 render() { sh "$root/scripts/release_history.sh" "$work"; }
 render > "$work/first"

@@ -28,7 +28,7 @@ async function checkPages(root, base) {
       throw new Error(`Unexpected bundled coverage report: ${file}`);
     }
   }
-  const targets = new Set(['index.html', 'releases.html', ...landing]);
+  const targets = new Set(['index.html', 'releases.html', 'playground/index.html', ...landing]);
   for (const file of targets) {
     if (!fs.statSync(path.join(root, file)).isFile()) throw new Error(`Missing entry point: ${file}`);
   }

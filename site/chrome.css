@@ -1,0 +1,7 @@
+/* Website-owned chrome also surrounds the separately pinned playground. */
+.site-header { flex-wrap: wrap; gap: 1.5rem; }
+.site-header nav { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; }
+.site-header a[aria-current="page"] { text-decoration: underline; text-underline-offset: .3em; }
+@media (max-width: 760px) {
+  .site-header nav { width: 100%; gap: .75rem 1rem; }
+}

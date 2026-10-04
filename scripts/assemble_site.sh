@@ -4,7 +4,7 @@ set -eu
 site=$1
 playground=$2
 destination=$3
-for file in index.html styles.css favicon.svg; do test -s "$site/$file"; done
+for file in index.html styles.css chrome.css favicon.svg; do test -s "$site/$file"; done
 test -s "$playground/index.html"
 version=$(cat "$playground/asset-version.txt")
 case "$version" in *[!0-9a-f]*|'') echo 'Invalid playground asset version' >&2; exit 1;; esac
@@ -20,11 +20,15 @@ test ! -e "$site/coverage/summary.txt"
 test ! -e "$site/coverage/provenance.txt"
 test -z "$(find "$site" "$playground" -type l -print)"
 history=$(mktemp)
-trap 'rm -f "$history"' 0
+trap 'rm -f "$history" "$history.playground" "$history.home"' 0
 trap 'exit 1' HUP INT TERM
 sh "$(dirname "$0")/release_history.sh" "$site/.." > "$history"
+awk -v page=playground -f "$(dirname "$0")/site_chrome.awk" "$site/index.html" "$playground/index.html" > "$history.playground"
+awk -v page=home -f "$(dirname "$0")/site_chrome.awk" "$site/index.html" "$site/index.html" > "$history.home"
 mkdir -p "$destination"
 cp -R "$site/." "$destination/"
 mkdir "$destination/playground"
 cp -R "$playground/." "$destination/playground/"
 cp "$history" "$destination/releases.html"
+cp "$history.playground" "$destination/playground/index.html"
+cp "$history.home" "$destination/index.html"

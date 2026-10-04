@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#134.**
+The initial allocation contains **105 identities**. **Next available: RM#135.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -3572,6 +3572,31 @@ initial baseline commitment; preserve exactness, safety and correctness.
 Universal thresholds and cross-language superiority claims are outside the
 initial scope. The planned baseline requires its own selected implementation
 delivery; JIT/AOT and other backend investigations remain unselected.
+
+### Compiler performance investigation
+
+<a id="rm-134"></a>
+
+**RM#134: Compiler performance investigation** ·
+[GI#285: Compiler performance investigation](https://github.com/sproates/panackelty/issues/285).
+**Idea / unscheduled**, requested 2026-10-04. Investigate reproducible CPU/wall-time,
+memory and scaling costs across tiny/large programs, self-compilation and module
+graphs; attribute startup, core/module loading, parsing/resolution, checking and
+emission with controlled repeated comparisons, correctness/output parity and
+explicit instrumentation/noise limits. Deliver independently reviewed evidence
+and ranked measured optimisation proposals; implementation is separately selected.
+PR#284's initial +11.37% self-compilation comparison, noisy +1.40% confirmation,
+higher tiny-program medians, +6.19% seed size and passing 140s canonical check
+motivate investigation, not a causal regression claim; the prior controlled
+clean baseline already exceeded 120s. See
+[pinned evidence](https://github.com/sproates/panackelty/blob/490f8bce1b46de0c1a429851ef484c0bf6a64244/tests/VALIDATION_PROFILE.md#L3101).
+Reuse GI#106 build/cache evidence, GI#141 general baselines and GI#220 mode work
+without duplicating their outcomes. GI#106's owned next-compiler-delivery review
+trigger and GI#263's weights remain unchanged. Provisional medium–large / 1–2
+investigation PRs; profiler support and noise are risks. Assign a compiler/performance
+maintainer when selected. No profiling, optimisation, new gate or reprioritisation
+starts here; namespaces remain principal and compiler understanding remains paused.
+Website/performance impact of this record: none; it changes no code or public claim.
 
 ### Independent contract implementation
 

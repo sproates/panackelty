@@ -173,11 +173,13 @@ none from these backlog records; shipped capabilities are unchanged.
 **RM#108: Modules, packages and HTTP programme** ·
 [GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
 
-**P2 implementation in progress; estimated accepted completion 10%; 1 of 8 tasks accepted.**
+**P2 implementation in progress; accepted contribution 10 pp; 1 of 8 tasks accepted.**
 P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
 merged on 2026-10-03 as `80cd50f`. The user selected P2 on 2026-10-04;
-its first module/binding foundation is in progress. P3–P8 remain planned and
-unstarted. P2 selection is separate from design acceptance.
+its first module/binding foundation merged in
+[PR#261: Establish module binding identities](https://github.com/sproates/panackelty/pull/261)
+as `a5cdb1a`. The current slice adds qualified-reference syntax and cross-module binding
+resolution. P3–P8 remain planned and unstarted. P2 selection is separate from design acceptance.
 The compiler-understanding programme remains paused; its scope is retained.
 
 First concrete milestone: **a working independently consumed HTTP client package**.
@@ -209,7 +211,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — first foundation slice | P1 | Large / 3–5 PRs |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — qualified references and binding resolution | P1 | Large / 3–5 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -264,20 +266,25 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
-| P2 / [RM#41: Language namespaces](#rm-41) | 20% | 0% | 0 pp |
+| P2 / [RM#41: Language namespaces](#rm-41) | 20% | Partial; unquantified | Unquantified |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | — | **10 pp (10%)** |
+| **Total** | **100%** | Partial implementation unquantified | **10 pp accepted; estimated total unquantified** |
 
 P1 has earned its design-task credit through merged PR#240, supported by the deliverable above;
-P2 is In progress and its first foundation awaits review and merge; it earns
-no accepted implementation credit yet. P3–P8 remain Planned. The baseline weights
-and accepted subtotal are unchanged; the latest change is P2 selection and the
-module/binding foundation, not acceptance of namespace execution. Namespace/compiler
+P2 is In progress: PR#261 merged its metadata/identity foundation, providing
+partial implementation evidence without executable namespace acceptance. The
+next slice adds raw qualified syntax, cross-module binding/re-export resolution
+and diagnostics. No stable sub-outcome
+allocation exists within P2, so its partial completion and estimated contribution
+remain unquantified rather than assigning credit by PR count. P3–P8 remain Planned.
+The baseline weights and accepted subtotal are unchanged at 10 pp; the overall
+estimated completion is therefore unquantified, with a known 10 pp accepted
+contribution. Namespace execution remains unaccepted. Namespace/compiler
 integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
 cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -293,8 +300,8 @@ in its issue and update this register at delivery. A design or experiment does n
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. The next action is
-independent review and explicit merge approval for the first P2 foundation, then
-qualified-reference and checked-identity integration. P3–P8 have not started.
+checked-identity integration after this intermediate qualified-reference and
+binding-resolution delivery is merged with the required review and approval. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -2671,7 +2678,7 @@ how code in one file references functions and types in another. Existing quoted
 file-relative and logical imports already work; declarations currently share one
 program namespace. This extends the namespace idea, not completed import work.
 
-**Intermediate foundation — awaiting review and merge:** retain per-file import,
+**Intermediate foundation — merged in PR#261 as `a5cdb1a`:** retain per-file import,
 visibility and declaration-span metadata; tagged standalone/toolchain module and
 declaration identities; local binding/export inventories and collision/private
 lookup diagnostics; attach existing resolver conflict diagnostics to their owning
@@ -2687,13 +2694,34 @@ seed reaches the fresh compiler/library fixed points; 59 namespace assertions,
 reminder. See [validation evidence](tests/VALIDATION_PROFILE.md#namespace-modulebinding-foundation--2026-10-04).
 GI#198 remains open.
 
-Remaining P2 scope: unresolved qualified expression/type/pattern syntax; resolved
-cross-module imports/re-exports and visibility/signature checks; local/type-parameter
-shadowing; uniform nominal/callable identities through checker, purity, generic
+**Intermediate qualified-reference/binding-resolution slice:** raw `DotCallExpr` retains namespace/value ambiguity until binding;
+qualified types, function references, constructors and enum patterns parse without
+enabling execution. Explicit graph edges resolve namespace/selective imports,
+re-exports and nested enum selectors to original declaration identities. The raw
+use pass checks private/missing/wrong-kind bindings, namespace values and import
+collisions with parameters, type parameters, locals, loops and patterns. Shared
+completed-node traversal avoids repeated diamond subtree work. The loader reports
+staged graph/use errors while preserving the execution gate, including unmarked
+qualified forms. Focused coverage has 153 assertions; the diagnostic functional
+case adds 18 public-CLI boundary checks and absent-bytecode evidence. Validation
+performance remains tracked under GI#106: after correcting the legacy
+basename/value-scope regression, a complete passing run took 216s (unit 173s),
+exceeding the 120s full and 15s unit budgets. The gate now retains only candidate
+namespace roots in its lexical set. Final canonical validation passes in 211s
+(unit 168s, functional 5s, bootstrap 28s), still over budget; the observed timing
+change is not an isolated performance attribution. Measurements are recorded in the
+[validation profile](tests/VALIDATION_PROFILE.md#namespace-raw-references-and-binding-resolution--2026-10-04).
+This is an
+intermediate GI#198 delivery, not namespace feature acceptance or a release.
+
+Remaining P2 scope: public signature accessibility and precise type/pattern use
+spans; uniform core/nominal/callable identities through checker, purity, generic
 substitution, emission and tooling; audited stdlib exports, coordinated source
 migration, native/browser and installed/bootstrap conformance. Remove the staged
 execution gate and current flattening only with that identity integration and
-fresh namespace-capable seed/source migration. This slice is not release-ready.
+fresh namespace-capable seed/source migration. GI#198 remains open. Website
+impact: none for this slice, because executable namespace syntax remains disabled
+and existing version-pinned examples and release claims remain accurate.
 
 The following original assessment is historical; P1 delivered its design outcome.
 The first outcome is a reviewed design with worked multi-file examples, a current

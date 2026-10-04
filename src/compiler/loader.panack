@@ -1,5 +1,5 @@
 import "../bytecode/decoder.panack"
-import "module_bindings.panack"
+import "module_resolution.panack"
 import "../stdlib/filesystem.panack"
 
 record ProjectLoadState {
@@ -170,10 +170,10 @@ load_project_module(path: Str, state: ProjectLoadState, stack: [Str], project_ro
                       // callable internalization used by the execution frontend.
                       program: Program = if path == path_join(stdlib_root, "core.panack") {
                         match parse_module_complete(core_tokens(tokens)) {
-                          Ok(internal) => internal.program,
-                          Error(error) => parsed.program
+                          Ok(internal) => lower_legacy_program(internal.program),
+                          Error(error) => lower_legacy_program(parsed.program)
                         }
-                      } else { parsed.program }
+                      } else { lower_legacy_program(parsed.program) }
                       module: LoadedModule = LoadedModule(path, parsed, program, bindings)
                       staged: [Diagnostic] = module_execution_diagnostics(parsed)
                       binding_errors: [Diagnostic] = if len(staged) > 0 { module_binding_diagnostics(bindings) } else { [] }
@@ -266,6 +266,20 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
   } else { core }
   program: Program = append_program_declarations(module_programs(loaded.modules))
   mut diagnostics: [Diagnostic] = loaded.diagnostics
+  mut staged: Bool = false
+  for module in loaded.modules { staged = staged || len(module_execution_diagnostics(module.parsed)) > 0 }
+  if staged {
+    graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+    graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
+    diagnostics = concat(diagnostics, graph_errors)
+    if len(graph_errors) == 0 {
+      for module in loaded.modules {
+        if len(module_execution_diagnostics(module.parsed)) > 0 {
+          diagnostics = concat(diagnostics, resolve_module_uses(graph, module.bindings.identity, module.parsed).diagnostics)
+        }
+      }
+    }
+  }
   if len(diagnostics) == 0 {
     diagnostics = concat(diagnostics, resolve_program_at(program, module_declaration_positions(loaded.modules)))
   } else {}
@@ -283,4 +297,20 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
     effects_checked = len(checked.diagnostics) == 0 || (retain && checked.declarations_valid)
   }
   LoadedProject(program, loaded.modules, diagnostics, loaded.sources, loaded.source_paths, evidence, effects, effects_checked, function_types)
+}
+
+// Build semantic edges only from the loader's normalized path decisions.
+pure loaded_binding_graph(modules: [LoadedModule], project_root: Str, stdlib_root: Str): ModuleBindingGraph {
+  mut bindings: [ModuleBindings] = []
+  mut edges: [ModuleImportEdge] = []
+  for module in modules {
+    bindings = append(bindings, module.bindings)
+    mut index: Nat = 0
+    for imported in module.bindings.imports {
+      path: Str = resolve_import_path(imported.path, path_parent(module.source_path), project_root, stdlib_root)
+      edges = append(edges, ModuleImportEdge(module.bindings.identity, index, source_module_identity(path, project_root, stdlib_root)))
+      index = index + 1
+    }
+  }
+  ModuleBindingGraph(bindings, edges)
 }

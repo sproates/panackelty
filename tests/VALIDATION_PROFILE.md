@@ -2836,3 +2836,54 @@ The full 120s and unit 15s budgets are exceeded. Preserve the prioritized
 reminder and profile build/probe invalidation before changing coverage. These
 observations establish this slice's acceptance evidence, not a controlled
 before/after performance comparison or complete namespace acceptance.
+
+## Namespace raw references and binding resolution — 2026-10-04
+
+The intermediate P2 slice retains raw dot calls and qualified type/reference/
+pattern spellings, resolves explicit module binding graphs and keeps execution
+fail-closed. A layered diamond checks one completed visit per module. Lexical
+regressions cover default import basenames and enum-spelled value receivers,
+including parameters, sequential locals, loops and patterns, without globally
+suppressing other functions' namespace references. Guarded-type implicit `value`
+participates in imported binding collision checks.
+
+The first clean canonical attempt took 115s and stopped in the unit harness on a
+legacy `result` parameter mistaken for its default import basename. The fix tracks
+lexical value scope in both the gate and raw resolver. That failed attempt's unit
+phase took 100s against the 15s budget; it is not passing acceptance evidence.
+Keep the prioritized GI#106 validation-performance reminder. Namespace unit and
+public-CLI boundary assertions remain in canonical `make check`; no coverage is
+skipped to meet the budget.
+
+After the lexical fix, fresh seed stages 2/3/4 converge to compiler SHA-256
+`ef788384cb2d33d7d908253fd7311bb1e52cebc4483e69d7ca649118090187df`;
+stdlib conformance remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+The bytecode version is unchanged. Checked namespace identities and coordinated
+source migration are not established by this intermediate fixed point.
+
+The next complete canonical run passed all 153 namespace assertions and all 343
+functional cases, including the diagnostic case's 21 assertions (18 namespace
+check/compile/run boundary checks and absent-bytecode output). Timings were 216s
+overall (120s budget), unit 173s (15s), functional 5s, bootstrap 27s, release smoke
+1s and quick start below one second. These timings represent a material increase
+from the foundation's recorded 126s run, not a validation-performance acceptance.
+
+A narrowly reviewed follow-up filters the temporary gate's lexical set to names
+that can be namespace receivers. Membership of all other names is never queried,
+so scope order and receiver semantics are unchanged; all 153 assertions pass
+again. Avoidable lexical set work is a hypothesis for some of the increase, not
+an established full-profile attribution. No comparable isolated before/after
+probe timing was recorded. GI#106 retains the remaining performance investigation.
+
+Final filtered-source `make check` passes: **211s total**, unit **168s**,
+functional **5s**, bootstrap **28s**, release smoke and quick start each below
+one second. All 153 namespace assertions and all 343 functional cases pass. The
+120s full and 15s unit budgets remain exceeded. Both complete passing runs were
+incremental full validations after source/seed changes with native build artifacts
+already present; probe/source artifacts were refreshed. The observed 216s-to-211s
+difference is not an isolated or controlled attribution of the filter's benefit.
+No performance acceptance or removal of the GI#106 reminder is claimed.
+
+Only this evidence record and roadmap timing prose changed after that final code/
+seed validation; they are informational allowlist files validated with `make docs`.

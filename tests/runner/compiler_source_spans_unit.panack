@@ -53,6 +53,7 @@ pure trace_children(expression: Expr): Str {
     ArrayExpr(items) => { mut output: Str = ""; for item in items { output = output + trace_span(item); } output },
     UnaryExpr(operator, operand) => trace_span(operand),
     BinaryExpr(operator, left, right) => trace_span(left) + trace_span(right),
+    DotCallExpr(target, name, arguments, types) => { mut output: Str = trace_span(target); for argument in arguments { output = output + trace_span(argument); } output },
     CallExpr(name, arguments, types) => { mut output: Str = ""; for argument in arguments { output = output + trace_span(argument); } output },
     FieldExpr(target, field) => trace_span(target),
     IndexExpr(target, index) => trace_span(target) + trace_span(index),

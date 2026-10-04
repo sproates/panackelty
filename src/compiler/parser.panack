@@ -13,6 +13,8 @@ enum Expr {
   BinaryExpr(Str, Expr, Expr),
   // Callee, value arguments, and optional complete explicit type arguments.
   CallExpr(Str, [Expr], [Str]),
+  // Raw dot calls retain the receiver and spelling until namespace resolution.
+  DotCallExpr(Expr, Str, [Expr], [Str]),
   FieldExpr(Expr, Str),
   IndexExpr(Expr, Expr),
   IfExpr(Expr, Block, Block, Bool),
@@ -27,7 +29,7 @@ pure unlocated_expression(expression: Expr): Expr {
     NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {},
     NameExpr(name) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => {}, BinaryExpr(operator, left, right) => {},
-    CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
+    CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(target, name, arguments, types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
     IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result
@@ -197,7 +199,7 @@ pure expression_span(expression: Expr): Option[SourceSpan] {
     NatExpr(value) => None(), DecimalExpr(text) => None(), StringExpr(text) => None(), BoolExpr(value) => None(),
     NameExpr(name) => None(), FunctionExpr(name) => None(), ArrayExpr(items) => None(),
     UnaryExpr(operator, operand) => None(), BinaryExpr(operator, left, right) => None(),
-    CallExpr(name, arguments, type_arguments) => None(), FieldExpr(target, field) => None(), IndexExpr(target, index) => None(),
+    CallExpr(name, arguments, type_arguments) => None(), DotCallExpr(target, name, arguments, types) => None(), FieldExpr(target, field) => None(), IndexExpr(target, index) => None(),
     IfExpr(condition, yes, no, has_else) => None(), BlockExpr(block) => None(), MatchExpr(subject, arms) => None()
   }
 }
@@ -346,6 +348,24 @@ pure parse_type_ref_list(tokens: [Token], index: Nat): Result[ParsedTypeRefList,
   }
 }
 
+pure parse_reference_path(tokens: [Token], index: Nat): Result[ParsedTypeRef,Diagnostic] {
+  if index >= len(tokens) || tokens[index].kind != Identifier() {
+    Error(parse_error("expected reference name", token_position(tokens, index)))
+  } else {
+    mut name: Str = tokens[index].text
+    mut cursor: Nat = index + 1
+    mut invalid: Bool = false
+    while cursor < len(tokens) && tokens[cursor].text == "." && !invalid {
+      if cursor + 1 < len(tokens) && tokens[cursor + 1].kind == Identifier() {
+        name = name + "." + tokens[cursor + 1].text
+        cursor = cursor + 2
+      } else { invalid = true }
+    }
+    if invalid { Error(parse_error("expected name after '.'", token_position(tokens, cursor + 1))) }
+    else { Ok(ParsedTypeRef(name, cursor)) }
+  }
+}
+
 pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef,Diagnostic] {
   if index >= len(tokens) {
     Error(parse_error("expected type", token_position(tokens, index)))
@@ -364,9 +384,12 @@ pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef,Diagnosti
       }
     } else {
       if tokens[index].kind == Identifier() {
-        name: Str = tokens[index].text
-        if index + 1 < len(tokens) && tokens[index + 1].text == "[" {
-          match parse_type_ref_list(tokens, index + 2) {
+        match parse_reference_path(tokens, index) {
+        Error(error) => Error(error),
+        Ok(path) => {
+        name: Str = path.text
+        if path.next < len(tokens) && tokens[path.next].text == "[" {
+          match parse_type_ref_list(tokens, path.next + 1) {
             Ok(arguments) => {
               argument_text: Str = render_type_ref_list(arguments.values)
               Ok(ParsedTypeRef("${name}[${argument_text}]", arguments.next))
@@ -374,7 +397,9 @@ pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef,Diagnosti
             Error(error) => Error(error)
           }
         } else {
-          Ok(ParsedTypeRef(name, index + 1))
+          Ok(ParsedTypeRef(name, path.next))
+        }
+        }
         }
       } else {
         Error(parse_error("expected type", tokens[index].position))
@@ -555,8 +580,11 @@ pure parse_match_arms(tokens: [Token], arms: [MatchArm], index: Nat): Result[Par
       if tokens[index].kind != Identifier() {
         Error(parse_error("expected pattern variant", tokens[index].position))
       } else {
-        variant: Str = tokens[index].text
-        opening_index: Nat = index + 1
+        match parse_reference_path(tokens, index) {
+        Error(error) => Error(error),
+        Ok(path) => {
+        variant: Str = path.text
+        opening_index: Nat = path.next
         if opening_index >= len(tokens) || tokens[opening_index].text != "(" {
           Error(parse_error("expected opening pattern parenthesis", token_position(tokens, opening_index)))
         } else {
@@ -591,6 +619,8 @@ pure parse_match_arms(tokens: [Token], arms: [MatchArm], index: Nat): Result[Par
             },
             Error(error) => Error(error)
           }
+        }
+        }
         }
       }
     }
@@ -675,7 +705,10 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr,Diagnostic] {
     token: Token = tokens[index]
     if token.text == "@" {
       if index + 1 < len(tokens) && tokens[index + 1].kind == Identifier() {
-        Ok(ParsedExpr(located_expression(tokens, index, index + 2, FunctionExpr(tokens[index + 1].text)), index + 2))
+        match parse_reference_path(tokens, index + 1) {
+          Error(error) => Error(error),
+          Ok(path) => Ok(ParsedExpr(located_expression(tokens, index, path.next, FunctionExpr(path.text)), path.next))
+        }
       } else {
         Error(parse_error("expected function name after @", token_position(tokens, index + 1)))
       }
@@ -771,8 +804,7 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
             if types.next < len(tokens) && tokens[types.next].text == "(" {
               match parse_expression_list(tokens, types.next + 1, ")") {
                 Ok(arguments) => {
-                  values: [Expr] = concat([left], arguments.values)
-                  parse_postfix_tail(tokens, extended_expression(tokens, left, arguments.next, CallExpr(lowered_method_name(name), values, types.values)), arguments.next)
+                  parse_postfix_tail(tokens, extended_expression(tokens, left, arguments.next, DotCallExpr(left, name, arguments.values, types.values)), arguments.next)
                 },
                 Error(error) => Error(error)
               }
@@ -943,7 +975,7 @@ pure parse_complete(tokens: [Token]): Result[Expr,Diagnostic] {
   match parse_expression(tokens, 0) {
     Ok(parsed) => {
       if parsed.next == len(tokens) {
-        Ok(parsed.value)
+        Ok(lower_legacy_expression(parsed.value))
       } else {
         Error(parse_error("unexpected token", tokens[parsed.next].position))
       }
@@ -1519,9 +1551,25 @@ pure parse_module_complete(tokens: [Token]): Result[ParsedModule,Diagnostic] {
 // Remove this gate only when every downstream consumer uses module identities
 // and the compiler/stdlib/source fixtures have migrated with a fresh seed proof.
 pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
-  mut diagnostics: [Diagnostic] = []
+  mut aliases: Set[Str] = set()
   for syntax in module.syntax {
-    mut requires_namespaces: Bool = syntax.is_public
+    match syntax.binding {
+      NamespaceImportBinding(alias, explicit_alias) => { aliases = aliases.add(alias) },
+      NoImportBinding() => {}, SelectiveImportBinding(selectors) => {}
+    }
+  }
+  for declaration in module.program.declarations {
+    match declaration {
+      EnumDeclaration(name, parameters, variants) => { aliases = aliases.add(name) },
+      ImportDeclaration(path) => {}, TypeDeclaration(name, base, guard) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
+    }
+  }
+  mut diagnostics: [Diagnostic] = []
+  mut index: Nat = 0
+  for syntax in module.syntax {
+    mut requires_namespaces: Bool = syntax.is_public || declaration_requires_namespaces(module.program.declarations[index], aliases, set())
     match syntax.binding {
       NoImportBinding() => {},
       NamespaceImportBinding(alias, explicit_alias) => { requires_namespaces = requires_namespaces || explicit_alias },
@@ -1529,7 +1577,8 @@ pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
     }
     if requires_namespaces {
       diagnostics = append(diagnostics, Diagnostic("namespace syntax is parsed but execution is not yet supported (language namespace migration pending)", syntax.span.start))
-    } else {}
+    }
+    index = index + 1
   }
   diagnostics
 }
@@ -1539,7 +1588,7 @@ pure parse_program_complete(tokens: [Token]): Result[Program,Diagnostic] {
     Error(error) => Error(error),
     Ok(module) => {
       diagnostics: [Diagnostic] = module_execution_diagnostics(module)
-      if len(diagnostics) > 0 { Error(diagnostics[0]) } else { Ok(module.program) }
+      if len(diagnostics) > 0 { Error(diagnostics[0]) } else { Ok(lower_legacy_program(module.program)) }
     }
   }
 }
@@ -1620,6 +1669,7 @@ pure render_expr(expression: Expr): Str {
       types_text: Str = render_type_parameters(type_arguments)
       "${name}${types_text}(${arguments_text})"
     },
+    DotCallExpr(target, name, arguments, types) => render_expr(lower_legacy_expression(DotCallExpr(target, name, arguments, types))),
     FieldExpr(target, field) => {
       target_text: Str = render_expr(target)
       "${target_text}.${field}"
@@ -1880,4 +1930,189 @@ pure core_tokens(tokens: [Token]): [Token] {
       token.position, token.end_line, token.end_column))
   }
   result
+}
+
+// Temporary bootstrap lowering. Raw ParsedModule trees retain dot calls; only
+// the gated legacy frontend may convert them to receiver-first calls.
+pure lower_legacy_expressions(values: [Expr]): [Expr] {
+  mut result: [Expr] = []
+  for value in values { result = append(result, lower_legacy_expression(value)) }
+  result
+}
+
+pure lower_legacy_expression(value: Expr): Expr {
+  match value {
+    LocatedExpr(span, inner) => LocatedExpr(span, lower_legacy_expression(inner)),
+    DotCallExpr(target, name, arguments, types) => CallExpr(lowered_method_name(name), concat([lower_legacy_expression(target)], lower_legacy_expressions(arguments)), types),
+    ArrayExpr(items) => ArrayExpr(lower_legacy_expressions(items)),
+    UnaryExpr(operator, operand) => UnaryExpr(operator, lower_legacy_expression(operand)),
+    BinaryExpr(operator, left, right) => BinaryExpr(operator, lower_legacy_expression(left), lower_legacy_expression(right)),
+    CallExpr(name, arguments, types) => CallExpr(name, lower_legacy_expressions(arguments), types),
+    FieldExpr(target, field) => FieldExpr(lower_legacy_expression(target), field),
+    IndexExpr(target, index) => IndexExpr(lower_legacy_expression(target), lower_legacy_expression(index)),
+    IfExpr(condition, yes, no, has_else) => IfExpr(lower_legacy_expression(condition), lower_legacy_block(yes), lower_legacy_block(no), has_else),
+    BlockExpr(block) => BlockExpr(lower_legacy_block(block)),
+    MatchExpr(subject, arms) => {
+      mut result: [MatchArm] = []
+      for arm in arms { result = append(result, MatchArm(arm.pattern, lower_legacy_expression(arm.body))) }
+      MatchExpr(lower_legacy_expression(subject), result)
+    },
+    NatExpr(number) => value, DecimalExpr(text) => value, StringExpr(text) => value,
+    BoolExpr(flag) => value, NameExpr(name) => value, FunctionExpr(name) => value
+  }
+}
+
+pure lower_legacy_block(block: Block): Block {
+  mut statements: [Statement] = []
+  for statement in block.statements {
+    converted: Statement = match statement {
+      BindingStatement(name, type_name, mutable, value) => BindingStatement(name, type_name, mutable, lower_legacy_expression(value)),
+      AssignmentStatement(name, value) => AssignmentStatement(name, lower_legacy_expression(value)),
+      ExpressionStatement(value) => ExpressionStatement(lower_legacy_expression(value)),
+      WhileStatement(condition, body) => WhileStatement(lower_legacy_expression(condition), lower_legacy_block(body)),
+      ForStatement(name, values, body) => ForStatement(name, lower_legacy_expression(values), lower_legacy_block(body))
+    }
+    statements = append(statements, converted)
+  }
+  tail: BlockValue = match block.value {
+    NoBlockValue() => NoBlockValue(),
+    TailBlockValue(value) => TailBlockValue(lower_legacy_expression(value))
+  }
+  Block(statements, tail)
+}
+
+pure lower_legacy_program(program: Program): Program {
+  mut declarations: [TopLevel] = []
+  for declaration in program.declarations {
+    converted: TopLevel = match declaration {
+      TypeDeclaration(name, base, guard) => TypeDeclaration(name, base, lower_legacy_expression(guard)),
+      FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => FunctionDeclaration(name, parameters, return_type, is_pure, is_async, lower_legacy_block(body), type_parameters),
+      ImportDeclaration(path) => declaration,
+      RecordDeclaration(name, parameters, fields) => declaration,
+      EnumDeclaration(name, parameters, variants) => declaration
+    }
+    declarations = append(declarations, converted)
+  }
+  indexed_program(declarations)
+}
+
+pure reference_head(name: Str): Str {
+  mut end: Nat = 0
+  while end < len(name) && name[end] != "." { end = end + 1 }
+  slice(name, 0, end)
+}
+
+pure reference_tail(name: Str): Str {
+  head: Str = reference_head(name)
+  if len(head) < len(name) { slice(name, len(head) + 1, len(name)) } else { "" }
+}
+
+pure expression_reference_path(expression: Expr): Str {
+  match expression {
+    LocatedExpr(span, value) => expression_reference_path(value),
+    NameExpr(name) => name,
+    FieldExpr(target, field) => {
+      path: Str = expression_reference_path(target)
+      if path == "" { "" } else { path + "." + field }
+    },
+    NatExpr(value) => "", DecimalExpr(text) => "", StringExpr(text) => "", BoolExpr(value) => "",
+    FunctionExpr(name) => "", ArrayExpr(items) => "", UnaryExpr(operator, operand) => "",
+    BinaryExpr(operator, left, right) => "", CallExpr(name, arguments, types) => "",
+    DotCallExpr(target, name, arguments, types) => "", IndexExpr(target, index) => "",
+    IfExpr(condition, yes, no, has_else) => "", BlockExpr(block) => "", MatchExpr(subject, arms) => ""
+  }
+}
+
+pure type_has_qualification(name: Str): Bool {
+  mut found: Bool = false
+  mut index: Nat = 0
+  while index < len(name) { if name[index] == "." { found = true }; index = index + 1 }
+  found
+}
+
+// Only candidate namespace roots need membership in the gate's lexical set.
+// Tracking unrelated locals changes no lookup and copies unnecessary sets.
+pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals: Set[Str]): Bool {
+  match expression {
+    LocatedExpr(span, value) => expression_requires_namespaces(value, aliases, locals),
+    DotCallExpr(target, name, arguments, types) => {
+      mut required: Bool = (aliases.has(reference_head(expression_reference_path(target))) && !locals.has(reference_head(expression_reference_path(target)))) || expression_requires_namespaces(target, aliases, locals)
+      for argument in arguments { required = required || expression_requires_namespaces(argument, aliases, locals) }
+      for type_name in types { required = required || type_has_qualification(type_name) }
+      required
+    },
+    FieldExpr(target, field) => (aliases.has(reference_head(expression_reference_path(target))) && !locals.has(reference_head(expression_reference_path(target)))) || expression_requires_namespaces(target, aliases, locals),
+    FunctionExpr(name) => type_has_qualification(name),
+    CallExpr(name, arguments, types) => {
+      mut required: Bool = type_has_qualification(name)
+      for argument in arguments { required = required || expression_requires_namespaces(argument, aliases, locals) }
+      for type_name in types { required = required || type_has_qualification(type_name) }
+      required
+    },
+    ArrayExpr(items) => { mut required: Bool = false; for item in items { required = required || expression_requires_namespaces(item, aliases, locals) }; required },
+    UnaryExpr(operator, operand) => expression_requires_namespaces(operand, aliases, locals),
+    BinaryExpr(operator, left, right) => expression_requires_namespaces(left, aliases, locals) || expression_requires_namespaces(right, aliases, locals),
+    IndexExpr(target, index) => expression_requires_namespaces(target, aliases, locals) || expression_requires_namespaces(index, aliases, locals),
+    IfExpr(condition, yes, no, has_else) => expression_requires_namespaces(condition, aliases, locals) || block_requires_namespaces(yes, aliases, locals) || block_requires_namespaces(no, aliases, locals),
+    BlockExpr(block) => block_requires_namespaces(block, aliases, locals),
+    MatchExpr(subject, arms) => {
+      mut required: Bool = expression_requires_namespaces(subject, aliases, locals)
+      for arm in arms {
+        mut arm_locals: Set[Str] = locals
+        for name in arm.pattern.bindings { if aliases.has(name) { arm_locals = arm_locals.add(name) } }
+        required = required || type_has_qualification(arm.pattern.variant) || expression_requires_namespaces(arm.body, aliases, arm_locals)
+      }
+      required
+    },
+    NatExpr(value) => false, DecimalExpr(text) => false, StringExpr(text) => false,
+    BoolExpr(value) => false, NameExpr(name) => false
+  }
+}
+
+pure block_requires_namespaces(block: Block, aliases: Set[Str], locals: Set[Str]): Bool {
+  mut required: Bool = false
+  mut visible: Set[Str] = locals
+  for statement in block.statements {
+    match statement {
+      BindingStatement(name, type_name, mutable, value) => {
+        required = required || type_has_qualification(type_name) || expression_requires_namespaces(value, aliases, visible)
+        if aliases.has(name) { visible = visible.add(name) }
+      },
+      AssignmentStatement(name, value) => {
+        required = required || expression_requires_namespaces(value, aliases, visible)
+        if aliases.has(name) { visible = visible.add(name) }
+      },
+      ExpressionStatement(value) => { required = required || expression_requires_namespaces(value, aliases, visible) },
+      WhileStatement(condition, body) => { required = required || expression_requires_namespaces(condition, aliases, visible) || block_requires_namespaces(body, aliases, visible) },
+      ForStatement(name, values, body) => { required = required || expression_requires_namespaces(values, aliases, visible) || block_requires_namespaces(body, aliases, if aliases.has(name) { visible.add(name) } else { visible }) }
+    }
+  }
+  required || match block.value {
+    NoBlockValue() => false,
+    TailBlockValue(value) => expression_requires_namespaces(value, aliases, visible)
+  }
+}
+
+pure declaration_requires_namespaces(declaration: TopLevel, aliases: Set[Str], locals: Set[Str]): Bool {
+  match declaration {
+    ImportDeclaration(path) => false,
+    TypeDeclaration(name, base, guard) => type_has_qualification(base) || expression_requires_namespaces(guard, aliases, if aliases.has("value") { locals.add("value") } else { locals }),
+    RecordDeclaration(name, parameters, fields) => {
+      mut required: Bool = false
+      for field in fields { required = required || type_has_qualification(field.type_name) }
+      required
+    },
+    EnumDeclaration(name, parameters, variants) => {
+      mut required: Bool = false
+      for variant in variants { for type_name in variant.payload { required = required || type_has_qualification(type_name) } }
+      required
+    },
+    FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
+      mut parameters_in_scope: Set[Str] = locals
+      for parameter in parameters { if aliases.has(parameter.name) { parameters_in_scope = parameters_in_scope.add(parameter.name) } }
+      mut required: Bool = type_has_qualification(return_type) || block_requires_namespaces(body, aliases, parameters_in_scope)
+      for parameter in parameters { required = required || type_has_qualification(parameter.type_name) }
+      required
+    }
+  }
 }

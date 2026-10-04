@@ -74,6 +74,9 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
       result = check_effect_expression(left, program, environment, false, retain, None())
       result = combine_effects(result, check_effect_expression(right, program, environment, false, retain, None()))
     },
+    DotCallExpr(target, name, arguments, types) => {
+      result = CheckedEffects([checker_diagnostic("unresolved dot call requires module binding resolution")], [])
+    },
     CallExpr(name, arguments, type_arguments) => {
       await_call = true
       function: FunctionLookup = function_type(program, name)
@@ -345,7 +348,7 @@ pure expression_is_await(expression: Expr): Bool {
     NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {},
     NameExpr(name) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
     UnaryExpr(operator, operand) => { result = operator == "await"; }, BinaryExpr(operator, left, right) => {},
-    CallExpr(name, arguments, type_arguments) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
+    CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
     IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
   }
   result

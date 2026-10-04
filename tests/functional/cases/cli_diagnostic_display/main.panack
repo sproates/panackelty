@@ -26,6 +26,27 @@ check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResu
   }
 }
 
+pure diagnostic_contains(text: Str, expected: Str): Bool {
+  mut found: Bool = false
+  for offset in 0..len(text) { found = found || starts_with_at(text, expected, offset) }
+  found
+}
+
+check_namespace_boundary(source: Path, content: Str, operation: Str): TestResult {
+  name: Str = "namespace boundary/" + operation
+  match fs_write(source, utf8_encode(content)) {
+    Error(error) => test_expect(name, false, "fixture write failed"),
+    Ok(written) => {
+      source_text: Str = result_value_or(path_to_text(source), "invalid-source")
+      match process_run(path("./panack"), [operation, source_text], bytes(), path_current(), [], duration_seconds(10), 1048576) {
+        Error(error) => test_expect(name, false, "process failed"),
+        Ok(output) => test_expect(name, output.exit_code == 1 && output.signal == 0 && output.stdout == bytes() &&
+          diagnostic_contains(utf8_decode(output.stderr), "namespace syntax is parsed but execution is not yet supported"), utf8_decode(output.stderr))
+      }
+    }
+  }
+}
+
 main(): Void {
   match test_workspace_create(path("/tmp")) {
     Error(error) => { print("workspace creation failed"); process_exit(1) },
@@ -41,6 +62,30 @@ main(): Void {
         "  1 | main(): Void {\n    |               ^\n"
       results = results.append(check_diagnostic("EOF closing brace", source,
         "main(): Void {", eof_expected))
+      dependency: Path = child(workspace.root, "api.panack")
+      match fs_write(dependency, utf8_encode("pure get(): Nat { 1 }\npure first(): Nat { 2 }\n")) {
+        Error(error) => { results = append(results, test_expect("namespace fixture", false, "write failed")) },
+        Ok(written) => {}
+      }
+      for content in [
+        "import project/api\nmain(): Void { print(api.get()) }",
+        "import project/api\nmain(): Void { print(api.first()) }",
+        "main(): Void { callback: PureFn[Nat] = @api.get }",
+        "pure f(value: api.Box[Nat]): Nat { 1 }; main(): Void {}",
+        "enum Choice { Pick }; main(): Void { Choice.Pick() }",
+        "main(): Void { match 1 { api.Choice.Pick() => 1 } }"] {
+        for operation in ["check", "compile", "run"] {
+          results = append(results, check_namespace_boundary(source, content, operation))
+        }
+      }
+      artifact: Path = child(workspace.root, "main.bc")
+      artifact_text: Str = result_value_or(path_to_text(artifact), "invalid-artifact")
+      results = append(results, test_expect("namespace rejection creates no bytecode", !file_exists(artifact_text), "unexpected bytecode"))
+      if file_exists(artifact_text) { match fs_remove_file(artifact) { Ok(removed) => {}, Error(error) => {} } }
+      match fs_remove_file(dependency) {
+        Ok(removed) => {},
+        Error(error) => { results = append(results, test_expect("dependency cleanup", false, "file removal failed")) }
+      }
       match fs_remove_file(source) {
         Ok(removed) => {},
         Error(error) => { results = results.append(test_expect("source cleanup", false,

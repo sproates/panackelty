@@ -278,6 +278,9 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
       diagnostics = resolve_expression(left, scope, symbols)
       diagnostics = concat(diagnostics, resolve_expression(right, scope, symbols))
     },
+    DotCallExpr(target, name, arguments, types) => {
+      diagnostics = append(diagnostics, resolver_diagnostic("unresolved dot call requires module binding resolution"))
+    },
     CallExpr(name, arguments, type_arguments) => {
       if !is_builtin(name) && !set_has(symbols.callables, name) {
         diagnostics = append(diagnostics, resolver_diagnostic("unknown function ${name}"))

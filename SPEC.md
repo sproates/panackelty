@@ -741,8 +741,11 @@ namespace; visibility, selective imports, third-party packages, and configurable
 project roots are still pending. The frontend retains per-module declaration and
 import metadata as an implementation foundation, but `pub`, `import ... as ...`
 and `import ...::{...}` fail with an explicit namespace-migration diagnostic.
-They cannot execute with today's combined-name semantics. Qualified namespace
-calls/types, public visibility and re-exports are not implemented language features;
+They cannot execute with today's combined-name semantics. The raw frontend also
+parses qualified types, named function references and variant patterns, and retains
+dot calls until binding; qualified uses through a default namespace alias fail
+closed too. Its internal cross-module resolution does not enable executable
+namespace calls/types, public visibility or re-exports;
 see [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
 
 ## Compilation and the Panackelty VM

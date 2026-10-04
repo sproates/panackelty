@@ -9,8 +9,8 @@ not executable feature evidence. All syntax, manifests, commands and HTTP APIs b
 are proposed future contracts, not runnable examples for the current toolchain.
 [SPEC.md](../SPEC.md) remains the current language contract. Implementation,
 release and website adoption require their own selected deliveries. P1 closes
-only the design investigation. P2 is in progress with a fail-closed module/binding
-foundation; P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
+only the design investigation. P2 is in progress with fail-closed raw qualified
+syntax and cross-module binding resolution built on its merged module foundation; P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
 ## Current implementation audit

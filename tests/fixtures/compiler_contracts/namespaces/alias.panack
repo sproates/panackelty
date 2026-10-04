@@ -1,0 +1,2 @@
+import "helper.panack" as api
+main(): Void { print(42) }

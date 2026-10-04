@@ -91,7 +91,7 @@ and evidence belong in the roadmap's programme register; see the
 - Preserve explicit purity and type/effect contracts. Use inference where it
   improves clarity; do not remove useful type information merely to shorten code.
 - Follow [standard-library guidance](src/stdlib/README.md) for current public
-  prefixes and imports. Namespace design remains pending; this guide does not
+  prefixes and imports. Namespace migration remains pending; this guide does not
   authorise API renaming or claim that a source formatter is available.
 
 ### C, tests and repository structure

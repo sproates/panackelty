@@ -67,14 +67,14 @@ pure is_builtin(name: Str): Bool {
   name == "run_bytecode_args"
 }
 
-pure add_variant_symbol(symbols: ResolverSymbols, name: Str): ResolverSymbols {
+pure add_variant_symbol(symbols: ResolverSymbols, name: Str, position: SourcePos): ResolverSymbols {
   mut diagnostics: [Diagnostic] = symbols.diagnostics
   if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) {
-    diagnostics = append(diagnostics, resolver_diagnostic("variant constructor ${name} conflicts with a built-in"))
+    diagnostics = append(diagnostics, Diagnostic("variant constructor ${name} conflicts with a built-in", position))
   } else {
   }
   if set_has(symbols.variants, name) {
-    diagnostics = append(diagnostics, resolver_diagnostic("variant constructor ${name} is declared by more than one enum"))
+    diagnostics = append(diagnostics, Diagnostic("variant constructor ${name} is declared by more than one enum", position))
   } else {
   }
   ResolverSymbols(
@@ -85,36 +85,39 @@ pure add_variant_symbol(symbols: ResolverSymbols, name: Str): ResolverSymbols {
   )
 }
 
-pure collect_variants(program: Program): ResolverSymbols {
+pure collect_variants(program: Program, positions: [SourcePos]): ResolverSymbols {
   declarations: Set[Str] = set()
   callables: Set[Str] = set()
   variants: Set[Str] = set()
   diagnostics: [Diagnostic] = []
   mut symbols: ResolverSymbols = ResolverSymbols(declarations, callables, variants, diagnostics)
+  mut index: Nat = 0
   for declaration in program.declarations {
+    position: SourcePos = declaration_position(positions, index)
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {},
       RecordDeclaration(name, parameters, fields) => {},
       EnumDeclaration(name, parameters, declared_variants) => {
         for variant in declared_variants {
-          symbols = add_variant_symbol(symbols, variant.name)
+          symbols = add_variant_symbol(symbols, variant.name, position)
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
+    index = index + 1
   }
   symbols
 }
 
-pure add_top_level_symbol(symbols: ResolverSymbols, name: Str, callable: Bool): ResolverSymbols {
+pure add_top_level_symbol(symbols: ResolverSymbols, name: Str, callable: Bool, position: SourcePos): ResolverSymbols {
   mut diagnostics: [Diagnostic] = symbols.diagnostics
   if set_has(symbols.declarations, name) {
-    diagnostics = append(diagnostics, resolver_diagnostic("top-level name ${name} is already declared"))
+    diagnostics = append(diagnostics, Diagnostic("top-level name ${name} is already declared", position))
   } else {
   }
   if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) || set_has(symbols.variants, name) {
-    diagnostics = append(diagnostics, resolver_diagnostic("top-level name ${name} conflicts with a constructor or built-in"))
+    diagnostics = append(diagnostics, Diagnostic("top-level name ${name} conflicts with a constructor or built-in", position))
   } else {
   }
   next_callables: Set[Str] = if callable { set_add(symbols.callables, name) } else { symbols.callables }
@@ -126,26 +129,39 @@ pure add_top_level_symbol(symbols: ResolverSymbols, name: Str, callable: Bool): 
   )
 }
 
-pure collect_symbols(program: Program): ResolverSymbols {
-  mut symbols: ResolverSymbols = collect_variants(program)
+pure collect_symbols_at(program: Program, positions: [SourcePos]): ResolverSymbols {
+  mut symbols: ResolverSymbols = collect_variants(program, positions)
+  mut index: Nat = 0
   for declaration in program.declarations {
+    position: SourcePos = declaration_position(positions, index)
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {
-        symbols = add_top_level_symbol(symbols, name, false)
+        symbols = add_top_level_symbol(symbols, name, false, position)
       },
       RecordDeclaration(name, parameters, fields) => {
-        symbols = add_top_level_symbol(symbols, name, true)
+        symbols = add_top_level_symbol(symbols, name, true, position)
       },
       EnumDeclaration(name, parameters, variants) => {
-        symbols = add_top_level_symbol(symbols, name, false)
+        symbols = add_top_level_symbol(symbols, name, false, position)
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        symbols = add_top_level_symbol(symbols, name, true)
+        symbols = add_top_level_symbol(symbols, name, true, position)
       }
     }
+    index = index + 1
   }
   symbols
+}
+
+pure collect_symbols(program: Program): ResolverSymbols {
+  collect_symbols_at(program, [])
+}
+
+// Synthetic AST callers have no declaration positions. Production loading
+// supplies positions in declaration order before any flattening occurs.
+pure declaration_position(positions: [SourcePos], index: Nat): SourcePos {
+  if index < len(positions) { positions[index] } else { SourcePos("", 0, 1, 1) }
 }
 
 pure append_program_declarations(programs: [Program]): Program {
@@ -369,8 +385,8 @@ pure resolve_function(parameters: [FunctionParameter], body: Block, symbols: Res
   concat(diagnostics, resolve_block(body, function_scope, symbols))
 }
 
-pure resolve_program(program: Program): [Diagnostic] {
-  symbols: ResolverSymbols = collect_symbols(program)
+pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] {
+  symbols: ResolverSymbols = collect_symbols_at(program, positions)
   mut diagnostics: [Diagnostic] = symbols.diagnostics
   for declaration in program.declarations {
     match declaration {
@@ -387,6 +403,10 @@ pure resolve_program(program: Program): [Diagnostic] {
     }
   }
   diagnostics
+}
+
+pure resolve_program(program: Program): [Diagnostic] {
+  resolve_program_at(program, [])
 }
 
 pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {

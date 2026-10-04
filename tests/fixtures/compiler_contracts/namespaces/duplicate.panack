@@ -1,0 +1,3 @@
+import "helper.panack"
+import "other.panack"
+main(): Void { print(answer()) }

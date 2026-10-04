@@ -2801,3 +2801,38 @@ check instructions, the owner responded “Lgtm”. This is owner acceptance, no
 claim that the unavailable local browser automation was run. RM#121 and RM#122
 are complete; this informational update closes GI#256 on merge. Existing manual
 installation remains supported. No executable or website source changes here.
+
+## Namespace module/binding foundation — 2026-10-04
+
+P2 / [RM#41: Language namespaces](../ROADMAP.md#rm-41) first intermediate
+slice; executable namespace semantics and source migration remain pending.
+On this Linux x86-64 development workspace, the existing v9 seed compiled the
+new frontend. `make regenerate-seed` independently verified identical fresh
+stage-2/3/4 compiler artifacts, SHA-256
+`a607e6accab5166b7f0fe2be15231d11a3d4f6b47d13c4ba3bb2af138a279f8f`
+(330,562 bytes), and the unchanged standard-library artifact SHA-256
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+No bytecode format or release version changed.
+
+Validation:
+
+- `sh tests/run_probe.sh tests/runner/compiler_module_bindings_unit.panack`:
+  59 assertions, covering syntax/spans, tagged identities, local binding/export
+  inventory, private/variant selection, relocation, core origins and fail-closed
+  compiler APIs. Regressions distinguish three duplicate declarations and a
+  function sharing a variant's spelling.
+- `compiler_integration_unit.panack`, through `make check`: 91 assertions,
+  including `panack check/run/compile` rejection of staged syntax, absence of
+  emitted artifacts, and actual per-module conflict locations.
+- Canonical `make check`: **passed in 126s**, unit **91s**, functional **5s**,
+  bootstrap **20s**; all **343** functional cases pass, along with compiler/library
+  fixed points, isolated seed-refresh proof and package/quick-start smoke tests.
+  This successful invocation reused the native build and probe cache. An initial
+  clean run exposed two old location-free stderr expectations; they were updated
+  to assert the new exact source locations and carets before this passing run.
+
+The full 120s and unit 15s budgets are exceeded. Preserve the prioritized
+[GI#106: Validation performance](https://github.com/sproates/panackelty/issues/106)
+reminder and profile build/probe invalidation before changing coverage. These
+observations establish this slice's acceptance evidence, not a controlled
+before/after performance comparison or complete namespace acceptance.

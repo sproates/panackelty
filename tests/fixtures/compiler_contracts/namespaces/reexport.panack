@@ -1,0 +1,2 @@
+pub import "helper.panack"
+main(): Void { print(42) }

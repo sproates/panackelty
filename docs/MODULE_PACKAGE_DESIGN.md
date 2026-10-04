@@ -4,12 +4,14 @@ Design outcome for [RM#109: Module and package design](../ROADMAP.md#rm-109)
 and [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234),
 within [RM#108: Modules, packages and HTTP programme](../ROADMAP.md#rm-108).
 
-This document selects the P1 design; acceptance takes effect when its delivery PR
-merges. It implements nothing. All syntax, manifests, commands and HTTP APIs below
+This document records the P1 design accepted in PR#240. It is a design contract,
+not executable feature evidence. All syntax, manifests, commands and HTTP APIs below
 are proposed future contracts, not runnable examples for the current toolchain.
 [SPEC.md](../SPEC.md) remains the current language contract. Implementation,
 release and website adoption require their own selected deliveries. P1 closes
-only the design investigation; P2–P8 remain planned.
+only the design investigation. P2 is in progress with a fail-closed module/binding
+foundation; P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
+owns current implementation and acceptance status.
 
 ## Current implementation audit
 

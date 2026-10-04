@@ -2743,8 +2743,9 @@ platform support and all manual installation steps remain unchanged.
 
 The RM#122 website follow-up adds the optional command, script inspection and
 setup-guide links, explicit command-path substitution and opt-in PATH instructions.
-The website's new installer command matches the README exactly; its existing
-manual `<ol class="steps">` block is byte-for-byte unchanged from merged `28f3605`.
+The website's new installer command matches the README exactly; the text of all
+manual command blocks is byte-for-byte unchanged from merged `28f3605`. Copy
+controls wrap those blocks without changing their command text.
 All 38 website automation tests and Pages assembly/failure handling pass locally.
 Owner preview acceptance, successful current-head hosted checks and authorised
 merge are required. The delivery maintainer must verify the live command, links
@@ -2766,3 +2767,15 @@ Local Playwright Chromium installation failed because its CDN download returned
 a truncated/non-ZIP archive, so real clipboard permission, keyboard interaction
 and narrow-screen acceptance remain for the browser preview. The button reports
 success only after the write resolves and otherwise offers manual copying.
+
+
+The shared copy control now covers all six installation-guide code boxes plus
+the greeting program and its output. Each of the eight controls has its own
+accessible name, target and live feedback region. All displayed `pre` text,
+including multiline commands, indentation and trailing newlines, matches the
+preceding revision byte-for-byte; only wrappers and controls change. Focused
+checks execute the shared handler for every target and verify exact copied text,
+pending/success/reset behavior and independent failure feedback. These remain
+simulated DOM/clipboard checks; real phone/browser clipboard and layout acceptance
+remain pending as described above. The incremental website gate again passes
+all 38 automation tests and Pages assembly/failure handling.

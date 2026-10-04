@@ -79,7 +79,7 @@ main(): Void {
         <div class="section-heading"><p class="eyebrow">Read a little. Try a little.</p><h2 id="examples-title">Ideas you can run.</h2></div>
         <div class="example-grid">
           <article id="hello-example"><span class="badge">Works with alpha.10 and current source</span><h3>A pure calculation, an effectful entry point</h3><p>The greeting produces a value. <code>main</code> prints it. String interpolation keeps the result readable.</p>
-            <pre id="hello-source"><code>
+            <div class="copy-command"><pre id="hello-source"><code>
 pure greeting(name: Str, answer: Nat): Str {
   "Hello, ${name}. The answer is ${answer}."
 }
@@ -87,10 +87,10 @@ pure greeting(name: Str, answer: Nat): Str {
 main(): Void {
   print(greeting("Ada", 42))
 }
-</code></pre>
-            <p class="output-label">Output</p><pre class="example-output" id="hello-output"><samp>
+</code></pre><button class="copy-command-button" type="button" data-copy-target="hello-source" aria-label="Copy greeting program" aria-describedby="hello-source-copy-status" title="Copy greeting program" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="hello-source-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p>
+            <p class="output-label">Output</p><div class="copy-command"><pre class="example-output" id="hello-output"><samp>
 Hello, Ada. The answer is 42.
-</samp></pre>
+</samp></pre><button class="copy-command-button" type="button" data-copy-target="hello-output" aria-label="Copy greeting output" aria-describedby="hello-output-copy-status" title="Copy greeting output" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="hello-output-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p>
           </article>
           <article id="guard-example"><span class="badge">Current source example</span><h3>Give a business rule a name</h3><p><code>Positive</code> expresses a constraint on an integer. Code receiving this type can state its expectation directly.</p>
             <pre id="guards-source"><code>
@@ -149,18 +149,14 @@ main(): Void {
         <div class="development-note" id="optional-installer">
           <span class="badge">Optional installation route</span><h3>Install with one command</h3>
           <p>The installer selects <strong>0.1.0-alpha.10</strong> for the supported Ubuntu x86-64 and macOS Apple silicon versions above. It verifies the release checksum and installs in your home directory without <code>sudo</code>. <a href="https://github.com/sproates/panackelty/blob/main/scripts/install.sh">Inspect the script</a> before running it; the <a href="https://github.com/sproates/panackelty/blob/main/README.md#optional-install-with-one-command">installer guide</a> explains trust, version selection, upgrades and removal.</p>
-          <div class="copy-command">
-          <pre><code id="optional-install-command">curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh</code></pre>
-            <button id="copy-install-command" class="copy-command-button" type="button" aria-label="Copy installer command" aria-describedby="copy-install-status" title="Copy installer command" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>
-          </div>
-          <p id="copy-install-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p>
+          <div class="copy-command"><pre><code id="optional-install-command">curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --show-error https://raw.githubusercontent.com/sproates/panackelty/main/scripts/install.sh | sh</code></pre><button class="copy-command-button" type="button" data-copy-target="optional-install-command" aria-label="Copy installer command" aria-describedby="optional-install-command-copy-status" title="Copy installer command" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="optional-install-command-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <p>Save the <a href="#hello-example">greeting example</a> as <code>hello.panack</code> in a directory you own. Use the check, run and compile commands below, replacing <code>./panackelty/bin/panack</code> with <code>"$HOME/.local/bin/panack"</code>. For optional command discovery in this shell:</p>
-          <pre><code>export PATH="$HOME/.local/bin:$PATH"</code></pre>
+          <div class="copy-command"><pre id="install-path-command"><code>export PATH="$HOME/.local/bin:$PATH"</code></pre><button class="copy-command-button" type="button" data-copy-target="install-path-command" aria-label="Copy PATH setup command" aria-describedby="install-path-command-copy-status" title="Copy PATH setup command" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="install-path-command-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p>
           <p>The script never edits shell startup files. With that PATH choice, you can use <code>panack</code> directly. Prefer downloading and extracting the archive yourself? All manual steps follow below.</p>
         </div>
         <ol class="steps">
           <li><h3>Download and verify</h3><p>Start in a new, empty directory you own. You need a terminal with Bash or zsh, <code>curl</code>, <code>tar</code> and your platform's SHA-256 utility. Copy the complete block for your platform to download the archive and matching checksum from the <a href="https://github.com/sproates/panackelty/releases/tag/v0.1.0-alpha.10">alpha.10 release</a>. No administrator permissions or source checkout are needed.</p>
-            <details open><summary>Linux x86-64</summary><pre><code>(
+            <details open><summary>Linux x86-64</summary><div class="copy-command"><pre id="install-linux-commands"><code>(
   set -eu
   release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
   archive=panackelty-0.1.0-alpha.10-linux-x86_64.tar.gz
@@ -169,8 +165,8 @@ main(): Void {
   sha256sum -c "$archive.sha256"
   tar -xzf "$archive"
   ./panackelty/bin/panack --version
-)</code></pre></details>
-            <details><summary>macOS arm64 (Apple silicon)</summary><pre><code>(
+)</code></pre><button class="copy-command-button" type="button" data-copy-target="install-linux-commands" aria-label="Copy Linux installation commands" aria-describedby="install-linux-commands-copy-status" title="Copy Linux installation commands" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="install-linux-commands-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p></details>
+            <details><summary>macOS arm64 (Apple silicon)</summary><div class="copy-command"><pre id="install-macos-commands"><code>(
   set -eu
   release=https://github.com/sproates/panackelty/releases/download/v0.1.0-alpha.10
   archive=panackelty-0.1.0-alpha.10-macos-arm64.tar.gz
@@ -179,15 +175,15 @@ main(): Void {
   shasum -a 256 -c "$archive.sha256"
   tar -xzf "$archive"
   ./panackelty/bin/panack --version
-)</code></pre></details>
+)</code></pre><button class="copy-command-button" type="button" data-copy-target="install-macos-commands" aria-label="Copy macOS installation commands" aria-describedby="install-macos-commands-copy-status" title="Copy macOS installation commands" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="install-macos-commands-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p></details>
             <p>A failed download or checksum stops the block before extraction; your terminal's shell settings stay unchanged. The checksum must report <code>OK</code>, followed by <code>panack 0.1.0-alpha.10 (bytecode 9)</code>. If download or verification fails, resolve the error before continuing; do not extract or run the archive.</p>
           </li>
           <li><h3>Save the greeting</h3><p>Copy the <a href="#hello-example">complete greeting example above</a> into a file named <code>hello.panack</code> beside the extracted <code>panackelty</code> directory. Keep the extracted directory together: it contains the whole toolchain.</p></li>
-          <li><h3>Check it, then run it</h3><p>Stay beside the extracted <code>panackelty</code> directory. These commands use its executable directly; you do not need to change <code>PATH</code>.</p><pre><code>./panackelty/bin/panack --version
+          <li><h3>Check it, then run it</h3><p>Stay beside the extracted <code>panackelty</code> directory. These commands use its executable directly; you do not need to change <code>PATH</code>.</p><div class="copy-command"><pre id="install-run-commands"><code>./panackelty/bin/panack --version
 ./panackelty/bin/panack check hello.panack
-./panackelty/bin/panack run hello.panack</code></pre><p>The version reports <code>panack 0.1.0-alpha.10 (bytecode 9)</code>. The program prints <code>Hello, Ada. The answer is 42.</code></p></li>
-          <li><h3>Save a compiled program</h3><pre><code>./panackelty/bin/panack compile hello.panack -o hello.bc
-./panackelty/bin/panack run hello.bc</code></pre><p>You get the same greeting through saved bytecode. For optional home-directory installation and <code>PATH</code> setup, or a build of the newer source, follow the <a href="https://github.com/sproates/panackelty/blob/main/README.md">full setup guide</a>.</p></li>
+./panackelty/bin/panack run hello.panack</code></pre><button class="copy-command-button" type="button" data-copy-target="install-run-commands" aria-label="Copy check and run commands" aria-describedby="install-run-commands-copy-status" title="Copy check and run commands" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="install-run-commands-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p><p>The version reports <code>panack 0.1.0-alpha.10 (bytecode 9)</code>. The program prints <code>Hello, Ada. The answer is 42.</code></p></li>
+          <li><h3>Save a compiled program</h3><div class="copy-command"><pre id="install-compile-commands"><code>./panackelty/bin/panack compile hello.panack -o hello.bc
+./panackelty/bin/panack run hello.bc</code></pre><button class="copy-command-button" type="button" data-copy-target="install-compile-commands" aria-label="Copy compile and bytecode commands" aria-describedby="install-compile-commands-copy-status" title="Copy compile and bytecode commands" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div><p id="install-compile-commands-copy-status" class="copy-command-status" role="status" aria-live="polite" aria-atomic="true"></p><p>You get the same greeting through saved bytecode. For optional home-directory installation and <code>PATH</code> setup, or a build of the newer source, follow the <a href="https://github.com/sproates/panackelty/blob/main/README.md">full setup guide</a>.</p></li>
         </ol>
       </section>
       <section class="closing" aria-labelledby="explore-title"><div><p class="eyebrow">Keep exploring</p><h2 id="explore-title">Read. Run.<br>Ask questions.</h2></div><div class="closing-links"><a href="https://github.com/sproates/panackelty/blob/main/SPEC.md">Language specification <span aria-hidden="true">→</span></a><a href="https://github.com/sproates/panackelty/tree/main/examples">More examples <span aria-hidden="true">→</span></a><a href="https://sproates.github.io/panackelty-coverage/">Native VM coverage <span aria-hidden="true">→</span></a><a href="https://github.com/sproates/panackelty/issues">Feedback and ideas <span aria-hidden="true">→</span></a></div></section>
@@ -201,20 +197,22 @@ main(): Void {
     </main>
     <footer><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">P</span><span>Panackelty</span></a><p>Experimental. Open source. Still evolving.</p><p><a href="https://github.com/sproates/panackelty/blob/main/LICENSE">BSD-3-Clause</a> · <a href="https://github.com/sproates/panackelty">GitHub</a> · <a href="#main">Back to top</a></p></footer>
     <script>
-      const copyButton = document.getElementById('copy-install-command');
-      const copyStatus = document.getElementById('copy-install-status');
-      copyButton.hidden = false;
-      copyButton.addEventListener('click', async () => {
-        copyButton.disabled = true;
-        copyStatus.textContent = '';
-        try {
-          await navigator.clipboard.writeText(document.getElementById('optional-install-command').textContent);
-          copyStatus.textContent = 'Copied to clipboard.';
-        } catch {
-          copyStatus.textContent = 'Could not copy. Select and copy the command manually.';
-        } finally {
-          copyButton.disabled = false;
-        }
+      document.querySelectorAll('[data-copy-target]').forEach((copyButton) => {
+        const copySource = document.getElementById(copyButton.dataset.copyTarget);
+        const copyStatus = document.getElementById(copyButton.getAttribute('aria-describedby'));
+        copyButton.hidden = false;
+        copyButton.addEventListener('click', async () => {
+          copyButton.disabled = true;
+          copyStatus.textContent = '';
+          try {
+            await navigator.clipboard.writeText(copySource.textContent);
+            copyStatus.textContent = 'Copied to clipboard.';
+          } catch {
+            copyStatus.textContent = 'Could not copy. Select and copy this text manually.';
+          } finally {
+            copyButton.disabled = false;
+          }
+        });
       });
     </script>
   </body>

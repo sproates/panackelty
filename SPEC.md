@@ -1022,7 +1022,7 @@ there are no native callbacks or producer threads left to quiesce.
 
 This exchange operation includes no source socket handles, connection reuse,
 DNS, TLS or HTTP framing. The separate server operation below supports listening. Source `await` activates work in the current execution; it does
-not create parallel tasks. This is an unreleased development feature, absent
+not create parallel tasks. This operation is included in the alpha.11 release candidate and absent
 from alpha.10. The bytecode encoding remains v9; older runtimes reject the new
 reserved intrinsic `$tcp_exchange` as unknown rather than reinterpret old
 bytecode. Previously saved user functions named `tcp_exchange` remain callable.
@@ -1041,7 +1041,8 @@ The async builtin takes `Str`, `Nat`, `AsyncFn[Bytes,Result[Bytes,Str]]` and
 `TcpServerLimits`, and returns `Result[[Result[Unit,Str]],Str]`. It binds a numeric
 IPv4 address on port 1–65535 on Linux/macOS. The development compiler reserves
 `tcp_serve`; saved v9 user functions with that name retain their behavior.
-This is unreleased functionality, absent from alpha.10 downloads.
+This operation is included in the alpha.11 release candidate and absent from
+alpha.10 downloads; public alpha.11 artifact acceptance is pending.
 
 Record constructor fields, in order:
 

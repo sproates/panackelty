@@ -53,6 +53,22 @@ tar -xzf "$archive" -C "$work/extracted"
     for example in "$root"/examples/*.panack; do printf 'examples/%s\n' "${example##*/}"; done
 } | sort > "$work/expected"
 equal_files "$work/files" "$work/expected"
+# A candidate archive may differ from the documented published download version,
+# but a malformed documented version must not be silently normalised away.
+case_name=quick-start-rejects-malformed-documented-version
+cp "$work/extracted/panackelty/README.md" "$work/readme-original"
+sed 's/^panack [0-9][^ ]* (bytecode 9)$/panack invalid (bytecode 9)/' "$work/readme-original" > "$work/extracted/panackelty/README.md"
+bad_archive=$work/malformed-transcript.tar.gz
+tar -czf "$bad_archive" -C "$work/extracted" panackelty
+if command -v sha256sum >/dev/null 2>&1; then
+    (cd "$work" && sha256sum malformed-transcript.tar.gz) > "$bad_archive.sha256"
+else
+    (cd "$work" && shasum -a 256 malformed-transcript.tar.gz) > "$bad_archive.sha256"
+fi
+capture failure 15 sh "$root/tests/quick_start.sh" "$bad_archive" "$(cat "$root/VERSION")"
+cp "$work/readme-original" "$work/extracted/panackelty/README.md"
+pass
+case_name=archive-members-and-relocation
 mkdir "$work/relocated"
 mv "$work/extracted/panackelty" "$work/relocated/toolchain"
 version=$(cat "$root/VERSION")

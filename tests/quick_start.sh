@@ -74,7 +74,16 @@ awk '
   /<!-- quick-start-output-begin -->/ { capture = 1; next }
   /<!-- quick-start-output-end -->/ { capture = 0 }
   capture && !/^```/ { print }
-' panackelty/README.md >"$workspace/expected.stdout"
+' panackelty/README.md >"$workspace/documented.stdout"
+# Download instructions stay pinned until publication. Test the explicit candidate
+# archive version while keeping the rest of the documented transcript byte-exact.
+awk -v version="$release_version" '
+  NR==1 {
+    if ($0 !~ /^panack [0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+ \(bytecode 9\)$/) exit 1
+    print "panack " version " (bytecode 9)"; next
+  }
+  { print }
+' "$workspace/documented.stdout" >"$workspace/expected.stdout"
 test -s "$workspace/hello.panack" || \
   { echo "quick start: README program is missing" >&2; exit 1; }
 test -s "$workspace/expected.stdout" || \

@@ -15,10 +15,10 @@ grep -q 'releases/tag/v0.1.0-alpha.10' "$work/first"
 grep -q '0.1.0-alpha.1</h2>' "$work/first"
 ! grep -q 'releases/tag/vUnreleased' "$work/first"
 # Prepared version does not become downloadable just because notes were merged.
-awk '/^## 0.1.0-alpha.10 / { print "## 0.1.0-alpha.11 — 2026-10-04\n\n- Prepared only.\n" } { print }' CHANGELOG.md > "$work/CHANGELOG.md"
+awk '/^## 0.1.0-alpha.11 / { print "## 0.1.0-alpha.12 — 2026-10-04\n\n- Prepared only.\n" } { print }' CHANGELOG.md > "$work/CHANGELOG.md"
 render > "$work/prepared"
 grep -q 'Prepared notes' "$work/prepared"
-! grep -q 'releases/tag/v0.1.0-alpha.11' "$work/prepared"
+! grep -q 'releases/tag/v0.1.0-alpha.12' "$work/prepared"
 # Changes in canonical notes are reflected immediately; markup is escaped.
 awk '/^## Unreleased/ { print; print "\n- New <script> & `safe` text.\n"; next } { print }' CHANGELOG.md > "$work/CHANGELOG.md"
 render > "$work/second"

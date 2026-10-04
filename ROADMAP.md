@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#120.**
+The initial allocation contains **105 identities**. **Next available: RM#122.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -1633,6 +1633,52 @@ Linux users currently unpack archives manually. Native package installation coul
 First assess and deliver a downloadable .deb for an explicitly supported Debian/Ubuntu baseline. Verify dependencies, installation, check/compile/run, upgrade and removal on that baseline. Consider a signed apt repository separately when demand justifies hosting, scoped signing keys and key rotation. Exclude official Debian/Ubuntu archive inclusion and blanket distro support.
 
 M / provisionally 1–2 PRs for a downloadable package; hosted apt repository effort remains unknown. Validate ABI compatibility rather than assuming an Ubuntu-built archive works on every Debian release. arm64 packages depend on Linux arm64 support; amd64 packaging is independent. Ongoing repository/security maintenance is a material cost.
+
+### Additional installation proposals — 2026-10-04
+
+Both entries are **Idea / unscheduled**. Recording them does not start
+implementation or select a preferred installation route. They complement
+[RM#17: Homebrew distribution](#rm-17) and
+[RM#18: Debian distribution](#rm-18).
+
+<a id="rm-120"></a>
+
+#### RM#120: Graphical installer
+
+[GI#255: Graphical installer](https://github.com/sproates/panackelty/issues/255).
+
+Casual users should be able to download a guided installer without manually
+extracting archives or entering checksum commands. Assess an initial macOS arm64
+installer, including format, signing/notarisation, Gatekeeper, permissions,
+command discovery, upgrades and removal. Reuse validated release artifacts;
+this does not add Windows or other architecture support. Verify clean install
+through Hello World and check/compile/run, failure handling, upgrades and removal.
+Update release delivery and website/README instructions once verified.
+
+Provisional M–L / 2–3 PRs; signing credentials, costs and release maintenance
+require assessment before commitment. Independent of Homebrew and the terminal
+installer. Priority remains unset.
+
+<a id="rm-121"></a>
+
+#### RM#121: One-command installer
+
+[GI#256: One-command installer](https://github.com/sproates/panackelty/issues/256).
+
+Offer a short, copyable terminal installation command for supported macOS/Linux
+platforms without requiring a package manager. Detect OS/architecture, select a
+versioned release, verify downloads before installation and fail safely on errors.
+Prefer user-owned locations; define command discovery, explicit opt-in PATH
+changes, repeat installation, upgrades, removal and interruption recovery.
+Make the script inspectable and assess its transport/integrity trust. Verify
+clean install through Hello World and check/compile/run plus failure cases on
+each supported target. Retain manual instructions as a fallback and update
+website/README guidance only when the installer is available and verified.
+
+Provisional M / 1–2 PRs including platform tests and release/documentation work.
+Independent of Homebrew and the graphical installer; existing supported release
+artifacts are prerequisites. Portability, file ownership and ongoing maintenance
+need assessment. Priority remains unset.
 
 ### Scope retained outside this grooming batch
 

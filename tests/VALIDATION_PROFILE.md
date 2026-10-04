@@ -2599,7 +2599,7 @@ no new native `make check`. Hosted release-integrity and browser checks, visual
 preview acceptance before merge, and live verification after authorised deployment
 remain required. A clean preview can be built with
 `node scripts/preview.cjs build /absolute/fresh/output`; see
-[the preview workflow](../docs/PR_PREVIEWS.md) for local review and remote-workspace access.
+[the preview workflow](https://github.com/sproates/panackelty-website#develop-and-preview) for local review and remote-workspace access.
 Neither a workspace HTTP check nor this local test report establishes iPhone
 access or user visual approval. The delivery author owns those outstanding checks
 and must keep GI#250 open until live acceptance is recorded.
@@ -3110,3 +3110,23 @@ The 120s full-validation target remains breached under the same disposition;
 this is not a paired full-suite regression measurement. Subsequent changes were
 confined to this allowlisted informational record and passed `make docs`.
 No further repetition of the noisy measurements is justified for this slice.
+
+## Core website retirement validation — 2026-10-05
+
+The website-retirement branch passed canonical `make check` with exit status 0.
+The final reported workload took 140 seconds against the 120-second reference
+budget. Functional acceptance reported 343 fixtures with zero failures and a
+5-second phase; bootstrap took 14 seconds, release smoke 0 seconds and quick
+start 1 second. These are observed phase timings, not a controlled before/after
+comparison or evidence that website retirement caused the budget overrun.
+
+Disposition: preserve every remaining native/package gate and accept this
+bounded retirement change without claiming a performance improvement. The
+existing [RM#123 performance record](../ROADMAP.md#rm-123) and
+[GI#106 validation work](https://github.com/sproates/panackelty/issues/106)
+retain the core validation maintainer as owner; the next controlled baseline
+comparison should investigate the budget exceedance before asserting timing
+acceptance. No optimization work or new performance guarantee is added here.
+Focused CI routing, cancellation/result guards, partition dispatch and
+conformance-equivalence regressions also passed. Website/browser validation has
+moved to the website repository; native coverage is not replaced or skipped.

@@ -6,11 +6,10 @@ exact numerical work.**
 [Website](https://panackelty.com) · [Native VM coverage](https://sproates.github.io/panackelty-coverage/) · [Specification](SPEC.md) ·
 [Releases](../../releases) · [Contributing](CONTRIBUTING.md)
 
-The website consumes a pinned release from
-[Panackelty Browser](https://github.com/sproates/panackelty-browser), selected in
-`site/playground.json`. Browser sources, builds and tests live in that repository.
-Pages runs its pinned integration suite against the complete website before
-deployment. Native development requires neither WASI SDK nor JavaScript packages.
+The [website repository](https://github.com/sproates/panackelty-website) owns site source, previews and publication.
+It deliberately pins native and [browser releases](https://github.com/sproates/panackelty-browser);
+new core releases do not automatically update the site. Native development
+requires neither WASI SDK nor JavaScript packages.
 
 Panackelty combines arbitrary-precision numbers, checked domain types, explicit
 effects, and a portable bytecode VM. Its syntax stays compact enough for a quick
@@ -715,17 +714,9 @@ and bytecode.
   **Bug report** form and covers development expectations.
 - Panackelty is available under the [MIT License](LICENSE).
 
-The website’s **What’s changed** page is generated from [CHANGELOG.md](CHANGELOG.md)
-during every preview and Pages build. Published native availability is pinned
-separately from prepared notes; see [release-history maintenance](RELEASE_POLICY.md#website-release-history).
-
-## Preview website changes locally
-
-From a clone, run `node scripts/preview.cjs` with Node 24 to build the current
-working tree and start a temporary local server. Open the printed URL on the
-development machine; Ctrl-C stops it and cleans up. Rerun after edits and refresh
-the browser. See [local previews](docs/PR_PREVIEWS.md) for saved builds and
-remote-workspace access. No hosting account is required.
+The website promotes a reviewed snapshot of [CHANGELOG.md](CHANGELOG.md) through
+its own PR. See [release promotion](RELEASE_POLICY.md#website-release-history)
+and the [website repository](https://github.com/sproates/panackelty-website) for development and local previews.
 
 ## Build Panackelty itself
 
@@ -846,13 +837,9 @@ check names remain present and reject routing failures. See
 [change-aware CI](tests/README.md#change-aware-ci). Run
 `bash scripts/validate_change.sh --plan origin/main` to inspect the shared
 selection, or replace `--plan` with `--run` to execute its local route. Reviewed
-process documents also use the informational route. Changes confined to
-`site/index.html`, `site/styles.css`, `site/favicon.svg` and `site/playground.json`
-(optionally with informational documents) use website automation, release-integrity
-checks and all browser scenarios without native builds. The local website route
-runs automation and assembly tests; hosted CI supplies release/browser validation.
-Shared, mixed and unknown changes retain full validation. CI additionally executes
-platform, instrumentation and browser gates where applicable.
+process documents also use the informational route. Shared, mixed and unknown
+changes retain full validation. Website changes validate independently in their
+own repository. CI additionally executes platform and instrumentation gates.
 Opt-in [detailed validation profiling](tests/README.md#detailed-validation-profiling)
 separates native builds, harness groups, probes and bootstrap costs.
 

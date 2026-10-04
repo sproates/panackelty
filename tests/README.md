@@ -1,26 +1,9 @@
 # Tests
 
-[Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
-WASI/native compatibility and actual browser suites. Pages checks out an exact
-reviewed browser test commit and runs its 24 Chromium/Firefox/WebKit scenarios
-against the selected assembled website and checksummed `site/playground.json`
-release. Navigation, all nine examples, limits, failure recovery and real HTTP
-cache upgrades are retained. Set `PLAYGROUND_SITE_DIR` and
-`PLAYGROUND_BUILD_DIR` to the complete website and downloaded playground when
-running that suite locally; follow the browser repository's setup instructions.
-There is no duplicate browser source/test tree in core.
-
-`node --test tests/pages.test.cjs tests/playground_release.test.cjs tests/preview.test.cjs` and
-`sh tests/pages.sh` check publisher selection, assembly, release-pin validation,
-download failures, size/digest bounds, extraction safety, incomplete assets and
-stale-output rejection. Production additionally verifies website navigation and every playground asset,
-MIME type and website provenance. Native `make check` does not need Node,
-Playwright or WASI; its existing native and bundle contracts remain independent.
-
-Preview tests additionally exercise working-tree identity, coverage separation,
-corrupt archives, atomic output, loopback HTTP serving, Wasm MIME, traversal,
-symlink rejection and read-only methods. Check’s website validator tests and archives the
-same preview artifact. See [PR previews](../docs/PR_PREVIEWS.md).
+The [website repository](https://github.com/sproates/panackelty-website) owns assembly, previews, published-release
+acceptance and deployed-byte checks. [Panackelty Browser](https://github.com/sproates/panackelty-browser)
+owns browser/runtime integration tests. Core retains native and runtime-bundle
+contracts; `make check` requires neither Node, Playwright nor WASI.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
@@ -204,40 +187,15 @@ published report visible; investigate that repository's workflow and rerun a ful
 core Check if a fresh artifact is needed. Publishing does not execute core code.
 
 Website publication never selects, downloads or verifies those report bytes.
-Core Pages retains `/coverage/` and `/coverage/html/` as links to the new report;
+The website retains `/coverage/` and `/coverage/html/` as links to the new report;
 old deep LLVM source URLs are not mirrored. The homepage and documentation link
 directly to the independent host. Review previews use the same landing pages,
 which explicitly say the report may describe a different source revision.
 
 ### Website publication
 
-Check owns applicable website validation and certifies `checked-website-<sha>`
-only after all 24 browser scenarios pass. The narrow website route skips native
-matrices; applicable full routes require both native and website success at every
-compatibility gate. Native-only checks require an explicit website skip. Missing
-or malformed applicability fails closed. PR artifacts never seed production.
-
-Automatic Pages runs ignore obsolete trigger SHAs, require successful exact-main
-Check and restore only its browser certificate. Core/docs-only checks without a
-certificate do no assembly, artifact transfer, browser provisioning or deployment.
-Restoration verifies the input fingerprint, links, absence of bundled reports and
-symlinks. Production serializes, rechecks the pinned source before packaging and
-fails if main advances. API errors and expired certificates fail closed.
-
-Manual dispatch from main retains trusted fingerprint-based reuse and explicit
-rebuild support. Publication waits up to 120 seconds for exact-source Check;
-failed validation cannot substitute an older source. The website records its own
-`publication.json` (source SHA and Check run). Exact automatic duplicates skip
-publication. Live verification compares entry pages, local links, every playground
-asset, Wasm MIME and website provenance without contacting the coverage host.
-Failure requires investigation; it does not automatically roll back deployment.
-
-`sh tests/pages.sh` exercises website/playground assembly, compatibility landing
-pages, invalid asset identities, missing assets, symlinks and stale-output rejection
-in the canonical harness. `node --test tests/pages.test.cjs` covers exact-source
-selection without coverage, core-only no-ops, trusted artifact selection, API
-errors, duplicates, local links and live byte/MIME/provenance failures. Node is
-only an automation dependency, not required by native `make check` or packaging.
+The [website repository](https://github.com/sproates/panackelty-website) owns website tests and publishing. Core Check
+does not wait for browser or website CI. Coverage publication remains independent.
 
 The specification-to-test map and prioritized coverage backlog live in
 [`COVERAGE.md`](COVERAGE.md). Update it when a language promise or its automated
@@ -310,9 +268,8 @@ runner/architecture pairs, the package command, checksum and
 provenance uploads, and the absence of tag or release triggers. It separately
 requires the tag workflow to match `VERSION`, depend on complete validation and
 both matrix packages, recheck downloaded assets, and confine write permission
-to the final prerelease publication job. It also fixes the project website's
-complete static file set and ensures its Pages workflow validates pull requests
-but grants deployment permissions only after a change reaches `main`.
+to the final prerelease publication job. Website layout/publication checks live
+in the website repository.
 
 Structurally valid artifacts that forge dynamically unsafe states live in
 `tests/fixtures/vm_contracts`. The native Panackelty probe executes the reviewed bytes and requires fixed
@@ -477,13 +434,12 @@ bash scripts/validate_change.sh --plan origin/main
 bash scripts/validate_change.sh --run origin/main
 ```
 
-The plan reports `route`, the Pages PR requirement `pages`, affected `components` and required `checks`. Local
+The plan reports `route`, affected `components` and required `checks`. Local
 selection compares the merge base with the working tree and index and includes
 untracked, non-ignored files. The run checks branch/index/worktree whitespace,
-then executes `make docs` alone for `docs`, website automation and assembly tests
-plus `make docs` for `website`, or `make docs` and canonical
+then executes `make docs` alone for `docs`, `make docs` and canonical
 `make check` for `full`. CI runs the same route with its additional platform,
-sanitizer, coverage and browser gates. No route caches test outcomes.
+sanitizer and coverage gates. No route caches test outcomes.
 Use a different base ref when appropriate. Invalid local refs fail visibly;
 missing CI history and empty diffs conservatively select full validation.
 `make docs` remains available for a focused document check; it does not itself
@@ -494,15 +450,12 @@ without building the compiler, and remains part of `make check` through policy.
 | --- | --- |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
-| Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages; Pages for website/package/shared/unknown inputs |
-| Only `site/index.html`, `site/styles.css`, `site/favicon.svg`, `site/playground.json`, optionally with informational documents | Complete website validation and certified artifact; no native matrices; existing required names depend on website success |
+| Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
-All document and website-only inputs must be regular non-executable files on both
-sides. Publisher scripts, workflows, additional site paths and mixtures with
-native code remain full-route. Deleting a required site file selects website
-validation, where assembly fails; classification never certifies a site. The
+All document inputs must be regular non-executable files on both sides.
+All other inputs retain full validation. The
 classifier compares the complete PR diff from its merge base. Renames expand
 into old-path deletion/new-path addition; symlinks, executable Markdown and
 unmerged local indexes cannot use the fast path. `scripts/ci_docs.sh` owns the
@@ -513,9 +466,7 @@ control execution; these retain full checks.
 
 ### Component dependencies and retained coupling
 
-`scripts/validation_components.sh` records ownership and Pages PR selection.
-The browser product's explicit version pin establishes its independence from
-isolated native PRs; ownership alone is not evidence for dropping native checks.
+`scripts/validation_components.sh` records core component ownership.
 
 | Input owner | Dependencies and consumers that must retain evidence |
 | --- | --- |
@@ -524,7 +475,6 @@ isolated native PRs; ownership alone is not evidence for dropping native checks.
 | VM/runtime and TCP | Native modules, fault tests, host probes, source/bytecode functional cases including real TCP peers, sanitizer and coverage runs; compiler itself runs on VM |
 | Standard library | Compiler and runtime probes, bootstrap library identity, source examples, installed and browser libraries |
 | Examples | Functional expected outputs, source/bytecode conformance, packaged examples |
-| Website | Pinned external browser release, assembly, downstream integration suite and publication |
 | Package inputs | Installed documents/version, native toolchain, quick-start extraction, both supported platform archives |
 | Shared or unknown | Conservative union of all consumers, including Makefile, seed, specifications, selectors and workflows |
 
@@ -535,13 +485,9 @@ bootstrap combine components; the earlier independent VM audit does not prove
 safe omission of those integrations. Separate compilation and dependency-aware
 artifact reuse remain later work under #106.
 
-Check and Pages PR validation consume the same selector. No core workflow builds
-Wasm. Documentation and isolated compiler/bytecode/runtime/TCP/stdlib/example
-changes do not provision browser engines: the browser product pins a separately
-validated core revision. Website, package, shared, unknown and mixed inputs retain
-Pages integration. Missing revisions also retain Pages. Browser dependency updates
-run the full downstream suite. Production Pages always follows successful Check
-runs, selects validated current main and retains the browser/publication gates.
+Core Check uses the conservative shared selector. No core workflow builds Wasm
+or provisions browser engines; browser and website repositories validate their
+explicit dependency updates independently.
 
 The fast path checks changed whitespace, empty/NUL-containing documents,
 conflict markers, and local inline/image/reference link destinations outside
@@ -562,7 +508,7 @@ would keep superseded builds running after cancellation. Per-PR cancellation
 uses the `validation-...` concurrency group to separate this rollout from older
 unconditional jobs. No branch-protection settings need changing. Workflow-wide path filters
 are avoided so required check results are never left pending due to filtering.
-Release validation and the separate profiling/Pages workflows retain their
+Release validation and the separate profiling workflows retain their
 existing triggers and gates.
 
 ## Native async TCP
@@ -594,79 +540,10 @@ Finite TCP server coverage uses `unit/vm/tcp_server.c` for owner/host contracts,
 bytecode. These run through canonical unit/functional targets. Loopback binding
 must be permitted. Playground runtime tests assert explicit WASI rejection.
 
-## Prepared website validation environment
+## Website validation ownership
 
-Issue #187 uses the official `mcr.microsoft.com/playwright:v1.63.0-noble` image,
-pinned by digest in `.github/workflows/pages.yml`. It supplies all three browser
-engines and their OS dependencies. Routine runs install only the locked Node test
-package with lifecycle scripts disabled; there is no browser/apt installation.
-The workflow verifies package/image version equality and executable presence
-before running the complete Chromium/Firefox/WebKit suite with three workers
-(one isolated browser project per worker; no cases are omitted). Container initialization
-and pulls count towards validation time. Node dependency installation is measured;
-a derived image is justified only if those measurements warrant it.
-
-The website CI maintainer owns the image digest and pinned downstream test commit.
-When updating that commit's Playwright lockfile, change the image version/digest
-in the same PR, rerun cold/warm validation and review all browser results. For an
-OS/security refresh, explicitly select a reviewed upstream image digest and rerun
-those checks. Ordinary website edits do not rebuild an image. Reproduce locally
-with `docker pull` using the exact workflow image, then mount the repository and
-assembled site into that image and run the workflow's locked install/version
-checks and `npm run test:browser` in the pinned browser suite. See the
-[official image documentation](https://playwright.dev/docs/docker).
-
-`scripts/pages_fingerprint.sh` hashes tracked names, modes and blob IDs using the
-same native-only exclusions as PR routing. Unknown files participate. Website,
-publisher, browser-test and workflow changes therefore require fresh browser
-validation. Manual publication can reuse a matching `validated-website-<fingerprint>`
-artifact from a successful main Pages run in this repository. PR, failed, foreign
-or incomplete runs cannot populate this trusted path. Missing artifacts bootstrap
-validation; expired artifacts and API errors fail closed. An explicit main Pages
-dispatch with `rebuild_website=true` regenerates the artifact for maintenance or
-cold measurement. An unchanged subsequent dispatch measures warm reuse. Artifacts
-retain 90 days and contain the compatibility landing pages, with no bundled
-native report. Packaging writes the newly validated website identity. Reuse
-does not promote a browser release or execute new core compiler code in the site.
-
-The agreed cold/warm budgets are 120s validation and 180s merge-to-live, excluding
-queue time reported separately. The `Pages timings` job reports complete job
-intervals (including pulls and artifact transfers), initial workflow queue, observed pre-step runner dispatch, and raw wall times.
-Validation excludes only measured pre-step dispatch; container initialization
-remains included. Inter-job orchestration is retained. Merge-to-live wall time is emitted only after successful live verification for
-the first main push attempt of the published source, or its matching first Check
-completion publication for a checked website. That website-only measurement spans
-the originating Check through Pages packaging, including inter-workflow delay;
-it is a conservative wall bound without inter-job queue subtraction. The separate
-publication-only duration must not be mistaken for full validation. Reused checked
-artifacts on manual/old-trigger/rerun paths have no first-publication measurement.
-Manual refreshes, duplicate
-publications, reruns, and failed or cancelled verification cannot establish it.
-The queue-excluded merge-to-live field remains null: acceptance must separately
-account for queue overlap with Check; the wall time is only a conservative bound. Hosted results and
-live verification must be recorded before #187 closes. A timing warning never
-skips tests or permits failed browser validation to publish.
-
-Pages uses Node 24-compatible artifact and deployment actions, including the
-Node 24 upload action nested inside `upload-pages-artifact@v5`. Artifact uploads
-retain their default ZIP format; `download-artifact@v8` fails on digest mismatch.
-Changes to these actions require hosted artifact-transfer checks and post-merge
-Pages deployment/live verification; local tests cannot execute hosted actions.
-
-Website reuse searches successful trusted main Pages runs and their per-run
-artifacts, logging each match/miss instead of depending on provenance in the
-repository-wide artifact listing. The newest trusted run is checked alone for
-cheap warm hits; a miss searches older runs with at most eight concurrent
-read-only requests. Results are evaluated newest first, regardless of response
-order, and any API failure in a batch fails publication. The exact-source Check
-wait polls every five seconds with the same 120-second total sleep allowance;
-source changes and API errors still fail immediately.
-An automatic website trigger with an exact-source certificate compares live
-`publication.json` against the selected website commit and Check run. Exact
-matches skip assembly, browser provisioning, artifact uploads and deployment.
-Missing live identity requires publication; lookup errors fail closed. Manual
-rebuilds and PR validation never take the duplicate-publication shortcut.
-
+Prepared browser environments and publication timings belong to the [website repository](https://github.com/sproates/panackelty-website).
+Historical core measurements remain in the validation profile as dated evidence.
 
 `make source-mapping-experiment` runs the native-PC source-map acceptance tests, requiring
 Node 24+ in addition to the native toolchain. It is separate from interpreter-free
@@ -838,15 +715,3 @@ exercises dash when available.
 The native-tool allowlist resolves the executable from PATH because some shells
 report a `time` keyword rather than an executable from `command -v`.
 These regression tests do not substitute for real-toolchain baseline trials.
-
-The Pages harness also runs `tests/release_history.sh`: native-tool checks cover
-canonical changelog edits, prepared-versus-published availability, escaping,
-malformed/duplicate notes and Pages fingerprint inputs. Assembly rejects bad
-notes before creating an output directory; Node Pages/preview tests verify links,
-preview identity and deployed bytes for the generated history page.
-
-Release preparation keeps download documentation pinned until public acceptance.
-The local quick-start archive test substitutes only the explicitly tested archive
-version in the documented transcript; it still checks all remaining output
-byte-for-byte and rejects malformed documented version lines. The distribution
-harness exercises this rejection with an otherwise valid checksummed archive.

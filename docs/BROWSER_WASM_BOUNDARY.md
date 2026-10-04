@@ -22,7 +22,7 @@ The browser build nevertheless reaches deeply into the core checkout:
 - `src/playground/build.mjs` compiles nearly every `src/vm/*.c` file directly with WASI SDK Clang, replacing only native `host_capabilities.c` with the browser adapter.
 - It copies `bootstrap/compiler-v9.bc` directly.
 - It serializes every `src/stdlib/*.panack` source into the browser artifact.
-- It copies the root license and website styles/favicon and assembles the root `site/` tree for browser tests.
+- The website repository assembles its pages with a pinned browser release and runs the browser integration suite.
 - Browser runtime compatibility therefore currently follows source-tree shape and the exact development VM implementation, not only the documented bytecode contract.
 
 The bytecode contract is substantially stronger than this coupling suggests. `src/bytecode/FORMAT.md` explicitly versions executable encoding/semantics and requires a version increment for incompatible changes. However, additive native intrinsics can be added within v9 and older runtimes may reject them. A downstream browser runtime therefore needs an explicit core release/compatibility identity in addition to the numeric bytecode version.
@@ -157,7 +157,7 @@ Create and test the versioned browser-runtime input bundle/manifest and document
 Create the browser repository, consume the pinned bundle, move browser-specific source/tests/workflows, and prove equivalent browser behavior. Establish deployment integration.
 
 ### Core cleanup PR (small)
-Remove migrated browser source/workflows/dependencies from core, narrow Pages to website/coverage responsibilities, update docs and CI routing.
+Remove migrated browser source/workflows/dependencies from core, retain website/coverage publication in their independent repositories, update docs and CI routing.
 
 Provisionally **2–4 reviewed PRs total across the two repositories after this investigation**, depending on whether repository bootstrap and deployment migration are combined.
 

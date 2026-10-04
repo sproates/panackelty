@@ -82,7 +82,7 @@ for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md .github/pull_request_templat
     printf '# Process\n' > "$path"
     commit; route docs
     plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
-    [[ "$plan" == $'route=docs\npages=false\ncomponents=process\nchecks=documents,links,whitespace' ]] || fail 'process plan'
+    [[ "$plan" == $'route=docs\ncomponents=process\nchecks=documents,links,whitespace' ]] || fail 'process plan'
 done
 fixture
 mkdir -p .github docs tests
@@ -90,39 +90,13 @@ for path in .github/pull_request_template.md ROADMAP.md docs/ROADMAP_PROCESS.md 
     printf '\nProcess handover update\n' >> "$path"
 done
 commit; route docs
-# Expected ownership examples are deliberately independent of classifier patterns.
-for path in site/index.html site/styles.css site/favicon.svg site/playground.json; do
+# Retired website paths are unknown/shared inputs and must never bypass core checks.
+for path in site/index.html site/styles.css site/playground.json; do
     fixture
     mkdir site; printf 'asset\n' > "$path"
-    commit; route website
-    plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
-    [[ "$plan" == *'pages=true'* && "$plan" == *'website-automation,release-integrity,browsers' ]] || fail 'website checks missing'
-    printf '\nNotes\n' >> ROADMAP.md
-    commit; route website
-    chmod +x "$path"
     commit; route full
+    git rm -q "$path"; commit; route full
 done
-fixture
-mkdir site; printf 'asset\n' > site/index.html
-commit; base=$head
-git rm -q site/index.html; commit; route website
-fixture
-mkdir site; ln -s ../README.md site/index.html
-commit; route full
-fixture
-mkdir site; printf 'asset\n' > site/styles.css
-commit; base=$head
-git mv site/styles.css site/unreviewed.css; commit; route full
-fixture
-mkdir site; printf 'asset\n' > site/index.html
-printf 'native change\n' >> src/main.c
-commit; route full
-fixture
-mkdir site; printf 'asset\n' > site/index.html
-[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == website ]] || fail 'untracked website input'
-git add site/index.html; chmod +x site/index.html
-[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'unstaged executable website input'
-
 # Expected ownership examples are deliberately independent of classifier patterns.
 while read -r path component; do
     fixture
@@ -131,10 +105,7 @@ while read -r path component; do
     commit; route full
     plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
     [[ "$plan" == *"components=$component"* ]] || fail "component: $path"
-    case "$path" in src/compiler/*|src/bytecode/*|src/vm/*|src/runtime/*|src/stdlib/*|tests/tcp*|examples/*|SPEC.md|bootstrap/*) pages=false ;; *) pages=true ;; esac
-    [[ "$plan" == *"pages=$pages"* ]] || fail "website dependency: $path"
     checks=compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages
-    if [[ "$pages" == true ]]; then checks=$checks,pages; fi
     [[ "$plan" == *"$checks" ]] || fail "lost integrations: $path"
 done <<'CASES'
 src/compiler/checker.panack compiler
@@ -144,8 +115,8 @@ src/runtime/host.panack runtime
 src/vm/host_tcp.c tcp
 tests/tcp_serve.sh tcp
 src/stdlib/array.panack stdlib
-scripts/fetch_playground.cjs website
-site/extra.js website
+scripts/unlisted_helper.sh shared
+site/extra.js unknown
 VERSION package
 examples/hello.panack examples
 SPEC.md shared
@@ -154,43 +125,6 @@ Makefile shared
 .github/workflows/check.yml shared
 unrecognised/input.data unknown
 CASES
-# Compiler delivery (source, seed, harness, fixtures and documentation) does
-# not assemble a pinned downstream website. Actual browser pins still do.
-fixture
-for path in src/compiler/checker.panack bootstrap/compiler-v9.bc tests/unit/harness/runner.sh tests/runner/main.panack SPEC.md; do
-    mkdir -p "$(dirname "$path")"; printf 'change\n' >> "$path"
-done
-commit
-[[ $(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head") == *'pages=false'* ]] || fail 'compiler delivery entered Pages'
-# Fingerprints use the same dependency boundary in publication and PR selection.
-mkdir -p scripts
-cp "$root"/scripts/{ci_docs.sh,validation_components.sh,pages_fingerprint.sh} scripts/
-commit; base=$head
-first=$(bash scripts/pages_fingerprint.sh)
-printf 'compiler edit\n' >> src/compiler/checker.panack
-commit
-[[ $(bash scripts/pages_fingerprint.sh) == "$first" ]] || fail 'native-only fingerprint changed'
-for path in site/playground.json tests/pages.test.cjs scripts/pages_candidate.cjs .github/workflows/pages.yml unknown.data; do
-    before=$(bash scripts/pages_fingerprint.sh)
-    mkdir -p "$(dirname "$path")"; printf 'input\n' > "$path"
-    commit
-    [[ $(bash scripts/pages_fingerprint.sh) != "$before" ]] || fail "fingerprint ignored $path"
-done
-before=$(bash scripts/pages_fingerprint.sh)
-git rm -q site/playground.json; commit
-[[ $(bash scripts/pages_fingerprint.sh) != "$before" ]] || fail 'fingerprint ignored deletion'
-# Mixed inputs cannot hide website/shared changes behind native-only changes.
-fixture
-mkdir -p src/vm site
-printf 'code\n' > src/vm/vm.c
-printf 'html\n' > site/index.html
-commit
-[[ $(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head") == *'pages=true'* ]] || fail 'mixed website input'
-base=$head
-git mv site/index.html src/vm/old.c
-commit
-[[ $(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head") == *'pages=true'* ]] || fail 'renamed website input'
-[[ $(bash "$root/scripts/ci_scope.sh" --plan missing "$head") == *'pages=true'* ]] || fail 'unknown revision omitted website'
 # Local classification includes staged, unstaged and untracked changes, with the
 # same plan after commit. Index-only changes cannot disappear behind a reversal.
 fixture
@@ -319,7 +253,6 @@ fixture
 printf '\n[broken](missing.md\n' >> ROADMAP.md
 reject_docs 'unclosed inline link'
 # A failed or cancelled classifier must fail every stable check, not skip green.
-export CI_WEBSITE_REQUIRED=false CI_WEBSITE_RESULT=skipped
 for result in failure cancelled skipped ''; do
     for selected in docs website full ''; do
         if CI_SCOPE_RESULT="$result" CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed classification'; fi
@@ -330,26 +263,7 @@ for selected in '' invalid; do
 done
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
-CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped CI_WEBSITE_REQUIRED=true CI_WEBSITE_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
-for native in success failure skipped cancelled ''; do
-    for website in success failure skipped cancelled ''; do
-        [[ "$native:$website" != skipped:success ]] || continue
-        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT="$native" CI_WEBSITE_REQUIRED=true CI_WEBSITE_RESULT="$website" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
-            fail 'website route accepted missing/failed tests or inconsistent native result'
-        fi
-    done
-done
-for required in true false '' invalid; do
-    for native in success failure skipped cancelled ''; do
-        for website in success failure skipped cancelled ''; do
-            expected=failure
-            if [[ "$native" == success && ( "$required:$website" == true:success || "$required:$website" == false:skipped ) ]]; then expected=success; fi
-            actual=failure
-            if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT="$native" CI_WEBSITE_REQUIRED="$required" CI_WEBSITE_RESULT="$website" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then actual=success; fi
-            [[ "$actual" == "$expected" ]] || fail "full gate: applicability=$required native=$native website=$website"
-        done
-    done
-done
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted retired website route'; fi
 for selected in docs full; do
     for result in failure cancelled skipped success ''; do
         if [[ "$selected:$result" == docs:skipped || "$selected:$result" == full:success ]]; then continue; fi
@@ -366,7 +280,7 @@ awk '
 /^  (package|test):$/ { gate=1; heavy=0; next }
 /^  (package_build|test_run):$/ { gate=0; heavy=1; next }
 /^  [a-z_]+:$/ { gate=0; heavy=0 }
-gate && /^    needs: \[changes, (package_build|test_run), website\]$/ { dependencies++ }
+gate && /^    needs: \[changes, (package_build|test_run)\]$/ { dependencies++ }
 gate && /^    if: always\(\)$/ { guards++ }
 gate && /^    timeout-minutes: 2$/ { bounds++ }
 heavy && /^    needs: changes$/ { work_dependencies++ }
@@ -380,11 +294,10 @@ grep -F 'CI_VALIDATION_RESULT: ${{ needs.test_run.result }}' .github/workflows/c
 grep -F 'name: Package (${{ matrix.target }})' .github/workflows/check.yml >/dev/null || fail 'package check names changed'
 # Every consumer must use the same selection. No path filter may silently omit
 # an unknown/shared dependency, and docs must not enter browser build jobs.
-for workflow in check pages; do
+for workflow in check; do
     grep -F 'bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA"' ".github/workflows/$workflow.yml" >/dev/null || fail "selector missing: $workflow"
     if grep -E '^[[:space:]]+paths(-ignore)?:' ".github/workflows/$workflow.yml" >/dev/null; then fail "independent filter: $workflow"; fi
 done
-grep -F "steps.scope.outputs.pages == 'true'" .github/workflows/pages.yml >/dev/null || fail 'docs PR enters Pages build'
 echo 'CI workflow routing and cancellation contracts passed.'
 sh tests/ci_partition.sh
 sh tests/ci_conformance.sh

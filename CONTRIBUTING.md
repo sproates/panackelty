@@ -90,11 +90,8 @@ policy, formatting and validation tools cover only their documented scope.
 
 ## Validate a change
 
-For website changes, run `node scripts/preview.cjs` (Node 24) to build and start
-a temporary loopback server. Open the printed URL on the development machine;
-stop with Ctrl-C, rerun after editing, then refresh the browser.
-See [local previews](docs/PR_PREVIEWS.md) for saved artifacts and remote-workspace
-access. No hosting provider or contributor hosting account is required.
+Website source, previews, release promotion and publishing belong in the
+[website repository](https://github.com/sproates/panackelty-website). Follow its contributor and validation instructions.
 
 Run `bash scripts/validate_change.sh --plan origin/main` to inspect the affected
 components and required checks, then use `--run` to execute the selected local

@@ -1,25 +1,3 @@
-Website CI #187 regressions cover compiler/seed/test-only routing, shared
-and narrowly allowlisted website-only routing, required-gate propagation of missing
-or failed website validation, mode/rename/mixed-input fallback, checked-artifact
-source/expiry rejection, independent coverage hosting and combined Check/publication
-timing (including rerun, wrong-source and failed-live-verification exclusions).
-Website browser certification and full-route publication share all 24 scenarios.
-Applicable full routes require both native and website success; regressions cover
-failed, cancelled, skipped and missing results plus malformed applicability.
-Adding native inputs cannot remove a website requirement from compatibility gates.
-The original regressions also cover shared
-fingerprint identity and deletion invalidation, trusted production artifact reuse,
-foreign/PR/failed/expired artifact rejection, API failure propagation, prepared
-browser version gates, and core/docs-only Check completion without website work.
-Reuse tests cover per-run artifact discovery without global-list provenance,
-paginated history/errors and observable decisions. Duplicate-publication tests
-require exact live website/Check identity and exercise missing, stale and failed
-lookups without weakening browser/publication gates.
-Timing regressions cover failed/cancelled/skipped/missing live verification,
-manual and duplicate publications, reruns, and superseding source selection;
-none may claim successful first-merge latency. All 24 downstream browser
-scenarios remain required for changed website inputs.
-
 # Specification coverage
 
 Guard-fact mutation regression coverage (#182) adds 25 checker fixtures: 20
@@ -35,15 +13,8 @@ freshly guarded variants must pass, and all 48 accepted variants execute against
 a hand-calculated result table. The focused checker runner now has 162 assertions. These tests establish this
 bounded invalidation contract, not completeness of static proofs.
 
-Website preview regression tests in `tests/preview.test.cjs` cover immutable
-browser bytes, source identity, explicit coverage separation, corrupt inputs,
-atomic assembly, traversal/symlink rejection and local HTTP MIME/method handling.
-These are website tooling checks, not additional language execution coverage.
-Session tests also cover fresh rebuilds, saved-build preservation, occupied ports,
-invalid CLI arguments and SIGINT/SIGTERM shutdown with temporary-file cleanup.
-The owner accepted a private Sites snapshot of the clean PR #171 build on their
-iPhone on 2026-10-01. This is separate evidence from local HTTP/automated browser
-tests; it does not establish localhost forwarding from the cloud workspace.
+Website preview, release-pin, assembly and deployed-byte coverage belongs to
+the [website repository](https://github.com/sproates/panackelty-website); these are separate from language execution coverage.
 
 [Panackelty Browser](https://github.com/sproates/panackelty-browser) owns the
 additional runtime and browser tests: unchanged bytecode compatibility, native
@@ -52,16 +23,8 @@ hosts, UTF-8 input/output bounds, memory growth rejection and worker lifecycle.
 Its declared host restrictions are not new native language semantics. Browser
 engine checks supplement the native evidence below; physical iPhone validation
 remains distinct from automated WebKit tests.
-Website integration tests execute all nine selectable examples at `/playground/`,
-follow homepage/return links, check literal output and narrow layout, and exercise
-stop, timeout, diagnostics and failure recovery. Pages assembly rejects missing
-playground assets and symlinks before publishing. Deployment tests check the
-selected complete artifact, including playground bytes and Wasm MIME type.
-Pages consumes the pinned external browser release rather than building the
-browser product. `tests/playground_release.test.cjs` covers invalid pins, HTTP
-failure, oversized/tampered downloads, links/special files, missing compiler,
-asset identity and atomic installation. Pages runs all 24 assembled-site browser scenarios from a pinned downstream
-test commit; no duplicate tests remain in core.
+The website repository runs the pinned downstream integration suite against
+its assembled artifact. Core does not duplicate website test sources.
 Asset identity tests cover every staged file and deterministic ordering. Real
 browser tests warm an HTTP cache, switch deployments, reload and verify matching
 example/library execution with versioned module, worker and binary requests.
@@ -180,7 +143,7 @@ Status meanings:
 | Verified self-hosted seed refresh | `seed_refresh.sh`; `make bootstrap-check` | **Covered** for recorded input digest verification before execution, fresh verified compiler stages 2–4, compiler/library byte identity, exact conformance output, failure preservation, locks/signals/concurrent edits, publication and idempotence. A real refresh uses a restricted `PATH`; failure injection uses a shell fake VM. |
 | Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
 | Public bug reporting | `.github/ISSUE_TEMPLATE/bug_report.yml`; `unit/harness/layout.sh`; `CONTRIBUTING.md` | **Covered** by a required GitHub issue form for version, platform, minimal source, command, expected behavior, actual output, and saved-bytecode behavior; blank issues are disabled and security reports are redirected to the private channel. |
-| Public project website | `site/index.html`; `.github/workflows/pages.yml`; `unit/harness/layout.sh` | **Covered** by a dependency-free responsive static site whose workflow validates the exact published file set on pull requests and limits Pages deployment permissions to post-merge runs from protected `main`. |
+| Public project website | [website repository](https://github.com/sproates/panackelty-website) | Independently validated and published; no core website test dependency. |
 | Short-circuit `&&` and `||` | `runner/vm_unit.panack` | **Covered** for avoiding an unsafe right-hand expression. |
 
 ## Modules, compilation, bytecode, and CLI
@@ -388,10 +351,8 @@ line/branch summaries and HTML. The [public report](https://sproates.github.io/p
 is published by the independent `panackelty-coverage` repository from successful
 trusted `main` validation, with source identity and archive date. That repository
 owns report-selection/navigation and full deployed-report verification tests.
-Core `tests/pages.sh` and `tests/pages.test.cjs` cover website assembly and old-URL
-landing pages, source selection without coverage, exact-main validation,
-core/docs-only no-op publication, artifact expiry/API failures, local links and
-live website byte/MIME/provenance checks. The independent production publisher
+Website assembly, compatibility landing pages and live asset verification
+now belong to the website repository. The independent production publisher
 passed initial live verification in run `36933404078`. PR #203 website cutover
 passed live byte/MIME/provenance verification in Pages `36935939432`; both old
 entry points match the merged landing, which was visually inspected. Manual
@@ -548,14 +509,9 @@ This is fake-host evidence, not real network producer quiescence or source scope
 
 ## Website content and examples
 
-The layout harness runs `tests/site_examples.sh`, extracting the displayed
-hello, guarded-type and exact-arithmetic programs and checking their stated
-output through the public CLI in source and saved-bytecode modes. The script
-can use an explicit released command with its `release` selection for the
-release-labelled greeting. Pages tests retain website/playground assembly,
-source selection, compatibility landing pages and nested local navigation, and reject unresolved homepage
-anchors or accessible-label references. Desktop/mobile presentation is reviewed
-separately; these checks do not claim automated visual or accessibility certification.
+Displayed examples are checked against the selected released toolchain in the
+[website repository](https://github.com/sproates/panackelty-website). Core retains its independent source/bytecode
+functional suite and packaged quick-start acceptance.
 
 ## Implicit core and method migration
 
@@ -785,9 +741,5 @@ command propagation, repeat bounds and output-directory protection. The controll
 real-toolchain observations and their limitations are recorded in
 [the validation profile](VALIDATION_PROFILE.md). No language/VM coverage is replaced.
 
-The capabilities page (`site/capabilities/index.html`) is assembled with shared
-navigation and preview identity. Pages/preview regressions cover its nested URL,
-current-page indicator and local links/anchors. The layout harness executes all
-four displayed code fragments via `tests/site_examples.sh capabilities`, adding
-entry points for the declaration-only fragments and checking source and saved
-bytecode output. Native alpha.11 validation is recorded in the delivery PR.
+The [website repository](https://github.com/sproates/panackelty-website) owns capabilities-page layout, navigation and
+published-release source/bytecode example acceptance.

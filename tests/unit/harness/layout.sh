@@ -76,37 +76,6 @@ contains Makefile 'package: native-check
 	$(MAKE) quick-start'
 contains tests/quick_start.sh 'for utility in awk cmp dirname gzip ln mkdir mv readlink rm tar; do'
 pass
-case_name=project-website-is-static-and-deploys-only-from-main
-contains site/index.html '<meta name="viewport"'
-contains site/index.html '<link rel="canonical" href="https://panackelty.com/">'
-contains site/index.html 'href="styles.css"'
-contains site/index.html https://github.com/sproates/panackelty
-absent site/index.html 'are being prepared'
-absent site/index.html 'href="http://'
-absent site/index.html 'src="http://'
-contains .github/workflows/pages.yml 'workflow_run:
-    workflows: [Check]
-    types: [completed]
-    branches: [main]'
-contains .github/workflows/pages.yml 'pull_request:
-    branches: [main]'
-contains .github/workflows/pages.yml 'uses: actions/configure-pages@v6'
-contains .github/workflows/pages.yml 'uses: actions/upload-pages-artifact@v5'
-contains .github/workflows/pages.yml 'path: build/website'
-contains .github/workflows/pages.yml 'if: github.event_name != '"'"'pull_request'"'"''
-contains .github/workflows/pages.yml 'needs: publish'
-contains .github/workflows/pages.yml "needs.browser.result == 'success'"
-contains .github/workflows/pages.yml "needs.build.outputs.browser == 'false' && needs.browser.result == 'skipped'"
-contains .github/workflows/pages.yml 'pages: write'
-contains .github/workflows/pages.yml 'id-token: write'
-contains .github/workflows/pages.yml 'uses: actions/deploy-pages@v5'
-contains .github/workflows/pages.yml "github.event.workflow_run.conclusion == 'success'"
-contains .github/workflows/pages.yml "github.event.workflow_run.event == 'push'"
-contains .github/workflows/pages.yml "github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'"
-contains .github/workflows/pages.yml 'github.event.workflow_run.head_repository.full_name == github.repository'
-contains .github/workflows/pages.yml 'node --test tests/pages.test.cjs'
-sh tests/pages.sh
-pass
 case_name=layout-version-and-implementation
 sh tests/no_python.sh
 awk 'NR!=1 || !/^[0-9]+\.[0-9]+\.[0-9]+-[a-z]+\.[0-9]+$/ { bad=1 } END { exit bad || NR!=1 }' VERSION || fail 'invalid version'
@@ -149,18 +118,6 @@ for field in version platform source command expected actual bytecode; do
 done
 printf 'blank_issues_enabled: false\n' > "$work/expected"
 equal_files .github/ISSUE_TEMPLATE/config.yml "$work/expected"
-pass
-case_name=website-files-and-version
-find site -maxdepth 1 -type f -exec basename {} \; | sort > "$work/files"
-printf 'chrome.css\nfavicon.svg\nindex.html\nnative-release.txt\nplayground.json\nstyles.css\n' > "$work/expected"
-equal_files "$work/files" "$work/expected"
-published_version=$(cat site/native-release.txt)
-contains site/index.html "https://github.com/sproates/panackelty/releases/tag/v$published_version"
-contains site/index.html "Developer preview $published_version is available"
-pass
-case_name=website-examples-run-as-displayed
-capture 0 30 sh tests/site_examples.sh
-capture 0 30 sh tests/site_examples.sh capabilities
 pass
 case_name=tour-example-and-specification-links
 awk '/^## A quick language tour$/ { active=1; next } /^## Language highlights/ { active=0 } active' README.md > "$work/tour"

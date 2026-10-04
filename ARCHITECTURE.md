@@ -1,13 +1,7 @@
 # Panackelty architecture
 
-Website review builds and production share `scripts/assemble_site.sh` for
-static site/playground assembly. The Node-only `scripts/preview.cjs` website
-tool adds source identity and loopback serving; it is outside the native
-toolchain dependency boundary. [PR previews](docs/PR_PREVIEWS.md) documents the
-artifact and local author workflow. Running the tool without arguments builds
-into a fresh OS temporary directory, serves on loopback and removes its own
-files on stop or startup failure. Explicit build/serve commands preserve saved
-artifacts. No hosted preview publisher is part of this design.
+The [website repository](https://github.com/sproates/panackelty-website) owns website source, previews, release promotion
+and publication independently of native validation.
 
 ## Overview
 
@@ -79,7 +73,7 @@ The major components are:
 | VM | Executes verified instructions using isolated stack frames | Portable C11 seed in `src/vm` |
 | Runtime | Implements built-ins and the effectful host boundary | ABI contract in `src/runtime`; native implementation in `src/vm` |
 | Standard library | Defines portable core types and APIs over deterministic primitives and the host ABI | Panackelty sources in `src/stdlib` |
-| Project website | Presents the public language overview and routes readers to source documentation and releases | Dependency-free static files in `site`; deployed from protected `main` by `.github/workflows/pages.yml` |
+| Project website | Presents the public language overview and routes readers to source documentation and releases | Owned and deployed by `sproates/panackelty-website` |
 
 ## Repository layout
 
@@ -96,7 +90,6 @@ panackelty/
 │   ├── runtime/             built-ins and operating-system boundary
 │   └── stdlib/              portable modules and public core APIs
 ├── examples/                user-facing Panackelty example programs
-├── site/                    static GitHub Pages project website
 ├── tests/
 │   ├── COVERAGE.md         specification-to-test coverage matrix
 │   ├── quick_start.sh      packaged README workflow gate
@@ -106,48 +99,20 @@ panackelty/
 │   │   └── vm/             native C module and fault tests
 │   ├── runner/             Panackelty component and functional probes
 │   └── functional/         complete Panackelty program and CLI tests
-├── .github/workflows/       continuous validation, releases, and Pages deployment
+├── .github/workflows/       continuous validation and releases
 ├── ARCHITECTURE.md          this implementation description
 ├── ROADMAP.md               language and engineering initiatives
 ├── SPEC.md                  language semantics
 └── SELF_HOSTING.md          bootstrap roadmap
 ```
 
-The project website is a static artifact with an optional WebAssembly playground. Its homepage
-navigation covers capabilities, executable examples, engineering evidence,
-direction, vision and installation. Release and development-source capabilities
-are labelled separately; `/playground/` runs the development compiler and VM
-on-device using the maintained WASI profile described below. No compilation server
-or persistent REPL is involved.
-The canonical harness executes displayed examples through source and saved
-bytecode using `tests/site_examples.sh`; Pages tests also check section and
-accessible-label targets. The Pages workflow
-tests assembly and source selection on relevant pull requests without deploying.
-After successful push validation on `main`, the serialized website publisher
-restores the exact-source browser-certified website and playground. Native-only
-and documentation-only checks have no certificate and do not publish a website.
-Coverage reports are published independently by
-[`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage)
-to [a separate Pages site](https://sproates.github.io/panackelty-coverage/).
-When website bytes need rebuilding,
-the publisher downloads the browser release pinned by `site/playground.json`,
-verifies its SHA-256 and asset identity, and runs browser tests
-against the complete assembled tree before uploading it. Missing assets or failed
-browser tests stop publication. Post-deployment checks compare every playground
-asset with that tree and verify the Wasm content type.
-Browser releases are built and tested by `sproates/panackelty-browser`; website
-updates deliberately pin a version and checksum rather than following its main.
-The website owns publication and runs the integration suite from an exact
-reviewed browser repository commit. Browser application sources and contracts
-are maintained only in that downstream repository.
-The website's `publication.json` identifies its source commit and successful
-Check run. Coverage has its own source identity and deployment; missing reports
-cannot block website publishing. The old `/coverage/` and `/coverage/html/`
-entry points retain landing pages linking to the new host. Deep LLVM source URLs
-are available on that host, not mirrored under the website. Only the website
-deploy job receives `pages: write` and `id-token: write` in core.
-Node is used for Pages/browser automation and its regression tests; the
-native development, packaging and canonical validation toolchain is unchanged.
+The [website repository](https://github.com/sproates/panackelty-website) assembles static pages with a checksummed browser
+release. It runs published-native example acceptance and the pinned browser
+integration suite before publication, then verifies deployed assets and source
+identity. It keeps release selection independent of core release creation.
+Core owns native validation, the runtime bundle contract and coverage generation;
+[the coverage repository](https://github.com/sproates/panackelty-coverage) publishes
+reports independently. The website owns compatibility coverage landing pages.
 
 ## Compiler pipeline
 
@@ -844,18 +809,8 @@ Cancellable `test_run` and `package_build` matrices retain every original
 test, sanitizer, coverage and supported-platform packaging proof on the full
 route. Ordinary validation uses the same unit subtargets as `make check`;
 runtime and functional checks share a fresh session-local runner report.
-Playground and Pages PR validation use the same selector, so shared and unknown
-inputs reach browser consumers while documentation-only PRs skip their builds.
-Production Pages publication remains a separate validated-current-main workflow.
-Sanitizers and coverage run independently with their own complete instrumented
-corpus. Bootstrap retains independent seed-refresh staging. Each job builds
-its own native prerequisites: cross-job transfers would introduce a dependency
-before small builds. No persistent cache or previous test result is required.
-Bytecode conformance uploads the exact tested archive; its presence alone does not
-certify the other suites, so consumers must also require the stable package gates. Only the short result gates use `always()`, preventing superseded builds
-from staying alive and blocking new PR updates. The `validation-...` concurrency
-group isolates the rollout from earlier unconditional jobs. Releases remain fully
-validated independently of this classifier.
+Website and browser validation run independently in their own repositories;
+core validation retains native checks and package acceptance.
 
 ## VM/compiler boundary audit — 2026-09-30
 
@@ -1009,23 +964,10 @@ browser build workflow remains in core. Native validation and bundle conformance
 remain core responsibilities; a deliberate downstream dependency update runs
 browser compatibility checks when core changes are adopted.
 
-Core owns website publication and coverage generation; the independent coverage
-repository owns report publication. `site/playground.json` selects
-the browser archive by tag, digest and asset identity. Pages downloads and
-verifies it, checks out the browser integration suite at an exact reviewed SHA,
-and runs all 24 browser scenarios against the assembled website before deploying.
-Both the artifact pin and suite revision require review when behavior changes.
-No browser compilation or native oracle is needed in Pages. Published-byte,
-Wasm MIME, navigation and website-provenance checks remain deployment gates.
-
-PR selection uses the shared component map: website, package, shared and unknown
-inputs retain Pages checks; isolated native components and examples do not
-provision engines for a pinned external product. Production always requires a
-successful browser gate or trusted, fingerprint-identical certified bytes.
-Browser engines come from the digest-pinned prepared Playwright image; matching
-package/image versions and the locked dependency install are required.
-The browser repository documents runtime bounds,
-unsupported hosts, content-addressed caching and physical-device limitations.
+The [website repository](https://github.com/sproates/panackelty-website) owns website validation/publication and reviewed
+browser pins. Core owns coverage generation and native/bundle conformance.
+Core CI never provisions browser engines or deploys a website. Downstream
+repositories retain their own runtime compatibility and publication gates.
 
 The original preparation and delivery shipped in PRs #113 and #115. The historical
 experiment below retains its original measurements and caveats.
@@ -1352,41 +1294,11 @@ investigation and timings above describe the pre-repair revision.
 
 ## Website validation and coverage publication boundary
 
-The website consumes an explicit downstream browser release, independent of
-native compiler/VM changes. The four-file static-site allowlist selects the
-website route: Check prepares the website, runs all 24 browser scenarios in the
-digest-pinned environment, and certifies bytes only on success. Required named
-gates depend on website success; native matrices are skipped on this route.
-Shared/publisher/mixed changes retain full native checks and applicable website
-validation in parallel. Native-only changes require native success and an explicit
-website skip. Missing applicability fails closed.
-
-Pages defers PR/push validation to Check. Automatic publication ignores obsolete
-trigger SHAs, requires exact-current-main successful Check, and consumes only
-that source's `checked-website` certificate. Absence of a certificate is a no-op
-for core/docs-only checks, never permission to build a website. Fingerprint
-mismatch, bundled report files and symlinks reject restoration. PR artifacts
-cannot seed production. A main advance before packaging fails publication.
-
-Manual main dispatch can reuse a matching artifact from trusted successful main
-Pages history, or build and validate when no matching identity exists. Expired
-artifacts and API failures fail closed; `rebuild_website=true` explicitly bypasses
-reuse for maintenance/cold measurements. Serialized publication records website
-SHA and Check run in `publication.json`. An automatic duplicate compares that
-record; exact matches skip transfer and deployment. Missing live identity causes
-publication; lookup errors remain errors. Live verification checks website entry
-points, local navigation, every playground asset, Wasm MIME and website identity.
-
-Core still generates and archives native coverage in Check. The independent
-[`panackelty-coverage`](https://github.com/sproates/panackelty-coverage) repository
-selects successful trusted main reports, publishes the report with its source
-identity, and verifies every report file. Its scheduled/manual publisher uses
-its built-in GitHub token for public artifact reads. There is no cross-repository
-secret or report download in website publication. Coverage freshness does not
-depend on a newer website passing validation. The website keeps two compatibility
-landing pages, not a copy of the report. See
-[publication and maintenance](tests/README.md#public-coverage-publication).
-
+Website source, release pins and publishing live in the [website repository](https://github.com/sproates/panackelty-website).
+Core CI has only documentation and full-native routes; every non-document input
+retains native validation and package gates. Its release workflow creates core
+releases without promoting them on the website. Coverage generation remains in
+core and publication remains in its separate coverage repository.
 
 ## U1 source-mapping feasibility decision, 2026-10-02
 

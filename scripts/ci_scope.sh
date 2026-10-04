@@ -8,7 +8,6 @@ format=route
 if [[ "${1-}" == --plan ]]; then format=plan; shift; fi
 route=docs
 components=' '
-pages_required=false
 add_component() {
     case "$components" in *" $1 "*) ;; *) components="$components$1 " ;; esac
 }
@@ -16,22 +15,17 @@ emit() {
     if [[ "$format" == route ]]; then
         printf '%s\n' "$route"
     else
-        pages=$pages_required
         printf 'route=%s\n' "$route"
-        printf 'pages=%s\n' "$pages"
         printf 'components=%s\n' "${components:1:${#components}-2}"
         if [[ "$route" == docs ]]; then
             printf 'checks=documents,links,whitespace\n'
-        elif [[ "$route" == website ]]; then
-            printf 'checks=documents,links,whitespace,website-automation,release-integrity,browsers\n'
         else
             printf 'checks=documents,links,whitespace,compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages'
-            if [[ "$pages" == true ]]; then printf ',pages'; fi
             printf '\n'
         fi
     fi
 }
-full() { pages_required=true; route=full; add_component unknown; emit; exit 0; }
+full() { route=full; add_component unknown; emit; exit 0; }
 valid_revision() {
     [[ "$1" =~ ^([0-9a-fA-F]{40}|[0-9a-fA-F]{64})$ ]] &&
         git cat-file -e "$1^{commit}" 2>/dev/null
@@ -63,14 +57,9 @@ else
 fi
 count=0
 while IFS= read -r -d '' path; do
-    if [[ $(validation_pages_path "$path") == true ]]; then pages_required=true; fi
     component=$(validation_component "$path")
     add_component "$component"
-    if validation_website_only_path "$path"; then
-        [[ "$route" != docs ]] || route=website
-    else
-        case "$component" in documentation|process) ;; *) route=full ;; esac
-    fi
+    case "$component" in documentation|process) ;; *) route=full ;; esac
     for revision in "$base" "$head"; do
         entry=$(git --literal-pathspecs ls-tree "$revision" -- "$path") || full
         mode=${entry%% *}

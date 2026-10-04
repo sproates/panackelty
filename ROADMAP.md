@@ -118,7 +118,7 @@ release; existing publication correctness defects retain their separate treatmen
 | --- | --- | --- |
 | Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. All validation passes; both timing targets remain missed. [Exact inputs, counts and limitations](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. Proposed disposition: accept the measurement baseline, retaining unchanged targets and coverage. Delivery owner retains GI#106 until a baseline maintainer accepts handover. Next: attribute the representative critical path, then compare a separately selected reuse candidate against this pinned matrix; review remediation scope before the next affected compiler delivery. No optimisation or causal regression claim is made. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
-| Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty/issues/187) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
+| Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
 The controlled baseline now establishes applicable full/focused observations; both
 targets remain missed. Earlier PR#262 timings remain historical evidence, not a
@@ -766,7 +766,10 @@ acceptance and live publication are complete; no acceptance remains.
 
 <a id="rm-8"></a>
 
-**RM#8: Website CI follow-ups** · [GI#187: Website CI follow-ups](https://github.com/sproates/panackelty/issues/187).
+**RM#8: Website CI follow-ups** · [Website GI#3: Website CI follow-ups](https://github.com/sproates/panackelty-website/issues/3).
+
+Active ownership is now the [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#rm-8)
+and Website GI#3. The dated core evidence below is retained as history.
 
 **User decision, 2026-10-02:** the delivered website and separate browsable
 coverage site are good enough for now. Accept the delivered outcome and shelve
@@ -788,7 +791,7 @@ requirements; its active-priority and ledger statements are historical and are
 superseded by this decision.
 
 **In progress; high priority.** Work record:
-[#187](https://github.com/sproates/panackelty/issues/187). On 2026-10-01 the user
+[#187](https://github.com/sproates/panackelty-website/issues/3). On 2026-10-01 the user
 selected this maintenance item before the next substantial programme #180
 feature. Repeated website setup delays affect every relevant edit and have also
 held up compiler delivery. Finish existing delivery and correctness obligations;
@@ -1294,7 +1297,7 @@ proposal is superseded; no hosting provider or contributor account is required.
 PR #161 delivers shared assembly, a checksummed portable build, loopback serving
 and a tested CI artifact. The follow-up adds one-command build/start with fresh
 temporary output, stop/cleanup and explicit rebuild instructions. See
-[the local workflow](docs/PR_PREVIEWS.md).
+[the local workflow](https://github.com/sproates/panackelty-website#develop-and-preview).
 
 **Done: PR #171 merged on 2026-10-01; #160 is closed.** Local validation passes: 24 website tests, complete
 site assembly, a real default-command HTTP/Wasm/start-stop check, and canonical
@@ -1531,7 +1534,7 @@ sequencing decision changes no other programme scope, weights or priorities.
 
 Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 
-State: **In progress — selected by the owner on 2026-10-05**.
+State: **Verification pending — standalone publishing delivered; production cutover/live acceptance pending**.
 Scope: maintenance. Website separation is the current implementation priority.
 The public `sproates/panackelty-website` repository has been created with an
 owner-authorised empty base commit; all website content goes through reviewed
@@ -1540,33 +1543,25 @@ conversation resolution and linear history, with force pushes/deletion disabled.
 The same owner-review exception applies only to `sproates` through PRs;
 independent review and explicit approval of each merge remain required.
 
-The first delivery prepares standalone source, release pins, validation and
-previews. The existing publisher remains authoritative until staged hosting,
-URL/asset preservation and rollback are verified and the cutover is approved.
-Repository setup alone does not satisfy migration acceptance. The separate
-GI#187 timing/scheduling follow-up remains deferred; this selection does not
-restart its broader scope.
+[Website PR#1: Standalone website](https://github.com/sproates/panackelty-website/pull/1) merged as `66fb316`.
+Independent release/archive checks, previews, browser integration and protected
+publication are delivered. This retirement slice removes core website source,
+validation coupling and the old Pages writer. Production cutover, exact URL/asset
+verification and rollback evidence remain acceptance requirements; GI#178 stays
+open until those checks finish. The website owns [deferred CI work](https://github.com/sproates/panackelty-website/issues/3);
+its broader trials remain deferred.
 
 Sequencing decision, 2026-10-04: complete and accept this repository separation
 before activating [RM#135: Next integration workflow](#rm-135). That workflow
 also waits for the next release; this records no ordering between those two
 prerequisites. Migration is now selected; the `next` workflow remains unstarted.
 
-Website edits still share core validation and website publication through
-`.github/workflows/pages.yml`, despite consuming a pinned browser release.
-Coverage already has an independent publisher; preserve its compatibility URLs.
-The user reports that simple website publication can take half an hour; current
-hosted timings need measuring. This slows content corrections and site work.
-
-Move pages, assets, public documentation and their publishing workflow into
-`sproates/panackelty-website`. Keep the compiler, VM, specification and runtime
-bundle contract in core, and browser adaptation/playground releases in
-`sproates/panackelty-browser`. The site explicitly pins tested browser artifacts
-and advertised native releases. A new core or browser release must not change
-the live site until a separately reviewed website update is published.
-Release notes are an intentionally promoted snapshot, and installer source and
-requested release must be pinned too; following core `main` would violate this
-boundary. The existing installer command needs that correction during migration.
+The [website repository](https://github.com/sproates/panackelty-website) owns pages, assets, release-note snapshots,
+previews and publishing. Compiler, VM, specification and runtime bundle contracts
+remain core responsibilities. Browser adaptation and releases remain in the
+browser repository; coverage remains independently published. Core release
+creation cannot update the website: a separate reviewed website PR promotes
+native/browser artifacts, recorded notes and immutable installer/version pins.
 
 Acceptance for this migration:
 
@@ -1634,16 +1629,9 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   support changes. See [acceptance evidence](tests/VALIDATION_PROFILE.md).
 
 - <a id="rm-119"></a>**RM#119: Cookie-free website analytics** ·
-  [GI#252: Cookie-free website analytics](https://github.com/sproates/panackelty/issues/252) — Idea / unscheduled.
-  Add basic aggregate visits, page views, popular pages and referrers, provisionally
-  using free Cloudflare Web Analytics with existing GitHub Pages hosting and DNS.
-  Acceptance: verify a configuration requiring no cookies or consent banner under
-  applicable rules; exclude fingerprinting, advertising, cross-site tracking,
-  playground contents and sensitive URL data. Provide an accurate footer privacy
-  notice, production-only collection, reviewed website preview and live dashboard
-  verification after authorised deployment. Account setup or the public snippet
-  is a prerequisite; no account API key belongs in the repository. Small: one
-  website PR plus setup and verification. Recording this starts no implementation.
+  [Website GI#2: Cookie-free website analytics](https://github.com/sproates/panackelty-website/issues/2) — Website-owned; see the [canonical website record](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#rm-119).
+  Core programme/release prerequisites remain in their original records; this
+  ownership move neither starts deferred work nor changes programme weights.
 
 - <a id="rm-118"></a>**RM#118: Website installation command parity** ·
   [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250) — **Done**.
@@ -1658,16 +1646,9 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   succeeded; the live installation section matched the merged source exactly.
   See [verification evidence](tests/VALIDATION_PROFILE.md#website-installation-command-parity--2026-10-04).
 
-- <a id="rm-102"></a>**RM#102: Source-map website adoption** — U2 public source-map commands under [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180): dedicated examples/documentation pending; owner: programme
-  delivery author. The browser still advertises v0.1.1; alpha.11 is the published native
-  supporting release and is adopted by native downloads/installer through PR #272.
-  Dedicated source-map documentation and example acceptance remain pending. Next,
-  consider CLI documentation and a validated lookup example, stating exact-source
-  reproduction, unavailable fallback, lookup cost and full-source sidecar privacy.
-  Browser examples remain unchanged. Do not advertise
-  automatic runtime explanations. Acceptance requires checking the example against
-  the adopted artifacts and verifying the published pages. Recording this entry
-  does not start website work; U9's broader positioning remains separate.
+- <a id="rm-102"></a>**RM#102: Source-map website adoption** — Website-owned; see the [canonical website record](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#rm-102).
+  Core programme/release prerequisites remain in their original records; this
+  ownership move neither starts deferred work nor changes programme weights.
 
 - [RM#8: Website CI follow-ups](#rm-8) — **Separate coverage host:** website cutover and independent manual report
   refresh verified; owner: delivery author. PR #203 / Pages `36935939432` passed
@@ -1677,36 +1658,21 @@ correctness defects under the separate [website process](docs/ROADMAP_PROCESS.md
   Automatic scheduling, core-only no-publication and timing acceptance remain
   open but deferred under #187 by user decision; they no longer block other work.
 
-- <a id="rm-103"></a>**RM#103: Corrective compiler release adoption** — follow-up to [GI#182: Guard-fact correctness repair](https://github.com/sproates/panackelty/issues/182): owner is the #180 delivery author until
-  handed over. The published v0.1.1 playground compiler has the same SHA-256 as
-  the affected core seed; plan a corrective compiler/browser release and explicit
-  website pin update after the core repair is merged and released. Alpha.11
-  is the published native corrective release; browser adoption remains unassigned. Review static-safety and guarded-type claims against the actual
-  published runtime; the homepage's literal guarded-type example does not exercise
-  the reproduced mutation defect. Keep this follow-up open through public
-  verification that the unsafe examples are rejected and valid examples still run.
-  Recording it does not start browser implementation or imply browser adoption.
+- <a id="rm-103"></a>**RM#103: Corrective compiler release adoption** — Website-owned; see the [canonical website record](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#rm-103).
+  Core programme/release prerequisites remain in their original records; this
+  ownership move neither starts deferred work nor changes programme weights.
 
-Record concrete follow-ups here until ownership moves explicitly to the website
-repository. Each entry needs the source issue/PR, affected pages and claims,
-currently advertised version, target version or release prerequisite, required
-update, correctness assessment, owner, state and acceptance evidence. Use a
-linked issue for detail; retain enough information here if GitHub is unavailable.
-Never mark an update complete merely because its PR merged: verify the live site.
+Record core release prerequisites here and link concrete website work to the
+[website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md). The website owns its pages,
+claims, promotion and live acceptance; core programme weights remain unchanged.
 
-- <a id="rm-104"></a>**RM#104: Explanation website adoption** — **U3 subtraction and local effect explanation CLI:** examples/documentation pending; owner is the core
-  delivery author until release/adoption handover. After a supporting native
-  release, update command examples and feature claims with the bounded
-  Nat-subtraction and local call/await effect scope, whole-program/local-boundary
-  distinction and unavailable cases. After a release supporting
-  [RM#107: Per-function effect recovery](#rm-107), explain valid sibling recovery,
-  global declaration gating, invalid-function unavailability and unchanged original
-  diagnostics. Alpha.11 is published and adopted by native downloads/installer
-  through PR #272; dedicated explanation examples remain pending. Explain declared/callable effects without
-  implying a transitive effect graph or runtime execution. Browser support must be verified separately before advertising it.
-  The native version promotion does not complete those examples or browser
-  adoption. Broader demonstrations remain in U9.
-- [RM#11: Programme website demonstrations](#rm-11) — **Final website refresh (U9):** promotion pending; owner is the
+- <a id="rm-104"></a>**RM#104: Explanation website adoption** — Website-owned; see the [canonical website record](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#rm-104).
+  Core programme/release prerequisites remain in their original records; this
+  ownership move neither starts deferred work nor changes programme weights.
+
+- [RM#11: Programme website demonstrations](#rm-11) — Website implementation is
+  tracked in the [website roadmap](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md#rm-11);
+  programme acceptance and weights remain here. **Final website refresh (U9):** promotion pending; owner is the
   maintainer delivering #180 until explicitly handed over. Affected
   surfaces: homepage capabilities, learning examples and playground where supported.
   Refresh the marketing blurb and capability presentation using U9 acceptance

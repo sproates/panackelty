@@ -289,8 +289,9 @@ For every core change and release, the author must assess whether the
 website needs an update. Consider syntax, APIs, semantics, examples, supported
 platforms, installation commands, download links and version/feature claims.
 Record the outcome in the PR: no impact with a reason, or a link to a concrete
-entry in the [website follow-up register](../ROADMAP.md#website-follow-up-register).
-An existing entry can be updated rather than duplicated. Record it in the same
+website issue or [website roadmap entry](https://github.com/sproates/panackelty-website/blob/main/ROADMAP.md),
+with core prerequisites linked from the [handover register](../ROADMAP.md#website-follow-up-register).
+An existing entry can be updated rather than duplicated. Record its ownership link in the same
 PR as the core change, before completion handover; do not leave it only in chat.
 The author owns recording and handover until a named maintainer accepts
 ownership. An unknown release version must be recorded as a prerequisite, not
@@ -304,7 +305,7 @@ Distinguish two cases:
 - **Correctness defect:** an existing link is broken, an example fails for its
   advertised version, or a published claim is false or misleading. Record a defect
   promptly and bring the correction to the user for prioritisation. Do not treat
-  it as harmless version lag or wait for the repository split. If a proposed
+  it as harmless version lag. If a proposed
   release or asset change would break the current site, preserve the existing
   contract or coordinate a verified correction before that change is published.
 
@@ -324,8 +325,9 @@ withdrawal is necessary, coordinate replacement or removal of affected links
 before withdrawal. Keep correction work open until live verification confirms
 links, examples, version labels and relevant claims are accurate.
 
-This is a contribution and review requirement now. Automated website gates and
-independent publishing are tracked under [RM#14: Independent website publishing](../ROADMAP.md#rm-14).
+The website repository owns its automated gates, source, release promotion and
+publishing. Core release creation does not trigger website publication. Migration
+acceptance is tracked under [RM#14: Independent website publishing](../ROADMAP.md#rm-14).
 
 ## Review and completion
 

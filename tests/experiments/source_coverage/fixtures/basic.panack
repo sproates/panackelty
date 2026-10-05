@@ -1,0 +1,18 @@
+import "lib/helper.panack"
+
+pure choose(flag: Bool): Nat {
+  if flag {
+    7
+  } else {
+    9
+  }
+}
+pure unused(): Nat {
+  99
+}
+main(): Nat {
+  a: Nat = choose(true)
+  b: Nat = choose(false)
+  c: Nat = identity[Nat](a)
+  c + b
+}

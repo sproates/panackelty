@@ -1,0 +1,6 @@
+pure identity[T](value: T): T {
+  value
+}
+pure unused_import(): Nat {
+  123
+}

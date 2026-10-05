@@ -130,6 +130,15 @@ deliveries must present a mitigation, justified trade-off or owned remediation
 proposal for explicit acceptance with merge approval; copying a warning is not acceptance. See
 [the recorded measurements and limits](tests/VALIDATION_PROFILE.md#namespace-raw-references-and-binding-resolution--2026-10-04).
 
+The GI#131 feasibility delivery adds an isolated experiment, not production
+instrumentation or a new canonical-check workload. Its
+[cost evidence and validation limits](tests/VALIDATION_PROFILE.md#source-coverage-feasibility--2026-10-05)
+retain the existing GI#106 owner, targets and next action. The local two-worker
+attempt failed at runner-smoke; the supported single-worker canonical retry
+passed in 343s, still above the full budget. Hosted correctness evidence is
+required in the delivery PR before integration.
+Accept only the bounded experiment cost; no existing performance concern closes.
+
 ### Finite core establishment tranche
 
 Provisional scope-based estimates established on 2026-10-04 total 100%. The larger shares
@@ -3177,26 +3186,40 @@ its own verification; do not turn on every available feature by default.
 
 **RM#46: Panackelty source coverage** · [GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131).
 
-Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131). State: Idea; implementation
-unscheduled. See the [current comparison](#proposed-first-step) for first-slice
-estimates and recommendation.
+Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131).
+**First feasibility slice selected on 2026-10-05; delivered on this PR's merge
+to `next`.** The owner selected this bounded experiment; production collection,
+publication and gap closure remain unscheduled. GI#131 remains open. Promotion
+to `main` requires separate approval.
+
+The [reproducible experiment and design decision](tests/experiments/source_coverage/README.md)
+establish exact small-fixture instruction attempts, function entries and direct
+expression-start-line reach, including unused/imported code. Tests distinguish
+lowering, erased generics, short-circuit/match behavior, recursion, async
+suspension, traps, stale/forged identity and incomplete collection. Nested
+bytecode and nested compiler execution preserve behavior but explicitly report
+missing child observation. Select sidecar identity plus future shared-dispatch
+counters; add a versioned executable-source inventory before any source-line
+percentage. Source-branch identities remain separate unfinished work. A bytecode
+format migration is not justified by this slice. Collection and publication are
+provisionally 2–3 further PRs; gap closure remains unestimated.
 
 **Urgency: High — user decision, 2026-10-04.** As the language grows, missing
 measured `.panack` compiler, tooling and library coverage makes source line,
 function and branch reach harder to assess; existing tests and C coverage do
 not establish it. Bring the bounded source-mapping and measurement feasibility
-slice forward for consideration at the next work review. State remains
-**Idea / unscheduled**: this urgency change starts no implementation, displaces
-no current programme work and changes no programme weights or deadlines.
+slice forward for consideration at the next work review. That urgency decision
+alone started no implementation; the later explicit first-slice selection above
+supersedes its unscheduled state without changing other programme weights.
 
 The public LLVM report measures the native C VM only. Existing `.panack` tests
 exercise the compiler and libraries, but there is no measured source-line or
 branch baseline for those files. Publishing C coverage did not close this gap.
 
-The frontend already carries source positions; the emitted `FunctionCode` and
-current v9 bytecode contract do not carry an instruction-to-source map.
-Coverage therefore requires compiler/bytecode/VM design, not just an HTML export.
-Reuse the [planned mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
+The delivered U2 sidecars carry validated instruction/source mappings; executable
+v9 bytecode remains unchanged. Coverage requires additional compiler/VM design,
+not just an HTML export. Reuse the
+[delivered mapping foundation](#source-to-bytecode-mapping-foundation--planned-shared-milestone)
 where its validated contract fits; coverage denominators, source branches and
 counter correctness remain separate acceptance requirements.
 Compare deterministic sidecar metadata with a versioned bytecode extension;
@@ -3219,14 +3242,14 @@ Provisional PR boundaries (split further if feasibility or review size requires)
    while it compiles programs, bytecode tooling and standard-library execution,
    including relevant compiler/functional/bootstrap paths. Account for unexecuted
    eligible files, test infrastructure, generated code and intentional exclusions.
-   Publish separate source reports through the existing coordinated Pages flow,
+   Publish separate source reports through the independent coverage host,
    with commit/source identity, suite scope, denominator and freshness visible.
 4. **Risk-ranked gap closure and regression policy.** Turn uncovered behaviors
    into bounded test PRs; validate the assertions, not just execution counts.
    Select per-component change/regression policy after a credible baseline exists,
    with reviewed exclusions and no invented universal percentage requirement.
 
-- [ ] Complete the design/feasibility decision and bound the initial scope
+- [x] Complete the design/feasibility decision and bound the initial scope (on this slice's merge)
 - [ ] Establish independently checked source mapping and counter correctness
 - [ ] Record source-line/function coverage for the agreed `.panack` scope
 - [ ] Record source-branch coverage, or explicitly track it as unfinished if a

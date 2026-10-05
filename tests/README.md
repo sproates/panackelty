@@ -551,6 +551,13 @@ Node 24+ in addition to the native toolchain. It is separate from interpreter-fr
 See [the experiment](experiments/source_mapping/README.md) for its exact scope,
 trust boundary and printed size/timing evidence.
 
+`make source-coverage-experiment` runs the bounded GI#131 feasibility harness
+with the same Node/native requirements and isolated compiler CI placement.
+It verifies exact instruction attempts, function entries, expression-start-line
+reach, identity failures and incomplete collection, then prints cost samples.
+See its [decision and denominator limits](experiments/source_coverage/README.md).
+This is neither a production collection command nor a suite coverage baseline.
+
 
 `compiler_source_spans_unit.panack` checks frontend expression spans with fixed
 Unicode code-point/line/column expectations and nested range traces. It runs with

@@ -95,6 +95,10 @@ jobs:
         if: matrix.suite == 'compiler'
         run: make runtime-provenance-experiment
 
+      - name: Test bounded source-coverage feasibility
+        if: matrix.suite == 'compiler'
+        run: make source-coverage-experiment
+
       - name: Test bounded semantic-impact experiment
         if: matrix.suite == 'compiler'
         run: make semantic-impact-experiment

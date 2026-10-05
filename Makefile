@@ -433,6 +433,15 @@ ci-conformance-bytecode: native
 	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 	@$(MAKE) --no-print-directory quick-start
 
+# Bounded source-coverage counters; no production instrumentation or report ABI.
+.PHONY: source-coverage-experiment
+source-coverage-experiment: native $(BUILD_DIR)/experiments/source-coverage-vm
+	@node tests/experiments/source_coverage/run.cjs "$(BUILD_DIR)/experiments/source-coverage-vm"
+
+$(BUILD_DIR)/experiments/source-coverage-vm: tests/experiments/source_coverage/probe.c src/vm/execute.c $(VM_LIBRARY_OBJECTS)
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< $(filter-out $(BUILD_DIR)/vm/execute.o,$(VM_LIBRARY_OBJECTS)) -o "$@" $(LDLIBS)
+
 # Native-PC evidence against the production source-map CLI; no production trace ABI.
 .PHONY: source-mapping-experiment
 source-mapping-experiment: native $(BUILD_DIR)/experiments/source-mapping-vm

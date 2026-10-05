@@ -6,6 +6,61 @@
 
 # Validation profiling baseline
 
+## Source-coverage feasibility — 2026-10-05
+
+Base: `7599b30` on `next`, Linux x86-64, `cc -O2`, Node 24.19.0. The test-only
+`make source-coverage-experiment` passes **68 explicit checks** in **7.28s wall**
+(6.54s user, 0.77s system), including building its observer with native libraries
+already built. The ordinary VM, compiler, bootstrap seed and bytecode format are
+unchanged. The new target runs separately in Linux/macOS compiler CI jobs and
+is not added to the canonical native `make check` workload.
+
+| Observation | Five samples | Median |
+| --- | --- | --- |
+| Ordinary small-fixture compilation, wall ms | 111.777, 166.996, 119.366, 119.141, 186.299 | 119.366 |
+| Mapped compilation, wall ms | 135.752, 164.089, 151.381, 161.724, 149.022 | 151.381 |
+| Bulk loop execution, CPU seconds | 0.044578, 0.042063, 0.045198, 0.039585, 0.045444 | 0.044578 |
+| Counted single-step loop, CPU seconds | 0.055882, 0.058227, 0.049971, 0.050097, 0.062538 | 0.055882 |
+
+Samples were taken without other local validation running. Runtime order
+alternates each round; compile pairs are ordinary then mapped. The mapped
+compile median is approximately 27% higher and the counted execution median
+approximately 25% higher for these fixtures. Neither is a production regression:
+the map already exists, and only the experimental observer counts. Five small
+shared-host samples do not establish general overhead bounds. The future
+in-dispatch collector must measure its own enabled/disabled costs.
+
+The basic fixture artifact is **217 bytes**, its complete-source sidecar is
+**3,481 bytes**, and the observer's extra counter/index tables use **688 bytes**.
+These are measured sizes, not process RSS. Fixed allocation is also asserted
+unchanged between a two-step prefix and the complete 30,000-iteration loop.
+Execution CPU samples exclude report output and artifact decoding; the full
+target wall time includes them. The nested compiler preserves exact output
+bytes but is explicitly not counted. See the
+[experiment decision and limits](experiments/source_coverage/README.md).
+
+The local environment lacked an external `time`. A scratch-only executable
+adapter using Bash's real `time -p` accounting passed the existing timing and
+failure-propagation contracts without changing repository tests. A generated
+root VM lost its executable mode during the initial build attempt; restoring
+that generated binary's mode allowed validation to proceed. A later two-worker
+canonical attempt reached the existing runner-smoke failure at **416s** (unit
+384s); the bounded runner has a 90s subprocess deadline. The supported
+`VALIDATION_JOBS=1 make check` retry **passed in 343s**, including unit (227s),
+functional, bootstrap fixed points, seed refresh, release smoke and quick start.
+This used the already built native toolchain and probe cache from the earlier
+attempt, so it is not a clean reference-environment benchmark. Hosted checks
+remain required before integration. No timeout, assertion or coverage gate was
+relaxed.
+
+Disposition: retain the existing **120s full / 15s focused** targets and open
+GI#106 performance work; accept the isolated feasibility-target cost if final
+correctness checks pass. The validation maintainer retains the existing
+loader/core reuse assessment next action. This slice changes no production
+compiler or runtime path and makes no claim to resolve those budget breaches.
+Environment setup should preflight external timing and generated executable
+availability; a validation-policy bypass would not address that setup friction.
+
 ## U3 local effect explanations — 2026-10-03
 
 Baseline `46bccfa` and the candidate seed compiled the exact baseline compiler

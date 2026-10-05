@@ -10,10 +10,22 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  source_policy_tests:
+    name: Source coverage policy tests
+    needs: changes
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: node --test tests/source_coverage/reader.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/route.test.cjs
+
   source_coverage:
     name: Source coverage baseline (next)
     needs: changes
-    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/next') && !cancelled()
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && needs.changes.outputs.source_coverage == 'true' && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -42,6 +54,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       route: ${{ steps.scope.outputs.route }}
+      source_coverage: ${{ steps.scope.outputs.source_coverage }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
@@ -56,11 +69,16 @@ jobs:
         env:
           CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CI_SOURCE_EVENT: ${{ github.event_name }}
+          CI_SOURCE_BASE: ${{ github.event.pull_request.base.ref }}
+          CI_SOURCE_REF: ${{ github.ref }}
+          CI_SOURCE_MESSAGE: ${{ github.event.head_commit.message }}
         shell: bash
         run: |
           plan=$(bash scripts/ci_scope.sh --plan "$CI_BASE_SHA" "$CI_HEAD_SHA")
           printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
           printf '%s\n' "$plan" >> "$GITHUB_STEP_SUMMARY"
+          node scripts/source_coverage_route.cjs >> "$GITHUB_OUTPUT"
 
       - name: Check informational documents
         env:
@@ -272,7 +290,7 @@ jobs:
         run: sh scripts/ci_gate.sh
 
   test:
-    needs: [changes, test_run]
+    needs: [changes, test_run, source_policy_tests, source_coverage]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -284,3 +302,10 @@ jobs:
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.test_run.result }}
         run: sh scripts/ci_gate.sh
+      - name: Require applicable source coverage checks
+        env:
+          CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
+          CI_SOURCE_REQUESTED: ${{ needs.changes.outputs.source_coverage }}
+          CI_SOURCE_POLICY_RESULT: ${{ needs.source_policy_tests.result }}
+          CI_SOURCE_COLLECTION_RESULT: ${{ needs.source_coverage.result }}
+        run: node scripts/source_coverage_route.cjs --gate

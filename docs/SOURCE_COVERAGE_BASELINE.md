@@ -122,7 +122,16 @@ before this SC6 candidate is accepted.
 
 ## Publication boundary
 
-Core Check runs on `next` pushes and PRs. Its separate source job creates
+Core Check runs on `next` pushes and PRs. Full source collection runs automatically
+only for full-validation PRs targeting `main`; ordinary `next` PRs and pushes run
+the fast reader/policy/routing tests without collecting the corpus. An explicit
+`next` refresh push opts in by including `[source-coverage]` in its head commit
+message (for example `git commit --allow-empty -m 'Refresh report [source-coverage]'`
+followed by `git push origin next`). This is an intentional expensive report
+refresh, not a requirement for a task slice. Promotion still requires separate
+owner approval. Documentation-only changes retain the short route.
+
+The separate source job creates
 `source-coverage-RUN_ID` only after collection succeeds. The independent
 publisher selects a successful trusted **push to `next`**, not a PR/fork run,
 checks ancestry, artifact identity, expiry, summary completeness and monotonic

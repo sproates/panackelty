@@ -277,10 +277,11 @@ bash scripts/check_docs.sh >/dev/null
 echo 'CI routing, stable-result guards and documentation checks passed.'
 # Only short result gates may be unconditional. Real work must be cancellable.
 awk '
-/^  (package|test):$/ { gate=1; heavy=0; next }
+/^  (package|test):$/ { gate=1; heavy=0; name=$1; next }
 /^  (package_build|test_run):$/ { gate=0; heavy=1; next }
 /^  [a-z_]+:$/ { gate=0; heavy=0 }
-gate && /^    needs: \[changes, (package_build|test_run)\]$/ { dependencies++ }
+gate && name=="package:" && /^    needs: \[changes, package_build\]$/ { dependencies++ }
+gate && name=="test:" && /^    needs: \[changes, test_run, source_policy_tests, source_coverage\]$/ { dependencies++ }
 gate && /^    if: always\(\)$/ { guards++ }
 gate && /^    timeout-minutes: 2$/ { bounds++ }
 heavy && /^    needs: changes$/ { work_dependencies++ }

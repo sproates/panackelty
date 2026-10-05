@@ -22,7 +22,7 @@
   ],
   "functional": [
     "hello_world", "async_await", "callables", "collections", "core_methods", "records_and_enums",
-    "stdlib", "rational_unit", "modules", "optional_else", "semicolonless", "local_inference"
+    "stdlib", "rational_unit", "modules", "optional_else", "semicolonless", "local_inference", "host_types"
   ],
   "compiler": ["bootstrap-fixed-point", "check-hello-world", "disasm-hello-world"],
   "omitted": [

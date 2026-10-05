@@ -1,4 +1,7 @@
 import stdlib/testing
+import stdlib/option
+import stdlib/result
+import stdlib/time
 
 record SortEntry { key: Nat, label: Str }
 pure nat_less(left: Nat, right: Nat): Bool { left < right }
@@ -48,7 +51,19 @@ main(): Void {
     test_expect("Unicode boundary", "aλ🙂".ends_with("λ🙂"), "wrong code-point offset"),
     test_expect("Unicode mismatch", !"aλ🙂".ends_with("a🙂"), "unexpected match"),
     test_expect("combining code point", "é".ends_with("́"), "expected code-point match"),
-    test_expect("no normalization", !"é".ends_with("é"), "unexpected normalization")
+    test_expect("no normalization", !"é".ends_with("é"), "unexpected normalization"),
+    test_expect("Some keeps zero", option_value_or[Nat](Some(0), 99) == 0, "used fallback for Some"),
+    test_expect("None uses fallback", option_value_or[Nat](None(), 99) == 99, "lost fallback"),
+    test_expect("Some keeps empty text", option_value_or[Str](Some(""), "fallback") == "", "treated empty as absent"),
+    test_expect("Ok keeps zero", result_value_or[Nat,Str](Ok(0), 99) == 0, "used fallback for Ok"),
+    test_expect("Error uses fallback", result_value_or[Nat,Str](Error("failure"), 99) == 99, "lost error fallback"),
+    test_expect("Ok keeps empty text", result_value_or[Str,Nat](Ok(""), "fallback") == "", "treated empty as failure"),
+    test_expect("duration ratio exact", duration_ratio(duration_nanoseconds(3), duration_nanoseconds(2)) == Ok(3/2), "rounded ratio"),
+    test_expect("duration ratio negative denominator", duration_ratio(duration_nanoseconds(3), duration_nanoseconds(-2)) == Ok(-3/2), "lost sign"),
+    test_expect("duration ratio zero denominator", duration_ratio(duration_nanoseconds(3), duration_nanoseconds(0)) == Error(ZeroDurationDivisor()), "accepted zero denominator"),
+    test_expect("duration ratio zero numerator", duration_ratio(duration_nanoseconds(0), duration_nanoseconds(2)) == Ok(0/1), "wrong zero ratio"),
+    test_expect("duration divide natural zero", duration_divide(duration_nanoseconds(3), 0) == Error(ZeroDurationDivisor()), "accepted natural zero"),
+    test_expect("duration divide signed zero", duration_divide(duration_nanoseconds(3), duration_ticks(duration_nanoseconds(0))) == Error(ZeroDurationDivisor()), "accepted signed zero")
   ]
   if test_report(results) > 0 { process_exit(1) }
 }

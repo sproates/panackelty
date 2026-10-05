@@ -1514,3 +1514,13 @@ an atomic `current` symlink rename (GNU/BSD platform-specific flags), and provid
 an owned command link without editing shell profiles. Offline harness cases
 exercise failure/recovery contracts; `tests/release_installer.sh` runs the README
 program through a real downloaded release on both supported CI targets.
+
+## SC2 executable-source inventory
+
+`src/compiler/source_inventory.panack` traverses retained original module syntax
+before lowering, with separate function, expression, statement, decision, outcome
+and explicit exclusion identities. The opt-in driver commands inventory explicit
+source roots and their closures without execution. Exact compiler/artifact/source
+envelopes are regenerated locally for validation; foreign metadata is never decoded.
+The dispatcher and bytecode format are unchanged. See
+[the inventory contract](docs/SOURCE_INVENTORY.md) for scope, anchors and limits.

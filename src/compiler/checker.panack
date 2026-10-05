@@ -1412,6 +1412,11 @@ pure check_block_evidence(block: Block, parent: Map[Str,TypeInfo], incoming_fact
 }
 
 pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
+  check_program_evidence_mode(program, retain, true)
+}
+
+// Inventory may check a library as a root; ordinary compilation still requires main.
+pure check_program_evidence_mode(program: Program, retain: Bool, require_main: Bool): CheckedProgram {
   mut evidence: [SubtractionEvidence] = []
   // Only the explanation path retains function availability. Global errors
   // invalidate all recovery, even when discovered after a valid body.
@@ -1478,7 +1483,7 @@ pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
         declarations_valid = false
       }
     }
-    if !has_main {
+    if require_main && !has_main {
       diagnostics = append(diagnostics, checker_diagnostic("program has no main function"))
       declarations_valid = false
     }

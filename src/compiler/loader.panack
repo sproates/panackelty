@@ -246,7 +246,15 @@ load_project_explained(entry: Str): LoadedProject {
   load_project_mode(entry, true, true)
 }
 
+load_project_for_inventory(entry: Str): LoadedProject {
+  load_project_mode_with_main(entry, true, false, false)
+}
+
 load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
+  load_project_mode_with_main(entry, bounded, retain, true)
+}
+
+load_project_mode_with_main(entry: Str, bounded: Bool, retain: Bool, require_main: Bool): LoadedProject {
   resolved: Str = path_resolve(entry)
   project_root: Str = path_parent(resolved)
   stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
@@ -303,7 +311,7 @@ load_project_mode(entry: Str, bounded: Bool, retain: Bool): LoadedProject {
   mut effects_checked: Bool = false
   mut function_types: Map[Str,Bool] = map()
   if len(diagnostics) == 0 {
-    checked: CheckedProgram = check_program_evidence(program, retain)
+    checked: CheckedProgram = check_program_evidence_mode(program, retain, require_main)
     checked_effects: CheckedEffects = check_frontend_effects(program, checked, retain)
     diagnostics = checked_effects.diagnostics
     evidence = checked.evidence

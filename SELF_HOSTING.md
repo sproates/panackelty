@@ -414,3 +414,11 @@ substitutes artifacts from the other. A single-worker setting runs them serially
 ## Core-library migration
 
 The compiler now uses the canonical implicit Option/Result definitions. To cross from the previous v9 seed, a temporary source copy explicitly imported the new core from compiler/types.panack. The old seed compiled that bridge; the bridge compiled the final sources with implicit loading. No staging imports or public compatibility aliases remain in the repository. The final v9 seed and digest are refreshed through the existing three-stage compiler and stdlib fixed-point proof. Bytecode stays v9.
+
+## Source inventory compiler extension
+
+SC2 adds opt-in source inventory commands and original-syntax traversal. The seed
+is refreshed through the existing staged fixed-point procedure to expose the
+commands through `panack`; generated application bytecode and bootstrap semantics
+remain unchanged. No instrumentation is added to the seed or VM. See
+[the inventory contract](docs/SOURCE_INVENTORY.md).

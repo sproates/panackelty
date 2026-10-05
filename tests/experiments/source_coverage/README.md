@@ -16,7 +16,8 @@ expression-start-line reach and source-function entry counts. Existing maps
 omit statement stores, loop machinery and implicit returns; enclosing spans can
 cover untaken arms. A location map is not an executable-source inventory.
 
-Before a line baseline, add a versioned compiler-produced inventory of eligible
+SC2 now provides the [versioned source inventory](../../../docs/SOURCE_INVENTORY.md).
+The original prerequisite was a compiler-produced inventory of eligible
 source expressions/statements and source function declarations, including unused
 ones. Associate explicit probe points with those identities. Keep generated
 instructions distinct. A separate source-branch inventory must describe both

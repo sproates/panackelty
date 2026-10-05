@@ -3552,3 +3552,25 @@ focused validation was running. That is a larger opt-in fixture, not a new fast
 unit gate or an isolated performance comparison; compiler-sized reporting still
 has material cost. The earlier unindexed large-report experiment was interrupted
 without an accepted result. No comparative speedup percentage is inferred.
+
+### SC4 integration investigation
+
+The first full local single-worker `make check` failed at the nested
+`runner_smoke` oracle after 633 seconds. The oracle cleanup printed stderr but
+deleted stdout, where the Panackelty test runner reports its failure reason.
+That original reason cannot be recovered from the retained log. The harness now
+prints execution stdout and the exit status before cleanup; an injected exit-7
+runner report verifies both survive. Successful oracle output is unchanged.
+
+With that diagnostic fix, the complete local check passed in 446 seconds; the
+nested runner took 84 seconds against its unchanged 90-second deadline. A further
+isolated repeat passed in 85 seconds. Deadline sensitivity is a plausible cause,
+not a confirmed classification of the original failure. No timeout or assertion
+was relaxed and the original run is not counted as a pass.
+
+The initial hosted macOS compiler job also rejected the new nonparticipating
+process fixture. Its combined assertion hid whether execution or aggregation
+failed, and it assumed `/bin/true`. The fixture now explicitly runs `/bin/sh -c
+'exit 0'` and checks successful execution separately from unavailable coverage.
+This increases session CLI assertions from 40 to 41 (117 focused coverage checks
+in total). Final cross-platform CI is required for the corrected fixture.

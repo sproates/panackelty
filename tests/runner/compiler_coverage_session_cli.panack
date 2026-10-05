@@ -107,7 +107,7 @@ main(): Void {
       process_source: Str = dir + "/process.panack"
       process_bc: Str = dir + "/process.bc"
       process_inv: Str = dir + "/process.inv"
-      session_write(process_source, utf8_encode("import stdlib/result\nimport stdlib/process\nmain(): Void { match process_run(result_value_or(path_from_text(command_args()[0]), path_current()), [\"run\", command_args()[1], \"true\"], bytes(), path_current(), [], duration_seconds(1), 1048576) { Ok(result) => { print(result.exit_code); }, Error(error) => { print(99); } } }\n"))
+      session_write(process_source, utf8_encode("import stdlib/result\nimport stdlib/process\nmain(): Void { args = if command_args()[0] == \"/bin/sh\" { [\"-c\", \"exit 0\"] } else { [\"run\", command_args()[1], \"true\"] }; match process_run(result_value_or(path_from_text(command_args()[0]), path_current()), args, bytes(), path_current(), [], duration_seconds(1), 1048576) { Ok(result) => { print(result.exit_code); }, Error(error) => { print(99); } } }\n"))
       for a in [["compile", process_source, "-o", process_bc], ["inventory", process_source, "-o", process_inv]] {
         setup: ProcessOutput = session_command(a)
         results = append(results, test_expect("process setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
@@ -117,9 +117,10 @@ main(): Void {
       process_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", process_session])
       results = append(results, test_expect("subprocess aggregate", process_run_result.stdout == utf8_encode("0\n") && process_report.exit_code == 0 && session_contains(utf8_decode(process_report.stdout), "executions=2"), utf8_decode(process_run_result.stderr) + utf8_decode(process_report.stderr)))
       external_session: Str = dir + "/external-session"
-      external: ProcessOutput = session_command(["coverage-session", external_session, process_bc, process_inv, child_bc, child_inv, "--", "/bin/true", child_bc])
+      external: ProcessOutput = session_command(["coverage-session", external_session, process_bc, process_inv, child_bc, child_inv, "--", "/bin/sh", child_bc])
       external_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", external_session])
-      results = append(results, test_expect("noncollecting process stays unavailable", external.stdout == utf8_encode("0\n") && external_report.exit_code == 1 && external_report.stdout == bytes(), "lost process accepted"))
+      results = append(results, test_expect("noncollecting process executes successfully", external.exit_code == 0 && external.stdout == utf8_encode("0\n") && external.stderr == bytes(), "external stdout: " + utf8_decode(external.stdout) + " stderr: " + utf8_decode(external.stderr)))
+      results = append(results, test_expect("noncollecting process stays unavailable", external_report.exit_code == 1 && external_report.stdout == bytes(), "report stdout: " + utf8_decode(external_report.stdout) + " stderr: " + utf8_decode(external_report.stderr)))
       killed_source: Str = dir + "/killed.panack"
       killed_bc: Str = dir + "/killed.bc"
       killed_inv: Str = dir + "/killed.inv"

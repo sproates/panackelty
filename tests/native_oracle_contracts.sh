@@ -17,7 +17,10 @@ cleanup() {
     status=$?
     trap - 0
     if [ "$status" -ne 0 ]; then
-        echo "oracle contracts failed during $phase" >&2
+        echo "oracle contracts failed during $phase (exit $status)" >&2
+        case "$phase" in
+            running\ *) if [ -s "$temporary/output" ]; then cat "$temporary/output" >&2; fi ;;
+        esac
         if [ -s "$temporary/errors" ]; then cat "$temporary/errors" >&2; fi
     fi
     rm -rf "$temporary"

@@ -749,11 +749,16 @@ and public reachability, including private type and guard-helper leaks. These
 diagnostics do not enable executable
 namespace calls/types, public visibility or re-exports.
 Staged function bodies additionally retain declaration/local identities and check
-an ordinary-expression/control-flow and annotation/direct-call/return type subset,
-including lexical interpolation references. Collection construction, core calls,
-guarded arithmetic proofs and mixed Rat/integer joins remain explicit pending
-checks; invalid, deferred and checked-subset bodies are distinguished. Deferred inference, proof and
-effect checks still prevent namespace execution; this is not a new language mode.
+ordinary expressions/control flow, lexical interpolation, records/enums, arrays,
+field access, exhaustive variant patterns and direct generic calls. Constructor and
+empty-collection evidence is contextual; user-function inference uses only value
+arguments and preserves rigid caller parameters. Nominal identities remain distinct
+inside nested types and patterns. Shared unresolved evidence cannot acquire
+conflicting types at different uses, and inferred locals require complete types
+before later statements. General core/indirect calls, guarded arithmetic proofs,
+mixed Rat/integer joins, effects and emission remain pending. Discarded incomplete
+values retain explicit deferred status. Invalid, deferred and checked-subset bodies
+remain distinct; these checks do not enable a new execution mode.
 See [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
 
 ## Compilation and the Panackelty VM

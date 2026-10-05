@@ -1,0 +1,10 @@
+pub record Box[T] { value: T }
+pub enum Choice[T] { Pick(T), Empty }
+pub pure choose[T](items: [T], fallback: T): T { fallback }
+pub pure run(value: Choice[Box[Nat]]): [Nat] {
+  match value {
+    Choice.Pick(item) => [choose([], item.value)],
+    Choice.Empty() => []
+  }
+}
+main(): Void {}

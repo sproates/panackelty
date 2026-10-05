@@ -1,0 +1,8 @@
+pub pure wrong(): Nat {
+  match None() {
+    None() => 0,
+    Some(value) => { consume(value); value }
+  }
+}
+pure consume(value: Str): Void {}
+main(): Void {}

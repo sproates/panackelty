@@ -1,6 +1,17 @@
 # Self-hosting roadmap
 
-The proposed P2 ordinary-expression/control-flow slice refreshes the v9 seed to
+The P2 aggregate/pattern/inference slice refreshes the v9 seed to
+`223d479b7d81348f086ccae9a4a6b2d0740c49d3c4a772ec4948645ff7a5b31d`
+(459,830 bytes). Fresh compiler stages 2/3/4 agree; the standard-library artifact
+remains `614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+with unchanged output. Constructor/field/pattern and generic-call checking now
+retains nominal, parameter and expression-hole identities. Whole-body constraints
+prevent one unresolved local acquiring incompatible types at separate uses.
+General core/indirect calls, guard proofs, effects, emission and coordinated source
+migration remain pending, and namespace execution stays gated. See the
+[aggregate validation evidence](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05).
+
+The preceding P2 ordinary-expression/control-flow slice refreshed the v9 seed to
 `385edbaa8c5c537ddb128cfeb61d51ee0d16ca46d9dfc2e4242acc2e04266491`
 (430,101 bytes). Fresh compiler stages 2/3/4 agree; standard-library artifact
 `614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`

@@ -144,7 +144,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -568,11 +568,9 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("explicit generic arity checked", body_test_error("pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value: T): T { value }"), "call identity has incorrect type argument count"))
   for source in [
 
-    "pub pure f(): Nat { identity(1) }; pure identity[T](value: T): T { value }",
     "pub pure f(): Nat { next() }; async next(): Nat { 1 }",
     "pub pure f(): Nat { [1].first() }",
     "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }",
-    "pub enum Choice { Pick(Nat) }; pub pure f(): Choice { Choice.Pick(1) }",
     "pub type Positive = Nat where value > 0; pub pure f(): Positive { 1 }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
@@ -608,7 +606,7 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("annotated local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { value: Nat = 1; value }"), "local value shadows an existing binding"))
   results = append(results, test_equal_str("loop local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { for value in [1] {}; value }"), "loop variable value shadows an existing binding"))
   results = append(results, test_equal_str("pattern local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { match Some(1) { Some(value) => value, None() => 0 } }"), "pattern binding value shadows an existing binding"))
-  results = append(results, test_equal_str("pattern requires original variant category", body_test_error("pub pure f(): Nat { match 1 { helper() => 1 } }; pure helper(): Nat { 1 }"), "pattern is not a variant: helper"))
+  results = append(results, test_equal_str("pattern requires original variant category", body_test_error("pub pure f(): Nat { match 1 { helper() => 1 } }; pure helper(): Nat { 1 }"), "match requires an enum, got Nat"))
   results = append(results, test_equal_str("private guard still resolves names", body_test_error("type Hidden = Nat where missing(value); pub pure f(): Nat { 1 }"), "module body.panack has no binding missing"))
   results = append(results, test_equal_str("later recursive callable contract exists", body_test_error("pub pure f(value: Nat): Nat { f(value) }"), "ok"))
   core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }")
@@ -618,11 +616,11 @@ pure namespace_body_tests(): [TestResult] {
   maps: CheckedModuleBodies = body_test_module("pub pure direct(): Map[Nat,Nat] { map() }; pub pure receiver(value: [Nat]): [Nat] { value.map(@identity) }; pure identity(value: Nat): Nat { value }")
   results = append(results, test_equal_nat("core map target fixtures bind", len(maps.diagnostics), 0))
   if len(maps.functions) == 3 {
-    results = append(results, test_expect("direct map retains constructor identity", maps.functions[0].body.children[0].node == BodyCall(BodyCore("map"), []), "direct map lowered as receiver method"))
+    results = append(results, test_expect("direct map retains constructor identity", maps.functions[0].body.children[0].node == BodyCall(BodyCore("map"), [SignatureType(SignatureCore("Nat"), []), SignatureType(SignatureCore("Nat"), [])]), "direct map lowered as receiver method"))
     results = append(results, test_expect("receiver map retains reserved method identity", maps.functions[1].body.children[0].node == BodyCall(BodyCore("$method_map"), []), "receiver map lost method lowering"))
   }
   results = append(results, test_equal_nat("qualified private core alias constructor remains available", len(core_result.diagnostics), 0))
-  results = append(results, test_expect("constructor inference remains explicitly deferred", len(core_result.functions) == 1 && len(core_result.functions[0].deferred) > 0, "constructor incorrectly marked checked"))
+  results = append(results, test_expect("core alias constructor inference is identity checked", len(core_result.functions) == 1 && core_result.functions[0].status == BodyIdentityChecked(), "constructor did not retain inferred evidence"))
   results
 }
 
@@ -733,7 +731,6 @@ pure namespace_expression_tests(): [TestResult] {
     "pub pure f(): Void { for item in 0..(2 - 1) {} }",
     "pub pure f(a: Bool, rational: Rat): Rat { if a { rational } else { 1 } }",
     "pub pure f(a: Bool, rational: Rat): Int { if a { 1 } else { rational } }",
-    "pub pure f(): Nat { [1,2][0] }",
     "pub pure f(): Nat { await next() }; async next(): Nat { 1 }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
@@ -770,5 +767,193 @@ pure namespace_expression_tests(): [TestResult] {
   graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, left.bindings, right.bindings], [ModuleImportEdge(app.bindings.identity, 0, left.bindings.identity), ModuleImportEdge(app.bindings.identity, 1, right.bindings.identity)])
   distinct: CheckedModuleBodies = body_test_graph([app, left, right], graph, app)
   results = append(results, test_expect("joins and equality do not erase nominal origins", len(distinct.diagnostics) == 2 && len(distinct.functions) == 2 && distinct.functions[0].status == BodyInvalid() && distinct.functions[1].status == BodyInvalid(), "distinct nominal identities unified"))
+  results
+}
+
+pure namespace_aggregate_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pub pure f(): Nat { identity(1) }; pure identity[T](value: T): T { value }",
+    "pub enum Choice { Pick(Nat) }; pub pure f(): Choice { Choice.Pick(1) }",
+    "pub pure f(): Nat { [1,2][0] }",
+    "pub record Box[T] { value: T }; pub pure f(): Box[Nat] { Box(1) }",
+    "pub record Box[T] { value: T }; pub pure f(): Nat { Box(1).value }",
+    "pub record Pair[A,B] { left: A, right: B }; pub pure f(): [Str] { Pair(1, [\"ok\"]).right }",
+    "pub record Pair[T] { left: T, right: T }; pub pure f(): Pair[Int] { Pair(1, -1) }",
+    "pub record Pair[T] { left: T, right: T }; pub pure f(): Pair[Int] { Pair(-1, 1) }",
+    "pub record Box[T] { value: T }; pub pure f(): Box[[Nat]] { Box([]) }",
+    "pub record Box[T] { value: T }; pub pure f(): Nat { value: Box[[Nat]] = Box([]); value.value[0] }",
+    "pub record Box[T] { value: T }; pub pure f[T](value: T): T { Box(value).value }",
+    "pub pure f(): [[Nat]] { [[], [1]] }",
+    "pub pure f(): [[Nat]] { [[1], []] }",
+    "pub pure f(): [[Int]] { [[1], [-1]] }",
+    "pub pure f(): [Nat] { [] }",
+    "pub pure f(): [Nat] { mut values: [Nat] = []; values = [1]; values }",
+    "pub pure f(): Bool { None() == Some(1) }",
+    "pub pure f(): Bool { [] == [1] }",
+    "pub pure f(): Option[Nat] { None() }",
+    "pub pure f(): Option[Nat] { Some(1) }",
+    "pub pure f(): Result[Nat,Str] { Ok(1) }",
+    "pub pure f(): Result[Nat,Str] { Error(\"bad\") }",
+    "pub pure f(): Map[Str,Nat] { map() }",
+    "pub pure f(): Set[Nat] { set() }",
+    "pub pure f(flag: Bool): Option[Nat] { value = if flag { None() } else { Some(1) }; value }",
+    "pub pure f(flag: Bool): Result[Nat,Str] { value = if flag { Ok(1) } else { Error(\"bad\") }; value }",
+    "pub pure f(): [Option[Nat]] { values = [None(), Some(1)]; values }",
+    "pub pure f(): [Option[Nat]] { values = [Some(1), None()]; values }",
+    "pub pure f(): Option[[Nat]] { Some([]) }",
+    "pub pure f(): Nat { take([]) }; pure take(value: [Nat]): Nat { 1 }",
+    "pub pure f(): [Nat] { identity[[Nat]]([]) }; pure identity[T](value: T): T { value }",
+    "pub pure f(): Str { choose([], \"ok\") }; pure choose[T](items: [T], fallback: T): T { fallback }",
+    "pub pure f(): Int { choose(1, -1) }; pure choose[T](a: T, b: T): T { a }",
+    "pub pure f(): Int { choose(-1, 1) }; pure choose[T](a: T, b: T): T { a }",
+    "pub pure f(): Option[Nat] { choose(None(), Some(1)) }; pure choose[T](a: T, b: T): T { a }",
+    "pub pure f[T](value: T): T { identity(value) }; pure identity[T](value: T): T { value }",
+    "pub pure f(): Nat { 1.identity() }; pure identity[T](value: T): T { value }",
+    "pub pure f(): Fn[Nat] { choose(@answer) }; pure choose[T](callback: Fn[T]): Fn[T] { callback }; pure answer(): Nat { 1 }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some(item) => item, None() => 0 } }",
+    "pub pure f(value: Result[Nat,Str]): Nat { match value { Ok(item) => item, Error(message) => 0 } }",
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure f(value: Choice[Nat]): Nat { match value { Choice.Pick(item) => item, Empty() => 0 } }",
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure f[T](value: Choice[T], fallback: T): T { match value { Pick(item) => item, Empty() => fallback } }",
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure f(): Choice[Nat] { Empty() }",
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure f(flag: Bool): Choice[Nat] { value = if flag { Pick(1) } else { Empty() }; value }",
+    "pub enum Choice { Pick(Nat), Empty }; pub pure f(value: Choice): Int { match value { Pick(item) => item, Empty() => -1 } }",
+    "pub enum Choice { Pick(Nat), Empty }; pub pure f(value: Choice): Option[Nat] { result = match value { Pick(item) => Some(item), Empty() => None() }; result }",
+    "pub pure f(value: Option[Option[Nat]]): Nat { match value { Some(inner) => match inner { Some(item) => item, None() => 0 }, None() => 0 } }",
+    "pub record Box[T] { value: T }; pub pure f(): [Nat] { mut result: [Nat] = []; result = Box([]).value; result }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    message: Str = if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "missing/invalid/deferred body" }
+    results = append(results, test_expect("aggregate identity checks/" + source, len(checked.diagnostics) == 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyIdentityChecked(), message))
+  }
+  for source in [
+    "pub record Box[T] { value: T }; pub pure f(): Box[Nat] { Box() }",
+    "pub record Box[T] { value: T }; pub pure f(): Box[Nat] { Box(1,2) }",
+    "pub record Box { value: Nat }; pub pure f(): Box { Box(\"bad\") }",
+    "pub record Box[T] { value: T }; pub pure f(): Box[Nat] { Box[Nat](1) }",
+    "pub record Pair[T] { left: T, right: T }; pub pure f(): Pair[Nat] { Pair(1, \"bad\") }",
+    "pub record Box { value: Nat }; pub pure f(value: Box): Nat { value.missing }",
+    "pub pure f(value: Nat): Nat { value.missing }",
+    "pub enum Choice { Pick }; pub pure f(value: Choice): Nat { value.missing }",
+    "pub pure f(): [Nat] { [1, \"bad\", 2] }",
+    "pub pure f(): [Nat] { [1, 1.5] }",
+    "pub pure f(): [Nat] { [nothing()] }; pure nothing(): Void {}",
+    "pub pure f(): Option[Nat] { Some(nothing()) }; pure nothing(): Void {}",
+    "pub pure f(): Option[Nat] { Some() }",
+    "pub pure f(): Option[Nat] { None(1) }",
+    "pub pure f(): Option[Nat] { Some[Nat](1) }",
+    "pub pure f(): Map[Nat,Nat] { map(1) }",
+    "pub pure f(): Map[Nat,Nat] { map[Nat,Nat]() }",
+    "pub pure f(): Set[Nat] { set(1) }",
+    "pub pure f(): [Nat] { value = []; value }",
+    "pub pure f(): Option[Nat] { value = None(); value }",
+    "pub pure f(): Option[[Nat]] { value = Some([]); value }",
+    "pub pure f(): Map[Nat,Nat] { value = map(); value }",
+    "pub pure f(): Set[Nat] { value = set(); value }",
+    "pub pure f(): [Nat] { mut value = []; value = [1]; value }",
+    "pub pure f(): [Nat] { value: [Nat] = identity([]); value }; pure identity[T](value: T): T { value }",
+    "pub pure f(): Nat { make() }; pure make[T](): T { make[T]() }",
+    "pub pure f(): Nat { choose(1, \"bad\", 2) }; pure choose[T](a:T,b:T,c:T):T { a }",
+    "pub pure f(): Nat { identity[Nat](-1) }; pure identity[T](value:T):T { value }",
+    "pub pure f[T](value:T):T { choose(value, 1) }; pure choose[U](a:U,b:U):U { a }",
+    "pub pure f(): Nat { identity(nothing()) }; pure identity[T](value:T):T { value }; pure nothing():Void {}",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some(item) => item } }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some(item) => item, None() => 0, None() => 1 } }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some() => 1, None() => 0 } }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some(a,b) => a, None() => 0 } }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Ok(item) => item, None() => 0 } }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some(item) => { item = 2; item }, None() => 0 } }",
+    "pub pure f(value: Option[Nat]): Nat { match value { Some(item) => item, None() => \"bad\" } }",
+    "pub enum Choice { Pick }; pub pure f(value: Choice): Nat { match value { Choice.Pick() => 1, Pick() => 2 } }",
+    "pub enum Choice { Pick(Nat,Nat) }; pub pure f(value: Choice): Nat { match value { Pick(item,item) => item } }",
+    "pub enum Choice { Pick }; pub pure f(): Choice { Choice() }",
+    "pub enum Choice { Pick }; pub pure f(value: Choice): Nat { match value { helper() => 1 } }; pure helper():Nat { 1 }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("aggregate identity rejects/" + source, len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(), "invalid aggregate appeared checked/deferred"))
+  }
+  for source in [
+    "pub pure f(): [Nat] { [2 - 1] }",
+    "pub record Box[T] { value:T }; pub pure f(): Box[Nat] { Box(2 - 1) }",
+    "pub pure f(): Nat { match Some(2 - 1) { Some(item) => item, None() => 0 } }",
+    "pub pure f(): Nat { identity(2 - 1) }; pure identity[T](value:T):T { value }",
+    "pub pure f(): Nat { match Some(1) { Some(item) => unknown_core(item), None() => 0 } }; pure unknown_core(value:Nat):Nat { value - 1 }",
+    "pub pure f(): Map[Nat,Nat] { map().put(1, 2) }",
+    "pub pure f(): Set[Nat] { set().add(1) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    // Callee proofs are checked in their own body, not certified transitively here.
+    mut pending: Bool = false
+    for function in checked.functions { pending = pending || function.status == BodyDeferred() }
+    results = append(results, test_expect("aggregate retains later obligations/" + source, len(checked.diagnostics) == 0 && pending, "later proof/core check lost or rejected"))
+  }
+  results = append(results, test_equal_str("inference failure explains missing evidence", body_test_error("pub pure f(): [Nat] { identity([]) }; pure identity[T](value:T):T { value }"), "cannot infer type parameter T for identity; supply explicit type arguments"))
+  results = append(results, test_equal_str("constructor arity is concrete", body_test_error("pub record Box { value:Nat }; pub pure f():Box { Box() }"), "Box expects 1 arguments, got 0"))
+  results = append(results, test_equal_str("missing variant is named", body_test_error("pub pure f(value:Option[Nat]):Nat { match value { Some(item) => item } }"), "non-exhaustive match; missing None"))
+  for source in [
+    "pub record Pair[A,B]{first:A,second:B}; pub pure f():Pair[Nat,Str] { match None() { None()=>Pair(1,\"x\"), Some(value)=>Pair(value,value) } }",
+    "pub pure f():Option[Nat] { value = if true { 2 - 1; None() } else { None() }; value }",
+    "pub pure f():Nat { match None() { None()=>0, Some(v)=>{ consume(v); v } } }; pure consume(value:Str):Void {}",
+    "pub pure f():Nat { match None() { None()=>0, Some(v)=>{ consume(v,v); v } } }; pure consume(a:Nat,b:Str):Void {}",
+    "pub pure f():[Option[Nat]] { match None() { None()=>[Some(1)], Some(value)=>[value,Some(value)] } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("conflicting or incomplete hole evidence rejects/" + source, len(checked.diagnostics)>0 && len(checked.functions)>0 && checked.functions[0].status==BodyInvalid(), if len(checked.diagnostics)>0 { checked.diagnostics[0].message } else { "hole conflict hidden by context or proof deferral" }))
+  }
+  for source in ["pub pure f():Void { []; }", "pub pure f():Void { None(); }", "pub pure f():Void { for item in [] {} }"] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("discarded unresolved evidence stays explicit/" + source, len(checked.diagnostics)==0 && checked.functions[0].status==BodyDeferred(), "retained holes silently certified"))
+  }
+  for source in [
+    "pub pure f():Nat { match [1].first() { helper()=>0 } }; pure helper():Nat { 0 }",
+    "pub record Box { value:Nat }; pub pure f():Nat { match [1].first() { Box(value)=>0 } }",
+    "pub pure f():Nat { match [1].first() { map()=>0 } }",
+    "pub pure f():Nat { match [1].first() { Some(a,b)=>0, None()=>0 } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("unknown subject retains independent pattern rejection/" + source, len(checked.diagnostics)>0 && len(checked.functions)>0 && checked.functions[0].status==BodyInvalid(), "known pattern error hidden by deferred subject"))
+  }
+  unknown_subject: CheckedModuleBodies = body_test_module("pub pure f():Nat { match [1].first() { Some(item)=>0, None()=>0 } }")
+  results = append(results, test_expect("unknown subject with valid pattern contracts stays deferred", len(unknown_subject.diagnostics)==0 && unknown_subject.functions[0].status==BodyDeferred(), "unknown subject invented membership acceptance or rejection"))
+  results = concat(results, namespace_aggregate_origin_tests())
+  results
+}
+
+pure namespace_aggregate_origin_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item { value:Nat }; pub record Box[T] { value:T }; pub enum Choice[T] { Pick(T), Empty }; pub pure id[T](value:T):T { value }")
+  right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item { value:Nat }; pub enum Choice[T] { Pick(T), Empty }")
+  for source in [
+    "pure f():a.Box[a.Item] { a.Box(a.Item(1)) }",
+    "pure f():a.Item { a.id(a.Item(1)) }",
+    "pure f(value:a.Box[a.Item]):a.Item { value.value }",
+    "pure f(value:a.Choice[a.Item]):a.Item { match value { a.Choice.Pick(item) => item, a.Choice.Empty() => a.Item(0) } }",
+    "pure f():[a.Item] { [a.Item(1), alias.Item(2)] }"
+  ] {
+    app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as a; import project/right as b; import project/left as alias; " + source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings,left.bindings,right.bindings], [ModuleImportEdge(app.bindings.identity,0,left.bindings.identity),ModuleImportEdge(app.bindings.identity,1,right.bindings.identity),ModuleImportEdge(app.bindings.identity,2,left.bindings.identity)])
+    checked: CheckedModuleBodies = body_test_graph([app,left,right],graph,app)
+    results = append(results, test_expect("aggregate preserves aliases/" + source, len(checked.diagnostics)==0 && len(checked.functions)==1 && checked.functions[0].status==BodyIdentityChecked(), if len(checked.diagnostics)>0 { checked.diagnostics[0].message } else { "not checked" }))
+  }
+  for source in [
+    "pure f():a.Box[a.Item] { a.Box(b.Item(1)) }",
+    "pure f():a.Item { a.id(b.Item(1)) }",
+    "pure f(value:a.Box[b.Item]):a.Item { value.value }",
+    "pure f():[a.Item] { [a.Item(1), b.Item(2)] }",
+    "pure f(value:a.Choice[a.Item]):a.Item { match value { b.Choice.Pick(item) => item, a.Choice.Empty() => a.Item(0) } }",
+    "pure f(value:a.Choice[Nat]):Nat { match value { a.Choice.Pick(item) => item, alias.Choice.Pick(item) => item, a.Choice.Empty() => 0 } }"
+  ] {
+    app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as a; import project/right as b; import project/left as alias; " + source)
+    graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings,left.bindings,right.bindings], [ModuleImportEdge(app.bindings.identity,0,left.bindings.identity),ModuleImportEdge(app.bindings.identity,1,right.bindings.identity),ModuleImportEdge(app.bindings.identity,2,left.bindings.identity)])
+    checked: CheckedModuleBodies = body_test_graph([app,left,right],graph,app)
+    results = append(results, test_expect("aggregate rejects wrong nominal/" + source, len(checked.diagnostics)>0 && len(checked.functions)==1 && checked.functions[0].status==BodyInvalid(), "nominal identity or alias uniqueness lost"))
+  }
+  refined: CheckedModuleBodies = body_test_module("pub record Pair[A,B] { left:A,right:B }; pub pure f():Pair[Option[Nat],Option[Str]] { Pair(None(),None()) }")
+  results = append(results, test_expect("independent constructor holes refine separately", len(refined.diagnostics)==0 && len(refined.functions)==1 && refined.functions[0].status==BodyIdentityChecked(), "independent holes captured each other"))
+  if len(refined.functions)==1 {
+    pair: BoundBody = refined.functions[0].body.children[0]
+    results = append(results, test_expect("context reaches first constructor child", pair.children[0].type==Some(SignatureType(SignatureCore("Option"),[SignatureType(SignatureCore("Nat"),[])])), "first child not specialized"))
+    results = append(results, test_expect("context reaches second constructor child", pair.children[1].type==Some(SignatureType(SignatureCore("Option"),[SignatureType(SignatureCore("Str"),[])])), "second child not specialized"))
+  }
   results
 }

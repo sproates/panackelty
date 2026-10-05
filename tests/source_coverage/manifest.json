@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "name": "SC5 native source baseline v1",
+  "eligible": [
+    "src/bytecode/codec.panack", "src/bytecode/decoder.panack",
+    "src/compiler/checker.panack", "src/compiler/coverage.panack", "src/compiler/coverage_session.panack",
+    "src/compiler/diagnostics.panack", "src/compiler/driver.panack", "src/compiler/emitter.panack",
+    "src/compiler/explanations.panack", "src/compiler/expression_contracts.panack", "src/compiler/lexer.panack",
+    "src/compiler/loader.panack", "src/compiler/main.panack", "src/compiler/module_bindings.panack",
+    "src/compiler/module_bodies.panack", "src/compiler/module_resolution.panack", "src/compiler/module_signatures.panack",
+    "src/compiler/parser.panack", "src/compiler/purity.panack", "src/compiler/resolver.panack",
+    "src/compiler/source_inventory.panack", "src/compiler/source_maps.panack", "src/compiler/types.panack",
+    "src/stdlib/bytes.panack", "src/stdlib/core.panack", "src/stdlib/environment.panack", "src/stdlib/filesystem.panack",
+    "src/stdlib/host.panack", "src/stdlib/option.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
+    "src/stdlib/process.panack", "src/stdlib/result.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
+    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/time.panack"
+  ],
+  "units": [
+    "compiler_lexer", "compiler_parser", "compiler_resolver", "compiler_purity", "compiler_contracts",
+    "compiler_module_bindings", "compiler_source_spans", "compiler_instruction_sources", "compiler_source_maps",
+    "compiler_source_inventory", "compiler_coverage", "compiler_explanations", "stdlib", "bytecode"
+  ],
+  "functional": [
+    "hello_world", "async_await", "callables", "collections", "core_methods", "records_and_enums",
+    "stdlib", "rational_unit", "modules", "optional_else", "semicolonless", "local_inference"
+  ],
+  "compiler": ["bootstrap-fixed-point", "check-hello-world", "disasm-hello-world"],
+  "omitted": [
+    {"paths": ["tests/runner/compiler_checker_unit.panack"], "reason": "Dynamically executes more distinct generated artifacts than SC4's 16-identity registry; needs separately registered batches."},
+    {"paths": ["tests/runner/compiler_integration_unit.panack", "tests/runner/host_runtime_unit.panack", "tests/runner/vm_unit.panack", "tests/runner/bytecode_native_unit.panack", "tests/runner/report_capture_unit.panack", "tests/runner/compiler_coverage_session_cli.panack"], "reason": "External processes, death/failure fixtures or independently created coverage sessions need dedicated measured manifests; not claimed by this baseline."},
+    {"paths": ["other tests/functional cases", "tests/native_*", "tests/tcp.sh", "package/release/install checks", "browser/WASI suites"], "reason": "Outside this explicitly bounded initial source corpus. Native C coverage remains a separate report."},
+    {"paths": ["tests/**", "generated source"], "reason": "Test code is executed and identified but is outside the production src/** denominator."}
+  ],
+  "semantics": {
+    "lines": "Unique expression/statement start lines, not every line spanned by an expression.",
+    "functions": "Original source function declarations; shared source identities counted once across roots.",
+    "branches": "Source decision outcomes (if, short circuit, loops and match arms), not VM branches.",
+    "unavailable": "Not emitted or missing/ambiguous association remains unavailable; complete percentages are null until all denominator items are known.",
+    "exclusions": "SC2 compile-time/import/type/record/enum declarations are listed per file, not executable denominator items."
+  }
+}

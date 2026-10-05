@@ -87,8 +87,15 @@ pass
 case_name=ci-event-and-command-contracts
 contains .github/workflows/check.yml 'run: make check-no-interpreter'
 awk '/^on:$/ { selected=1; next } /^concurrency:/ { selected=0 } selected && NF { print }' .github/workflows/check.yml > "$work/events"
-printf '  push:\n    branches: [main]\n  pull_request:\n' > "$work/expected"
+printf '  push:\n    branches: [main, next]\n  pull_request:\n' > "$work/expected"
 equal_files "$work/events" "$work/expected"
+awk '/^  source_coverage:$/ { selected=1; next } /^  changes:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/source-job"
+for text in 'github.ref == '\''refs/heads/next'\''' 'node --test tests/source_coverage/reader.test.cjs' \
+    'node tests/source_coverage/parity.cjs' 'node scripts/source_coverage_baseline.cjs' \
+    'name: source-coverage-${{ github.run_id }}' 'path: build/source-coverage' 'if-no-files-found: error'; do
+    contains "$work/source-job" "$text"
+done
+absent "$work/source-job" 'if: always()'
 awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'

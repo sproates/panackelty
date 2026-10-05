@@ -302,6 +302,15 @@ native-coverage: native
 	@cat build/coverage/summary.txt
 	"$(LLVM_COV)" show build/coverage/vm/panack-vm -object build/coverage/vm/test_modules -object build/coverage/fault/test_faults -object build/coverage/vm/test_bigint -instr-profile=build/coverage/coverage.profdata -show-branches=count -format=html -output-dir=build/coverage/html src/vm
 
+# Source coverage is opt-in SC4 collection, not LLVM instrumentation of .panack files.
+.PHONY: source-coverage-baseline source-coverage-report-tests
+source-coverage-report-tests: native
+	node --test tests/source_coverage/reader.test.cjs
+	node tests/source_coverage/parity.cjs
+
+source-coverage-baseline: native
+	node scripts/source_coverage_baseline.cjs
+
 -include $(VM_OBJECTS:.o=.d)
 
 $(STAGE1_COMPILER): $(SEED_COMPILER) probe-inputs

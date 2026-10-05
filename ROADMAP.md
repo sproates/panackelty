@@ -3211,7 +3211,7 @@ again alongside its children.
 | [SC2 / RM#137: Executable-source inventory](#rm-137) | Done on `next`; [inventory contract](docs/SOURCE_INVENTORY.md) | 20% | 100% | 20 percentage points |
 | [SC3 / RM#138: Runtime coverage collection](#rm-138) | Done on `next`; [runtime contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
 | [SC4 / RM#139: Complete run aggregation](#rm-139) | Delivered by SC4 integration; [session contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
-| [SC5 / RM#140: Suite baseline and publication](#rm-140) | Ready after SC4 integration; not started | 15% | 0% | 0 percentage points |
+| [SC5 / RM#140: Suite baseline and publication](#rm-140) | Implementation and validation in progress; [baseline contract](docs/SOURCE_COVERAGE_BASELINE.md). Integration/live acceptance pending | 15% | 0% accepted | 0 accepted percentage points |
 | [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Pending SC5; not started | 10% | 0% | 0 percentage points |
 | **Total** | | **100%** | | **75 percentage points = 75% overall** |
 

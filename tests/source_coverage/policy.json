@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "review": {
-    "reason": "SC6 draft initialization from accepted SC5 floors; post-batch floors require deliberate final review",
-    "basis": "SC5 PR305 / publisher PR3",
+    "reason": "Establish exact post-batch floors after 31 complete fresh executions and positive coverage of all 68 protected items; all denominators and exclusions are unchanged",
+    "basis": "Owner-approved SC6 batch; development evidence reproduced by clean hosted CI before acceptance",
     "scopeChange": "Add host_types and UTF-8/fallback/duration boundary assertions"
   },
   "manifestHash": "55f5286840cd4eb627f941c61d4350f1bae2ff75b52415c6e12c62e6726566f4",
@@ -25,7 +25,7 @@
     "bytecode": {
       "lines": {
         "total": 601,
-        "covered": 576
+        "covered": 587
       },
       "functions": {
         "total": 60,
@@ -33,21 +33,21 @@
       },
       "branches": {
         "total": 588,
-        "covered": 488
+        "covered": 517
       }
     },
     "stdlib": {
       "lines": {
         "total": 133,
-        "covered": 55
+        "covered": 72
       },
       "functions": {
         "total": 33,
-        "covered": 12
+        "covered": 23
       },
       "branches": {
         "total": 64,
-        "covered": 25
+        "covered": 33
       }
     }
   },

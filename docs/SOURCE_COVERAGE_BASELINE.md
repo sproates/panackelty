@@ -98,9 +98,27 @@ The first assertion batch covers UTF-8 boundary/malformed sequences, both
 option/result arms, and exact/negative/zero duration ratios. It found and fixes
 `duration_ratio` testing signed ticks against a natural zero, and `duration_divide`
 receiving a signed zero: kind-sensitive equality skipped the error arm and trapped.
-Comparing two Duration values
-preserves the intended typed error. Existing division/path/clock assertions in
+Comparing two Duration values preserves the intended typed error.
+Existing division/path/clock assertions in
 `host_types` now contribute to the measured corpus with unchanged expected stdout.
+
+The complete post-batch development run has 31 fresh executions, zero unavailable
+measurements and 68 covered protected items. Floors are reviewed as exact counts:
+
+| Component | Lines | Functions | Source outcomes |
+| --- | ---: | ---: | ---: |
+| Compiler | 5,173/5,998 | 397/429 | 5,514/6,922 |
+| Bytecode | 587/601 | 60/60 | 517/588 |
+| Stdlib | 72/133 | 23/33 | 33/64 |
+
+This gains 28 covered lines, 11 functions and 37 source outcomes over SC5 with
+unchanged denominators and exclusions. Standalone tests pass 140 bytecode and
+36 stdlib assertions; mutation checks reject overlong UTF-8, incorrect fallback
+values and a removed duration error guard. Eleven policy tests cover regression,
+denominator/scope/exclusion changes, incomplete or stale evidence and deliberate
+reviewed baseline updates; the 13 raw-reader tests and 514 SC4 parity comparisons
+remain passing. Clean hosted checks, integration and live verification are required
+before this SC6 candidate is accepted.
 
 ## Publication boundary
 

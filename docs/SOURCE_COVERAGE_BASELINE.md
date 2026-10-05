@@ -117,8 +117,12 @@ unchanged denominators and exclusions. Standalone tests pass 140 bytecode and
 values and a removed duration error guard. Eleven policy tests cover regression,
 denominator/scope/exclusion changes, incomplete or stale evidence and deliberate
 reviewed baseline updates; the 13 raw-reader tests and 514 SC4 parity comparisons
-remain passing. Clean hosted checks, integration and live verification are required
-before this SC6 candidate is accepted.
+remain passing. SC6 was accepted on 2026-10-06: PR#307 merged to `next` as
+`b382bd84ce65b64bdcd859f4decfd600d75663c4`; fresh next Check run 37384119034
+passed all 22 jobs and reproduced these counts, 31 executions and 68 protected
+items. Publisher run 37387725315 passed preparation, deployment and byte verification
+of every live file. Live provenance identifies the SC6 commit. The bounded GI#131
+programme is 100% accepted with unchanged weights; core main remains untouched.
 
 ## Publication boundary
 
@@ -143,3 +147,18 @@ Native C/main report URLs and provenance remain unchanged. Both independently
 pinned channels are verified before replacing the site, and every deployed file
 is compared with its expected bytes. Publisher changes require their own PR and
 approval. Core `main` is not changed by this programme item.
+
+## Operator rule: refresh with a fresh publication run
+
+To publish an existing validated artifact, start a **new** Coverage Pages run on
+the publisher main branch using workflow_dispatch. In GitHub Actions select
+Coverage Pages, Run workflow, branch main, then Run workflow. If the connector
+cannot dispatch workflows, use the authorised GitHub browser fallback; do not
+substitute a rerun of an old successful production run.
+
+Rerunning preparation can leave multiple artifacts named github-pages in one
+workflow run; deploy-pages rejects the ambiguous selection. On 2026-10-06 a rerun
+of 37378463006 hit that exact failure. A fresh run has its own artifact namespace.
+Verify prepare, deploy and every-live-file verification, then confirm source
+provenance matches the intended core commit before recording acceptance. No
+publisher code change or core main promotion is required to refresh the report.

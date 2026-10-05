@@ -1433,7 +1433,7 @@ dependencies without replacing the current principal programme.
 
 | Candidate and work record | First useful outcome | Size / estimated PRs |
 | --- | --- | --- |
-| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: SC1–SC5 accepted; 90% complete. Source baseline is verified live; SC6 bounded gap closure and regression policy remain pending. | SC6 batch requires agreement from measured evidence |
+| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: SC1–SC6 accepted; 100% complete. Baseline and bounded UTF-8/fallback/duration batch verified live. | Maintain reviewed policy; further corpus expansion is separate work |
 | [RM#62: Component readability](#rm-62) ([GI#132: Component readability](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
 | [RM#47: Development workflow assessment](#rm-47) ([GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
 | [RM#48: Compiler explanations](#rm-48) ([GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
@@ -3189,16 +3189,16 @@ its own verification; do not turn on every available feature by default.
 **RM#46: Panackelty source coverage** · [GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131).
 
 Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131).
-**Programme in progress — reframed by the owner on 2026-10-05.** GI#131 is the
+**Programme complete — all six outcomes accepted on 2026-10-06.** GI#131 is the
 umbrella work record. The feasibility work was delivered to `next` in
 [PR#299: Source coverage feasibility](https://github.com/sproates/panackelty/pull/299),
 merged as `9fefbd6`. SC2 inventory and SC3 single-execution collection are now
-delivered, as are complete aggregation and verified baseline publication; gap closure remains pending. Promotion to
+delivered, as are complete aggregation, verified baseline publication and the agreed first gap-closure batch. Promotion to
 `main` requires separate approval.
 
 ### Source coverage programme baseline
 
-**Accepted overall completion after SC5 live verification: 90%.** Baseline SC-1, established 2026-10-05,
+**Accepted overall completion after SC6 live verification: 100%.** Baseline SC-1, established 2026-10-05,
 weights independently accepted outcomes by relative implementation, testing,
 integration and acceptance effort. The earlier four PR boundaries were delivery
 estimates, not a weighted programme; this is the first percentage baseline, not
@@ -3212,10 +3212,11 @@ again alongside its children.
 | [SC3 / RM#138: Runtime coverage collection](#rm-138) | Done on `next`; [runtime contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
 | [SC4 / RM#139: Complete run aggregation](#rm-139) | Delivered by SC4 integration; [session contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
 | [SC5 / RM#140: Suite baseline and publication](#rm-140) | Done; [baseline contract](docs/SOURCE_COVERAGE_BASELINE.md), [verified live report](https://sproates.github.io/panackelty-coverage/source/html/index.html) | 15% | 100% | 15 percentage points |
-| [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Agreed UTF-8/fallback/duration batch and versioned gate implemented; full validation/integration pending | 10% | 0% accepted | 0 accepted percentage points |
-| **Total** | | **100%** | | **90 percentage points = 90% overall** |
+| [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Done; PR#307 integrated, clean report reproduced and verified live | 10% | 100% | 10 percentage points |
+| **Total** | | **100%** | | **100 percentage points = 100% overall** |
 
-SC5 adds 15 percentage points to the previous accepted 75%; SC-1 weights are unchanged.
+SC5 added 15 percentage points to the prior 75%; SC6 adds the final 10 points
+to 90%. SC-1 weights remain unchanged.
 
 These are provisional scope estimates, not time estimates or equal shares per
 PR. Inventory, collection and aggregation carry most weight because they require
@@ -3321,7 +3322,7 @@ to `main`; core `main` was not promoted. Bootstrap output is unchanged.
 
 <a id="rm-141"></a>
 
-**SC6 / RM#141: Initial gap closure and regression policy — 10%.** Use SC5 evidence
+**SC6 / RM#141: Initial gap closure and regression policy — 10%; Done.** Use SC5 evidence
 to agree and close a bounded first batch of high-risk behavioral gaps with
 assertions that detect wrong results, not merely execute lines. Define and test
 per-component regression handling, exclusion review and failure reporting.
@@ -3335,12 +3336,20 @@ and fix signed-zero guards in `duration_ratio` and `duration_divide`. The
 [SC6 policy contract](docs/SOURCE_COVERAGE_BASELINE.md#sc6-regression-policy)
 requires complete current evidence, exact per-component floors, reviewed
 denominator/manifest/exclusion changes and protected source outcomes. There is
-no automatic baseline lowering. Implementation is pending fresh full baseline,
-clean hosted validation, `next` integration and verified live publication; it
-does not yet add accepted programme credit.
+no automatic baseline lowering. Accepted 2026-10-06: PR#307 merged to `next`
+as `b382bd84ce65b64bdcd859f4decfd600d75663c4`; final-head and fresh next Check
+passed all 22 jobs. [Next run 37384119034](https://github.com/sproates/panackelty/actions/runs/37384119034)
+reproduced 31 fresh executions, zero unavailable measurements and all 68 protected
+items. [Publisher run 37387725315](https://github.com/sproates/panackelty-coverage/actions/runs/37387725315)
+passed preparation, deployment and byte verification of every live report file.
+The live summary identifies the SC6 commit: lines 5,832/6,732 (86.63%), functions
+480/522 (91.95%), source outcomes 6,064/7,574 (80.06%). Gains over SC5 are 28 lines,
+11 functions and 37 outcomes with unchanged denominators/exclusions. PR#308 keeps
+full collection on main promotion PRs and explicit next refreshes. Core main is
+untouched. The accepted outcome is the bounded first batch, not all source gaps.
 
-The programme is complete only when these six outcomes meet their acceptance
-criteria. GI#131 stays open until then. PR packaging can change without changing
+All six scoped outcomes meet acceptance; GI#131 is complete. Further assertion
+quality and corpus expansion remain separate work. PR packaging can change without changing
 programme weights: the earlier 2–3 collection/publication PR estimate is
 provisional and must be reassessed as source-branch and aggregation scope is
 implemented. The detailed inventory/collection/aggregation split makes ownership

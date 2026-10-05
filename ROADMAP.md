@@ -1507,9 +1507,9 @@ suspension work. It is distinct from value provenance and remains unscheduled.
 `next` integration branch only after both the next release is complete and
 [RM#14: Independent website publishing](#rm-14) /
 [GI#178: Independent website publishing](https://github.com/sproates/panackelty/issues/178)
-has completed its repository separation and acceptance. These are two activation
-prerequisites; no relative ordering between the release and website separation
-is selected here.
+has completed its repository separation and acceptance. Website separation is
+accepted on 2026-10-05; the next-release prerequisite remains outstanding.
+The integration workflow is still unstarted and is not activated by this record.
 
 Once activated, scoped core feature PRs target `next` and may auto-merge after
 the applicable independent review and required checks, without separate user
@@ -1534,8 +1534,8 @@ sequencing decision changes no other programme scope, weights or priorities.
 
 Work record: [#178](https://github.com/sproates/panackelty/issues/178).
 
-State: **Verification pending — standalone publishing delivered; production cutover/live acceptance pending**.
-Scope: maintenance. Website separation is the current implementation priority.
+State: **Done — 2026-10-05**.
+Scope: maintenance. Website separation is accepted; this selects no next implementation task.
 The public `sproates/panackelty-website` repository has been created with an
 owner-authorised empty base commit; all website content goes through reviewed
 PRs. Main requires current passing website checks, PR-only squash merges,
@@ -1545,16 +1545,29 @@ independent review and explicit approval of each merge remain required.
 
 [Website PR#1: Standalone website](https://github.com/sproates/panackelty-website/pull/1) merged as `66fb316`.
 Independent release/archive checks, previews, browser integration and protected
-publication are delivered. This retirement slice removes core website source,
-validation coupling and the old Pages writer. Production cutover, exact URL/asset
-verification and rollback evidence remain acceptance requirements; GI#178 stays
-open until those checks finish. The website owns [deferred CI work](https://github.com/sproates/panackelty-website/issues/3);
+publication are delivered. Core PR#294 removed website source, validation coupling
+and the automatic Pages publisher. Website main `7fa4ef8` was published at
+`panackelty.com` by [run 37245940764, attempt 3](https://github.com/sproates/panackelty-website/actions/runs/37245940764/attempts/3)
+on 2026-10-05. Root/www browser access, playground execution, release history,
+coverage compatibility, exact deployed bytes and HTTPS passed. Website
+[PR#6: Production acceptance](https://github.com/sproates/panackelty-website/pull/6)
+records initial and repeated validation: full runs 100s/98s and routine smoke
+runs 92s/70s; observed main-to-verified-staging publication was 118s/130s.
+No action cache is configured, so these are initial/repeated measurements, not
+evidence of warm-cache speedup. The final routine production run and queue
+details are recorded in GI#178. Final owner-phone confirmation is unobserved
+additional evidence; it is not represented as passed or required approval. The initial
+domain-only cutover failed; core PR#295 and recovery run 37245222845 restored the
+original artifact and owner-device access. The retained manual-only recovery
+workflow requires the domain to be deliberately returned to core; it cannot
+reclaim production itself. The website owns [deferred CI work](https://github.com/sproates/panackelty-website/issues/3);
 its broader trials remain deferred.
 
 Sequencing decision, 2026-10-04: complete and accept this repository separation
 before activating [RM#135: Next integration workflow](#rm-135). That workflow
 also waits for the next release; this records no ordering between those two
-prerequisites. Migration is now selected; the `next` workflow remains unstarted.
+prerequisites. Website separation is complete; the `next` workflow remains unstarted and
+its release prerequisite remains outstanding.
 
 The [website repository](https://github.com/sproates/panackelty-website) owns pages, assets, release-note snapshots,
 previews and publishing. Compiler, VM, specification and runtime bundle contracts
@@ -1586,12 +1599,11 @@ Acceptance for this migration:
   Recording a follow-up never schedules or starts the update. Version lag is
   acceptable only while every published claim remains true for its stated version.
 
-Effort: M, provisionally 2–3 PRs across core and the new website repository,
-including migration and acceptance. Dependencies include release availability,
-Pages/domain configuration, preview portability and a separate coverage
-publisher. Risks include broken URLs, overlapping deployment writers and stale
-version claims. The artifact boundary already exists; hosting cutover and timing
-remain to be assessed. No compiler changes or automatic upgrade bot are included.
+Delivery spans reviewed core and website PRs, including recovery from the initial
+cutover failure. The [website acceptance record](https://github.com/sproates/panackelty-website/blob/main/docs/MIGRATION.md)
+records artifacts, deployment runs, timings and limitations. No compiler changes
+or automatic release-upgrade bot are included. Analytics and broader CI trials
+remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
 

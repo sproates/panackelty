@@ -38,16 +38,19 @@ line coverage. Update it whenever a language promise or its tests change.
 The [testing guide](README.md) describes suite ownership and validation commands.
 Planning a test does not change a coverage status.
 
-Measured source coverage currently exists only for the native C VM, at the
-[public report](https://sproates.github.io/panackelty-coverage/). The `.panack` compiler,
-bytecode tooling and standard library have tests but no measured source-line
-or branch baseline. The first [source-coverage feasibility slice](experiments/source_coverage/README.md)
-proves exact bounded instruction/function counts and expression-start-line reach,
-including zero-hit imported code, lowering, generics, async, traps and explicit
-nested-execution gaps. It selects sidecar reuse plus a future executable-source
-inventory. Production collection/publication remains unscheduled under
-[RM#46 / GI#131](../ROADMAP.md#rm-46). Do not interpret this behavior matrix,
-test counts or C percentages as a `.panack` coverage percentage.
+Measured coverage is published separately for the [native C VM](https://sproates.github.io/panackelty-coverage/)
+from `main` and the [production `.panack` source](https://sproates.github.io/panackelty-coverage/source/html/index.html)
+from `next`. The first verified source baseline covers all 38 tracked production
+compiler, bytecode and standard-library files across 30 fresh executions: lines
+86.22%, functions 89.85%, source outcomes 79.57%, no unavailable measurements.
+The [baseline contract](../docs/SOURCE_COVERAGE_BASELINE.md) defines the exact
+initial corpus, exclusions, identities and completeness rules. Lines are unique
+eligible expression/statement start lines; branches are original-source outcomes,
+not native or VM instruction branches. The corpus does not include every canonical
+test or browser/WASI execution. SC5 is accepted; bounded gap closure and regression
+policy remain SC6 under [RM#46 / GI#131](../ROADMAP.md#rm-46).
+Execution coverage does not establish assertion quality. Do not interpret this
+behavior matrix, test counts or C percentages as a `.panack` coverage percentage.
 
 The matrix is undergoing evidence reconciliation: older rows contain historical
 test names and runtime descriptions. Check the current probes and migrated

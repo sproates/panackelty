@@ -144,7 +144,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -567,7 +567,7 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("explicit generic substitution checks type", body_test_error("pub pure f(): Nat { identity[Nat](\"bad\") }; pure identity[T](value: T): T { value }"), "argument 1 to identity is Str, expected Nat"))
   results = append(results, test_equal_str("explicit generic arity checked", body_test_error("pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value: T): T { value }"), "call identity has incorrect type argument count"))
   for source in [
-    "pub pure f(): Nat { 1 + 2 }",
+
     "pub pure f(): Nat { identity(1) }; pure identity[T](value: T): T { value }",
     "pub pure f(): Nat { next() }; async next(): Nat { 1 }",
     "pub pure f(): Nat { [1].first() }",
@@ -592,7 +592,7 @@ pure namespace_body_tests(): [TestResult] {
   }
   if len(checked.functions) == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = append(results, test_expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = append(results, test_expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = append(results, test_equal_nat("nested lexical body binds", len(lexical.diagnostics), 0))
@@ -664,4 +664,111 @@ pure namespace_raw_uses(graph: ModuleBindingGraph, identity: ModuleIdentity, par
       else { namespace_raw_uses_unchecked(graph, identity, parsed) }
     }
   }
+}
+
+pure namespace_expression_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pub pure f(): Nat { 1 + 2 * 3 }",
+    "pub pure f(): Int { -1 }",
+    "pub pure f(): Rat { 1 / 2 }",
+    "pub pure f(a: Rat, b: Int): Rat { a + b }",
+    "pub pure f(a: Dec, b: Dec): Dec { a / b }",
+    "pub pure f(a: Int, b: Int): Int { a % b }",
+    "pub pure f(a: Rat, b: Nat): Bool { a < b }",
+    "pub pure f(a: Bool): Bool { !a || (a && false) }",
+    "pub pure f(a: Str): Str { a + \"ok\" }",
+    "pub pure f(a: Bool): Int { if a { 1 } else { -1 } }",
+    "pub pure f(a: Bool): Nat { if a { 1 + 2 } else { 3 } }",
+    "pub pure f(a: Bool): Void { if a { 42 } }",
+    "pub pure f(): Nat { mut value = 1; value = value + 1; value }",
+    "pub pure f(): Nat { mut value = 0; while value < 2 { value = value + 1 }; value }",
+    "pub pure f(): Nat { mut sum = 0; for item in 0..3 { sum = sum + item }; sum }",
+    "pub pure f(values: [Nat]): Nat { mut sum = 0; for item in values { sum = sum + item }; sum }",
+    "pub pure f(values: Bytes): Nat { mut sum = 0; for item in values { sum = sum + item }; sum }",
+    "pub pure f[T](values: [T], fallback: T): T { for item in values { copy: T = item }; fallback }",
+    "pub pure f(value: Str): Str { value[0] }",
+    "pub pure f(value: Bytes): Nat { value[0] }",
+    "pub pure f[T](value: [T]): T { value[0] }",
+    "pub pure f(a: Bool, left: PureFn[Nat], right: Fn[Nat]): Fn[Nat] { if a { left } else { right } }",
+    "pub record Item { value: Nat }; pub pure f(a: Bool, left: Item, right: Item): Item { if a { left } else { right } }",
+    "pub record Item { value: Nat }; pub pure f(left: Item, right: Item): Bool { left == right }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    message: Str = if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "missing checked body" }
+    results = append(results, test_expect("ordinary identity expression/" + source, len(checked.diagnostics) == 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyIdentityChecked(), message))
+  }
+  for source in [
+    "pub pure f(a: Dec, b: Nat): Dec { a + b }",
+    "pub pure f(a: Rat, b: Dec): Rat { a + b }",
+    "pub pure f(a: Rat, b: Rat): Rat { a % b }",
+    "pub pure f(): Nat { -true }",
+    "pub pure f(): Bool { !1 }",
+    "pub pure f(): Bool { 1 && true }",
+    "pub pure f(): Bool { false && (1 + true) }",
+    "pub pure f(): Nat { if 1 { 2 } else { 3 } }",
+    "pub pure f(): Nat { if true { 1 } else { \"bad\" } }",
+    "pub pure f(): Nat { value = if true { 1 }; 1 }",
+    "pub pure f(): Nat { if true { 1 } }",
+    "pub pure f(): Void { while 1 {} }",
+    "pub pure f(): Void { for item in \"bad\" {} }",
+    "pub pure f(): Void { for item in 0..true {} }",
+    "pub pure f(): Nat { for item in 0..2 {}; item }",
+    "pub pure f(): Nat { if true { item = 1 }; item }",
+    "pub pure f(): Nat { value = 1; while true { value = 2 }; value }",
+    "pub pure f(value: Str): Str { value[true] }",
+    "pub pure f(value: Nat): Nat { value[0] }",
+    "pub record Item { value: Nat }; pub pure f(item: Item): Nat { item + 1 }",
+    "pub pure f[T](value: T): T { value + value }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("ordinary identity expression rejects/" + source, len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(), "invalid expression was accepted or merely deferred"))
+  }
+  for source in [
+    "pub pure f(): Nat { 2 - 1 }",
+    "pub pure f(value: Nat): Nat { if value > 0 { value - 1 } else { 0 } }",
+    "pub pure f(): Bool { false && ((2 - 1) == 1) }",
+    "pub pure f(): Nat { if (2 - 1) == 1 { 0 } else { 1 } }",
+    "pub pure f(): Void { while (2 - 1) == 1 {} }",
+    "pub pure f(): Void { for item in 0..(2 - 1) {} }",
+    "pub pure f(a: Bool, rational: Rat): Rat { if a { rational } else { 1 } }",
+    "pub pure f(a: Bool, rational: Rat): Int { if a { 1 } else { rational } }",
+    "pub pure f(): Nat { [1,2][0] }",
+    "pub pure f(): Nat { await next() }; async next(): Nat { 1 }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("pending identity obligation propagates/" + source, len(checked.diagnostics) == 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyDeferred() && len(checked.functions[0].deferred) > 0, "pending proof/inference/effect appeared checked"))
+  }
+  interpolation: Str = "$" + "{name}"
+  interpolated: CheckedModuleBodies = body_test_module("pub pure f(name: Str): Str { \"hi " + interpolation + "\\n" + interpolation + "\" }")
+  results = append(results, test_equal_nat("interpolation identities bind without diagnostics", len(interpolated.diagnostics), 0))
+  if len(interpolated.functions) == 1 {
+    function: BoundFunctionBody = interpolated.functions[0]
+    node: BoundBody = function.body.children[0]
+    results = append(results, test_expect("interpolation parts share existing escape semantics", node.node == BodyInterpolation(["hi ", "\n", ""]), "literal parsing changed"))
+    results = append(results, test_expect("repeated interpolation preserves ordered local IDs", len(node.children) == 2 && node.children[0].node == BodyLocalUse(function.parameters[0].identity) && node.children[1].node == node.children[0].node, "local interpolation identity/order lost"))
+    results = append(results, test_expect("interpolation owns original literal span", node.span.start.line == 1 && node.children[0].span == node.span, "interpolation source ownership changed"))
+    results = append(results, test_expect("known interpolation is identity checked", function.status == BodyIdentityChecked(), "valid interpolation deferred"))
+  }
+  for source in [
+    "pub pure f(): Str { \"" + interpolation + "\" }",
+    "pub pure f(): Str { value = \"" + interpolation + "\"; name = \"late\"; value }",
+    "pub pure f(): Str { if true { name = \"inner\" }; \"" + interpolation + "\" }",
+    "pub pure f(name: [Nat]): Str { \"" + interpolation + "\" }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("invalid interpolation rejects/" + source, len(checked.diagnostics) > 0 && len(checked.functions) == 1 && checked.functions[0].status == BodyInvalid(), "invalid interpolation accepted"))
+  }
+  for source in ["pub pure f(): Str { \"plain\\ntext\" }", "pub pure f(name: Nat): Str { if true { \"" + interpolation + "\" } else { \"none\" } }"] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("plain/nested interpolation accepted/" + source, len(checked.diagnostics) == 0 && len(checked.functions) == 1 && checked.functions[0].status == BodyIdentityChecked(), "literal or nested interpolation failed"))
+  }
+  // Both branches retain the same source-local spelling but distinct origins.
+  left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item { value: Nat }")
+  right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item { value: Nat }")
+  app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as a; import project/right as b; pure f(flag: Bool, left: a.Item, right: b.Item): a.Item { if flag { left } else { right } }; pure equal(left: a.Item, right: b.Item): Bool { left == right }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, left.bindings, right.bindings], [ModuleImportEdge(app.bindings.identity, 0, left.bindings.identity), ModuleImportEdge(app.bindings.identity, 1, right.bindings.identity)])
+  distinct: CheckedModuleBodies = body_test_graph([app, left, right], graph, app)
+  results = append(results, test_expect("joins and equality do not erase nominal origins", len(distinct.diagnostics) == 2 && len(distinct.functions) == 2 && distinct.functions[0].status == BodyInvalid() && distinct.functions[1].status == BodyInvalid(), "distinct nominal identities unified"))
+  results
 }

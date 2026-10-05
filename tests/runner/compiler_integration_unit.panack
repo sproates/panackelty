@@ -88,7 +88,7 @@ main(): Void {
           "spans/library.panack:2:3: index must be Nat, got Bool\n  2 |   items[true]\n    |   ^"))
       }
       for operation in ["check", "run", "compile"] {
-        for fixture in ["public", "alias", "selective", "reexport"] {
+        for fixture in ["public", "alias", "selective", "reexport", "expression_valid"] {
           source = "tests/fixtures/compiler_contracts/namespaces/" + fixture + ".panack"
           results = results.append(integration_error("namespace migration boundary/" + fixture + "/" + operation,
             [operation, source], 1, "", "namespaces/" + fixture + ".panack:1:1: namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"))
@@ -112,6 +112,14 @@ main(): Void {
           "namespaces/body_identity.panack:6:10: argument 1 to accept is body_identity.panack:Right, expected body_identity.panack:Left"))
         results = results.append(test_expect("body identity failure writes no bytecode/" + operation,
           !file_exists("tests/fixtures/compiler_contracts/namespaces/body_identity.bc"), "invalid body emitted bytecode"))
+      }
+      for operation in ["check", "run", "compile"] {
+        for diagnostic in ["expression_types.panack:2:9: while condition is Nat, expected Bool", "expression_types.panack:3:10: unknown interpolation local missing"] {
+          results = results.append(integration_error("identity expression diagnostic/" + operation + "/" + diagnostic,
+            [operation, "tests/fixtures/compiler_contracts/namespaces/expression_types.panack"], 1, "", diagnostic))
+        }
+        results = results.append(test_expect("expression rejection writes no artifact/" + operation,
+          !file_exists("tests/fixtures/compiler_contracts/namespaces/expression_types.bc"), "invalid expression wrote bytecode"))
       }
       for location in ["other.panack:2:1", "third.panack:3:1"] {
         results = results.append(integration_error("three duplicate module origins/" + location,

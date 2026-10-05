@@ -86,14 +86,20 @@ documented in `../../docs/SOURCE_MAPS.md`.
   ordinary legacy projects skip both passes. Graph scans are not yet indexed.
 - `module_bodies.panack` retains structural bodies with original declaration/core
   targets, lexical binder paths, source spans and tagged local/callable types.
-  It checks a bounded literal/local/annotation/direct-call/explicit-generic/return
-  subset, preserving numeric and callable compatibility. Deferred spans distinguish
+  It checks literal/local/annotation/direct-call/explicit-generic/return types,
+  scalar operators, control flow and already-known iterable/index types.
+  Interpolation references retain ordered local IDs. Invalid, deferred and
+  checked-subset statuses preserve numeric and callable compatibility without
+  implying effects or execution readiness. Deferred spans distinguish
   unknown inference/proofs, constructors, core operations and async results from
   successful identity-type checks. Even zero deferred spans does not certify
   effects or executable code. `LoadedProject.module_bodies` supplies the new
   consumer boundary; the legacy checker/emitter and namespace execution gate
   remain until coordinated migration. The obsolete full-module raw walk is
   removed from production; its low-level contracts use a test-only adapter.
+- `expression_contracts.panack` shares exact scalar arithmetic result rules and
+  string decoding/interpolation parsing between the bound checker and legacy
+  checker/emitter. Nominal comparison remains tagged and is not rendered to names.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete

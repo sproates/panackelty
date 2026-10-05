@@ -1,4 +1,5 @@
 import "resolver.panack"
+import "expression_contracts.panack"
 
 record TypeShape {
   base: Str,
@@ -1011,13 +1012,12 @@ pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo],
           } else {
             if operator == "+" && left_base == "Str" && right_base == "Str" { info = plain_type("Str"); }
             else {
-              numeric: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Dec" || right_base == "Rat")
-              compatible_numeric: Bool = numeric && !((left_base == "Dec" || right_base == "Dec") && left_base != right_base)
+              compatible_numeric: Bool = scalar_compatible_numeric(left_base, right_base)
               if (operator == "%" && (left_base == "Rat" || right_base == "Rat")) || !compatible_numeric {
                 left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
                 diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${left_name} and ${right_name}"))
               } else {}
-              result: Str = if left_base == "Dec" { "Dec" } else { if operator == "/" || left_base == "Rat" || right_base == "Rat" { "Rat" } else { if left_base == "Int" || right_base == "Int" { "Int" } else { "Nat" } } }
+              result: Str = scalar_arithmetic_result(operator, left_base, right_base)
               if result == "Nat" && operator == "-" {
                 decision: SubtractionDecision = subtraction_decision(left, checked_left.info, checked_right.info, facts)
                 if !decision.proven { diagnostics = append(diagnostics, checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")); }

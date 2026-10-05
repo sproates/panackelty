@@ -12,6 +12,9 @@ in `RELEASE_POLICY.md`.
 - Retain identity-bound staged function bodies and check a bounded annotated-local,
   direct-call, explicit-generic and return subset. Deferred inference, proofs,
   effects and emission still block namespace execution.
+- Check staged ordinary expressions and control flow with lexical interpolation
+  identities. Distinguish invalid bodies from deferred obligations and checked
+  type subsets; namespace execution remains disabled.
 
 ## 0.1.0-alpha.11 — 2026-10-04
 

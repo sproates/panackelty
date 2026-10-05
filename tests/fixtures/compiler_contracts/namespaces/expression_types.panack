@@ -1,0 +1,4 @@
+pub main(): Void {
+  while 1 {}
+  text = "${missing}"
+}

@@ -3130,3 +3130,99 @@ acceptance. No optimization work or new performance guarantee is added here.
 Focused CI routing, cancellation/result guards, partition dispatch and
 conformance-equivalence regressions also passed. Website/browser validation has
 moved to the website repository; native coverage is not replaced or skipped.
+
+## Namespace ordinary expressions — 2026-10-05
+
+This P2 checklist slice adds ordinary identity-type expression and
+control-flow checking while namespace execution remains gated. It shares scalar
+numeric result rules and string decoding/interpolation parsing with the legacy
+checker/emitter rather than introducing a second spelling-based type model.
+Ordinary legacy inputs skip the bound graph pass, but compiler/seed growth can
+still affect compile and bootstrap cost. Focused evidence covers numeric
+acceptance/rejection, lexical scopes, conditions/loops, interpolation identities,
+Void non-values and propagation of deferred child checks. Known type evidence is
+not proof/effect acceptance. Nat subtraction, guarded operations, mixed Rat/integer
+branch joins and later-slice inference remain explicit obligations.
+
+The existing GI#106 validation budget concerns and uncertain prior ordinary-
+compilation cost remain open. Proposed disposition: assess this bounded compiler
+change with fresh seed fixed points, canonical correctness validation and a
+paired final candidate/baseline compile comparison, retaining the 120s full and
+15s focused targets and all safety coverage. Do not infer cost neutrality from
+skipping the staged pass, or attribute elapsed changes to source size alone.
+The validation maintainer owns the next GI#106 action: a controlled external
+experiment comparing startup-only, loader-only and full-check phases using the
+same instrumented bytecode and identical loader/core inputs. Only subtract paired
+costs after verifying phase boundaries and controlling instrumentation overhead
+and host noise. Preserve every public failing-command status, diagnostic,
+artifact-absence and cleanup assertion. Remove the external experimental harness
+after retaining the evidence; no production profiler, cache or optimisation is
+selected here. This phase experiment remains pending, not completed attribution.
+The broader RM#134 investigation is outside this delivery.
+
+Focused namespace coverage passes 344 assertions. The public CLI integration
+suite passes 118 assertions against the refreshed seed, including source-owned
+while/interpolation diagnostics and positive ordinary expressions still rejected
+by the namespace migration gate, with no bytecode artifact. A complete functional
+program checks rational/integer/decimal results, loops, repeated interpolation
+and runtime short-circuiting around division-by-zero expressions. Its source-run
+output matches both baseline and candidate seeds byte-for-byte, including the
+existing `4.0` decimal representation.
+
+Fresh compiler stages 2/3/4 agree at
+`385edbaa8c5c537ddb128cfeb61d51ee0d16ca46d9dfc2e4242acc2e04266491`.
+The seed is 430,101 bytes versus 418,426: +11,675 bytes (about 2.79%). The
+standard-library artifact remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+with unchanged expected output. These fixed points establish bootstrap reproducibility for these inputs;
+correctness is covered by the separate tests. They do not establish a latency bound.
+
+The final paired comparison used macOS 26.5 arm64, the same candidate source and
+VM, and the baseline seed from `fbb8270`:
+`9944c75c33c7bbac4311190f198f82b3870e5ad7f12619f2bbecfa35ec80839e`.
+VM SHA-256 was
+`d0b2bd45d05e89391e64bdfa586fb1ca58bcca186fdb2254e5c9e5a2df722934`;
+the sorted relative-path/source-digest manifest SHA-256 was
+`7273f49ac00ae0c11e86c310bf58c80ac5e0b556abf16f5d75b87c6a0f8866a1`.
+Candidate seed SHA-256 is recorded above. Both workloads used
+`PANACKELTY_STDLIB_PATH=src/stdlib` and separate output files:
+
+```sh
+build/vm/panack-vm run "$seed" compile "$source" -o "$output"
+```
+
+Inputs were `src/compiler/main.panack` and a tiny source containing exactly
+`main(): Void { print(42) }` followed by a newline. One predeclared baseline/
+candidate warm-up pair per workload was excluded from medians; five measured
+pairs then alternated order, starting candidate/baseline. The external harness
+recorded monotonic wall time and child CPU time; all rows and outputs were
+retained. No competing builds ran, but OS caches and unrelated host activity
+remained uncontrolled. All outputs, including warm-ups, matched byte-for-byte:
+compiler output matched the candidate seed, and tiny-output SHA-256 was
+`c67b2c08c5482dc52179d1b0569ac595641a51f1a3dffea79070a8edeb207a1d`.
+
+| Workload / measure | Baseline samples (s) | Candidate samples (s) | Median |
+| --- | --- | --- | --- |
+| Compiler wall | 5.665413, 4.822285, 4.975184, 5.294808, 5.282367 | 4.968326, 5.057569, 4.524919, 4.483809, 4.642352 | 5.282367 → 4.642352s; −12.12% |
+| Compiler CPU | 5.657842, 4.813588, 4.968686, 5.288069, 5.275473 | 4.961559, 5.050766, 4.514637, 4.477574, 4.636104 | 5.275473 → 4.636104s; −12.12% |
+| Tiny wall | 0.032055, 0.037356, 0.035791, 0.032686, 0.037077 | 0.033091, 0.038361, 0.032525, 0.031950, 0.036359 | 35.791 → 33.091ms; −7.54% |
+| Tiny CPU | 0.031145, 0.036420, 0.034842, 0.031788, 0.036141 | 0.032174, 0.037443, 0.031493, 0.031060, 0.035414 | 34.842 → 32.174ms |
+
+Warm-up wall/CPU seconds, baseline then candidate: compiler
+4.661376/4.655615 then 4.874094/4.866922; tiny 0.032396/0.031134 then
+0.037122/0.036174. Measured ranges overlap. Lower observed medians are not proof
+of an improvement, absence of all regressions or attribution to the shared
+helpers. This comparison is not the full/focused validation workload and cannot
+satisfy its 120s/15s budgets. The 2.79% seed growth and uncertain broader cost
+remain disclosed. Proposed disposition: accept this bounded internal slice
+with passing canonical validation, preserving GI#106 ownership and the pending
+phase comparison above; no additional benchmark repetition or optimisation is
+selected from this noisy sample.
+
+Canonical `make check` passed for this source and seed in 142s (unit 96s,
+functional 5s, bootstrap 16s). The final clean host-access run after handover
+updates also passes in 146s (unit 100s, functional 5s, bootstrap 15s). A preceding
+sandboxed run failed native host/socket tests; the host-access rerun passes those
+same tests without source changes. The full 120s target remains missed; the aggregate
+unit phase is not a focused incremental sample and is not assessed against 15s.
+The budget concern remains open under the owned disposition above.

@@ -1,6 +1,17 @@
 # Self-hosting roadmap
 
-The proposed P2 bound-body slice refreshes the v9 seed to
+The proposed P2 ordinary-expression/control-flow slice refreshes the v9 seed to
+`385edbaa8c5c537ddb128cfeb61d51ee0d16ca46d9dfc2e4242acc2e04266491`
+(430,101 bytes). Fresh compiler stages 2/3/4 agree; standard-library artifact
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+and expected output remain unchanged. The checked subset now includes scalar
+operators, control flow and lexical interpolation identities, with explicit
+invalid/deferred status. Aggregate inference, core calls, proofs, effects,
+emission and coordinated source migration remain future work; namespaces are
+still rejected for execution. See the
+[expression validation evidence](tests/VALIDATION_PROFILE.md#namespace-ordinary-expressions--2026-10-05).
+
+The preceding P2 bound-body slice refreshed the v9 seed to
 `9944c75c33c7bbac4311190f198f82b3870e5ad7f12619f2bbecfa35ec80839e`
 (418,426 bytes). Fresh compiler stages 2/3/4 agree, and standard-library artifact
 and expected output retain the fixed point below. The loader retains structural

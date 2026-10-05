@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
+#include <dirent.h>
 #include <stdio.h>
 
 static Value *operand;
@@ -712,6 +713,55 @@ static void coverage_allocations(void)
     }
 }
 
+static void coverage_remove_files(const char *directory)
+{
+    DIR *dir = opendir(directory);
+    if (!dir) return;
+    struct dirent *entry;
+    while ((entry = readdir(dir))) {
+        if (!strcmp(entry->d_name, ".") || !strcmp(entry->d_name, "..")) continue;
+        char path[1024];
+        snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
+        assert(!unlink(path));
+    }
+    assert(!closedir(dir) && !rmdir(directory));
+}
+static void coverage_session_allocations(void)
+{
+    char directory[] = "/tmp/panack-session-fault-XXXXXX";
+    assert(mkdtemp(directory));
+    char artifact[512], inventory[512], session[512];
+    snprintf(artifact, sizeof(artifact), "%s/artifact", directory);
+    snprintf(inventory, sizeof(inventory), "%s/inventory", directory);
+    snprintf(session, sizeof(session), "%s/session", directory);
+    FILE *file = fopen(artifact, "wb");
+    assert(file && fwrite("artifact", 1, 8, file) == 8 && !fclose(file));
+    file = fopen(inventory, "wb");
+    assert(file && fwrite("inventory", 1, 9, file) == 9 && !fclose(file));
+    const char *artifacts[] = {artifact}, *inventories[] = {inventory};
+    Instruction code[] = {{.op = OP_CONST, .constant = {.tag = 5}}, {.op = OP_RETURN}};
+    Function function = {.name = "main", .ins = code, .ins_count = 2};
+    Program program = {.count = 1, .functions = &function};
+    VMCoverageRun *root = vm_coverage_session_create(session, 1, artifacts, inventories, &program);
+    if (root) {
+        VMCoverageRun *child = vm_coverage_child(root, &program, (const uint8_t *)"artifact", 8, "nested\n");
+        if (child) {
+            VM vm = {.program = &program, .coverage_run = child, .coverage = vm_coverage_run_collector(child)};
+            release(execute(&vm, &function, NULL));
+            vm_coverage_run_close(child);
+        }
+        char *ticket = vm_coverage_process_ticket(root);
+        if (ticket) {
+            VMCoverageRun *process = vm_coverage_session_inherit(ticket, (const uint8_t *)"artifact", 8, &program);
+            vm_coverage_run_close(process);
+            free(ticket);
+        }
+        vm_coverage_run_close(root);
+    }
+    coverage_remove_files(session);
+    coverage_remove_files(directory);
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 3) {
@@ -735,6 +785,7 @@ int main(int argc, char **argv)
     fault_reset(0);
     sweep("decode", decode_program);
     sweep("coverage collection", coverage_allocations);
+    sweep("coverage session", coverage_session_allocations);
     operand = value_size(42);
     assert(operand);
     sweep("record", construct_record);

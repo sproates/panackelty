@@ -42,7 +42,7 @@ PANACKELTY_COMPILER_PATH=$compiler
 export PANACKELTY_COMPILER_PATH
 
 case "${1-}" in
-  coverage-run)
+  coverage-run|coverage-session)
     exec "$vm" "$@"
     ;;
   run|check)

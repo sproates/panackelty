@@ -23,15 +23,19 @@ pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
 // Layout is derived solely from locally compiled code; no foreign sizes or paths
 // are trusted. Exact artifact + inventory bytes bind observations to SC2 IDs.
 pure decode_coverage(data: Bytes, artifact: Bytes, inventory: Bytes, program: BytecodeProgram): CoverageData {
+  decode_coverage_at(data, artifact, inventory, program, 0)
+}
+
+pure decode_coverage_at(data: Bytes, artifact: Bytes, inventory: Bytes, program: BytecodeProgram, offset: Nat): CoverageData {
   prefix: Bytes = source_map_join([utf8_encode("PANACKCOV1\n"), source_map_blob(artifact),
     source_map_blob(inventory), encode_u32(len(program.functions))], 0, 4)
   mut size: Nat = byte_len(prefix) + 6
   for function in sort_functions(program.functions) { size = size + 12 + len(function.instructions) * 32; }
-  mut valid: Bool = size <= 16777216 && byte_len(data) == size && coverage_prefix(data, prefix, 0)
+  mut valid: Bool = size <= 16777216 && byte_len(data) == size + offset && coverage_prefix(data, prefix, offset)
   mut functions: [CoverageFunction] = []
   mut terminal: Nat = 0
   if valid {
-    mut cursor: Nat = byte_len(prefix)
+    mut cursor: Nat = offset + byte_len(prefix)
     for function in sort_functions(program.functions) {
       entries: Nat = coverage_number(data, cursor, 8)
       valid = valid && coverage_number(data, cursor + 8, 4) == len(function.instructions)
@@ -92,6 +96,47 @@ pure coverage_same_span(left: SourceSpan, right: SourceSpan): Bool {
   left.start.file == right.start.file && left.start.offset == right.start.offset && left.end.offset == right.end.offset
 }
 
+// Index completed incoming edges once per function. Both expression entry and
+// completion are queries against a target PC; rescanning a large function for
+// every source item makes compiler-sized reports unnecessarily quadratic.
+record CoverageIncoming { source: Nat, count: Nat }
+pure coverage_add_incoming(index: Map[Nat,[CoverageIncoming]], target: Nat, source: Nat, count: Nat): Map[Nat,[CoverageIncoming]] {
+  if count == 0 { index } else {
+    prior: [CoverageIncoming] = if index.has(target) { index.get(target) } else { [] }
+    index.put(target, append(prior, CoverageIncoming(source, count)))
+  }
+}
+pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat,[CoverageIncoming]] {
+  mut index: Map[Nat,[CoverageIncoming]] = map()
+  for pc in 0..len(code.instructions) {
+    edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
+    cell: CoverageCell = data.cells[pc]
+    if edge.conditional {
+      index = coverage_add_incoming(index, pc + 1, pc, cell.fallthrough)
+      index = coverage_add_incoming(index, edge.target, pc, cell.branched)
+    } else { index = coverage_add_incoming(index, edge.target, pc, cell.completed); }
+  }
+  index
+}
+pure coverage_attempted_indexed(probe: EmissionProbe, entries: Nat, index: Map[Nat,[CoverageIncoming]]): Nat {
+  mut count: Nat = if probe.start == 0 { entries } else { 0 }
+  if index.has(probe.start) {
+    for edge in index.get(probe.start) {
+      if edge.source < probe.start || edge.source >= probe.end { count = count + edge.count; }
+    }
+  }
+  count
+}
+pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat,[CoverageIncoming]]): Nat {
+  mut count: Nat = 0
+  if index.has(probe.end) {
+    for edge in index.get(probe.end) {
+      if edge.source >= probe.start && edge.source < probe.end { count = count + edge.count; }
+    }
+  }
+  count
+}
+
 // A loop inside a block expression may jump back to its first PC. Count entries
 // from outside the interval, not redispatches of that PC from inside the block.
 pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
@@ -150,9 +195,37 @@ pure coverage_item_kind(item: InventoryItem, items: [InventoryItem]): Str {
   } }
 }
 
+pure coverage_text_join(chunks: [Str], start: Nat, end: Nat): Str {
+  if start == end { "" } else { if end == start + 1 { chunks[start] } else {
+    middle: Nat = quotient(start + end, 2)
+    coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
+  } }
+}
+
+pure coverage_probe_key(kind: Str, span: SourceSpan): Str {
+  start: Nat = span.start.offset
+  end: Nat = span.end.offset
+  kind + "\t" + source_map_escape(span.start.file) + "\t${start}\t${end}"
+}
+
 pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: CoverageData, root: Str, stdlib: Str): Str {
   terminal: Nat = data.terminal
-  mut output: Str = "coverage: single-execution terminal=${terminal}\n"
+  mut rows: [Str] = ["coverage: single-execution terminal=${terminal}\n"]
+  codes: [FunctionCode] = sort_functions(mapped.bytecode.functions)
+  mut incoming: [Map[Nat,[CoverageIncoming]]] = []
+  for i in 0..len(codes) { incoming = append(incoming, coverage_incoming(codes[i], data.functions[i])); }
+  mut code_indices: Map[Str,Nat] = map()
+  for i in 0..len(codes) { code_indices = code_indices.put(codes[i].name, i); }
+  mut probe_index: Map[Str,Map[Str,[EmissionProbe]]] = map()
+  for mapping in mapped.probes {
+    mut probes: Map[Str,[EmissionProbe]] = if probe_index.has(mapping.name) { probe_index.get(mapping.name) } else { map() }
+    for probe in mapping.entries {
+      key: Str = coverage_probe_key(probe.kind, probe.span)
+      prior: [EmissionProbe] = if probes.has(key) { probes.get(key) } else { [] }
+      probes = probes.put(key, append(prior, probe))
+    }
+    probe_index = probe_index.put(mapping.name, probes)
+  }
   for snapshot in source_snapshots(project, root, stdlib) {
     for module in project.modules {
       if module.source_path == snapshot.path {
@@ -174,9 +247,9 @@ pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: 
           mut state: Str = if item.kind == "excluded" { "excluded" } else { "not-emitted" }
           mut attempted: Nat = 0
           mut completed: Nat = 0
-          mut function_index: Nat = 0
-          for code in sort_functions(mapped.bytecode.functions) {
-            if code.name == function_name && item.kind != "excluded" {
+          if code_indices.has(function_name) && item.kind != "excluded" {
+              function_index: Nat = code_indices.get(function_name)
+              code: FunctionCode = codes[function_index]
               observed: CoverageFunction = data.functions[function_index]
               if item.kind == "function" {
                 state = "observed"
@@ -214,14 +287,17 @@ pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: 
                 state = "unavailable"
                 kind: Str = coverage_item_kind(item, items)
                 mut matches: Nat = 0
-                for mapping in mapped.probes {
-                  if mapping.name == code.name {
-                    for probe in mapping.entries {
-                      if probe.kind == kind && coverage_same_span(probe.span, item.span) {
-                        matches = matches + 1
+                if probe_index.has(code.name) {
+                    probes: Map[Str,[EmissionProbe]] = probe_index.get(code.name)
+                    key: Str = coverage_probe_key(kind, item.span)
+                    if probes.has(key) {
+                      candidates: [EmissionProbe] = probes.get(key)
+                      matches = len(candidates)
+                      if matches == 1 {
+                        probe: EmissionProbe = candidates[0]
                         cell: CoverageCell = observed.cells[probe.start]
-                        attempted = if kind == "expression" { coverage_attempted(probe, code, observed) } else { cell.attempted }
-                        completed = if kind == "expression" { coverage_completed(probe, code, observed) } else { cell.completed }
+                        attempted = if kind == "expression" { coverage_attempted_indexed(probe, observed.entries, incoming[function_index]) } else { cell.attempted }
+                        completed = if kind == "expression" { coverage_completed_indexed(probe, incoming[function_index]) } else { cell.completed }
                         if item.kind == "outcome" {
                           take_branch: Bool = item.detail == "false" || item.detail == "exit" ||
                             (kind == "&&" && item.detail == "skip-right") || (kind == "||" && item.detail == "evaluate-right")
@@ -230,15 +306,12 @@ pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: 
                         }
                       }
                     }
-                  }
                 }
                 if matches == 1 { state = "observed"; } else { attempted = 0; completed = 0; }
               }
-            }
-            function_index = function_index + 1
           }
           file: Str = source_map_escape(snapshot.name)
-          output = output + file + "\t" + item.id + "\t" + item.kind + "\t" + item.detail + "\t${state}\t${attempted}\t${completed}\n"
+          rows = append(rows, file + "\t" + item.id + "\t" + item.kind + "\t" + item.detail + "\t${state}\t${attempted}\t${completed}\n")
           if item.kind == "expression" || item.kind == "statement" {
             line: Nat = item.span.start.line
             reached: Bool = (state == "observed" && attempted > 0) || (lines.has(line) && lines.get(line))
@@ -249,13 +322,13 @@ pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: 
           }
         }
         for line in line_order {
-          output = output + source_map_escape(snapshot.name) + "\tline/${line}\tline\tanchor\t" + (if lines.get(line) { "observed" } else { line_states.get(line) }) + "\t" +
-            (if lines.get(line) { "1" } else { "0" }) + "\n"
+          rows = append(rows, source_map_escape(snapshot.name) + "\tline/${line}\tline\tanchor\t" + (if lines.get(line) { "observed" } else { line_states.get(line) }) + "\t" +
+            (if lines.get(line) { "1" } else { "0" }) + "\n")
         }
       }
     }
   }
-  output
+  coverage_text_join(rows, 0, len(rows))
 }
 
 run_coverage_report(values: [Str]): Nat {

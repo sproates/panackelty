@@ -1,4 +1,6 @@
 usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]
+       panack coverage-session DIRECTORY ARTIFACT INVENTORY [ARTIFACT INVENTORY ...] -- [arguments...]
+       panack coverage-aggregate --source SOURCE INVENTORY [--source SOURCE INVENTORY ...] --session DIRECTORY [--session DIRECTORY ...]
        panack coverage-report SOURCE.panack --inventory FILE --coverage RAW
        panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]
        panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]

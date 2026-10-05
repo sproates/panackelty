@@ -771,3 +771,24 @@ states, zero budgets, overflow, bounds and equal-destination branch outcomes.
 Allocation fault sweeps include collector creation and covered execution.
 See [the runtime contract](../docs/SOURCE_COVERAGE.md). Complete child collection
 and suite percentages remain SC4–SC5.
+
+### SC4 registered execution aggregation
+
+`runner/compiler_coverage_session_cli.panack` checks exact multi-session branch
+and function totals, nested bytecode and native subprocesses, fresh execution of
+reused bytecode, exclusive admission, missing and wholly deleted children,
+truncated/surplus/mixed/stale records, duplicate sessions, killed claimed
+collectors, traps, unregistered code and the cached-transcript guard.
+`runner/compiler_coverage_unit.panack` also checks canonical execution IDs,
+aggregate overflow and indexed expression entry/completion rules.
+
+Native `coverage_session.c` contracts check task completion/cancellation,
+subprocess claim exclusivity and isolated server-handler counters under slot
+reuse. The allocation-failure corpus sweeps registry creation, nested collection
+and inherited process tickets. `make source-coverage-session-smoke` is the larger
+opt-in real-compiler acceptance fixture: it registers and runs the compiler in a
+nested VM and asserts exactly one compiler entry plus an unused command at zero.
+
+See [the session contract](../docs/SOURCE_COVERAGE.md). Complete execution data is
+not a claim that every source association is available, or that a test suite has
+been measured. SC5 still owns baseline scope and publication.

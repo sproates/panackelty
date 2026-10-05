@@ -3,6 +3,7 @@
 
 #include "program.h"
 #include "coverage.h"
+#include "coverage_session.h"
 #include "value.h"
 
 #include <stdbool.h>
@@ -23,6 +24,7 @@ typedef struct {
     char **environment;
     const char *error;
     VMExecution *execution;
+    VMCoverageRun *coverage_run; /* Optional registered execution; owned by caller. */
     VMCoverage *coverage; /* Optional, borrowed, single-execution collector. */
 } VM;
 

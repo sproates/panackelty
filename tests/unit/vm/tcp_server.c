@@ -15,6 +15,10 @@
 #include <time.h>
 #include <unistd.h>
 
+VMCoverageRun *coverage_server_begin(Program *program);
+void coverage_server_end(VMCoverageRun *run);
+static VMCoverageRun *coverage_run;
+
 static char *parameters[] = {"request"};
 static Instruction echo_code[] = {
     {.op = OP_LOAD, .name = "request"},
@@ -46,7 +50,8 @@ static size_t unused_port(void)
 
 static VMTcpServer *start(size_t port, VMTcpServerLimits options)
 {
-    VM vm = {.program = &program};
+    VM vm = {.program = &program, .coverage_run = coverage_run,
+             .coverage = vm_coverage_run_collector(coverage_run)};
     Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
     VMTcpServer *server = tcp_server_start(&vm, &echo_function, address, port, options, true);
     release(address);
@@ -308,6 +313,7 @@ void tcp_server_contracts(void)
 {
     const char *error;
     assert(verify(&program, &error));
+    coverage_run = coverage_server_begin(&program);
     size_t port = unused_port();
     VMTcpServer *server = start(port, limits);
     int slow = connect_client(port);
@@ -334,6 +340,8 @@ void tcp_server_contracts(void)
         assert(!strcmp(reports->as.sequence.items[i]->as.named.name, "Ok"));
     }
     tcp_server_destroy(server);
+    coverage_server_end(coverage_run);
+    coverage_run = NULL;
 
     /* Request overflow, response overflow, zero-length limits and client expiry. */
     for (size_t mode = 0; mode < 4; mode++) {

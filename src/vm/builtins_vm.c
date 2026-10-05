@@ -23,12 +23,15 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             return NULL;
         }
         VM child = *vm;
-        vm_coverage_gap(vm->coverage);
-        child.coverage = NULL;
+        if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
+        child.coverage_run = vm_coverage_child(vm->coverage_run, &nested,
+            a[0]->as.bytes.data, a[0]->as.bytes.length, "nested\n");
+        child.coverage = vm_coverage_run_collector(child.coverage_run);
         child.execution = NULL;
         child.program = &nested;
         child.error = NULL;
         Value *result = execute(&child, program_function(&nested, "main"), NULL);
+        if (!vm_coverage_run_close(child.coverage_run)) vm_coverage_gap(vm->coverage);
         if (!result) {
             vm->error = child.error;
             free_program(&nested);
@@ -66,8 +69,10 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             arguments[i] = (char *)argument->as.bytes.data;
         }
         VM child = *vm;
-        vm_coverage_gap(vm->coverage);
-        child.coverage = NULL;
+        if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
+        child.coverage_run = vm_coverage_child(vm->coverage_run, &nested,
+            a[0]->as.bytes.data, a[0]->as.bytes.length, "nested\n");
+        child.coverage = vm_coverage_run_collector(child.coverage_run);
         child.execution = NULL;
         child.program = &nested;
         child.argc = (int)a[1]->as.sequence.count;
@@ -75,6 +80,7 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
         child.error = NULL;
         Value *result = execute(&child, program_function(&nested, "main"), NULL);
         free(arguments);
+        if (!vm_coverage_run_close(child.coverage_run)) vm_coverage_gap(vm->coverage);
         if (!result) {
             vm->error = child.error;
             free_program(&nested);

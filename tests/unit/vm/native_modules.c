@@ -487,6 +487,29 @@ static void verifier_rejects_forged_structures(void)
     assert(!decode(tiny, MAX_ARTIFACT + 1u, &oversized, &error) &&
            strstr(error, "size limit"));
     free_program(&oversized);
+
+    Instruction returned = {.op = OP_RETURN};
+    Function ordered[] = {
+        {.name = "alpha", .ins_count = 1, .ins = &returned},
+        {.name = "helper", .ins_count = 1, .ins = &returned},
+        {.name = "main", .ins_count = 1, .ins = &returned},
+        {.name = "omega", .ins_count = 1, .ins = &returned},
+        {.name = "zebra", .ins_count = 1, .ins = &returned}
+    };
+    Program lookup = {.count = 5, .functions = ordered};
+    assert(verify(&lookup, &error) && lookup.verified_function_order);
+    for (size_t i = 0; i < lookup.count; i++) {
+        assert(program_function(&lookup, ordered[i].name) == &ordered[i]);
+    }
+    const char *missing[] = {"", "aardvark", "hel", "mainx", "zzzz"};
+    for (size_t i = 0; i < sizeof(missing) / sizeof(*missing); i++) {
+        assert(program_function(&lookup, missing[i]) == NULL);
+    }
+    ordered[0].name = "zzebra";
+    assert(!verify(&lookup, &error) && !lookup.verified_function_order);
+    assert(program_function(&lookup, "zzebra") == &ordered[0]);
+    lookup.count = 0;
+    assert(program_function(&lookup, "main") == NULL);
 }
 
 static void decode_mutations_release_partial_programs(void)

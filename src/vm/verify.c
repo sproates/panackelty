@@ -21,6 +21,7 @@ bool verify_call_edge(const Function *caller, const Function *callee,
 
 bool verify(Program *p, const char **error)
 {
+    p->verified_function_order = false;
     Function *main = program_function(p, "main");
     if (!main) {
         *error = "bytecode has no main function";
@@ -98,5 +99,6 @@ bool verify(Program *p, const char **error)
             return false;
         }
     }
+    p->verified_function_order = true;
     return true;
 }

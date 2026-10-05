@@ -3574,3 +3574,32 @@ failed, and it assumed `/bin/true`. The fixture now explicitly runs `/bin/sh -c
 'exit 0'` and checks successful execution separately from unavailable coverage.
 This increases session CLI assertions from 40 to 41 (117 focused coverage checks
 in total). Final cross-platform CI is required for the corrected fixture.
+
+### SC4 smoke-test timing follow-up
+
+A normal two-worker runtime run passed with the nested runner at 82s. A temporary
+diagnostic runner timed 342 subprocess operations totalling 84.071s while all
+343 assertions passed. The largest operation rebuilt the compiler in 19.334s;
+the source/bytecode explanation fixtures used 7.008s and 6.589s. This establishes
+healthy work near the 90s aggregate deadline, not a reproduced classification of
+the original discarded failure. The outer suite deadline also equals the allowed
+deadline of its single compiler-source fixture. Tracing through ptrace was
+unavailable in the local execution environment; the diagnostic copy changed no
+tracked test source or production timeout.
+
+Runtime function lookup scanned every name even after verification proved the
+function table canonically sorted. Verified programs now use binary search;
+unverified objects keep linear lookup. Verification clears the flag before
+checking and only enables it on success, including when a previously verified
+object is checked again. The flag is in-memory metadata, not a bytecode change.
+Native tests cover every position, missing keys before/between/after entries,
+and failed re-verification of an unsorted table followed by linear lookup.
+
+A controlled full compiler build took 20.507s on the preceding VM and 16.707s on
+the candidate, with byte-identical generated artifacts. The unchanged complete
+runner passed in 68s with the candidate, compared with 82/84/85s before it. These
+are local observations rather than a platform-wide performance guarantee. Native
+contracts and all 1,987 allocation-failure cases pass. The existing 90s timeout,
+all 343 runner assertions, and the bytecode/compiler seed remain unchanged.
+The improvement addresses observed runtime cost and narrow timeout margin;
+it does not claim to recover the original lost diagnostic or close GI#106.

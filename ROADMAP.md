@@ -104,7 +104,8 @@ establishment tranche below has its own stable denominator.
 The modules/packages/HTTP programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and
-control flow are next; full body/effect/emission integration remains pending. Compiler understanding
+control flow are Done on this delivery's merge; full body/effect/emission integration
+remains pending. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -116,7 +117,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. All validation passes; both timing targets remain missed. [Exact inputs, counts and limitations](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. Proposed disposition: accept the measurement baseline, retaining unchanged targets and coverage. Delivery owner retains GI#106 until a baseline maintainer accepts handover. Next: attribute the representative critical path, then compare a separately selected reuse candidate against this pinned matrix; review remediation scope before the next affected compiler delivery. No optimisation or causal regression claim is made. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. All validation passes; both timing targets remain missed. The ordinary-expression slice passes canonical validation in 146s; its seed grows 2.79%, with no isolated latency regression established. [Slice evidence and proposed disposition](tests/VALIDATION_PROFILE.md#namespace-ordinary-expressions--2026-10-05). [Exact inputs, counts and limitations](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. Proposed disposition: accept the measurement baseline, retaining unchanged targets and coverage. Delivery owner retains GI#106 until a baseline maintainer accepts handover. Next: attribute the representative critical path, then compare a separately selected reuse candidate against this pinned matrix. The validation maintainer owns a controlled startup-only/loader-only/full-check phase comparison under GI#106; review it before the next affected compiler delivery. Proposed disposition for the ordinary-expression slice: accept the bounded internal change with this unresolved budget concern and phase-comparison plan, preserving targets and coverage. No optimisation or causal regression claim is made. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -260,7 +261,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — four foundations merged; remaining checklist below | P1 | Large; provisionally 10–18 remaining PRs; reassess after checklist slices 1–3 |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — four foundations merged; slice 1 Done on this delivery's merge; remaining checklist below | P1 | Large; provisionally 9–16 remaining PRs on slice 1 merge; reassess after checklist slices 1–3 |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -343,8 +344,10 @@ P1 has earned its design-task credit through merged PR#240, supported by the del
 P2 is In progress: PR#261 merged its metadata/identity foundation and PR#262
 merged raw qualified syntax, cross-module binding/re-export resolution and
 diagnostics. PR#275 merged checked declaration/signature identities as `0bcf092`;
-PR#284 merged bounded function-body identities as `9f8f8a0`. Remaining body
-checking, effect/emission identity integration and migration remain. These provide
+PR#284 merged bounded function-body identities as `9f8f8a0`. Ordinary expressions
+and control flow complete checklist slice 1 on this delivery's merge, with the
+validation evidence below. Remaining aggregate/core body checking, effect/emission
+identity integration and migration remain. These provide
 partial implementation evidence without executable namespace acceptance. No stable sub-outcome
 allocation exists within P2, so its partial completion and estimated contribution
 remain unquantified rather than assigning credit by PR count. P3–P8 remain Planned.
@@ -365,10 +368,11 @@ Accepted. On selection record owner, PR/revision, evidence, blockers and next ac
 in its issue and update this register at delivery. A design or experiment does not
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
-closing such followups. P1 design acceptance is complete. When core programme
-implementation is selected again, its next action is slice 1 of the
-[P2 delivery checklist](#p2-delivery-checklist), ordinary expressions and control flow, followed by the remaining P2 acceptance and selected P3/P4
-sequence. P3–P8 have not started.
+closing such followups. P1 design acceptance is complete. Ordinary expressions and control flow complete
+slice 1 of the [P2 delivery checklist](#p2-delivery-checklist) on this delivery's
+merge. Slice 2, aggregates, patterns and generic inference, is the next candidate
+for explicit selection, followed by the remaining P2 acceptance and selected
+P3/P4 sequence. P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -2866,22 +2870,37 @@ P2's original large/3–5 total-PR estimate is superseded by the provisional
 remaining-work decomposition below, not by counting completed PRs. This changes
 no scope or weight and awards no additional completion credit.
 
-### P2 delivery checklist — remaining work
+### P2 delivery checklist — delivery and remaining work
 
 <a id="p2-delivery-checklist"></a>
 
 The 2026-10-04 selection of P2 as sole implementation priority is superseded
 by the owner's 2026-10-05 selection of [RM#14: Website separation](#rm-14).
-Retain these eight remaining slices for the next core programme handoff; no
+Retain these eight checklist slices for the core programme handoff; no
 P2 scope, weight or accepted progress changes with this sequencing decision.
 These are ordered acceptance checklists within RM#41 / GI#198,
 not eight independently tracked initiatives. PR#261, PR#262, PR#275 and PR#284 are
-merged foundations, not complete executable namespace acceptance. The next slice
-is **1: ordinary expressions and control flow**.
+merged foundations, not complete executable namespace acceptance. The owner selected **1: ordinary expressions and control flow** for implementation
+on 2026-10-05 after website separation. **Slice 1: Done on this delivery's merge.**
+Its delivery checks scalar
+operators, bindings/assignments, branches, known iterable/index paths, returns and
+lexical interpolation references. Invalid, deferred and checked-subset states
+remain distinct. Collection construction, nominal fields/patterns and inferred
+generics remain slice 2; core contracts, proofs and effects remain slices 3–5.
+Mixed Rat/integer joins explicitly defer rather than erase rational identity.
+Completion evidence: focused coverage passes 344 assertions, public CLI
+integration passes 118 assertions with positioned failures/no artifacts, and
+fresh compiler/stdlib fixed points preserve v9. Complete source/bytecode functional
+acceptance and canonical `make check` pass (146s against the 120s target). See the
+[performance evidence and disposition](tests/VALIDATION_PROFILE.md#namespace-ordinary-expressions--2026-10-05).
+This is internal preparation, not executable namespace acceptance. GI#198 remains
+open for slices 2–8. Slice 2 is the next candidate for explicit selection; this
+handover does not start it. No programme weight or accepted P2 percentage changes
+from this internal delivery.
 
 | Slice | Finish line and required evidence | Dependencies | Provisional remaining PRs |
 | --- | --- | --- | ---: |
-| 1. Ordinary expressions and control flow | Identity-based checking covers operators, bindings/assignments, branches, loops and returns, including locals referenced within interpolation. Positive and rejected cases preserve lexical identity, evaluation/checking rules and source spans; unsupported paths remain explicit. | Merged body/signature foundations | 1–2 |
+| 1. Ordinary expressions and control flow — Done on merge | Identity-based checking covers operators, bindings/assignments, branches, loops and returns, including locals referenced within interpolation. Positive and rejected cases preserve lexical identity, evaluation/checking rules and source spans; unsupported paths remain explicit. | Merged body/signature foundations | 0 on merge |
 | 2. Aggregates, patterns and generic inference | Records/enums, constructors, collection values, destructuring/matching and inferred generic arguments use declaration identities. Same-spelled nominal types remain distinct inside nested types and patterns; arity, exhaustiveness and inference failures remain useful. | 1; existing generic contracts | 2–3 |
 | 3. Core and indirect-call contracts | Core operations/methods, receiver calls and indirect callable values share checked contracts with direct calls. Reserved core identity cannot be forged; wrong arguments/results and ambiguous receiver/namespace uses reject correctly. | 1–2 | 1–2 |
 | 4. Guard proofs | Guarded conversions, arithmetic obligations and mutation invalidation use identity-aware facts through the completed body checker. Positive, rejected and unavailable proofs preserve existing soundness and exact semantics. | 1–3 | 1–2 |
@@ -2890,7 +2909,7 @@ is **1: ordinary expressions and control flow**.
 | 7. Diagnostics, explain and locate | Preserve original module/source identity and precise expression/type/pattern spans across checking and lowering. Qualified selectors are unambiguous; unqualified selectors work only when unique. Wrong identity, ambiguous selectors and stale mappings fail safely. | 1–6; span preservation applies throughout | 1–2 |
 | 8. Coordinated seed/source cutover and acceptance | Audit initial stdlib exports; migrate compiler, tests, examples and package inputs under one namespace model. Produce the namespace-capable seed, prove fresh compiler/stdlib fixed points and native/browser/installed conformance, document breaking migration, and remove obsolete flat execution and transitional code when its removal criterion is met. | 1–7; bootstrap-root staging established before source cutover | 2–3 |
 
-Total: **10–18 provisional remaining PRs**, including implementation, tests,
+Total on this delivery's merge: **9–16 provisional remaining PRs**, including implementation, tests,
 documentation and integration; this is a forecast, not a commitment. Reassess
 after slices 1–3 using actual checker gaps, evidence and integration costs.
 Splitting or combining PRs must preserve these finish lines. Each handoff records

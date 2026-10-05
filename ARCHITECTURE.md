@@ -235,14 +235,23 @@ value methods select reserved lowering before user helpers. The loader uses this
 representation instead of the old full-module raw-reference walk. Its bounded
 identity-type checks cover literals, parameter/local references, annotations,
 assignment, non-generic callable references, direct/qualified/helper calls with
-explicit generic substitution, and return compatibility. Nominals compare original
+explicit generic substitution, scalar operators, Bool conditions, branch joins,
+known iterable/index types, and return compatibility. Interpolated strings retain
+ordered lexical-local children and decoded text parts, including repeated uses.
+`expression_contracts.panack` shares literal decoding and exact numeric result
+rules with the legacy checker/emitter; nominal identities never enter those
+scalar helpers. Nominals compare original
 identities; callable effects remain distinct, with the existing PureFn-to-Fn and
 Nat-to-Int compatibility rules. Public function bodies can use private helpers.
 
 A missing type is not successful validation. Deferred spans record operations
-awaiting inference or proof checking: core operations, constructors, fields,
-operators, control-flow joins, inferred generic calls and async call/await results.
-Even an empty deferred list certifies only this identity-type subset, not purity,
+awaiting inference or proof checking: core calls, collection construction,
+constructors, fields/patterns, guarded operations, Nat subtraction, aggregate or
+mixed Rat/integer joins, inferred generic calls and async call/await results.
+Checked bodies distinguish invalid, deferred and checked-identity-subset status.
+An invalid body cannot appear checked merely because its return type is known;
+child obligations propagate through conditions and operators. Even checked-subset
+status certifies only these identity types, not purity,
 await legality or executable code. Checked signatures and the bound body tree are
 the input boundary for subsequent consumer migration; no identity is encoded as a
 synthetic name or fed through a flattened legacy checker. The raw full-module

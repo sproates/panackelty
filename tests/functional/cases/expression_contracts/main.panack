@@ -1,0 +1,12 @@
+main(): Void {
+  print(1 / 2)
+  print(-1)
+  print(1.5 + 2.5)
+  print(true || (1 / 0 == 0))
+  print(false && (1 / 0 == 0))
+  mut total: Nat = 0
+  for value in 0..3 { total = total + value }
+  while total < 5 { total = total + 1 }
+  selected: Int = if total == 5 { -1 } else { 1 }
+  print("value=${selected}; total=${total}; again=${total}")
+}

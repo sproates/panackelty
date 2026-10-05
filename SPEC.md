@@ -749,7 +749,10 @@ and public reachability, including private type and guard-helper leaks. These
 diagnostics do not enable executable
 namespace calls/types, public visibility or re-exports.
 Staged function bodies additionally retain declaration/local identities and check
-a bounded annotation/direct-call/return type subset. Deferred inference, proof and
+an ordinary-expression/control-flow and annotation/direct-call/return type subset,
+including lexical interpolation references. Collection construction, core calls,
+guarded arithmetic proofs and mixed Rat/integer joins remain explicit pending
+checks; invalid, deferred and checked-subset bodies are distinguished. Deferred inference, proof and
 effect checks still prevent namespace execution; this is not a new language mode.
 See [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
 

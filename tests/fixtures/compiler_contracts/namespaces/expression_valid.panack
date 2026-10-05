@@ -1,0 +1,6 @@
+pub pure sum(values: [Nat]): Nat {
+  mut total: Nat = 0
+  for value in values { total = total + value }
+  if total > 0 { total } else { 0 }
+}
+main(): Void {}

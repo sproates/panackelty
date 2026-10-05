@@ -1,0 +1,91 @@
+import stdlib/result
+import stdlib/testing_commands
+import stdlib/testing_files
+
+pure inventory_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+inventory_read(path: Str): Bytes { result_value_or(fs_read(inventory_path(path), 16777216), bytes()) }
+inventory_write(path: Str, data: Bytes): Void {
+  match fs_write(inventory_path(path), data) {
+    Ok(done) => {},
+    Error(error) => { eprint("inventory fixture write failed"); process_exit(1); }
+  }
+}
+inventory_command(name: Str, args: [Str], status: Nat, stdout: Str): TestResult {
+  match process_run(inventory_path("./panack"), args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
+    Error(error) => test_expect(name, false, "command failed"),
+    Ok(actual) => test_expect(name, actual.exit_code == status && actual.signal == 0 &&
+      actual.stdout == utf8_encode(stdout) && (if status == 0 { actual.stderr == bytes() } else { byte_len(actual.stderr) > 0 }),
+      "unexpected output: " + utf8_decode(actual.stdout) + "; " + utf8_decode(actual.stderr))
+  }
+}
+pure inventory_slice(data: Bytes, start: Nat, end: Nat): Bytes {
+  if end > start + 128 {
+    middle: Nat = quotient(start + end, 2)
+    bytes_concat(inventory_slice(data, start, middle), inventory_slice(data, middle, end))
+  } else {
+    mut result: Bytes = bytes()
+    for index in start..end { result = byte_append(result, byte_get(data, index)); }
+    result
+  }
+}
+main(): Void {
+  match test_workspace_create(inventory_path("/tmp")) {
+    Error(error) => { eprint("inventory workspace failed"); process_exit(1); },
+    Ok(workspace) => {
+      root: Str = result_value_or(path_to_text(workspace.root), "")
+      source: Str = root + "/main.panack"
+      unused: Str = root + "/unused.panack"
+      extra: Str = root + "/extra.panack"
+      inventory: Str = root + "/inventory.pinv"
+      second: Str = root + "/second.pinv"
+      broken: Str = root + "/broken.pinv"
+      before: Str = root + "/before.bc"
+      after: Str = root + "/after.bc"
+      inventory_write(source, utf8_encode("import \"unused.panack\"\nmain(): Void { print(7); }\n"))
+      inventory_write(unused, utf8_encode("pure unused(): Nat { 9 }\n"))
+      inventory_write(extra, utf8_encode("pure unimported(): Nat { 11 }\n"))
+      mut results: [TestResult] = []
+      results = results.append(inventory_command("ordinary compile before inventory", ["compile", source, "-o", before], 0, "wrote ${before}\n"))
+      results = results.append(inventory_command("create inventory including unimported file", ["inventory", source, "-o", inventory, "--include", extra], 0, "wrote inventory ${inventory}\n"))
+      results = results.append(inventory_command("deterministic second inventory", ["inventory", source, "-o", second, "--include", extra], 0, "wrote inventory ${second}\n"))
+      results = results.append(test_expect("exact repeat identity", byte_len(inventory_read(inventory)) > 0 && inventory_read(inventory) == inventory_read(second), "inventory differs"))
+      check: [Str] = ["inventory-check", source, "--inventory", inventory, "--include", extra]
+      results = results.append(inventory_command("validate inventory", check, 0, "inventory: valid\n"))
+      results = results.append(inventory_command("ordinary compile after inventory", ["compile", source, "-o", after], 0, "wrote ${after}\n"))
+      results = results.append(test_expect("inventory preserves bytecode", inventory_read(before) == inventory_read(after), "artifact changed"))
+      results = results.append(inventory_command("ordinary execution", ["run", after], 0, "7\n"))
+      results = results.append(inventory_command("reject omitted root", ["inventory-check", source, "--inventory", inventory], 1, ""))
+      for path in [source, unused, extra] {
+        saved: Bytes = inventory_read(path)
+        inventory_write(path, bytes_concat(saved, utf8_encode("// stale comment\n")))
+        results = results.append(inventory_command("reject stale source including unused roots", check, 1, ""))
+        inventory_write(path, saved)
+      }
+      saved: Bytes = inventory_read(inventory)
+      for data in [bytes(), utf8_encode("PANACKINVENTORY2\n"), bytes_concat(saved, utf8_encode("padding")), byte_append(bytes(), 255)] {
+        inventory_write(broken, data)
+        results = results.append(inventory_command("reject malformed or incompatible inventory", ["inventory-check", source, "--inventory", broken, "--include", extra], 1, ""))
+      }
+      if byte_len(saved) <= 101 { test_report(results); eprint("missing inventory fixture"); process_exit(1); }
+      // Same-length corruption inside the compiler identity, not just a marker.
+      mut forged: Bytes = bytes()
+      forged = bytes_concat(inventory_slice(saved, 0, 100), byte_append(bytes(), (byte_get(saved, 100) + 1) % 256))
+      forged = bytes_concat(forged, inventory_slice(saved, 101, byte_len(saved)))
+      inventory_write(broken, forged)
+      results = results.append(inventory_command("reject forged compiler identity", ["inventory-check", source, "--inventory", broken, "--include", extra], 1, ""))
+      saved_size: Nat = byte_len(saved)
+      inventory_write(broken, inventory_slice(saved, 0, if saved_size > 0 { saved_size - 1 } else { 0 }))
+      results = results.append(inventory_command("reject truncation", ["inventory-check", source, "--inventory", broken, "--include", extra], 1, ""))
+      results = results.append(inventory_command("reject missing inventory", ["inventory-check", source, "--inventory", root + "/missing"], 1, ""))
+      results = results.append(inventory_command("refuse overwrite", ["inventory", source, "-o", inventory], 1, ""))
+      results = results.append(test_expect("existing file unchanged", inventory_read(inventory) == saved, "overwrote inventory"))
+      results = results.append(inventory_command("refuse source overwrite", ["inventory", source, "-o", source], 1, ""))
+      results = results.append(inventory_command("reject duplicate root alias", ["inventory", source, "-o", root + "/duplicate", "--include", root + "/./main.panack"], 1, ""))
+      inventory_write(extra, utf8_encode("invalid syntax"))
+      results = results.append(inventory_command("reject invalid extra root", ["inventory", source, "-o", root + "/invalid", "--include", extra], 1, ""))
+      for file in [source, unused, extra, inventory, second, broken, before, after] { fs_remove_file(inventory_path(file)); }
+      match test_workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = results.append(test_expect("cleanup", false, "cleanup failed")); } }
+      if test_report(results) > 0 { process_exit(1); }
+    }
+  }
+}

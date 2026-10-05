@@ -1,0 +1,98 @@
+import "../../src/compiler/source_inventory.panack"
+import stdlib/testing
+
+pure inventory_summary(items: [InventoryItem], source: Str): Str {
+  mut output: Str = ""
+  for item in items {
+    output = output + item.id + "|" + item.kind + "|" + item.detail + "|" +
+      slice(source, item.span.start.offset, item.span.end.offset) + "\n"
+  }
+  output
+}
+
+main(): Void {
+  mut results: [TestResult] = []
+  entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
+  project: LoadedProject = load_project_for_source_map(entry)
+  results = results.append(test_expect("inventory fixture checks", len(project.diagnostics) == 0, "fixture failed to check"))
+  for module in project.modules {
+    if module.source_path == entry {
+      items: [InventoryItem] = inventory_module(module)
+      mut functions: Str = ""
+      mut decisions: Str = ""
+      mut outcomes: Str = ""
+      mut statements: Str = ""
+      mut identities: Set[Str] = set()
+      mut valid: Bool = true
+      for item in items {
+        valid = valid && !identities.has(item.id) && item.span.start.file == entry &&
+          item.span.end.file == entry && item.span.start.offset < item.span.end.offset &&
+          item.span.end.offset <= len(project.sources.get(entry))
+        identities = identities.add(item.id)
+        if item.kind == "function" { functions = functions + item.detail + ";"; }
+        if item.kind == "decision" { decisions = decisions + item.detail + ";"; }
+        if item.kind == "outcome" { outcomes = outcomes + item.detail + ";"; }
+        if item.kind == "statement" { statements = statements + item.detail + ";"; }
+      }
+      results = results.append(test_expect("unique IDs and bounded source spans", valid, "invalid item identity or span"))
+      results = results.append(test_equal_str("all functions including empty and erased generic", functions, "choose;generic;empty;main;"))
+      results = results.append(test_equal_str("literal source decisions, no lowered branches", decisions, "if;while;for;&&;||;match;"))
+      results = results.append(test_equal_str("literal decision outcomes", outcomes, "true;false;body;exit;body;exit;evaluate-right;skip-right;evaluate-right;skip-right;Some;None;"))
+      results = results.append(test_equal_str("literal statement inventory", statements,
+        "binding;while;assignment-or-inferred-binding;for;expression;binding;binding;expression;expression;expression;expression;"))
+    }
+    if module.source_path.ends_with("/unused.panack") {
+      results = results.append(test_equal_str("unused imported function exact inventory",
+        inventory_summary(inventory_module(module), project.sources.get(module.source_path)),
+        "declaration/0|excluded|compile-time-refinement|type Positive = Nat where value > 0;\ndeclaration/1|excluded|record-declaration|record Box { value: Nat }\ndeclaration/2|excluded|enum-declaration|enum Choice { Yes, No }\ndeclaration/3|function|never_called|pure never_called(): Nat { 9 }\ndeclaration/3/tail|expression|attempt|9\n"))
+    }
+  }
+  // A tiny independent source makes the entire inventory a literal oracle,
+  // including Unicode offsets and an implicit false outcome for if-without-else.
+  source: Str = "// λ🙂\npure sample(flag: Bool): Void { if flag {}; }\n"
+  match lex_file(source, "fixture") {
+    Error(errors) => { results = results.append(test_expect("literal lex", false, "lex failed")); },
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => { results = results.append(test_expect("literal parse", false, "parse failed")); },
+      Ok(parsed) => {
+        identity: ModuleIdentity = source_module_identity("fixture", "", "")
+        module: LoadedModule = LoadedModule("fixture", parsed, parsed.program, collect_module_bindings(identity, parsed))
+        items: [InventoryItem] = inventory_module(module)
+        results = results.append(test_equal_str("literal complete inventory", inventory_summary(items, source),
+          "declaration/0|function|sample|pure sample(flag: Bool): Void { if flag {}; }\ndeclaration/0/statement/0|statement|expression|if flag {}\ndeclaration/0/statement/0/value|expression|attempt|if flag {}\ndeclaration/0/statement/0/value/decision|decision|if|flag\ndeclaration/0/statement/0/value/decision/true|outcome|true|flag\ndeclaration/0/statement/0/value/decision/false|outcome|false|flag\ndeclaration/0/statement/0/value/condition|expression|attempt|flag\n"))
+        results = results.append(test_expect("Unicode source positions", items[0].span.start.offset == 6 && items[0].span.start.line == 2 && items[0].span.start.column == 1, "positions are not code points"))
+      }
+    }
+  }
+  extra_entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/unloaded.panack")
+  ordinary_extra: LoadedProject = load_project(extra_entry)
+  results = results.append(test_expect("ordinary compilation still requires main", len(ordinary_extra.diagnostics) > 0, "ordinary checking accepted library"))
+  extra: LoadedProject = load_project_for_inventory(extra_entry)
+  results = results.append(test_expect("unimported library root checks without main", len(extra.diagnostics) == 0, "extra root failed"))
+  for module in extra.modules {
+    if module.source_path == extra_entry {
+      results = results.append(test_equal_str("unimported library exact inventory", inventory_summary(inventory_module(module), extra.sources.get(extra_entry)),
+        "declaration/0|function|never_loaded|pure never_loaded(): Nat { 11 }\ndeclaration/0/tail|expression|attempt|11\n"))
+    }
+  }
+  mut exclusions: Str = ""
+  for module in project.modules {
+    for item in inventory_module(module) {
+      if item.kind == "excluded" && module.source_path == entry { exclusions = exclusions + item.detail + ";"; }
+    }
+  }
+  results = results.append(test_equal_str("imports explicitly excluded", exclusions, "import;"))
+  artifact: Bytes = serialize_bytecode(compile_program(project.program))
+  compiler: Bytes = utf8_encode("unit identity")
+  root: Str = path_parent(entry)
+  stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+  inventory: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
+  results = results.append(test_expect("deterministic inventory", byte_len(inventory) > 0 && inventory == serialize_source_inventory(project, artifact, compiler, entry, root, stdlib), "inventory differs"))
+  results = results.append(test_expect("compiler identity participates", inventory != serialize_source_inventory(project, artifact, utf8_encode("other compiler"), entry, root, stdlib), "compiler identity lost"))
+  results = results.append(test_expect("artifact identity participates", inventory != serialize_source_inventory(project, bytes(), compiler, entry, root, stdlib), "artifact identity lost"))
+  results = results.append(test_expect("missing compiler identity rejects", serialize_source_inventory(project, artifact, bytes(), entry, root, stdlib) == bytes(), "missing identity accepted"))
+  for args in [["inventory"], ["inventory", "a.bc", "-o", "out"], ["inventory", "a.panack", "-o", "out", "extra"], ["inventory", "a.panack", "-o", "out", "-o", "other"], ["inventory", "a.panack", "--unknown", "out"]] {
+    results = results.append(test_expect("inventory argument rejection", !inventory_arguments(args, false).valid, "invalid arguments accepted"))
+  }
+  if test_report(results) > 0 { process_exit(1); }
+}

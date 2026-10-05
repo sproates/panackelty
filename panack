@@ -38,6 +38,8 @@ fi
 
 PANACKELTY_STDLIB_PATH=$stdlib
 export PANACKELTY_STDLIB_PATH
+PANACKELTY_COMPILER_PATH=$compiler
+export PANACKELTY_COMPILER_PATH
 
 case "${1-}" in
   run|check)

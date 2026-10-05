@@ -894,3 +894,11 @@ source and bytecode cases verify public behaviour on both supported platforms.
 Run development harness checks with `make harness`.
 They cover repository/CI policy, packaging, timing, corrupt seeds and fixture-runner
 failure propagation on both supported platforms.
+
+### Source coverage inventory
+
+`panack inventory SOURCE.panack -o FILE` records eligible source functions,
+expressions, statements and decisions without running the program. Add
+`--include OTHER.panack` for files outside the import closure. Validate with
+`panack inventory-check SOURCE.panack --inventory FILE` and the same roots.
+This is an inventory, not measured coverage; see [the contract](docs/SOURCE_INVENTORY.md).

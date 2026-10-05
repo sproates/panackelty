@@ -238,3 +238,10 @@ The explanation renderer consumes these decisions and loaded source spans, never
 reconstructing effects from diagnostic text. See
 [the explanation contract](../../docs/COMPILER_EXPLANATIONS.md) for local-versus-global
 status, declared callable effects and unsupported transitive/runtime questions.
+
+### Executable-source inventory
+
+`source_inventory.panack` walks retained original syntax and serializes versioned
+source eligibility independently of emitted instructions. `inventory` and
+`inventory-check` use explicit roots, exact compiler/artifact/source identities
+and local replay. See [the contract](../../docs/SOURCE_INVENTORY.md).

@@ -722,3 +722,10 @@ exercises dash when available.
 The native-tool allowlist resolves the executable from PATH because some shells
 report a `time` keyword rather than an executable from `command -v`.
 These regression tests do not substitute for real-toolchain baseline trials.
+
+### Source inventory contracts
+
+The compiler/unit routes include `runner/compiler_source_inventory_unit.panack`
+and `runner/compiler_source_inventory_cli.panack`: literal original-syntax
+expectations plus public command, identity, failure and bytecode-equivalence tests.
+See [source inventory](../docs/SOURCE_INVENTORY.md).

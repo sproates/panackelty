@@ -746,3 +746,14 @@ real-toolchain observations and their limitations are recorded in
 
 The [website repository](https://github.com/sproates/panackelty-website) owns capabilities-page layout, navigation and
 published-release source/bytecode example acceptance.
+
+## SC2 source inventory acceptance
+
+`runner/compiler_source_inventory_unit.panack` supplies literal syntax-inventory
+oracles for functions, statements, expressions and source decision outcomes.
+`runner/compiler_source_inventory_cli.panack` checks the public producer/validator,
+explicit unloaded roots, source and compiler identity, corruption/truncation,
+output protection and bytecode equivalence. Both are part of `make check` and
+`make check-compiler`. This establishes the denominator contract, not runtime hits
+or a measured `.panack` coverage percentage. See
+[the inventory contract](../docs/SOURCE_INVENTORY.md).

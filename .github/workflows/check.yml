@@ -25,7 +25,7 @@ jobs:
         run: make native
       - name: Validate bounded reader and SC4 source parity
         run: |
-          node --test tests/source_coverage/reader.test.cjs
+          node --test tests/source_coverage/reader.test.cjs tests/source_coverage/policy.test.cjs
           node tests/source_coverage/parity.cjs
       - name: Collect exact source baseline
         run: node scripts/source_coverage_baseline.cjs

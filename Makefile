@@ -305,7 +305,7 @@ native-coverage: native
 # Source coverage is opt-in SC4 collection, not LLVM instrumentation of .panack files.
 .PHONY: source-coverage-baseline source-coverage-report-tests
 source-coverage-report-tests: native
-	node --test tests/source_coverage/reader.test.cjs
+	node --test tests/source_coverage/reader.test.cjs tests/source_coverage/policy.test.cjs
 	node tests/source_coverage/parity.cjs
 
 source-coverage-baseline: native

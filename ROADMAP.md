@@ -3212,7 +3212,7 @@ again alongside its children.
 | [SC3 / RM#138: Runtime coverage collection](#rm-138) | Done on `next`; [runtime contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
 | [SC4 / RM#139: Complete run aggregation](#rm-139) | Delivered by SC4 integration; [session contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
 | [SC5 / RM#140: Suite baseline and publication](#rm-140) | Done; [baseline contract](docs/SOURCE_COVERAGE_BASELINE.md), [verified live report](https://sproates.github.io/panackelty-coverage/source/html/index.html) | 15% | 100% | 15 percentage points |
-| [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Pending batch agreement; not started | 10% | 0% | 0 percentage points |
+| [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Agreed UTF-8/fallback/duration batch and versioned gate implemented; full validation/integration pending | 10% | 0% accepted | 0 accepted percentage points |
 | **Total** | | **100%** | | **90 percentage points = 90% overall** |
 
 SC5 adds 15 percentage points to the previous accepted 75%; SC-1 weights are unchanged.
@@ -3327,6 +3327,17 @@ assertions that detect wrong results, not merely execute lines. Define and test
 per-component regression handling, exclusion review and failure reporting.
 Accept the agreed batch plus the documented policy; no arbitrary universal
 coverage target or promise to eliminate every uncovered path is introduced.
+
+Owner-approved batch, 2026-10-06: directly assert UTF-8 boundary/rejection behavior,
+both option/result helper arms, and exact/negative/zero duration ratios; add the
+existing `host_types` functional fixture to the measured corpus. Tests uncovered
+and fix signed-zero guards in `duration_ratio` and `duration_divide`. The
+[SC6 policy contract](docs/SOURCE_COVERAGE_BASELINE.md#sc6-regression-policy)
+requires complete current evidence, exact per-component floors, reviewed
+denominator/manifest/exclusion changes and protected source outcomes. There is
+no automatic baseline lowering. Implementation is pending fresh full baseline,
+clean hosted validation, `next` integration and verified live publication; it
+does not yet add accepted programme credit.
 
 The programme is complete only when these six outcomes meet their acceptance
 criteria. GI#131 stays open until then. PR packaging can change without changing

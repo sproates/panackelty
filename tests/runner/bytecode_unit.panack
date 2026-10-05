@@ -1,6 +1,8 @@
 import "../../src/bytecode/decoder.panack"
 import stdlib/testing
 
+record Utf8Case { name: Str, hex: Str, accepted: Bool }
+
 pure bytecode_nibble(character: Str): Nat {
   digits: Str = "0123456789abcdef"
   mut result: Nat = 0
@@ -34,6 +36,29 @@ bytecode_case(name: Str, file: Str, expected: Str): TestResult {
 }
 main(): Void {
   mut results: [TestResult] = []
+  utf8_cases = [
+    Utf8Case("empty", "", true), Utf8Case("ASCII and NUL", "007f", true),
+    Utf8Case("two byte minimum", "c280", true), Utf8Case("two byte maximum", "dfbf", true),
+    Utf8Case("three byte minimum", "e0a080", true), Utf8Case("before surrogate", "ed9fbf", true),
+    Utf8Case("after surrogate", "ee8080", true), Utf8Case("three byte maximum", "efbfbf", true),
+    Utf8Case("four byte minimum", "f0908080", true), Utf8Case("four byte maximum", "f48fbfbf", true),
+    Utf8Case("mixed widths", "61c280e0a080f0908080", true),
+    Utf8Case("lone continuation", "80", false), Utf8Case("invalid leader", "ff", false),
+    Utf8Case("overlong two byte", "c080", false), Utf8Case("overlong three byte", "e09f80", false),
+    Utf8Case("surrogate", "eda080", false), Utf8Case("overlong four byte", "f08f8080", false),
+    Utf8Case("above Unicode maximum", "f4908080", false), Utf8Case("five byte leader", "f880808080", false),
+    Utf8Case("truncated two byte", "c2", false), Utf8Case("bad two byte continuation", "c27f", false),
+    Utf8Case("truncated three byte", "e0a0", false), Utf8Case("bad three byte second", "e07f80", false),
+    Utf8Case("bad three byte third", "e0a07f", false), Utf8Case("truncated four byte", "f09080", false),
+    Utf8Case("bad four byte second", "f07f8080", false), Utf8Case("bad four byte third", "f0907f80", false),
+    Utf8Case("bad four byte fourth", "f090807f", false), Utf8Case("invalid after ASCII", "61ff62", false),
+    Utf8Case("continuation above maximum", "c2c0", false)
+  ]
+  for sample in utf8_cases {
+    name = sample.name
+    results = results.append(test_expect("UTF-8 ${name}",
+      valid_utf8(bytecode_from_hex(sample.hex)) == sample.accepted, "wrong acceptance or rejection"))
+  }
   results = results.append(bytecode_case("TCP server arity", "tests/fixtures/tcp/server-arity.hex", "async service arity mismatch"))
   results = results.append(bytecode_case("TCP server ordinary call", "tests/fixtures/tcp/server-ordinary.hex", "ordinary call cannot enter async function"))
   results = results.append(bytecode_case("TCP server pure await", "tests/fixtures/tcp/server-pure-await.hex", "await requires async function"))

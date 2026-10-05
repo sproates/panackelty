@@ -82,6 +82,11 @@ function baseline(output, allowDirty = false) {
   const report = {schema:1,repository:'sproates/panackelty',branch:'next',commit,clean,generatedAt:new Date().toISOString(),
     compiler:sha(compiler),vm:sha(vm),manifestHash:sha(Buffer.from(JSON.stringify(manifest))),manifest,sessions,
     metrics:totals(files),components:Object.fromEntries(['compiler','bytecode','stdlib'].map(c=>[c,totals(files.filter(f=>f.path.startsWith(`src/${c}/`)))])),files};
+  const {checkPolicy}=require('./source_coverage_policy.cjs');
+  console.log(`Policy candidate counts: ${JSON.stringify({metrics:report.metrics,components:report.components})}`);
+  const policy=JSON.parse(regular(path.join(checkout,'tests/source_coverage/policy.json')));
+  const result=checkPolicy(report,policy,{commit,manifestHash:report.manifestHash,allowDirty});
+  console.log(`Coverage policy: ${result.status}; ${result.protected} protected items`);
   writeReport(output,report);
   console.log(JSON.stringify({output,clean,sessions:sessions.length,executions:sessions.reduce((n,s)=>n+s.executions,0),metrics:report.metrics},null,2));
   // Keep raw evidence locally for diagnosis; CI publishes only the bounded static report.

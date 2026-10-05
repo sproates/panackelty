@@ -674,7 +674,8 @@ Language namespaces are under development. Current imports still combine names;
 `pub`, import aliases, selective imports and qualified namespace references are
 rejected pending the coordinated migration. Raw parsing and cross-module binding
 resolution, checked declaration/signature identities and bounded body identity
-checks, including ordinary expressions and control flow, are internal preparation,
+checks, including ordinary expressions, aggregates, pattern matching and generic
+inference, are internal preparation,
 not an executable namespace mode. See [the current import contract](SPEC.md#modules) and
 [namespace progress](ROADMAP.md#rm-41).
 

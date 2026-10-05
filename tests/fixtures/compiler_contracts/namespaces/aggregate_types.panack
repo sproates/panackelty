@@ -1,0 +1,12 @@
+pub record Box { value: Nat }
+pub enum Choice { Pick(Nat), Empty }
+pub pure wrong(): Box { Box("wrong") }
+pub pure missing(value: Choice): Nat {
+  match value { Choice.Pick(item) => item }
+}
+pub pure ambiguous(): [Nat] { identity([]) }
+pure identity[T](value: T): T { value }
+main(): Void {}
+pub pure invalid_pattern(): Nat {
+  match [1].first() { map() => 0 }
+}

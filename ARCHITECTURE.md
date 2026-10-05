@@ -235,8 +235,10 @@ value methods select reserved lowering before user helpers. The loader uses this
 representation instead of the old full-module raw-reference walk. Its bounded
 identity-type checks cover literals, parameter/local references, annotations,
 assignment, non-generic callable references, direct/qualified/helper calls with
-explicit generic substitution, scalar operators, Bool conditions, branch joins,
-known iterable/index types, and return compatibility. Interpolated strings retain
+explicit and inferred generic substitution, scalar operators, Bool conditions,
+structural branch/array joins, known iterable/index types, and return compatibility.
+Record and variant construction, nominal fields and exhaustive matches use original
+declaration identities; payload bindings retain their lexical owners and types. Interpolated strings retain
 ordered lexical-local children and decoded text parts, including repeated uses.
 `expression_contracts.panack` shares literal decoding and exact numeric result
 rules with the legacy checker/emitter; nominal identities never enter those
@@ -245,9 +247,19 @@ identities; callable effects remain distinct, with the existing PureFn-to-Fn and
 Nat-to-Int compatibility rules. Public function bodies can use private helpers.
 
 A missing type is not successful validation. Deferred spans record operations
-awaiting inference or proof checking: core calls, collection construction,
-constructors, fields/patterns, guarded operations, Nat subtraction, aggregate or
-mixed Rat/integer joins, inferred generic calls and async call/await results.
+awaiting later contracts or proof checking: general core/indirect calls, guarded
+operations, Nat subtraction, mixed Rat/integer joins and async call/await results.
+Empty arrays, Option/Result constructors and map/set creation carry tagged,
+expression-owned inference holes, distinct from rigid declaration parameters.
+Generic function calls gather all argument evidence before checking substituted
+inputs; they cannot infer from a later expected result. Context constraints remain
+on bound nodes until a whole-function solve checks shared-hole consistency and
+recursive constraints, then specializes every occurrence together. Inferred locals
+must be complete before the next statement, even when an unrelated proof is deferred.
+Residual holes, including discarded empty values, remain explicitly deferred;
+a known outer result does not certify unresolved children. Shared-constraint errors
+currently use the original enclosing function span; precise multi-site evidence
+is part of the later diagnostics slice.
 Checked bodies distinguish invalid, deferred and checked-identity-subset status.
 An invalid body cannot appear checked merely because its return type is known;
 child obligations propagate through conditions and operators. Even checked-subset

@@ -16,6 +16,10 @@ in `RELEASE_POLICY.md`.
   identities. Distinguish invalid bodies from deferred obligations and checked
   type subsets; namespace execution remains disabled.
 
+- Check staged record/enum construction, array evidence, fields, exhaustive
+  patterns and inferred generic calls by declaration identity. Retain whole-body
+  inference constraints without enabling namespace execution.
+
 ## 0.1.0-alpha.11 — 2026-10-04
 
 ### Features and fixes

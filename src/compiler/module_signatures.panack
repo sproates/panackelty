@@ -7,7 +7,9 @@ enum SignatureTypeIdentity {
   SignatureCore(Str),
   SignatureNominal(DeclarationIdentity),
   SignatureParameter(DeclarationIdentity, Nat),
-  SignatureCallable(SignatureEffect)
+  SignatureCallable(SignatureEffect),
+  // Body-local missing evidence; never a declaration name or a signature binder.
+  SignatureHole(DeclarationIdentity, [Nat], Nat)
 }
 record SignatureType { identity: SignatureTypeIdentity, arguments: [SignatureType] }
 record SignatureSlot { name: Str, type: SignatureType }
@@ -179,7 +181,7 @@ pure substitute_signature_type(value: SignatureType, owner: DeclarationIdentity,
         else { failure = Some("missing signature substitution") }
       }
     },
-    SignatureCore(name) => {}, SignatureNominal(identity) => {}, SignatureCallable(effect) => {}
+    SignatureCore(name) => {}, SignatureNominal(identity) => {}, SignatureCallable(effect) => {}, SignatureHole(binder, path, index) => {}
   }
   mut nested: [SignatureType] = []
   for child in value.arguments {

@@ -160,7 +160,7 @@ The previous seed produces the indexed compiler byte-for-byte; fresh stages
 The standard-library fixed point remains
 `614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
 Expanded unit and imported public-CLI coverage preserve independently expected
-results. Dave's independent review found no actionable findings: 1,540 direct
+results. Independent review found no actionable findings: 1,540 direct
 comparisons against the original five scan implementations covered duplicate and
 cross-kind names, empty/Unicode keys, declaration rotations and module merging;
 79 existing sources had exact checking/explanation stdout/stderr/status parity;
@@ -3226,3 +3226,105 @@ sandboxed run failed native host/socket tests; the host-access rerun passes thos
 same tests without source changes. The full 120s target remains missed; the aggregate
 unit phase is not a focused incremental sample and is not assessed against 15s.
 The budget concern remains open under the owned disposition above.
+
+## Bounded startup/loading/checking phase comparison — 2026-10-05
+
+The GI#106 phase follow-up uses base commit `1ffd023`, before aggregate/inference changes. One external compiler artifact has two environment-selected exits: startup exits in main before the driver; loader exits after recursively loading/parsing the bundled core and entry modules, before constructing combined-program indexes, cross-module signature/body checking, name resolution, type checking and effects. The loader phase includes per-module binding collection/diagnostics, namespace execution-gate diagnostics, core reparse/internalization and legacy lowering; it is not pure file I/O or parsing. Full mode uses the original driver/check path. The loader exit returns loader diagnostics through the same driver; it constructs an empty unused Program. Startup prints the same small success output. Exit/return and diagnostic-rendering cost make phase differences approximations, not exact internal timers. No product source or permanent profiler was changed.
+
+Commands are `PANACK_PHASE=MODE PANACKELTY_STDLIB_PATH=ABS_STDLIB panack-vm run INSTRUMENTED.bc check SOURCE`, with MODE startup/loader/full. Control uses the unchanged base seed. Fixtures: `spans/binary.panack`, `spans/imported.panack`, `namespaces/body_identity.panack`, `namespaces/expression_valid.panack`, `imports/import_cycles_are_rejected-1/first.panack` under `tests/fixtures/compiler_contracts`, plus `main(): Void { print(42) }` with final newline. These six cases deliberately cover ordinary/imported checking errors, nominal identity rejection, the namespace gate, import failure and a valid tiny program. This is a bounded representative sample, not the full 138-command corpus. All measured full/control exit statuses match per fixture. The harness retained and asserted stdout/stderr equality for each fixture in the final round only; earlier stream outputs were overwritten, so their equality is not claimed. Only check commands ran; no compiler outputs or test assertions were removed.
+
+Same VM and loader/core inputs for all phases. macOS 26.5 arm64; one warm-up round excluded, then eight measured rounds rotating/reversing mode order. Each round sums six sequential subprocesses per mode; no competing builds. Monotonic wall and child CPU times recorded. OS caches and unrelated host activity uncontrolled.
+
+| Six-command aggregate | Median wall | Median CPU |
+| --- | ---: | ---: |
+| Startup | 37.765ms | 31.798ms |
+| Loader | 146.463ms | 139.678ms |
+| Full | 174.557ms | 166.938ms |
+| Uninstrumented control | 172.879ms | 166.225ms |
+
+Paired-round wall differences: loader minus startup median 108.342ms (101.559–118.480ms); full minus loader median 27.303ms (16.357–48.926ms). Instrumented full minus control median 1.100ms, range −14.715 to 17.984ms: no stable instrumentation penalty is bounded by this noisy sample. The larger loading difference is consistent across sampled rounds, supporting loader-pipeline work as a candidate to study in this sample, but not an exact causal allocation, full-corpus extrapolation or authorization to implement caching/reuse. Checking differences are less stable. Per-command startup still includes process creation, bytecode reading/verification and VM initialization.
+
+The phase-comparison prerequisite has evidence now. Proposed next GI#106 action for the validation maintainer is to select a bounded loader/core reuse feasibility assessment with immutable-source identity, diagnostic and failure isolation, before implementing any reuse. Required public failing-command statuses, diagnostics, artifact absence and cleanup contracts remain unchanged. This does not establish compliance with 120s full/15s focused targets or close GI#106.
+
+Provenance: base seed SHA-256 `385edbaa8c5c537ddb128cfeb61d51ee0d16ca46d9dfc2e4242acc2e04266491`; instrumented SHA-256 `c8b28c3e695008b188815ec120c1b6a966312eff49a3a5a30d2146ea26c4b3d6`; VM SHA-256 `d0b2bd45d05e89391e64bdfa586fb1ca58bcca186fdb2254e5c9e5a2df722934`.
+
+## Namespace aggregates, patterns and inference — 2026-10-05
+
+This P2 slice extends internal identity checking without enabling namespace
+execution. Focused tests pass 465 assertions covering constructor and function
+inference, aliases and same-spelled nominal origins, contextual empty collections,
+field/payload types and match exhaustiveness. Adversarial cases retain constraints
+across separate uses of a shared match payload, reject recursive evidence and
+prevent unresolved inferred locals borrowing later evidence despite unrelated
+proof deferrals. Discarded incomplete evidence stays explicitly deferred.
+The complete `aggregate_inference` program preserves constructor/array/match and
+generic behavior through public source and saved-bytecode execution.
+
+Fresh compiler stages 2/3/4 agree at
+`223d479b7d81348f086ccae9a4a6b2d0740c49d3c4a772ec4948645ff7a5b31d`.
+The seed grows from 430,101 to 459,830 bytes (+29,729; about 6.91%). The
+standard-library artifact remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
+with identical output. Fixed points establish reproducibility, not performance.
+
+The GI#106 phase comparison above satisfies the preceding delivery's measurement
+prerequisite. Targets and unresolved full/focused budget concerns remain. Proposed
+disposition: accept this bounded internal compiler slice with seed growth and the
+open budget concern disclosed. The validation maintainer owns a bounded loader/core
+reuse feasibility assessment as the next candidate for explicit selection; review
+that selection before the next affected compiler delivery. No cache or optimization
+is started here; preserve all failing-command and artifact-cleanup assertions.
+
+Final clean host `make check` passed after all source, test and seed changes in
+152s: unit 105s, functional 4s, bootstrap 17s, release smoke 1s and quick start
+0s. The 465 namespace and 145 public CLI assertions passed, along with the
+complete source/bytecode functional corpus and fresh fixed-point checks. The
+120s full-check and 15s unit targets remain missed; neither target nor coverage
+is relaxed. Only allowlisted evidence documentation changed afterwards and
+passed `make docs`. Paired candidate/baseline results follow.
+
+Paired compilation uses macOS 26.5 arm64, candidate source and the same native
+VM. Baseline is `1ffd023e000ce6968a5098c9b1fa82404750f7e6`, seed
+`385edbaa8c5c537ddb128cfeb61d51ee0d16ca46d9dfc2e4242acc2e04266491`;
+candidate seed is the final fixed point above. VM SHA-256 is
+`d0b2bd45d05e89391e64bdfa586fb1ca58bcca186fdb2254e5c9e5a2df722934`;
+the sorted source-path/digest manifest SHA-256 is
+`003627a9bd7230cc9abafee4683ff25c615e9a54bc697907921683af3c877cc5`.
+Commands compile `src/compiler/main.panack` and a tiny input consisting of exactly
+`main(): Void { print(42) }` followed by a newline:
+
+```sh
+PANACKELTY_STDLIB_PATH=src/stdlib build/vm/panack-vm run "$seed" compile "$source" -o "$output"
+```
+
+One predeclared warm-up pair per workload was excluded, followed by five measured
+pairs alternating baseline/candidate order. All outputs, including warm-ups,
+match byte-for-byte: compiler output is the candidate fixed point; tiny output
+SHA-256 is `c67b2c08c5482dc52179d1b0569ac595641a51f1a3dffea79070a8edeb207a1d`.
+No competing builds ran. OS caches and unrelated host activity remained
+uncontrolled. The external harness retained wall and child CPU times and outputs.
+
+| Workload / measure | Baseline samples (s) | Candidate samples (s) | Median (s) |
+| --- | --- | --- | --- |
+| Compiler wall | 4.980584, 4.908741, 4.959563, 5.060841, 4.930427 | 5.056954, 5.344630, 5.016802, 5.155718, 5.174707 | 4.959563 → 5.155718 |
+| Compiler cpu | 4.974149, 4.902349, 4.953095, 5.054527, 4.924174 | 5.051269, 5.337954, 5.010337, 5.149063, 5.168093 | 4.953095 → 5.149063 |
+| Tiny wall | 0.035728, 0.037976, 0.033714, 0.038419, 0.032936 | 0.037232, 0.040073, 0.037011, 0.030710, 0.037074 | 0.035728 → 0.037074 |
+| Tiny cpu | 0.034705, 0.036808, 0.032748, 0.037526, 0.031822 | 0.036143, 0.039008, 0.035961, 0.029701, 0.036169 | 0.034705 → 0.036143 |
+
+Warm-up wall/CPU seconds, baseline then candidate: compiler 4.809995/4.803204, then 5.081735/5.075490. tiny 0.029533/0.028376, then 0.033997/0.032885.
+
+The final compiler wall median increases 3.96% (about 196ms), and every measured
+compiler pair is slower for the candidate. Tiny wall median increases 3.77%
+(about 1.346ms). Ranges overlap and host/cache noise remains uncontrolled, but
+that does not dismiss the consistent compiler pairs: this is a possible roughly
+4% compilation regression, not evidence of cost neutrality. No runtime, memory,
+full-corpus or 120s/15s validation-budget conclusion follows from these workloads.
+
+Proposed disposition: explicitly accept the possible compilation cost and 6.91%
+seed growth for the added identity/inference checking, with the existing budget
+concern still open. The validation maintainer retains GI#106; the next candidate
+is a bounded loader/core reuse feasibility assessment that preserves source
+identity and diagnostic/failure isolation. Review that selection and recheck this final-versus-base compilation cost
+before the next affected compiler delivery. The earlier loader-phase experiment
+does not attribute or explain this increase. This is a disclosed trade-off for
+merge approval, not a waived target or authorization to implement optimization.

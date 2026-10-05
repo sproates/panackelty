@@ -87,12 +87,18 @@ documented in `../../docs/SOURCE_MAPS.md`.
 - `module_bodies.panack` retains structural bodies with original declaration/core
   targets, lexical binder paths, source spans and tagged local/callable types.
   It checks literal/local/annotation/direct-call/explicit-generic/return types,
-  scalar operators, control flow and already-known iterable/index types.
+  scalar operators, control flow, arrays, record/variant construction, fields,
+  exhaustive variant patterns, inferred generic functions and known iterable/index types.
   Interpolation references retain ordered local IDs. Invalid, deferred and
   checked-subset statuses preserve numeric and callable compatibility without
   implying effects or execution readiness. Deferred spans distinguish
-  unknown inference/proofs, constructors, core operations and async results from
-  successful identity-type checks. Even zero deferred spans does not certify
+  unresolved expression holes, guard proofs, general core/indirect operations and
+  async results from successful identity-type checks. Expression-owned holes never
+  become declaration identities or rigid type parameters. Bound nodes retain
+  contextual constraints for one final whole-body solve, preserving shared local
+  evidence across calls/statements and rejecting contradictory/recursive solutions.
+  Inferred locals cannot borrow later return evidence or hide behind unrelated
+  deferred proofs. Even zero deferred spans does not certify
   effects or executable code. `LoadedProject.module_bodies` supplies the new
   consumer boundary; the legacy checker/emitter and namespace execution gate
   remain until coordinated migration. The obsolete full-module raw walk is

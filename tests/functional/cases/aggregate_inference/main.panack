@@ -1,0 +1,22 @@
+record Box[T] { value: T }
+enum Choice[T] { Pick(T), Empty }
+pure choose[T](items: [T], fallback: T): T { fallback }
+pure identity[T](value: T): T { value }
+pure extract[T](value: Choice[T], fallback: T): T {
+  match value { Pick(item) => item, Empty() => fallback }
+}
+main(): Void {
+  nested = [[], [Box(7)]]
+  print(nested[1][0].value)
+  print(choose([], "inferred"))
+  print(extract(Pick("selected"), "fallback"))
+  print(extract(Empty(), "fallback"))
+  option = if true { Some([1,2]) } else { None() }
+  match option {
+    Some(values) => { print(identity(values)[1]) },
+    None() => { print(0) }
+  }
+  empty: [Nat] = identity[[Nat]]([])
+  print(empty)
+  print(None() == Some(1))
+}

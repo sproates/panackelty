@@ -1321,6 +1321,18 @@ retains native validation and package gates. Its release workflow creates core
 releases without promoting them on the website. Coverage generation remains in
 core and publication remains in its separate coverage repository.
 
+## Source-coverage feasibility, 2026-10-05
+
+The [GI#131 experiment](tests/experiments/source_coverage/README.md) reuses the
+production source-map identity contract and observes the real VM dispatcher in
+a test-only build. Production VM/compiler behavior and executable v9 bytes are
+unchanged. Exact expression/function reach is feasible, but source lines and
+branches require a dedicated compiler inventory; existing source spans do not
+define an executable denominator. Future optional dispatcher counters must
+register nested and asynchronous execution identities. The external single-step
+driver deliberately marks nested execution incomplete. Prefer sidecar reuse to
+an unmotivated bytecode/seed migration; no production coverage format is added.
+
 ## U1 source-mapping feasibility decision, 2026-10-02
 
 The [bounded experiment](tests/experiments/source_mapping/README.md) attributes

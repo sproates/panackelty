@@ -41,9 +41,12 @@ Planning a test does not change a coverage status.
 Measured source coverage currently exists only for the native C VM, at the
 [public report](https://sproates.github.io/panackelty-coverage/). The `.panack` compiler,
 bytecode tooling and standard library have tests but no measured source-line
-or branch baseline. The groomed [source-coverage candidate](../ROADMAP.md#measure-panackelty-source-coverage--candidate-pending-assessment)
-starts with trustworthy mapping and measurement feasibility; implementation is
-unscheduled. Do not interpret this behavior matrix,
+or branch baseline. The first [source-coverage feasibility slice](experiments/source_coverage/README.md)
+proves exact bounded instruction/function counts and expression-start-line reach,
+including zero-hit imported code, lowering, generics, async, traps and explicit
+nested-execution gaps. It selects sidecar reuse plus a future executable-source
+inventory. Production collection/publication remains unscheduled under
+[RM#46 / GI#131](../ROADMAP.md#rm-46). Do not interpret this behavior matrix,
 test counts or C percentages as a `.panack` coverage percentage.
 
 The matrix is undergoing evidence reconciliation: older rows contain historical

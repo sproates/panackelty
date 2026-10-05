@@ -1,0 +1,9 @@
+// Retain library declarations even when the initial execution corpus never calls them.
+import stdlib/prelude
+import stdlib/core
+import stdlib/host
+import stdlib/testing
+import stdlib/testing_commands
+import stdlib/testing_files
+import stdlib/tcp
+main(): Void {}

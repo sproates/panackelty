@@ -194,3 +194,10 @@ Missing any expected member, deleting an entire child, adding surplus records,
 copying records between sessions, overflow, inconsistent budgets, mixed registry
 identities and partial terminal states all prevent a complete report. Reporting
 is read-only and emits no source rows on validation failure.
+
+## Suite baseline and publication
+
+See [the SC5 baseline contract](SOURCE_COVERAGE_BASELINE.md) for the exact
+execution manifest, production denominators, unknown-data handling, reproduction
+commands and separately identified `next` source report. Source reporting does
+not replace native C/main coverage or claim the entire canonical test suite.

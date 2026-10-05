@@ -23,6 +23,8 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             return NULL;
         }
         VM child = *vm;
+        vm_coverage_gap(vm->coverage);
+        child.coverage = NULL;
         child.execution = NULL;
         child.program = &nested;
         child.error = NULL;
@@ -64,6 +66,8 @@ Value *builtins_vm_call(VM *vm, const char *name, Value **a)
             arguments[i] = (char *)argument->as.bytes.data;
         }
         VM child = *vm;
+        vm_coverage_gap(vm->coverage);
+        child.coverage = NULL;
         child.execution = NULL;
         child.program = &nested;
         child.argc = (int)a[1]->as.sequence.count;

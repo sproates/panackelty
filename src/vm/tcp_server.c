@@ -229,6 +229,8 @@ VMTcpServer *tcp_server_start(const VM *vm, Function *handler, const Value *addr
         return server;
     }
     server->template_vm = *vm;
+    vm_coverage_gap(vm->coverage);
+    server->template_vm.coverage = NULL;
     server->handler = handler;
     server->outbound = outbound;
 #ifdef __wasi__

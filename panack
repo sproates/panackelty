@@ -42,6 +42,9 @@ PANACKELTY_COMPILER_PATH=$compiler
 export PANACKELTY_COMPILER_PATH
 
 case "${1-}" in
+  coverage-run)
+    exec "$vm" "$@"
+    ;;
   run|check)
     command=$1
     artifact=${2-}

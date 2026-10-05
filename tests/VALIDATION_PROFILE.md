@@ -3435,3 +3435,47 @@ these observations are not a controlled full-check performance comparison.
 The delivery PR records final hosted Linux/macOS, sanitizer, bootstrap and package
 results as the merge gate. The local timeout remains a validation limitation;
 the 120s full-check, 15s focused and 60s bootstrap targets remain unchanged.
+
+## SC3 / GI#131 single-execution source coverage — 2026-10-05
+
+The runtime collector and compiler source probes implement SC3, retaining
+bytecode v9 and the SC2 inventory envelope. Validation includes 18 literal raw
+reader/source-state assertions, 39 production CLI assertions, native dispatcher contracts
+(including pending print/typed read and equal-destination branches), and the
+native allocation-failure sweep (1,962 injected failures including coverage).
+The fresh compiler fixed point is 490,571 bytes, SHA-256
+`c43f1c02341005fa8935861834ccc6b24c6a42ccd36d534a8ed9aa4e650d2cc8`;
+the standard-library fixed point remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+
+A controlled 500,000-iteration Nat loop compared the `761f7cf` parent native VM,
+coverage-disabled candidate and coverage-enabled candidate on the same bytecode.
+After two warm-up rounds, ten samples per configuration rotated execution order:
+parent median 185.5 ms (167.4–231.2), disabled 188.2 ms (174.3–301.8), enabled
+206.0 ms (187.5–255.5). Disabled median difference is +1.4%; enabled is +9.5%
+versus disabled. Scheduling variability prevents a precise regression claim.
+The fork/wait4 peak-RSS reading was 7,108 KiB for all three; the inherited harness
+floor masks small differences, so it is not evidence of zero allocation cost.
+The deterministic collector allocation is 32 bytes per instruction plus 8 bytes plus `sizeof(size_t)` per
+function and a header; frames add 24 bytes on this 64-bit build.
+Counters are capped at 262,144 cells and the entire raw record at 16 MiB.
+
+A separate alternating-order ten-sample compiler comparison used the same native
+VM and fixture source with the parent versus refreshed seed. Median compile time
+was 106.5 ms versus 116.5 ms (+9.4%, +10.0 ms). Ordinary fixture bytecode was
+identical. The seed grows 3.84%. This small-fixture cost is disclosed and accepted
+for the source-probe contract; it is not a compiler throughput improvement or a
+resolution of GI#106. The dispatcher avoids child-gap name checks when coverage
+is disabled. Measurements precede that final disabled-path guard, so do not
+claim a quantified benefit from the guard.
+
+Collection remains explicitly single-execution: nested contexts mark a gap;
+killed/native process-exit records lack a completed footer; the reporter refuses
+them. No suite denominator, baseline, universal target or source percentage is
+published. SC4 and SC5 own complete aggregation and publication respectively.
+
+Exploratory full checks during implementation were rejected by the probe-input
+change guard and an intentionally failing loop-entry fixture before its seed
+refresh. Those superseded runs are not final acceptance evidence. The added
+loop fixture fails against the prior reporter and is required to pass with
+control-flow entry counting; missing source probes retain unavailable line state.

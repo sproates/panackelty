@@ -22,6 +22,8 @@ typedef struct {
 
 typedef struct {
     Function *function;
+    size_t coverage_function, coverage_pending_pc;
+    bool coverage_pending;
     size_t pc, stack_count, stack_capacity, local_count, local_capacity;
     Value **stack;
     Local *locals;
@@ -188,7 +190,22 @@ static bool frame_push(VMExecution *execution, Function *function, Value **argum
             return false;
         }
     }
+    if (execution->vm->coverage) {
+        frame->coverage_function = vm_coverage_function(execution->vm->coverage, function);
+        vm_coverage_enter(execution->vm->coverage, frame->coverage_function);
+    }
     return true;
+}
+
+static void coverage_complete_pending(VMExecution *execution)
+{
+    if (!execution->vm->coverage || !execution->frame_count) return;
+    Frame *frame = &execution->frames[execution->frame_count - 1];
+    if (frame->coverage_pending) {
+        vm_coverage_finish(execution->vm->coverage, frame->coverage_function,
+                           frame->coverage_pending_pc, false);
+        frame->coverage_pending = false;
+    }
 }
 
 static void frames_clear(VMExecution *execution)
@@ -252,6 +269,10 @@ static Value *server_call(VMExecution *execution, Value **arguments)
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
 {
     VM *vm = execution->vm;
+    if (vm->coverage && (!strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "process_run") ||
+        !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
+        vm_coverage_gap(vm->coverage);
+    }
     if (!strcmp(entry->name, "$tcp_serve")) {
         return server_call(execution, arguments);
     }
@@ -334,6 +355,10 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             break;
         }
         budget--;
+        size_t coverage_pc = frame->pc, coverage_function = frame->coverage_function;
+        size_t coverage_depth = execution->frame_count;
+        bool coverage_branched = false;
+        if (vm->coverage) vm_coverage_attempt(vm->coverage, coverage_function, coverage_pc);
         Instruction *instruction = &function->ins[frame->pc++];
         Value *a = NULL, *b = NULL, *v = NULL;
         size_t index, start, end;
@@ -571,6 +596,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             a = v->as.iterator.iterable;
             if (a->kind == V_RANGE) {
                 if (pn_big_compare(&v->as.iterator.cursor, &a->as.range.end) >= 0) {
+                    coverage_branched = true;
                     frame->pc = instruction->target;
                     break;
                 }
@@ -581,12 +607,14 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
                 }
             } else if (a->kind == V_ARRAY) {
                 if (v->as.iterator.index >= a->as.sequence.count) {
+                    coverage_branched = true;
                     frame->pc = instruction->target;
                     break;
                 }
                 b = retain(a->as.sequence.items[v->as.iterator.index++]);
             } else if (a->kind == V_BYTES) {
                 if (v->as.iterator.index >= a->as.bytes.length) {
+                    coverage_branched = true;
                     frame->pc = instruction->target;
                     break;
                 }
@@ -667,6 +695,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             if (a->kind != V_VARIANT) {
                 vm->error = "VM trap: match subject is not an enum";
             } else if (strcmp(a->as.named.name, instruction->name)) {
+                coverage_branched = true;
                 frame->pc = instruction->target;
             } else {
                 for (size_t i = 0; i < a->as.named.count; i++) {
@@ -728,6 +757,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             if (a->kind != V_BOOL) {
                 vm->error = "VM trap: conditional requires Bool";
             } else if (!a->as.boolean) {
+                coverage_branched = true;
                 frame->pc = instruction->target;
             }
             release(a);
@@ -753,6 +783,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             } else if (!stack_push(&execution->frames[execution->frame_count - 1], v)) {
                 goto oom;
             }
+            coverage_complete_pending(execution);
             break;
         case OP_AWAIT_VALUE:
         case OP_CALL_VALUE: {
@@ -825,11 +856,22 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
             vm->error = "VM trap: unknown instruction";
             break;
         }
+        if (vm->coverage && !vm->error && execution->status != VM_EXITED) {
+            if (execution->frame_count > coverage_depth || execution->status == VM_WAITING) {
+                Frame *caller = &execution->frames[coverage_depth - 1];
+                caller->coverage_pending = true;
+                caller->coverage_pending_pc = coverage_pc;
+            } else {
+                vm_coverage_finish(vm->coverage, coverage_function, coverage_pc, coverage_branched);
+            }
+        }
     }
     if (vm->error) {
         execution->status = VM_TRAPPED;
     }
     if (execution->status != VM_YIELDED && execution->status != VM_WAITING) {
+        vm_coverage_terminal(vm->coverage, execution->status == VM_COMPLETED ? 1 :
+                             execution->status == VM_TRAPPED ? 2 : 3);
         frames_clear(execution);
     }
     execution->running = false;
@@ -837,6 +879,7 @@ VMExecutionStatus vm_execution_advance(VMExecution *execution, size_t budget)
 oom:
     vm->error = "native VM out of memory";
     execution->status = VM_TRAPPED;
+    vm_coverage_terminal(vm->coverage, 2);
     frames_clear(execution);
     execution->running = false;
     return VM_TRAPPED;
@@ -859,8 +902,10 @@ VMExecution *vm_execution_create(VM *vm, Function *function, Value **arguments,
                                .host_call = host_call, .host_context = host_context};
     vm->error = NULL;
     vm->execution = execution;
+    vm_coverage_start(vm->coverage, vm->program);
     if (!frame_push(execution, function, arguments)) {
         *error = vm->error;
+        vm_coverage_terminal(vm->coverage, 2);
         vm_execution_destroy(execution);
         return NULL;
     }
@@ -893,6 +938,8 @@ bool vm_execution_complete_print(VMExecution *execution, const char *error)
         }
     }
     execution->status = vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (!vm->error) coverage_complete_pending(execution);
+    else vm_coverage_terminal(vm->coverage, 2);
     if (vm->error) {
         frames_clear(execution);
     }
@@ -937,6 +984,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     }
     VMExecution execution = {.vm = vm, .status = VM_YIELDED};
     vm->execution = &execution;
+    vm_coverage_start(vm->coverage, vm->program);
     if (frame_push(&execution, function, arguments)) {
         for (;;) {
             VMExecutionStatus status = vm_execution_advance(&execution, SIZE_MAX);
@@ -959,6 +1007,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
             release(result);
         }
     }
+    if (vm->error) vm_coverage_terminal(vm->coverage, 2);
     tcp_exchange_destroy(execution.tcp);
     tcp_server_destroy(execution.server);
     frames_clear(&execution);
@@ -1012,6 +1061,8 @@ bool vm_execution_complete_read(VMExecution *execution, Value *result)
         execution->vm->error = "native VM out of memory";
     }
     execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (!execution->vm->error) coverage_complete_pending(execution);
+    else vm_coverage_terminal(execution->vm->coverage, 2);
     if (execution->vm->error) {
         frames_clear(execution);
     }
@@ -1079,6 +1130,8 @@ bool vm_execution_pump_server(VMExecution *execution, size_t budget, unsigned ma
         tcp_server_destroy(execution->server);
         execution->server = NULL;
         execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+        if (!execution->vm->error) coverage_complete_pending(execution);
+        else vm_coverage_terminal(execution->vm->coverage, 2);
         if (execution->vm->error) {
             frames_clear(execution);
         }

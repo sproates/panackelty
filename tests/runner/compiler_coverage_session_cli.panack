@@ -1,0 +1,169 @@
+import stdlib/result
+import stdlib/testing_commands
+import stdlib/testing_files
+
+pure session_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+session_read(path: Str): Bytes { result_value_or(fs_read(session_path(path), 16777216), bytes()) }
+session_write(path: Str, data: Bytes): Void {
+  match fs_write(session_path(path), data) { Ok(done) => {}, Error(error) => { eprint("session fixture write failed"); process_exit(1); } }
+}
+pure session_contains(text: Str, needle: Str): Bool {
+  mut found: Bool = false
+  for i in 0..len(text) { if i + len(needle) <= len(text) && slice(text, i, i + len(needle)) == needle { found = true; } }
+  found
+}
+session_command(args: [Str]): ProcessOutput { session_command_env(args, []) }
+session_command_env(args: [Str], environment: [Str]): ProcessOutput {
+  match process_run(session_path("./panack"), args, bytes(), path_current(), environment, duration_seconds(90), 1048576) {
+    Error(error) => { eprint("session command failed"); process_exit(1); ProcessOutput(1, 0, bytes(), bytes()) }, Ok(result) => result
+  }
+}
+session_clean(path: Str): Void {
+  match fs_list(session_path(path)) {
+    Error(error) => {}, Ok(children) => {
+      for child in children {
+        file: Str = path + "/" + result_value_or(path_to_text(child), "")
+        match fs_metadata(session_path(file)) {
+          Error(error) => {}, Ok(metadata) => {
+            if metadata.kind == Directory() { session_clean(file); } else { fs_remove_file(session_path(file)); }
+          }
+        }
+      }
+      fs_remove_directory(session_path(path));
+    }
+  }
+}
+main(): Void {
+  match test_workspace_create(session_path("/tmp")) {
+    Error(error) => { process_exit(1); }, Ok(workspace) => {
+      dir: Str = result_value_or(path_to_text(workspace.root), "")
+      source: Str = dir + "/main.panack"
+      child: Str = dir + "/child.panack"
+      artifact: Str = dir + "/main.bc"
+      child_bc: Str = dir + "/child.bc"
+      inventory: Str = dir + "/main.inv"
+      child_inv: Str = dir + "/child.inv"
+      first: Str = dir + "/first"
+      second: Str = dir + "/second"
+      session_write(source, utf8_encode("main(): Void { run_bytecode_args(read_bytes(command_args()[0]), [command_args()[1]]); }\n"))
+      session_write(child, utf8_encode("pure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { print(choose(command_args()[0] == \"true\")); }\n"))
+      mut results: [TestResult] = []
+      for args in [["compile", source, "-o", artifact], ["compile", child, "-o", child_bc],
+                   ["inventory", source, "-o", inventory], ["inventory", child, "-o", child_inv]] {
+        setup: ProcessOutput = session_command(args)
+        results = append(results, test_expect("session setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
+      }
+      for args in [["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"],
+                   ["coverage-session", second, artifact, inventory, child_bc, child_inv, "--", child_bc, "false"]] {
+        run: ProcessOutput = session_command(args)
+        results = append(results, test_expect("nested execution", run.exit_code == 0 && (run.stdout == utf8_encode("7\n") || run.stdout == utf8_encode("9\n")), utf8_decode(run.stderr)))
+      }
+      base: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv]
+      args: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", second]
+      report: ProcessOutput = session_command(args)
+      results = append(results, test_expect("multi-session report", report.exit_code == 0, utf8_decode(report.stderr)))
+      for expected in ["aggregate sessions=2 executions=4", "declaration/0\tfunction\tchoose\tobserved\t2\t2\n",
+        "declaration/0/tail/decision/true\toutcome\ttrue\tobserved\t1\t1\n", "declaration/0/tail/decision/false\toutcome\tfalse\tobserved\t1\t1\n",
+        "declaration/1\tfunction\tunused\tobserved\t0\t0\n"] {
+        results = append(results, test_expect("exact aggregate", session_contains(utf8_decode(report.stdout), expected), expected))
+      }
+      duplicate: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", first])
+      results = append(results, test_expect("duplicate session rejected", duplicate.exit_code == 1 && duplicate.stdout == bytes(), "duplicate accepted"))
+      refused: ProcessOutput = session_command(["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"])
+      results = append(results, test_expect("exclusive session directory", refused.exit_code == 1, "session overwritten"))
+      for file in ["raw-0.1", "expect-0.1", "claim-0.1", "closed", "registry"] {
+        path: Str = first + "/" + file
+        saved: Bytes = session_read(path)
+        fs_remove_file(session_path(path))
+        rejected: ProcessOutput = session_command(args)
+        results = append(results, test_expect("missing " + file, rejected.exit_code == 1 && rejected.stdout == bytes(), "missing record accepted"))
+        session_write(path, saved)
+      }
+      raw_path: Str = first + "/raw-0.1"
+      raw: Bytes = session_read(raw_path)
+      for invalid in [bytes(), utf8_encode("PANACKEXEC1\n"), bytes_concat(raw, utf8_encode("extra")), session_read(second + "/raw-0.1")] {
+        session_write(raw_path, invalid)
+        rejected: ProcessOutput = session_command(args)
+        results = append(results, test_expect("partial mixed or cached record", rejected.exit_code == 1 && rejected.stdout == bytes(), "bad record accepted"))
+      }
+      session_write(raw_path, raw)
+      expected: Bytes = session_read(first + "/expect-0.1")
+      claimed: Bytes = session_read(first + "/claim-0.1")
+      for file in ["raw-0.1", "expect-0.1", "claim-0.1"] { fs_remove_file(session_path(first + "/" + file)); }
+      lost: ProcessOutput = session_command(args)
+      results = append(results, test_expect("entire child cannot disappear", lost.exit_code == 1 && lost.stdout == bytes(), "lost child accepted"))
+      session_write(raw_path, raw)
+      session_write(first + "/expect-0.1", expected)
+      session_write(first + "/claim-0.1", claimed)
+      session_write(first + "/raw-extra", raw)
+      surplus: ProcessOutput = session_command(args)
+      results = append(results, test_expect("surplus record rejected", surplus.exit_code == 1 && surplus.stdout == bytes(), "surplus accepted"))
+      fs_remove_file(session_path(first + "/raw-extra"))
+      missing: Str = dir + "/unregistered"
+      unregistered: ProcessOutput = session_command(["coverage-session", missing, artifact, inventory, "--", child_bc, "true"])
+      unavailable: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--session", missing])
+      results = append(results, test_expect("unregistered child preserves output but blocks report", unregistered.stdout == utf8_encode("7\n") && unavailable.exit_code == 1 && unavailable.stdout == bytes(), "missing identity accepted"))
+      // A subprocess must claim a fresh ticket, even when its bytecode is reused.
+      process_source: Str = dir + "/process.panack"
+      process_bc: Str = dir + "/process.bc"
+      process_inv: Str = dir + "/process.inv"
+      session_write(process_source, utf8_encode("import stdlib/result\nimport stdlib/process\nmain(): Void { match process_run(result_value_or(path_from_text(command_args()[0]), path_current()), [\"run\", command_args()[1], \"true\"], bytes(), path_current(), [], duration_seconds(1), 1048576) { Ok(result) => { print(result.exit_code); }, Error(error) => { print(99); } } }\n"))
+      for a in [["compile", process_source, "-o", process_bc], ["inventory", process_source, "-o", process_inv]] {
+        setup: ProcessOutput = session_command(a)
+        results = append(results, test_expect("process setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
+      }
+      process_session: Str = dir + "/process-session"
+      process_run_result: ProcessOutput = session_command(["coverage-session", process_session, process_bc, process_inv, child_bc, child_inv, "--", "./panack", child_bc])
+      process_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", process_session])
+      results = append(results, test_expect("subprocess aggregate", process_run_result.stdout == utf8_encode("0\n") && process_report.exit_code == 0 && session_contains(utf8_decode(process_report.stdout), "executions=2"), utf8_decode(process_run_result.stderr) + utf8_decode(process_report.stderr)))
+      external_session: Str = dir + "/external-session"
+      external: ProcessOutput = session_command(["coverage-session", external_session, process_bc, process_inv, child_bc, child_inv, "--", "/bin/true", child_bc])
+      external_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", external_session])
+      results = append(results, test_expect("noncollecting process stays unavailable", external.stdout == utf8_encode("0\n") && external_report.exit_code == 1 && external_report.stdout == bytes(), "lost process accepted"))
+      killed_source: Str = dir + "/killed.panack"
+      killed_bc: Str = dir + "/killed.bc"
+      killed_inv: Str = dir + "/killed.inv"
+      session_write(killed_source, utf8_encode("main(): Void { while true {} }\n"))
+      for a in [["compile", killed_source, "-o", killed_bc], ["inventory", killed_source, "-o", killed_inv]] {
+        setup: ProcessOutput = session_command(a)
+        results = append(results, test_expect("killed child setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
+      }
+      killed_session: Str = dir + "/killed-session"
+      killed: ProcessOutput = session_command(["coverage-session", killed_session, process_bc, process_inv, killed_bc, killed_inv, "--", "./panack", killed_bc])
+      killed_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", killed_source, killed_inv, "--session", killed_session])
+      results = append(results, test_expect("claimed collector killed by timeout stays partial", killed.stdout == utf8_encode("99\n") &&
+        session_read(killed_session + "/claim-0.1") == utf8_encode("claimed\n") && killed_report.exit_code == 1 && killed_report.stdout == bytes(), "killed collector accepted"))
+      trap_source: Str = dir + "/trap.panack"
+      trap_bc: Str = dir + "/trap.bc"
+      trap_inv: Str = dir + "/trap.inv"
+      session_write(trap_source, utf8_encode("main(): Void { print([1][2]); }\n"))
+      for a in [["compile", trap_source, "-o", trap_bc], ["inventory", trap_source, "-o", trap_inv]] {
+        setup: ProcessOutput = session_command(a)
+        results = append(results, test_expect("trap setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
+      }
+      trapped: ProcessOutput = session_command(["coverage-session", dir + "/trapped", trap_bc, trap_inv, "--"])
+      trap_report: ProcessOutput = session_command(["coverage-aggregate", "--source", trap_source, trap_inv, "--session", dir + "/trapped"])
+      results = append(results, test_expect("terminal trap preserves attempted prefix", trapped.exit_code == 1 && trap_report.exit_code == 0 &&
+        session_contains(utf8_decode(trap_report.stdout), "declaration/0\tfunction\tmain\tobserved\t1\t0\n"), utf8_decode(trap_report.stderr)))
+            smoke: Str = "tests/functional/cases/runner_smoke/main.panack"
+      smoke_bc: Str = dir + "/smoke.bc"
+      smoke_inv: Str = dir + "/smoke.inv"
+      for a in [["compile", smoke, "-o", smoke_bc], ["inventory", smoke, "-o", smoke_inv]] {
+        setup: ProcessOutput = session_command(a)
+        results = append(results, test_expect("cache guard setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
+      }
+      cached: ProcessOutput = session_command_env(["coverage-session", dir + "/cached", smoke_bc, smoke_inv, "--"],
+        ["PANACK_TEST_RUNNER_REPORT=" + dir + "/absent-transcript"])
+      cached_report: ProcessOutput = session_command(["coverage-aggregate", "--source", smoke, smoke_inv, "--session", dir + "/cached"])
+      results = append(results, test_expect("cached transcript cannot invent fresh execution", cached.exit_code == 1 &&
+        session_contains(utf8_decode(cached.stderr), "cached runner transcript cannot establish fresh coverage") &&
+        cached_report.exit_code == 1 && cached_report.stdout == bytes(), "cache bypassed collection"))
+            original: Bytes = session_read(child)
+      session_write(child, bytes_concat(original, utf8_encode("// stale\n")))
+      stale: ProcessOutput = session_command(args)
+      results = append(results, test_expect("stale included source", stale.exit_code == 1 && stale.stdout == bytes(), "stale identity accepted"))
+      session_clean(dir)
+      if test_report(results) > 0 { process_exit(1); }
+    }
+  }
+}

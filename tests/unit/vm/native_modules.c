@@ -19,6 +19,7 @@
 
 void resumable_contracts(void);
 void coverage_contracts(void);
+void coverage_session_contracts(void);
 void async_contracts(void);
 void tcp_contracts(void);
 void tcp_server_contracts(void);
@@ -728,6 +729,7 @@ int main(int argc, char **argv)
     }
     resumable_contracts();
     coverage_contracts();
+    coverage_session_contracts();
     async_contracts();
     tcp_contracts();
     tcp_server_contracts();

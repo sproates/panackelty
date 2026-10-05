@@ -269,7 +269,7 @@ static Value *server_call(VMExecution *execution, Value **arguments)
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
 {
     VM *vm = execution->vm;
-    if (vm->coverage && (!strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "process_run") ||
+    if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "process_run") ||
         !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
         vm_coverage_gap(vm->coverage);
     }

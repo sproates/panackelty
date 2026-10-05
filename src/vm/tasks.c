@@ -104,7 +104,7 @@ VMTasks *vm_tasks_create(const VM *template_vm, size_t task_limit, size_t event_
         return NULL;
     }
     tasks->template_vm = *template_vm;
-    vm_coverage_gap(template_vm->coverage);
+    if (!template_vm->coverage_run) vm_coverage_gap(template_vm->coverage);
     tasks->template_vm.coverage = NULL;
     tasks->template_vm.error = NULL;
     tasks->capacity = task_limit;
@@ -135,11 +135,15 @@ VMTaskId vm_tasks_spawn(VMTasks *tasks, VMTaskId parent, Function *function, Val
                    .parent = parent.slot,
                    .deadline = deadline,
                    .status = TASK_READY};
+    task->vm.coverage_run = vm_coverage_child(ancestor ? ancestor->vm.coverage_run : tasks->template_vm.coverage_run,
+        task->vm.program, NULL, 0, "task\n");
+    task->vm.coverage = vm_coverage_run_collector(task->vm.coverage_run);
     task->async_read = function->is_async;
     task->execution = function->is_async
         ? vm_execution_create_async(&task->vm, function, arguments, register_request, task, error)
         : vm_execution_create_pending(&task->vm, function, arguments, register_request, task, error);
     if (!task->execution) {
+        if (!vm_coverage_run_close(task->vm.coverage_run)) vm_coverage_gap(tasks->template_vm.coverage);
         *task = (Task){0};
         return (VMTaskId){0};
     }
@@ -174,6 +178,9 @@ static void finish_body(Task *task, VMTaskStatus outcome)
         release(task->result);
         task->result = NULL;
     }
+    if (!vm_coverage_run_close(task->vm.coverage_run)) vm_coverage_gap(task->owner->template_vm.coverage);
+    task->vm.coverage_run = NULL;
+    task->vm.coverage = NULL;
     release_request(task);
     task->outcome = outcome;
     task->status = TASK_JOINING;
@@ -394,6 +401,7 @@ bool vm_tasks_destroy(VMTasks *tasks)
     for (size_t i = tasks->count; i-- > 0;) {
         Task *task = &tasks->tasks[i];
         vm_execution_destroy(task->execution);
+        if (!vm_coverage_run_close(task->vm.coverage_run)) vm_coverage_gap(tasks->template_vm.coverage);
         release_request(task);
         release(task->result);
     }

@@ -1,5 +1,5 @@
 import "explanations.panack"
-import "coverage.panack"
+import "coverage_session.panack"
 
 record PreparedProject {
   valid: Bool,
@@ -32,7 +32,7 @@ report_driver_error(message: Str): Nat {
 }
 
 pure driver_usage(): Str {
-  "usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]\n       panack coverage-report SOURCE.panack --inventory FILE --coverage RAW\n       panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]\n       panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]\n       panack FILE | panack {check,compile,run,disasm} FILE\n       panack explain SOURCE.panack --function NAME\n       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP\n       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC"
+  "usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]\n       panack coverage-session DIRECTORY ARTIFACT INVENTORY [ARTIFACT INVENTORY ...] -- [arguments...]\n       panack coverage-aggregate --source SOURCE INVENTORY [--source SOURCE INVENTORY ...] --session DIRECTORY [--session DIRECTORY ...]\n       panack coverage-report SOURCE.panack --inventory FILE --coverage RAW\n       panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]\n       panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]\n       panack FILE | panack {check,compile,run,disasm} FILE\n       panack explain SOURCE.panack --function NAME\n       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP\n       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC"
 }
 
 pure without_final_newline(text: Str): Str {
@@ -257,7 +257,9 @@ run_compiler_command(arguments: [Str]): Nat {
     print(driver_usage())
     0
   } else {
-    if values[0] == "coverage-report" { run_coverage_report(values) } else {
+    if values[0] == "coverage-report" || values[0] == "coverage-aggregate" {
+      if values[0] == "coverage-report" { run_coverage_report(values) } else { run_coverage_aggregate(values) }
+    } else {
       if values[0] == "inventory" || values[0] == "inventory-check" {
         run_inventory_command(values, values[0] == "inventory-check")
       } else {

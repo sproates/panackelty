@@ -62,6 +62,7 @@ static void client_clear(ServerClient *client)
 {
     close_fd(&client->fd);
     vm_execution_destroy(client->execution);
+    vm_coverage_run_close(client->vm.coverage_run);
     free(client->request);
     release(client->response);
     *client = (ServerClient){.fd = -1};
@@ -229,7 +230,7 @@ VMTcpServer *tcp_server_start(const VM *vm, Function *handler, const Value *addr
         return server;
     }
     server->template_vm = *vm;
-    vm_coverage_gap(vm->coverage);
+    if (!vm->coverage_run) vm_coverage_gap(vm->coverage);
     server->template_vm.coverage = NULL;
     server->handler = handler;
     server->outbound = outbound;
@@ -474,6 +475,9 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
     client->vm = server->template_vm;
     client->vm.execution = NULL;
     client->vm.error = NULL;
+    client->vm.coverage_run = vm_coverage_child(server->template_vm.coverage_run,
+        client->vm.program, NULL, 0, "server\n");
+    client->vm.coverage = vm_coverage_run_collector(client->vm.coverage_run);
     const char *error;
     client->execution = vm_execution_create_async(&client->vm, server->handler, &request, fake_wait,
                                                   client, &error);

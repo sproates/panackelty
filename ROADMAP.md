@@ -1433,7 +1433,7 @@ dependencies without replacing the current principal programme.
 
 | Candidate and work record | First useful outcome | Size / estimated PRs |
 | --- | --- | --- |
-| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: SC1–SC3 delivered; 55% complete on integration. SC4 complete-run aggregation is next. Suite baselines and publication remain pending. | Inventory M–L; later collection/publication estimate remains provisional |
+| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: SC1–SC4 delivered; 75% complete on integration. SC5 suite baseline/publication is next. Suite baselines and publication remain pending. | Inventory M–L; later collection/publication estimate remains provisional |
 | [RM#62: Component readability](#rm-62) ([GI#132: Component readability](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
 | [RM#47: Development workflow assessment](#rm-47) ([GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
 | [RM#48: Compiler explanations](#rm-48) ([GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
@@ -3198,7 +3198,7 @@ delivered; complete aggregation, publication and gap closure remain pending. Pro
 
 ### Source coverage programme baseline
 
-**Estimated overall completion: 55%.** Baseline SC-1, established 2026-10-05,
+**Estimated overall completion on SC4 integration: 75%.** Baseline SC-1, established 2026-10-05,
 weights independently accepted outcomes by relative implementation, testing,
 integration and acceptance effort. The earlier four PR boundaries were delivery
 estimates, not a weighted programme; this is the first percentage baseline, not
@@ -3210,12 +3210,12 @@ again alongside its children.
 | [SC1 / RM#136: Feasibility and design](#rm-136) | Done on `next`, PR#299 | 15% | 100% | 15 percentage points |
 | [SC2 / RM#137: Executable-source inventory](#rm-137) | Done on `next`; [inventory contract](docs/SOURCE_INVENTORY.md) | 20% | 100% | 20 percentage points |
 | [SC3 / RM#138: Runtime coverage collection](#rm-138) | Done on `next`; [runtime contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
-| [SC4 / RM#139: Complete run aggregation](#rm-139) | Ready for prioritisation; not started | 20% | 0% | 0 percentage points |
-| [SC5 / RM#140: Suite baseline and publication](#rm-140) | Pending SC2–SC4; not started | 15% | 0% | 0 percentage points |
+| [SC4 / RM#139: Complete run aggregation](#rm-139) | Delivered by SC4 integration; [session contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
+| [SC5 / RM#140: Suite baseline and publication](#rm-140) | Ready after SC4 integration; not started | 15% | 0% | 0 percentage points |
 | [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Pending SC5; not started | 10% | 0% | 0 percentage points |
-| **Total** | | **100%** | | **55 percentage points = 55% overall** |
+| **Total** | | **100%** | | **75 percentage points = 75% overall** |
 
-SC3 adds 20 percentage points to the previous 35%; SC-1 weights are unchanged.
+SC4 adds 20 percentage points to the previous 55% on integration; SC-1 weights are unchanged.
 
 These are provisional scope estimates, not time estimates or equal shares per
 PR. Inventory, collection and aggregation carry most weight because they require
@@ -3255,7 +3255,7 @@ and literal/public-command acceptance tests deliver this outcome. Explicit extra
 roots include libraries without `main`; ordinary compilation still requires it.
 The seed is refreshed through the existing fixed-point procedure, without VM
 instrumentation or executable-format changes. SC3 builds on this inventory;
-SC4 is now the recommended next work item. Inventory generation does not collect hits or establish suite scope.
+SC5 is the next work item after SC4 integration. Inventory generation does not collect hits or establish suite scope.
 
 <a id="rm-138"></a>
 
@@ -3272,7 +3272,7 @@ aggregation remain SC4. No suite percentage is established by SC3.
 
 <a id="rm-139"></a>
 
-**SC4 / RM#139: Complete run aggregation — 20%.** Register async suspension,
+**SC4 / RM#139: Complete run aggregation — 20%; delivered on integration.** Register async suspension,
 nested VMs/compiler runs, task/server child contexts and subprocess executions.
 Aggregate each run exactly once under a manifest of expected source/artifact and
 execution identities. Reject mixed identities, duplicates, truncated/malformed
@@ -3280,6 +3280,18 @@ records and lost/killed collectors; preserve zero, excluded, unavailable and
 partial states. Validate cache behavior so reused test transcripts cannot invent
 new execution hits. Accept exact multi-execution fixtures and explicit supported
 scope, with missing eligible collection preventing a complete report.
+
+`coverage-session` registers exact artifact inventories and every admitted nested,
+task, server or subprocess execution. `coverage-aggregate` checks fresh session
+identities, exclusive claims, parent child counts, the shared admission/byte
+budget, exact directory membership and terminal records before adding counters.
+Missing, killed, cancelled, unregistered or nonparticipating collection blocks a
+complete report; cached fixture-runner transcripts are rejected. Source states
+and per-artifact roots remain explicit, with no suite percentage. The runtime
+contract documents native-only scope and limits. Exact CLI/native/failure tests,
+compiler fixed points and the real nested compiler acceptance command are
+recorded in `tests/COVERAGE.md` and `tests/VALIDATION_PROFILE.md`.
+
 
 <a id="rm-140"></a>
 

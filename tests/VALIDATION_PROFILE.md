@@ -3479,3 +3479,76 @@ change guard and an intentionally failing loop-entry fixture before its seed
 refresh. Those superseded runs are not final acceptance evidence. The added
 loop fixture fails against the prior reporter and is required to pass with
 control-flow entry counting; missing source probes retain unavailable line state.
+
+
+## SC4 / GI#131 registered coverage sessions — 2026-10-05
+
+SC4 / RM#139 contributes 20 programme percentage points on integration (55% →
+75%, unchanged SC-1 weights). It adds native execution-tree admission and strict
+aggregation, not a measured suite baseline. SC5 remains responsible for baseline
+scope and publication.
+
+The collector writes fresh expected/claimed execution tickets, session-bound raw
+records, parent child counts and a locked cross-process budget. Exact artifact
+registries and local compiler/source/inventory replay prevent mixed identities;
+missing/killed/cancelled/nonparticipating collectors block a complete report.
+Registered task and server contexts own their counters; async completion remains
+inside its original execution. The fixture runner refuses cached transcripts
+when session collection is active. See `docs/SOURCE_COVERAGE.md` for supported
+native scope, ownership and bounded failure states.
+
+Focused acceptance includes 37 raw-reader/indexed-source/aggregation checks and
+39 unchanged SC3 CLI checks. The SC4 session CLI adds 40 checks for exact totals,
+subprocesses, complete child deletion, stale/replayed/malformed records, traps,
+killed claimed collectors and transcript reuse. Native tests cover task ancestry,
+cancellation, exclusive claims and separate server handler counts under slot
+reuse; the allocation corpus checks 1,987 injected failures. Final frozen-run
+results and hosted acceptance are recorded in the delivery PR.
+
+The fresh compiler stages agree at SHA-256
+`253f3d9d6c956aca9729c29515b534ac89840a30e061a66859778ac459a96868`.
+The seed is 504,999 bytes, +2.94% against SC3's 490,571 bytes. The standard-library
+artifact remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Bytecode v9 and the SC3 raw format are unchanged. The browser-runtime dependency
+bundle includes both coverage modules and headers; native sessions are unavailable
+on WASI.
+
+A compiler-sized report exposed repeated sorting and instruction/probe scans in
+the SC3 renderer. The SC4 renderer indexes function metadata, source probes and
+incoming control-flow edges once, and joins output as a balanced tree. Literal
+entry/completion/branch fixtures remain unchanged. An earlier large-report run
+was stopped without accepting a result; small-fixture output after the first
+indexing step was byte-for-byte identical. The reproducible larger acceptance
+command is `make source-coverage-session-smoke`; it collects the real compiler
+as a nested VM and checks one `compiler_main` / `run_compiler_command` entry and
+zero hits for the unused aggregation command.
+
+Controlled loop comparison: same 500,000-iteration Nat-loop bytecode, native C
+`-O2`, 10 measured process launches after 2 warmups per mode, rotating parent,
+disabled candidate and enabled session order. Parent is SC3 commit
+`761347062d0ee732ec45fe7b1bd8c0f2eea98ad9`; all three produce identical stdout,
+exit status and stderr.
+
+| Mode | Median | Observed range |
+|---|---:|---:|
+| Parent native VM | 178.82 ms | 155.20–383.58 ms |
+| Candidate, collection disabled | 187.52 ms | 166.81–291.44 ms |
+| Candidate, fresh session directory and record | 206.95 ms | 195.51–267.14 ms |
+
+The enabled median is +10.36% versus disabled; disabled is +4.87% versus parent.
+The wide overlap and outliers limit causal interpretation; these are bounded
+observations, not a precise performance guarantee. No collector, registry or
+session-file allocation occurs on the disabled path. Enabled costs include
+per-execution counters, immutable identity blobs, ticket files and record writes;
+the full tree is capped at 4,096 executions / 256 MiB of record data. No RSS
+reduction or zero memory overhead is claimed. GI#106 remains open and no existing
+validation timeout, assertion or budget is weakened.
+
+Final focused runs passed all **116** checks (37 + 39 + 40), native contracts and
+1,987 allocation-failure cases. The real nested-compiler acceptance target passed
+in **193.977s wall / 192.704s user / 1.115s system** in this workspace while other
+focused validation was running. That is a larger opt-in fixture, not a new fast
+unit gate or an isolated performance comparison; compiler-sized reporting still
+has material cost. The earlier unindexed large-report experiment was interrupted
+without an accepted result. No comparative speedup percentage is inferred.

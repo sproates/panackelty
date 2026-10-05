@@ -1,4 +1,4 @@
-import "../../src/compiler/coverage.panack"
+import "../../src/compiler/coverage_session.panack"
 import stdlib/testing
 
 pure coverage_test_u64(value: Nat): Bytes { bytes_concat(encode_u32(0), encode_u32(value)) }
@@ -19,6 +19,21 @@ pure coverage_text_contains(text: Str, needle: Str): Bool {
 }
 main(): Void {
   mut results: [TestResult] = []
+  for id in ["0", "0.1", "0.4096.2"] {
+    results = append(results, test_expect("canonical execution id", coverage_execution_id(id), id))
+  }
+  for id in ["", "1", "0.", "0.0", "0.01", "0..1", "0.1.", "0/1", "0.a", "00"] {
+    results = append(results, test_expect("reject malformed execution id", !coverage_execution_id(id), id))
+  }
+  left: CoverageData = CoverageData(true, 1, [CoverageFunction(2, [CoverageCell(3, 2, 1, 1)])])
+  right: CoverageData = CoverageData(true, 2, [CoverageFunction(1, [CoverageCell(1, 1, 0, 1)])])
+  total: CoverageData = coverage_sum(left, right)
+  results = append(results, test_expect("exact sum includes trapped prefix", total.valid && total.functions[0].entries == 3 &&
+    total.functions[0].cells[0].attempted == 4 && total.functions[0].cells[0].completed == 3 &&
+    total.functions[0].cells[0].fallthrough == 1 && total.functions[0].cells[0].branched == 2, "wrong sum"))
+  maximum: CoverageData = CoverageData(true, 1, [CoverageFunction(18446744073709551615, [CoverageCell(18446744073709551615, 0, 0, 0)])])
+  results = append(results, test_expect("aggregate overflow rejected", !coverage_sum(maximum, right).valid, "wrapped"))
+  results = append(results, test_expect("invalid prefix cannot become zero", !coverage_sum(left, CoverageData(false, 0, [])).valid, "accepted"))
   program: BytecodeProgram = BytecodeProgram([FunctionCode("main", [], false, false, [JumpFalseInstruction(1)])])
   good: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, 0)
   results = append(results, test_expect("coverage valid literal raw", decode_coverage(good, utf8_encode("a"), utf8_encode("i"), program).valid, "rejected"))
@@ -46,7 +61,11 @@ main(): Void {
     CoverageCell(2, 2, 0, 0), CoverageCell(2, 2, 0, 0), CoverageCell(1, 1, 0, 0), CoverageCell(1, 1, 0, 0)])
   results = append(results, test_equal_nat("outer block entered once", coverage_attempted(EmissionProbe("expression", span, 0, 5), loop_code, loop_data), 1))
   results = append(results, test_equal_nat("loop condition entered three times", coverage_attempted(EmissionProbe("expression", span, 0, 1), loop_code, loop_data), 3))
-  entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
+  loop_index: Map[Nat,[CoverageIncoming]] = coverage_incoming(loop_code, loop_data)
+  results = append(results, test_equal_nat("indexed outer block entered once", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 5), 1, loop_index), 1))
+  results = append(results, test_equal_nat("indexed loop condition entered three times", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 1), 1, loop_index), 3))
+  results = append(results, test_equal_nat("indexed block completed once", coverage_completed_indexed(EmissionProbe("expression", span, 0, 5), loop_index), 1))
+    entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
   project: LoadedProject = load_project_for_inventory(entry)
   mapped: SourceMappedProgram = compile_program_with_sources(project.program)
   mut observations: [CoverageFunction] = []

@@ -9,6 +9,10 @@ pure runner_path(text: Str): Path {
 }
 
 main(): Void {
+  if environment_has("PANACK_COVERAGE_ACTIVE") && environment_has("PANACK_TEST_RUNNER_REPORT") {
+    eprint("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
+    process_exit(1)
+  }
   names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",

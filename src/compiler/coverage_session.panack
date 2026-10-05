@@ -1,0 +1,246 @@
+import "coverage.panack"
+
+record CoverageRoot {
+  project: LoadedProject, mapped: SourceMappedProgram, artifact: Bytes,
+  inventory: Bytes, root: Str, stdlib: Str
+}
+record CoverageSessionResult { valid: Bool, nonce: Bytes, executions: Nat, totals: [CoverageData] }
+
+pure coverage_zero(program: BytecodeProgram): CoverageData {
+  mut functions: [CoverageFunction] = []
+  for function in sort_functions(program.functions) {
+    mut cells: [CoverageCell] = []
+    for instruction in function.instructions { cells = append(cells, CoverageCell(0, 0, 0, 0)); }
+    functions = append(functions, CoverageFunction(0, cells))
+  }
+  CoverageData(true, 1, functions)
+}
+
+pure coverage_sum(left: CoverageData, right: CoverageData): CoverageData {
+  mut functions: [CoverageFunction] = []
+  mut valid: Bool = left.valid && right.valid && len(left.functions) == len(right.functions)
+  if valid {
+    for index in 0..len(left.functions) {
+      a: CoverageFunction = left.functions[index]
+      b: CoverageFunction = right.functions[index]
+      valid = valid && len(a.cells) == len(b.cells) && a.entries + b.entries <= 18446744073709551615
+      mut cells: [CoverageCell] = []
+      if valid {
+        for pc in 0..len(a.cells) {
+          x: CoverageCell = a.cells[pc]
+          y: CoverageCell = b.cells[pc]
+          cell: CoverageCell = CoverageCell(x.attempted + y.attempted, x.completed + y.completed,
+            x.fallthrough + y.fallthrough, x.branched + y.branched)
+          valid = valid && cell.attempted <= 18446744073709551615 && cell.completed <= 18446744073709551615 &&
+            cell.fallthrough <= 18446744073709551615 && cell.branched <= 18446744073709551615
+          cells = append(cells, cell)
+        }
+      }
+      functions = append(functions, CoverageFunction(a.entries + b.entries, cells))
+    }
+  }
+  CoverageData(valid, 1, functions)
+}
+
+// Canonical bounded hierarchical IDs, never record-supplied filesystem paths.
+pure coverage_execution_id(id: Str): Bool {
+  mut valid: Bool = len(id) > 0 && len(id) < 192 && slice(id, 0, 1) == "0"
+  mut start: Nat = 2
+  if len(id) > 1 { valid = valid && slice(id, 1, 2) == "." && len(id) > 2; }
+  for i in 2..len(id) {
+    c: Str = slice(id, i, i + 1)
+    if c == "." {
+      valid = valid && i > start
+      start = i + 1
+    } else {
+      valid = valid && c >= "0" && c <= "9" && (i != start || c != "0")
+    }
+  }
+  valid && (len(id) == 1 || start < len(id))
+}
+pure coverage_parent(id: Str): Str {
+  mut end: Nat = 0
+  for i in 0..len(id) { if slice(id, i, i + 1) == "." { end = i; } }
+  slice(id, 0, end)
+}
+
+coverage_session_read(directory: Str, roots: [CoverageRoot]): CoverageSessionResult {
+  mut valid: Bool = true
+  mut nonce: Bytes = bytes()
+  mut totals: [CoverageData] = []
+  for root in roots { totals = append(totals, coverage_zero(root.mapped.bytecode)); }
+  mut executions: Nat = 0
+  match source_map_read(directory + "/registry", 16777216) {
+    Error(error) => { valid = false; },
+    Ok(registry) => {
+      valid = byte_len(registry) >= 35 && coverage_prefix(registry, utf8_encode("PANACKSESSION1\n"), 0)
+      if valid {
+        for i in 15..31 { nonce = byte_append(nonce, byte_get(registry, i)); }
+        mut chunks: [Bytes] = [utf8_encode("PANACKSESSION1\n"), nonce, encode_u32(len(roots))]
+        for root in roots { chunks = append(chunks, source_map_blob(root.artifact)); chunks = append(chunks, source_map_blob(root.inventory)); }
+        valid = registry == source_map_join(chunks, 0, len(chunks))
+      }
+    }
+  }
+  mut names: Map[Str,Bool] = map()
+  mut ids: [Str] = []
+  match path_from_text(directory) {
+    Error(error) => { valid = false; },
+    Ok(path) => match fs_list(path) {
+      Error(error) => { valid = false; },
+      Ok(children) => {
+        valid = valid && len(children) <= 12291
+        for child in children {
+          match path_to_text(child) {
+            Error(error) => { valid = false; },
+            Ok(name) => {
+              names = names.put(name, true)
+              if len(name) > 7 && slice(name, 0, 7) == "expect-" { ids = append(ids, slice(name, 7, len(name))); }
+            }
+          }
+        }
+      }
+    }
+  }
+  valid = valid && len(ids) > 0 && len(ids) <= 4096 && names.has("expect-0") &&
+    names.has("registry") && names.has("closed") && source_map_matches(directory + "/closed", utf8_encode("closed\n"))
+  // Exact membership prevents surplus/duplicate/renamed records being ignored.
+  mut expected_names: Nat = 3
+  mut declared_children: Nat = 0
+  mut total_bytes: Nat = 0
+  for id in ids {
+    valid = valid && coverage_execution_id(id) && (id == "0" || names.has("expect-" + coverage_parent(id))) &&
+      names.has("claim-" + id) && names.has("raw-" + id)
+    expected_names = expected_names + 3
+    mut kind: Bytes = bytes()
+    match source_map_read(directory + "/expect-" + id, 16) {
+      Error(error) => { valid = false; }, Ok(data) => { kind = data; }
+    }
+    valid = valid && (if id == "0" { kind == utf8_encode("root\n") } else {
+      kind == utf8_encode("nested\n") || kind == utf8_encode("task\n") || kind == utf8_encode("server\n") || kind == utf8_encode("process\n")
+    }) && source_map_matches(directory + "/claim-" + id, utf8_encode("claimed\n"))
+    if valid {
+      match source_map_read(directory + "/raw-" + id, 16777216) {
+        Error(error) => { valid = false; },
+        Ok(raw) => {
+          total_bytes = total_bytes + byte_len(raw)
+          valid = valid && total_bytes <= 268435456
+          envelope: Bytes = source_map_join([utf8_encode("PANACKEXEC1\n"), nonce, source_map_blob(utf8_encode(id))], 0, 3)
+          offset: Nat = byte_len(envelope)
+          valid = valid && byte_len(raw) >= offset + 8 && coverage_prefix(raw, envelope, 0)
+          if valid {
+            identity: Nat = coverage_number(raw, offset, 4)
+            children: Nat = coverage_number(raw, offset + 4, 4)
+            declared_children = declared_children + children
+            valid = identity < len(roots) && children <= 4096
+            if valid {
+              for child in 1..(children + 1) { valid = valid && names.has("expect-" + id + ".${child}"); }
+            }
+            if valid {
+              root: CoverageRoot = roots[identity]
+              observed: CoverageData = decode_coverage_at(raw, root.artifact, root.inventory, root.mapped.bytecode, offset + 8)
+              valid = observed.valid
+              mut next: [CoverageData] = []
+              for i in 0..len(totals) {
+                combined: CoverageData = if i == identity { coverage_sum(totals[i], observed) } else { totals[i] }
+                valid = valid && combined.valid
+                next = append(next, combined)
+              }
+              totals = next
+              executions = executions + 1
+            }
+          }
+        }
+      }
+    }
+  }
+  // fs_list already guarantees unique names; inspect its length again below.
+  match path_from_text(directory) {
+    Error(error) => { valid = false; }, Ok(path) => match fs_list(path) {
+      Error(error) => { valid = false; }, Ok(children) => { valid = valid && len(children) == expected_names; }
+    }
+  }
+  CoverageSessionResult(valid && declared_children + 1 == len(ids) &&
+    source_map_matches(directory + "/budget", bytes_concat(encode_u32(len(ids)), encode_u32(total_bytes))), nonce, executions, totals)
+}
+
+run_coverage_aggregate(values: [Str]): Nat {
+  mut sources: [Str] = []
+  mut inventories: [Str] = []
+  mut sessions: [Str] = []
+  mut valid: Bool = true
+  mut cursor: Nat = 1
+  while cursor < len(values) {
+    if values[cursor] == "--source" && cursor + 2 < len(values) && len(sessions) == 0 {
+      sources = append(sources, values[cursor + 1])
+      inventories = append(inventories, values[cursor + 2])
+      cursor = cursor + 3
+    } else { if values[cursor] == "--session" && cursor + 1 < len(values) {
+      sessions = append(sessions, values[cursor + 1])
+      cursor = cursor + 2
+    } else { valid = false; cursor = len(values); } }
+  }
+  valid = valid && len(sources) > 0 && len(sources) <= 16 && len(sessions) > 0 && len(sessions) <= 256
+  mut roots: [CoverageRoot] = []
+  mut totals: [CoverageData] = []
+  compiler_path: Str = environment_get("PANACKELTY_COMPILER_PATH")
+  match source_map_read(compiler_path, 16777216) {
+    Error(error) => { valid = false; }, Ok(compiler) => {
+      if valid {
+        for index in 0..len(sources) {
+          entry: Str = path_resolve(sources[index])
+          root: Str = path_parent(entry)
+          stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+          project: LoadedProject = load_project_for_inventory(entry)
+          mapped: SourceMappedProgram = compile_program_with_sources(project.program)
+          artifact: Bytes = serialize_bytecode(mapped.bytecode)
+          inner: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
+          inventory: Bytes = source_map_join([utf8_encode("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)], 0, 3)
+          valid = valid && len(project.diagnostics) == 0 && byte_len(inner) > 0 &&
+            source_map_matches(inventories[index], inventory) && source_snapshots_unchanged(project)
+          for prior in roots { valid = valid && prior.artifact != artifact; }
+          roots = append(roots, CoverageRoot(project, mapped, artifact, inventory, root, stdlib))
+          totals = append(totals, coverage_zero(mapped.bytecode))
+        }
+      }
+      valid = valid && source_map_matches(compiler_path, compiler)
+    }
+  }
+  mut seen: [Bytes] = []
+  mut executions: Nat = 0
+  if valid {
+    for directory in sessions {
+      session: CoverageSessionResult = coverage_session_read(directory, roots)
+      valid = valid && session.valid
+      for nonce in seen { valid = valid && nonce != session.nonce; }
+      seen = append(seen, session.nonce)
+      if valid {
+        mut next: [CoverageData] = []
+        for i in 0..len(totals) {
+          combined: CoverageData = coverage_sum(totals[i], session.totals[i])
+          valid = valid && combined.valid
+          next = append(next, combined)
+        }
+        totals = next
+        executions = executions + session.executions
+      }
+    }
+  }
+  // Recheck local snapshots after reading all sessions; compilation and report
+  // decoding must not straddle different source revisions.
+  for root in roots { valid = valid && source_snapshots_unchanged(root.project); }
+  if !valid {
+    eprint("error: coverage aggregate unavailable: missing, partial, duplicate, incompatible or malformed session; no complete report")
+    1
+  } else {
+    count: Nat = len(sessions)
+    print("coverage: aggregate sessions=${count} executions=${executions}")
+    for i in 0..len(roots) {
+      root: CoverageRoot = roots[i]
+      print("artifact/${i}")
+      report: Str = render_coverage(root.project, root.mapped, totals[i], root.root, root.stdlib)
+      print(slice(report, len("coverage: single-execution terminal=1\n"), len(report)))
+    }
+    0
+  }
+}

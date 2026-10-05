@@ -82,6 +82,8 @@ check-compiler-impl:
 		tests/runner/compiler_source_maps_unit.panack \
 		tests/runner/compiler_source_inventory_unit.panack \
 		tests/runner/compiler_source_inventory_cli.panack \
+		tests/runner/compiler_coverage_cli.panack \
+		tests/runner/compiler_coverage_unit.panack \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
@@ -148,6 +150,8 @@ unit-compiler: native
 		tests/runner/compiler_source_maps_unit.panack \
 		tests/runner/compiler_source_inventory_unit.panack \
 		tests/runner/compiler_source_inventory_cli.panack \
+		tests/runner/compiler_coverage_cli.panack \
+		tests/runner/compiler_coverage_unit.panack \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
@@ -200,8 +204,8 @@ $(BUILD_DIR)/vm/%.o: src/vm/%.c
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)

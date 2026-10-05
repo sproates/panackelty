@@ -48,7 +48,7 @@ pure program_emission(source: Str, function_name: Str): Str {
           if function.name == function_name {
             for mapping in compiled.sources {
               if mapping.name == function_name {
-                output = emission_trace(EmittedCode(function.instructions, 0, mapping.entries), 0)
+                output = emission_trace(EmittedCode(function.instructions, 0, mapping.entries, []), 0)
               }
             }
           }

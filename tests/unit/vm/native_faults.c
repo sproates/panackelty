@@ -696,6 +696,22 @@ static void server_allocations(void)
     assert(fault_descriptors() == 0);
 }
 
+static void coverage_allocations(void)
+{
+    Instruction code[] = {{.op = OP_CONST, .constant = {.tag = 5}}, {.op = OP_RETURN}};
+    Function fn = {.name = "main", .ins = code, .ins_count = 2};
+    Program program = {.count = 1, .functions = &fn};
+    VMCoverage *coverage = vm_coverage_create(&program, 2, UINT64_MAX);
+    if (coverage) {
+        VM vm = {.program = &program, .coverage = coverage};
+        Value *result = execute(&vm, &fn, NULL);
+        if (result) assert(!vm.error);
+        else assert(vm.error);
+        release(result);
+        vm_coverage_destroy(coverage);
+    }
+}
+
 int main(int argc, char **argv)
 {
     if (argc == 3) {
@@ -718,6 +734,7 @@ int main(int argc, char **argv)
     server_syscall = NULL;
     fault_reset(0);
     sweep("decode", decode_program);
+    sweep("coverage collection", coverage_allocations);
     operand = value_size(42);
     assert(operand);
     sweep("record", construct_record);

@@ -1,0 +1,63 @@
+import "../../src/compiler/coverage.panack"
+import stdlib/testing
+
+pure coverage_test_u64(value: Nat): Bytes { bytes_concat(encode_u32(0), encode_u32(value)) }
+pure coverage_test_cell(a: Nat, c: Nat, f: Nat, b: Nat): Bytes {
+  source_map_join([coverage_test_u64(a), coverage_test_u64(c), coverage_test_u64(f), coverage_test_u64(b)], 0, 4)
+}
+pure coverage_test_raw(cell: Bytes, terminal: Nat, flags: Nat): Bytes {
+  source_map_join([utf8_encode("PANACKCOV1\n"), source_map_blob(utf8_encode("a")), source_map_blob(utf8_encode("i")),
+    encode_u32(1), coverage_test_u64(1), encode_u32(1), cell, utf8_encode("END\n"),
+    byte_append(byte_append(bytes(), terminal), flags)], 0, 9)
+}
+pure coverage_text_contains(text: Str, needle: Str): Bool {
+  mut found: Bool = false
+  for index in 0..len(text) {
+    if index + len(needle) <= len(text) && slice(text, index, index + len(needle)) == needle { found = true; }
+  }
+  found
+}
+main(): Void {
+  mut results: [TestResult] = []
+  program: BytecodeProgram = BytecodeProgram([FunctionCode("main", [], false, false, [JumpFalseInstruction(1)])])
+  good: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, 0)
+  results = append(results, test_expect("coverage valid literal raw", decode_coverage(good, utf8_encode("a"), utf8_encode("i"), program).valid, "rejected"))
+  for flags in [1, 2, 3, 255] {
+    raw: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, flags)
+    results = append(results, test_expect("reject gap overflow unknown flags", !decode_coverage(raw, utf8_encode("a"), utf8_encode("i"), program).valid, "accepted"))
+  }
+  for terminal in [0, 4, 255] {
+    raw: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), terminal, 0)
+    results = append(results, test_expect("reject partial unknown terminal", !decode_coverage(raw, utf8_encode("a"), utf8_encode("i"), program).valid, "accepted"))
+  }
+  for cell in [coverage_test_cell(0, 1, 0, 1), coverage_test_cell(1, 1, 1, 1), coverage_test_cell(1, 1, 0, 0)] {
+    raw: Bytes = coverage_test_raw(cell, 1, 0)
+    results = append(results, test_expect("reject inconsistent counters", !decode_coverage(raw, utf8_encode("a"), utf8_encode("i"), program).valid, "accepted"))
+  }
+  results = append(results, test_expect("reject stale artifact", !decode_coverage(good, utf8_encode("b"), utf8_encode("i"), program).valid, "accepted"))
+  results = append(results, test_expect("reject stale inventory", !decode_coverage(good, utf8_encode("a"), utf8_encode("j"), program).valid, "accepted"))
+  results = append(results, test_expect("reject truncation", !decode_coverage(bytes(), utf8_encode("a"), utf8_encode("i"), program).valid, "accepted"))
+  results = append(results, test_expect("reject appended record", !decode_coverage(bytes_concat(good, good), utf8_encode("a"), utf8_encode("i"), program).valid, "accepted"))
+  span: SourceSpan = SourceSpan(SourcePos("test", 0, 1, 1), SourcePos("test", 10, 1, 11))
+  loop_code: FunctionCode = FunctionCode("main", [], false, false,
+    [LoadInstruction("condition"), JumpFalseInstruction(4), ConstInstruction(VoidConstant()),
+     JumpInstruction(0), ConstInstruction(VoidConstant()), ReturnInstruction()])
+  loop_data: CoverageFunction = CoverageFunction(1, [CoverageCell(3, 3, 0, 0), CoverageCell(3, 3, 2, 1),
+    CoverageCell(2, 2, 0, 0), CoverageCell(2, 2, 0, 0), CoverageCell(1, 1, 0, 0), CoverageCell(1, 1, 0, 0)])
+  results = append(results, test_equal_nat("outer block entered once", coverage_attempted(EmissionProbe("expression", span, 0, 5), loop_code, loop_data), 1))
+  results = append(results, test_equal_nat("loop condition entered three times", coverage_attempted(EmissionProbe("expression", span, 0, 1), loop_code, loop_data), 3))
+  entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
+  project: LoadedProject = load_project_for_inventory(entry)
+  mapped: SourceMappedProgram = compile_program_with_sources(project.program)
+  mut observations: [CoverageFunction] = []
+  for function in sort_functions(mapped.bytecode.functions) {
+    mut cells: [CoverageCell] = []
+    for instruction in function.instructions { cells = append(cells, CoverageCell(0, 0, 0, 0)); }
+    observations = append(observations, CoverageFunction(0, cells))
+  }
+  missing: Str = render_coverage(project, SourceMappedProgram(mapped.bytecode, mapped.sources, []),
+    CoverageData(true, 2, observations), path_parent(entry), path_resolve(environment_get("PANACKELTY_STDLIB_PATH")))
+  results = append(results, test_expect("missing source probes preserve unavailable line", coverage_text_contains(missing,
+    "project/main.panack\tline/3\tline\tanchor\tunavailable\t0\n"), "invented observed zero"))
+  if test_report(results) > 0 { process_exit(1); }
+}

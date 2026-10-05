@@ -1433,7 +1433,7 @@ dependencies without replacing the current principal programme.
 
 | Candidate and work record | First useful outcome | Size / estimated PRs |
 | --- | --- | --- |
-| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: feasibility accepted; 15% complete. SC2 executable-source inventory is the next candidate. Source branches, denominator correctness and collection failure remain explicit. | Inventory M–L; later collection/publication estimate remains provisional |
+| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: SC1–SC3 delivered; 55% complete on integration. SC4 complete-run aggregation is next. Suite baselines and publication remain pending. | Inventory M–L; later collection/publication estimate remains provisional |
 | [RM#62: Component readability](#rm-62) ([GI#132: Component readability](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
 | [RM#47: Development workflow assessment](#rm-47) ([GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
 | [RM#48: Compiler explanations](#rm-48) ([GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
@@ -3192,13 +3192,13 @@ Work record: [.panack source coverage](https://github.com/sproates/panackelty/is
 **Programme in progress — reframed by the owner on 2026-10-05.** GI#131 is the
 umbrella work record. The feasibility work was delivered to `next` in
 [PR#299: Source coverage feasibility](https://github.com/sproates/panackelty/pull/299),
-merged as `9fefbd6`. Production collection, publication and gap closure remain
-unscheduled; this planning change does not start implementation. Promotion to
+merged as `9fefbd6`. SC2 inventory and SC3 single-execution collection are now
+delivered; complete aggregation, publication and gap closure remain pending. Promotion to
 `main` requires separate approval.
 
 ### Source coverage programme baseline
 
-**Estimated overall completion: 35%.** Baseline SC-1, established 2026-10-05,
+**Estimated overall completion: 55%.** Baseline SC-1, established 2026-10-05,
 weights independently accepted outcomes by relative implementation, testing,
 integration and acceptance effort. The earlier four PR boundaries were delivery
 estimates, not a weighted programme; this is the first percentage baseline, not
@@ -3209,13 +3209,13 @@ again alongside its children.
 | --- | --- | ---: | ---: | ---: |
 | [SC1 / RM#136: Feasibility and design](#rm-136) | Done on `next`, PR#299 | 15% | 100% | 15 percentage points |
 | [SC2 / RM#137: Executable-source inventory](#rm-137) | Done on `next`; [inventory contract](docs/SOURCE_INVENTORY.md) | 20% | 100% | 20 percentage points |
-| [SC3 / RM#138: Runtime coverage collection](#rm-138) | Ready for prioritisation; not started | 20% | 0% | 0 percentage points |
-| [SC4 / RM#139: Complete run aggregation](#rm-139) | Pending SC2–SC3; not started | 20% | 0% | 0 percentage points |
+| [SC3 / RM#138: Runtime coverage collection](#rm-138) | Done on `next`; [runtime contract](docs/SOURCE_COVERAGE.md) | 20% | 100% | 20 percentage points |
+| [SC4 / RM#139: Complete run aggregation](#rm-139) | Ready for prioritisation; not started | 20% | 0% | 0 percentage points |
 | [SC5 / RM#140: Suite baseline and publication](#rm-140) | Pending SC2–SC4; not started | 15% | 0% | 0 percentage points |
 | [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Pending SC5; not started | 10% | 0% | 0 percentage points |
-| **Total** | | **100%** | | **35 percentage points = 35% overall** |
+| **Total** | | **100%** | | **55 percentage points = 55% overall** |
 
-SC2 adds 20 percentage points to the previous 15%; SC-1 weights are unchanged.
+SC3 adds 20 percentage points to the previous 35%; SC-1 weights are unchanged.
 
 These are provisional scope estimates, not time estimates or equal shares per
 PR. Inventory, collection and aggregation carry most weight because they require
@@ -3254,18 +3254,21 @@ bytecode/bootstrap behavior. The [inventory contract](docs/SOURCE_INVENTORY.md)
 and literal/public-command acceptance tests deliver this outcome. Explicit extra
 roots include libraries without `main`; ordinary compilation still requires it.
 The seed is refreshed through the existing fixed-point procedure, without VM
-instrumentation or executable-format changes. SC3 is now the recommended next
-work item. Inventory generation does not collect hits or establish suite scope.
+instrumentation or executable-format changes. SC3 builds on this inventory;
+SC4 is now the recommended next work item. Inventory generation does not collect hits or establish suite scope.
 
 <a id="rm-138"></a>
 
-**SC3 / RM#138: Runtime coverage collection — 20%.** Implement opt-in counters in
+**SC3 / RM#138: Runtime coverage collection — 20%; Done.** Implement opt-in counters in
 the shared dispatcher and a versioned raw format bound to SC2 identities. Prove
 exact line/function/source-branch observations on small fixtures, attempted
 versus completed behavior, traps, allocation limits, overflow handling and
 enabled/disabled semantic equivalence. Measure runtime and memory overhead.
-A line-first intermediate PR does not complete SC3: source branches remain
-explicit unfinished scope until supported and tested.
+The [runtime contract](docs/SOURCE_COVERAGE.md) and production command fixtures
+deliver source branches as well as expression/line/function observations.
+Overflow, traps, bounded allocation, suspension and identity failures are tested.
+Nested/child contexts deliberately mark a collection gap; complete manifests and
+aggregation remain SC4. No suite percentage is established by SC3.
 
 <a id="rm-139"></a>
 

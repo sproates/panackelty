@@ -757,3 +757,17 @@ output protection and bytecode equivalence. Both are part of `make check` and
 `make check-compiler`. This establishes the denominator contract, not runtime hits
 or a measured `.panack` coverage percentage. See
 [the inventory contract](../docs/SOURCE_INVENTORY.md).
+
+## SC3 runtime collection acceptance
+
+`runner/compiler_coverage_unit.panack` validates literal raw records, stale
+identities, truncation, flags, terminal status and counter relationships.
+`runner/compiler_coverage_cli.panack` checks production commands against literal
+source counts for branches, loop exits, match arms, line anchors, unused/empty
+functions, recursion, generics, lowering and trapping calls, plus semantic
+equivalence and exclusive output. Both run in compiler and full validation.
+Native `coverage.c` contracts exercise suspension, typed reads, sticky terminal
+states, zero budgets, overflow, bounds and equal-destination branch outcomes.
+Allocation fault sweeps include collector creation and covered execution.
+See [the runtime contract](../docs/SOURCE_COVERAGE.md). Complete child collection
+and suite percentages remain SC4–SC5.

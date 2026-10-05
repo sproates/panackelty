@@ -104,6 +104,8 @@ VMTasks *vm_tasks_create(const VM *template_vm, size_t task_limit, size_t event_
         return NULL;
     }
     tasks->template_vm = *template_vm;
+    vm_coverage_gap(template_vm->coverage);
+    tasks->template_vm.coverage = NULL;
     tasks->template_vm.error = NULL;
     tasks->capacity = task_limit;
     tasks->event_capacity = event_limit;

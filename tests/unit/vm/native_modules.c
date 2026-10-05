@@ -18,6 +18,7 @@
 #include <string.h>
 
 void resumable_contracts(void);
+void coverage_contracts(void);
 void async_contracts(void);
 void tcp_contracts(void);
 void tcp_server_contracts(void);
@@ -726,6 +727,7 @@ int main(int argc, char **argv)
         return 0;
     }
     resumable_contracts();
+    coverage_contracts();
     async_contracts();
     tcp_contracts();
     tcp_server_contracts();

@@ -1,0 +1,118 @@
+import stdlib/result
+import stdlib/testing_commands
+import stdlib/testing_files
+
+pure coverage_test_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+coverage_test_read(path: Str): Bytes { result_value_or(fs_read(coverage_test_path(path), 16777216), bytes()) }
+coverage_test_write(path: Str, data: Bytes): Void {
+  match fs_write(coverage_test_path(path), data) {
+    Ok(done) => {}, Error(error) => { eprint("coverage fixture write failed"); process_exit(1); }
+  }
+}
+pure coverage_contains(text: Str, needle: Str): Bool {
+  mut found: Bool = false
+  for index in 0..len(text) {
+    if index + len(needle) <= len(text) && slice(text, index, index + len(needle)) == needle { found = true; }
+  }
+  found
+}
+coverage_test_command(args: [Str]): ProcessOutput {
+  match process_run(coverage_test_path("./panack"), args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
+    Error(error) => { eprint("coverage command failed"); process_exit(1); ProcessOutput(1, 0, bytes(), bytes()) },
+    Ok(actual) => actual
+  }
+}
+main(): Void {
+  match test_workspace_create(coverage_test_path("/tmp")) {
+    Error(error) => { eprint("coverage workspace failed"); process_exit(1); },
+    Ok(workspace) => {
+      root: Str = result_value_or(path_to_text(workspace.root), "")
+      source: Str = root + "/main.panack"
+      artifact: Str = root + "/main.bc"
+      inventory: Str = root + "/inventory"
+      raw: Str = root + "/raw"
+      broken: Str = root + "/broken"
+      coverage_test_write(source, utf8_encode("pure unused(): Nat { 99 }\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\nmain(): Void {\n print(choose(true))\n print(choose(false))\n print(false && true)\n print(true || false)\n for x in [1, 2] { print(x); }\n mut n: Nat = 0\n while n < 2 { n = n + 1; }\n match Some(3) { Some(x) => { print(x); }, None() => {} }\n print(0)\n print(true && false);\n print(false || true);\n}\n"))
+      mut results: [TestResult] = []
+      compiled: ProcessOutput = coverage_test_command(["compile", source, "-o", artifact])
+      inventoried: ProcessOutput = coverage_test_command(["inventory", source, "-o", inventory])
+      ordinary: ProcessOutput = coverage_test_command(["run", artifact])
+      collected: ProcessOutput = coverage_test_command(["coverage-run", artifact, inventory, raw])
+      results = results.append(test_expect("coverage setup", compiled.exit_code == 0 && inventoried.exit_code == 0, "setup failed"))
+      results = results.append(test_expect("enabled equivalence", ordinary.exit_code == collected.exit_code && ordinary.stdout == collected.stdout && ordinary.stderr == collected.stderr, "execution changed"))
+      report_args: [Str] = ["coverage-report", source, "--inventory", inventory, "--coverage", raw]
+      report: ProcessOutput = coverage_test_command(report_args)
+      text: Str = utf8_decode(report.stdout)
+      results = results.append(test_expect("valid report", report.exit_code == 0 && coverage_contains(text, "coverage: single-execution terminal=1"), utf8_decode(report.stderr)))
+      for expected in [
+        "declaration/0\tfunction\tunused\tobserved\t0\t0\n",
+        "declaration/1\tfunction\tchoose\tobserved\t2\t2\n",
+        "declaration/1/tail/decision/true\toutcome\ttrue\tobserved\t1\t1\n",
+        "declaration/1/tail/decision/false\toutcome\tfalse\tobserved\t1\t1\n",
+        "declaration/2/statement/2/value/args/0/decision/skip-right\toutcome\tskip-right\tobserved\t1\t1\n",
+        "declaration/2/statement/2/value/args/0/right\texpression\tattempt\tobserved\t0\t0\n",
+        "declaration/2/statement/3/value/args/0/decision/evaluate-right\toutcome\tevaluate-right\tobserved\t0\t0\n",
+        "declaration/2/statement/4/decision/body\toutcome\tbody\tobserved\t2\t2\n",
+        "declaration/2/statement/4/decision/exit\toutcome\texit\tobserved\t1\t1\n",
+        "declaration/2/statement/6/decision/body\toutcome\tbody\tobserved\t2\t2\n",
+        "declaration/2/statement/6/decision/exit\toutcome\texit\tobserved\t1\t1\n",
+        "declaration/2/statement/7/value/arm/0\toutcome\tSome\tobserved\t1\t1\n",
+        "declaration/2/statement/7/value/arm/1\toutcome\tNone\tobserved\t0\t0\n",
+        "declaration/2/statement/9/value/args/0/decision/evaluate-right\toutcome\tevaluate-right\tobserved\t1\t1\n",
+        "declaration/2/statement/10/value/args/0/decision/evaluate-right\toutcome\tevaluate-right\tobserved\t1\t1\n",
+        "project/main.panack\tline/4\tline\tanchor\tobserved\t1\n"
+      ] {
+        results = results.append(test_expect("literal source count: " + expected, coverage_contains(text, expected), "missing expected observation"))
+      }
+      saved: Bytes = coverage_test_read(raw)
+      refused: ProcessOutput = coverage_test_command(["coverage-run", artifact, inventory, raw])
+      results = results.append(test_expect("exclusive raw output", refused.exit_code == 1 && coverage_test_read(raw) == saved, "overwrote record"))
+      for invalid in [bytes(), utf8_encode("PANACKCOV2\n"), bytes_concat(saved, utf8_encode("padding"))] {
+        coverage_test_write(broken, invalid)
+        rejected: ProcessOutput = coverage_test_command(["coverage-report", source, "--inventory", inventory, "--coverage", broken])
+        results = results.append(test_expect("reject incomplete record", rejected.exit_code == 1 && rejected.stdout == bytes(), "accepted invalid record"))
+      }
+      original: Bytes = coverage_test_read(source)
+      coverage_test_write(source, bytes_concat(original, utf8_encode("// changed snapshot\n")))
+      stale: ProcessOutput = coverage_test_command(report_args)
+      results = results.append(test_expect("reject stale source", stale.exit_code == 1 && stale.stdout == bytes(), "accepted stale source"))
+      fs_remove_file(coverage_test_path(inventory))
+      fs_remove_file(coverage_test_path(raw))
+      coverage_test_write(source, utf8_encode("pure fail(): Nat { [1][2] }\nmain(): Void { print(fail()); }\n"))
+      trap_compile: ProcessOutput = coverage_test_command(["compile", source, "-o", artifact])
+      trap_inventory: ProcessOutput = coverage_test_command(["inventory", source, "-o", inventory])
+      trap_plain: ProcessOutput = coverage_test_command(["run", artifact])
+      trap_run: ProcessOutput = coverage_test_command(["coverage-run", artifact, inventory, raw])
+      trap_report: ProcessOutput = coverage_test_command(report_args)
+      trap_text: Str = utf8_decode(trap_report.stdout)
+      results = results.append(test_expect("trapping execution equivalence", trap_compile.exit_code == 0 && trap_inventory.exit_code == 0 && trap_run.exit_code == 1 && trap_plain.stderr == trap_run.stderr && trap_plain.stdout == trap_run.stdout, "trap changed"))
+      results = results.append(test_expect("trap prefix reports incomplete call", trap_report.exit_code == 0 && coverage_contains(trap_text, "terminal=2") && coverage_contains(trap_text, "declaration/1/statement/0/value/args/0\texpression\tattempt\tobserved\t1\t0\n"), trap_text))
+      fs_remove_file(coverage_test_path(inventory))
+      fs_remove_file(coverage_test_path(raw))
+      coverage_test_write(source, utf8_encode("pure generic[T](x: T): T { x }\npure down(n: Nat): Nat { if n > 0 { down(n - 1) } else { 0 } }\npure increment(n: Nat): Nat { n + 1 }\nmain(): Void { print(generic[Nat](1)); print(generic[Str](\"x\")); print(down(3)); print([1, 2].map(@increment)); match Second() { First() => {}, Second() => {} }; mut n: Nat = 0; print(match Second() { First() => 0, Second() => { while n < 2 { n = n + 1; } n } }); }\npure empty(): Void {}\nenum Choice { First, Second }\n"))
+      generic_compile: ProcessOutput = coverage_test_command(["compile", source, "-o", artifact])
+      generic_inventory: ProcessOutput = coverage_test_command(["inventory", source, "-o", inventory])
+      generic_run: ProcessOutput = coverage_test_command(["coverage-run", artifact, inventory, raw])
+      generic_report: ProcessOutput = coverage_test_command(report_args)
+      generic_text: Str = utf8_decode(generic_report.stdout)
+      results = results.append(test_expect("generic recursion lowering setup", generic_compile.exit_code == 0 && generic_inventory.exit_code == 0 && generic_run.exit_code == 0 && generic_report.exit_code == 0, utf8_decode(generic_compile.stderr) + utf8_decode(generic_inventory.stderr) + utf8_decode(generic_report.stderr)))
+      for expected in [
+        "declaration/0\tfunction\tgeneric\tobserved\t2\t2\n",
+        "declaration/1\tfunction\tdown\tobserved\t4\t4\n",
+        "declaration/1/tail/decision/true\toutcome\ttrue\tobserved\t3\t3\n",
+        "declaration/1/tail/decision/false\toutcome\tfalse\tobserved\t1\t1\n",
+        "declaration/2\tfunction\tincrement\tobserved\t2\t2\n",
+        "declaration/3/statement/3/value/args/0\texpression\tattempt\tobserved\t1\t1\n",
+        "declaration/3/statement/4/value/arm/0\toutcome\tFirst\tobserved\t0\t0\n",
+        "declaration/3/statement/4/value/arm/1\toutcome\tSecond\tobserved\t1\t1\n",
+        "declaration/3/statement/6/value\texpression\tattempt\tobserved\t1\t1\n",
+        "declaration/3/statement/6/value/args/0\texpression\tattempt\tobserved\t1\t1\n",
+        "declaration/3/statement/6/value/args/0/arm/1/body\texpression\tattempt\tobserved\t1\t1\n",
+        "declaration/4\tfunction\tempty\tobserved\t0\t0\n"
+      ] { results = results.append(test_expect("generic recursion lowering observation", coverage_contains(generic_text, expected), expected)); }
+      for file in [source, artifact, inventory, raw, broken] { fs_remove_file(coverage_test_path(file)); }
+      match test_workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = results.append(test_expect("cleanup", false, "cleanup failed")); } }
+      if test_report(results) > 0 { process_exit(1); }
+    }
+  }
+}

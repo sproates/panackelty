@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#136.**
+The initial allocation contains **105 identities**. **Next available: RM#142.**
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -1433,7 +1433,7 @@ dependencies without replacing the current principal programme.
 
 | Candidate and work record | First useful outcome | Size / estimated PRs |
 | --- | --- | --- |
-| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Prove exact source/execution attribution before collecting and publishing compiler/library baselines. Source branches, denominator correctness and collection failure remain explicit. | M / 1 feasibility; then provisionally 2–3 |
+| [RM#46: Panackelty source coverage](#rm-46) ([GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131)) | Weighted programme SC-1: feasibility accepted; 15% complete. SC2 executable-source inventory is the next candidate. Source branches, denominator correctness and collection failure remain explicit. | Inventory M–L; later collection/publication estimate remains provisional |
 | [RM#62: Component readability](#rm-62) ([GI#132: Component readability](https://github.com/sproates/panackelty/issues/132)) | Inspect one component and fix a concrete readability or responsibility problem, with behaviour protection and a short follow-up list. | S–M / 1 for first component |
 | [RM#47: Development workflow assessment](#rm-47) ([GI#133: Development workflow assessment](https://github.com/sproates/panackelty/issues/133)) | Observe installation through maintenance, including whether developers can diagnose and fix traps, external failures and incorrect results. | S–M / 1 assessment |
 | [RM#48: Compiler explanations](#rm-48) ([GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134)) | Expose one useful compiler-backed explanation of checked types, effects or guard facts, including why a case is rejected or unresolved. | M / 1–2 for one query |
@@ -3180,17 +3180,123 @@ Acceptance for the review is an evidence-backed inventory and prioritised
 recommendations. Enabling selected features is separately scoped work with
 its own verification; do not turn on every available feature by default.
 
-## Measure Panackelty source coverage — candidate pending assessment
+<a id="measure-panackelty-source-coverage--candidate-pending-assessment"></a>
+
+## Panackelty source coverage programme
 
 <a id="rm-46"></a>
 
 **RM#46: Panackelty source coverage** · [GI#131: Panackelty source coverage](https://github.com/sproates/panackelty/issues/131).
 
 Work record: [.panack source coverage](https://github.com/sproates/panackelty/issues/131).
-**First feasibility slice selected on 2026-10-05; delivered on this PR's merge
-to `next`.** The owner selected this bounded experiment; production collection,
-publication and gap closure remain unscheduled. GI#131 remains open. Promotion
-to `main` requires separate approval.
+**Programme in progress — reframed by the owner on 2026-10-05.** GI#131 is the
+umbrella work record. The feasibility work was delivered to `next` in
+[PR#299: Source coverage feasibility](https://github.com/sproates/panackelty/pull/299),
+merged as `9fefbd6`. Production collection, publication and gap closure remain
+unscheduled; this planning change does not start implementation. Promotion to
+`main` requires separate approval.
+
+### Source coverage programme baseline
+
+**Estimated overall completion: 15%.** Baseline SC-1, established 2026-10-05,
+weights independently accepted outcomes by relative implementation, testing,
+integration and acceptance effort. The earlier four PR boundaries were delivery
+estimates, not a weighted programme; this is the first percentage baseline, not
+a reduction of previously earned progress. The parent RM#46/GI#131 is not counted
+again alongside its children.
+
+| Work item | State | Share of programme | Item complete | Earned contribution |
+| --- | --- | ---: | ---: | ---: |
+| [SC1 / RM#136: Feasibility and design](#rm-136) | Done on `next`, PR#299 | 15% | 100% | 15 percentage points |
+| [SC2 / RM#137: Executable-source inventory](#rm-137) | Ready for prioritisation; not started | 20% | 0% | 0 percentage points |
+| [SC3 / RM#138: Runtime coverage collection](#rm-138) | Pending SC2; not started | 20% | 0% | 0 percentage points |
+| [SC4 / RM#139: Complete run aggregation](#rm-139) | Pending SC2–SC3; not started | 20% | 0% | 0 percentage points |
+| [SC5 / RM#140: Suite baseline and publication](#rm-140) | Pending SC2–SC4; not started | 15% | 0% | 0 percentage points |
+| [SC6 / RM#141: Initial gap closure and regression policy](#rm-141) | Pending SC5; not started | 10% | 0% | 0 percentage points |
+| **Total** | | **100%** | | **15 percentage points = 15% overall** |
+
+These are provisional scope estimates, not time estimates or equal shares per
+PR. Inventory, collection and aggregation carry most weight because they require
+compiler/VM implementation and substantial correctness and failure testing.
+SC6 assumes one bounded, risk-ranked first batch of assertion-relevant gaps, not
+closing every uncovered line forever. Its exact batch is selected from the
+baseline before implementation; unexpected scope requires an explicit baseline
+revision rather than silently changing weights or claiming completion.
+
+Every programme delivery and status report must include **all six work items**,
+their programme shares, evidenced item completion and earned contributions.
+Contribution = programme share × item completion / 100. Retain SC-1 weights
+between reports; explain scope/weight changes and their effect on the previous
+total. Planning alone earns no implementation credit, and pending/deferred work
+remains in the denominator. Partial credit requires explicit accepted sub-outcomes;
+activity, elapsed time and PR counts do not establish completion. These programme
+percentages are unrelated to the source-coverage percentages eventually measured.
+
+<a id="rm-136"></a>
+
+**SC1 / RM#136: Feasibility and design — 15%; Done.** Accept the reproducible
+experiment, identity and denominator rules, comparison with an embedded format,
+limitations, cost evidence and bounded follow-up design. PR#299 supplies 68
+fixture checks, passing canonical validation and hosted Linux/macOS checks.
+This accepts the investigation, not a production coverage collector.
+
+<a id="rm-137"></a>
+
+**SC2 / RM#137: Executable-source inventory — 20%.** Define a versioned inventory
+of eligible expressions/statements, functions and source decisions/outcomes,
+including unused declarations/files. Distinguish generated/lowered instructions,
+imports, erased generics, short-circuit decisions, loop exits and match arms.
+Accept against literal inventory fixtures, explicit exclusions, source/compiler/
+artifact identity, malformed/stale-input rejection and unchanged ordinary
+bytecode/bootstrap behavior. This is the recommended next work item; it has not
+been started by this programme record.
+
+<a id="rm-138"></a>
+
+**SC3 / RM#138: Runtime coverage collection — 20%.** Implement opt-in counters in
+the shared dispatcher and a versioned raw format bound to SC2 identities. Prove
+exact line/function/source-branch observations on small fixtures, attempted
+versus completed behavior, traps, allocation limits, overflow handling and
+enabled/disabled semantic equivalence. Measure runtime and memory overhead.
+A line-first intermediate PR does not complete SC3: source branches remain
+explicit unfinished scope until supported and tested.
+
+<a id="rm-139"></a>
+
+**SC4 / RM#139: Complete run aggregation — 20%.** Register async suspension,
+nested VMs/compiler runs, task/server child contexts and subprocess executions.
+Aggregate each run exactly once under a manifest of expected source/artifact and
+execution identities. Reject mixed identities, duplicates, truncated/malformed
+records and lost/killed collectors; preserve zero, excluded, unavailable and
+partial states. Validate cache behavior so reused test transcripts cannot invent
+new execution hits. Accept exact multi-execution fixtures and explicit supported
+scope, with missing eligible collection preventing a complete report.
+
+<a id="rm-140"></a>
+
+**SC5 / RM#140: Suite baseline and publication — 15%.** Collect compiler,
+bytecode-tooling and standard-library execution across the agreed test and
+bootstrap paths, retaining eligible unexecuted files and reviewed exclusions.
+Publish source line/function/branch results separately from native C through
+the coverage host. Accept reproducible identities, scope, freshness, missing-data
+handling and verified live output; preserve release/seed artifacts. Publication
+and changes in another repository retain their own approval requirements.
+
+<a id="rm-141"></a>
+
+**SC6 / RM#141: Initial gap closure and regression policy — 10%.** Use SC5 evidence
+to agree and close a bounded first batch of high-risk behavioral gaps with
+assertions that detect wrong results, not merely execute lines. Define and test
+per-component regression handling, exclusion review and failure reporting.
+Accept the agreed batch plus the documented policy; no arbitrary universal
+coverage target or promise to eliminate every uncovered path is introduced.
+
+The programme is complete only when these six outcomes meet their acceptance
+criteria. GI#131 stays open until then. PR packaging can change without changing
+programme weights: the earlier 2–3 collection/publication PR estimate is
+provisional and must be reassessed as source-branch and aggregation scope is
+implemented. The detailed inventory/collection/aggregation split makes ownership
+and earned progress explicit without claiming new implementation.
 
 The [reproducible experiment and design decision](tests/experiments/source_coverage/README.md)
 establish exact small-fixture instruction attempts, function entries and direct
@@ -3225,7 +3331,8 @@ counter correctness remain separate acceptance requirements.
 Compare deterministic sidecar metadata with a versioned bytecode extension;
 do not assume a format change or a particular instrumentation scheme in advance.
 
-Provisional PR boundaries (split further if feasibility or review size requires):
+Original delivery outline (historical PR grouping; SC-1 above now owns programme
+work items, weights and progress):
 
 1. **Coverage design and feasibility.** Inventory source-position fidelity and
    lowering; define executable lines, functions and source branches, including
@@ -3249,7 +3356,7 @@ Provisional PR boundaries (split further if feasibility or review size requires)
    Select per-component change/regression policy after a credible baseline exists,
    with reviewed exclusions and no invented universal percentage requirement.
 
-- [x] Complete the design/feasibility decision and bound the initial scope (on this slice's merge)
+- [x] Complete the design/feasibility decision and bound the initial scope (PR#299, SC1)
 - [ ] Establish independently checked source mapping and counter correctness
 - [ ] Record source-line/function coverage for the agreed `.panack` scope
 - [ ] Record source-branch coverage, or explicitly track it as unfinished if a

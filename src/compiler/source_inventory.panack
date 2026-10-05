@@ -219,7 +219,7 @@ run_inventory_command(values: [Str], checking: Bool): Nat {
         mut projects: [LoadedProject] = []
         mut paths: Set[Str] = set()
         mut chunks: [Bytes] = [utf8_encode("PANACKINVENTORY1\n"), encode_u32(len(args.roots))]
-        mut size: Nat = 20
+        mut size: Nat = byte_len(chunks[0]) + 4
         root: Str = path_parent(path_resolve(args.roots[0]))
         stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
         output: Str = path_resolve(args.output)

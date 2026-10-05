@@ -16,7 +16,7 @@ function baseline(output, allowDirty = false) {
   const tracked = command(['git','ls-files','src']).trim().split('\n').filter(p=>p.endsWith('.panack')).sort();
   if (JSON.stringify(tracked) !== JSON.stringify([...manifest.eligible].sort())) throw Error('Eligible source manifest differs from tracked src/**/*.panack');
   const commit = command(['git','rev-parse','HEAD']).trim();
-  const clean = !command(['git','status','--porcelain','--untracked-files=all']).trim();
+  const clean = !allowDirty && !command(['git','status','--porcelain','--untracked-files=all']).trim();
   if (!clean && !allowDirty) throw Error('Dirty tracked source; commit first or use --allow-dirty for a non-publishable development report');
   const work = fs.mkdtempSync(path.join(os.tmpdir(),'panack-source-baseline-'));
   console.log(`Coverage workspace: ${work}`);
@@ -38,12 +38,13 @@ function baseline(output, allowDirty = false) {
     console.log(`Collect: ${id}`);
     const directory = path.join(work,`session-${sessions.length}`);
     const stdout = command(['./panack','coverage-session',directory,p.prefix+'.bc',p.prefix+'.inv','--',...args]);
+    fs.writeFileSync(path.join(work,`stdout-${sessions.length}.txt`),stdout);
     check(stdout);
     const session = readSession(directory,[p],seen);
     groups.push(observations(p,session.totals[0]));
     const records = fs.readdirSync(directory).sort().map(name=>[name,sha(regular(path.join(directory,name)))]);
     sessions.push({id,entry:p.entry,arguments:args.map(a=>a.startsWith(work)?'<workspace>/'+path.basename(a):a),
-      artifact:sha(p.artifact),inventory:sha(p.inventory),nonce:session.nonce,executions:session.executions,records});
+      artifact:sha(p.artifact),inventory:sha(p.inventory),stdoutHash:sha(Buffer.from(stdout)),nonce:session.nonce,executions:session.executions,records});
   }
   const empty = stdout=>{if(stdout !== '') throw Error('Unexpected fixture stdout');};
   run('scope',plan('tests/source_coverage/scope.panack'),[],empty);
@@ -76,6 +77,7 @@ function baseline(output, allowDirty = false) {
   for (const p of plans.values()) for (const s of p.sources) if (sha(regular(path.join(checkout,s.path))) !== s.hash) throw Error('Source changed during collection');
   if (!compiler.equals(regular(path.join(checkout,'bootstrap/compiler-v9.bc'))) || !vm.equals(regular(path.join(checkout,'panack-vm')))) throw Error('Toolchain changed during collection');
   if (command(['git','rev-parse','HEAD']).trim() !== commit || !manifestBytes.equals(regular(path.join(checkout,'tests/source_coverage/manifest.json')))) throw Error('Checkout or manifest changed during collection');
+  if (clean && command(['git','status','--porcelain','--untracked-files=all']).trim()) throw Error('Checkout became dirty during collection');
   const files = union(groups,manifest.eligible);
   const report = {schema:1,repository:'sproates/panackelty',branch:'next',commit,clean,generatedAt:new Date().toISOString(),
     compiler:sha(compiler),vm:sha(vm),manifestHash:sha(Buffer.from(JSON.stringify(manifest))),manifest,sessions,

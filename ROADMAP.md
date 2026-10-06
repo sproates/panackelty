@@ -3563,21 +3563,15 @@ documentation review, not approval to change language behavior or priorities.
 
 **RM#133: Definitive Panackelty style guide** · [GI#283: Definitive Panackelty style guide](https://github.com/sproates/panackelty/issues/283).
 
-**Idea / unscheduled.** Recorded at the user's request on 2026-10-04. Build on
-the existing [Panackelty source conventions](CONTRIBUTING.md#panackelty-source)
-to establish one authoritative guide for Panackelty code, covering formatting,
-naming, declarations, types, control flow, error handling, effects and examples.
-Consolidate overlapping guidance and explain decisions with idiomatic examples;
-coordinate with [RM#51: Learning and debugging guides](#rm-51),
-[RM#52: Executable documentation](#rm-52) and
-[RM#47: Development workflow assessment](#rm-47).
-
-Acceptance: resolve conflicting conventions, link the definitive guide from
-contributor material, check examples against their declared language version and
-distinguish stylistic recommendations from language requirements. Provisional
-effort: M; detailed scope and disputed conventions need assessment. Existing
-guidance remains authoritative until the replacement is accepted. This records
-no wholesale reformat, formatter implementation or change to programme priorities.
+**In progress — selected 2026-10-06.** Establish the authoritative coding
+standard in [CONTRIBUTING.md](CONTRIBUTING.md#panackelty-source), expanding the
+existing conventions with required versus preferred rules, checked examples,
+exceptions and incremental adoption. Covers formatting, naming, imports,
+declarations, types, control flow, error handling, effects and behavioural tests.
+Coordinates with GI#304's paired source-readability/coverage programme. No
+repository-wide reformat or formatter implementation is included. Acceptance
+requires checked snippets, documentation validation and review of the proposed
+standard; this entry does not claim merge or independent review.
 
 ### Website capabilities guide
 

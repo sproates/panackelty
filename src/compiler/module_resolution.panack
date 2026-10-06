@@ -405,7 +405,7 @@ pure resolve_module_expression_uses(graph: ModuleBindingGraph, identity: ModuleI
       }
     },
     CallExpr(name, arguments, types) => {
-      if !module_reserved_binding(name) {
+      if !locals.has(name) && !module_reserved_binding(name) {
         resolved: Result[ResolvedModuleTarget,Str] = match resolve_module_path(graph, identity, name) {
           Error(message) => Error(message),
           Ok(binding) => match binding {

@@ -19,7 +19,9 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#136.**
+The initial allocation contains **105 identities**. **Next available: RM#144.**
+RM#136–RM#141 are already allocated to source-coverage stages on `next`;
+reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -38,6 +40,57 @@ Earlier review notes and outcome counts below are historical records only and
 must not be used to schedule a review or block work. This supersedes count-based
 wording in older issue histories as well. See the
 [review process](docs/ROADMAP_PROCESS.md#review-and-completion).
+
+## Next release — agreed scope, 2026-10-06
+
+<a id="rm-143"></a>
+
+**RM#143: Next release — source coverage, namespaces and else if.**
+
+The owner selected these three outcomes for the next core release after
+alpha.11. Version and date are not selected. This is an alpha-era release plan,
+distinct from [RM#126: First non-alpha release](#rm-126); it does not claim the
+broader non-alpha milestone is complete.
+
+| Included outcome | Current state | Release acceptance |
+| --- | --- | --- |
+| Panackelty source coverage — [RM#46](#rm-46), [GI#131](https://github.com/sproates/panackelty/issues/131) | Integrated into `next`; bounded SC1–SC6 programme accepted and reports verified live. | Validate the promoted toolchain and packaged inventory/collection/report commands; retain explicit measured-corpus limits, source identities and regression policy. |
+| Namespaces — [RM#41](#rm-41), [GI#198](https://github.com/sproates/panackelty/issues/198) | Foundations and partial checking delivered; executable namespace support is unfinished. | Complete the agreed namespace delivery checklist, including identity-based checking/emission, imports/name isolation, source and saved-bytecode execution, diagnostics, bootstrap and documented limitations. |
+| Else-if chains — [RM#142](#rm-142), [GI#312](https://github.com/sproates/panackelty/issues/312) | Requested; implementation not started. | Accept chained conditional syntax with correct evaluation, type/effect rules, source locations and tested source/bytecode behaviour; update the specification and examples. |
+
+Release only after all three outcomes meet their acceptance gates, the
+`next`-to-`main` promotion passes required checks and receives explicit owner
+approval, and packaging/install/release validation passes. Release notes must
+describe delivered behaviour and limitations rather than planned features.
+The source coverage report remains distinct from native C coverage and does not
+claim whole-suite coverage or assertion quality.
+
+The website has its own reviewed publication: update release/download pins,
+feature text and coverage links, moving source coverage and executable namespaces
+from future work to delivered capabilities only after release verification.
+Document else-if syntax in the appropriate language examples. Provide a working
+preview before owner merge approval.
+
+Packages, HTTP, the post-namespace stdlib refactor, broad example expansion and
+the repository-wide readability/test programme are not additional gates for
+this three-outcome release. Their existing scope and dependencies remain intact;
+further scope requires an explicit owner decision.
+
+### Else-if chains
+
+<a id="rm-142"></a>
+
+**RM#142: Else-if chains** ·
+[GI#312: Else-if chains](https://github.com/sproates/panackelty/issues/312).
+
+**Planned — included in the next release; implementation not started.** Accept
+`if ... { ... } else if ... { ... }` chains with an optional final else block.
+Preserve existing nested syntax and conditional result/Void rules, type/effect
+checking, ordered short-circuit evaluation and useful malformed-input diagnostics.
+Tests cover selected and skipped arms, omitted else where legal, rejected
+conditions/results/effects, source spans and source/saved-bytecode parity.
+Preserve source inventory/coverage meaning and compiler/stdlib fixed points.
+Update SPEC.md and coding guidance when the syntax is implemented.
 
 ## First non-alpha release — milestone definition
 

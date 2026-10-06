@@ -547,6 +547,11 @@ pure namespace_body_tests(): [TestResult] {
     "pub pure f[T](value: T): T { later[T](value) }; pure later[T](value: T): T { value }",
     "pub pure f[T](value: Option[T]): Option[T] { later[T](value) }; pure later[U](value: Option[U]): Option[U] { value }",
     "pub pure f(): Fn[Nat] { @answer }; pure answer(): Nat { 1 }",
+    "pub pure f(callback: PureFn[Nat,Nat], value: Nat): Nat { callback(value) }",
+    "pub pure f(callback: PureFn[Nat,Nat], value: Nat): Nat { callback.call(value) }",
+    "pub pure f(values: [Nat]): Nat { values.len() }",
+    "pub pure f(value: Map[Nat,Str], key: Nat, text: Str): Map[Nat,Str] { value.put(key, text) }",
+    "pub pure f(value: Set[Nat], item: Nat): Set[Nat] { value.add(item) }",
     "pub pure f(value: Nat): Nat { value.helper() }; pure helper(value: Nat): Nat { value }",
     "pub pure f(): Nat { first(1) }; pure first(value: Nat): Nat { value }",
     "pub pure f(): Nat { nothing(); 1 }; pure nothing(): Void {}"
@@ -566,6 +571,11 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("generic function reference rejected", body_test_error("pub pure f(): Fn[Nat,Nat] { @identity }; pure identity[T](value: T): T { value }"), "generic function references require a non-generic wrapper"))
   results = append(results, test_equal_str("explicit generic substitution checks type", body_test_error("pub pure f(): Nat { identity[Nat](\"bad\") }; pure identity[T](value: T): T { value }"), "argument 1 to identity is Str, expected Nat"))
   results = append(results, test_equal_str("explicit generic arity checked", body_test_error("pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value: T): T { value }"), "call identity has incorrect type argument count"))
+  results = append(results, test_equal_str("indirect argument type checked", body_test_error("pub pure f(callback: PureFn[Nat,Nat]): Nat { callback(\"bad\") }"), "argument 1 to call is Str, expected Nat"))
+  results = append(results, test_expect("non-callable local rejected", body_test_error("pub pure f(value: Nat): Nat { value(1) }") != "ok", "non-callable local accepted"))
+  results = append(results, test_expect("map key identity checked", body_test_error("pub pure f(value: Map[Nat,Str]): Map[Nat,Str] { value.put(\"one\", \"value\") }") != "ok", "wrong map key accepted"))
+  results = append(results, test_expect("set element identity checked", body_test_error("pub pure f(value: Set[Nat]): Set[Nat] { value.add(\"one\") }") != "ok", "wrong set element accepted"))
+  results = append(results, test_expect("reserved core name cannot be redeclared", body_test_error("pure len(value: Nat): Nat { value }; pub pure f(): Nat { 1 }") != "ok", "core builtin identity was shadowed"))
   for source in [
 
     "pub pure f(): Nat { next() }; async next(): Nat { 1 }",
@@ -590,7 +600,7 @@ pure namespace_body_tests(): [TestResult] {
   }
   if len(checked.functions) == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = append(results, test_expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = append(results, test_expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false, BodyIndirect(local,type) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = append(results, test_equal_nat("nested lexical body binds", len(lexical.diagnostics), 0))
@@ -609,18 +619,19 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("pattern requires original variant category", body_test_error("pub pure f(): Nat { match 1 { helper() => 1 } }; pure helper(): Nat { 1 }"), "match requires an enum, got Nat"))
   results = append(results, test_equal_str("private guard still resolves names", body_test_error("type Hidden = Nat where missing(value); pub pure f(): Nat { 1 }"), "module body.panack has no binding missing"))
   results = append(results, test_equal_str("later recursive callable contract exists", body_test_error("pub pure f(value: Nat): Nat { f(value) }"), "ok"))
-  core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }")
-  alias: LoadedModule = signature_test_module(namespace_identity("core_body"), "import stdlib/core::{Option as Maybe}; pub pure f(): Option[Nat] { Maybe.Some(1) }")
+  core: LoadedModule = signature_test_module(ModuleIdentity(ToolchainModulePackage(), "core.panack"), "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; pub pure core_ends_with(value: Str, suffix: Str): Bool { true }; pub pure core_first[T](values: [T]): Option[T] { None() }; pub pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] { values }")
+  alias: LoadedModule = signature_test_module(namespace_identity("core_body"), "import stdlib/core::{Option as Maybe}; pub pure f(): Option[Nat] { Maybe.Some(1) }; pub pure first(): Option[Nat] { [1].first() }; pub pure sorted(): [Nat] { [2,1].sort_by(@less) }; pure less(left: Nat, right: Nat): Bool { left < right }; pub pure suffix(): Bool { \"panack\".ends_with(\"ack\") }")
   core_graph: ModuleBindingGraph = ModuleBindingGraph([alias.bindings, core.bindings], [ModuleImportEdge(alias.bindings.identity, 0, core.bindings.identity)])
   core_result: CheckedModuleBodies = body_test_graph([alias, core], core_graph, alias)
   maps: CheckedModuleBodies = body_test_module("pub pure direct(): Map[Nat,Nat] { map() }; pub pure receiver(value: [Nat]): [Nat] { value.map(@identity) }; pure identity(value: Nat): Nat { value }")
   results = append(results, test_equal_nat("core map target fixtures bind", len(maps.diagnostics), 0))
   if len(maps.functions) == 3 {
     results = append(results, test_expect("direct map retains constructor identity", maps.functions[0].body.children[0].node == BodyCall(BodyCore("map"), [SignatureType(SignatureCore("Nat"), []), SignatureType(SignatureCore("Nat"), [])]), "direct map lowered as receiver method"))
-    results = append(results, test_expect("receiver map retains reserved method identity", maps.functions[1].body.children[0].node == BodyCall(BodyCore("$method_map"), []), "receiver map lost method lowering"))
+    results = append(results, test_expect("receiver map retains reserved method identity", maps.functions[1].body.children[0].node == BodyCall(BodyCore("$method_map"), [SignatureType(SignatureCore("Nat"), []), SignatureType(SignatureCore("Nat"), [])]), "receiver map lost method lowering or inferred contracts"))
   }
   results = append(results, test_equal_nat("qualified private core alias constructor remains available", len(core_result.diagnostics), 0))
-  results = append(results, test_expect("core alias constructor inference is identity checked", len(core_result.functions) == 1 && core_result.functions[0].status == BodyIdentityChecked(), "constructor did not retain inferred evidence"))
+  results = append(results, test_expect("core alias constructor inference is identity checked", len(core_result.functions) >= 1 && core_result.functions[0].status == BodyIdentityChecked(), "constructor did not retain inferred evidence"))
+  results = append(results, test_equal_nat("reserved core array and string aliases use checked signatures", len(core_result.diagnostics), 0))
   results
 }
 

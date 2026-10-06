@@ -3,7 +3,7 @@ import "module_signatures.panack"
 // Structural lexical paths are identities, never names lowered into Program.
 record BodyLocalIdentity { owner: DeclarationIdentity, path: [Nat], name: Str }
 record BodyLocal { identity: BodyLocalIdentity, type: Option[SignatureType], mutable: Bool }
-enum BodyTarget { BodyDeclaration(ModuleDeclarationBinding), BodyCore(Str), BodyIndirect(BodyLocalIdentity, Option[SignatureType]) }
+enum BodyTarget { BodyDeclaration(ModuleDeclarationBinding), BodyCore(Str) }
 enum BodyNode {
   BodyLiteral(Expr), BodyInterpolation([Str]), BodyLocalUse(BodyLocalIdentity), BodyFunction(ModuleDeclarationBinding),
   BodyCall(BodyTarget, [SignatureType]), BodyArray, BodyUnary(Str), BodyBinary(Str),
@@ -137,23 +137,17 @@ pure body_call(context: BodyContext, target: BodyTarget, arguments: [Expr], type
     }
   }
   mut output: Option[SignatureType] = None()
-  match body_contract(context, target, children) {
+  match body_contract(context, target) {
     Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, span.start)) },
     Ok(optional) => match optional { None() => { deferred = append(deferred, span) },
     Some(contract) => {
-      if !body_contract_complete(contract) { deferred = append(deferred, span) }
       if len(children) != len(contract.inputs) {
         expected_count: Nat = len(contract.inputs)
         actual_count: Nat = len(children)
         diagnostics = append(diagnostics, Diagnostic(contract.name + " expects ${expected_count} arguments, got ${actual_count}", span.start))
       }
-      if len(types) > 0 {
-        mut generic_function: Bool = false
-        match target {
-          BodyDeclaration(binding) => { generic_function = binding.kind == ModuleFunction() && len(contract.parameters) > 0 },
-          BodyCore(name) => {}, BodyIndirect(local, type) => {}
-        }
-        if !generic_function { diagnostics = append(diagnostics, Diagnostic("explicit type arguments require a generic function", span.start)) }
+      if len(types) > 0 && (contract.constructor || len(contract.parameters) == 0) {
+        diagnostics = append(diagnostics, Diagnostic("explicit type arguments require a generic function", span.start))
       }
       mut inferred: [SignatureType] = []
       index = 0
@@ -192,9 +186,6 @@ pure body_call(context: BodyContext, target: BodyTarget, arguments: [Expr], type
         }
       }
       if inference_deferred { deferred = append(deferred, span) }
-      core_validation: BodyResult = body_core_call_validation(target, children, span)
-      diagnostics = concat(diagnostics, core_validation.diagnostics)
-      deferred = concat(deferred, core_validation.deferred)
       resolved_types = inferred
       index = 0
       mut refined: [BoundBody] = []
@@ -263,12 +254,7 @@ pure bind_body_expression(context: BodyContext, expression: Expr, origin: Source
       }
     },
     CallExpr(name, arguments, types) => {
-      if locals.has(name) && !module_reserved_binding(name) {
-        local: BodyLocal = locals.get(name)
-        result = body_call(context, BodyIndirect(local.identity, local.type), arguments, types, origin, locals, path)
-      } else {
-        match body_target(context, name, false) { Error(message) => { result = body_failure(message, origin) }, Ok(target) => { result = body_call(context, target, arguments, types, origin, locals, path) } }
-      }
+      match body_target(context, name, false) { Error(message) => { result = body_failure(message, origin) }, Ok(target) => { result = body_call(context, target, arguments, types, origin, locals, path) } }
     },
     DotCallExpr(receiver, name, arguments, types) => {
       mut visible: Set[Str] = set()
@@ -874,279 +860,6 @@ record BodyContract {
 pure body_core_owner(name: Str): DeclarationIdentity {
   DeclarationIdentity(ModuleIdentity(ToolchainModulePackage(), "core.panack"), name)
 }
-pure body_core_parameter(owner: DeclarationIdentity, index: Nat): SignatureType {
-  SignatureType(SignatureParameter(owner, index), [])
-}
-pure body_core_array(item: SignatureType): SignatureType {
-  SignatureType(SignatureCore("Array"), [item])
-}
-pure body_core_map(key: SignatureType, value: SignatureType): SignatureType {
-  SignatureType(SignatureCore("Map"), [key, value])
-}
-pure body_core_set(item: SignatureType): SignatureType {
-  SignatureType(SignatureCore("Set"), [item])
-}
-pure body_core_callable(effect: SignatureEffect, arguments: [SignatureType]): SignatureType {
-  SignatureType(SignatureCallable(effect), arguments)
-}
-pure body_contract_complete(contract: BodyContract): Bool {
-  mut complete: Bool = body_type_complete(contract.output)
-  for input in contract.inputs { complete = complete && body_type_complete(input) }
-  complete
-}
-pure body_builtin_type(context: BodyContext, name: Str, index: Nat, spelling: Str): SignatureType {
-  if spelling == "Any" || spelling == "Unknown" {
-    SignatureType(SignatureHole(body_core_owner(name), [index], index), [])
-  } else {
-    match signature_type(context.graph, context.modules, context.owner, [], spelling, false, true) {
-      Error(message) => SignatureType(SignatureHole(body_core_owner(name), [index], index), []),
-      Ok(type) => type
-    }
-  }
-}
-pure body_builtin_contract(context: BodyContext, name: Str): BodyContract {
-  mut inputs: [SignatureType] = []
-  mut index: Nat = 0
-  count: Nat = builtin_arity(name)
-  while index < count {
-    inputs = append(inputs, body_builtin_type(context, name, index, builtin_parameter(name, index)))
-    index = index + 1
-  }
-  BodyContract(body_core_owner(name), method_display_name(name), [], inputs,
-    body_builtin_type(context, name, count, builtin_return(name)), false,
-    name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve")
-}
-pure body_core_declaration(context: BodyContext, name: Str): Option[ModuleDeclarationBinding] {
-  identity: ModuleIdentity = ModuleIdentity(ToolchainModulePackage(), "core.panack")
-  mut found: Option[ModuleDeclarationBinding] = None()
-  for module in context.modules {
-    if module.bindings.identity == identity {
-      for binding in module.bindings.declarations {
-        if binding.identity.name == name && binding.kind == ModuleFunction() { found = Some(binding) }
-      }
-    }
-  }
-  found
-}
-pure body_declaration_contract(context: BodyContext, binding: ModuleDeclarationBinding): Result[Option[BodyContract],Str] {
-  mut owner: DeclarationIdentity = binding.identity
-  mut variant: Str = ""
-  match binding.kind {
-    ModuleVariant(parent) => { owner = DeclarationIdentity(owner.module, parent); variant = binding.identity.name },
-    ModuleFunction() => {}, ModuleRecord() => {}, ModuleEnum() => {}, ModuleGuardedType() => {}
-  }
-  if owner.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") && (owner.name == "Option" || owner.name == "Result") && variant != "" {
-    Ok(body_core_constructor(variant))
-  } else { if binding.kind == ModuleGuardedType() { Ok(None()) }
-  else {
-    match body_signature(context.signatures, owner) {
-      None() => Error("call signature unavailable for " + owner.module.path + ":" + owner.name),
-      Some(signature) => {
-        mut arguments: [SignatureType] = []
-        mut index: Nat = 0
-        for parameter in signature.parameters {
-          arguments = append(arguments, SignatureType(SignatureParameter(owner, index), [])); index = index + 1
-        }
-        mut inputs: [SignatureType] = []
-        mut output: SignatureType = SignatureType(SignatureNominal(owner), arguments)
-        index = 0
-        for slot in signature.slots {
-          if binding.kind == ModuleFunction() {
-            if index + 1 == len(signature.slots) { output = slot.type } else { inputs = append(inputs, slot.type) }
-          } else { if variant == "" || starts_with(slot.name, variant + ":") { inputs = append(inputs, slot.type) } }
-          index = index + 1
-        }
-        Ok(Some(BodyContract(owner, binding.identity.name, signature.parameters, inputs, output, binding.kind != ModuleFunction(), signature.effect == Some(SignatureAsync()))))
-      }
-    }
-  } }
-}
-pure body_callable_contract(owner: DeclarationIdentity, name: Str, type: Option[SignatureType]): Result[Option[BodyContract],Str] {
-  match type {
-    None() => Ok(None()),
-    Some(value) => match value.identity {
-      SignatureCallable(effect) => {
-        if len(value.arguments) == 0 { Error("call expects a callable with a return type") }
-        else {
-          mut inputs: [SignatureType] = []
-          mut index: Nat = 0
-          while index < prior_index(len(value.arguments)) { inputs = append(inputs, value.arguments[index]); index = index + 1 }
-          output: SignatureType = value.arguments[prior_index(len(value.arguments))]
-          Ok(Some(BodyContract(owner, name, [], inputs, output, false, effect == SignatureAsync())))
-        }
-      },
-      SignatureHole(binder, path, index) => Ok(None()),
-      SignatureCore(core) => Error("call expects a callable, got " + body_type_text(value)),
-      SignatureNominal(identity) => Error("call expects a callable, got " + body_type_text(value)),
-      SignatureParameter(binder, index) => Error("call expects a callable, got " + body_type_text(value))
-    }
-  }
-}
-pure body_core_collection_contract(name: Str, display: Str, receiver: SignatureType, parameters: [Str], inputs: [SignatureType], output: SignatureType): Result[Option[BodyContract],Str] {
-  if !body_type_complete(receiver) { Ok(None()) }
-  else { Ok(Some(BodyContract(body_core_owner(name), display, parameters, inputs, output, false, false))) }
-}
-pure body_core_method_contract(context: BodyContext, name: Str, children: [BoundBody]): Result[Option[BodyContract],Str] {
-  owner: DeclarationIdentity = body_core_owner(name)
-  mut first_type: Option[SignatureType] = None()
-  if len(children) > 0 { first_type = children[0].type }
-  mut result: Result[Option[BodyContract],Str] = Ok(None())
-  if name == "$method_call" {
-    if len(children) == 0 { result = Ok(Some(BodyContract(owner, "call", [], [SignatureType(SignatureHole(owner, [], 0), [])], SignatureType(SignatureHole(owner, [], 1), []), false, false))) }
-    else {
-      match body_callable_contract(owner, "call", first_type) {
-        Error(message) => { result = Error(message) },
-        Ok(optional) => match optional {
-          None() => { result = Ok(None()) },
-          Some(contract) => match first_type {
-            None() => { result = Ok(None()) },
-            Some(receiver) => { result = Ok(Some(BodyContract(owner, "call", [], concat([receiver], contract.inputs), contract.output, false, contract.async_flag))) }
-          }
-        }
-      }
-    }
-  }
-  if name == "$method_map" {
-    item: SignatureType = body_core_parameter(owner, 0)
-    output_item: SignatureType = body_core_parameter(owner, 1)
-    collection: SignatureType = body_core_array(item)
-    callback: SignatureType = body_core_callable(SignaturePure(), [item, output_item])
-    result = Ok(Some(BodyContract(owner, "map", ["T", "U"], [collection, callback], body_core_array(output_item), false, false)))
-  }
-  if name == "$method_reduce" {
-    item: SignatureType = body_core_parameter(owner, 0)
-    accumulator: SignatureType = body_core_parameter(owner, 1)
-    collection: SignatureType = body_core_array(item)
-    callback: SignatureType = body_core_callable(SignaturePure(), [accumulator, item, accumulator])
-    result = Ok(Some(BodyContract(owner, "reduce", ["T", "U"], [collection, accumulator, callback], accumulator, false, false)))
-  }
-  if name == "$method_put" { result = body_core_map_method(context, name, "put", children, "put") }
-  if name == "$method_get" { result = body_core_map_method(context, name, "get", children, "get") }
-  if name == "map_put" { result = body_core_map_method(context, name, "map_put", children, "put") }
-  if name == "map_get" { result = body_core_map_method(context, name, "map_get", children, "get") }
-  if name == "map_has" { result = body_core_map_method(context, name, "map_has", children, "has") }
-  if name == "$method_add" { result = body_core_set_method(context, name, "add", children, "add") }
-  if name == "set_add" { result = body_core_set_method(context, name, "set_add", children, "add") }
-  if name == "set_has" { result = body_core_set_method(context, name, "set_has", children, "has") }
-  if name == "$method_has" { result = body_core_has_method(context, name, children) }
-  if name == "len" { result = body_core_len_contract(context, name, children) }
-  if name == "append" {
-    item: SignatureType = body_core_parameter(owner, 0)
-    collection: SignatureType = body_core_array(item)
-    result = Ok(Some(BodyContract(owner, "append", ["T"], [collection, item], collection, false, false)))
-  }
-  if name == "concat" {
-    item: SignatureType = body_core_parameter(owner, 0)
-    collection: SignatureType = body_core_array(item)
-    result = Ok(Some(BodyContract(owner, "concat", ["T"], [collection, collection], collection, false, false)))
-  }
-  mut core_name: Str = ""
-  if name == "$core_ends_with" { core_name = "core_ends_with" }
-  if name == "$core_first" { core_name = "core_first" }
-  if name == "$core_sort_by" { core_name = "core_sort_by" }
-  if core_name != "" {
-    match body_core_declaration(context, core_name) {
-      None() => { result = Ok(None()) },
-      Some(binding) => { result = body_declaration_contract(context, binding) }
-    }
-  } else {
-    if is_builtin(name) && name != "$method_call" && name != "$method_map" && name != "$method_reduce" &&
-      name != "$method_put" && name != "$method_get" && name != "$method_has" && name != "$method_add" &&
-      name != "map_put" && name != "map_get" && name != "map_has" && name != "set_add" && name != "set_has" &&
-      name != "len" && name != "append" && name != "concat" {
-      result = Ok(Some(body_builtin_contract(context, name)))
-    }
-  }
-  result
-}
-pure body_core_map_method(context: BodyContext, name: Str, display: Str, children: [BoundBody], operation: Str): Result[Option[BodyContract],Str] {
-  owner: DeclarationIdentity = body_core_owner(name)
-  key: SignatureType = body_core_parameter(owner, 0)
-  value: SignatureType = body_core_parameter(owner, 1)
-  map_type: SignatureType = body_core_map(key, value)
-  mut inputs: [SignatureType] = [map_type, key]
-  mut output: SignatureType = value
-  if operation == "put" { inputs = append(inputs, value); output = map_type }
-  if operation == "has" { output = SignatureType(SignatureCore("Bool"), []) }
-  // The receiver's shape selects a precise generic contract; body_call checks
-  // its actual identity and generic arguments against this template.
-  body_core_collection_contract(name, display, if len(children) > 0 { match children[0].type { Some(type) => type, None() => map_type } } else { map_type }, ["K", "V"], inputs, output)
-}
-pure body_core_set_method(context: BodyContext, name: Str, display: Str, children: [BoundBody], operation: Str): Result[Option[BodyContract],Str] {
-  owner: DeclarationIdentity = body_core_owner(name)
-  item: SignatureType = body_core_parameter(owner, 0)
-  set_type: SignatureType = body_core_set(item)
-  mut output: SignatureType = set_type
-  if operation == "has" { output = SignatureType(SignatureCore("Bool"), []) }
-  body_core_collection_contract(name, display, if len(children) > 0 { match children[0].type { Some(type) => type, None() => set_type } } else { set_type }, ["T"], [set_type, item], output)
-}
-pure body_core_has_method(context: BodyContext, name: Str, children: [BoundBody]): Result[Option[BodyContract],Str] {
-  if len(children) == 0 { body_core_map_method(context, name, "has", children, "has") }
-  else {
-    match children[0].type {
-      None() => Ok(None()),
-      Some(receiver) => match receiver.identity {
-        SignatureCore(core_name) => if core_name == "Map" { body_core_map_method(context, name, "has", children, "has") } else { if core_name == "Set" { body_core_set_method(context, name, "has", children, "has") } else { Error("has expects a Map or Set, got " + body_type_text(receiver)) } },
-        SignatureHole(owner, path, index) => Ok(None()),
-        SignatureParameter(owner, index) => Ok(None()),
-        SignatureNominal(identity) => Error("has expects a Map or Set, got " + body_type_text(receiver)),
-        SignatureCallable(effect) => Error("has expects a Map or Set, got " + body_type_text(receiver))
-      }
-    }
-  }
-}
-pure body_core_len_contract(context: BodyContext, name: Str, children: [BoundBody]): Result[Option[BodyContract],Str] {
-  owner: DeclarationIdentity = body_core_owner(name)
-  if len(children) == 0 {
-    input: SignatureType = SignatureType(SignatureHole(owner, [], 0), [])
-    Ok(Some(BodyContract(owner, "len", [], [input], SignatureType(SignatureCore("Nat"), []), false, false)))
-  } else {
-    match children[0].type {
-      None() => Ok(None()),
-      Some(receiver) => match receiver.identity {
-        SignatureCore(core_name) => if core_name == "Str" || core_name == "Bytes" || core_name == "Array" { Ok(Some(BodyContract(owner, "len", [], [receiver], SignatureType(SignatureCore("Nat"), []), false, false))) } else { Error("len expects Str, Bytes, or array, got " + body_type_text(receiver)) },
-        SignatureHole(binder, path, index) => Ok(None()),
-        SignatureParameter(binder, index) => Ok(None()),
-        SignatureNominal(identity) => Error("len expects Str, Bytes, or array, got " + body_type_text(receiver)),
-        SignatureCallable(effect) => Error("len expects Str, Bytes, or array, got " + body_type_text(receiver))
-      }
-    }
-  }
-}
-pure body_scalar_status(type: SignatureType): Option[Bool] {
-  match type.identity {
-    SignatureCore(name) => Some(is_scalar_base(name)),
-    SignatureNominal(identity) => Some(false),
-    SignatureCallable(effect) => Some(false),
-    SignatureParameter(owner, index) => None(),
-    SignatureHole(owner, path, index) => None()
-  }
-}
-pure body_core_call_validation(target: BodyTarget, children: [BoundBody], span: SourceSpan): BodyResult {
-  mut name: Str = ""
-  match target { BodyCore(core) => { name = core }, BodyDeclaration(binding) => {}, BodyIndirect(local, type) => {} }
-  mut key_kind: Str = ""
-  if name == "map_put" || name == "map_get" || name == "map_has" || name == "$method_put" || name == "$method_get" { key_kind = "map" }
-  if name == "set_add" || name == "set_has" || name == "$method_add" { key_kind = "set" }
-  if name == "$method_has" && len(children) > 0 {
-    match children[0].type {
-      Some(receiver) => { if receiver.identity == SignatureCore("Map") { key_kind = "map" }; if receiver.identity == SignatureCore("Set") { key_kind = "set" } },
-      None() => {}
-    }
-  }
-  mut diagnostics: [Diagnostic] = []
-  mut deferred: [SourceSpan] = []
-  if key_kind != "" && len(children) > 1 {
-    match children[1].type {
-      None() => { deferred = [span] },
-      Some(type) => match body_scalar_status(type) {
-        Some(valid) => { if !valid { diagnostics = [Diagnostic("invalid " + key_kind + if key_kind == "map" { " key type " } else { " element type " } + body_type_text(type), children[1].span.start)] } },
-        None() => { deferred = [children[1].span] }
-      }
-    }
-  }
-  BodyResult(BoundBody(BodyEmpty(), span, [], None(), []), diagnostics, deferred)
-}
 pure body_core_constructor(name: Str): Option[BodyContract] {
   mut parent: Str = ""
   mut count: Nat = 0
@@ -1166,14 +879,42 @@ pure body_core_constructor(name: Str): Option[BodyContract] {
     Some(BodyContract(owner, name, if count == 1 { ["T"] } else { if name == "map" { ["K", "V"] } else { ["T", "E"] } }, inputs, SignatureType(SignatureCore(parent), arguments), true, false))
   }
 }
-pure body_contract(context: BodyContext, target: BodyTarget, children: [BoundBody]): Result[Option[BodyContract],Str] {
+pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[BodyContract],Str] {
   match target {
-    BodyCore(name) => match body_core_constructor(name) {
-      Some(contract) => Ok(Some(contract)),
-      None() => body_core_method_contract(context, name, children)
-    },
-    BodyDeclaration(binding) => body_declaration_contract(context, binding),
-    BodyIndirect(local, type) => body_callable_contract(local.owner, "call", type)
+    BodyCore(name) => Ok(body_core_constructor(name)),
+    BodyDeclaration(binding) => {
+      mut owner: DeclarationIdentity = binding.identity
+      mut variant: Str = ""
+      match binding.kind {
+        ModuleVariant(parent) => { owner = DeclarationIdentity(owner.module, parent); variant = binding.identity.name },
+        ModuleFunction() => {}, ModuleRecord() => {}, ModuleEnum() => {}, ModuleGuardedType() => {}
+      }
+      if owner.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") && (owner.name == "Option" || owner.name == "Result") && variant != "" {
+        Ok(body_core_constructor(variant))
+      } else { if binding.kind == ModuleGuardedType() { Ok(None()) }
+      else {
+        match body_signature(context.signatures, owner) {
+          None() => Error("call signature unavailable for " + owner.module.path + ":" + owner.name),
+          Some(signature) => {
+            mut arguments: [SignatureType] = []
+            mut index: Nat = 0
+            for parameter in signature.parameters {
+              arguments = append(arguments, SignatureType(SignatureParameter(owner, index), [])); index = index + 1
+            }
+            mut inputs: [SignatureType] = []
+            mut output: SignatureType = SignatureType(SignatureNominal(owner), arguments)
+            index = 0
+            for slot in signature.slots {
+              if binding.kind == ModuleFunction() {
+                if index + 1 == len(signature.slots) { output = slot.type } else { inputs = append(inputs, slot.type) }
+              } else { if variant == "" || starts_with(slot.name, variant + ":") { inputs = append(inputs, slot.type) } }
+              index = index + 1
+            }
+            Ok(Some(BodyContract(owner, binding.identity.name, signature.parameters, inputs, output, binding.kind != ModuleFunction(), signature.effect == Some(SignatureAsync()))))
+          }
+        }
+      } }
+    }
   }
 }
 record BodyInference { arguments: [SignatureType], deferred: Bool }
@@ -1287,7 +1028,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
 }
 
 pure body_variant_identity(target: BodyTarget): DeclarationIdentity {
-  match target { BodyCore(name) => body_core_owner(name), BodyDeclaration(binding) => binding.identity, BodyIndirect(local, type) => DeclarationIdentity(local.owner.module, local.name) }
+  match target { BodyCore(name) => body_core_owner(name), BodyDeclaration(binding) => binding.identity }
 }
 pure body_enum_variants(context: BodyContext, type: SignatureType): Result[[BodyTarget],Str] {
   mut variants: [BodyTarget] = []
@@ -1349,8 +1090,7 @@ pure bind_body_match(context: BodyContext, subject: Expr, arms: [MatchArm], span
           BodyDeclaration(binding) => match binding.kind {
             ModuleVariant(parent) => true,
             ModuleFunction() => false, ModuleRecord() => false, ModuleEnum() => false, ModuleGuardedType() => false
-          },
-          BodyIndirect(local, type) => false
+          }
         }
         if !is_variant { diagnostics = append(diagnostics, Diagnostic("pattern is not a variant: " + arm.pattern.variant, span.start)) }
         identity: DeclarationIdentity = body_variant_identity(target)
@@ -1360,7 +1100,7 @@ pure bind_body_match(context: BodyContext, subject: Expr, arms: [MatchArm], span
         for previous in seen { if previous == identity { diagnostics = append(diagnostics, Diagnostic("duplicate match arm " + arm.pattern.variant, span.start)) } }
         seen = append(seen, identity)
         if is_variant {
-          match body_contract(context, target, []) {
+          match body_contract(context, target) {
             Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, span.start)) },
             Ok(optional) => match optional { None() => { deferred = append(deferred, span) },
             Some(contract) => {

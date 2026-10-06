@@ -1,37 +1,77 @@
 import "source_inventory.panack"
 
-record CoverageCell { attempted: Nat, completed: Nat, fallthrough: Nat, branched: Nat }
-record CoverageFunction { entries: Nat, cells: [CoverageCell] }
-record CoverageData { valid: Bool, terminal: Nat, functions: [CoverageFunction] }
+// Decode bounded execution records and join them to exact source inventory IDs.
+// A missing association stays unavailable rather than becoming inferred coverage.
+
+record CoverageCell {
+  attempted: Nat,
+  completed: Nat,
+  fallthrough: Nat,
+  branched: Nat
+}
+
+record CoverageFunction {
+  entries: Nat,
+  cells: [CoverageCell]
+}
+
+record CoverageData {
+  valid: Bool,
+  terminal: Nat,
+  functions: [CoverageFunction]
+}
 
 pure coverage_number(data: Bytes, offset: Nat, width: Nat): Nat {
   mut value: Nat = 0
-  for index in 0..width { value = value * 256 + byte_get(data, offset + index); }
+
+  for index in 0..width {
+    value = value * 256 + byte_get(data, offset + index)
+  }
   value
 }
 
 pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
   mut valid: Bool = offset + byte_len(expected) <= byte_len(data)
+
   if valid {
     for index in 0..byte_len(expected) {
       valid = valid && byte_get(data, offset + index) == byte_get(expected, index)
     }
   }
+
   valid
 }
 
 // Layout is derived solely from locally compiled code; no foreign sizes or paths
 // are trusted. Exact artifact + inventory bytes bind observations to SC2 IDs.
-pure decode_coverage(data: Bytes, artifact: Bytes, inventory: Bytes, program: BytecodeProgram): CoverageData {
+pure decode_coverage(
+  data: Bytes,
+  artifact: Bytes,
+  inventory: Bytes,
+  program: BytecodeProgram
+): CoverageData {
   decode_coverage_at(data, artifact, inventory, program, 0)
 }
 
-pure decode_coverage_at(data: Bytes, artifact: Bytes, inventory: Bytes, program: BytecodeProgram, offset: Nat): CoverageData {
+pure decode_coverage_at(
+  data: Bytes,
+  artifact: Bytes,
+  inventory: Bytes,
+  program: BytecodeProgram,
+  offset: Nat
+): CoverageData {
   prefix: Bytes = source_map_join([utf8_encode("PANACKCOV1\n"), source_map_blob(artifact),
     source_map_blob(inventory), encode_u32(len(program.functions))], 0, 4)
   mut size: Nat = byte_len(prefix) + 6
-  for function in sort_functions(program.functions) { size = size + 12 + len(function.instructions) * 32; }
-  mut valid: Bool = size <= 16777216 && byte_len(data) == size + offset && coverage_prefix(data, prefix, offset)
+
+  for function in sort_functions(program.functions) {
+    size = size + 12 + len(function.instructions) * 32
+  }
+  mut valid: Bool = size <= 16777216 && byte_len(data) == size + offset && coverage_prefix(
+    data,
+    prefix,
+    offset
+  )
   mut functions: [CoverageFunction] = []
   mut terminal: Nat = 0
   if valid {
@@ -42,12 +82,17 @@ pure decode_coverage_at(data: Bytes, artifact: Bytes, inventory: Bytes, program:
       cursor = cursor + 12
       mut cells: [CoverageCell] = []
       for instruction in function.instructions {
-        cell: CoverageCell = CoverageCell(coverage_number(data, cursor, 8), coverage_number(data, cursor + 8, 8),
+        cell: CoverageCell = CoverageCell(
+          coverage_number(data, cursor, 8),
+          coverage_number(data, cursor + 8, 8),
           coverage_number(data, cursor + 16, 8), coverage_number(data, cursor + 24, 8))
         valid = valid && cell.completed <= cell.attempted
         edge: CoverageEdge = coverage_edge(instruction, 0)
-        if edge.conditional { valid = valid && cell.fallthrough + cell.branched == cell.completed; }
-        else { valid = valid && cell.fallthrough == 0 && cell.branched == 0; }
+        if edge.conditional {
+          valid = valid && cell.fallthrough + cell.branched == cell.completed
+        } else {
+          valid = valid && cell.fallthrough == 0 && cell.branched == 0
+        }
         cells = append(cells, cell)
         cursor = cursor + 32
       }
@@ -60,7 +105,11 @@ pure decode_coverage_at(data: Bytes, artifact: Bytes, inventory: Bytes, program:
   CoverageData(valid, terminal, functions)
 }
 
-record CoverageEdge { conditional: Bool, target: Nat, falls: Bool }
+record CoverageEdge {
+  conditional: Bool,
+  target: Nat,
+  falls: Bool
+}
 
 pure coverage_edge(instruction: Instruction, pc: Nat): CoverageEdge {
   match instruction {
@@ -93,45 +142,81 @@ pure coverage_edge(instruction: Instruction, pc: Nat): CoverageEdge {
 }
 
 pure coverage_same_span(left: SourceSpan, right: SourceSpan): Bool {
-  left.start.file == right.start.file && left.start.offset == right.start.offset && left.end.offset == right.end.offset
+  left.start.file == right.start.file &&
+    left.start.offset == right.start.offset &&
+    left.end.offset == right.end.offset
 }
 
 // Index completed incoming edges once per function. Both expression entry and
 // completion are queries against a target PC; rescanning a large function for
 // every source item makes compiler-sized reports unnecessarily quadratic.
-record CoverageIncoming { source: Nat, count: Nat }
-pure coverage_add_incoming(index: Map[Nat,[CoverageIncoming]], target: Nat, source: Nat, count: Nat): Map[Nat,[CoverageIncoming]] {
-  if count == 0 { index } else {
-    prior: [CoverageIncoming] = if index.has(target) { index.get(target) } else { [] }
+record CoverageIncoming {
+  source: Nat,
+  count: Nat
+}
+
+pure coverage_add_incoming(
+  index: Map[Nat, [CoverageIncoming]],
+  target: Nat,
+  source: Nat,
+  count: Nat
+): Map[Nat, [CoverageIncoming]] {
+  if count == 0 {
+    index
+  } else {
+    prior: [CoverageIncoming] = if index.has(target) {
+      index.get(target)
+    } else {
+      []
+    }
     index.put(target, append(prior, CoverageIncoming(source, count)))
   }
 }
-pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat,[CoverageIncoming]] {
-  mut index: Map[Nat,[CoverageIncoming]] = map()
+
+pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat, [CoverageIncoming]] {
+  mut index: Map[Nat, [CoverageIncoming]] = map()
+
   for pc in 0..len(code.instructions) {
     edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
     cell: CoverageCell = data.cells[pc]
     if edge.conditional {
       index = coverage_add_incoming(index, pc + 1, pc, cell.fallthrough)
       index = coverage_add_incoming(index, edge.target, pc, cell.branched)
-    } else { index = coverage_add_incoming(index, edge.target, pc, cell.completed); }
+    } else {
+      index = coverage_add_incoming(index, edge.target, pc, cell.completed)
+    }
   }
   index
 }
-pure coverage_attempted_indexed(probe: EmissionProbe, entries: Nat, index: Map[Nat,[CoverageIncoming]]): Nat {
-  mut count: Nat = if probe.start == 0 { entries } else { 0 }
+
+pure coverage_attempted_indexed(
+  probe: EmissionProbe,
+  entries: Nat,
+  index: Map[Nat, [CoverageIncoming]]
+): Nat {
+  mut count: Nat = if probe.start == 0 {
+    entries
+  } else {
+    0
+  }
   if index.has(probe.start) {
     for edge in index.get(probe.start) {
-      if edge.source < probe.start || edge.source >= probe.end { count = count + edge.count; }
+      if edge.source < probe.start || edge.source >= probe.end {
+        count = count + edge.count
+      }
     }
   }
   count
 }
-pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat,[CoverageIncoming]]): Nat {
+
+pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat, [CoverageIncoming]]): Nat {
   mut count: Nat = 0
+
   if index.has(probe.end) {
     for edge in index.get(probe.end) {
-      if edge.source >= probe.start && edge.source < probe.end { count = count + edge.count; }
+      if edge.source >= probe.start && edge.source < probe.end {
+        count = count + edge.count
+      }
     }
   }
   count
@@ -140,16 +225,26 @@ pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat,[CoverageIn
 // A loop inside a block expression may jump back to its first PC. Count entries
 // from outside the interval, not redispatches of that PC from inside the block.
 pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
-  mut count: Nat = if probe.start == 0 { data.entries } else { 0 }
+  mut count: Nat = if probe.start == 0 {
+    data.entries
+  } else {
+    0
+  }
   for pc in 0..len(code.instructions) {
     if pc < probe.start || pc >= probe.end {
       cell: CoverageCell = data.cells[pc]
       edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
       if edge.conditional {
-        if pc + 1 == probe.start { count = count + cell.fallthrough; }
-        if edge.target == probe.start { count = count + cell.branched; }
+        if pc + 1 == probe.start {
+          count = count + cell.fallthrough
+        }
+        if edge.target == probe.start {
+          count = count + cell.branched
+        }
       } else {
-        if edge.target == probe.start { count = count + cell.completed; }
+        if edge.target == probe.start {
+          count = count + cell.completed
+        }
       }
     }
   }
@@ -160,14 +255,21 @@ pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: Coverage
 // at the destination PC would falsely complete an untaken sibling expression.
 pure coverage_completed(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
   mut count: Nat = 0
+
   for pc in probe.start..probe.end {
     cell: CoverageCell = data.cells[pc]
     edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
     if edge.conditional {
-      if pc + 1 == probe.end { count = count + cell.fallthrough; }
-      if edge.target == probe.end { count = count + cell.branched; }
+      if pc + 1 == probe.end {
+        count = count + cell.fallthrough
+      }
+      if edge.target == probe.end {
+        count = count + cell.branched
+      }
     } else {
-      if edge.target == probe.end { count = count + cell.completed; }
+      if edge.target == probe.end {
+        count = count + cell.completed
+      }
     }
   }
   count
@@ -176,30 +278,46 @@ pure coverage_completed(probe: EmissionProbe, code: FunctionCode, data: Coverage
 pure coverage_function_name(declaration: TopLevel): Str {
   match declaration {
     FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) => name,
-    ImportDeclaration(path) => "", TypeDeclaration(name, base, guard) => "",
-    RecordDeclaration(name, types, fields) => "", EnumDeclaration(name, types, variants) => ""
+    ImportDeclaration(path) => "",
+    TypeDeclaration(name, base, guard) => "",
+    RecordDeclaration(name, types, fields) => "",
+    EnumDeclaration(name, types, variants) => ""
   }
 }
 
 pure coverage_item_kind(item: InventoryItem, items: [InventoryItem]): Str {
-  if item.kind == "expression" || item.kind == "statement" { "expression" }
-  else { if item.kind == "decision" { if item.detail == "match" { "expression" } else { item.detail } }
-  else {
-    mut kind: Str = "arm:" + item.detail
-    for candidate in items {
-      if candidate.kind == "decision" && item.id == candidate.id + "/" + item.detail {
-        kind = candidate.detail
+  if item.kind == "expression" || item.kind == "statement" {
+    "expression"
+  } else {
+    if item.kind == "decision" {
+      if item.detail == "match" {
+        "expression"
+      } else {
+        item.detail
       }
+    } else {
+      mut kind: Str = "arm:" + item.detail
+      for candidate in items {
+        if candidate.kind == "decision" && item.id == candidate.id + "/" + item.detail {
+          kind = candidate.detail
+        }
+      }
+      kind
     }
-    kind
-  } }
+  }
 }
 
 pure coverage_text_join(chunks: [Str], start: Nat, end: Nat): Str {
-  if start == end { "" } else { if end == start + 1 { chunks[start] } else {
-    middle: Nat = quotient(start + end, 2)
-    coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
-  } }
+  if start == end {
+    ""
+  } else {
+    if end == start + 1 {
+      chunks[start]
+    } else {
+      middle: Nat = quotient(start + end, 2)
+      coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
+    }
+  }
 }
 
 pure coverage_probe_key(kind: Str, span: SourceSpan): Str {
@@ -208,20 +326,39 @@ pure coverage_probe_key(kind: Str, span: SourceSpan): Str {
   kind + "\t" + source_map_escape(span.start.file) + "\t${start}\t${end}"
 }
 
-pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: CoverageData, root: Str, stdlib: Str): Str {
+pure render_coverage(
+  project: LoadedProject,
+  mapped: SourceMappedProgram,
+  data: CoverageData,
+  root: Str,
+  stdlib: Str
+): Str {
   terminal: Nat = data.terminal
   mut rows: [Str] = ["coverage: single-execution terminal=${terminal}\n"]
   codes: [FunctionCode] = sort_functions(mapped.bytecode.functions)
-  mut incoming: [Map[Nat,[CoverageIncoming]]] = []
-  for i in 0..len(codes) { incoming = append(incoming, coverage_incoming(codes[i], data.functions[i])); }
-  mut code_indices: Map[Str,Nat] = map()
-  for i in 0..len(codes) { code_indices = code_indices.put(codes[i].name, i); }
-  mut probe_index: Map[Str,Map[Str,[EmissionProbe]]] = map()
+  mut incoming: [Map[Nat, [CoverageIncoming]]] = []
+
+  for i in 0..len(codes) {
+    incoming = append(incoming, coverage_incoming(codes[i], data.functions[i]))
+  }
+  mut code_indices: Map[Str, Nat] = map()
+  for i in 0..len(codes) {
+    code_indices = code_indices.put(codes[i].name, i)
+  }
+  mut probe_index: Map[Str, Map[Str, [EmissionProbe]]] = map()
   for mapping in mapped.probes {
-    mut probes: Map[Str,[EmissionProbe]] = if probe_index.has(mapping.name) { probe_index.get(mapping.name) } else { map() }
+    mut probes: Map[Str, [EmissionProbe]] = if probe_index.has(mapping.name) {
+      probe_index.get(mapping.name)
+    } else {
+      map()
+    }
     for probe in mapping.entries {
       key: Str = coverage_probe_key(probe.kind, probe.span)
-      prior: [EmissionProbe] = if probes.has(key) { probes.get(key) } else { [] }
+      prior: [EmissionProbe] = if probes.has(key) {
+        probes.get(key)
+      } else {
+        []
+      }
       probes = probes.put(key, append(prior, probe))
     }
     probe_index = probe_index.put(mapping.name, probes)
@@ -232,98 +369,151 @@ pure render_coverage(project: LoadedProject, mapped: SourceMappedProgram, data: 
         items: [InventoryItem] = inventory_module(module)
         mut function_name: Str = ""
         mut declaration_index: Nat = 0
-        mut lines: Map[Nat,Bool] = map()
+        mut lines: Map[Nat, Bool] = map()
         mut line_order: [Nat] = []
-        mut line_states: Map[Nat,Str] = map()
+        mut line_states: Map[Nat, Str] = map()
         for item in items {
           if item.kind == "function" || item.kind == "excluded" {
-            while declaration_index < len(module.parsed.program.declarations) && item.id != "declaration/${declaration_index}" {
+            while declaration_index < len(module.parsed.program.declarations) &&
+              item.id != "declaration/${declaration_index}" {
               declaration_index = declaration_index + 1
             }
             if declaration_index < len(module.execution_program.declarations) {
               function_name = coverage_function_name(module.execution_program.declarations[declaration_index])
             }
           }
-          mut state: Str = if item.kind == "excluded" { "excluded" } else { "not-emitted" }
+          mut state: Str = if item.kind == "excluded" {
+            "excluded"
+          } else {
+            "not-emitted"
+          }
           mut attempted: Nat = 0
           mut completed: Nat = 0
           if code_indices.has(function_name) && item.kind != "excluded" {
-              function_index: Nat = code_indices.get(function_name)
-              code: FunctionCode = codes[function_index]
-              observed: CoverageFunction = data.functions[function_index]
-              if item.kind == "function" {
-                state = "observed"
-                attempted = observed.entries
-                for pc in 0..len(code.instructions) {
-                  match code.instructions[pc] {
-                    ReturnInstruction() => { completed = completed + observed.cells[pc].completed; },
-                    ConstInstruction(a0) => {},
-                    LoadInstruction(a0) => {},
-                    StoreInstruction(a0) => {},
-                    PopInstruction() => {},
-                    UnaryInstruction(a0) => {},
-                    BinaryInstruction(a0) => {},
-                    MakeRangeInstruction() => {},
-                    MakeArrayInstruction(a0) => {},
-                    IndexGetInstruction() => {},
-                    InterpolateInstruction(a0) => {},
-                    IterInitInstruction(a0) => {},
-                    IterNextInstruction(a0, a1, a2) => {},
-                    MakeRecordInstruction(a0, a1) => {},
-                    FieldGetInstruction(a0) => {},
-                    MakeVariantInstruction(a0, a1, a2) => {},
-                    MatchVariantInstruction(a0, a1) => {},
-                    MatchFailInstruction() => {},
-                    CallInstruction(a0, a1) => {},
-                    CallValueInstruction(a0) => {},
-                    AwaitCallInstruction(a0, a1) => {},
-                    AwaitValueInstruction(a0) => {},
-                    JumpFalseInstruction(a0) => {},
-                    JumpInstruction(a0) => {},
-                    PendingEndJumpInstruction() => {}
+            function_index: Nat = code_indices.get(function_name)
+            code: FunctionCode = codes[function_index]
+            observed: CoverageFunction = data.functions[function_index]
+            if item.kind == "function" {
+              state = "observed"
+              attempted = observed.entries
+              for pc in 0..len(code.instructions) {
+                match code.instructions[pc] {
+                  ReturnInstruction() => {
+                    completed = completed + observed.cells[pc].completed
+                  },
+                  ConstInstruction(a0) => {},
+                  LoadInstruction(a0) => {},
+                  StoreInstruction(a0) => {},
+                  PopInstruction() => {},
+                  UnaryInstruction(a0) => {},
+                  BinaryInstruction(a0) => {},
+                  MakeRangeInstruction() => {},
+                  MakeArrayInstruction(a0) => {},
+                  IndexGetInstruction() => {},
+                  InterpolateInstruction(a0) => {},
+                  IterInitInstruction(a0) => {},
+                  IterNextInstruction(a0, a1, a2) => {},
+                  MakeRecordInstruction(a0, a1) => {},
+                  FieldGetInstruction(a0) => {},
+                  MakeVariantInstruction(a0, a1, a2) => {},
+                  MatchVariantInstruction(a0, a1) => {},
+                  MatchFailInstruction() => {},
+                  CallInstruction(a0, a1) => {},
+                  CallValueInstruction(a0) => {},
+                  AwaitCallInstruction(a0, a1) => {},
+                  AwaitValueInstruction(a0) => {},
+                  JumpFalseInstruction(a0) => {},
+                  JumpInstruction(a0) => {},
+                  PendingEndJumpInstruction() => {}
+                }
+              }
+            } else {
+              state = "unavailable"
+              kind: Str = coverage_item_kind(item, items)
+              mut matches: Nat = 0
+              if probe_index.has(code.name) {
+                probes: Map[Str, [EmissionProbe]] = probe_index.get(code.name)
+                key: Str = coverage_probe_key(kind, item.span)
+                if probes.has(key) {
+                  candidates: [EmissionProbe] = probes.get(key)
+                  matches = len(candidates)
+                  if matches == 1 {
+                    probe: EmissionProbe = candidates[0]
+                    cell: CoverageCell = observed.cells[probe.start]
+                    attempted = if kind == "expression" {
+                      coverage_attempted_indexed(probe, observed.entries, incoming[function_index])
+                    } else {
+                      cell.attempted
+                    }
+                    completed = if kind == "expression" {
+                      coverage_completed_indexed(probe, incoming[function_index])
+                    } else {
+                      cell.completed
+                    }
+                    if item.kind == "outcome" {
+                      take_branch: Bool = item.detail == "false" || item.detail == "exit" ||
+                        (kind == "&&" &&
+                        item.detail == "skip-right") ||
+                        (kind == "||" &&
+                        item.detail == "evaluate-right")
+                      attempted = if take_branch {
+                        cell.branched
+                      } else {
+                        cell.fallthrough
+                      }
+                      completed = attempted
+                    }
                   }
                 }
-              } else {
-                state = "unavailable"
-                kind: Str = coverage_item_kind(item, items)
-                mut matches: Nat = 0
-                if probe_index.has(code.name) {
-                    probes: Map[Str,[EmissionProbe]] = probe_index.get(code.name)
-                    key: Str = coverage_probe_key(kind, item.span)
-                    if probes.has(key) {
-                      candidates: [EmissionProbe] = probes.get(key)
-                      matches = len(candidates)
-                      if matches == 1 {
-                        probe: EmissionProbe = candidates[0]
-                        cell: CoverageCell = observed.cells[probe.start]
-                        attempted = if kind == "expression" { coverage_attempted_indexed(probe, observed.entries, incoming[function_index]) } else { cell.attempted }
-                        completed = if kind == "expression" { coverage_completed_indexed(probe, incoming[function_index]) } else { cell.completed }
-                        if item.kind == "outcome" {
-                          take_branch: Bool = item.detail == "false" || item.detail == "exit" ||
-                            (kind == "&&" && item.detail == "skip-right") || (kind == "||" && item.detail == "evaluate-right")
-                          attempted = if take_branch { cell.branched } else { cell.fallthrough }
-                          completed = attempted
-                        }
-                      }
-                    }
-                }
-                if matches == 1 { state = "observed"; } else { attempted = 0; completed = 0; }
               }
+              if matches == 1 {
+                state = "observed"
+              } else {
+                attempted = 0
+                completed = 0
+              }
+            }
           }
           file: Str = source_map_escape(snapshot.name)
-          rows = append(rows, file + "\t" + item.id + "\t" + item.kind + "\t" + item.detail + "\t${state}\t${attempted}\t${completed}\n")
+          rows = append(
+            rows,
+            file + "\t" + item.id + "\t" + item.kind + "\t" + item.detail + "\t${state}\t${attempted}\t${completed}\n"
+          )
           if item.kind == "expression" || item.kind == "statement" {
             line: Nat = item.span.start.line
-            reached: Bool = (state == "observed" && attempted > 0) || (lines.has(line) && lines.get(line))
-            prior_state: Str = if line_states.has(line) { line_states.get(line) } else { state }
-            line_states = line_states.put(line, if prior_state == state { state } else { "unavailable" })
-            if !lines.has(line) { line_order = append(line_order, line); }
+            reached: Bool = (state == "observed" &&
+              attempted > 0) ||
+              (lines.has(line) &&
+              lines.get(line))
+            prior_state: Str = if line_states.has(line) {
+              line_states.get(line)
+            } else {
+              state
+            }
+            line_states = line_states.put(line, if prior_state == state {
+                state
+              } else {
+                "unavailable"
+              })
+            if !lines.has(line) {
+              line_order = append(line_order, line)
+            }
             lines = lines.put(line, reached)
           }
         }
         for line in line_order {
-          rows = append(rows, source_map_escape(snapshot.name) + "\tline/${line}\tline\tanchor\t" + (if lines.get(line) { "observed" } else { line_states.get(line) }) + "\t" +
-            (if lines.get(line) { "1" } else { "0" }) + "\n")
+          rows = append(
+            rows,
+            source_map_escape(snapshot.name) + "\tline/${line}\tline\tanchor\t" + (if lines.get(line) {
+              "observed"
+            } else {
+              line_states.get(line)
+            }) + "\t" +
+            (if lines.get(line) {
+              "1"
+            } else {
+              "0"
+            }) + "\n")
         }
       }
     }
@@ -342,23 +532,41 @@ run_coverage_report(values: [Str]): Nat {
     compiler_path: Str = environment_get("PANACKELTY_COMPILER_PATH")
     project: LoadedProject = load_project_for_inventory(entry)
     match source_map_read(compiler_path, 16777216) {
-      Error(error) => { eprint("error: coverage compiler unavailable"); 1 },
+      Error(error) => {
+        eprint("error: coverage compiler unavailable")
+        1
+      },
       Ok(compiler) => {
         mapped: SourceMappedProgram = compile_program_with_sources(project.program)
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         inner: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
-        inventory: Bytes = source_map_join([utf8_encode("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)], 0, 3)
-        if len(project.diagnostics) > 0 || byte_len(inner) == 0 || !source_map_matches(values[3], inventory) ||
-            !source_snapshots_unchanged(project) || !source_map_matches(compiler_path, compiler) {
+        inventory: Bytes = source_map_join(
+          [utf8_encode("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+          0,
+          3
+        )
+        if len(project.diagnostics) > 0 || byte_len(inner) == 0 || !source_map_matches(
+          values[3],
+          inventory
+        ) ||
+          !source_snapshots_unchanged(project) || !source_map_matches(compiler_path, compiler) {
           eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         } else {
           match source_map_read(values[5], 16777216) {
-            Error(error) => { eprint("error: coverage raw record unavailable"); 1 },
+            Error(error) => {
+              eprint("error: coverage raw record unavailable")
+              1
+            },
             Ok(raw) => {
               data: CoverageData = decode_coverage(raw, artifact, inventory, mapped.bytecode)
-              if !data.valid { eprint("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution"); 1 }
-              else { print(render_coverage(project, mapped, data, root, stdlib)); 0 }
+              if !data.valid {
+                eprint("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution")
+                1
+              } else {
+                print(render_coverage(project, mapped, data, root, stdlib))
+                0
+              }
             }
           }
         }

@@ -1,5 +1,8 @@
 import "module_bindings.panack"
 
+// Resolve ordered import edges, aliases and re-exports to their original identities.
+// Cycle detection tracks the active path separately from completed modules.
+
 // Edges retain import order; paths are resolved by the loader, not guessed by
 // the semantic resolver. Aliases and re-exports never mint declaration IDs.
 record ModuleImportEdge {
@@ -24,41 +27,69 @@ record ResolvedModuleReference {
   span: SourceSpan
 }
 
-pure binding_graph_module(graph: ModuleBindingGraph, identity: ModuleIdentity): Result[ModuleBindings,Str] {
+pure binding_graph_module(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity
+): Result[ModuleBindings, Str] {
   mut found: Option[ModuleBindings] = None()
   mut count: Nat = 0
+
   for module in graph.modules {
-    if module.identity == identity { found = Some(module); count = count + 1 }
+    if module.identity == identity {
+      found = Some(module)
+      count = count + 1
+    }
   }
-  if count > 1 { Error("duplicate module identity " + identity.path) }
-  else { match found {
-    None() => Error("missing module " + identity.path),
-    Some(module) => Ok(module)
-  } }
+  if count > 1 {
+    Error("duplicate module identity " + identity.path)
+  } else {
+    match found {
+      None() => Error("missing module " + identity.path),
+      Some(module) => Ok(module)
+    }
+  }
 }
 
-pure binding_graph_target(graph: ModuleBindingGraph, identity: ModuleIdentity, index: Nat): Result[ModuleIdentity,Str] {
+pure binding_graph_target(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  index: Nat
+): Result[ModuleIdentity, Str] {
   mut found: Option[ModuleIdentity] = None()
   mut count: Nat = 0
+
   for edge in graph.edges {
-    if edge.owner == identity && edge.index == index { found = Some(edge.target); count = count + 1 }
+    if edge.owner == identity && edge.index == index {
+      found = Some(edge.target)
+      count = count + 1
+    }
   }
-  if count > 1 { Error("ambiguous import target in " + identity.path) }
-  else { match found {
-    None() => Error("missing import target in " + identity.path),
-    Some(target) => Ok(target)
-  } }
+  if count > 1 {
+    Error("ambiguous import target in " + identity.path)
+  } else {
+    match found {
+      None() => Error("missing import target in " + identity.path),
+      Some(target) => Ok(target)
+    }
+  }
 }
 
 pure module_identity_in(identities: [ModuleIdentity], identity: ModuleIdentity): Bool {
   mut found: Bool = false
-  for candidate in identities { found = found || candidate == identity }
+
+  for candidate in identities {
+    found = found || candidate == identity
+  }
+
   found
 }
 
 pure module_cycle_text(stack: [ModuleIdentity], identity: ModuleIdentity): Str {
   mut text: Str = ""
-  for item in stack { text = text + item.path + " -> " }
+
+  for item in stack {
+    text = text + item.path + " -> "
+  }
   "module import cycle: " + text + identity.path
 }
 
@@ -67,53 +98,77 @@ record ModuleGraphWalk {
   error: Option[Str]
 }
 
-pure binding_graph_visit(graph: ModuleBindingGraph, identity: ModuleIdentity, stack: [ModuleIdentity], state: ModuleGraphWalk): ModuleGraphWalk {
-  if module_identity_in(state.completed, identity) { state }
-  else { if module_identity_in(stack, identity) { ModuleGraphWalk(state.completed, Some(module_cycle_text(stack, identity))) }
-  else {
-    match binding_graph_module(graph, identity) {
-      Error(message) => ModuleGraphWalk(state.completed, Some(message)),
-      Ok(module) => {
-        mut current: ModuleGraphWalk = state
-        mut index: Nat = 0
-        for imported in module.imports {
-          match current.error {
-            Some(message) => {},
-            None() => match binding_graph_target(graph, identity, index) {
-              Error(message) => { current = ModuleGraphWalk(current.completed, Some(message)) },
-              Ok(target) => { current = binding_graph_visit(graph, target, append(stack, identity), current) }
+pure binding_graph_visit(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  stack: [ModuleIdentity],
+  state: ModuleGraphWalk
+): ModuleGraphWalk {
+  if module_identity_in(state.completed, identity) {
+    state
+  } else {
+    if module_identity_in(stack, identity) {
+      ModuleGraphWalk(state.completed, Some(module_cycle_text(stack, identity)))
+    } else {
+      match binding_graph_module(graph, identity) {
+        Error(message) => ModuleGraphWalk(state.completed, Some(message)),
+        Ok(module) => {
+          mut current: ModuleGraphWalk = state
+          mut index: Nat = 0
+          for imported in module.imports {
+            match current.error {
+              Some(message) => {},
+              None() => match binding_graph_target(graph, identity, index) {
+                Error(message) => {
+                  current = ModuleGraphWalk(current.completed, Some(message))
+                },
+                Ok(target) => {
+                  current = binding_graph_visit(graph, target, append(stack, identity), current)
+                }
+              }
             }
+            index = index + 1
           }
-          index = index + 1
-        }
-        match current.error {
-          Some(message) => current,
-          None() => ModuleGraphWalk(append(current.completed, identity), None())
+          match current.error {
+            Some(message) => current,
+            None() => ModuleGraphWalk(append(current.completed, identity), None())
+          }
         }
       }
     }
-  } }
+  }
 }
 
 pure walk_module_graph(graph: ModuleBindingGraph): ModuleGraphWalk {
   mut state: ModuleGraphWalk = ModuleGraphWalk([], None())
+
   for module in graph.modules {
     match state.error {
       Some(message) => {},
-      None() => { state = binding_graph_visit(graph, module.identity, [], state) }
+      None() => {
+        state = binding_graph_visit(graph, module.identity, [], state)
+      }
     }
   }
+
   state
 }
 
-pure resolve_enum_member(graph: ModuleBindingGraph, declaration: ModuleDeclarationBinding, member: Str): Result[ResolvedModuleTarget,Str] {
+pure resolve_enum_member(
+  graph: ModuleBindingGraph,
+  declaration: ModuleDeclarationBinding,
+  member: Str
+): Result[ResolvedModuleTarget, Str] {
   match declaration.kind {
     ModuleEnum() => match binding_graph_module(graph, declaration.identity.module) {
       Error(message) => Error(message),
       Ok(module) => {
         mut found: Option[ModuleDeclarationBinding] = None()
         for candidate in module.declarations {
-          if candidate.kind == ModuleVariant(declaration.identity.name) && candidate.identity.name == member { found = Some(candidate) }
+          if candidate.kind == ModuleVariant(declaration.identity.name) &&
+            candidate.identity.name == member {
+            found = Some(candidate)
+          }
         }
         match found {
           None() => Error("enum " + declaration.identity.name + " has no variant " + member),
@@ -128,75 +183,110 @@ pure resolve_enum_member(graph: ModuleBindingGraph, declaration: ModuleDeclarati
   }
 }
 
-pure resolve_target_member(graph: ModuleBindingGraph, target: ResolvedModuleTarget, tail: Str, stack: [ModuleIdentity]): Result[ResolvedModuleTarget,Str] {
-  if tail == "" { Ok(target) }
-  else { match target {
-    NamespaceTarget(identity) => resolve_module_path_inner(graph, identity, tail, true, stack),
-    DeclarationTarget(declaration) => resolve_enum_member(graph, declaration, tail)
-  } }
+pure resolve_target_member(
+  graph: ModuleBindingGraph,
+  target: ResolvedModuleTarget,
+  tail: Str,
+  stack: [ModuleIdentity]
+): Result[ResolvedModuleTarget, Str] {
+  if tail == "" {
+    Ok(target)
+  } else {
+    match target {
+      NamespaceTarget(identity) => resolve_module_path_inner(graph, identity, tail, true, stack),
+      DeclarationTarget(declaration) => resolve_enum_member(graph, declaration, tail)
+    }
+  }
 }
 
-pure resolve_module_path_inner(graph: ModuleBindingGraph, identity: ModuleIdentity, spelling: Str, exported: Bool, stack: [ModuleIdentity]): Result[ResolvedModuleTarget,Str] {
-  if module_identity_in(stack, identity) { Error(module_cycle_text(stack, identity)) }
-  else { match binding_graph_module(graph, identity) {
-    Error(message) => Error(message),
-    Ok(module) => {
-      conflicts: [Diagnostic] = module_binding_diagnostics(module)
-      if len(conflicts) > 0 { Error(conflicts[0].message) }
-      else {
-        head: Str = reference_head(spelling)
-        tail: Str = reference_tail(spelling)
-        next_stack: [ModuleIdentity] = append(stack, identity)
-        mut found: Bool = false
-        mut result: Result[ResolvedModuleTarget,Str] = Error("module " + identity.path + " has no binding " + spelling)
-        for declaration in module.declarations {
-          if declaration.identity.name == head {
-            // A variant has a bare name only inside its declaring module.
-            selectable: Bool = match declaration.kind {
-              ModuleVariant(parent) => !exported,
-              ModuleFunction() => true, ModuleGuardedType() => true,
-              ModuleRecord() => true, ModuleEnum() => true
-            }
-            if selectable {
-              found = true
-              if exported && !declaration.is_public {
-                result = Error("module declaration " + head + " is private in " + identity.path)
-              } else { result = resolve_target_member(graph, DeclarationTarget(declaration), tail, next_stack) }
+pure resolve_module_path_inner(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  spelling: Str,
+  exported: Bool,
+  stack: [ModuleIdentity]
+): Result[ResolvedModuleTarget, Str] {
+  if module_identity_in(stack, identity) {
+    Error(module_cycle_text(stack, identity))
+  } else {
+    match binding_graph_module(graph, identity) {
+      Error(message) => Error(message),
+      Ok(module) => {
+        conflicts: [Diagnostic] = module_binding_diagnostics(module)
+        if len(conflicts) > 0 {
+          Error(conflicts[0].message)
+        } else {
+          head: Str = reference_head(spelling)
+          tail: Str = reference_tail(spelling)
+          next_stack: [ModuleIdentity] = append(stack, identity)
+          mut found: Bool = false
+          mut result: Result[ResolvedModuleTarget, Str] = Error("module " + identity.path + " has no binding " + spelling)
+          for declaration in module.declarations {
+            if declaration.identity.name == head {
+              // A variant has a bare name only inside its declaring module.
+              selectable: Bool = match declaration.kind {
+                ModuleVariant(parent) => !exported,
+                ModuleFunction() => true,
+                ModuleGuardedType() => true,
+                ModuleRecord() => true,
+                ModuleEnum() => true
+              }
+              if selectable {
+                found = true
+                if exported && !declaration.is_public {
+                  result = Error("module declaration " + head + " is private in " + identity.path)
+                } else {
+                  result = resolve_target_member(
+                    graph,
+                    DeclarationTarget(declaration),
+                    tail,
+                    next_stack
+                  )
+                }
+              }
             }
           }
-        }
-        mut index: Nat = 0
-        for imported in module.imports {
-          for selector in module_import_names(imported) {
-            if !found && selector.alias == head {
-              found = true
-              if exported && !imported.is_public {
-                result = Error("import binding " + head + " is private in " + identity.path)
-              } else {
-                match binding_graph_target(graph, identity, index) {
-                  Error(message) => { result = Error(message) },
-                  Ok(target) => {
-                    selected: Result[ResolvedModuleTarget,Str] = if selector.name == "" {
-                      Ok(NamespaceTarget(target))
-                    } else { resolve_module_path_inner(graph, target, selector.name, true, next_stack) }
-                    result = match selected {
-                      Error(message) => Error(message),
-                      Ok(binding) => resolve_target_member(graph, binding, tail, next_stack)
+          mut index: Nat = 0
+          for imported in module.imports {
+            for selector in module_import_names(imported) {
+              if !found && selector.alias == head {
+                found = true
+                if exported && !imported.is_public {
+                  result = Error("import binding " + head + " is private in " + identity.path)
+                } else {
+                  match binding_graph_target(graph, identity, index) {
+                    Error(message) => {
+                      result = Error(message)
+                    },
+                    Ok(target) => {
+                      selected: Result[ResolvedModuleTarget, Str] = if selector.name == "" {
+                        Ok(NamespaceTarget(target))
+                      } else {
+                        resolve_module_path_inner(graph, target, selector.name, true, next_stack)
+                      }
+                      result = match selected {
+                        Error(message) => Error(message),
+                        Ok(binding) => resolve_target_member(graph, binding, tail, next_stack)
+                      }
                     }
                   }
                 }
               }
             }
+            index = index + 1
           }
-          index = index + 1
+          result
         }
-        result
       }
     }
-  } }
+  }
 }
 
-pure resolve_module_path(graph: ModuleBindingGraph, identity: ModuleIdentity, spelling: Str): Result[ResolvedModuleTarget,Str] {
+pure resolve_module_path(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  spelling: Str
+): Result[ResolvedModuleTarget, Str] {
   resolve_module_path_inner(graph, identity, spelling, false, [])
 }
 
@@ -205,24 +295,33 @@ pure resolve_module_path(graph: ModuleBindingGraph, identity: ModuleIdentity, sp
 pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
   walked: ModuleGraphWalk = walk_module_graph(graph)
+
   match walked.error {
     None() => {},
-    Some(message) => { diagnostics = append(diagnostics, Diagnostic(message, SourcePos("", 0, 1, 1))) }
+    Some(message) => {
+      diagnostics = append(diagnostics, Diagnostic(message, SourcePos("", 0, 1, 1)))
+    }
   }
   for module in graph.modules {
     diagnostics = concat(diagnostics, module_binding_diagnostics(module))
     mut index: Nat = 0
     for imported in module.imports {
       match binding_graph_target(graph, module.identity, index) {
-        Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, imported.span.start)) },
+        Error(message) => {
+          diagnostics = append(diagnostics, Diagnostic(message, imported.span.start))
+        },
         Ok(target) => {
           match binding_graph_module(graph, target) {
-            Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, imported.span.start)) },
+            Error(message) => {
+              diagnostics = append(diagnostics, Diagnostic(message, imported.span.start))
+            },
             Ok(target_module) => {
               for selector in module_import_names(imported) {
                 if selector.name != "" {
                   match resolve_module_path_inner(graph, target, selector.name, true, []) {
-                    Error(message) => { diagnostics = append(diagnostics, Diagnostic(message, selector.span.start)) },
+                    Error(message) => {
+                      diagnostics = append(diagnostics, Diagnostic(message, selector.span.start))
+                    },
                     Ok(binding) => {}
                   }
                 }
@@ -234,6 +333,7 @@ pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
       index = index + 1
     }
   }
+
   diagnostics
 }
 
@@ -244,10 +344,20 @@ enum ResolvedDotCall {
   ValueMethodCall(Expr, Str, [Expr], [Str])
 }
 
-pure resolve_module_dot_call_scoped(graph: ModuleBindingGraph, identity: ModuleIdentity, target: Expr, name: Str, arguments: [Expr], types: [Str], locals: Set[Str]): Result[ResolvedDotCall,Str] {
+pure resolve_module_dot_call_scoped(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  target: Expr,
+  name: Str,
+  arguments: [Expr],
+  types: [Str],
+  locals: Set[Str]
+): Result[ResolvedDotCall, Str] {
   path: Str = expression_reference_path(target)
-  if path == "" || locals.has(reference_head(path)) { Ok(ValueMethodCall(target, name, arguments, types)) }
-  else {
+
+  if path == "" || locals.has(reference_head(path)) {
+    Ok(ValueMethodCall(target, name, arguments, types))
+  } else {
     match resolve_module_path(graph, identity, reference_head(path)) {
       Error(message) => Ok(ValueMethodCall(target, name, arguments, types)),
       Ok(binding) => {
@@ -255,8 +365,9 @@ pure resolve_module_dot_call_scoped(graph: ModuleBindingGraph, identity: ModuleI
           NamespaceTarget(owner) => true,
           DeclarationTarget(declaration) => declaration.kind == ModuleEnum()
         }
-        if !namespace_receiver { Ok(ValueMethodCall(target, name, arguments, types)) }
-        else {
+        if !namespace_receiver {
+          Ok(ValueMethodCall(target, name, arguments, types))
+        } else {
           match resolve_module_path(graph, identity, path + "." + name) {
             Error(message) => Error(message),
             Ok(resolved) => match resolved {
@@ -276,13 +387,19 @@ pure resolve_module_dot_call_scoped(graph: ModuleBindingGraph, identity: ModuleI
   }
 }
 
-pure resolve_module_type(graph: ModuleBindingGraph, identity: ModuleIdentity, name: Str): Result[ModuleDeclarationBinding,Str] {
+pure resolve_module_type(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  name: Str
+): Result[ModuleDeclarationBinding, Str] {
   match resolve_module_path(graph, identity, name) {
     Error(message) => Error(message),
     Ok(target) => match target {
       NamespaceTarget(owner) => Error("namespace is not a type: " + name),
       DeclarationTarget(declaration) => match declaration.kind {
-        ModuleRecord() => Ok(declaration), ModuleEnum() => Ok(declaration), ModuleGuardedType() => Ok(declaration),
+        ModuleRecord() => Ok(declaration),
+        ModuleEnum() => Ok(declaration),
+        ModuleGuardedType() => Ok(declaration),
         ModuleFunction() => Error("function is not a type: " + name),
         ModuleVariant(parent) => Error("variant is not a type: " + name)
       }
@@ -290,14 +407,21 @@ pure resolve_module_type(graph: ModuleBindingGraph, identity: ModuleIdentity, na
   }
 }
 
-pure resolve_module_function(graph: ModuleBindingGraph, identity: ModuleIdentity, name: Str): Result[ModuleDeclarationBinding,Str] {
+pure resolve_module_function(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  name: Str
+): Result[ModuleDeclarationBinding, Str] {
   match resolve_module_path(graph, identity, name) {
     Error(message) => Error(message),
     Ok(target) => match target {
       NamespaceTarget(owner) => Error("namespace is not a function: " + name),
       DeclarationTarget(declaration) => {
-        if declaration.kind == ModuleFunction() { Ok(declaration) }
-        else { Error("declaration is not a function: " + name) }
+        if declaration.kind == ModuleFunction() {
+          Ok(declaration)
+        } else {
+          Error("declaration is not a function: " + name)
+        }
       }
     }
   }
@@ -309,10 +433,17 @@ record ResolvedModuleUses {
 }
 
 pure combine_module_uses(left: ResolvedModuleUses, right: ResolvedModuleUses): ResolvedModuleUses {
-  ResolvedModuleUses(concat(left.references, right.references), concat(left.diagnostics, right.diagnostics))
+  ResolvedModuleUses(
+    concat(left.references, right.references),
+    concat(left.diagnostics, right.diagnostics)
+  )
 }
 
-pure module_use_result(spelling: Str, span: SourceSpan, resolved: Result[ResolvedModuleTarget,Str]): ResolvedModuleUses {
+pure module_use_result(
+  spelling: Str,
+  span: SourceSpan,
+  resolved: Result[ResolvedModuleTarget, Str]
+): ResolvedModuleUses {
   match resolved {
     Error(message) => ResolvedModuleUses([], [Diagnostic(message, span.start)]),
     Ok(target) => ResolvedModuleUses([ResolvedModuleReference(spelling, target, span)], [])
@@ -321,34 +452,57 @@ pure module_use_result(spelling: Str, span: SourceSpan, resolved: Result[Resolve
 
 // Retain each qualified nominal leaf, including nested arrays/generic arguments.
 // Arity, core/type-parameter validation and substitutions belong to the checker.
-pure resolve_qualified_type_uses(graph: ModuleBindingGraph, identity: ModuleIdentity, type_name: Str, span: SourceSpan): ResolvedModuleUses {
+pure resolve_qualified_type_uses(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  type_name: Str,
+  span: SourceSpan
+): ResolvedModuleUses {
   mut result: ResolvedModuleUses = ResolvedModuleUses([], [])
+
   match lex(type_name) {
-    Error(errors) => { result = ResolvedModuleUses([], errors) },
+    Error(errors) => {
+      result = ResolvedModuleUses([], errors)
+    },
     Ok(tokens) => {
       mut index: Nat = 0
       while index < len(tokens) {
         if tokens[index].kind == Identifier() {
           match parse_reference_path(tokens, index) {
-            Error(error) => { index = len(tokens); result = combine_module_uses(result, ResolvedModuleUses([], [error])) },
+            Error(error) => {
+              index = len(tokens)
+              result = combine_module_uses(result, ResolvedModuleUses([], [error]))
+            },
             Ok(path) => {
               if type_has_qualification(path.text) {
-                resolved: Result[ResolvedModuleTarget,Str] = match resolve_module_type(graph, identity, path.text) {
-                  Error(message) => Error(message), Ok(binding) => Ok(DeclarationTarget(binding))
+                resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_type(
+                  graph,
+                  identity,
+                  path.text
+                ) {
+                  Error(message) => Error(message),
+                  Ok(binding) => Ok(DeclarationTarget(binding))
                 }
                 result = combine_module_uses(result, module_use_result(path.text, span, resolved))
               }
               index = path.next
             }
           }
-        } else { index = index + 1 }
+        } else {
+          index = index + 1
+        }
       }
     }
   }
+
   result
 }
 
-pure module_head_is_namespace(graph: ModuleBindingGraph, identity: ModuleIdentity, path: Str): Bool {
+pure module_head_is_namespace(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  path: Str
+): Bool {
   match resolve_module_path(graph, identity, reference_head(path)) {
     Error(message) => false,
     Ok(target) => match target {
@@ -358,85 +512,189 @@ pure module_head_is_namespace(graph: ModuleBindingGraph, identity: ModuleIdentit
   }
 }
 
-pure resolve_module_expression_uses(graph: ModuleBindingGraph, identity: ModuleIdentity, expression: Expr, origin: SourceSpan, locals: Set[Str]): ResolvedModuleUses {
+pure resolve_module_expression_uses(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  expression: Expr,
+  origin: SourceSpan,
+  locals: Set[Str]
+): ResolvedModuleUses {
   mut result: ResolvedModuleUses = ResolvedModuleUses([], [])
+
   match expression {
-    LocatedExpr(span, value) => { result = resolve_module_expression_uses(graph, identity, value, span, locals) },
+    LocatedExpr(span, value) => {
+      result = resolve_module_expression_uses(graph, identity, value, span, locals)
+    },
     DotCallExpr(target, name, arguments, types) => {
-      match resolve_module_dot_call_scoped(graph, identity, target, name, arguments, types, locals) {
-        Error(message) => { result = ResolvedModuleUses([], [Diagnostic(message, origin.start)]) },
+      match resolve_module_dot_call_scoped(
+        graph,
+        identity,
+        target,
+        name,
+        arguments,
+        types,
+        locals
+      ) {
+        Error(message) => {
+          result = ResolvedModuleUses([], [Diagnostic(message, origin.start)])
+        },
         Ok(call) => match call {
           NamespaceCall(declaration, values, type_arguments) => {
-            result = module_use_result(expression_reference_path(target) + "." + name, origin, Ok(DeclarationTarget(declaration)))
+            result = module_use_result(
+              expression_reference_path(target) + "." + name,
+              origin,
+              Ok(DeclarationTarget(declaration))
+            )
           },
           ValueMethodCall(receiver, method, values, type_arguments) => {
             result = resolve_module_expression_uses(graph, identity, receiver, origin, locals)
             if !module_reserved_binding(method) && lowered_method_name(method) == method {
-              method_target: Result[ResolvedModuleTarget,Str] = match resolve_module_function(graph, identity, method) {
-                Error(message) => Error(message), Ok(binding) => Ok(DeclarationTarget(binding))
+              method_target: Result[ResolvedModuleTarget, Str] = match resolve_module_function(
+                graph,
+                identity,
+                method
+              ) {
+                Error(message) => Error(message),
+                Ok(binding) => Ok(DeclarationTarget(binding))
               }
               result = combine_module_uses(result, module_use_result(method, origin, method_target))
             }
           }
         }
       }
-      for argument in arguments { result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, argument, origin, locals)) }
-      for type_name in types { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, type_name, origin)) }
+      for argument in arguments {
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, argument, origin, locals)
+        )
+      }
+      for type_name in types {
+        result = combine_module_uses(
+          result,
+          resolve_qualified_type_uses(graph, identity, type_name, origin)
+        )
+      }
     },
     FunctionExpr(name) => {
-      resolved: Result[ResolvedModuleTarget,Str] = match resolve_module_function(graph, identity, name) {
-        Error(message) => Error(message), Ok(binding) => Ok(DeclarationTarget(binding))
+      resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_function(
+        graph,
+        identity,
+        name
+      ) {
+        Error(message) => Error(message),
+        Ok(binding) => Ok(DeclarationTarget(binding))
       }
       result = module_use_result(name, origin, resolved)
     },
     FieldExpr(target, field) => {
       path: Str = expression_reference_path(expression)
-      if path != "" && !locals.has(reference_head(path)) && module_head_is_namespace(graph, identity, path) {
-        resolved: Result[ResolvedModuleTarget,Str] = match resolve_module_path(graph, identity, path) {
+      if path != "" && !locals.has(reference_head(path)) && module_head_is_namespace(
+        graph,
+        identity,
+        path
+      ) {
+        resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_path(
+          graph,
+          identity,
+          path
+        ) {
           Error(message) => Error(message),
           Ok(binding) => Error("qualified binding is not a value: " + path)
         }
         result = module_use_result(path, origin, resolved)
-      } else { result = resolve_module_expression_uses(graph, identity, target, origin, locals) }
+      } else {
+        result = resolve_module_expression_uses(graph, identity, target, origin, locals)
+      }
     },
     NameExpr(name) => {
       if !locals.has(name) && module_head_is_namespace(graph, identity, name) {
-        result = ResolvedModuleUses([], [Diagnostic("namespace or enum type is not a value: " + name, origin.start)])
+        result = ResolvedModuleUses(
+          [],
+          [Diagnostic("namespace or enum type is not a value: " + name, origin.start)]
+        )
       }
     },
     CallExpr(name, arguments, types) => {
       if !module_reserved_binding(name) {
-        resolved: Result[ResolvedModuleTarget,Str] = match resolve_module_path(graph, identity, name) {
+        resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_path(
+          graph,
+          identity,
+          name
+        ) {
           Error(message) => Error(message),
           Ok(binding) => match binding {
             NamespaceTarget(owner) => Error("namespace cannot be called: " + name),
             DeclarationTarget(declaration) => {
-              if declaration.kind == ModuleEnum() { Error("enum type cannot be called: " + name) }
-              else { Ok(binding) }
+              if declaration.kind == ModuleEnum() {
+                Error("enum type cannot be called: " + name)
+              } else {
+                Ok(binding)
+              }
             }
           }
         }
         result = module_use_result(name, origin, resolved)
       }
-      for argument in arguments { result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, argument, origin, locals)) }
-      for type_name in types { result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, type_name, origin)) }
+      for argument in arguments {
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, argument, origin, locals)
+        )
+      }
+      for type_name in types {
+        result = combine_module_uses(
+          result,
+          resolve_qualified_type_uses(graph, identity, type_name, origin)
+        )
+      }
     },
-    ArrayExpr(items) => { for item in items { result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, item, origin, locals)) } },
-    UnaryExpr(operator, operand) => { result = resolve_module_expression_uses(graph, identity, operand, origin, locals) },
-    BinaryExpr(operator, left, right) => { result = combine_module_uses(resolve_module_expression_uses(graph, identity, left, origin, locals), resolve_module_expression_uses(graph, identity, right, origin, locals)) },
-    IndexExpr(target, index) => { result = combine_module_uses(resolve_module_expression_uses(graph, identity, target, origin, locals), resolve_module_expression_uses(graph, identity, index, origin, locals)) },
+    ArrayExpr(items) => {
+      for item in items {
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, item, origin, locals)
+        )
+      }
+    },
+    UnaryExpr(operator, operand) => {
+      result = resolve_module_expression_uses(graph, identity, operand, origin, locals)
+    },
+    BinaryExpr(operator, left, right) => {
+      result = combine_module_uses(
+        resolve_module_expression_uses(graph, identity, left, origin, locals),
+        resolve_module_expression_uses(graph, identity, right, origin, locals)
+      )
+    },
+    IndexExpr(target, index) => {
+      result = combine_module_uses(
+        resolve_module_expression_uses(graph, identity, target, origin, locals),
+        resolve_module_expression_uses(graph, identity, index, origin, locals)
+      )
+    },
     IfExpr(condition, yes, no, has_else) => {
       result = resolve_module_expression_uses(graph, identity, condition, origin, locals)
-      result = combine_module_uses(result, resolve_module_block_uses(graph, identity, yes, origin, locals))
-      result = combine_module_uses(result, resolve_module_block_uses(graph, identity, no, origin, locals))
+      result = combine_module_uses(
+        result,
+        resolve_module_block_uses(graph, identity, yes, origin, locals)
+      )
+      result = combine_module_uses(
+        result,
+        resolve_module_block_uses(graph, identity, no, origin, locals)
+      )
     },
-    BlockExpr(block) => { result = resolve_module_block_uses(graph, identity, block, origin, locals) },
+    BlockExpr(block) => {
+      result = resolve_module_block_uses(graph, identity, block, origin, locals)
+    },
     MatchExpr(subject, arms) => {
       result = resolve_module_expression_uses(graph, identity, subject, origin, locals)
       for arm in arms {
         name: Str = arm.pattern.variant
         if type_has_qualification(name) {
-          resolved: Result[ResolvedModuleTarget,Str] = match resolve_module_path(graph, identity, name) {
+          resolved: Result[ResolvedModuleTarget, Str] = match resolve_module_path(
+            graph,
+            identity,
+            name
+          ) {
             Error(message) => Error(message),
             Ok(binding) => match binding {
               NamespaceTarget(owner) => Error("namespace is not a variant: " + name),
@@ -452,92 +710,190 @@ pure resolve_module_expression_uses(graph: ModuleBindingGraph, identity: ModuleI
           result = combine_module_uses(result, module_use_result(name, origin, resolved))
         }
         mut arm_locals: Set[Str] = locals
-        for binding in arm.pattern.bindings { arm_locals = arm_locals.add(binding) }
-        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, arm.body, origin, arm_locals))
+        for binding in arm.pattern.bindings {
+          arm_locals = arm_locals.add(binding)
+        }
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, arm.body, origin, arm_locals)
+        )
       }
     },
-    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}
+    NatExpr(value) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(value) => {}
   }
+
   result
 }
 
-pure resolve_module_block_uses(graph: ModuleBindingGraph, identity: ModuleIdentity, block: Block, origin: SourceSpan, locals: Set[Str]): ResolvedModuleUses {
+pure resolve_module_block_uses(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  block: Block,
+  origin: SourceSpan,
+  locals: Set[Str]
+): ResolvedModuleUses {
   mut result: ResolvedModuleUses = ResolvedModuleUses([], [])
   mut visible: Set[Str] = locals
+
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
-        result = combine_module_uses(result, resolve_qualified_type_uses(graph, identity, type_name, origin))
-        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, value, origin, visible))
+        result = combine_module_uses(
+          result,
+          resolve_qualified_type_uses(graph, identity, type_name, origin)
+        )
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, value, origin, visible)
+        )
         visible = visible.add(name)
       },
-      AssignmentStatement(name, value) => { result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, value, origin, visible)); visible = visible.add(name) },
-      ExpressionStatement(value) => { result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, value, origin, visible)) },
+      AssignmentStatement(name, value) => {
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, value, origin, visible)
+        )
+        visible = visible.add(name)
+      },
+      ExpressionStatement(value) => {
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, value, origin, visible)
+        )
+      },
       WhileStatement(condition, body) => {
-        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, condition, origin, visible))
-        result = combine_module_uses(result, resolve_module_block_uses(graph, identity, body, origin, visible))
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, condition, origin, visible)
+        )
+        result = combine_module_uses(
+          result,
+          resolve_module_block_uses(graph, identity, body, origin, visible)
+        )
       },
       ForStatement(name, values, body) => {
-        result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, values, origin, visible))
-        result = combine_module_uses(result, resolve_module_block_uses(graph, identity, body, origin, visible.add(name)))
+        result = combine_module_uses(
+          result,
+          resolve_module_expression_uses(graph, identity, values, origin, visible)
+        )
+        result = combine_module_uses(
+          result,
+          resolve_module_block_uses(graph, identity, body, origin, visible.add(name))
+        )
       }
     }
   }
   match block.value {
     NoBlockValue() => {},
-    TailBlockValue(value) => { result = combine_module_uses(result, resolve_module_expression_uses(graph, identity, value, origin, visible)) }
+    TailBlockValue(value) => {
+      result = combine_module_uses(
+        result,
+        resolve_module_expression_uses(graph, identity, value, origin, visible)
+      )
+    }
   }
+
   result
 }
 
 pure imported_binding_names(module: ModuleBindings): Set[Str] {
   mut names: Set[Str] = set()
+
   for imported in module.imports {
-    for selector in module_import_names(imported) { names = names.add(selector.alias) }
+    for selector in module_import_names(imported) {
+      names = names.add(selector.alias)
+    }
   }
   names
 }
 
 pure import_shadow_diagnostic(names: Set[Str], name: Str, origin: SourceSpan): [Diagnostic] {
-  if names.has(name) { [Diagnostic("local binding " + name + " conflicts with an import binding", origin.start)] }
-  else { [] }
+  if names.has(name) {
+    [Diagnostic("local binding " + name + " conflicts with an import binding", origin.start)]
+  } else {
+    []
+  }
 }
 
-pure expression_import_shadows(expression: Expr, names: Set[Str], origin: SourceSpan): [Diagnostic] {
+pure expression_import_shadows(
+  expression: Expr,
+  names: Set[Str],
+  origin: SourceSpan
+): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
+
   match expression {
-    LocatedExpr(span, value) => { diagnostics = expression_import_shadows(value, names, span) },
+    LocatedExpr(span, value) => {
+      diagnostics = expression_import_shadows(value, names, span)
+    },
     DotCallExpr(target, name, arguments, types) => {
       diagnostics = expression_import_shadows(target, names, origin)
-      for argument in arguments { diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin)) }
+      for argument in arguments {
+        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+      }
     },
-    CallExpr(name, arguments, types) => { for argument in arguments { diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin)) } },
-    ArrayExpr(items) => { for item in items { diagnostics = concat(diagnostics, expression_import_shadows(item, names, origin)) } },
-    UnaryExpr(operator, operand) => { diagnostics = expression_import_shadows(operand, names, origin) },
-    BinaryExpr(operator, left, right) => { diagnostics = concat(expression_import_shadows(left, names, origin), expression_import_shadows(right, names, origin)) },
-    FieldExpr(target, field) => { diagnostics = expression_import_shadows(target, names, origin) },
-    IndexExpr(target, index) => { diagnostics = concat(expression_import_shadows(target, names, origin), expression_import_shadows(index, names, origin)) },
+    CallExpr(name, arguments, types) => {
+      for argument in arguments {
+        diagnostics = concat(diagnostics, expression_import_shadows(argument, names, origin))
+      }
+    },
+    ArrayExpr(items) => {
+      for item in items {
+        diagnostics = concat(diagnostics, expression_import_shadows(item, names, origin))
+      }
+    },
+    UnaryExpr(operator, operand) => {
+      diagnostics = expression_import_shadows(operand, names, origin)
+    },
+    BinaryExpr(operator, left, right) => {
+      diagnostics = concat(
+        expression_import_shadows(left, names, origin),
+        expression_import_shadows(right, names, origin)
+      )
+    },
+    FieldExpr(target, field) => {
+      diagnostics = expression_import_shadows(target, names, origin)
+    },
+    IndexExpr(target, index) => {
+      diagnostics = concat(
+        expression_import_shadows(target, names, origin),
+        expression_import_shadows(index, names, origin)
+      )
+    },
     IfExpr(condition, yes, no, has_else) => {
       diagnostics = expression_import_shadows(condition, names, origin)
       diagnostics = concat(diagnostics, block_import_shadows(yes, names, origin))
       diagnostics = concat(diagnostics, block_import_shadows(no, names, origin))
     },
-    BlockExpr(block) => { diagnostics = block_import_shadows(block, names, origin) },
+    BlockExpr(block) => {
+      diagnostics = block_import_shadows(block, names, origin)
+    },
     MatchExpr(subject, arms) => {
       diagnostics = expression_import_shadows(subject, names, origin)
       for arm in arms {
-        for name in arm.pattern.bindings { diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin)) }
+        for name in arm.pattern.bindings {
+          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
+        }
         diagnostics = concat(diagnostics, expression_import_shadows(arm.body, names, origin))
       }
     },
-    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {},
-    BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(name) => {}
+    NatExpr(value) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(name) => {}
   }
+
   diagnostics
 }
 
 pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
+
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
@@ -548,7 +904,9 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
         diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
         diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
       },
-      ExpressionStatement(value) => { diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin)) },
+      ExpressionStatement(value) => {
+        diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+      },
       WhileStatement(condition, body) => {
         diagnostics = concat(diagnostics, expression_import_shadows(condition, names, origin))
         diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
@@ -562,8 +920,11 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
   }
   match block.value {
     NoBlockValue() => {},
-    TailBlockValue(value) => { diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin)) }
+    TailBlockValue(value) => {
+      diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
+    }
   }
+
   diagnostics
 }
 
@@ -571,6 +932,7 @@ pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModu
   names: Set[Str] = imported_binding_names(module)
   mut diagnostics: [Diagnostic] = []
   mut index: Nat = 0
+
   for declaration in parsed.program.declarations {
     origin: SourceSpan = parsed.syntax[index].span
     match declaration {
@@ -580,22 +942,38 @@ pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModu
         diagnostics = concat(diagnostics, expression_import_shadows(guard, names, origin))
       },
       RecordDeclaration(name, parameters, fields) => {
-        for parameter in parameters { diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin)) }
+        for parameter in parameters {
+          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+        }
       },
       EnumDeclaration(name, parameters, variants) => {
-        for parameter in parameters { diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin)) }
+        for parameter in parameters {
+          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+        }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        for parameter in parameters { diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter.name, origin)) }
-        for parameter in type_parameters { diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin)) }
+        for parameter in parameters {
+          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter.name, origin))
+        }
+        for parameter in type_parameters {
+          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, parameter, origin))
+        }
         diagnostics = concat(diagnostics, block_import_shadows(body, names, origin))
       }
     }
     index = index + 1
   }
+
   diagnostics
 }
 
-pure resolve_module_dot_call(graph: ModuleBindingGraph, identity: ModuleIdentity, target: Expr, name: Str, arguments: [Expr], types: [Str]): Result[ResolvedDotCall,Str] {
+pure resolve_module_dot_call(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity,
+  target: Expr,
+  name: Str,
+  arguments: [Expr],
+  types: [Str]
+): Result[ResolvedDotCall, Str] {
   resolve_module_dot_call_scoped(graph, identity, target, name, arguments, types, set())
 }

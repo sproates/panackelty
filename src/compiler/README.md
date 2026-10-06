@@ -2,6 +2,9 @@
 
 This directory contains the compiler being implemented in Panackelty:
 
+The [Readable Panackelty compiler batch](../../docs/READABLE_COMPILER.md) records
+the source-wide readability pass, behavioural protection and measurement limits.
+
 - `types.panack` defines file-aware source positions and half-open expression spans, tokens, diagnostics, and
   their public `file:line:column: message` header rendering.
 - `diagnostics.panack` adds numbered source excerpts and aligned carets from
@@ -187,7 +190,7 @@ services with identical signatures and effects. These calls lower through the
 existing named-call ABI; their record and enum definitions live in the stdlib.
 
 The remaining direct compiler contracts now run in
-`tests/runner/compiler_contracts_unit.panack` (201 assertions) and
+`tests/runner/compiler_contracts_unit.panack` (239 assertions) and
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,

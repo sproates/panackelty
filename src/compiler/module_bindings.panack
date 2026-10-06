@@ -1,5 +1,8 @@
 import "resolver.panack"
 
+// Collect declaration and import identities without lowering them to global names.
+// Source spelling, visibility and semantic identity remain separate.
+
 // Tags keep semantic identities separate from source spelling and inference
 // placeholders. P3 will add manifest package identities to this sum type.
 enum ModulePackageIdentity {
@@ -52,7 +55,12 @@ record LoadedModule {
   bindings: ModuleBindings
 }
 
-pure module_declaration_binding(identity: ModuleIdentity, name: Str, kind: ModuleDeclarationKind, syntax: DeclarationSyntax): ModuleDeclarationBinding {
+pure module_declaration_binding(
+  identity: ModuleIdentity,
+  name: Str,
+  kind: ModuleDeclarationKind,
+  syntax: DeclarationSyntax
+): ModuleDeclarationBinding {
   ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span)
 }
 
@@ -60,20 +68,45 @@ pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): Mo
   mut declarations: [ModuleDeclarationBinding] = []
   mut imports: [ModuleImportBinding] = []
   mut index: Nat = 0
+
   for declaration in parsed.program.declarations {
     syntax: DeclarationSyntax = parsed.syntax[index]
     match declaration {
-      ImportDeclaration(path) => { imports = append(imports, ModuleImportBinding(path, syntax.binding, syntax.is_public, syntax.span)) },
-      TypeDeclaration(name, base, guard) => { declarations = append(declarations, module_declaration_binding(identity, name, ModuleGuardedType(), syntax)) },
-      RecordDeclaration(name, parameters, fields) => { declarations = append(declarations, module_declaration_binding(identity, name, ModuleRecord(), syntax)) },
+      ImportDeclaration(path) => {
+        imports = append(
+          imports,
+          ModuleImportBinding(path, syntax.binding, syntax.is_public, syntax.span)
+        )
+      },
+      TypeDeclaration(name, base, guard) => {
+        declarations = append(
+          declarations,
+          module_declaration_binding(identity, name, ModuleGuardedType(), syntax)
+        )
+      },
+      RecordDeclaration(name, parameters, fields) => {
+        declarations = append(
+          declarations,
+          module_declaration_binding(identity, name, ModuleRecord(), syntax)
+        )
+      },
       EnumDeclaration(name, parameters, variants) => {
-        declarations = append(declarations, module_declaration_binding(identity, name, ModuleEnum(), syntax))
+        declarations = append(
+          declarations,
+          module_declaration_binding(identity, name, ModuleEnum(), syntax)
+        )
         for variant in variants {
-          declarations = append(declarations, module_declaration_binding(identity, variant.name, ModuleVariant(name), syntax))
+          declarations = append(
+            declarations,
+            module_declaration_binding(identity, variant.name, ModuleVariant(name), syntax)
+          )
         }
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
-        declarations = append(declarations, module_declaration_binding(identity, name, ModuleFunction(), syntax))
+        declarations = append(
+          declarations,
+          module_declaration_binding(identity, name, ModuleFunction(), syntax)
+        )
       }
     }
     index = index + 1
@@ -83,11 +116,16 @@ pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): Mo
 
 pure module_reserved_binding(name: Str): Bool {
   is_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
-  name == "Rat" || name == "Array" || name == "Bool" || name == "Str" || name == "Bytes" || name == "Unit" ||
-  name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
-  name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
-  name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
-  name == "None" || name == "Some" || name == "Ok" || name == "Error"
+    name == "Rat" ||
+    name == "Array" ||
+    name == "Bool" ||
+    name == "Str" ||
+    name == "Bytes" ||
+    name == "Unit" ||
+    name == "Void" || name == "Path" || name == "Duration" || name == "Instant" ||
+    name == "Option" || name == "Result" || name == "Map" || name == "Set" ||
+    name == "PureFn" || name == "Fn" || name == "AsyncFn" ||
+    name == "None" || name == "Some" || name == "Ok" || name == "Error"
 }
 
 pure module_import_names(imported: ModuleImportBinding): [ImportSelector] {
@@ -101,10 +139,14 @@ pure module_import_names(imported: ModuleImportBinding): [ImportSelector] {
 pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
   mut names: Set[Str] = set()
   mut diagnostics: [Diagnostic] = []
+
   for declaration in bindings.declarations {
     name: Str = declaration.identity.name
     if names.has(name) {
-      diagnostics = append(diagnostics, Diagnostic("module declaration ${name} is already bound", declaration.span.start))
+      diagnostics = append(
+        diagnostics,
+        Diagnostic("module declaration ${name} is already bound", declaration.span.start)
+      )
     } else {}
     names = names.add(name)
   }
@@ -112,23 +154,34 @@ pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
     for selector in module_import_names(imported) {
       name: Str = selector.alias
       if names.has(name) {
-        diagnostics = append(diagnostics, Diagnostic("import binding ${name} conflicts with an existing module binding", selector.span.start))
+        diagnostics = append(
+          diagnostics,
+          Diagnostic(
+          "import binding ${name} conflicts with an existing module binding",
+          selector.span.start
+        )
+        )
       } else {
         if module_reserved_binding(name) {
-          diagnostics = append(diagnostics, Diagnostic("import binding ${name} conflicts with a built-in", selector.span.start))
+          diagnostics = append(
+            diagnostics,
+            Diagnostic("import binding ${name} conflicts with a built-in", selector.span.start)
+          )
         } else {}
       }
       names = names.add(name)
     }
   }
+
   diagnostics
 }
 
 // Export lookup returns the original declaration identity, never a renamed copy.
 // An enum binding is one binding; variants must be selected explicitly.
-pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclarationBinding,Str] {
+pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclarationBinding, Str] {
   mut found: Option[ModuleDeclarationBinding] = None()
   mut matches: Nat = 0
+
   for declaration in bindings.declarations {
     name: Str = declaration.identity.name
     selected: Bool = match declaration.kind {
@@ -138,16 +191,24 @@ pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclar
       ModuleRecord() => selector == name,
       ModuleEnum() => selector == name
     }
-    if selected { found = Some(declaration); matches = matches + 1 } else {}
+    if selected {
+      found = Some(declaration)
+      matches = matches + 1
+    } else {}
   }
-  if matches > 1 { Error("ambiguous module declaration ${selector}") } else {
-  match found {
-    None() => Error("module has no exported declaration ${selector}"),
-    Some(declaration) => {
-      if declaration.is_public { Ok(declaration) }
-      else { Error("module declaration ${selector} is private") }
+  if matches > 1 {
+    Error("ambiguous module declaration ${selector}")
+  } else {
+    match found {
+      None() => Error("module has no exported declaration ${selector}"),
+      Some(declaration) => {
+        if declaration.is_public {
+          Ok(declaration)
+        } else {
+          Error("module declaration ${selector} is private")
+        }
+      }
     }
-  }
   }
 }
 
@@ -156,8 +217,11 @@ pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclar
 pure module_relative_path(path: Str, root: Str): Str {
   mut cursor: Nat = 0
   mut common: Nat = 0
+
   while cursor < len(path) && cursor < len(root) && path[cursor] == root[cursor] {
-    if path[cursor] == "/" { common = cursor + 1 } else {}
+    if path[cursor] == "/" {
+      common = cursor + 1
+    } else {}
     cursor = cursor + 1
   }
   if cursor == len(root) && cursor < len(path) && path[cursor] == "/" {
@@ -166,10 +230,14 @@ pure module_relative_path(path: Str, root: Str): Str {
     mut prefix: Str = ""
     mut index: Nat = common
     while index < len(root) {
-      if root[index] == "/" { prefix = prefix + "../" } else {}
+      if root[index] == "/" {
+        prefix = prefix + "../"
+      } else {}
       index = index + 1
     }
-    if common < len(root) { prefix = prefix + "../" } else {}
+    if common < len(root) {
+      prefix = prefix + "../"
+    } else {}
     prefix + slice(path, common, len(path))
   }
 }
@@ -177,12 +245,17 @@ pure module_relative_path(path: Str, root: Str): Str {
 pure source_module_identity(path: Str, project_root: Str, stdlib_root: Str): ModuleIdentity {
   if starts_with(path, stdlib_root + "/") {
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
-  } else { ModuleIdentity(StandaloneModulePackage(), module_relative_path(path, project_root)) }
+  } else {
+    ModuleIdentity(StandaloneModulePackage(), module_relative_path(path, project_root))
+  }
 }
 
 pure module_programs(modules: [LoadedModule]): [Program] {
   mut programs: [Program] = []
-  for module in modules { programs = append(programs, module.execution_program) }
+
+  for module in modules {
+    programs = append(programs, module.execution_program)
+  }
   programs
 }
 
@@ -191,8 +264,11 @@ pure module_programs(modules: [LoadedModule]): [Program] {
 // spellings in three or more modules must never collapse onto the last source.
 pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
   mut positions: [SourcePos] = []
+
   for module in modules {
-    for syntax in module.parsed.syntax { positions = append(positions, syntax.span.start) }
+    for syntax in module.parsed.syntax {
+      positions = append(positions, syntax.span.start)
+    }
   }
   positions
 }

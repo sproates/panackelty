@@ -5,6 +5,14 @@ import stdlib/testing
 // malformed expressions can still have a valid token stream.
 main(): Void {
   mut results: [TestResult] = []
+  results = append(results, test_expect("escaped quote stays inside the string",
+    scan_string("\"a\\\"b\"tail", 0) == StringScan(6, true), "wrong string boundary"))
+  results = append(results, test_expect("escaped backslash allows the closing quote",
+    scan_string("\"a\\\\\"tail", 0) == StringScan(5, true), "wrong escape state"))
+  results = append(results, test_expect("dangling escape is unterminated",
+    scan_string("\"a\\", 0) == StringScan(3, false), "dangling escape accepted"))
+  results = append(results, test_expect("empty string closes at its second quote",
+    scan_string("\"\"tail", 0) == StringScan(2, true), "wrong empty string boundary"))
   results = results.append(test_equal_str("classes, comments and escapes",
     render(lex("// ignored\n_name42 17 3.14 \"a\\\\b\"")),
     "identifier:_name42\nnumber:17\ndecimal:3.14\nstring:\"a\\\\b\"\n"))

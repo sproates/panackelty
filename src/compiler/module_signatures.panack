@@ -1,8 +1,16 @@
 import "module_resolution.panack"
 import "checker.panack"
 
+// Check declaration signatures before binding bodies. Tagged nominal, parameter,
+// callable and hole identities must never collapse into spelling-based equality.
+
 // Semantic tags never encode nominal identity as an inference-placeholder name.
-enum SignatureEffect { SignaturePure, SignatureOrdinary, SignatureAsync }
+enum SignatureEffect {
+  SignaturePure,
+  SignatureOrdinary,
+  SignatureAsync
+}
+
 enum SignatureTypeIdentity {
   SignatureCore(Str),
   SignatureNominal(DeclarationIdentity),
@@ -11,50 +19,90 @@ enum SignatureTypeIdentity {
   // Body-local missing evidence; never a declaration name or a signature binder.
   SignatureHole(DeclarationIdentity, [Nat], Nat)
 }
-record SignatureType { identity: SignatureTypeIdentity, arguments: [SignatureType] }
-record SignatureSlot { name: Str, type: SignatureType }
+
+record SignatureType {
+  identity: SignatureTypeIdentity,
+  arguments: [SignatureType]
+}
+
+record SignatureSlot {
+  name: Str,
+  type: SignatureType
+}
+
 record ModuleSignature {
   binding: ModuleDeclarationBinding,
   parameters: [Str],
   slots: [SignatureSlot],
   effect: Option[SignatureEffect]
 }
+
 record CheckedModuleSignatures {
   declarations: [ModuleSignature],
   diagnostics: [Diagnostic]
 }
 
 pure signature_effect(is_pure: Bool, is_async: Bool): SignatureEffect {
-  if is_async { SignatureAsync() } else { if is_pure { SignaturePure() } else { SignatureOrdinary() } }
+  if is_async {
+    SignatureAsync()
+  } else {
+    if is_pure {
+      SignaturePure()
+    } else {
+      SignatureOrdinary()
+    }
+  }
 }
 
-pure signature_declaration(modules: [LoadedModule], identity: DeclarationIdentity): Result[TopLevel,Str] {
+pure signature_declaration(
+  modules: [LoadedModule],
+  identity: DeclarationIdentity
+): Result[TopLevel, Str] {
   mut found: Option[TopLevel] = None()
+
   for module in modules {
     if module.bindings.identity == identity.module {
       for declaration in module.parsed.program.declarations {
         name: Str = match declaration {
-          ImportDeclaration(path) => "", TypeDeclaration(name, base, guard) => name,
-          RecordDeclaration(name, parameters, fields) => name, EnumDeclaration(name, parameters, variants) => name,
+          ImportDeclaration(path) => "",
+          TypeDeclaration(name, base, guard) => name,
+          RecordDeclaration(name, parameters, fields) => name,
+          EnumDeclaration(name, parameters, variants) => name,
           FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => name
         }
-        if name == identity.name { found = Some(declaration) }
+        if name == identity.name {
+          found = Some(declaration)
+        }
       }
     }
   }
-  match found { Some(declaration) => Ok(declaration), None() => Error("missing signature declaration " + identity.module.path + ":" + identity.name) }
+  match found {
+    Some(declaration) => Ok(declaration),
+    None() => Error("missing signature declaration " + identity.module.path + ":" + identity.name)
+  }
 }
 
 // Reachability is by original identity, not the spelling chosen in a signature.
 // Thus an explicit public re-export can expose an otherwise private import alias.
-pure signature_public_identity(graph: ModuleBindingGraph, owner: ModuleIdentity, identity: DeclarationIdentity, visited: [ModuleIdentity]): Bool {
-  mut reachable: Bool = identity.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") && (identity.name == "Option" || identity.name == "Result")
+pure signature_public_identity(
+  graph: ModuleBindingGraph,
+  owner: ModuleIdentity,
+  identity: DeclarationIdentity,
+  visited: [ModuleIdentity]
+): Bool {
+  mut reachable: Bool = identity.module == ModuleIdentity(
+    ToolchainModulePackage(),
+    "core.panack"
+  ) && (identity.name == "Option" || identity.name == "Result")
+
   if !reachable && !module_identity_in(visited, owner) {
     match binding_graph_module(graph, owner) {
       Error(message) => {},
       Ok(module) => {
         for binding in module.declarations {
-          if binding.is_public && binding.identity == identity { reachable = true }
+          if binding.is_public && binding.identity == identity {
+            reachable = true
+          }
         }
         mut index: Nat = 0
         for imported in module.imports {
@@ -64,13 +112,27 @@ pure signature_public_identity(graph: ModuleBindingGraph, owner: ModuleIdentity,
               Ok(target) => {
                 for selector in module_import_names(imported) {
                   if selector.name == "" {
-                    reachable = reachable || signature_public_identity(graph, target, identity, append(visited, owner))
+                    reachable = reachable || signature_public_identity(
+                      graph,
+                      target,
+                      identity,
+                      append(visited, owner)
+                    )
                   } else {
                     match resolve_module_path_inner(graph, target, selector.name, true, []) {
                       Error(message) => {},
                       Ok(resolved) => match resolved {
-                        DeclarationTarget(binding) => { reachable = reachable || binding.identity == identity },
-                        NamespaceTarget(namespace) => { reachable = reachable || signature_public_identity(graph, namespace, identity, append(visited, owner)) }
+                        DeclarationTarget(binding) => {
+                          reachable = reachable || binding.identity == identity
+                        },
+                        NamespaceTarget(namespace) => {
+                          reachable = reachable || signature_public_identity(
+                            graph,
+                            namespace,
+                            identity,
+                            append(visited, owner)
+                          )
+                        }
                       }
                     }
                   }
@@ -93,9 +155,17 @@ pure signature_public_identity(graph: ModuleBindingGraph, owner: ModuleIdentity,
           if declaration.identity == identity {
             match declaration.kind {
               ModuleVariant(parent) => {
-                reachable = signature_public_identity(graph, owner, DeclarationIdentity(identity.module, parent), visited)
+                reachable = signature_public_identity(
+                  graph,
+                  owner,
+                  DeclarationIdentity(identity.module, parent),
+                  visited
+                )
               },
-              ModuleFunction() => {}, ModuleGuardedType() => {}, ModuleRecord() => {}, ModuleEnum() => {}
+              ModuleFunction() => {},
+              ModuleGuardedType() => {},
+              ModuleRecord() => {},
+              ModuleEnum() => {}
             }
           }
         }
@@ -105,7 +175,15 @@ pure signature_public_identity(graph: ModuleBindingGraph, owner: ModuleIdentity,
   reachable
 }
 
-pure signature_type(graph: ModuleBindingGraph, modules: [LoadedModule], owner: DeclarationIdentity, parameters: [Str], spelling: Str, exported: Bool, allow_void: Bool): Result[SignatureType,Str] {
+pure signature_type(
+  graph: ModuleBindingGraph,
+  modules: [LoadedModule],
+  owner: DeclarationIdentity,
+  parameters: [Str],
+  spelling: Str,
+  exported: Bool,
+  allow_void: Bool
+): Result[SignatureType, Str] {
   shape: TypeShape = type_shape(spelling)
   mut head: SignatureTypeIdentity = SignatureCore(shape.base)
   mut arity: Nat = 0
@@ -113,92 +191,167 @@ pure signature_type(graph: ModuleBindingGraph, modules: [LoadedModule], owner: D
   mut callable: Bool = false
   mut failure: Option[Str] = None()
   mut index: Nat = 0
+
   for parameter in parameters {
-    if parameter == shape.base { known = true; head = SignatureParameter(owner, index) }
+    if parameter == shape.base {
+      known = true
+      head = SignatureParameter(owner, index)
+    }
     index = index + 1
   }
   if !known {
-    known = is_scalar_base(shape.base) || shape.base == "Bytes" || shape.base == "Path" || shape.base == "Duration" || shape.base == "Instant"
+    known = is_scalar_base(shape.base) ||
+      shape.base == "Bytes" ||
+      shape.base == "Path" ||
+      shape.base == "Duration" ||
+      shape.base == "Instant"
     if shape.base == "Void" {
       known = true
-      if !allow_void { failure = Some("Void is only valid as a function return type") }
+      if !allow_void {
+        failure = Some("Void is only valid as a function return type")
+      }
     }
-    if shape.base == "Array" || shape.base == "Set" || shape.base == "Option" { known = true; arity = 1 }
-    if shape.base == "Map" || shape.base == "Result" { known = true; arity = 2 }
+    if shape.base == "Array" || shape.base == "Set" || shape.base == "Option" {
+      known = true
+      arity = 1
+    }
+    if shape.base == "Map" || shape.base == "Result" {
+      known = true
+      arity = 2
+    }
     if shape.base == "Fn" || shape.base == "PureFn" || shape.base == "AsyncFn" {
-      known = true; callable = true; arity = len(shape.arguments)
+      known = true
+      callable = true
+      arity = len(shape.arguments)
       head = SignatureCallable(signature_effect(shape.base == "PureFn", shape.base == "AsyncFn"))
-      if arity == 0 { failure = Some(shape.base + " expects at least a return type") }
+      if arity == 0 {
+        failure = Some(shape.base + " expects at least a return type")
+      }
     }
     if !known {
       match resolve_module_type(graph, owner.module, shape.base) {
-        Error(message) => { failure = Some(message) },
+        Error(message) => {
+          failure = Some(message)
+        },
         Ok(binding) => {
           head = SignatureNominal(binding.identity)
-          implicit_core: Bool = binding.identity.module == ModuleIdentity(ToolchainModulePackage(), "core.panack") && (binding.identity.name == "Option" || binding.identity.name == "Result")
+          implicit_core: Bool = binding.identity.module == ModuleIdentity(
+            ToolchainModulePackage(),
+            "core.panack"
+          ) && (binding.identity.name == "Option" || binding.identity.name == "Result")
           if implicit_core {
             head = SignatureCore(binding.identity.name)
           }
-          if exported && !implicit_core && !signature_public_identity(graph, owner.module, binding.identity, []) {
+          if exported && !implicit_core && !signature_public_identity(
+            graph,
+            owner.module,
+            binding.identity,
+            []
+          ) {
             failure = Some("public signature exposes inaccessible type " + shape.base + " from " + binding.identity.module.path)
           }
           match signature_declaration(modules, binding.identity) {
-            Error(message) => { failure = Some(message) },
+            Error(message) => {
+              failure = Some(message)
+            },
             Ok(declaration) => match declaration {
-              RecordDeclaration(name, types, fields) => { arity = len(types) },
-              EnumDeclaration(name, types, variants) => { arity = len(types) },
+              RecordDeclaration(name, types, fields) => {
+                arity = len(types)
+              },
+              EnumDeclaration(name, types, variants) => {
+                arity = len(types)
+              },
               TypeDeclaration(name, base, guard) => {},
-              ImportDeclaration(path) => { failure = Some("import is not a nominal type") },
-              FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => { failure = Some("function is not a nominal type") }
+              ImportDeclaration(path) => {
+                failure = Some("import is not a nominal type")
+              },
+              FunctionDeclaration(name, values, result, pure_flag, async_flag, body, types) => {
+                failure = Some("function is not a nominal type")
+              }
             }
           }
         }
       }
     }
   }
-  if len(shape.arguments) != arity { failure = Some(shape.base + " has incorrect type argument count") }
+  if len(shape.arguments) != arity {
+    failure = Some(shape.base + " has incorrect type argument count")
+  }
   mut arguments: [SignatureType] = []
   index = 0
   for argument in shape.arguments {
     return_slot: Bool = callable && shape.base != "AsyncFn" && index + 1 == len(shape.arguments)
     match signature_type(graph, modules, owner, parameters, argument, exported, return_slot) {
-      Error(message) => { if failure == None() { failure = Some(message) } },
-      Ok(resolved) => { arguments = append(arguments, resolved) }
+      Error(message) => {
+        if failure == None() {
+          failure = Some(message)
+        }
+      },
+      Ok(resolved) => {
+        arguments = append(arguments, resolved)
+      }
     }
     index = index + 1
   }
-  match failure { Some(message) => Error(message), None() => Ok(SignatureType(head, arguments)) }
+  match failure {
+    Some(message) => Error(message),
+    None() => Ok(SignatureType(head, arguments))
+  }
 }
 
 // Substitution uses the binder's tagged identity, not another module's spelling.
-pure substitute_signature_type(value: SignatureType, owner: DeclarationIdentity, arguments: [SignatureType]): Result[SignatureType,Str] {
+pure substitute_signature_type(
+  value: SignatureType,
+  owner: DeclarationIdentity,
+  arguments: [SignatureType]
+): Result[SignatureType, Str] {
   mut replacement: Option[SignatureType] = None()
   mut failure: Option[Str] = None()
+
   match value.identity {
     SignatureParameter(binder, index) => {
       if binder == owner {
-        if index < len(arguments) { replacement = Some(arguments[index]) }
-        else { failure = Some("missing signature substitution") }
+        if index < len(arguments) {
+          replacement = Some(arguments[index])
+        } else {
+          failure = Some("missing signature substitution")
+        }
       }
     },
-    SignatureCore(name) => {}, SignatureNominal(identity) => {}, SignatureCallable(effect) => {}, SignatureHole(binder, path, index) => {}
+    SignatureCore(name) => {},
+    SignatureNominal(identity) => {},
+    SignatureCallable(effect) => {},
+    SignatureHole(binder, path, index) => {}
   }
   mut nested: [SignatureType] = []
   for child in value.arguments {
     match substitute_signature_type(child, owner, arguments) {
-      Error(message) => { failure = Some(message) }, Ok(resolved) => { nested = append(nested, resolved) }
+      Error(message) => {
+        failure = Some(message)
+      },
+      Ok(resolved) => {
+        nested = append(nested, resolved)
+      }
     }
   }
   match failure {
     Some(message) => Error(message),
-    None() => match replacement { Some(resolved) => Ok(resolved), None() => Ok(SignatureType(value.identity, nested)) }
+    None() => match replacement {
+      Some(resolved) => Ok(resolved),
+      None() => Ok(SignatureType(value.identity, nested))
+    }
   }
 }
 
-pure check_module_signatures(graph: ModuleBindingGraph, modules: [LoadedModule], module: LoadedModule): CheckedModuleSignatures {
+pure check_module_signatures(
+  graph: ModuleBindingGraph,
+  modules: [LoadedModule],
+  module: LoadedModule
+): CheckedModuleSignatures {
   mut signatures: [ModuleSignature] = []
   mut diagnostics: [Diagnostic] = []
   mut declaration_index: Nat = 0
+
   for declaration in module.parsed.program.declarations {
     before: Nat = len(diagnostics)
     syntax: DeclarationSyntax = module.parsed.syntax[declaration_index]
@@ -210,33 +363,64 @@ pure check_module_signatures(graph: ModuleBindingGraph, modules: [LoadedModule],
     match declaration {
       ImportDeclaration(path) => {},
       TypeDeclaration(declared, base, guard) => {
-        name = declared; fields = [RecordField("base", base)]
+        name = declared
+        fields = [RecordField("base", base)]
         if syntax.is_public {
-          uses: ResolvedModuleUses = resolve_module_expression_uses(graph, module.bindings.identity, guard, syntax.span, set_add(set(), "value"))
+          uses: ResolvedModuleUses = resolve_module_expression_uses(
+            graph,
+            module.bindings.identity,
+            guard,
+            syntax.span,
+            set_add(set(), "value")
+          )
           diagnostics = concat(diagnostics, uses.diagnostics)
           for reference in uses.references {
             match reference.target {
               NamespaceTarget(identity) => {},
               DeclarationTarget(binding) => {
-                if !signature_public_identity(graph, module.bindings.identity, binding.identity, []) {
-                  diagnostics = append(diagnostics, Diagnostic("public guard depends on inaccessible declaration " + reference.spelling + " from " + binding.identity.module.path, reference.span.start))
+                if !signature_public_identity(
+                  graph,
+                  module.bindings.identity,
+                  binding.identity,
+                  []
+                ) {
+                  diagnostics = append(
+                    diagnostics,
+                    Diagnostic(
+                    "public guard depends on inaccessible declaration " + reference.spelling + " from " + binding.identity.module.path,
+                    reference.span.start
+                  )
+                  )
                 }
               }
             }
           }
         }
       },
-      RecordDeclaration(declared, types, members) => { name = declared; parameters = types; fields = members },
+      RecordDeclaration(declared, types, members) => {
+        name = declared
+        parameters = types
+        fields = members
+      },
       EnumDeclaration(declared, types, variants) => {
-        name = declared; parameters = types
+        name = declared
+        parameters = types
         for variant in variants {
           mut payload_index: Nat = 0
-          for payload in variant.payload { fields = append(fields, RecordField(variant.name + ":${payload_index}", payload)); payload_index = payload_index + 1 }
+          for payload in variant.payload {
+            fields = append(fields, RecordField(variant.name + ":${payload_index}", payload))
+            payload_index = payload_index + 1
+          }
         }
       },
       FunctionDeclaration(declared, values, result, pure_flag, async_flag, body, types) => {
-        name = declared; parameters = types; effect = Some(signature_effect(pure_flag, async_flag)); result_void = !async_flag
-        for parameter in values { fields = append(fields, RecordField(parameter.name, parameter.type_name)) }
+        name = declared
+        parameters = types
+        effect = Some(signature_effect(pure_flag, async_flag))
+        result_void = !async_flag
+        for parameter in values {
+          fields = append(fields, RecordField(parameter.name, parameter.type_name))
+        }
         fields = append(fields, RecordField("return", result))
       }
     }
@@ -245,27 +429,64 @@ pure check_module_signatures(graph: ModuleBindingGraph, modules: [LoadedModule],
       mut seen: Set[Str] = set()
       mut valid: Bool = len(diagnostics) == before
       core_owner: Bool = owner.module == ModuleIdentity(ToolchainModulePackage(), "core.panack")
-      if (module_reserved_binding(name) || name == "Rat" || name == "Array") && !(core_owner && (name == "Option" || name == "Result")) {
-        diagnostics = append(diagnostics, Diagnostic("declaration " + name + " conflicts with a reserved core identity", syntax.span.start)); valid = false
+      if (module_reserved_binding(name) ||
+        name == "Rat" ||
+        name == "Array") &&
+        !(core_owner &&
+        (name == "Option" ||
+        name == "Result")) {
+        diagnostics = append(
+          diagnostics,
+          Diagnostic(
+          "declaration " + name + " conflicts with a reserved core identity",
+          syntax.span.start
+        )
+        )
+        valid = false
       }
       for parameter in parameters {
-        if seen.has(parameter) || module_reserved_binding(parameter) || parameter == "Rat" || parameter == "Array" {
-          diagnostics = append(diagnostics, Diagnostic("invalid or duplicate type parameter " + parameter, syntax.span.start)); valid = false
+        if seen.has(parameter) ||
+          module_reserved_binding(parameter) ||
+          parameter == "Rat" ||
+          parameter == "Array" {
+          diagnostics = append(
+            diagnostics,
+            Diagnostic("invalid or duplicate type parameter " + parameter, syntax.span.start)
+          )
+          valid = false
         }
         seen = seen.add(parameter)
       }
       mut slots: [SignatureSlot] = []
       mut field_index: Nat = 0
       for field in fields {
-        match signature_type(graph, modules, owner, parameters, field.type_name, syntax.is_public, field_index + 1 == len(fields) && result_void) {
-          Error(message) => { diagnostics = append(diagnostics, Diagnostic("signature " + name + "." + field.name + ": " + message, syntax.span.start)); valid = false },
-          Ok(resolved) => { slots = append(slots, SignatureSlot(field.name, resolved)) }
+        match signature_type(
+          graph,
+          modules,
+          owner,
+          parameters,
+          field.type_name,
+          syntax.is_public,
+          field_index + 1 == len(fields) && result_void
+        ) {
+          Error(message) => {
+            diagnostics = append(
+              diagnostics,
+              Diagnostic("signature " + name + "." + field.name + ": " + message, syntax.span.start)
+            )
+            valid = false
+          },
+          Ok(resolved) => {
+            slots = append(slots, SignatureSlot(field.name, resolved))
+          }
         }
         field_index = field_index + 1
       }
       if valid {
         for binding in module.bindings.declarations {
-          if binding.identity == owner { signatures = append(signatures, ModuleSignature(binding, parameters, slots, effect)) }
+          if binding.identity == owner {
+            signatures = append(signatures, ModuleSignature(binding, parameters, slots, effect))
+          }
         }
       }
     }

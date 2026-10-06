@@ -1,3 +1,6 @@
+// Source positions use Unicode code-point offsets and one-based line/column values.
+// Shared token and diagnostic records preserve those coordinates across passes.
+
 record SourcePos {
   file: Str,
   offset: Nat,
@@ -36,6 +39,7 @@ record Diagnostic {
 
 pure diagnostic_text(diagnostic: Diagnostic): Str {
   position: SourcePos = diagnostic.position
+
   if len(position.file) > 0 {
     file: Str = position.file
     line: Nat = position.line

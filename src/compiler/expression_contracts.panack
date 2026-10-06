@@ -1,30 +1,52 @@
 import "parser.panack"
 
-// Shared literal decoding and scalar rules; no nominal identity is encoded here.
+// Literal decoding and scalar arithmetic rules shared by the legacy and bound
+// frontends. Nominal type identity belongs to the module passes.
+
 record InterpolatedString {
   parts: [Str],
   variables: [Str]
 }
 
+// The lexer has already found the string boundary. Unknown escapes retain their
+// escaped character, matching the existing literal contract.
+pure decoded_escape(escape: Str): Str {
+  mut decoded: Str = escape
+
+  if escape == "n" {
+    decoded = "\n"
+  }
+  if escape == "r" {
+    decoded = "\r"
+  }
+  if escape == "t" {
+    decoded = "\t"
+  }
+  if escape == "b" {
+    decoded = "\b"
+  }
+  if escape == "f" {
+    decoded = "\f"
+  }
+  decoded
+}
+
 pure decode_string_literal(text: Str): Str {
   mut output: Str = ""
   mut cursor: Nat = 1
+
   while cursor + 1 < len(text) {
     character: Str = text[cursor]
     if character == "\\" && cursor + 2 < len(text) {
       escape: Str = text[cursor + 1]
-      if escape == "n" { output = output + "\n"; }
-      else { if escape == "r" { output = output + "\r"; }
-      else { if escape == "t" { output = output + "\t"; }
-      else { if escape == "b" { output = output + "\b"; }
-      else { if escape == "f" { output = output + "\f"; }
-      else { output = output + escape; } } } } }
+      output = output + decoded_escape(escape)
       cursor = cursor + 2
     } else {
       output = output + character
       cursor = cursor + 1
     }
   }
+
   output
 }
 
@@ -41,9 +63,10 @@ pure split_interpolated_string(text: Str): InterpolatedString {
   mut variables: [Str] = []
   mut part_start: Nat = 0
   mut cursor: Nat = 0
+
   while cursor + 3 < len(text) {
     if text[cursor] == "$" && text[cursor + 1] == "{" &&
-       interpolation_name_start(text[cursor + 2]) {
+      interpolation_name_start(text[cursor + 2]) {
       mut end: Nat = cursor + 3
       while end < len(text) && interpolation_name_part(text[end]) {
         end = end + 1
@@ -73,11 +96,25 @@ pure scalar_numeric(name: Str): Bool {
 }
 
 pure scalar_compatible_numeric(left: Str, right: Str): Bool {
-  scalar_numeric(left) && scalar_numeric(right) && !((left == "Dec" || right == "Dec") && left != right)
+  scalar_numeric(left) &&
+    scalar_numeric(right) &&
+    !((left == "Dec" ||
+    right == "Dec") &&
+    left != right)
 }
 
 pure scalar_arithmetic_result(operator: Str, left: Str, right: Str): Str {
-  if left == "Dec" { "Dec" }
-  else { if operator == "/" || left == "Rat" || right == "Rat" { "Rat" }
-  else { if left == "Int" || right == "Int" { "Int" } else { "Nat" } } }
+  if left == "Dec" {
+    "Dec"
+  } else {
+    if operator == "/" || left == "Rat" || right == "Rat" {
+      "Rat"
+    } else {
+      if left == "Int" || right == "Int" {
+        "Int"
+      } else {
+        "Nat"
+      }
+    }
+  }
 }

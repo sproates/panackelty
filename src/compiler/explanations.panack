@@ -1,16 +1,26 @@
 import "source_maps.panack"
 
+// Render retained proof and effect decisions using the original source snapshots.
+// Explanation output cannot manufacture evidence from a diagnostic string.
+
 // Presentation consumes retained checker decisions and the exact loaded text.
 // It does not rerun proofs, parse diagnostics, or execute user code.
-pure explanation_location(origin: Option[SourceSpan], sources: Map[Str,Str], root: Str, stdlib_root: Str): Str {
+pure explanation_location(
+  origin: Option[SourceSpan],
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
   match origin {
     None() => "source: unavailable",
     Some(span) => {
-      if !sources.has(span.start.file) { "source: unavailable" }
-      else {
+      if !sources.has(span.start.file) {
+        "source: unavailable"
+      } else {
         source: Str = sources.get(span.start.file)
-        if span.end.offset < span.start.offset || span.end.offset > len(source) { "source: unavailable" }
-        else {
+        if span.end.offset < span.start.offset || span.end.offset > len(source) {
+          "source: unavailable"
+        } else {
           file: Str = source_map_escape(source_identifier(span.start.file, root, stdlib_root))
           line: Nat = span.start.line
           column: Nat = span.start.column
@@ -24,18 +34,38 @@ pure explanation_location(origin: Option[SourceSpan], sources: Map[Str,Str], roo
   }
 }
 
-pure render_subtraction_evidence(entry: SubtractionEvidence, sources: Map[Str,Str], root: Str, stdlib_root: Str): Str {
+pure render_subtraction_evidence(
+  entry: SubtractionEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
   decision: SubtractionDecision = entry.decision
   unavailable: Bool = decision.rule == "unsupported" || decision.rule == "invalid-operands"
-  status: Str = if unavailable { "unavailable" } else { if decision.proven { "proved" } else { "unproved" } }
+  status: Str = if unavailable {
+    "unavailable"
+  } else {
+    if decision.proven {
+      "proved"
+    } else {
+      "unproved"
+    }
+  }
   left_type: Str = source_map_escape(entry.left.name)
   right_type: Str = source_map_escape(entry.right.name)
-  mut output: Str = "subtraction: ${status}\n" + explanation_location(entry.span, sources, root, stdlib_root) +
+  mut output: Str = "subtraction: ${status}\n" + explanation_location(
+    entry.span,
+    sources,
+    root,
+    stdlib_root
+  ) +
     "\noperand types: ${left_type}, ${right_type}"
   if unavailable {
     output = output + if decision.rule == "unsupported" {
       "\nreason: this query only explains Nat subtraction obligations"
-    } else { "\nreason: operand checking failed; no trustworthy subtraction explanation" }
+    } else {
+      "\nreason: operand checking failed; no trustworthy subtraction explanation"
+    }
   } else {
     output = output + "\nobligation: left >= right"
     if entry.left.has_nat {
@@ -45,94 +75,177 @@ pure render_subtraction_evidence(entry: SubtractionEvidence, sources: Map[Str,St
     if entry.right.has_nat {
       value: Nat = entry.right.nat_value
       output = output + "\nright constant: ${value}"
-    } else { output = output + "\nright constant: unknown" }
+    } else {
+      output = output + "\nright constant: unknown"
+    }
     if decision.has_lower {
       bound: Nat = decision.lower
       output = output + "\nleft lower bound: ${bound}"
       match decision.guard {
-        None() => { output = output + "\nguard origin: unavailable"; },
+        None() => {
+          output = output + "\nguard origin: unavailable"
+        },
         Some(guard) => {
-          truth: Str = if guard.truth { "true" } else { "false" }
-          output = output + "\nguard branch: ${truth}\n" + explanation_location(guard.span, sources, root, stdlib_root)
+          truth: Str = if guard.truth {
+            "true"
+          } else {
+            "false"
+          }
+          output = output + "\nguard branch: ${truth}\n" + explanation_location(
+            guard.span,
+            sources,
+            root,
+            stdlib_root
+          )
         }
       }
     }
     output = output + if decision.rule == "constants" {
       "\nreason: retained constant values satisfy the obligation"
-    } else { if decision.rule == "lower-bound" {
-      "\nreason: retained lower bound is at least the right constant"
     } else {
-      "\nreason: retained facts do not prove the obligation; this does not establish a runtime failure"
-    } }
+      if decision.rule == "lower-bound" {
+        "\nreason: retained lower bound is at least the right constant"
+      } else {
+        "\nreason: retained facts do not prove the obligation; this does not establish a runtime failure"
+      }
+    }
   }
+
   output
 }
 
-pure render_subtraction_explanations(project: LoadedProject, name: Str, root: Str, stdlib_root: Str): Str {
-  state: Str = if len(project.diagnostics) == 0 { "accepted" } else { "rejected" }
+pure render_subtraction_explanations(
+  project: LoadedProject,
+  name: Str,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  state: Str = if len(project.diagnostics) == 0 {
+    "accepted"
+  } else {
+    "rejected"
+  }
   function_name: Str = source_map_escape(name)
   mut output: Str = "program: ${state}\nfunction: ${function_name}\nscope: Nat subtraction; generic definitions, not call-site specialisations"
   mut count: Nat = 0
+
   for entry in project.evidence {
     if entry.function_name == name {
-      output = output + "\n\n" + render_subtraction_evidence(entry, project.sources, root, stdlib_root)
+      output = output + "\n\n" + render_subtraction_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
       count = count + 1
     }
   }
-  if count == 0 { output = output + "\n\nsubtraction: unavailable\nreason: no subtraction evidence was retained for this function"; }
+  if count == 0 {
+    output = output + "\n\nsubtraction: unavailable\nreason: no subtraction evidence was retained for this function"
+  }
+
   output
 }
 
 // Each status concerns one local rule boundary, never the execution of a path
 // or the validity of the complete expression/program.
 pure effect_display_target(name: Str): Str {
-  if name == "$unit" { "()" } else {
-    if starts_with(name, "$method_") { slice(name, 8, len(name)) } else {
-      if starts_with(name, "$core_") { slice(name, 6, len(name)) } else { name }
+  if name == "$unit" {
+    "()"
+  } else {
+    if starts_with(name, "$method_") {
+      slice(name, 8, len(name))
+    } else {
+      if starts_with(name, "$core_") {
+        slice(name, 6, len(name))
+      } else {
+        name
+      }
     }
   }
 }
 
-pure render_effect_evidence(entry: EffectEvidence, sources: Map[Str,Str], root: Str, stdlib_root: Str): Str {
-  status: Str = if len(entry.violations) == 0 { "allowed" } else { "rejected" }
-  mut output: Str = "effect boundary: ${status}\n" + explanation_location(entry.span, sources, root, stdlib_root) +
+pure render_effect_evidence(
+  entry: EffectEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = if len(entry.violations) == 0 {
+    "allowed"
+  } else {
+    "rejected"
+  }
+  mut output: Str = "effect boundary: ${status}\n" + explanation_location(
+    entry.span,
+    sources,
+    root,
+    stdlib_root
+  ) +
     "\nboundary: " + entry.kind + "\ncontext: " + entry.mode
   if entry.kind == "call" {
     output = output + "\ncallee: " + source_map_escape(effect_display_target(entry.target)) + "\nclassification basis: " + entry.basis +
-      "\ncallee effect: " + entry.target_effect + if entry.awaited { "\nawaited: yes" } else { "\nawaited: no" }
+      "\ncallee effect: " + entry.target_effect + if entry.awaited {
+      "\nawaited: yes"
+    } else {
+      "\nawaited: no"
+    }
   }
   if len(entry.violations) > 0 {
-    for reason in entry.violations { output = output + "\nreason: " + source_map_escape(reason); }
+    for reason in entry.violations {
+      output = output + "\nreason: " + source_map_escape(reason)
+    }
   } else {
     output = output + if entry.kind == "await" {
       "\nreason: enclosing function is async; operand boundaries are checked separately"
-    } else { if entry.target_effect == "async" {
-      "\nreason: async call is awaited inside an async function"
-    } else { if entry.target_effect == "pure" {
-      "\nreason: pure call is permitted in this context"
     } else {
-      "\nreason: ordinary function permits this effectful call"
-    } } }
+      if entry.target_effect == "async" {
+        "\nreason: async call is awaited inside an async function"
+      } else {
+        if entry.target_effect == "pure" {
+          "\nreason: pure call is permitted in this context"
+        } else {
+          "\nreason: ordinary function permits this effectful call"
+        }
+      }
+    }
   }
+
   output
 }
 
-pure render_function_explanations(project: LoadedProject, name: Str, root: Str, stdlib_root: Str): Str {
+pure render_function_explanations(
+  project: LoadedProject,
+  name: Str,
+  root: Str,
+  stdlib_root: Str
+): Str {
   mut output: Str = render_subtraction_explanations(project, name, root, stdlib_root)
   output = output + "\n\neffect scope: local call and await boundaries; declarations and callable types, not transitive/runtime effects"
+
   if !project.effects_checked {
     output = output + "\neffects: unavailable\nreason: loading, resolution or global declaration checking prevented the effect pass"
-  } else { if project.function_types.has(name) && !project.function_types.get(name) {
-    output = output + "\neffects: unavailable\nreason: function body type checking prevented the effect pass for this function"
   } else {
-    mut count: Nat = 0
-    for entry in project.effects {
-      if entry.function_name == name {
-        output = output + "\n\n" + render_effect_evidence(entry, project.sources, root, stdlib_root)
-        count = count + 1
+    if project.function_types.has(name) && !project.function_types.get(name) {
+      output = output + "\neffects: unavailable\nreason: function body type checking prevented the effect pass for this function"
+    } else {
+      mut count: Nat = 0
+      for entry in project.effects {
+        if entry.function_name == name {
+          output = output + "\n\n" + render_effect_evidence(
+            entry,
+            project.sources,
+            root,
+            stdlib_root
+          )
+          count = count + 1
+        }
+      }
+      if count == 0 {
+        output = output + "\neffects: unavailable\nreason: no call or await boundary was retained for this function"
       }
     }
-    if count == 0 { output = output + "\neffects: unavailable\nreason: no call or await boundary was retained for this function"; }
-  } }
+  }
+
   output
 }

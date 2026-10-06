@@ -771,11 +771,41 @@ pure parser_unit_reports_malformed_type_references(): [TestResult] {
   ]
 }
 
+pure parser_unit_else_if_chains(): [TestResult] {
+  [
+    test_equal_str("parser/else-if/value",
+      parse_source("if a { 1 } else if b { 2 } else { 3 }"),
+      "if a { 1 } else { if b { 2 } else { 3 } }"),
+    test_equal_str("parser/else-if/repeated",
+      parse_source("if a { 1 } else if b { 2 } else if c { 3 } else { 4 }"),
+      "if a { 1 } else { if b { 2 } else { if c { 3 } else { 4 } } }"),
+    test_equal_str("parser/else-if/no-final-else",
+      parse_source("if a { 1 } else if b { 2 }"),
+      "if a { 1; } else { if b { 2 }; }"),
+    test_equal_str("parser/else-if/multiline",
+      parse_source("if a { 1 }\nelse\nif b { 2 }\nelse { 3 }"),
+      "if a { 1 } else { if b { 2 } else { 3 } }"),
+    test_equal_str("parser/else-if/precedence",
+      parse_source("1 + if a { 2 } else if b { 3 } else { 4 }"),
+      "(1 + if a { 2 } else { if b { 3 } else { 4 } })"),
+    test_equal_str("parser/else-if/missing-condition",
+      parse_source("if a { 1 } else if"), "expected expression"),
+    test_equal_str("parser/else-if/missing-body",
+      parse_source("if a { 1 } else if b"), "expected opening brace"),
+    test_equal_str("parser/else-if/missing-closing-brace",
+      parse_source("if a { 1 } else if b { 2"), "expected semicolon or closing brace"),
+    test_equal_str("parser/else-if/missing-final-body",
+      parse_source("if a { 1 } else if b { 2 } else"), "expected opening brace")
+  ]
+}
+
+
 main(): Void {
   mut results: [TestResult] = []
   results = results.append(test_equal_str("parser/core-method-private-identity",
     parse_source("items.sort_by(@less).first()"), "$core_first($core_sort_by(items, @less))"))
 
+  results = results.concat(parser_unit_else_if_chains())
   results = results.concat(parser_unit_binary_operators_are_left_associative())
   results = results.concat(parser_unit_generic_function_syntax_and_explicit_calls_round_trip())
   results = results.concat(parser_unit_match_expressions_participate_in_precedence_and_blocks())

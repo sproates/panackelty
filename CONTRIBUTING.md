@@ -116,7 +116,7 @@ Required:
 - Separate top-level declarations with one blank line. Keep related bindings
   together; use blank lines to distinguish meaningful phases inside a function.
 - Put opening braces on the declaration or control-flow line. Align closing
-  braces with the construct that opened them. Use `} else {` for expanded branches.
+  braces with the construct that opened them. Use `} else if condition {` and `} else {` for expanded branches.
 - Use one space after commas and after annotation colons, and around assignment
   and binary operators. Do not pad parentheses, brackets, member dots or ranges:
   `name: Nat`, `Result[Nat, Str]`, `values[index]`, `value.first()`, `0..count`.
@@ -238,9 +238,10 @@ traps to replace a recoverable error contract.
 Use a final expression for a block's result where supported; do not discard a
 meaningful result accidentally. Give each match arm its own line, with braces
 for multiple operations. Preserve enum payload types and constructor arity.
-The current parser requires a block after `else`: write `else { if ... }`,
-not `else if ...`. This is a language limitation, not a preference for extra
-nesting. Prefer shallow control flow and named predicates; extract a helper
+Prefer `else if` for conditional chains rather than nesting `if` inside an
+`else` block. Repeated arms and an optional final `else` are supported; a chain
+without a final `else` is statement-only (`Void`). Prefer shallow control flow
+and named predicates; extract a helper
 when nested conditions obscure intent. Do not prescribe early-return or propagation syntax
 that the supported compiler does not implement.
 

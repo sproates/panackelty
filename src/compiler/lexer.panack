@@ -117,7 +117,7 @@ pure is_line_prefix_keyword(text: Str): Bool {
   text == "pure" || text == "import" || text == "type" ||
     text == "record" || text == "enum" || text == "mut" ||
     text == "for" || text == "while" || text == "if" ||
-    text == "match" || text == "where" || text == "in"
+    text == "match" || text == "else" || text == "where" || text == "in"
 }
 
 pure is_line_continuation_keyword(text: Str): Bool {

@@ -1,0 +1,5 @@
+pure answer(a: Bool, b: Bool): Nat {
+  if a { 1 } else if b { "bad" } else { 3 }
+}
+
+main(): Void { print(answer(false, true)) }

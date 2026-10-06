@@ -54,5 +54,8 @@ main(): Void {
     render(lex("first\nsecond\nthird +\nfour\nitems[\n0\n]\nif ready {\ncall()\n}\nelse {\nother()\n}\nlast")),
     "identifier:first\npunctuation:;\nidentifier:second\npunctuation:;\nidentifier:third\npunctuation:+\nidentifier:four\npunctuation:;\nidentifier:items\npunctuation:[\nnumber:0\npunctuation:]\npunctuation:;\nidentifier:if\nidentifier:ready\npunctuation:{\nidentifier:call\npunctuation:(\npunctuation:)\npunctuation:}\nidentifier:else\npunctuation:{\nidentifier:other\npunctuation:(\npunctuation:)\npunctuation:}\npunctuation:;\nidentifier:last\n"))
 
+  results = results.append(test_equal_str("else continues onto an if line",
+    render(lex("else\n// next arm\nif ready {}")),
+    "identifier:else\nidentifier:if\nidentifier:ready\npunctuation:{\npunctuation:}\n"))
   if test_report(results) > 0 { process_exit(1) }
 }

@@ -144,7 +144,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -954,6 +954,31 @@ pure namespace_aggregate_origin_tests(): [TestResult] {
     pair: BoundBody = refined.functions[0].body.children[0]
     results = append(results, test_expect("context reaches first constructor child", pair.children[0].type==Some(SignatureType(SignatureCore("Option"),[SignatureType(SignatureCore("Nat"),[])])), "first child not specialized"))
     results = append(results, test_expect("context reaches second constructor child", pair.children[1].type==Some(SignatureType(SignatureCore("Option"),[SignatureType(SignatureCore("Str"),[])])), "second child not specialized"))
+  }
+  results
+}
+
+
+pure namespace_else_if_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pub pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { 3 } }",
+    "pub pure f(a:Bool,b:Bool,c:Bool):Void { if a { 1 } else if b { \"discard\" } else if c { true } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("namespace else-if accepts/" + source,
+      len(checked.diagnostics) == 0 && checked.functions[0].status == BodyIdentityChecked(),
+      "chain was invalid or deferred"))
+  }
+  for source in [
+    "pub pure f(a:Bool):Nat { if a { 1 } else if 7 { 2 } else { 3 } }",
+    "pub pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } }",
+    "pub pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { \"bad\" } else { 3 } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("namespace else-if rejects/" + source,
+      len(checked.diagnostics) > 0 && checked.functions[0].status == BodyInvalid(),
+      "invalid chain appeared checked"))
   }
   results
 }

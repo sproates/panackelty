@@ -346,6 +346,34 @@ pure label(ready: Bool): Str {
 }
 ```
 
+Any number of `else if` arms may follow the first arm, with an optional final
+`else` block. Conditions must be `Bool`; they are evaluated in written order until
+one is true. Only that arm executes, and subsequent conditions and bodies are
+skipped. A final `else` executes only when every condition is false.
+
+```panackelty
+pure classify(value: Nat): Str {
+  if value == 0 {
+    "zero"
+  } else if value == 1 {
+    "one"
+  } else if value == 2 {
+    "two"
+  } else {
+    "many"
+  }
+}
+```
+
+A chain with a final `else` follows the existing compatible branch-value rules.
+Without a final `else`, the whole chain has type `Void`: selected arm tail values
+are evaluated and discarded, so different arm result types are permitted. If no
+condition matches, no body executes. A partial chain cannot initialize a binding,
+become an argument, or provide a non-`Void` function result. Existing nested
+`else { if ... }` syntax remains valid; an explicitly written else block retains
+its ordinary block-value rules. Newlines/comments may separate `else` and `if`.
+Each arm requires braces; the final `else` binds to its enclosing chain.
+
 The `else` branch may be omitted when the conditional is used for control flow.
 An `if` without `else` has type `Void`, and any tail value produced by its body
 is discarded. It therefore cannot initialize a binding, become an argument, or

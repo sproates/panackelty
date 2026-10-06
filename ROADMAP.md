@@ -4042,6 +4042,35 @@ experience. Powerful checking is useful only when programmers can understand a
 failure and act on it quickly. New features should therefore be evaluated on
 both the guarantees they provide and the clarity of the resulting workflow.
 
+### Long-term direction: grow Panackelty through real programs
+
+Treat the following as strategic challenges and sources of direction, not release
+commitments or a fixed implementation plan. None is inherently infeasible; the
+cost and sequencing differ. Let representative programs, measurements, and user
+needs guide the work.
+
+- **Performance:** maintain representative benchmarks, then investigate options
+  such as fixed-width arithmetic with explicit overflow and conversion semantics,
+  JIT compilation, or ahead-of-time native compilation. These are distinct
+  possibilities to evaluate; recording them does not select one.
+- **Ecosystem:** grow the ecosystem by building useful software in Panackelty:
+  reusable libraries, tools, services, and eventually frameworks. Let real
+  projects expose which language, standard-library, packaging, and tooling gaps
+  matter next.
+- **Platforms:** expand the supported targets and distribution options when they
+  are useful and maintainable. Assess compiler/runtime portability, CI, packaging,
+  and ongoing support for each target. Windows is a candidate to consider, not a
+  commitment in this direction statement.
+- **Ease of use and guarantees:** use ordinary programs to find where the language
+  creates helpful confidence and where it adds avoidable friction. Improve common
+  workflows through clear diagnostics, inference, APIs, or syntax as evidence
+  supports. Strong checking should not be confused with requiring pure programs
+  or unnecessary defensive runtime guards.
+
+This direction does not set a release date, promise a particular platform or
+compiler strategy, or relax Panackelty's guarantees. Specific proposals still
+need their own semantics, evidence, and maintenance assessment.
+
 ### Error propagation shorthand
 
 <a id="rm-129"></a>

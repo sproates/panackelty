@@ -91,11 +91,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   exhaustive variant patterns, inferred generic functions and known iterable/index types.
   Interpolation references retain ordered local IDs. Invalid, deferred and
   checked-subset statuses preserve numeric and callable compatibility without
-  implying effects or execution readiness. Direct and indirect callable calls,
-  core collection constructors and receiver operations, builtin contracts, and
-  reserved array aliases now retain checked argument and result types. Deferred
-  spans distinguish unresolved expression holes, guard proofs, unsupported core
-  operations and async results from successful identity-type checks. Expression-owned holes never
+  implying effects or execution readiness. Deferred spans distinguish
+  unresolved expression holes, guard proofs, general core/indirect operations and
+  async results from successful identity-type checks. Expression-owned holes never
   become declaration identities or rigid type parameters. Bound nodes retain
   contextual constraints for one final whole-body solve, preserving shared local
   evidence across calls/statements and rejecting contradictory/recursive solutions.

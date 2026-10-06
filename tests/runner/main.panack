@@ -368,7 +368,7 @@ runner_failures(workspace: TestWorkspace, selected: Str): [TestResult] {
           results = results.concat(runner_failure(directory, workspace))
         }
       }
-      expected_count: Nat = if selected == "" { 55 } else { 1 }
+      expected_count: Nat = if selected == "" { 59 } else { 1 }
       results.append(test_equal_nat("selected failure count", count, expected_count))
     }
   }

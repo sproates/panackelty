@@ -1,25 +1,25 @@
 {
   "schema": 1,
   "review": {
-    "reason": "Record exact compiler readability floors after all 31 contexts; six added helpers are covered, all 68 protected items remain covered, and the manifest and 185 exclusion reasons are unchanged",
-    "basis": "Owner-requested compiler readability batch; proposed baseline validated against complete local evidence; PR policy checks and hosted collection follow the existing next-refresh/main-promotion route",
-    "scopeChange": "Expand executable start lines from packed arms; simplify scanner and compatibility decisions; add six helpers and 23 focused assertions. Exclusion coordinates and later declaration IDs move without excluding additional code."
+    "reason": "Propose exact else-if compiler floors after 31 complete contexts; both added helpers and all 68 protected items are covered, and compiler line/function/outcome ratios increase",
+    "basis": "Owner-selected GI#312 feature; complete local source evidence, unchanged manifest and bytecode/stdlib floors, explicit reviewed-policy diff and normal PR checks",
+    "scopeChange": "Add two parser helpers and one compile-time ParsedConditional record; support else-if newline continuation. Existing 185 exclusions remain, with one additional record-declaration exclusion and shifted parser coordinates/IDs. Expand the existing optional_else and async_await contexts without enlarging the manifest."
   },
   "manifestHash": "55f5286840cd4eb627f941c61d4350f1bae2ff75b52415c6e12c62e6726566f4",
-  "exclusionHash": "d43fda04278ea3825b7cd1baeb7cf20c8ea0eb4b7b70a9b23ede1085ec1281d1",
+  "exclusionHash": "f7d20f4de1870886a15b79d898a7b5eed6a364267fd66d001038c05e38f6b3ed",
   "components": {
     "compiler": {
       "lines": {
-        "total": 10038,
-        "covered": 8332
+        "total": 10068,
+        "covered": 8367
       },
       "functions": {
-        "total": 435,
-        "covered": 403
+        "total": 437,
+        "covered": 405
       },
       "branches": {
-        "total": 6915,
-        "covered": 5511
+        "total": 6931,
+        "covered": 5533
       }
     },
     "bytecode": {

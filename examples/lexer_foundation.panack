@@ -49,24 +49,20 @@ pure lex(source: Str): Result[[Token],[Diagnostic]] {
 
     if is_whitespace(character) {
       cursor = cursor + 1
+    } else if is_digit(character) {
+      end: Nat = scan_number(source, cursor)
+      text: Str = slice(source, cursor, end)
+      tokens = append(tokens, Token(Number(), text, cursor, end))
+      cursor = end
+    } else if is_letter(character) || character == "_" {
+      end: Nat = scan_identifier(source, cursor)
+      text: Str = slice(source, cursor, end)
+      tokens = append(tokens, Token(Identifier(), text, cursor, end))
+      cursor = end
     } else {
-      if is_digit(character) {
-        end: Nat = scan_number(source, cursor)
-        text: Str = slice(source, cursor, end)
-        tokens = append(tokens, Token(Number(), text, cursor, end))
-        cursor = end
-      } else {
-        if is_letter(character) || character == "_" {
-          end: Nat = scan_identifier(source, cursor)
-          text: Str = slice(source, cursor, end)
-          tokens = append(tokens, Token(Identifier(), text, cursor, end))
-          cursor = end
-        } else {
-          end: Nat = cursor + 1
-          tokens = append(tokens, Token(Punctuation(), character, cursor, end))
-          cursor = end
-        }
-      }
+      end: Nat = cursor + 1
+      tokens = append(tokens, Token(Punctuation(), character, cursor, end))
+      cursor = end
     }
   }
 

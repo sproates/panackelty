@@ -2,7 +2,7 @@
   "schema": 1,
   "review": {
     "reason": "Record exact compiler readability floors after all 31 contexts; six added helpers are covered, all 68 protected items remain covered, and the manifest and 185 exclusion reasons are unchanged",
-    "basis": "Owner-requested compiler readability batch; proposed baseline validated against complete local evidence and required clean hosted CI before integration",
+    "basis": "Owner-requested compiler readability batch; proposed baseline validated against complete local evidence; PR policy checks and hosted collection follow the existing next-refresh/main-promotion route",
     "scopeChange": "Expand executable start lines from packed arms; simplify scanner and compatibility decisions; add six helpers and 23 focused assertions. Exclusion coordinates and later declaration IDs move without excluding additional code."
   },
   "manifestHash": "55f5286840cd4eb627f941c61d4350f1bae2ff75b52415c6e12c62e6726566f4",

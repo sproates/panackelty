@@ -115,7 +115,9 @@ bootstrap and package/install checks. The compiler contracts suite has 239
 assertions and the lexer suite has 12. Documentation checks, 24 coverage
 reader/policy tests and parity checks over 514 source-item observations passed.
 The complete local coverage collection ran all 31 contexts with no unavailable
-items. Clean hosted CI must reproduce the proposed baseline before integration.
+items. The proposed policy passes against this complete evidence, including all 68
+protected items. CI runs policy tests on PRs targeting `next`; full hosted
+collection runs on main promotion or an explicitly marked push to `next`.
 
 Source coverage counts expression/statement start lines. Expanding packed arms
 changes that denominator even when the layout-only compiler bytes are identical.

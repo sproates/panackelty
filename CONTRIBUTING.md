@@ -66,6 +66,47 @@ incrementally with their tests rather than reformatting the repository at once.
 Public names, source-location fixtures and generated artifacts require the
 exceptions below.
 
+#### Readable Panackelty
+
+**Readable Panackelty is code whose purpose, main flow and important constraints
+a human can understand without fighting its presentation.** It should look
+inviting on the page as well as follow the mechanical coding standard.
+Formatting compliance is necessary for deliberate readability batches, but
+does not by itself establish readability.
+
+Evaluate these qualities together:
+
+- **Breathing room:** separate meaningful phases with blank lines, wrap long
+  expressions at natural boundaries and group related declarations. Avoid walls
+  of code, dense statement chains and excessive spacing that disconnects ideas.
+- **Visible structure:** make the main path easy to follow and error paths easy
+  to recognise. Reduce deep nesting where supported syntax or cohesive helpers
+  make the algorithm clearer. Extra indirection and a forest of tiny functions
+  can be just as difficult to read as nested code.
+- **Intent in names:** name responsibilities and domain values precisely. Use
+  intermediate bindings when they explain a calculation or decision; avoid
+  abbreviations and clever compression that force readers to decode the code.
+- **Useful explanation:** comment purpose, algorithms, invariants, ownership,
+  bounds and non-obvious trade-offs. Give complex routines a short overview
+  where needed. Comments should add understanding, not narrate each line or
+  compensate for misleading names and structure.
+- **Coherent detail:** keep related work together, use a consistent visual
+  rhythm and let readers see one responsibility at a time. Preserve helpful
+  type/effect contracts and intentional fixture or generated-source exceptions.
+
+For each agreed readability batch, read the resulting file from top to bottom.
+A reviewer should be able to identify its purpose, explain the main algorithm,
+recognise its failure paths and find the important invariants without repeatedly
+tracing deeply nested blocks. Show representative before/after excerpts and
+describe what became easier to understand. No fixed nesting limit, function
+length, comment quota or prettiness score replaces this human judgement.
+
+Readability changes must preserve behaviour and be paired with meaningful test
+evidence under [GI#304](https://github.com/sproates/panackelty/issues/304).
+Check bootstrap, diagnostic/source-identity and performance implications when
+applicable. This definition guides incremental refactoring; it does not require
+unrelated rewrites in a focused fix or authorise new language syntax.
+
 #### Layout and whitespace
 
 Required:

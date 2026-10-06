@@ -104,7 +104,7 @@ Status meanings:
 | --- | --- | --- |
 | Concatenation and scalar interpolation | `runner/vm_unit.panack`; strings functional example | **Partial** — add `Bool` and guarded-scalar interpolation and malformed interpolation tests. |
 | Unicode code-point indexing, length, and reversal | `test_str_unicode_indexing_and_length`, `test_string_methods_reverse_unicode_code_points`, bounds-trap test, strings and two-pointer palindrome functional examples | **Covered** for multibyte code points, receiver-first reversal, algorithmic indexing, and out-of-bounds access. |
-| Conditional expressions and optional `else` | Bootstrap and self-hosted parser/checker/emitter tests; `optional_else` success case; `if_without_else_value` public failure | **Covered** for exhaustive value branches, omitted `else` in `Void` position, discarded body values, balanced bytecode paths, and rejection as a non-`Void` result. |
+| Conditional expressions, else-if chains and optional `else` | Bootstrap and self-hosted parser/checker/emitter tests; `optional_else` success case; `if_without_else_value` public failure | **Covered** for exhaustive/chained value branches, repeated partial chains, ordered/skipped conditions and bodies, mixed discarded arm values, source spans, async arms, namespace checking, balanced bytecode paths and rejection as a non-`Void` result. |
 | Half-open natural ranges and `for` | accumulator unit test; iterative Euler, FizzBuzz, and numeric-palindrome functional examples; `functional/failures/for_iterable_type` | **Partial** — invalid iterable rejection reaches the public CLI; add empty ranges and invalid bound-type rejection. |
 | `while` checking and facts | factorial-style unit test and `functional/failures/while_condition_type` | **Partial** — non-`Bool` rejection reaches the public CLI; add additional fact shapes. |
 | Homogeneous arrays, inference, iteration, length, and indexing | `test_arrays_iteration_indexing_and_len`; array bounds test; collections functional case | **Partial** — invalid index type coverage remains; local-inference tests cover heterogeneous literals and empty inferred arrays. |
@@ -795,3 +795,52 @@ nested VM and asserts exactly one compiler entry plus an unused command at zero.
 See [the session contract](../docs/SOURCE_COVERAGE.md). Complete execution data is
 not a claim that every source association is available, or that a test suite has
 been measured. SC5 still owns baseline scope and publication.
+
+
+## Else-if delivery evidence — 2026-10-06
+
+The chain feature adds 31 focused assertions: nine parser, one lexer, three
+source-span, eleven type/effect/guard, five staged-namespace and two inventory
+contracts. Current suite totals are 202 parser, 13 lexer, 36 spans, 250 compiler
+contracts, 470 namespace and 24 inventory assertions. Exact CLI fixtures reject
+non-Bool conditions, incompatible arm results, missing bodies and partial-chain
+value use, with positioned transcripts and no generated artifact. The negative
+runner has 59 fixtures and 207 assertions; full functional execution has 355.
+Source and saved-bytecode cases verify repeated exhaustive/partial chains,
+ordered/skipped conditions and bodies, mixed discarded tail types, nested chains,
+async arms and balanced continuation after no match. Namespace execution stays
+gated; its direct body-checker assertions do not claim executable namespaces.
+
+Compiler and stdlib fresh fixed points pass. Canonical `make check` passes in
+322 seconds, including a 247-second unit phase; the unchanged 120-second full
+and 15-second unit targets remain exceeded. These local timings overlapped source
+collection and are not a controlled before/after comparison. Seven unchanged
+example compilations in seven alternating-order rounds reproduce identical
+bytes across all 49 pairs, with median batch times 0.766 seconds before and
+0.776 after (+1.3%) and broad overlapping ranges. This bounded shared-host sample
+does not establish universal performance acceptance. Seed size changes from
+505,229 to 506,859 bytes (+0.32%); bytecode v9 and the stdlib artifact are unchanged.
+
+The complete local source collection validates all 31 manifest contexts, all
+38 eligible files, zero unavailable items and the compiler fixed point. Proposed
+compiler floors change as follows; all three covered ratios increase:
+
+| Metric | Previous floor | Proposed measured floor |
+| --- | --- | --- |
+| Executable start lines | 8,332 / 10,038 (83.00%) | 8,367 / 10,068 (83.10%) |
+| Functions | 403 / 435 (92.64%) | 405 / 437 (92.68%) |
+| Source outcomes | 5,511 / 6,915 (79.70%) | 5,533 / 6,931 (79.83%) |
+
+Both new parser helpers execute. Parser outcome coverage increases 970/1,108 to
+986/1,122; lexer outcomes increase 210/213 to 212/215. Existing checker, namespace
+body checker and purity outcome coverage gains two, one and one respectively;
+all other function/outcome counts remain unchanged. The manifest, bytecode/stdlib
+floors and all 68 protected source items are preserved. The 185 existing
+exclusions remain, and the new compile-time `ParsedConditional` record adds one
+record-declaration exclusion. Parser declaration IDs and coordinates also shift.
+The proposed exclusion digest and exact floors explicitly account for these
+changes; no runtime exclusion or corpus reduction is introduced. The normal
+policy validator passes against the complete evidence. PRs targeting `next` run
+policy tests; hosted full collection follows the existing marked-next-refresh or
+main-promotion route. These measurements retain the report's bounded-corpus and
+assertion-quality limits.

@@ -10,8 +10,40 @@ pure inventory_summary(items: [InventoryItem], source: Str): Str {
   output
 }
 
+pure chain_inventory_decisions(source: Str): Str {
+  match lex_file(source, "chain") {
+    Error(errors) => "lex error",
+    Ok(tokens) => match parse_module_complete(tokens) {
+      Error(error) => "parse error",
+      Ok(parsed) => {
+        identity: ModuleIdentity = source_module_identity("chain", "", "")
+        module: LoadedModule = LoadedModule(
+          "chain", parsed, parsed.program, collect_module_bindings(identity, parsed)
+        )
+        mut output: Str = ""
+        for item in inventory_module(module) {
+          if item.kind == "decision" || item.kind == "outcome" {
+            output = output + item.kind + ":" + item.detail + ":" +
+              slice(source, item.span.start.offset, item.span.end.offset) + ";"
+          }
+        }
+        output
+      }
+    }
+  }
+}
+
 main(): Void {
   mut results: [TestResult] = []
+  for source in [
+    "pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { 3 } }",
+    "pure f(a:Bool,b:Bool):Void { if a { 1 } else if b { 2 } }"
+  ] {
+    results = append(results, test_equal_str("else-if original decisions/" + source,
+      chain_inventory_decisions(source),
+      "decision:if:a;outcome:true:a;outcome:false:a;decision:if:b;outcome:true:b;outcome:false:b;"))
+  }
+
   entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
   project: LoadedProject = load_project_for_source_map(entry)
   results = results.append(test_expect("inventory fixture checks", len(project.diagnostics) == 0, "fixture failed to check"))

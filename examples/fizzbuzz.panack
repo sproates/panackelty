@@ -1,16 +1,12 @@
 pure fizzbuzz(value: Nat): Str {
   if value % 15 == 0 {
     "FizzBuzz"
+  } else if value % 3 == 0 {
+    "Fizz"
+  } else if value % 5 == 0 {
+    "Buzz"
   } else {
-    if value % 3 == 0 {
-      "Fizz"
-    } else {
-      if value % 5 == 0 {
-        "Buzz"
-      } else {
-        "${value}"
-      }
-    }
+    "${value}"
   }
 }
 

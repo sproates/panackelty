@@ -778,35 +778,92 @@ pure parse_match_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Dia
   }
 }
 
-// Keep branch construction separate from the condition/then parse. Both arms
-// retain the original written range, including an explicit closing else brace.
+// A chain is exhaustive only when it ends in a written else block. This flag
+// belongs to parsing: an inner statement-only if must not force earlier arms
+// to produce compatible values, or accidentally make a partial chain a value.
+record ParsedConditional {
+  expression: ParsedExpr,
+  exhaustive: Bool
+}
+
+pure discard_block_result(block: Block): Block {
+  statements: [Statement] = match block.value {
+    NoBlockValue() => block.statements,
+    TailBlockValue(value) => append(block.statements, ExpressionStatement(value))
+  }
+  Block(statements, NoBlockValue())
+}
+
 pure parse_if_branches(
   tokens: [Token],
   index: Nat,
   condition: ParsedExpr,
   yes: ParsedBlock
-): Result[ParsedExpr, Diagnostic] {
+): Result[ParsedConditional, Diagnostic] {
   if yes.next < len(tokens) && tokens[yes.next].text == "else" {
-    match parse_block(tokens, yes.next + 1) {
-      Ok(no) => {
-        value: Expr = IfExpr(condition.value, yes.value, no.value, true)
-        Ok(ParsedExpr(located_expression(tokens, index, no.next, value), no.next))
-      },
-      Error(error) => Error(error)
+    alternative: Nat = yes.next + 1
+    if alternative < len(tokens) && tokens[alternative].text == "if" {
+      match parse_if_chain(tokens, alternative) {
+        Error(error) => Error(error),
+        Ok(chain) => {
+          nested: ParsedExpr = chain.expression
+          // Partial chains execute arm tails but discard their values. Retain
+          // the located nested expression for diagnostics, maps and coverage.
+          yes_block: Block = if chain.exhaustive {
+            yes.value
+          } else {
+            discard_block_result(yes.value)
+          }
+          no_block: Block = if chain.exhaustive {
+            Block([], TailBlockValue(nested.value))
+          } else {
+            Block([ExpressionStatement(nested.value)], NoBlockValue())
+          }
+          value: Expr = IfExpr(condition.value, yes_block, no_block, true)
+          expression: ParsedExpr = ParsedExpr(
+            located_expression(tokens, index, nested.next, value),
+            nested.next
+          )
+          Ok(ParsedConditional(expression, chain.exhaustive))
+        }
+      }
+    } else {
+      match parse_block(tokens, alternative) {
+        Ok(no) => {
+          value: Expr = IfExpr(condition.value, yes.value, no.value, true)
+          expression: ParsedExpr = ParsedExpr(
+            located_expression(tokens, index, no.next, value),
+            no.next
+          )
+          Ok(ParsedConditional(expression, true))
+        },
+        Error(error) => Error(error)
+      }
     }
   } else {
     no: Block = Block([], NoBlockValue())
     value: Expr = IfExpr(condition.value, yes.value, no, false)
-    Ok(ParsedExpr(located_expression(tokens, index, yes.next, value), yes.next))
+    expression: ParsedExpr = ParsedExpr(
+      located_expression(tokens, index, yes.next, value),
+      yes.next
+    )
+    Ok(ParsedConditional(expression, false))
   }
 }
 
-pure parse_if_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
+pure parse_if_chain(tokens: [Token], index: Nat): Result[ParsedConditional, Diagnostic] {
   match parse_expression(tokens, index + 1) {
     Ok(condition) => match parse_block(tokens, condition.next) {
       Ok(yes) => parse_if_branches(tokens, index, condition, yes),
       Error(error) => Error(error)
     },
+    Error(error) => Error(error)
+  }
+}
+
+pure parse_if_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] {
+  match parse_if_chain(tokens, index) {
+    Ok(chain) => Ok(chain.expression),
     Error(error) => Error(error)
   }
 }

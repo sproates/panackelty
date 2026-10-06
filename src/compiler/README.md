@@ -33,7 +33,8 @@ documented in `../../docs/SOURCE_MAPS.md`.
   retained dot calls, field access, indexing,
   blocks, bindings, assignments, and
   optional local type annotations, including exhaustive value conditionals, optional
-  `else` for `Void` conditionals, and `while` and `for` statements. Pattern matching supports variant payload bindings plus
+  `else` for `Void` conditionals, repeated `else if` arms with an optional final
+  `else`, and `while` and `for` statements. Pattern matching supports variant payload bindings plus
   expression and block arms. Program-level parsing accepts quoted file-relative
   and extensionless logical import declarations and guarded type declarations,
   with complete nested generic and
@@ -162,8 +163,8 @@ documentation.
 Direct lexer, parser, resolver, type-checker, and purity contracts live in
 `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`. These import the implementation
 modules and use `stdlib/testing`; `make unit` and `make check-compiler` run
-them on the native VM. The parser probe preserves all 192 expanded expectations
-for expressions, blocks, types and programs; the resolver checks 26 source and
+them on the native VM. The parser probe has 202 assertions, preserving all 192 original expanded
+expectations and covering chained conditionals; the resolver checks 26 source and
 module-graph assertions, including exact positioned diagnostics. The checker
 and purity probes keep all 31/10 source expectations and 3/1 module contracts.
 The fixed-expectation audit is in
@@ -190,7 +191,7 @@ services with identical signatures and effects. These calls lower through the
 existing named-call ABI; their record and enum definitions live in the stdlib.
 
 The remaining direct compiler contracts now run in
-`tests/runner/compiler_contracts_unit.panack` (239 assertions) and
+`tests/runner/compiler_contracts_unit.panack` (250 assertions) and
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,

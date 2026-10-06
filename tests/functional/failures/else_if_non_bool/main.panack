@@ -1,0 +1,5 @@
+pure answer(flag: Bool): Nat {
+  if flag { 1 } else if 7 { 2 } else { 3 }
+}
+
+main(): Void { print(answer(false)) }

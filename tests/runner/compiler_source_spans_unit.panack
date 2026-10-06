@@ -139,5 +139,13 @@ main(): Void {
   results = results.append(test_equal_str("spans/generic-body", program_trace("pure pick[T](items: [T], index: Nat): T { items[index] }"), "42..54;42..47;48..53;"))
   results = results.append(test_equal_str("spans/binding-assignment-loops", program_trace("main(): Void { mut x = 1 + 2; x = 3; while x > 0 { x = 0; } for item in [1, 2] { print(item); } }"), "23..28;23..24;27..28;34..35;43..48;43..44;47..48;55..56;72..78;73..74;76..77;81..92;87..91;"))
   results = results.append(test_equal_str("spans/implicit-semicolons", program_trace("main(): Void {\n  mut x = 1\n  x = 2\n  print(x)\n}"), "25..26;33..34;37..45;43..44;"))
+  results = results.append(test_equal_str("spans/else-if-root",
+    root_span("if a { 1 } else if b { 2 } else { 3 }"), "sample.panack|0:1:1-37:1:38"))
+  results = results.append(test_equal_str("spans/else-if-children",
+    expression_trace("if a { 1 } else if b { 2 } else { 3 }"),
+    "0..37;3..4;7..8;16..37;19..20;23..24;34..35;"))
+  results = results.append(test_equal_str("spans/else-if-partial-children",
+    expression_trace("if a { 1 } else if b { 2 }"),
+    "0..26;3..4;7..8;16..26;19..20;23..24;"))
   if test_report(results) > 0 { process_exit(1) }
 }

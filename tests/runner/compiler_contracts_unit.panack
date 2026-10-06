@@ -140,8 +140,35 @@ pure readable_compiler_contracts(): [TestResult] {
   results
 }
 
+pure else_if_contracts(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { 3 } }",
+    "pure f(a:Bool,b:Bool):Void { if a { 1 } else if b { \"discard\" } }",
+    "pure f(n:Nat):Nat { if n >= 3 { n - 3 } else if n >= 2 { n - 2 } else { n } }",
+    "async f(a:Bool,b:Bool):Nat { if a { await number() } else if b { await number() } else { await number() } }"
+  ] {
+    results = append(results, test_equal_str("else-if accepts/" + source,
+      check_source_frontend(source + " async number():Nat { 1 } main():Void {}"), "ok"))
+  }
+  for case in [
+    ["pure f(a:Bool):Nat { if a { 1 } else if 7 { 2 } else { 3 } }", "if condition must be Bool"],
+    ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { \"bad\" } }", "branches have incompatible types"],
+    ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } }", "returns Void, expected Nat"],
+    ["pure f(a:Bool,b:Bool):Void { value = if a { 1 } else if b { 2 }; }", "Void"],
+    ["pure f(a:Bool,b:Bool):Void { if a {} else if b { print(2) } }", "pure function cannot call impure function print"],
+    ["pure f(a:Bool,b:Bool):Void { if a {} else if b { await number() } }", "await"],
+    ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else { if b { 2 } } }", "branches have incompatible types"]
+  ] {
+    actual: Str = check_source_frontend(case[0] + " async number():Nat { 1 } main():Void {}")
+    results = append(results, test_expect("else-if rejects/" + case[0],
+      actual != "ok" && contract_contains(actual, case[1]), "wrong rejection: " + actual))
+  }
+  results
+}
+
 main(): Void {
-  mut results: [TestResult] = concat(indexed_lookup_contracts(), readable_compiler_contracts())
+  mut results: [TestResult] = concat(indexed_lookup_contracts(), readable_compiler_contracts()).concat(else_if_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))

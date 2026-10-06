@@ -34,6 +34,8 @@ main(): Void {
   expected_text = "${expected_text}PASS selected example count\n"
   failure_names = ["async_bare", "async_blocking", "callable_effect", "constructor_arity", "core_no_global_method", "core_private_helper",
     "core_text_receiver", "core_type_collision", "duplicate_function",
+    "else_if_incompatible", "else_if_missing_body", "else_if_non_bool",
+    "else_if_without_else_value",
     "fact_mutation_after_loop", "fact_mutation_arguments", "fact_mutation_direct",
     "fact_mutation_for_carried", "fact_mutation_nested", "fact_mutation_operand",
     "fact_mutation_while_carried", "fact_mutation_while_condition",
@@ -59,7 +61,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 343, failures: 0\n")
+  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 355, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
     ["PANACKELTY_STDLIB_VALUE=ambient-test"],

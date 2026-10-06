@@ -1,25 +1,25 @@
 {
   "schema": 1,
   "review": {
-    "reason": "Establish exact post-batch floors after 31 complete fresh executions and positive coverage of all 68 protected items; all denominators and exclusions are unchanged",
-    "basis": "Owner-approved SC6 batch; development evidence reproduced by clean hosted CI before acceptance",
-    "scopeChange": "Add host_types and UTF-8/fallback/duration boundary assertions"
+    "reason": "Record exact compiler readability floors after all 31 contexts; six added helpers are covered, all 68 protected items remain covered, and the manifest and 185 exclusion reasons are unchanged",
+    "basis": "Owner-requested compiler readability batch; proposed baseline validated against complete local evidence and required clean hosted CI before integration",
+    "scopeChange": "Expand executable start lines from packed arms; simplify scanner and compatibility decisions; add six helpers and 23 focused assertions. Exclusion coordinates and later declaration IDs move without excluding additional code."
   },
   "manifestHash": "55f5286840cd4eb627f941c61d4350f1bae2ff75b52415c6e12c62e6726566f4",
-  "exclusionHash": "34555e7331fc6d01b28027c7ae208061bcac9c169218d66d4aec5a1eec531f1e",
+  "exclusionHash": "d43fda04278ea3825b7cd1baeb7cf20c8ea0eb4b7b70a9b23ede1085ec1281d1",
   "components": {
     "compiler": {
       "lines": {
-        "total": 5998,
-        "covered": 5173
+        "total": 10038,
+        "covered": 8332
       },
       "functions": {
-        "total": 429,
-        "covered": 397
+        "total": 435,
+        "covered": 403
       },
       "branches": {
-        "total": 6922,
-        "covered": 5514
+        "total": 6915,
+        "covered": 5511
       }
     },
     "bytecode": {

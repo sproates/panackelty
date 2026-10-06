@@ -108,16 +108,50 @@ preserved rather than replaced with successful-execution assertions.
 ## Validation and measurement
 
 The layout-only stage reproduced the original compiler seed byte for byte.
-Structural changes require a newly regenerated seed and digest, with compiler and
-standard-library fixed-point validation. The final source must pass `make check`,
-documentation checks, source coverage reader/policy/parity tests and fresh full
-source collection before this batch can be integrated.
+The structural changes have a regenerated seed and digest, with compiler and
+standard-library fixed points verified. `make check` passed, including 343
+functional assertions, compiler/VM units, source and saved-bytecode execution,
+bootstrap and package/install checks. The compiler contracts suite has 239
+assertions and the lexer suite has 12. Documentation checks, 24 coverage
+reader/policy tests and parity checks over 514 source-item observations passed.
+The complete local coverage collection ran all 31 contexts with no unavailable
+items. Clean hosted CI must reproduce the proposed baseline before integration.
 
 Source coverage counts expression/statement start lines. Expanding packed arms
 changes that denominator even when the layout-only compiler bytes are identical.
 Any coverage-policy update must explicitly report old/new counts, preserve the
 manifest and protected items, and explain changed source structure. Formatting
 does not by itself demonstrate new behavioural coverage.
+
+| Compiler metric | Previous floor | Measured replacement |
+| --- | --- | --- |
+| Executable start lines | 5,173 / 5,998 (86.25%) | 8,332 / 10,038 (83.00%) |
+| Functions | 397 / 429 (92.54%) | 403 / 435 (92.64%) |
+| Source outcomes | 5,514 / 6,922 (79.66%) | 5,511 / 6,915 (79.70%) |
+
+The lower line percentage exposes previously packed zero-hit paths on separate
+lines; it does not establish a loss of behavioural coverage. All six helper
+functions are exercised. The scanner removes four covered outcomes; compatibility
+removes three outcomes overall and gains one covered outcome. Escape decoding and
+conditional parsing preserve their outcome counts. All other compiler files
+preserve function/outcome states, including diagnostic rendering.
+
+The manifest, bytecode and stdlib floors, and all 68 protected items are unchanged.
+All 185 exclusions retain their per-file counts and reasons. Their line coordinates
+move; later declaration IDs also shift after inserted helpers in the parser and
+namespace body module. The exclusion digest is updated for these positions and IDs,
+without adding exclusions or shrinking the collection scope. This is a proposed
+reviewable baseline, not an automatic waiver of coverage policy.
+
+A bounded performance comparison compiled seven existing examples in seven
+rotating-order rounds. Outputs were identical across all 49 old/new pairs. Median
+time was 0.848 seconds before and 0.880 seconds after (+3.7%), with broad overlapping
+ranges (0.740–1.125 and 0.747–1.437 seconds). This shared-host sample does not
+establish a speedup or rule out regressions on other workloads. The full check
+passed in 425 seconds, exceeding its 120-second reference budget; its unit timing
+budget also warned. Correctness acceptance and performance acceptance remain
+separate.
+
 
 The broader programme's IQ-1 weights remain 5% inventory/targets, 90% paired
 batches and 5% final audit. This batch does not allocate the 90% across the entire

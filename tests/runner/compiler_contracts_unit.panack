@@ -66,8 +66,82 @@ pure indexed_lookup_contracts(): [TestResult] {
   results
 }
 
+// Boundary assertions for the compiler readability batch. Expected decisions
+// are stated directly, including deferral versus a known contradiction.
+pure readable_compiler_contracts(): [TestResult] {
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str("literal escape decoding",
+    decode_string_literal("\"a\\n\\r\\t\\b\\f\\q\\\"\\\\z\""), "a\n\r\t\b\fq\"\\z"))
+  results = append(results, test_equal_str("literal without escapes",
+    decode_string_literal("\"plain\""), "plain"))
+  results = append(results, test_equal_str("empty literal",
+    decode_string_literal("\"\""), ""))
+  results = append(results, test_equal_str("two-byte diagnostic character",
+    diagnostic_character("é"), "\\u{e9}"))
+  results = append(results, test_equal_str("three-byte diagnostic character",
+    diagnostic_character("€"), "\\u{20ac}"))
+  results = append(results, test_equal_str("four-byte diagnostic character",
+    diagnostic_character("😀"), "\\u{1f600}"))
+
+  module_identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), "readability.panack")
+  owner: DeclarationIdentity = DeclarationIdentity(module_identity, "example")
+  guarded_identity: DeclarationIdentity = DeclarationIdentity(module_identity, "Positive")
+  program: Program = indexed_program([TypeDeclaration("Positive", "Nat", BoolExpr(true))])
+  parsed: ParsedModule = ParsedModule(program, [])
+  bindings: ModuleBindings = ModuleBindings(module_identity, [], [])
+  module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings)
+  context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [])
+  natural: SignatureType = SignatureType(SignatureCore("Nat"), [])
+  integer: SignatureType = SignatureType(SignatureCore("Int"), [])
+  text: SignatureType = SignatureType(SignatureCore("Str"), [])
+  void_type: SignatureType = SignatureType(SignatureCore("Void"), [])
+  hole: SignatureType = SignatureType(SignatureHole(owner, [], 0), [])
+  positive: SignatureType = SignatureType(SignatureNominal(guarded_identity), [])
+  pure_callable: SignatureType = SignatureType(SignatureCallable(SignaturePure()), [natural])
+  ordinary_callable: SignatureType = SignatureType(SignatureCallable(SignatureOrdinary()), [natural])
+  async_callable: SignatureType = SignatureType(SignatureCallable(SignatureAsync()), [natural])
+
+  results = append(results, test_expect("identical types accepted",
+    body_compatibility(context, natural, natural) == Some(true), "wrong identity decision"))
+  results = append(results, test_expect("Nat widens to Int",
+    body_compatibility(context, natural, integer) == Some(true), "widening rejected"))
+  results = append(results, test_expect("Int does not narrow to Nat",
+    body_compatibility(context, integer, natural) == Some(false), "narrowing accepted"))
+  results = append(results, test_expect("hole never stores Void",
+    body_compatibility(context, hole, void_type) == Some(false) &&
+    body_compatibility(context, void_type, hole) == Some(false), "Void escaped its boundary"))
+  results = append(results, test_expect("hole keeps value constraints",
+    body_compatibility(context, hole, natural) == Some(true), "value hole rejected"))
+  results = append(results, test_expect("guard conversion remains deferred",
+    body_compatibility(context, natural, positive) == None() &&
+    body_compatibility(context, positive, natural) == None(), "guard proof fabricated"))
+  results = append(results, test_expect("pure callable widens to ordinary",
+    body_compatibility(context, pure_callable, ordinary_callable) == Some(true), "effect widening rejected"))
+  results = append(results, test_expect("ordinary and async do not become pure",
+    body_compatibility(context, ordinary_callable, pure_callable) == Some(false) &&
+    body_compatibility(context, async_callable, ordinary_callable) == Some(false), "effect coercion accepted"))
+  results = append(results, test_expect("callable slots remain exact",
+    body_compatibility(context, pure_callable,
+      SignatureType(SignatureCallable(SignatureOrdinary()), [integer])) == Some(false), "slot coercion accepted"))
+  results = append(results, test_expect("generic arity remains exact",
+    body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
+      SignatureType(SignatureCore("Array"), [])) == Some(false), "arity mismatch accepted"))
+  results = append(results, test_expect("nested generic arguments widen",
+    body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
+      SignatureType(SignatureCore("Array"), [integer])) == Some(true), "nested widening rejected"))
+  results = append(results, test_expect("known contradiction dominates deferral in either order",
+    body_compatibility(context, SignatureType(SignatureCore("Pair"), [natural, natural]),
+      SignatureType(SignatureCore("Pair"), [positive, text])) == Some(false) &&
+    body_compatibility(context, SignatureType(SignatureCore("Pair"), [natural, natural]),
+      SignatureType(SignatureCore("Pair"), [text, positive])) == Some(false), "contradiction hidden"))
+  results = append(results, test_expect("deferred generic argument remains deferred",
+    body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
+      SignatureType(SignatureCore("Array"), [positive])) == None(), "deferred proof resolved"))
+  results
+}
+
 main(): Void {
-  mut results: [TestResult] = indexed_lookup_contracts()
+  mut results: [TestResult] = concat(indexed_lookup_contracts(), readable_compiler_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))

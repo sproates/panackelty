@@ -1,5 +1,7 @@
 import "driver.panack"
 
+// Executable entry point for the self-hosted compiler command boundary.
+
 main(): Void {
   compiler_main()
 }

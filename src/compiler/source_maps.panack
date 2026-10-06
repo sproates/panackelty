@@ -1,6 +1,9 @@
 import "loader.panack"
 import "diagnostics.panack"
 
+// Serialize and replay bounded, local source maps. Foreign paths and lengths are
+// never instructions to open files or allocate unchecked buffers.
+
 record SourceSnapshot {
   name: Str,
   path: Str,
@@ -15,13 +18,17 @@ pure source_path_parts(path: Str): [Str] {
   mut parts: [Str] = []
   mut start: Nat = 0
   mut cursor: Nat = 0
+
   while cursor <= len(path) {
     if cursor == len(path) || path[cursor] == "/" {
-      if start < cursor { parts = append(parts, slice(path, start, cursor)); }
+      if start < cursor {
+        parts = append(parts, slice(path, start, cursor))
+      }
       start = cursor + 1
     }
     cursor = cursor + 1
   }
+
   parts
 }
 
@@ -31,15 +38,21 @@ pure source_relative_path(root: Str, path: Str): Str {
   base: [Str] = source_path_parts(root)
   target: [Str] = source_path_parts(path)
   mut common: Nat = 0
+
   while common < len(base) && common < len(target) && base[common] == target[common] {
     common = common + 1
   }
   mut output: Str = ""
-  for index in common..len(base) { output = output + "../"; }
+  for index in common..len(base) {
+    output = output + "../"
+  }
   for index in common..len(target) {
     output = output + target[index]
-    if index + 1 < len(target) { output = output + "/"; }
+    if index + 1 < len(target) {
+      output = output + "/"
+    }
   }
+
   output
 }
 
@@ -53,8 +66,12 @@ pure source_identifier(path: Str, root: Str, stdlib_root: Str): Str {
 
 pure source_snapshots(project: LoadedProject, root: Str, stdlib_root: Str): [SourceSnapshot] {
   mut snapshots: [SourceSnapshot] = []
+
   for path in project.source_paths {
-    snapshots = append(snapshots, SourceSnapshot(source_identifier(path, root, stdlib_root), path, project.sources.get(path)))
+    snapshots = append(
+      snapshots,
+      SourceSnapshot(source_identifier(path, root, stdlib_root), path, project.sources.get(path))
+    )
   }
   snapshots.sort_by(@source_snapshot_less)
 }
@@ -64,16 +81,21 @@ pure source_map_blob(data: Bytes): Bytes {
 }
 
 pure source_map_position(position: SourcePos): Bytes {
-  bytes_concat(bytes_concat(encode_u32(position.offset), encode_u32(position.line)), encode_u32(position.column))
+  bytes_concat(
+    bytes_concat(encode_u32(position.offset), encode_u32(position.line)),
+    encode_u32(position.column)
+  )
 }
 
 // Join a bounded set of chunks as a balanced tree. In particular, do not copy
 // the entire captured source closure for each emitted instruction.
 pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
-  if start >= end { bytes() }
-  else {
-    if end == start + 1 { chunks[start] }
-    else {
+  if start >= end {
+    bytes()
+  } else {
+    if end == start + 1 {
+      chunks[start]
+    } else {
       middle: Nat = quotient(start + end, 2)
       bytes_concat(source_map_join(chunks, start, middle), source_map_join(chunks, middle, end))
     }
@@ -83,15 +105,29 @@ pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
 // No consumer decodes foreign bytes. Reproduction by the installed compiler is
 // the trust boundary; this marker specifies a format, not producer authentication.
 // The format embeds exact artifact/source bytes rather than collision-prone IDs.
-pure serialize_source_map(project: LoadedProject, mapped: SourceMappedProgram, artifact: Bytes, entry: Str, root: Str, stdlib_root: Str): Bytes {
+pure serialize_source_map(
+  project: LoadedProject,
+  mapped: SourceMappedProgram,
+  artifact: Bytes,
+  entry: Str,
+  root: Str,
+  stdlib_root: Str
+): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib_root)
   mut valid: Bool = byte_len(artifact) <= 16777216 && len(snapshots) <= 256
   mut chunks: [Bytes] = [utf8_encode("PANACKMAP1\nlocal-replay-v9\n"),
-    encode_text(source_identifier(entry, root, stdlib_root)), source_map_blob(artifact), encode_u32(len(snapshots))]
+    encode_text(source_identifier(
+    entry,
+    root,
+    stdlib_root
+  )), source_map_blob(artifact), encode_u32(len(snapshots))]
   mut size: Nat = 0
-  for chunk in chunks { size = size + byte_len(chunk); }
+
+  for chunk in chunks {
+    size = size + byte_len(chunk)
+  }
   valid = valid && size <= 16777216
-  mut indices: Map[Str,Nat] = map()
+  mut indices: Map[Str, Nat] = map()
   mut index: Nat = 0
   for snapshot in snapshots {
     if valid {
@@ -100,7 +136,9 @@ pure serialize_source_map(project: LoadedProject, mapped: SourceMappedProgram, a
       text: Bytes = encode_text(snapshot.text)
       size = size + byte_len(name) + byte_len(text)
       valid = size <= 16777216
-      if valid { chunks = chunks.append(name).append(text); }
+      if valid {
+        chunks = chunks.append(name).append(text)
+      }
       index = index + 1
     }
   }
@@ -111,24 +149,42 @@ pure serialize_source_map(project: LoadedProject, mapped: SourceMappedProgram, a
       header: Bytes = bytes_concat(encode_text(function.name), encode_u32(len(function.entries)))
       size = size + byte_len(header)
       valid = size <= 16777216
-      if valid { chunks = chunks.append(header); }
+      if valid {
+        chunks = chunks.append(header)
+      }
       for location in function.entries {
         span: SourceSpan = location.span
         size = size + 33
-        if valid && size <= 16777216 && indices.has(span.start.file) && span.start.file == span.end.file {
-          mut chunk: Bytes = bytes_concat(encode_u32(location.index), encode_u32(indices.get(span.start.file)))
+        if valid &&
+          size <= 16777216 &&
+          indices.has(span.start.file) &&
+          span.start.file == span.end.file {
+          mut chunk: Bytes = bytes_concat(
+            encode_u32(location.index),
+            encode_u32(indices.get(span.start.file))
+          )
           chunk = bytes_concat(chunk, source_map_position(span.start))
           chunk = bytes_concat(chunk, source_map_position(span.end))
-          chunk = byte_append(chunk, if location.lowered { 1 } else { 0 })
+          chunk = byte_append(chunk, if location.lowered {
+              1
+            } else {
+              0
+            })
           chunks = chunks.append(chunk)
-        } else { valid = false }
+        } else {
+          valid = false
+        }
       }
     }
   }
-  if valid && size <= 16777216 { source_map_join(chunks, 0, len(chunks)) } else { bytes() }
+  if valid && size <= 16777216 {
+    source_map_join(chunks, 0, len(chunks))
+  } else {
+    bytes()
+  }
 }
 
-source_map_read(path: Str, limit: Nat): Result[Bytes,Str] {
+source_map_read(path: Str, limit: Nat): Result[Bytes, Str] {
   match path_from_text(path) {
     Error(error) => Error("invalid path"),
     Ok(file) => match fs_read(file, limit) {
@@ -149,26 +205,45 @@ source_map_matches(path: Str, expected: Bytes): Bool {
 // of a concurrently edited tree; all reported coordinates describe captured text.
 source_snapshots_unchanged(project: LoadedProject): Bool {
   mut unchanged: Bool = true
+
   for path in project.source_paths {
-    if !source_map_matches(path, utf8_encode(project.sources.get(path))) { unchanged = false; }
+    if !source_map_matches(path, utf8_encode(project.sources.get(path))) {
+      unchanged = false
+    }
   }
   unchanged
 }
 
 pure source_map_escape(text: Str): Str {
   mut output: Str = ""
-  for index in 0..len(text) { output = output + diagnostic_character(text[index]); }
+
+  for index in 0..len(text) {
+    output = output + diagnostic_character(text[index])
+  }
+
   output
 }
 
-pure source_map_location(project: LoadedProject, mapped: SourceMappedProgram, function_name: Str, pc: Nat, root: Str, stdlib_root: Str): Str {
+pure source_map_location(
+  project: LoadedProject,
+  mapped: SourceMappedProgram,
+  function_name: Str,
+  pc: Nat,
+  root: Str,
+  stdlib_root: Str
+): Str {
   mut output: Str = "source-map: unavailable"
+
   for function in mapped.sources {
     if function.name == function_name {
       for location in function.entries {
         if location.index == pc {
           span: SourceSpan = location.span
-          kind: Str = if location.lowered { "lowered" } else { "expression" }
+          kind: Str = if location.lowered {
+            "lowered"
+          } else {
+            "expression"
+          }
           file: Str = source_map_escape(source_identifier(span.start.file, root, stdlib_root))
           name: Str = source_map_escape(function_name)
           start: Nat = span.start.offset
@@ -184,6 +259,7 @@ pure source_map_location(project: LoadedProject, mapped: SourceMappedProgram, fu
       }
     }
   }
+
   output
 }
 

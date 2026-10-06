@@ -1,6 +1,9 @@
 import "resolver.panack"
 import "expression_contracts.panack"
 
+// Type checking keeps value types, mutation-sensitive guard facts and optional
+// proof evidence together. Ordinary checks must not retain explanation data.
+
 record TypeShape {
   base: Str,
   arguments: [Str]
@@ -94,19 +97,30 @@ record CheckedProgram {
   diagnostics: [Diagnostic],
   evidence: [SubtractionEvidence],
   declarations_valid: Bool,
-  function_types: Map[Str,Bool]
+  function_types: Map[Str, Bool]
 }
 
 pure evidence_for_function(entries: [SubtractionEvidence], name: Str): [SubtractionEvidence] {
   mut result: [SubtractionEvidence] = []
+
   for entry in entries {
-    result = append(result, SubtractionEvidence(name, entry.span, entry.left, entry.right, entry.decision))
+    result = append(
+      result,
+      SubtractionEvidence(name, entry.span, entry.left, entry.right, entry.decision)
+    )
   }
+
   result
 }
 
-pure subtraction_decision(left: Expr, left_info: TypeInfo, right_info: TypeInfo, facts: Map[Str,Bounds]): SubtractionDecision {
+pure subtraction_decision(
+  left: Expr,
+  left_info: TypeInfo,
+  right_info: TypeInfo,
+  facts: Map[Str, Bounds]
+): SubtractionDecision {
   mut decision: SubtractionDecision = SubtractionDecision(false, "insufficient", false, 0, None())
+
   if left_info.has_nat && right_info.has_nat && left_info.nat_value >= right_info.nat_value {
     decision = SubtractionDecision(true, "constants", false, 0, None())
   }
@@ -116,16 +130,30 @@ pure subtraction_decision(left: Expr, left_info: TypeInfo, right_info: TypeInfo,
         bound: Bounds = facts.get(name)
         if bound.has_lower {
           proven: Bool = bound.lower >= right_info.nat_value
-          decision = SubtractionDecision(proven, if proven { "lower-bound" } else { "insufficient" }, true, bound.lower, bound.lower_origin)
+          decision = SubtractionDecision(proven, if proven {
+              "lower-bound"
+            } else {
+              "insufficient"
+            }, true, bound.lower, bound.lower_origin)
         }
       }
     },
-    LocatedExpr(span, value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {},
-    StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(name) => {},
-    ArrayExpr(items) => {}, UnaryExpr(op, value) => {}, BinaryExpr(op, a, b) => {},
-    CallExpr(name, args, types) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(value, field) => {},
-    IndexExpr(value, index) => {}, IfExpr(condition, yes, no, has_else) => {},
-    BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    LocatedExpr(span, value) => {},
+    NatExpr(value) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(value) => {},
+    FunctionExpr(name) => {},
+    ArrayExpr(items) => {},
+    UnaryExpr(op, value) => {},
+    BinaryExpr(op, a, b) => {},
+    CallExpr(name, args, types) => {},
+    DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+    FieldExpr(value, field) => {},
+    IndexExpr(value, index) => {},
+    IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {}
   }
   decision
 }
@@ -136,23 +164,37 @@ pure checker_diagnostic(message: Str): Diagnostic {
 
 pure checker_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Diagnostic] {
   mut result: [Diagnostic] = []
+
   for diagnostic in diagnostics {
-    selected: SourcePos = if len(diagnostic.position.file) == 0 { position } else { diagnostic.position }
+    selected: SourcePos = if len(diagnostic.position.file) == 0 {
+      position
+    } else {
+      diagnostic.position
+    }
     result = append(result, Diagnostic(diagnostic.message, selected))
   }
+
   result
 }
 
 pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
   match expression {
     LocatedExpr(position, value) => Diagnostic(message, position.start),
-    NatExpr(value) => checker_diagnostic(message), DecimalExpr(text) => checker_diagnostic(message),
-    StringExpr(text) => checker_diagnostic(message), BoolExpr(value) => checker_diagnostic(message),
-    NameExpr(name) => checker_diagnostic(message), FunctionExpr(name) => checker_diagnostic(message),
-    ArrayExpr(items) => checker_diagnostic(message), UnaryExpr(operator, operand) => checker_diagnostic(message),
-    BinaryExpr(operator, left, right) => checker_diagnostic(message), CallExpr(name, arguments, type_arguments) => checker_diagnostic(message), DotCallExpr(target, name, arguments, types) => checker_diagnostic(message),
-    FieldExpr(target, field) => checker_diagnostic(message), IndexExpr(target, index) => checker_diagnostic(message),
-    IfExpr(condition, yes, no, has_else) => checker_diagnostic(message), BlockExpr(block) => checker_diagnostic(message),
+    NatExpr(value) => checker_diagnostic(message),
+    DecimalExpr(text) => checker_diagnostic(message),
+    StringExpr(text) => checker_diagnostic(message),
+    BoolExpr(value) => checker_diagnostic(message),
+    NameExpr(name) => checker_diagnostic(message),
+    FunctionExpr(name) => checker_diagnostic(message),
+    ArrayExpr(items) => checker_diagnostic(message),
+    UnaryExpr(operator, operand) => checker_diagnostic(message),
+    BinaryExpr(operator, left, right) => checker_diagnostic(message),
+    CallExpr(name, arguments, type_arguments) => checker_diagnostic(message),
+    DotCallExpr(target, name, arguments, types) => checker_diagnostic(message),
+    FieldExpr(target, field) => checker_diagnostic(message),
+    IndexExpr(target, index) => checker_diagnostic(message),
+    IfExpr(condition, yes, no, has_else) => checker_diagnostic(message),
+    BlockExpr(block) => checker_diagnostic(message),
     MatchExpr(subject, arms) => checker_diagnostic(message)
   }
 }
@@ -170,6 +212,7 @@ pure type_argument_items(text: Str, start: Nat, closing: Nat): [Str] {
   mut cursor: Nat = start
   mut item_start: Nat = start
   mut depth: Int = 0
+
   while cursor < closing {
     character: Str = text[cursor]
     if character == "[" {
@@ -191,6 +234,7 @@ pure type_argument_items(text: Str, start: Nat, closing: Nat): [Str] {
     arguments = append(arguments, slice(text, item_start, closing))
   } else {
   }
+
   arguments
 }
 
@@ -251,6 +295,7 @@ pure render_type(base: Str, arguments: [Str]): Str {
 
 pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
   mut result: GuardedTypeLookup = GuardedTypeLookup(false, "", NatExpr(0))
+
   if map_has(program.type_indices, name) {
     index: Nat = map_get(program.type_indices, name)
     match program.declarations[index] {
@@ -266,11 +311,13 @@ pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
       FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
+
   result
 }
 
 pure record_type(program: Program, name: Str): RecordLookup {
   mut result: RecordLookup = RecordLookup(false, [], [])
+
   if map_has(program.record_indices, name) {
     index: Nat = map_get(program.record_indices, name)
     match program.declarations[index] {
@@ -280,16 +327,19 @@ pure record_type(program: Program, name: Str): RecordLookup {
         } else {
         }
       },
-      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      ImportDeclaration(path) => {},
+      TypeDeclaration(declared, base, guard) => {},
       EnumDeclaration(declared, parameters, variants) => {},
       FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
+
   result
 }
 
 pure enum_type(program: Program, name: Str): EnumLookup {
   mut result: EnumLookup = EnumLookup(false, [], [])
+
   if map_has(program.enum_indices, name) {
     index: Nat = map_get(program.enum_indices, name)
     match program.declarations[index] {
@@ -299,16 +349,19 @@ pure enum_type(program: Program, name: Str): EnumLookup {
         } else {
         }
       },
-      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      ImportDeclaration(path) => {},
+      TypeDeclaration(declared, base, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
       FunctionDeclaration(declared, parameters, return_type, is_pure, is_async, body, type_parameters) => {}
     }
   }
+
   result
 }
 
 pure function_type(program: Program, name: Str): FunctionLookup {
   mut result: FunctionLookup = FunctionLookup(false, [], "", false, false, [])
+
   if map_has(program.function_indices, name) {
     index: Nat = map_get(program.function_indices, name)
     match program.declarations[index] {
@@ -318,11 +371,13 @@ pure function_type(program: Program, name: Str): FunctionLookup {
         } else {
         }
       },
-      ImportDeclaration(path) => {}, TypeDeclaration(declared, base, guard) => {},
+      ImportDeclaration(path) => {},
+      TypeDeclaration(declared, base, guard) => {},
       RecordDeclaration(declared, parameters, fields) => {},
       EnumDeclaration(declared, parameters, variants) => {}
     }
   }
+
   result
 }
 
@@ -330,32 +385,53 @@ pure variant_type(program: Program, name: Str): VariantLookup {
   if map_has(program.variants, name) {
     variant: IndexedVariant = map_get(program.variants, name)
     VariantLookup(true, variant.enum_name, variant.parameters, variant.payload)
-  } else { VariantLookup(false, "", [], []) }
+  } else {
+    VariantLookup(false, "", [], [])
+  }
 }
 
 pure base_type(program: Program, name: Str): Str {
   shape: TypeShape = type_shape(name)
   guarded: GuardedTypeLookup = guarded_type(program, shape.base)
-  if guarded.found { guarded.base } else { shape.base }
+
+  if guarded.found {
+    guarded.base
+  } else {
+    shape.base
+  }
 }
 
 pure is_scalar_base(name: Str): Bool {
-  name == "Nat" || name == "Int" || name == "Dec" || name == "Rat" || name == "Unit" || name == "Str" || name == "Bool"
+  name == "Nat" ||
+    name == "Int" ||
+    name == "Dec" ||
+    name == "Rat" ||
+    name == "Unit" ||
+    name == "Str" ||
+    name == "Bool"
 }
 
 pure has_name(names: [Str], name: Str): Bool {
   mut found: Bool = false
+
   for candidate in names {
-    if candidate == name { found = true; } else {}
+    if candidate == name {
+      found = true
+    } else {}
   }
+
   found
 }
 
 pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bool): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
+
   if name == "Void" {
     if !allow_void {
-      diagnostics = append(diagnostics, checker_diagnostic("Void is only valid as a function return type"))
+      diagnostics = append(
+        diagnostics,
+        checker_diagnostic("Void is only valid as a function return type")
+      )
     } else {
     }
   } else {
@@ -363,7 +439,11 @@ pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bo
     } else {
       shape: TypeShape = type_shape(name)
       mut expected: Nat = 0
-      mut known: Bool = is_scalar_base(shape.base) || (shape.base == "Bytes" || shape.base == "Path" || shape.base == "Duration" || shape.base == "Instant")
+      mut known: Bool = is_scalar_base(shape.base) ||
+        (shape.base == "Bytes" ||
+        shape.base == "Path" ||
+        shape.base == "Duration" ||
+        shape.base == "Instant")
       if shape.base == "Array" || shape.base == "Set" {
         known = true
         expected = 1
@@ -375,22 +455,31 @@ pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bo
           if shape.base == "Fn" || shape.base == "PureFn" || shape.base == "AsyncFn" {
             known = true
             expected = len(shape.arguments)
-            if expected == 0 { callable_name: Str = shape.base; diagnostics = append(diagnostics, checker_diagnostic("${callable_name} expects at least a return type")); } else {}
+            if expected == 0 {
+              callable_name: Str = shape.base
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("${callable_name} expects at least a return type")
+              )
+            } else {}
           } else {
-          record: RecordLookup = record_type(program, shape.base)
-          enum_value: EnumLookup = enum_type(program, shape.base)
-          guarded: GuardedTypeLookup = guarded_type(program, shape.base)
-          if record.found {
-            known = true
-            expected = len(record.parameters)
-          } else {
-            if enum_value.found {
+            record: RecordLookup = record_type(program, shape.base)
+            enum_value: EnumLookup = enum_type(program, shape.base)
+            guarded: GuardedTypeLookup = guarded_type(program, shape.base)
+            if record.found {
               known = true
-              expected = len(enum_value.parameters)
+              expected = len(record.parameters)
             } else {
-              if guarded.found { known = true; } else {}
+              if enum_value.found {
+                known = true
+                expected = len(enum_value.parameters)
+              } else {
+                if guarded.found {
+                  known = true
+                } else {}
+              }
             }
-          } }
+          }
         }
       }
       if !known {
@@ -399,18 +488,27 @@ pure require_type(program: Program, name: Str, parameters: [Str], allow_void: Bo
         if len(shape.arguments) != expected {
           type_base: Str = shape.base
           actual_count: Nat = len(shape.arguments)
-          diagnostics = append(diagnostics, checker_diagnostic("${type_base} expects ${expected} type arguments, got ${actual_count}"))
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic("${type_base} expects ${expected} type arguments, got ${actual_count}")
+          )
         } else {
           mut argument_index: Nat = 0
           for argument in shape.arguments {
-            callable_result: Bool = (shape.base == "Fn" || shape.base == "PureFn") && argument_index + 1 == len(shape.arguments)
-            diagnostics = concat(diagnostics, require_type(program, argument, parameters, callable_result))
+            callable_result: Bool = (shape.base == "Fn" ||
+              shape.base == "PureFn") &&
+              argument_index + 1 == len(shape.arguments)
+            diagnostics = concat(
+              diagnostics,
+              require_type(program, argument, parameters, callable_result)
+            )
             argument_index = argument_index + 1
           }
         }
       }
     }
   }
+
   diagnostics
 }
 
@@ -420,117 +518,271 @@ pure assignable(program: Program, source: Str, target: Str): Bool {
   } else {
     source_shape: TypeShape = type_shape(source)
     target_shape: TypeShape = type_shape(target)
-    if source_shape.base == "Fn" || source_shape.base == "PureFn" || source_shape.base == "AsyncFn" || target_shape.base == "Fn" || target_shape.base == "PureFn" || target_shape.base == "AsyncFn" {
-      compatible_effect: Bool = source_shape.base == target_shape.base || (source_shape.base == "PureFn" && target_shape.base == "Fn")
-      mut compatible_signature: Bool = len(source_shape.arguments) == len(target_shape.arguments) && len(source_shape.arguments) > 0
+    if source_shape.base == "Fn" ||
+      source_shape.base == "PureFn" ||
+      source_shape.base == "AsyncFn" ||
+      target_shape.base == "Fn" ||
+      target_shape.base == "PureFn" ||
+      target_shape.base == "AsyncFn" {
+      compatible_effect: Bool = source_shape.base == target_shape.base ||
+        (source_shape.base == "PureFn" &&
+        target_shape.base == "Fn")
+      mut compatible_signature: Bool = len(source_shape.arguments) == len(target_shape.arguments) &&
+        len(source_shape.arguments) > 0
       mut callable_index: Nat = 0
       while callable_index < len(source_shape.arguments) && compatible_signature {
-        if source_shape.arguments[callable_index] != target_shape.arguments[callable_index] { compatible_signature = false; } else {}
+        if source_shape.arguments[callable_index] != target_shape.arguments[callable_index] {
+          compatible_signature = false
+        } else {}
         callable_index = callable_index + 1
       }
       compatible_effect && compatible_signature
-    } else { if source_shape.base == target_shape.base && len(source_shape.arguments) == len(target_shape.arguments) && len(source_shape.arguments) > 0 {
-      mut compatible: Bool = true
-      mut index: Nat = 0
-      while index < len(source_shape.arguments) {
-        left: Str = source_shape.arguments[index]
-        right: Str = target_shape.arguments[index]
-        if !starts_with(left, "$") && !starts_with(right, "$") && !assignable(program, left, right) {
-          compatible = false
-        } else {
-        }
-        index = index + 1
-      }
-      compatible
     } else {
-      source_base: Str = base_type(program, source)
-      target_base: Str = base_type(program, target)
-      guarded_source: GuardedTypeLookup = guarded_type(program, source)
-      guarded_target: GuardedTypeLookup = guarded_type(program, target)
-      (guarded_source.found && target == source_base) ||
-      (source_base == "Nat" && target_base == "Int" && !guarded_target.found)
-    } }
+      if source_shape.base == target_shape.base &&
+        len(source_shape.arguments) == len(target_shape.arguments) &&
+        len(source_shape.arguments) > 0 {
+        mut compatible: Bool = true
+        mut index: Nat = 0
+        while index < len(source_shape.arguments) {
+          left: Str = source_shape.arguments[index]
+          right: Str = target_shape.arguments[index]
+          if !starts_with(
+            left,
+            "$"
+          ) && !starts_with(right, "$") && !assignable(program, left, right) {
+            compatible = false
+          } else {
+          }
+          index = index + 1
+        }
+        compatible
+      } else {
+        source_base: Str = base_type(program, source)
+        target_base: Str = base_type(program, target)
+        guarded_source: GuardedTypeLookup = guarded_type(program, source)
+        guarded_target: GuardedTypeLookup = guarded_type(program, target)
+        (guarded_source.found && target == source_base) ||
+          (source_base == "Nat" && target_base == "Int" && !guarded_target.found)
+      }
+    }
   }
 }
 
 pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
   mut result: Bool = false
+
   match expression {
-    LocatedExpr(position, inner) => { result = evaluate_nat_guard(inner, value); },
-    BoolExpr(item) => { result = item; },
-    UnaryExpr(operator, operand) => { if operator == "!" { result = !evaluate_nat_guard(operand, value); } else {} },
+    LocatedExpr(position, inner) => {
+      result = evaluate_nat_guard(inner, value)
+    },
+    BoolExpr(item) => {
+      result = item
+    },
+    UnaryExpr(operator, operand) => {
+      if operator == "!" {
+        result = !evaluate_nat_guard(operand, value)
+      } else {}
+    },
     BinaryExpr(operator, left, right) => {
-      if operator == "&&" { result = evaluate_nat_guard(left, value) && evaluate_nat_guard(right, value); }
-      else {
-        if operator == "||" { result = evaluate_nat_guard(left, value) || evaluate_nat_guard(right, value); }
-        else {
+      if operator == "&&" {
+        result = evaluate_nat_guard(left, value) && evaluate_nat_guard(right, value)
+      } else {
+        if operator == "||" {
+          result = evaluate_nat_guard(left, value) || evaluate_nat_guard(right, value)
+        } else {
           match unlocated_expression(left) {
             NameExpr(name) => {
               if name == "value" {
                 match unlocated_expression(right) {
                   NatExpr(bound) => {
-                    if operator == ">" { result = value > bound; } else {}
-                    if operator == ">=" { result = value >= bound; } else {}
-                    if operator == "<" { result = value < bound; } else {}
-                    if operator == "<=" { result = value <= bound; } else {}
-                    if operator == "==" { result = value == bound; } else {}
-                    if operator == "!=" { result = value != bound; } else {}
+                    if operator == ">" {
+                      result = value > bound
+                    } else {}
+                    if operator == ">=" {
+                      result = value >= bound
+                    } else {}
+                    if operator == "<" {
+                      result = value < bound
+                    } else {}
+                    if operator == "<=" {
+                      result = value <= bound
+                    } else {}
+                    if operator == "==" {
+                      result = value == bound
+                    } else {}
+                    if operator == "!=" {
+                      result = value != bound
+                    } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                  LocatedExpr(other_position, other_value) => {},
+                  DecimalExpr(other_decimal) => {},
+                  StringExpr(other_string) => {},
+                  BoolExpr(other_bool) => {},
+                  NameExpr(other_name) => {},
+                  FunctionExpr(other_function) => {},
+                  ArrayExpr(other_items) => {},
+                  UnaryExpr(other_op, other_operand) => {},
+                  BinaryExpr(other_binary_op, other_left, other_right) => {},
+                  CallExpr(other_call, other_arguments, type_arguments) => {},
+                  DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+                  FieldExpr(other_target, other_field) => {},
+                  IndexExpr(other_collection, other_index) => {},
+                  IfExpr(other_condition, other_yes, other_no, other_has_else) => {},
+                  BlockExpr(other_block) => {},
+                  MatchExpr(other_subject, other_arms) => {}
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+            LocatedExpr(other_position, other_value) => {},
+            NatExpr(item) => {},
+            DecimalExpr(text) => {},
+            StringExpr(text) => {},
+            BoolExpr(item) => {},
+            FunctionExpr(function_name) => {},
+            ArrayExpr(items) => {},
+            UnaryExpr(op, operand) => {},
+            BinaryExpr(op, a, b) => {},
+            CallExpr(name, arguments, type_arguments) => {},
+            DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+            FieldExpr(target, field) => {},
+            IndexExpr(target, index) => {},
+            IfExpr(condition, yes, no, has_else) => {},
+            BlockExpr(block) => {},
+            MatchExpr(subject, arms) => {}
           }
         }
       }
     },
-    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(item) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    NameExpr(name) => {},
+    FunctionExpr(function_name) => {},
+    ArrayExpr(items) => {},
+    CallExpr(name, arguments, type_arguments) => {},
+    DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+    FieldExpr(target, field) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {}
   }
+
   result
 }
 
 pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
   mut result: Bool = false
+
   match expression {
-    LocatedExpr(position, inner) => { result = prove_guard_bounds(inner, bounds); },
+    LocatedExpr(position, inner) => {
+      result = prove_guard_bounds(inner, bounds)
+    },
     BinaryExpr(operator, left, right) => {
-      if operator == "&&" { result = prove_guard_bounds(left, bounds) && prove_guard_bounds(right, bounds); }
-      else {
-        if operator == "||" { result = prove_guard_bounds(left, bounds) || prove_guard_bounds(right, bounds); }
-        else {
+      if operator == "&&" {
+        result = prove_guard_bounds(left, bounds) && prove_guard_bounds(right, bounds)
+      } else {
+        if operator == "||" {
+          result = prove_guard_bounds(left, bounds) || prove_guard_bounds(right, bounds)
+        } else {
           match unlocated_expression(left) {
             NameExpr(name) => {
               if name == "value" {
                 match unlocated_expression(right) {
                   NatExpr(bound) => {
-                    if operator == ">" { result = bounds.has_lower && bounds.lower > bound; } else {}
-                    if operator == ">=" { result = bounds.has_lower && bounds.lower >= bound; } else {}
-                    if operator == "<" { result = bounds.has_upper && bounds.upper < bound; } else {}
-                    if operator == "<=" { result = bounds.has_upper && bounds.upper <= bound; } else {}
-                    if operator == "==" { result = bounds.has_lower && bounds.has_upper && bounds.lower == bound && bounds.upper == bound; } else {}
+                    if operator == ">" {
+                      result = bounds.has_lower && bounds.lower > bound
+                    } else {}
+                    if operator == ">=" {
+                      result = bounds.has_lower && bounds.lower >= bound
+                    } else {}
+                    if operator == "<" {
+                      result = bounds.has_upper && bounds.upper < bound
+                    } else {}
+                    if operator == "<=" {
+                      result = bounds.has_upper && bounds.upper <= bound
+                    } else {}
+                    if operator == "==" {
+                      result = bounds.has_lower &&
+                        bounds.has_upper &&
+                        bounds.lower == bound &&
+                        bounds.upper == bound
+                    } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection, other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+                  LocatedExpr(other_position, other_value) => {},
+                  DecimalExpr(other_decimal) => {},
+                  StringExpr(other_string) => {},
+                  BoolExpr(other_bool) => {},
+                  NameExpr(other_name) => {},
+                  FunctionExpr(other_function) => {},
+                  ArrayExpr(other_items) => {},
+                  UnaryExpr(other_op, other_operand) => {},
+                  BinaryExpr(other_binary_op, other_left, other_right) => {},
+                  CallExpr(other_call, other_arguments, type_arguments) => {},
+                  DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+                  FieldExpr(other_target, other_field) => {},
+                  IndexExpr(other_collection, other_index) => {},
+                  IfExpr(other_condition, other_yes, other_no, other_has_else) => {},
+                  BlockExpr(other_block) => {},
+                  MatchExpr(other_subject, other_arms) => {}
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {}, NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+            LocatedExpr(other_position, other_value) => {},
+            NatExpr(item) => {},
+            DecimalExpr(text) => {},
+            StringExpr(text) => {},
+            BoolExpr(item) => {},
+            FunctionExpr(function_name) => {},
+            ArrayExpr(items) => {},
+            UnaryExpr(op, operand) => {},
+            BinaryExpr(op, a, b) => {},
+            CallExpr(name, arguments, type_arguments) => {},
+            DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+            FieldExpr(target, field) => {},
+            IndexExpr(target, index) => {},
+            IfExpr(condition, yes, no, has_else) => {},
+            BlockExpr(block) => {},
+            MatchExpr(subject, arms) => {}
           }
         }
       }
     },
-    NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(item) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(item) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(item) => {},
+    NameExpr(name) => {},
+    FunctionExpr(function_name) => {},
+    ArrayExpr(items) => {},
+    UnaryExpr(op, operand) => {},
+    CallExpr(name, arguments, type_arguments) => {},
+    DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+    FieldExpr(target, field) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {}
   }
+
   result
 }
 
-pure assignable_checked(program: Program, value: TypeInfo, target: Str, source: Expr, facts: Map[Str,Bounds]): Bool {
+pure assignable_checked(
+  program: Program,
+  value: TypeInfo,
+  target: Str,
+  source: Expr,
+  facts: Map[Str, Bounds]
+): Bool {
   if assignable(program, value.name, target) {
     true
   } else {
     guarded: GuardedTypeLookup = guarded_type(program, target)
     value_base: Str = base_type(program, value.name)
-    compatible_base: Bool = value_base == guarded.base || (value_base == "Nat" && guarded.base == "Int")
+    compatible_base: Bool = value_base == guarded.base ||
+      (value_base == "Nat" &&
+      guarded.base == "Int")
     if !guarded.found || !compatible_base {
       false
     } else {
@@ -540,8 +792,26 @@ pure assignable_checked(program: Program, value: TypeInfo, target: Str, source: 
         mut proven: Bool = false
         match unlocated_expression(source) {
           LocatedExpr(position, inner) => {},
-          NameExpr(name) => { if map_has(facts, name) { proven = prove_guard_bounds(guarded.guard, map_get(facts, name)); } else {} },
-          NatExpr(item) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(flag) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(field_target, field) => {}, IndexExpr(collection, index) => {}, IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+          NameExpr(name) => {
+            if map_has(facts, name) {
+              proven = prove_guard_bounds(guarded.guard, map_get(facts, name))
+            } else {}
+          },
+          NatExpr(item) => {},
+          DecimalExpr(text) => {},
+          StringExpr(text) => {},
+          BoolExpr(flag) => {},
+          FunctionExpr(function_name) => {},
+          ArrayExpr(items) => {},
+          UnaryExpr(op, operand) => {},
+          BinaryExpr(op, a, b) => {},
+          CallExpr(name, arguments, type_arguments) => {},
+          DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+          FieldExpr(field_target, field) => {},
+          IndexExpr(collection, index) => {},
+          IfExpr(condition, yes, no, has_else) => {},
+          BlockExpr(block) => {},
+          MatchExpr(subject, arms) => {}
         }
         proven
       }
@@ -549,7 +819,7 @@ pure assignable_checked(program: Program, value: TypeInfo, target: Str, source: 
   }
 }
 
-pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str,Str]): Str {
+pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str, Str]): Str {
   if has_name(parameters, type_name) && map_has(substitutions, type_name) {
     map_get(substitutions, type_name)
   } else {
@@ -567,44 +837,98 @@ pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str,S
 }
 
 pure merge_types(program: Program, left: Str, right: Str): Str {
-  if left == right { left }
-  else { if starts_with(left, "$") { right }
-  else { if starts_with(right, "$") { left }
-  else {
-    left_shape: TypeShape = type_shape(left)
-    right_shape: TypeShape = type_shape(right)
-    callable: Bool = left_shape.base == "Fn" || left_shape.base == "PureFn" || left_shape.base == "AsyncFn" || right_shape.base == "Fn" || right_shape.base == "PureFn" || right_shape.base == "AsyncFn"
-    if callable {
-      if assignable(program, left, right) { right }
-      else { if assignable(program, right, left) { left } else { "Unknown" } }
+  if left == right {
+    left
+  } else {
+    if starts_with(left, "$") {
+      right
     } else {
-      if left_shape.base == right_shape.base && len(left_shape.arguments) > 0 && len(left_shape.arguments) == len(right_shape.arguments) {
-        mut arguments: [Str] = []
-        mut compatible: Bool = true
-        mut index: Nat = 0
-        while index < len(left_shape.arguments) {
-          merged: Str = merge_types(program, left_shape.arguments[index], right_shape.arguments[index])
-          if merged == "Unknown" { compatible = false }
-          arguments = append(arguments, merged)
-          index = index + 1
-        }
-        if compatible { render_type(left_shape.base, arguments) } else { "Unknown" }
+      if starts_with(right, "$") {
+        left
       } else {
-        if assignable(program, left, right) { right }
-        else { if assignable(program, right, left) { left }
-        else {
-          left_base: Str = base_type(program, left)
-          right_base: Str = base_type(program, right)
-          if left_base == right_base { left_base }
-          else { if (left_base == "Nat" || left_base == "Int" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Rat") { "Int" } else { "Unknown" } }
-        } }
+        left_shape: TypeShape = type_shape(left)
+        right_shape: TypeShape = type_shape(right)
+        callable: Bool = left_shape.base == "Fn" ||
+          left_shape.base == "PureFn" ||
+          left_shape.base == "AsyncFn" ||
+          right_shape.base == "Fn" ||
+          right_shape.base == "PureFn" ||
+          right_shape.base == "AsyncFn"
+        if callable {
+          if assignable(program, left, right) {
+            right
+          } else {
+            if assignable(program, right, left) {
+              left
+            } else {
+              "Unknown"
+            }
+          }
+        } else {
+          if left_shape.base == right_shape.base &&
+            len(left_shape.arguments) > 0 &&
+            len(left_shape.arguments) == len(right_shape.arguments) {
+            mut arguments: [Str] = []
+            mut compatible: Bool = true
+            mut index: Nat = 0
+            while index < len(left_shape.arguments) {
+              merged: Str = merge_types(
+                program,
+                left_shape.arguments[index],
+                right_shape.arguments[index]
+              )
+              if merged == "Unknown" {
+                compatible = false
+              }
+              arguments = append(arguments, merged)
+              index = index + 1
+            }
+            if compatible {
+              render_type(left_shape.base, arguments)
+            } else {
+              "Unknown"
+            }
+          } else {
+            if assignable(program, left, right) {
+              right
+            } else {
+              if assignable(program, right, left) {
+                left
+              } else {
+                left_base: Str = base_type(program, left)
+                right_base: Str = base_type(program, right)
+                if left_base == right_base {
+                  left_base
+                } else {
+                  if (left_base == "Nat" ||
+                    left_base == "Int" ||
+                    left_base == "Rat") &&
+                    (right_base == "Nat" ||
+                    right_base == "Int" ||
+                    right_base == "Rat") {
+                    "Int"
+                  } else {
+                    "Unknown"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
-  } } }
+  }
 }
 
-pure infer_template(program: Program, template: Str, actual: Str, parameters: [Str], substitutions: Map[Str,Str]): Map[Str,Str] {
-  mut result: Map[Str,Str] = substitutions
+pure infer_template(
+  program: Program,
+  template: Str,
+  actual: Str,
+  parameters: [Str],
+  substitutions: Map[Str, Str]
+): Map[Str, Str] {
+  mut result: Map[Str, Str] = substitutions
+
   if has_name(parameters, template) {
     if map_has(result, template) {
       result = map_put(result, template, merge_types(program, map_get(result, template), actual))
@@ -614,214 +938,826 @@ pure infer_template(program: Program, template: Str, actual: Str, parameters: [S
   } else {
     template_shape: TypeShape = type_shape(template)
     actual_shape: TypeShape = type_shape(actual)
-    if template_shape.base == actual_shape.base && len(template_shape.arguments) == len(actual_shape.arguments) {
+    if template_shape.base == actual_shape.base &&
+      len(template_shape.arguments) == len(actual_shape.arguments) {
       mut index: Nat = 0
       while index < len(template_shape.arguments) {
-        result = infer_template(program, template_shape.arguments[index], actual_shape.arguments[index], parameters, result)
+        result = infer_template(
+          program,
+          template_shape.arguments[index],
+          actual_shape.arguments[index],
+          parameters,
+          result
+        )
         index = index + 1
       }
     } else {
     }
   }
+
   result
 }
 
-pure environment_type(environment: Map[Str,TypeInfo], name: Str): TypeInfo {
-  if map_has(environment, name) { map_get(environment, name) } else { no_type() }
+pure environment_type(environment: Map[Str, TypeInfo], name: Str): TypeInfo {
+  if map_has(environment, name) {
+    map_get(environment, name)
+  } else {
+    no_type()
+  }
 }
 
 pure builtin_return(name: Str): Str {
-  if name == "tcp_serve" { "Result[[Result[Unit,Str]],Str]" } else {
-  if name == "async_fake_read" || name == "tcp_exchange" { "Result[Bytes,Str]" } else {
-  if name == "fs_read" { "Result[Bytes,HostError]" } else {
-  if name == "fs_write" { "Result[Unit,HostError]" } else {
-  if name == "fs_metadata" { "Result[FileMetadata,HostError]" } else {
-  if name == "fs_list" { "Result[[Path],HostError]" } else {
-  if name == "fs_create_directory" { "Result[Unit,HostError]" } else {
-  if name == "fs_remove_file" { "Result[Unit,HostError]" } else {
-  if name == "fs_remove_directory" { "Result[Unit,HostError]" } else {
-  if name == "fs_temp_file" { "Result[Path,HostError]" } else {
-  if name == "fs_temp_directory" { "Result[Path,HostError]" } else {
-  if name == "host_decode_utf8" { "Result[Str,HostError]" } else {
-  if name == "host_sleep" { "Result[Unit,HostError]" } else {
-  if name == "process_run" { "Result[ProcessOutput,HostError]" } else {
-  if name == "path_from_text" || name == "path_from_native" || name == "path_append" { "Result[Path,PathError]" } else {
-  if name == "path_to_text" { "Result[Str,PathError]" } else {
-  if name == "path_native_bytes" { "Bytes" } else {
-  if name == "path_display" { "Str" } else {
-  if name == "path_absolute" || name == "instant_before" { "Bool" } else {
-  if name == "path_directory" || name == "path_current" { "Path" } else {
-  if name == "path_filename" { "Option[Path]" } else {
-  if name == "duration_nanoseconds" || name == "instant_difference" { "Duration" } else {
-  if name == "duration_ticks" { "Int" } else {
-  if name == "duration_from_seconds" { "Result[Duration,DurationError]" } else {
-  if name == "instant_now" { "Result[Instant,ClockError]" } else {
-  if name == "instant_add" { "Instant" } else {
-  if name == "$unit" { "Unit" } else { if name == "nat" || name == "quotient" { "Nat" } else { if name == "dec" { "Dec" } else {
-  if name == "print" || name == "write_file" || name == "write_bytes" || name == "eprint" || name == "process_exit" || name == "run_bytecode" || name == "run_bytecode_args" { "Void" }
-  else { if name == "read_line" || name == "read_file" || name == "slice" || name == "reverse" || name == "utf8_decode" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_join" || name == "path_suffix" || name == "path_with_suffix" { "Str" }
-  else { if name == "len" || name == "byte_len" || name == "byte_get" || name == "nat_from_str" { "Nat" }
-  else { if name == "starts_with" || name == "starts_with_at" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "map_has" || name == "set_has" || name == "$method_has" || name == "environment_has" || name == "path_is_absolute" || name == "file_exists" { "Bool" }
-  else { if name == "command_args" { "[Str]" }
-  else { if name == "bytes" || name == "byte_append" || name == "bytes_concat" || name == "utf8_encode" || name == "read_bytes" { "Bytes" } else { "Unknown" } } } } } }
-} } }
-} } } } } } } } } } } }
-} } } } } } } } } } } } }
+  if name == "tcp_serve" {
+    "Result[[Result[Unit,Str]],Str]"
+  } else {
+    if name == "async_fake_read" || name == "tcp_exchange" {
+      "Result[Bytes,Str]"
+    } else {
+      if name == "fs_read" {
+        "Result[Bytes,HostError]"
+      } else {
+        if name == "fs_write" {
+          "Result[Unit,HostError]"
+        } else {
+          if name == "fs_metadata" {
+            "Result[FileMetadata,HostError]"
+          } else {
+            if name == "fs_list" {
+              "Result[[Path],HostError]"
+            } else {
+              if name == "fs_create_directory" {
+                "Result[Unit,HostError]"
+              } else {
+                if name == "fs_remove_file" {
+                  "Result[Unit,HostError]"
+                } else {
+                  if name == "fs_remove_directory" {
+                    "Result[Unit,HostError]"
+                  } else {
+                    if name == "fs_temp_file" {
+                      "Result[Path,HostError]"
+                    } else {
+                      if name == "fs_temp_directory" {
+                        "Result[Path,HostError]"
+                      } else {
+                        if name == "host_decode_utf8" {
+                          "Result[Str,HostError]"
+                        } else {
+                          if name == "host_sleep" {
+                            "Result[Unit,HostError]"
+                          } else {
+                            if name == "process_run" {
+                              "Result[ProcessOutput,HostError]"
+                            } else {
+                              if name == "path_from_text" ||
+                                name == "path_from_native" ||
+                                name == "path_append" {
+                                "Result[Path,PathError]"
+                              } else {
+                                if name == "path_to_text" {
+                                  "Result[Str,PathError]"
+                                } else {
+                                  if name == "path_native_bytes" {
+                                    "Bytes"
+                                  } else {
+                                    if name == "path_display" {
+                                      "Str"
+                                    } else {
+                                      if name == "path_absolute" || name == "instant_before" {
+                                        "Bool"
+                                      } else {
+                                        if name == "path_directory" || name == "path_current" {
+                                          "Path"
+                                        } else {
+                                          if name == "path_filename" {
+                                            "Option[Path]"
+                                          } else {
+                                            if name == "duration_nanoseconds" ||
+                                              name == "instant_difference" {
+                                              "Duration"
+                                            } else {
+                                              if name == "duration_ticks" {
+                                                "Int"
+                                              } else {
+                                                if name == "duration_from_seconds" {
+                                                  "Result[Duration,DurationError]"
+                                                } else {
+                                                  if name == "instant_now" {
+                                                    "Result[Instant,ClockError]"
+                                                  } else {
+                                                    if name == "instant_add" {
+                                                      "Instant"
+                                                    } else {
+                                                      if name == "$unit" {
+                                                        "Unit"
+                                                      } else {
+                                                        if name == "nat" || name == "quotient" {
+                                                          "Nat"
+                                                        } else {
+                                                          if name == "dec" {
+                                                            "Dec"
+                                                          } else {
+                                                            if name == "print" ||
+                                                              name == "write_file" ||
+                                                              name == "write_bytes" ||
+                                                              name == "eprint" ||
+                                                              name == "process_exit" ||
+                                                              name == "run_bytecode" ||
+                                                              name == "run_bytecode_args" {
+                                                              "Void"
+                                                            } else {
+                                                              if name == "read_line" ||
+                                                                name == "read_file" ||
+                                                                name == "slice" ||
+                                                                name == "reverse" ||
+                                                                name == "utf8_decode" ||
+                                                                name == "environment_get" ||
+                                                                name == "path_resolve" ||
+                                                                name == "path_parent" ||
+                                                                name == "path_join" ||
+                                                                name == "path_suffix" ||
+                                                                name == "path_with_suffix" {
+                                                                "Str"
+                                                              } else {
+                                                                if name == "len" ||
+                                                                  name == "byte_len" ||
+                                                                  name == "byte_get" ||
+                                                                  name == "nat_from_str" {
+                                                                  "Nat"
+                                                                } else {
+                                                                  if name == "starts_with" ||
+                                                                    name == "starts_with_at" ||
+                                                                    name == "is_digit" ||
+                                                                    name == "is_letter" ||
+                                                                    name == "is_whitespace" ||
+                                                                    name == "map_has" ||
+                                                                    name == "set_has" ||
+                                                                    name == "$method_has" ||
+                                                                    name == "environment_has" ||
+                                                                    name == "path_is_absolute" ||
+                                                                    name == "file_exists" {
+                                                                    "Bool"
+                                                                  } else {
+                                                                    if name == "command_args" {
+                                                                      "[Str]"
+                                                                    } else {
+                                                                      if name == "bytes" ||
+                                                                        name == "byte_append" ||
+                                                                        name == "bytes_concat" ||
+                                                                        name == "utf8_encode" ||
+                                                                        name == "read_bytes" {
+                                                                        "Bytes"
+                                                                      } else {
+                                                                        "Unknown"
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
-}
+  }
 }
 
 pure builtin_arity(name: Str): Nat {
-  if name == "tcp_serve" || name == "$tcp_serve" { 4 } else {
-  if name == "async_fake_read" || name == "tcp_exchange" || name == "$tcp_exchange" { if name == "tcp_exchange" || name == "$tcp_exchange" { 5 } else { 1 } } else {
-  if name == "fs_read" { 2 } else {
-  if name == "fs_write" { 2 } else {
-  if name == "fs_metadata" { 1 } else {
-  if name == "fs_list" { 1 } else {
-  if name == "fs_create_directory" { 1 } else {
-  if name == "fs_remove_file" { 1 } else {
-  if name == "fs_remove_directory" { 1 } else {
-  if name == "fs_temp_file" { 1 } else {
-  if name == "fs_temp_directory" { 1 } else {
-  if name == "host_decode_utf8" { 1 } else {
-  if name == "host_sleep" { 1 } else {
-  if name == "process_run" { 7 } else {
-  if name == "path_from_text" || name == "path_from_native" || name == "path_to_text" || name == "path_native_bytes" || name == "path_display" || name == "path_absolute" || name == "path_directory" || name == "path_filename" || name == "duration_nanoseconds" || name == "duration_ticks" || name == "duration_from_seconds" { 1 } else {
-  if name == "path_append" || name == "instant_add" || name == "instant_difference" || name == "instant_before" { 2 } else {
-  if name == "path_current" || name == "instant_now" { 0 } else {
-  if name == "$unit" { 0 } else { if name == "nat" || name == "dec" { 1 } else { if name == "quotient" { 2 } else {
-  if name == "read_line" || name == "map" || name == "set" || name == "bytes" || name == "command_args" { 0 }
-  else { if name == "print" || name == "read_file" || name == "len" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "byte_len" || name == "utf8_encode" || name == "utf8_decode" || name == "read_bytes" || name == "nat_from_str" || name == "environment_has" || name == "environment_get" || name == "eprint" || name == "process_exit" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" || name == "run_bytecode" { 1 }
-  else { if name == "write_file" || name == "append" || name == "concat" || name == "starts_with" || name == "map_has" || name == "map_get" || name == "$method_has" || name == "$method_get" || name == "$method_add" || name == "$method_map" || name == "set_add" || name == "set_has" || name == "byte_append" || name == "bytes_concat" || name == "byte_get" || name == "write_bytes" || name == "path_join" || name == "path_with_suffix" || name == "run_bytecode_args" { 2 }
-  else { 3 } } }
-} } }
-} } }
-} } } } } } } } } } } } }
+  if name == "tcp_serve" || name == "$tcp_serve" {
+    4
+  } else {
+    if name == "async_fake_read" || name == "tcp_exchange" || name == "$tcp_exchange" {
+      if name == "tcp_exchange" || name == "$tcp_exchange" {
+        5
+      } else {
+        1
+      }
+    } else {
+      if name == "fs_read" {
+        2
+      } else {
+        if name == "fs_write" {
+          2
+        } else {
+          if name == "fs_metadata" {
+            1
+          } else {
+            if name == "fs_list" {
+              1
+            } else {
+              if name == "fs_create_directory" {
+                1
+              } else {
+                if name == "fs_remove_file" {
+                  1
+                } else {
+                  if name == "fs_remove_directory" {
+                    1
+                  } else {
+                    if name == "fs_temp_file" {
+                      1
+                    } else {
+                      if name == "fs_temp_directory" {
+                        1
+                      } else {
+                        if name == "host_decode_utf8" {
+                          1
+                        } else {
+                          if name == "host_sleep" {
+                            1
+                          } else {
+                            if name == "process_run" {
+                              7
+                            } else {
+                              if name == "path_from_text" ||
+                                name == "path_from_native" ||
+                                name == "path_to_text" ||
+                                name == "path_native_bytes" ||
+                                name == "path_display" ||
+                                name == "path_absolute" ||
+                                name == "path_directory" ||
+                                name == "path_filename" ||
+                                name == "duration_nanoseconds" ||
+                                name == "duration_ticks" ||
+                                name == "duration_from_seconds" {
+                                1
+                              } else {
+                                if name == "path_append" ||
+                                  name == "instant_add" ||
+                                  name == "instant_difference" ||
+                                  name == "instant_before" {
+                                  2
+                                } else {
+                                  if name == "path_current" || name == "instant_now" {
+                                    0
+                                  } else {
+                                    if name == "$unit" {
+                                      0
+                                    } else {
+                                      if name == "nat" || name == "dec" {
+                                        1
+                                      } else {
+                                        if name == "quotient" {
+                                          2
+                                        } else {
+                                          if name == "read_line" ||
+                                            name == "map" ||
+                                            name == "set" ||
+                                            name == "bytes" ||
+                                            name == "command_args" {
+                                            0
+                                          } else {
+                                            if name == "print" ||
+                                              name == "read_file" ||
+                                              name == "len" ||
+                                              name == "reverse" ||
+                                              name == "is_digit" ||
+                                              name == "is_letter" ||
+                                              name == "is_whitespace" ||
+                                              name == "byte_len" ||
+                                              name == "utf8_encode" ||
+                                              name == "utf8_decode" ||
+                                              name == "read_bytes" ||
+                                              name == "nat_from_str" ||
+                                              name == "environment_has" ||
+                                              name == "environment_get" ||
+                                              name == "eprint" ||
+                                              name == "process_exit" ||
+                                              name == "path_resolve" ||
+                                              name == "path_parent" ||
+                                              name == "path_suffix" ||
+                                              name == "path_is_absolute" ||
+                                              name == "file_exists" ||
+                                              name == "run_bytecode" {
+                                              1
+                                            } else {
+                                              if name == "write_file" ||
+                                                name == "append" ||
+                                                name == "concat" ||
+                                                name == "starts_with" ||
+                                                name == "map_has" ||
+                                                name == "map_get" ||
+                                                name == "$method_has" ||
+                                                name == "$method_get" ||
+                                                name == "$method_add" ||
+                                                name == "$method_map" ||
+                                                name == "set_add" ||
+                                                name == "set_has" ||
+                                                name == "byte_append" ||
+                                                name == "bytes_concat" ||
+                                                name == "byte_get" ||
+                                                name == "write_bytes" ||
+                                                name == "path_join" ||
+                                                name == "path_with_suffix" ||
+                                                name == "run_bytecode_args" {
+                                                2
+                                              } else {
+                                                3
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
-}
+  }
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
   if name == "tcp_serve" {
-    if index == 0 { "Str" }
-    else { if index == 1 { "Nat" }
-    else { if index == 2 { "AsyncFn[Bytes,Result[Bytes,Str]]" }
-    else { "TcpServerLimits" } } }
-  } else {
-  if name == "async_fake_read" || name == "tcp_exchange" {
-    if name == "async_fake_read" { "Bool" } else {
-      if index == 0 { "Str" } else { if index == 2 { "Bytes" } else { "Nat" } }
+    if index == 0 {
+      "Str"
+    } else {
+      if index == 1 {
+        "Nat"
+      } else {
+        if index == 2 {
+          "AsyncFn[Bytes,Result[Bytes,Str]]"
+        } else {
+          "TcpServerLimits"
+        }
+      }
     }
   } else {
-  if name == "fs_read" { if index == 0 { "Path" } else { if index == 1 { "Nat" } else { "Any" }} } else {
-  if name == "fs_write" { if index == 0 { "Path" } else { if index == 1 { "Bytes" } else { "Any" }} } else {
-  if name == "fs_metadata" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "fs_list" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "fs_create_directory" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "fs_remove_file" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "fs_remove_directory" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "fs_temp_file" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "fs_temp_directory" { if index == 0 { "Path" } else { "Any" } } else {
-  if name == "host_decode_utf8" { if index == 0 { "Bytes" } else { "Any" } } else {
-  if name == "host_sleep" { if index == 0 { "Duration" } else { "Any" } } else {
-  if name == "process_run" { if index == 0 { "Path" } else { if index == 1 { "[Str]" } else { if index == 2 { "Bytes" } else { if index == 3 { "Path" } else { if index == 4 { "[Str]" } else { if index == 5 { "Duration" } else { if index == 6 { "Nat" } else { "Any" }}}}}}} } else {
-  if name == "path_from_text" { "Str" } else {
-  if name == "path_from_native" { "Bytes" } else {
-  if name == "path_to_text" || name == "path_native_bytes" || name == "path_display" || name == "path_absolute" || name == "path_append" || name == "path_directory" || name == "path_filename" { "Path" } else {
-  if name == "path_current" || name == "instant_now" { "Any" } else {
-  if name == "duration_nanoseconds" { "Int" } else {
-  if name == "duration_ticks" { "Duration" } else {
-  if name == "duration_from_seconds" { "Rat" } else {
-  if name == "instant_add" { if index == 0 { "Instant" } else { "Duration" } } else {
-  if name == "instant_difference" || name == "instant_before" { "Instant" } else {
-  if name == "nat" || name == "dec" { "Rat" } else { if name == "quotient" { "Nat" } else {
-  if name == "read_file" || name == "read_bytes" || name == "nat_from_str" || name == "reverse" || name == "is_digit" || name == "is_letter" || name == "is_whitespace" || name == "utf8_encode" || name == "environment_has" || name == "environment_get" || name == "path_resolve" || name == "path_parent" || name == "path_suffix" || name == "path_is_absolute" || name == "file_exists" { "Str" }
-  else { if name == "write_file" { "Str" }
-  else { if name == "slice" { if index == 0 { "Str" } else { "Nat" } }
-  else { if name == "starts_with" { "Str" }
-  else { if name == "starts_with_at" { if index < 2 { "Str" } else { "Nat" } }
-  else { if name == "byte_append" || name == "byte_get" { if index == 0 { "Bytes" } else { "Nat" } }
-  else { if name == "bytes_concat" { "Bytes" }
-  else { if name == "utf8_decode" { "Bytes" }
-  else { if name == "write_bytes" { if index == 0 { "Str" } else { "Bytes" } }
-  else { if name == "path_join" || name == "path_with_suffix" { "Str" }
-  else { if name == "process_exit" { "Nat" }
-  else { if name == "run_bytecode" || name == "run_bytecode_args" { if index == 0 { "Bytes" } else { "[Str]" } }
-  else { "Any" } } } } } } } } } } } }
-} }
-} } } } } } } } }
-} } } } } } } } } } } } }
+    if name == "async_fake_read" || name == "tcp_exchange" {
+      if name == "async_fake_read" {
+        "Bool"
+      } else {
+        if index == 0 {
+          "Str"
+        } else {
+          if index == 2 {
+            "Bytes"
+          } else {
+            "Nat"
+          }
+        }
+      }
+    } else {
+      if name == "fs_read" {
+        if index == 0 {
+          "Path"
+        } else {
+          if index == 1 {
+            "Nat"
+          } else {
+            "Any"
+          }
+        }
+      } else {
+        if name == "fs_write" {
+          if index == 0 {
+            "Path"
+          } else {
+            if index == 1 {
+              "Bytes"
+            } else {
+              "Any"
+            }
+          }
+        } else {
+          if name == "fs_metadata" {
+            if index == 0 {
+              "Path"
+            } else {
+              "Any"
+            }
+          } else {
+            if name == "fs_list" {
+              if index == 0 {
+                "Path"
+              } else {
+                "Any"
+              }
+            } else {
+              if name == "fs_create_directory" {
+                if index == 0 {
+                  "Path"
+                } else {
+                  "Any"
+                }
+              } else {
+                if name == "fs_remove_file" {
+                  if index == 0 {
+                    "Path"
+                  } else {
+                    "Any"
+                  }
+                } else {
+                  if name == "fs_remove_directory" {
+                    if index == 0 {
+                      "Path"
+                    } else {
+                      "Any"
+                    }
+                  } else {
+                    if name == "fs_temp_file" {
+                      if index == 0 {
+                        "Path"
+                      } else {
+                        "Any"
+                      }
+                    } else {
+                      if name == "fs_temp_directory" {
+                        if index == 0 {
+                          "Path"
+                        } else {
+                          "Any"
+                        }
+                      } else {
+                        if name == "host_decode_utf8" {
+                          if index == 0 {
+                            "Bytes"
+                          } else {
+                            "Any"
+                          }
+                        } else {
+                          if name == "host_sleep" {
+                            if index == 0 {
+                              "Duration"
+                            } else {
+                              "Any"
+                            }
+                          } else {
+                            if name == "process_run" {
+                              if index == 0 {
+                                "Path"
+                              } else {
+                                if index == 1 {
+                                  "[Str]"
+                                } else {
+                                  if index == 2 {
+                                    "Bytes"
+                                  } else {
+                                    if index == 3 {
+                                      "Path"
+                                    } else {
+                                      if index == 4 {
+                                        "[Str]"
+                                      } else {
+                                        if index == 5 {
+                                          "Duration"
+                                        } else {
+                                          if index == 6 {
+                                            "Nat"
+                                          } else {
+                                            "Any"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            } else {
+                              if name == "path_from_text" {
+                                "Str"
+                              } else {
+                                if name == "path_from_native" {
+                                  "Bytes"
+                                } else {
+                                  if name == "path_to_text" ||
+                                    name == "path_native_bytes" ||
+                                    name == "path_display" ||
+                                    name == "path_absolute" ||
+                                    name == "path_append" ||
+                                    name == "path_directory" ||
+                                    name == "path_filename" {
+                                    "Path"
+                                  } else {
+                                    if name == "path_current" || name == "instant_now" {
+                                      "Any"
+                                    } else {
+                                      if name == "duration_nanoseconds" {
+                                        "Int"
+                                      } else {
+                                        if name == "duration_ticks" {
+                                          "Duration"
+                                        } else {
+                                          if name == "duration_from_seconds" {
+                                            "Rat"
+                                          } else {
+                                            if name == "instant_add" {
+                                              if index == 0 {
+                                                "Instant"
+                                              } else {
+                                                "Duration"
+                                              }
+                                            } else {
+                                              if name == "instant_difference" ||
+                                                name == "instant_before" {
+                                                "Instant"
+                                              } else {
+                                                if name == "nat" || name == "dec" {
+                                                  "Rat"
+                                                } else {
+                                                  if name == "quotient" {
+                                                    "Nat"
+                                                  } else {
+                                                    if name == "read_file" ||
+                                                      name == "read_bytes" ||
+                                                      name == "nat_from_str" ||
+                                                      name == "reverse" ||
+                                                      name == "is_digit" ||
+                                                      name == "is_letter" ||
+                                                      name == "is_whitespace" ||
+                                                      name == "utf8_encode" ||
+                                                      name == "environment_has" ||
+                                                      name == "environment_get" ||
+                                                      name == "path_resolve" ||
+                                                      name == "path_parent" ||
+                                                      name == "path_suffix" ||
+                                                      name == "path_is_absolute" ||
+                                                      name == "file_exists" {
+                                                      "Str"
+                                                    } else {
+                                                      if name == "write_file" {
+                                                        "Str"
+                                                      } else {
+                                                        if name == "slice" {
+                                                          if index == 0 {
+                                                            "Str"
+                                                          } else {
+                                                            "Nat"
+                                                          }
+                                                        } else {
+                                                          if name == "starts_with" {
+                                                            "Str"
+                                                          } else {
+                                                            if name == "starts_with_at" {
+                                                              if index < 2 {
+                                                                "Str"
+                                                              } else {
+                                                                "Nat"
+                                                              }
+                                                            } else {
+                                                              if name == "byte_append" ||
+                                                                name == "byte_get" {
+                                                                if index == 0 {
+                                                                  "Bytes"
+                                                                } else {
+                                                                  "Nat"
+                                                                }
+                                                              } else {
+                                                                if name == "bytes_concat" {
+                                                                  "Bytes"
+                                                                } else {
+                                                                  if name == "utf8_decode" {
+                                                                    "Bytes"
+                                                                  } else {
+                                                                    if name == "write_bytes" {
+                                                                      if index == 0 {
+                                                                        "Str"
+                                                                      } else {
+                                                                        "Bytes"
+                                                                      }
+                                                                    } else {
+                                                                      if name == "path_join" ||
+                                                                        name == "path_with_suffix" {
+                                                                        "Str"
+                                                                      } else {
+                                                                        if name == "process_exit" {
+                                                                          "Nat"
+                                                                        } else {
+                                                                          if name == "run_bytecode" ||
+                                                                            name == "run_bytecode_args" {
+                                                                            if index == 0 {
+                                                                              "Bytes"
+                                                                            } else {
+                                                                              "[Str]"
+                                                                            }
+                                                                          } else {
+                                                                            "Any"
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
 
-}
+  }
 }
 
 pure method_operation(name: Str): Str {
   mut result: Str = name
-  if name == "$method_put" { result = "map_put"; }
-  if name == "$method_get" { result = "map_get"; }
-  if name == "$method_add" { result = "set_add"; }
-  if name == "$method_has" { result = "has"; }
-  if name == "$method_call" { result = "call"; }
-  if name == "$method_map" { result = "array_map"; }
-  if name == "$method_reduce" { result = "array_reduce"; }
+
+  if name == "$method_put" {
+    result = "map_put"
+  }
+  if name == "$method_get" {
+    result = "map_get"
+  }
+  if name == "$method_add" {
+    result = "set_add"
+  }
+  if name == "$method_has" {
+    result = "has"
+  }
+  if name == "$method_call" {
+    result = "call"
+  }
+  if name == "$method_map" {
+    result = "array_map"
+  }
+  if name == "$method_reduce" {
+    result = "array_reduce"
+  }
+
   result
 }
 
 pure method_display_name(name: Str): Str {
   mut result: Str = name
-  if name == "$core_ends_with" { result = "ends_with"; }
-  if name == "$core_first" { result = "first"; }
-  if name == "$core_sort_by" { result = "sort_by"; }
-  if name == "$method_put" { result = "put"; }
-  if name == "$method_get" { result = "get"; }
-  if name == "$method_add" { result = "add"; }
-  if name == "$method_has" { result = "has"; }
-  if name == "$method_call" { result = "call"; }
-  if name == "$method_map" { result = "map"; }
-  if name == "$method_reduce" { result = "reduce"; }
+
+  if name == "$core_ends_with" {
+    result = "ends_with"
+  }
+  if name == "$core_first" {
+    result = "first"
+  }
+  if name == "$core_sort_by" {
+    result = "sort_by"
+  }
+  if name == "$method_put" {
+    result = "put"
+  }
+  if name == "$method_get" {
+    result = "get"
+  }
+  if name == "$method_add" {
+    result = "add"
+  }
+  if name == "$method_has" {
+    result = "has"
+  }
+  if name == "$method_call" {
+    result = "call"
+  }
+  if name == "$method_map" {
+    result = "map"
+  }
+  if name == "$method_reduce" {
+    result = "reduce"
+  }
+
   result
 }
 
-pure infer_function_template(program: Program, template: Str, actual: Str, parameters: [Str], substitutions: Map[Str,Str]): Map[Str,Str] {
-  mut result: Map[Str,Str] = substitutions
+pure infer_function_template(
+  program: Program,
+  template: Str,
+  actual: Str,
+  parameters: [Str],
+  substitutions: Map[Str, Str]
+): Map[Str, Str] {
+  mut result: Map[Str, Str] = substitutions
+
   if has_name(parameters, template) {
-    merged: Str = if result.has(template) { merge_types(program, result.get(template), actual) } else { actual }
-    if merged == "Unknown" { result = result.put("$conflict", "true"); }
+    merged: Str = if result.has(template) {
+      merge_types(program, result.get(template), actual)
+    } else {
+      actual
+    }
+    if merged == "Unknown" {
+      result = result.put("$conflict", "true")
+    }
     result = result.put(template, merged)
   } else {
     expected: TypeShape = type_shape(template)
     supplied: TypeShape = type_shape(actual)
-    if (expected.base == supplied.base || (expected.base == "Fn" && supplied.base == "PureFn")) && len(expected.arguments) == len(supplied.arguments) {
+    if (expected.base == supplied.base ||
+      (expected.base == "Fn" &&
+      supplied.base == "PureFn")) &&
+      len(expected.arguments) == len(supplied.arguments) {
       mut index: Nat = 0
       while index < len(expected.arguments) {
-        result = infer_function_template(program, expected.arguments[index], supplied.arguments[index], parameters, result)
+        result = infer_function_template(
+          program,
+          expected.arguments[index],
+          supplied.arguments[index],
+          parameters,
+          result
+        )
         index = index + 1
       }
     }
   }
+
   result
 }
 
-pure check_generic_call(name: Str, function: FunctionLookup, type_arguments: [Str], arguments: [Expr], actuals: [TypeInfo], scope_types: [Str], facts: Map[Str,Bounds], program: Program): CheckedExpression {
+pure check_generic_call(
+  name: Str,
+  function: FunctionLookup,
+  type_arguments: [Str],
+  arguments: [Expr],
+  actuals: [TypeInfo],
+  scope_types: [Str],
+  facts: Map[Str, Bounds],
+  program: Program
+): CheckedExpression {
   mut diagnostics: [Diagnostic] = []
-  mut substitutions: Map[Str,Str] = map()
+  mut substitutions: Map[Str, Str] = map()
+
   if len(type_arguments) > 0 {
     if len(type_arguments) != len(function.type_parameters) {
       expected_count: Nat = len(function.type_parameters)
       actual_count: Nat = len(type_arguments)
-      diagnostics = append(diagnostics, checker_diagnostic("${name} expects ${expected_count} type arguments, got ${actual_count}"))
+      diagnostics = append(
+        diagnostics,
+        checker_diagnostic("${name} expects ${expected_count} type arguments, got ${actual_count}")
+      )
     }
     mut index: Nat = 0
     for argument in type_arguments {
       diagnostics = concat(diagnostics, require_type(program, argument, scope_types, false))
-      if index < len(function.type_parameters) { substitutions = substitutions.put(function.type_parameters[index], argument); }
+      if index < len(function.type_parameters) {
+        substitutions = substitutions.put(function.type_parameters[index], argument)
+      }
       index = index + 1
     }
   } else {
     mut index: Nat = 0
     for actual in actuals {
       if index < len(function.parameters) {
-        substitutions = infer_function_template(program, function.parameters[index].type_name, actual.name, function.type_parameters, substitutions)
+        substitutions = infer_function_template(
+          program,
+          function.parameters[index].type_name,
+          actual.name,
+          function.type_parameters,
+          substitutions
+        )
       }
       index = index + 1
     }
@@ -831,206 +1767,458 @@ pure check_generic_call(name: Str, function: FunctionLookup, type_arguments: [St
   }
   for parameter in function.type_parameters {
     if !substitutions.has(parameter) || !inferred_type_complete(substitutions.get(parameter)) {
-      diagnostics = append(diagnostics, checker_diagnostic("cannot infer type parameter ${parameter} for ${name}; supply explicit type arguments"))
+      diagnostics = append(
+        diagnostics,
+        checker_diagnostic("cannot infer type parameter ${parameter} for ${name}; supply explicit type arguments")
+      )
     }
   }
   mut index: Nat = 0
   for actual in actuals {
     if index < len(function.parameters) {
-      target: Str = substitute_type(function.parameters[index].type_name, function.type_parameters, substitutions)
-      if actual.name == "Void" || !assignable_checked(program, actual, target, arguments[index], facts) {
+      target: Str = substitute_type(
+        function.parameters[index].type_name,
+        function.type_parameters,
+        substitutions
+      )
+      if actual.name == "Void" || !assignable_checked(
+        program,
+        actual,
+        target,
+        arguments[index],
+        facts
+      ) {
         number: Nat = index + 1
         actual_type: Str = actual.name
-        diagnostics = append(diagnostics, checker_diagnostic("argument ${number} to ${name} is ${actual_type}, expected ${target}"))
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic("argument ${number} to ${name} is ${actual_type}, expected ${target}")
+        )
       }
     }
     index = index + 1
   }
-  CheckedExpression(plain_type(substitute_type(function.return_type, function.type_parameters, substitutions)), diagnostics, [])
+  CheckedExpression(
+    plain_type(substitute_type(function.return_type, function.type_parameters, substitutions)),
+    diagnostics,
+    []
+  )
 }
 
 // Drop incoming bounds for any local written while evaluating an expression.
 // Calls cannot mutate caller locals: values are persistent and closures do not
 // capture mutable bindings. Nested block expressions can, so visit every child.
 // Unknown bounds retain the map key without asserting either endpoint.
-pure forget_written_fact(facts: Map[Str,Bounds], name: Str): Map[Str,Bounds] {
-  if map_has(facts, name) { map_put(facts, name, Bounds(false, 0, false, 0, None())) }
-  else { facts }
+pure forget_written_fact(facts: Map[Str, Bounds], name: Str): Map[Str, Bounds] {
+  if map_has(facts, name) {
+    map_put(facts, name, Bounds(false, 0, false, 0, None()))
+  } else {
+    facts
+  }
 }
 
-pure facts_after_expression(expression: Expr, facts: Map[Str,Bounds]): Map[Str,Bounds] {
-  empty: Map[Str,Bounds] = map()
-  mut result: Map[Str,Bounds] = facts
+pure facts_after_expression(expression: Expr, facts: Map[Str, Bounds]): Map[Str, Bounds] {
+  empty: Map[Str, Bounds] = map()
+  mut result: Map[Str, Bounds] = facts
+
   if facts != empty {
     match expression {
-      LocatedExpr(position, value) => { result = facts_after_expression(value, result) },
-      ArrayExpr(items) => {
-        for item in items { result = facts_after_expression(item, result) }
+      LocatedExpr(position, value) => {
+        result = facts_after_expression(value, result)
       },
-      UnaryExpr(operator, value) => { result = facts_after_expression(value, result) },
+      ArrayExpr(items) => {
+        for item in items {
+          result = facts_after_expression(item, result)
+        }
+      },
+      UnaryExpr(operator, value) => {
+        result = facts_after_expression(value, result)
+      },
       BinaryExpr(operator, left, right) => {
         result = facts_after_expression(right, facts_after_expression(left, result))
       },
       DotCallExpr(target, name, arguments, types) => {
         result = facts_after_expression(target, result)
-        for argument in arguments { result = facts_after_expression(argument, result) }
+        for argument in arguments {
+          result = facts_after_expression(argument, result)
+        }
       },
       CallExpr(name, arguments, type_arguments) => {
-        for argument in arguments { result = facts_after_expression(argument, result) }
+        for argument in arguments {
+          result = facts_after_expression(argument, result)
+        }
       },
-      FieldExpr(target, field) => { result = facts_after_expression(target, result) },
+      FieldExpr(target, field) => {
+        result = facts_after_expression(target, result)
+      },
       IndexExpr(target, index) => {
         result = facts_after_expression(index, facts_after_expression(target, result))
       },
       IfExpr(condition, yes, no, has_else) => {
         result = facts_after_expression(condition, result)
         result = facts_after_block(yes, result)
-        if has_else { result = facts_after_block(no, result) }
+        if has_else {
+          result = facts_after_block(no, result)
+        }
       },
-      BlockExpr(block) => { result = facts_after_block(block, result) },
+      BlockExpr(block) => {
+        result = facts_after_block(block, result)
+      },
       MatchExpr(subject, arms) => {
         result = facts_after_expression(subject, result)
-        for arm in arms { result = facts_after_expression(arm.body, result) }
+        for arm in arms {
+          result = facts_after_expression(arm.body, result)
+        }
       },
-      NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {},
-      BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(name) => {}
+      NatExpr(value) => {},
+      DecimalExpr(text) => {},
+      StringExpr(text) => {},
+      BoolExpr(value) => {},
+      NameExpr(name) => {},
+      FunctionExpr(name) => {}
     }
   }
+
   result
 }
 
-pure facts_after_statement(statement: Statement, facts: Map[Str,Bounds]): Map[Str,Bounds] {
+pure facts_after_statement(statement: Statement, facts: Map[Str, Bounds]): Map[Str, Bounds] {
   match statement {
     BindingStatement(name, type_name, mutable, value) => facts_after_expression(value, facts),
-    AssignmentStatement(name, value) => forget_written_fact(facts_after_expression(value, facts), name),
+    AssignmentStatement(name, value) => forget_written_fact(
+      facts_after_expression(value, facts),
+      name
+    ),
     ExpressionStatement(value) => facts_after_expression(value, facts),
-    WhileStatement(condition, body) => facts_after_block(body, facts_after_expression(condition, facts)),
-    ForStatement(name, iterable, body) => facts_after_block(body, facts_after_expression(iterable, facts))
+    WhileStatement(condition, body) => facts_after_block(
+      body,
+      facts_after_expression(condition, facts)
+    ),
+    ForStatement(name, iterable, body) => facts_after_block(
+      body,
+      facts_after_expression(iterable, facts)
+    )
   }
 }
 
-pure facts_after_block(block: Block, facts: Map[Str,Bounds]): Map[Str,Bounds] {
-  mut result: Map[Str,Bounds] = facts
-  for statement in block.statements { result = facts_after_statement(statement, result) }
+pure facts_after_block(block: Block, facts: Map[Str, Bounds]): Map[Str, Bounds] {
+  mut result: Map[Str, Bounds] = facts
+
+  for statement in block.statements {
+    result = facts_after_statement(statement, result)
+  }
   match block.value {
     NoBlockValue() => {},
-    TailBlockValue(value) => { result = facts_after_expression(value, result) }
+    TailBlockValue(value) => {
+      result = facts_after_expression(value, result)
+    }
   }
+
   result
 }
 
-pure check_expression(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program): CheckedExpression {
+pure check_expression(
+  expression: Expr,
+  environment: Map[Str, TypeInfo],
+  facts: Map[Str, Bounds],
+  program: Program
+): CheckedExpression {
   check_expression_scoped(expression, environment, facts, program, [])
 }
 
-pure check_expression_scoped(expression: Expr, environment: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedExpression {
+pure check_expression_scoped(
+  expression: Expr,
+  environment: Map[Str, TypeInfo],
+  facts: Map[Str, Bounds],
+  program: Program,
+  scope_types: [Str]
+): CheckedExpression {
   check_expression_evidence(expression, environment, facts, program, scope_types, false, None())
 }
 
-pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str], retain: Bool, origin: Option[SourceSpan]): CheckedExpression {
+pure check_expression_evidence(
+  expression: Expr,
+  environment: Map[Str, TypeInfo],
+  incoming_facts: Map[Str, Bounds],
+  program: Program,
+  scope_types: [Str],
+  retain: Bool,
+  origin: Option[SourceSpan]
+): CheckedExpression {
   // Conservatively discard bounds across all children before checking operands
   // or call arguments. No assumed operand order can resurrect a stale fact.
-  facts: Map[Str,Bounds] = facts_after_expression(expression, incoming_facts)
+  facts: Map[Str, Bounds] = facts_after_expression(expression, incoming_facts)
   mut diagnostics: [Diagnostic] = []
   mut evidence: [SubtractionEvidence] = []
   mut info: TypeInfo = no_type()
+
   match expression {
     LocatedExpr(position, value) => {
-      checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, if retain { Some(position) } else { None() })
+      checked: CheckedExpression = check_expression_evidence(
+        value,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        if retain {
+          Some(position)
+        } else {
+          None()
+        })
       info = checked.info
       diagnostics = checker_diagnostics_at(checked.diagnostics, position.start)
       evidence = checked.evidence
     },
-    NatExpr(value) => { info = TypeInfo("Nat", true, value, false); },
-    DecimalExpr(text) => { info = plain_type("Dec"); },
-    StringExpr(text) => { info = plain_type("Str"); },
-    BoolExpr(value) => { info = plain_type("Bool"); },
+    NatExpr(value) => {
+      info = TypeInfo("Nat", true, value, false)
+    },
+    DecimalExpr(text) => {
+      info = plain_type("Dec")
+    },
+    StringExpr(text) => {
+      info = plain_type("Str")
+    },
+    BoolExpr(value) => {
+      info = plain_type("Bool")
+    },
     NameExpr(name) => {
       info = environment_type(environment, name)
-      if info.name == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("unknown name ${name}")); } else {}
+      if info.name == "Unknown" {
+        diagnostics = append(diagnostics, checker_diagnostic("unknown name ${name}"))
+      } else {}
     },
     FunctionExpr(name) => {
       function: FunctionLookup = function_type(program, name)
       if !function.found {
         diagnostics = append(diagnostics, checker_diagnostic("unknown function ${name}"))
       } else {
-        if len(function.type_parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("generic function references require a non-generic wrapper")); }
+        if len(function.type_parameters) > 0 {
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic("generic function references require a non-generic wrapper")
+          )
+        }
         mut signature: [Str] = []
-        for parameter in function.parameters { signature = append(signature, parameter.type_name); }
+        for parameter in function.parameters {
+          signature = append(signature, parameter.type_name)
+        }
         signature = append(signature, function.return_type)
-        info = plain_type(render_type(if function.is_async { "AsyncFn" } else { if function.is_pure { "PureFn" } else { "Fn" } }, signature))
+        info = plain_type(render_type(if function.is_async {
+            "AsyncFn"
+          } else {
+            if function.is_pure {
+              "PureFn"
+            } else {
+              "Fn"
+            }
+          }, signature))
       }
     },
     ArrayExpr(items) => {
       mut element: Str = "$T"
       for item in items {
-        checked: CheckedExpression = check_expression_evidence(item, environment, facts, program, scope_types, retain, None())
-        diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
+        checked: CheckedExpression = check_expression_evidence(
+          item,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        }
         if checked.info.name == "Void" {
-          diagnostics = append(diagnostics, checker_diagnostic("Void expressions cannot be stored in an array"))
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic("Void expressions cannot be stored in an array")
+          )
         } else {
           merged: Str = merge_types(program, element, checked.info.name)
           if merged == "Unknown" {
             item_type: Str = checked.info.name
-            diagnostics = append(diagnostics, checker_diagnostic("array elements have incompatible types ${element} and ${item_type}"))
-          } else { element = merged; }
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("array elements have incompatible types ${element} and ${item_type}")
+            )
+          } else {
+            element = merged
+          }
         }
       }
       info = plain_type("Array[${element}]")
     },
     UnaryExpr(operator, operand) => {
-      checked: CheckedExpression = check_expression_evidence(operand, environment, facts, program, scope_types, retain, None())
-      diagnostics = checked.diagnostics; evidence = checked.evidence
+      checked: CheckedExpression = check_expression_evidence(
+        operand,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      diagnostics = checked.diagnostics
+      evidence = checked.evidence
       base: Str = base_type(program, checked.info.name)
-      if operator == "await" { info = checked.info; }
-      else { if operator == "!" && base == "Bool" { info = plain_type("Bool"); }
-      else { if operator == "-" && (base == "Nat" || base == "Int" || base == "Dec" || base == "Rat") { info = plain_type(if base == "Dec" || base == "Rat" { base } else { "Int" }); }
-      else { operand_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${operand_type}")); } } }
+      if operator == "await" {
+        info = checked.info
+      } else {
+        if operator == "!" && base == "Bool" {
+          info = plain_type("Bool")
+        } else {
+          if operator == "-" && (base == "Nat" || base == "Int" || base == "Dec" || base == "Rat") {
+            info = plain_type(if base == "Dec" || base == "Rat" {
+                base
+              } else {
+                "Int"
+              });
+          } else {
+            operand_type: Str = checked.info.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("operator ${operator} does not accept ${operand_type}")
+            )
+          }
+        }
+      }
     },
     BinaryExpr(operator, left, right) => {
-      checked_left: CheckedExpression = check_expression_evidence(left, environment, facts, program, scope_types, retain, None())
-      checked_right: CheckedExpression = check_expression_evidence(right, environment, facts, program, scope_types, retain, None())
-      diagnostics = concat(checked_left.diagnostics, checked_right.diagnostics); evidence = concat(checked_left.evidence, checked_right.evidence)
+      checked_left: CheckedExpression = check_expression_evidence(
+        left,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      checked_right: CheckedExpression = check_expression_evidence(
+        right,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      diagnostics = concat(checked_left.diagnostics, checked_right.diagnostics)
+      evidence = concat(checked_left.evidence, checked_right.evidence)
       left_base: Str = base_type(program, checked_left.info.name)
       right_base: Str = base_type(program, checked_right.info.name)
       if operator == ".." {
-        if left_base != "Nat" || right_base != "Nat" { diagnostics = append(diagnostics, checker_diagnostic("range bounds must be Nat")); } else {}
+        if left_base != "Nat" || right_base != "Nat" {
+          diagnostics = append(diagnostics, checker_diagnostic("range bounds must be Nat"))
+        } else {}
         info = plain_type("Range")
       } else {
         if operator == "&&" || operator == "||" {
-          if left_base != "Bool" || right_base != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} requires Bool operands")); } else {}
+          if left_base != "Bool" || right_base != "Bool" {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("operator ${operator} requires Bool operands")
+            )
+          } else {}
           info = plain_type("Bool")
         } else {
-          if operator == "==" || operator == "!=" || operator == "<" || operator == "<=" || operator == ">" || operator == ">=" {
-            numeric_pair: Bool = (left_base == "Nat" || left_base == "Int" || left_base == "Rat") && (right_base == "Nat" || right_base == "Int" || right_base == "Rat")
-            orderable: Bool = left_base == "Nat" || left_base == "Int" || left_base == "Dec" || left_base == "Rat" || left_base == "Str"
-            if (left_base != right_base && !numeric_pair) || ((operator == "<" || operator == "<=" || operator == ">" || operator == ">=") && !orderable) {
-              left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
-              diagnostics = append(diagnostics, checker_diagnostic("cannot compare ${left_name} with ${right_name}"))
+          if operator == "==" ||
+            operator == "!=" ||
+            operator == "<" ||
+            operator == "<=" ||
+            operator == ">" ||
+            operator == ">=" {
+            numeric_pair: Bool = (left_base == "Nat" ||
+              left_base == "Int" ||
+              left_base == "Rat") &&
+              (right_base == "Nat" ||
+              right_base == "Int" ||
+              right_base == "Rat")
+            orderable: Bool = left_base == "Nat" ||
+              left_base == "Int" ||
+              left_base == "Dec" ||
+              left_base == "Rat" ||
+              left_base == "Str"
+            if (left_base != right_base &&
+              !numeric_pair) ||
+              ((operator == "<" ||
+              operator == "<=" ||
+              operator == ">" ||
+              operator == ">=") &&
+              !orderable) {
+              left_name: Str = checked_left.info.name
+              right_name: Str = checked_right.info.name
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("cannot compare ${left_name} with ${right_name}")
+              )
             } else {}
             info = plain_type("Bool")
           } else {
-            if operator == "+" && left_base == "Str" && right_base == "Str" { info = plain_type("Str"); }
-            else {
+            if operator == "+" && left_base == "Str" && right_base == "Str" {
+              info = plain_type("Str")
+            } else {
               compatible_numeric: Bool = scalar_compatible_numeric(left_base, right_base)
-              if (operator == "%" && (left_base == "Rat" || right_base == "Rat")) || !compatible_numeric {
-                left_name: Str = checked_left.info.name; right_name: Str = checked_right.info.name
-                diagnostics = append(diagnostics, checker_diagnostic("operator ${operator} does not accept ${left_name} and ${right_name}"))
+              if (operator == "%" &&
+                (left_base == "Rat" ||
+                right_base == "Rat")) ||
+                !compatible_numeric {
+                left_name: Str = checked_left.info.name
+                right_name: Str = checked_right.info.name
+                diagnostics = append(
+                  diagnostics,
+                  checker_diagnostic("operator ${operator} does not accept ${left_name} and ${right_name}")
+                )
               } else {}
               result: Str = scalar_arithmetic_result(operator, left_base, right_base)
               if result == "Nat" && operator == "-" {
-                decision: SubtractionDecision = subtraction_decision(left, checked_left.info, checked_right.info, facts)
-                if !decision.proven { diagnostics = append(diagnostics, checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")); }
+                decision: SubtractionDecision = subtraction_decision(
+                  left,
+                  checked_left.info,
+                  checked_right.info,
+                  facts
+                )
+                if !decision.proven {
+                  diagnostics = append(
+                    diagnostics,
+                    checker_diagnostic("Nat subtraction may underflow; prove the left side is large enough or use Int")
+                  )
+                }
                 if retain {
-                  selected: SubtractionDecision = if !compatible_numeric || len(checked_left.diagnostics) > 0 || len(checked_right.diagnostics) > 0 {
+                  selected: SubtractionDecision = if !compatible_numeric ||
+                    len(checked_left.diagnostics) > 0 ||
+                    len(checked_right.diagnostics) > 0 {
                     SubtractionDecision(false, "invalid-operands", false, 0, None())
-                  } else { decision }
-                  evidence = append(evidence, SubtractionEvidence("", origin, checked_left.info, checked_right.info, selected))
+                  } else {
+                    decision
+                  }
+                  evidence = append(
+                    evidence,
+                    SubtractionEvidence(
+                    "",
+                    origin,
+                    checked_left.info,
+                    checked_right.info,
+                    selected
+                  )
+                  )
                 }
               } else {
                 if retain && operator == "-" {
-                  evidence = append(evidence, SubtractionEvidence("", origin, checked_left.info, checked_right.info,
-                    SubtractionDecision(false, if !compatible_numeric || len(checked_left.diagnostics) > 0 || len(checked_right.diagnostics) > 0 { "invalid-operands" } else { "unsupported" }, false, 0, None())))
+                  evidence = append(
+                    evidence,
+                    SubtractionEvidence("", origin, checked_left.info, checked_right.info,
+                    SubtractionDecision(
+                    false,
+                    if !compatible_numeric ||
+                    len(checked_left.diagnostics) > 0 ||
+                    len(checked_right.diagnostics) > 0 {
+                      "invalid-operands"
+                    } else {
+                      "unsupported"
+                    }, false, 0, None())))
                 }
               }
               info = TypeInfo(result, false, 0, false)
@@ -1040,7 +2228,10 @@ pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo],
       }
     },
     DotCallExpr(target, name, arguments, types) => {
-      diagnostics = append(diagnostics, checker_diagnostic("unresolved dot call requires module binding resolution"))
+      diagnostics = append(
+        diagnostics,
+        checker_diagnostic("unresolved dot call requires module binding resolution")
+      )
     },
     CallExpr(name, arguments, type_arguments) => {
       operation: Str = method_operation(name)
@@ -1049,42 +2240,98 @@ pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo],
       variant: VariantLookup = variant_type(program, name)
       function: FunctionLookup = function_type(program, name)
       if len(type_arguments) > 0 && (!function.found || len(function.type_parameters) == 0) {
-        diagnostics = append(diagnostics, checker_diagnostic("explicit type arguments require a generic function"))
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic("explicit type arguments require a generic function")
+        )
       }
       mut expected: [Str] = []
       mut parameters: [Str] = []
       mut result: Str = "Unknown"
       if record.found {
         parameters = record.parameters
-        for field in record.fields { expected = append(expected, field.type_name); }
+        for field in record.fields {
+          expected = append(expected, field.type_name)
+        }
         result = name
       } else {
-        if variant.found { parameters = variant.parameters; expected = variant.payload; result = variant.enum_name; }
-        else {
-          if function.found { for parameter in function.parameters { expected = append(expected, parameter.type_name); }; result = function.return_type; }
-          else { if is_builtin(name) { result = builtin_return(name); } else { diagnostics = append(diagnostics, checker_diagnostic("unknown function ${display_name}")); } }
+        if variant.found {
+          parameters = variant.parameters
+          expected = variant.payload
+          result = variant.enum_name
+        } else {
+          if function.found {
+            for parameter in function.parameters {
+              expected = append(expected, parameter.type_name)
+            }
+            result = function.return_type
+          } else {
+            if is_builtin(name) {
+              result = builtin_return(name)
+            } else {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("unknown function ${display_name}")
+              )
+            }
+          }
         }
       }
-      expected_count: Nat = if name == "$method_call" { len(arguments) } else { if is_builtin(name) { builtin_arity(name) } else { len(expected) } }
-      if len(arguments) != expected_count { actual_count: Nat = len(arguments); diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects ${expected_count} arguments, got ${actual_count}")); } else {}
-      substitutions: Map[Str,Str] = map()
-      mut inferred: Map[Str,Str] = substitutions
+      expected_count: Nat = if name == "$method_call" {
+        len(arguments)
+      } else {
+        if is_builtin(name) {
+          builtin_arity(name)
+        } else {
+          len(expected)
+        }
+      }
+      if len(arguments) != expected_count {
+        actual_count: Nat = len(arguments)
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic("${display_name} expects ${expected_count} arguments, got ${actual_count}")
+        )
+      } else {}
+      substitutions: Map[Str, Str] = map()
+      mut inferred: Map[Str, Str] = substitutions
       mut argument_infos: [TypeInfo] = []
       mut index: Nat = 0
       for argument in arguments {
-        checked: CheckedExpression = check_expression_evidence(argument, environment, facts, program, scope_types, retain, None())
-        diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
+        checked: CheckedExpression = check_expression_evidence(
+          argument,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        }
         argument_infos = append(argument_infos, checked.info)
         if checked.info.name == "Void" {
-          diagnostics = append(diagnostics, checker_diagnostic("Void is not a value and cannot be passed as an argument"))
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic("Void is not a value and cannot be passed as an argument")
+          )
         }
         if index < len(expected) && len(function.type_parameters) == 0 {
           template: Str = expected[index]
           inferred = infer_template(program, template, checked.info.name, parameters, inferred)
           target: Str = substitute_type(template, parameters, inferred)
-          if !has_name(parameters, target) && !assignable_checked(program, checked.info, target, argument, facts) {
-            argument_number: Nat = index + 1; actual_type: Str = checked.info.name
-            diagnostics = append(diagnostics, checker_diagnostic("argument ${argument_number} to ${display_name} is ${actual_type}, expected ${target}"))
+          if !has_name(
+            parameters,
+            target
+          ) && !assignable_checked(program, checked.info, target, argument, facts) {
+            argument_number: Nat = index + 1
+            actual_type: Str = checked.info.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("argument ${argument_number} to ${display_name} is ${actual_type}, expected ${target}")
+            )
           } else {}
         } else {}
         index = index + 1
@@ -1092,14 +2339,23 @@ pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo],
       if is_builtin(name) && len(argument_infos) == expected_count {
         if operation == "call" {
           callable: TypeShape = type_shape(argument_infos[0].name)
-          if (callable.base != "Fn" && callable.base != "PureFn" && callable.base != "AsyncFn") || len(callable.arguments) == 0 {
+          if (callable.base != "Fn" &&
+            callable.base != "PureFn" &&
+            callable.base != "AsyncFn") ||
+            len(callable.arguments) == 0 {
             actual_callable: Str = argument_infos[0].name
-            diagnostics = append(diagnostics, checker_diagnostic("call expects a callable, got ${actual_callable}"))
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("call expects a callable, got ${actual_callable}")
+            )
           } else {
             callable_arity: Nat = prior_index(len(callable.arguments))
             actual_arity: Nat = prior_index(len(argument_infos))
             if callable_arity != actual_arity {
-              diagnostics = append(diagnostics, checker_diagnostic("call expects ${callable_arity} arguments, got ${actual_arity}"))
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("call expects ${callable_arity} arguments, got ${actual_arity}")
+              )
             } else {
               mut call_index: Nat = 0
               while call_index < callable_arity {
@@ -1107,217 +2363,732 @@ pure check_expression_evidence(expression: Expr, environment: Map[Str,TypeInfo],
                 target: Str = callable.arguments[call_index]
                 if !assignable(program, actual, target) {
                   number: Nat = call_index + 1
-                  diagnostics = append(diagnostics, checker_diagnostic("argument ${number} to call is ${actual}, expected ${target}"))
+                  diagnostics = append(
+                    diagnostics,
+                    checker_diagnostic("argument ${number} to call is ${actual}, expected ${target}")
+                  )
                 } else {}
                 call_index = call_index + 1
               }
               result = callable.arguments[callable_arity]
             }
           }
-        } else { if operation == "array_map" || operation == "array_reduce" {
-          collection: TypeShape = type_shape(argument_infos[0].name)
-          callback: TypeShape = type_shape(argument_infos[prior_index(len(argument_infos))].name)
-          if collection.base != "Array" || len(collection.arguments) != 1 {
-            actual_collection: Str = argument_infos[0].name
-            diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects an array, got ${actual_collection}"))
-          } else { if callback.base != "PureFn" {
-            actual_callback: Str = argument_infos[prior_index(len(argument_infos))].name
-            diagnostics = append(diagnostics, checker_diagnostic("${display_name} requires a pure callable, got ${actual_callback}"))
-          } else { if operation == "array_map" {
-            if len(callback.arguments) != 2 || !assignable(program, collection.arguments[0], callback.arguments[0]) {
-              item_type: Str = collection.arguments[0]
-              diagnostics = append(diagnostics, checker_diagnostic("map callback must accept ${item_type}"))
-            } else { if callback.arguments[1] == "Void" { diagnostics = append(diagnostics, checker_diagnostic("map callback cannot return Void")); } else { result = render_type("Array", [callback.arguments[1]]); } }
-          } else {
-            accumulator: Str = argument_infos[1].name
-            mut valid_reduce: Bool = len(callback.arguments) == 3
-            if valid_reduce { valid_reduce = assignable(program, accumulator, callback.arguments[0]) && assignable(program, collection.arguments[0], callback.arguments[1]) && assignable(program, callback.arguments[2], accumulator); } else {}
-            if !valid_reduce {
-              expected_callback: Str = render_type("PureFn", [accumulator, collection.arguments[0], accumulator])
-              diagnostics = append(diagnostics, checker_diagnostic("reduce callback must have type ${expected_callback}"))
-            } else { result = accumulator; }
-          } } }
-        } else { if operation == "len" {
-          value_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(value_type)
-          if value_type != "Str" && value_type != "Bytes" && shape.base != "Array" { diagnostics = append(diagnostics, checker_diagnostic("len expects Str, Bytes, or array, got ${value_type}")); } else {}
-          result = "Nat"
         } else {
-          if operation == "append" {
-            collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type); item_type: Str = argument_infos[1].name
-            if shape.base != "Array" || len(shape.arguments) != 1 { diagnostics = append(diagnostics, checker_diagnostic("append expects an array, got ${collection_type}")); }
-            else { merged: Str = merge_types(program, shape.arguments[0], item_type); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("cannot append ${item_type} to ${collection_type}")); } else { result = render_type("Array", [merged]); } }
-          } else {
-            if operation == "concat" {
-              left_type: Str = argument_infos[0].name; right_type: Str = argument_infos[1].name; left_shape: TypeShape = type_shape(left_type); right_shape: TypeShape = type_shape(right_type)
-              if left_shape.base != "Array" || right_shape.base != "Array" { diagnostics = append(diagnostics, checker_diagnostic("concat expects two arrays")); }
-              else { merged: Str = merge_types(program, left_shape.arguments[0], right_shape.arguments[0]); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("cannot concatenate ${left_type} and ${right_type}")); } else { result = render_type("Array", [merged]); } }
+          if operation == "array_map" || operation == "array_reduce" {
+            collection: TypeShape = type_shape(argument_infos[0].name)
+            callback: TypeShape = type_shape(argument_infos[prior_index(len(argument_infos))].name)
+            if collection.base != "Array" || len(collection.arguments) != 1 {
+              actual_collection: Str = argument_infos[0].name
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("${display_name} expects an array, got ${actual_collection}")
+              )
             } else {
-              if operation == "map" { result = "Map[$K,$V]"; }
-              else {
-                if operation == "has" {
-                  collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type)
-                  if shape.base == "Map" && len(shape.arguments) == 2 {
-                    key_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name)
-                    if key_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_key: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid map key type ${invalid_key}")); } else {}
-                    result = "Bool"
+              if callback.base != "PureFn" {
+                actual_callback: Str = argument_infos[prior_index(len(argument_infos))].name
+                diagnostics = append(
+                  diagnostics,
+                  checker_diagnostic("${display_name} requires a pure callable, got ${actual_callback}")
+                )
+              } else {
+                if operation == "array_map" {
+                  if len(callback.arguments) != 2 || !assignable(
+                    program,
+                    collection.arguments[0],
+                    callback.arguments[0]
+                  ) {
+                    item_type: Str = collection.arguments[0]
+                    diagnostics = append(
+                      diagnostics,
+                      checker_diagnostic("map callback must accept ${item_type}")
+                    )
                   } else {
-                    if shape.base == "Set" && len(shape.arguments) == 1 {
-                      item_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name)
-                      if item_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_item: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid set element type ${invalid_item}")); } else {}
-                      result = "Bool"
-                    } else { diagnostics = append(diagnostics, checker_diagnostic("has expects a Map or Set, got ${collection_type}")); }
-                  }
-                } else {
-                if operation == "map_put" || operation == "map_has" || operation == "map_get" {
-                  collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type)
-                  if shape.base != "Map" || len(shape.arguments) != 2 { diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects a Map, got ${collection_type}")); }
-                  else {
-                    key_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name)
-                    if key_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_key: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid map key type ${invalid_key}")); } else {}
-                    if operation == "map_put" { value_type: Str = merge_types(program, shape.arguments[1], argument_infos[2].name); if value_type == "Unknown" { stored_type: Str = argument_infos[2].name; diagnostics = append(diagnostics, checker_diagnostic("cannot store ${stored_type} in ${collection_type}")); } else { result = render_type("Map", [key_type, value_type]); } }
-                    else { if operation == "map_has" { result = "Bool"; } else { result = shape.arguments[1]; } }
-                  }
-                } else {
-                  if operation == "set" { result = "Set[$T]"; }
-                  else {
-                    if operation == "set_add" || operation == "set_has" {
-                      collection_type: Str = argument_infos[0].name; shape: TypeShape = type_shape(collection_type)
-                      if shape.base != "Set" || len(shape.arguments) != 1 { diagnostics = append(diagnostics, checker_diagnostic("${display_name} expects a Set, got ${collection_type}")); }
-                      else { item_type: Str = merge_types(program, shape.arguments[0], argument_infos[1].name); if item_type == "Unknown" || !is_scalar_base(base_type(program, argument_infos[1].name)) { invalid_item: Str = argument_infos[1].name; diagnostics = append(diagnostics, checker_diagnostic("invalid set element type ${invalid_item}")); } else { result = if operation == "set_has" { "Bool" } else { render_type("Set", [item_type]) }; } }
+                    if callback.arguments[1] == "Void" {
+                      diagnostics = append(
+                        diagnostics,
+                        checker_diagnostic("map callback cannot return Void")
+                      )
                     } else {
-                      mut fixed_index: Nat = 0
-                      for actual in argument_infos { expected_type: Str = builtin_parameter(name, fixed_index); if expected_type != "Any" && !assignable(program, actual.name, expected_type) { actual_type: Str = actual.name; argument_number: Nat = fixed_index + 1; diagnostics = append(diagnostics, checker_diagnostic("argument ${argument_number} to ${display_name} is ${actual_type}, expected ${expected_type}")); } else {}; fixed_index = fixed_index + 1; }
+                      result = render_type("Array", [callback.arguments[1]])
                     }
                   }
+                } else {
+                  accumulator: Str = argument_infos[1].name
+                  mut valid_reduce: Bool = len(callback.arguments) == 3
+                  if valid_reduce {
+                    valid_reduce = assignable(
+                      program,
+                      accumulator,
+                      callback.arguments[0]
+                    ) && assignable(
+                      program,
+                      collection.arguments[0],
+                      callback.arguments[1]
+                    ) && assignable(program, callback.arguments[2], accumulator)
+                  } else {}
+                  if !valid_reduce {
+                    expected_callback: Str = render_type(
+                      "PureFn",
+                      [accumulator, collection.arguments[0], accumulator]
+                    )
+                    diagnostics = append(
+                      diagnostics,
+                      checker_diagnostic("reduce callback must have type ${expected_callback}")
+                    )
+                  } else {
+                    result = accumulator
+                  }
                 }
+              }
+            }
+          } else {
+            if operation == "len" {
+              value_type: Str = argument_infos[0].name
+              shape: TypeShape = type_shape(value_type)
+              if value_type != "Str" && value_type != "Bytes" && shape.base != "Array" {
+                diagnostics = append(
+                  diagnostics,
+                  checker_diagnostic("len expects Str, Bytes, or array, got ${value_type}")
+                )
+              } else {}
+              result = "Nat"
+            } else {
+              if operation == "append" {
+                collection_type: Str = argument_infos[0].name
+                shape: TypeShape = type_shape(collection_type)
+                item_type: Str = argument_infos[1].name
+                if shape.base != "Array" || len(shape.arguments) != 1 {
+                  diagnostics = append(
+                    diagnostics,
+                    checker_diagnostic("append expects an array, got ${collection_type}")
+                  )
+                } else {
+                  merged: Str = merge_types(program, shape.arguments[0], item_type)
+                  if merged == "Unknown" {
+                    diagnostics = append(
+                      diagnostics,
+                      checker_diagnostic("cannot append ${item_type} to ${collection_type}")
+                    )
+                  } else {
+                    result = render_type("Array", [merged])
+                  }
+                }
+              } else {
+                if operation == "concat" {
+                  left_type: Str = argument_infos[0].name
+                  right_type: Str = argument_infos[1].name
+                  left_shape: TypeShape = type_shape(left_type)
+                  right_shape: TypeShape = type_shape(right_type)
+                  if left_shape.base != "Array" || right_shape.base != "Array" {
+                    diagnostics = append(
+                      diagnostics,
+                      checker_diagnostic("concat expects two arrays")
+                    )
+                  } else {
+                    merged: Str = merge_types(
+                      program,
+                      left_shape.arguments[0],
+                      right_shape.arguments[0]
+                    )
+                    if merged == "Unknown" {
+                      diagnostics = append(
+                        diagnostics,
+                        checker_diagnostic("cannot concatenate ${left_type} and ${right_type}")
+                      )
+                    } else {
+                      result = render_type("Array", [merged])
+                    }
+                  }
+                } else {
+                  if operation == "map" {
+                    result = "Map[$K,$V]"
+                  } else {
+                    if operation == "has" {
+                      collection_type: Str = argument_infos[0].name
+                      shape: TypeShape = type_shape(collection_type)
+                      if shape.base == "Map" && len(shape.arguments) == 2 {
+                        key_type: Str = merge_types(
+                          program,
+                          shape.arguments[0],
+                          argument_infos[1].name
+                        )
+                        if key_type == "Unknown" || !is_scalar_base(base_type(
+                          program,
+                          argument_infos[1].name
+                        )) {
+                          invalid_key: Str = argument_infos[1].name
+                          diagnostics = append(
+                            diagnostics,
+                            checker_diagnostic("invalid map key type ${invalid_key}")
+                          )
+                        } else {}
+                        result = "Bool"
+                      } else {
+                        if shape.base == "Set" && len(shape.arguments) == 1 {
+                          item_type: Str = merge_types(
+                            program,
+                            shape.arguments[0],
+                            argument_infos[1].name
+                          )
+                          if item_type == "Unknown" || !is_scalar_base(base_type(
+                            program,
+                            argument_infos[1].name
+                          )) {
+                            invalid_item: Str = argument_infos[1].name
+                            diagnostics = append(
+                              diagnostics,
+                              checker_diagnostic("invalid set element type ${invalid_item}")
+                            )
+                          } else {}
+                          result = "Bool"
+                        } else {
+                          diagnostics = append(
+                            diagnostics,
+                            checker_diagnostic("has expects a Map or Set, got ${collection_type}")
+                          )
+                        }
+                      }
+                    } else {
+                      if operation == "map_put" ||
+                        operation == "map_has" ||
+                        operation == "map_get" {
+                        collection_type: Str = argument_infos[0].name
+                        shape: TypeShape = type_shape(collection_type)
+                        if shape.base != "Map" || len(shape.arguments) != 2 {
+                          diagnostics = append(
+                            diagnostics,
+                            checker_diagnostic("${display_name} expects a Map, got ${collection_type}")
+                          )
+                        } else {
+                          key_type: Str = merge_types(
+                            program,
+                            shape.arguments[0],
+                            argument_infos[1].name
+                          )
+                          if key_type == "Unknown" || !is_scalar_base(base_type(
+                            program,
+                            argument_infos[1].name
+                          )) {
+                            invalid_key: Str = argument_infos[1].name
+                            diagnostics = append(
+                              diagnostics,
+                              checker_diagnostic("invalid map key type ${invalid_key}")
+                            )
+                          } else {}
+                          if operation == "map_put" {
+                            value_type: Str = merge_types(
+                              program,
+                              shape.arguments[1],
+                              argument_infos[2].name
+                            )
+                            if value_type == "Unknown" {
+                              stored_type: Str = argument_infos[2].name
+                              diagnostics = append(
+                                diagnostics,
+                                checker_diagnostic("cannot store ${stored_type} in ${collection_type}")
+                              )
+                            } else {
+                              result = render_type("Map", [key_type, value_type])
+                            }
+                          } else {
+                            if operation == "map_has" {
+                              result = "Bool"
+                            } else {
+                              result = shape.arguments[1]
+                            }
+                          }
+                        }
+                      } else {
+                        if operation == "set" {
+                          result = "Set[$T]"
+                        } else {
+                          if operation == "set_add" || operation == "set_has" {
+                            collection_type: Str = argument_infos[0].name
+                            shape: TypeShape = type_shape(collection_type)
+                            if shape.base != "Set" || len(shape.arguments) != 1 {
+                              diagnostics = append(
+                                diagnostics,
+                                checker_diagnostic("${display_name} expects a Set, got ${collection_type}")
+                              )
+                            } else {
+                              item_type: Str = merge_types(
+                                program,
+                                shape.arguments[0],
+                                argument_infos[1].name
+                              )
+                              if item_type == "Unknown" || !is_scalar_base(base_type(
+                                program,
+                                argument_infos[1].name
+                              )) {
+                                invalid_item: Str = argument_infos[1].name
+                                diagnostics = append(
+                                  diagnostics,
+                                  checker_diagnostic("invalid set element type ${invalid_item}")
+                                )
+                              } else {
+                                result = if operation == "set_has" {
+                                  "Bool"
+                                } else {
+                                  render_type("Set", [item_type])
+                                };
+                              }
+                            }
+                          } else {
+                            mut fixed_index: Nat = 0
+                            for actual in argument_infos {
+                              expected_type: Str = builtin_parameter(name, fixed_index)
+                              if expected_type != "Any" && !assignable(
+                                program,
+                                actual.name,
+                                expected_type
+                              ) {
+                                actual_type: Str = actual.name
+                                argument_number: Nat = fixed_index + 1
+                                diagnostics = append(
+                                  diagnostics,
+                                  checker_diagnostic("argument ${argument_number} to ${display_name} is ${actual_type}, expected ${expected_type}")
+                                )
+                              } else {}
+                              fixed_index = fixed_index + 1
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
           }
-        } } }
+        }
       } else {}
       if len(parameters) > 0 {
         mut concrete: [Str] = []
-        for parameter in parameters { concrete = append(concrete, if map_has(inferred, parameter) { map_get(inferred, parameter) } else { "$${parameter}" }); }
+        for parameter in parameters {
+          concrete = append(concrete, if map_has(inferred, parameter) {
+              map_get(inferred, parameter)
+            } else {
+              "$${parameter}"
+            });
+        }
         result = render_type(result, concrete)
       } else {}
       if function.found && len(function.type_parameters) > 0 {
-        generic: CheckedExpression = check_generic_call(display_name, function, type_arguments, arguments, argument_infos, scope_types, facts, program)
-        diagnostics = concat(diagnostics, generic.diagnostics); if retain { evidence = concat(evidence, generic.evidence); }
+        generic: CheckedExpression = check_generic_call(
+          display_name,
+          function,
+          type_arguments,
+          arguments,
+          argument_infos,
+          scope_types,
+          facts,
+          program
+        )
+        diagnostics = concat(diagnostics, generic.diagnostics)
+        if retain {
+          evidence = concat(evidence, generic.evidence)
+        }
         result = generic.info.name
       }
       info = plain_type(result)
     },
     FieldExpr(target, field) => {
-      checked: CheckedExpression = check_expression_evidence(target, environment, facts, program, scope_types, retain, None())
-      diagnostics = checked.diagnostics; evidence = checked.evidence
+      checked: CheckedExpression = check_expression_evidence(
+        target,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      diagnostics = checked.diagnostics
+      evidence = checked.evidence
       shape: TypeShape = type_shape(checked.info.name)
       record: RecordLookup = record_type(program, shape.base)
-      if !record.found { target_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("field access requires a record, got ${target_type}")); }
-      else {
-        substitutions: Map[Str,Str] = map(); mut values: Map[Str,Str] = substitutions; mut index: Nat = 0
-        while index < len(record.parameters) && index < len(shape.arguments) { values = map_put(values, record.parameters[index], shape.arguments[index]); index = index + 1; }
+      if !record.found {
+        target_type: Str = checked.info.name
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic("field access requires a record, got ${target_type}")
+        )
+      } else {
+        substitutions: Map[Str, Str] = map()
+        mut values: Map[Str, Str] = substitutions
+        mut index: Nat = 0
+        while index < len(record.parameters) && index < len(shape.arguments) {
+          values = map_put(values, record.parameters[index], shape.arguments[index])
+          index = index + 1
+        }
         mut found: Bool = false
-        for declared in record.fields { if declared.name == field { found = true; info = plain_type(substitute_type(declared.type_name, record.parameters, values)); } else {} }
-        if !found { record_name: Str = shape.base; diagnostics = append(diagnostics, checker_diagnostic("record ${record_name} has no field ${field}")); } else {}
+        for declared in record.fields {
+          if declared.name == field {
+            found = true
+            info = plain_type(substitute_type(declared.type_name, record.parameters, values))
+          } else {}
+        }
+        if !found {
+          record_name: Str = shape.base
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic("record ${record_name} has no field ${field}")
+          )
+        } else {}
       }
     },
     IndexExpr(target, index) => {
-      collection: CheckedExpression = check_expression_evidence(target, environment, facts, program, scope_types, retain, None())
-      checked_index: CheckedExpression = check_expression_evidence(index, environment, facts, program, scope_types, retain, None())
-      diagnostics = concat(collection.diagnostics, checked_index.diagnostics); evidence = concat(collection.evidence, checked_index.evidence)
+      collection: CheckedExpression = check_expression_evidence(
+        target,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      checked_index: CheckedExpression = check_expression_evidence(
+        index,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      diagnostics = concat(collection.diagnostics, checked_index.diagnostics)
+      evidence = concat(collection.evidence, checked_index.evidence)
       shape: TypeShape = type_shape(collection.info.name)
-      if base_type(program, checked_index.info.name) != "Nat" { index_type: Str = checked_index.info.name; diagnostics = append(diagnostics, checker_diagnostic("index must be Nat, got ${index_type}")); } else {}
-      if shape.base == "Array" && len(shape.arguments) == 1 { info = plain_type(shape.arguments[0]); }
-      else { if collection.info.name == "Str" { info = plain_type("Str"); } else { if collection.info.name == "Bytes" { info = plain_type("Nat"); } else { collection_type: Str = collection.info.name; diagnostics = append(diagnostics, checker_diagnostic("indexing requires Str, Bytes, or an array, got ${collection_type}")); } } }
+      if base_type(program, checked_index.info.name) != "Nat" {
+        index_type: Str = checked_index.info.name
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic("index must be Nat, got ${index_type}")
+        )
+      } else {}
+      if shape.base == "Array" && len(shape.arguments) == 1 {
+        info = plain_type(shape.arguments[0])
+      } else {
+        if collection.info.name == "Str" {
+          info = plain_type("Str")
+        } else {
+          if collection.info.name == "Bytes" {
+            info = plain_type("Nat")
+          } else {
+            collection_type: Str = collection.info.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("indexing requires Str, Bytes, or an array, got ${collection_type}")
+            )
+          }
+        }
+      }
     },
     IfExpr(condition, yes, no, has_else) => {
-      checked_condition: CheckedExpression = check_expression_evidence(condition, environment, facts, program, scope_types, retain, None())
-      diagnostics = checked_condition.diagnostics; evidence = checked_condition.evidence
-      if checked_condition.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("if condition must be Bool")); } else {}
-      yes_facts: Map[Str,Bounds] = condition_facts_evidence(condition, facts, true, retain, None())
-      no_facts: Map[Str,Bounds] = condition_facts_evidence(condition, facts, false, retain, None())
-      checked_yes: CheckedBlock = check_block_evidence(yes, environment, yes_facts, program, scope_types, retain)
-      diagnostics = concat(diagnostics, checked_yes.diagnostics); if retain { evidence = concat(evidence, checked_yes.evidence); }
+      checked_condition: CheckedExpression = check_expression_evidence(
+        condition,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      diagnostics = checked_condition.diagnostics
+      evidence = checked_condition.evidence
+      if checked_condition.info.name != "Bool" {
+        diagnostics = append(diagnostics, checker_diagnostic("if condition must be Bool"))
+      } else {}
+      yes_facts: Map[Str, Bounds] = condition_facts_evidence(condition, facts, true, retain, None())
+      no_facts: Map[Str, Bounds] = condition_facts_evidence(condition, facts, false, retain, None())
+      checked_yes: CheckedBlock = check_block_evidence(
+        yes,
+        environment,
+        yes_facts,
+        program,
+        scope_types,
+        retain
+      )
+      diagnostics = concat(diagnostics, checked_yes.diagnostics)
+      if retain {
+        evidence = concat(evidence, checked_yes.evidence)
+      }
       if has_else {
-        checked_no: CheckedBlock = check_block_evidence(no, environment, no_facts, program, scope_types, retain)
-        diagnostics = concat(diagnostics, checked_no.diagnostics); if retain { evidence = concat(evidence, checked_no.evidence); }
+        checked_no: CheckedBlock = check_block_evidence(
+          no,
+          environment,
+          no_facts,
+          program,
+          scope_types,
+          retain
+        )
+        diagnostics = concat(diagnostics, checked_no.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked_no.evidence)
+        }
         joined: Str = merge_types(program, checked_yes.info.name, checked_no.info.name)
-        if joined == "Unknown" { yes_type: Str = checked_yes.info.name; no_type_name: Str = checked_no.info.name; diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${yes_type} and ${no_type_name}")); } else {}
+        if joined == "Unknown" {
+          yes_type: Str = checked_yes.info.name
+          no_type_name: Str = checked_no.info.name
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic("branches have incompatible types ${yes_type} and ${no_type_name}")
+          )
+        } else {}
         info = plain_type(joined)
       } else {
         info = plain_type("Void")
       }
     },
-    BlockExpr(block) => { checked: CheckedBlock = check_block_evidence(block, environment, facts, program, scope_types, retain); info = checked.info; diagnostics = checked.diagnostics; evidence = checked.evidence; },
+    BlockExpr(block) => {
+      checked: CheckedBlock = check_block_evidence(
+        block,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain
+      )
+      info = checked.info
+      diagnostics = checked.diagnostics
+      evidence = checked.evidence
+    },
     MatchExpr(subject, arms) => {
-      checked_subject: CheckedExpression = check_expression_evidence(subject, environment, facts, program, scope_types, retain, None())
-      diagnostics = checked_subject.diagnostics; evidence = checked_subject.evidence
+      checked_subject: CheckedExpression = check_expression_evidence(
+        subject,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      diagnostics = checked_subject.diagnostics
+      evidence = checked_subject.evidence
       shape: TypeShape = type_shape(checked_subject.info.name)
       enum_value: EnumLookup = enum_type(program, shape.base)
-      if !enum_value.found { subject_type: Str = checked_subject.info.name; diagnostics = append(diagnostics, checker_diagnostic("match requires an enum, got ${subject_type}")); }
-      else {
-        substitutions: Map[Str,Str] = map(); mut values: Map[Str,Str] = substitutions; mut index: Nat = 0
-        while index < len(enum_value.parameters) && index < len(shape.arguments) { values = map_put(values, enum_value.parameters[index], shape.arguments[index]); index = index + 1; }
-        seen: Set[Str] = set(); mut visited: Set[Str] = seen; mut result: Str = ""
-        for arm in arms {
-          mut payload: [Str] = []; mut found: Bool = false
-          for variant in enum_value.variants { if variant.name == arm.pattern.variant { found = true; payload = variant.payload; } else {} }
-          variant_name: Str = arm.pattern.variant; enum_name: Str = shape.base
-          if !found { diagnostics = append(diagnostics, checker_diagnostic("${variant_name} is not a variant of ${enum_name}")); } else {}
-          if set_has(visited, arm.pattern.variant) { diagnostics = append(diagnostics, checker_diagnostic("duplicate match arm ${variant_name}")); } else {}
-          visited = set_add(visited, arm.pattern.variant)
-          if len(arm.pattern.bindings) != len(payload) { payload_count: Nat = len(payload); diagnostics = append(diagnostics, checker_diagnostic("pattern ${variant_name} expects ${payload_count} bindings")); } else {}
-          mut arm_environment: Map[Str,TypeInfo] = environment; mut binding_index: Nat = 0
-          for binding in arm.pattern.bindings { if binding_index < len(payload) { arm_environment = map_put(arm_environment, binding, plain_type(substitute_type(payload[binding_index], enum_value.parameters, values))); } else {}; binding_index = binding_index + 1; }
-          checked_arm: CheckedExpression = check_expression_evidence(arm.body, arm_environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked_arm.diagnostics); if retain { evidence = concat(evidence, checked_arm.evidence); }
-          if result == "" { result = checked_arm.info.name; } else { arm_type: Str = checked_arm.info.name; merged: Str = merge_types(program, result, arm_type); if merged == "Unknown" { diagnostics = append(diagnostics, checker_diagnostic("branches have incompatible types ${result} and ${arm_type}")); } else { result = merged; } }
+      if !enum_value.found {
+        subject_type: Str = checked_subject.info.name
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic("match requires an enum, got ${subject_type}")
+        )
+      } else {
+        substitutions: Map[Str, Str] = map()
+        mut values: Map[Str, Str] = substitutions
+        mut index: Nat = 0
+        while index < len(enum_value.parameters) && index < len(shape.arguments) {
+          values = map_put(values, enum_value.parameters[index], shape.arguments[index])
+          index = index + 1
         }
-        for variant in enum_value.variants { if !set_has(visited, variant.name) { missing: Str = variant.name; diagnostics = append(diagnostics, checker_diagnostic("non-exhaustive match; missing ${missing}")); } else {} }
-        info = plain_type(if result == "" { "Unknown" } else { result })
+        seen: Set[Str] = set()
+        mut visited: Set[Str] = seen
+        mut result: Str = ""
+        for arm in arms {
+          mut payload: [Str] = []
+          mut found: Bool = false
+          for variant in enum_value.variants {
+            if variant.name == arm.pattern.variant {
+              found = true
+              payload = variant.payload
+            } else {}
+          }
+          variant_name: Str = arm.pattern.variant
+          enum_name: Str = shape.base
+          if !found {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("${variant_name} is not a variant of ${enum_name}")
+            )
+          } else {}
+          if set_has(visited, arm.pattern.variant) {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("duplicate match arm ${variant_name}")
+            )
+          } else {}
+          visited = set_add(visited, arm.pattern.variant)
+          if len(arm.pattern.bindings) != len(payload) {
+            payload_count: Nat = len(payload)
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("pattern ${variant_name} expects ${payload_count} bindings")
+            )
+          } else {}
+          mut arm_environment: Map[Str, TypeInfo] = environment
+          mut binding_index: Nat = 0
+          for binding in arm.pattern.bindings {
+            if binding_index < len(payload) {
+              arm_environment = map_put(
+                arm_environment,
+                binding,
+                plain_type(substitute_type(payload[binding_index], enum_value.parameters, values))
+              )
+            } else {}
+            binding_index = binding_index + 1
+          }
+          checked_arm: CheckedExpression = check_expression_evidence(
+            arm.body,
+            arm_environment,
+            facts,
+            program,
+            scope_types,
+            retain,
+            None()
+          )
+          diagnostics = concat(diagnostics, checked_arm.diagnostics)
+          if retain {
+            evidence = concat(evidence, checked_arm.evidence)
+          }
+          if result == "" {
+            result = checked_arm.info.name
+          } else {
+            arm_type: Str = checked_arm.info.name
+            merged: Str = merge_types(program, result, arm_type)
+            if merged == "Unknown" {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("branches have incompatible types ${result} and ${arm_type}")
+              )
+            } else {
+              result = merged
+            }
+          }
+        }
+        for variant in enum_value.variants {
+          if !set_has(visited, variant.name) {
+            missing: Str = variant.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("non-exhaustive match; missing ${missing}")
+            )
+          } else {}
+        }
+        info = plain_type(if result == "" {
+            "Unknown"
+          } else {
+            result
+          })
       }
     }
   }
   CheckedExpression(info, diagnostics, evidence)
 }
 
-pure condition_facts(condition: Expr, facts: Map[Str,Bounds], truth: Bool): Map[Str,Bounds] {
+pure condition_facts(condition: Expr, facts: Map[Str, Bounds], truth: Bool): Map[Str, Bounds] {
   condition_facts_evidence(condition, facts, truth, false, None())
 }
 
-pure condition_facts_evidence(condition: Expr, facts: Map[Str,Bounds], truth: Bool, retain: Bool, origin: Option[SourceSpan]): Map[Str,Bounds] {
-  mut result: Map[Str,Bounds] = facts
+pure condition_facts_evidence(
+  condition: Expr,
+  facts: Map[Str, Bounds],
+  truth: Bool,
+  retain: Bool,
+  origin: Option[SourceSpan]
+): Map[Str, Bounds] {
+  mut result: Map[Str, Bounds] = facts
+
   match condition {
-    LocatedExpr(position, value) => { result = condition_facts_evidence(value, facts, truth, retain, if retain { Some(position) } else { None() }); },
+    LocatedExpr(position, value) => {
+      result = condition_facts_evidence(value, facts, truth, retain, if retain {
+          Some(position)
+        } else {
+          None()
+        });
+    },
     BinaryExpr(operator, left, right) => {
       match unlocated_expression(left) {
         NameExpr(name) => {
           match unlocated_expression(right) {
             NatExpr(value) => {
-              bound: Bounds = if map_has(result, name) { map_get(result, name) } else { Bounds(false, 0, false, 0, None()) }
+              bound: Bounds = if map_has(result, name) {
+                map_get(result, name)
+              } else {
+                Bounds(false, 0, false, 0, None())
+              }
               mut next: Bounds = bound
-              reason: Option[GuardOrigin] = if retain { Some(GuardOrigin(origin, truth)) } else { None() }
-              if (operator == ">" && truth) || (operator == "<=" && !truth) { next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason); } else {}
-              if (operator == ">=" && truth) || (operator == "<" && !truth) { next = Bounds(true, value, bound.has_upper, bound.upper, reason); } else {}
-              if operator == "<=" && truth { next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin); } else {}
-              if operator == ">" && !truth { next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin); } else {}
-              if (operator == "<" && truth) || (operator == ">=" && !truth) {
-                if value > 0 { next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin); } else {}
+              reason: Option[GuardOrigin] = if retain {
+                Some(GuardOrigin(origin, truth))
+              } else {
+                None()
+              }
+              if (operator == ">" && truth) || (operator == "<=" && !truth) {
+                next = Bounds(true, value + 1, bound.has_upper, bound.upper, reason)
               } else {}
-              if operator == "==" && truth { next = Bounds(true, value, true, value, reason); } else {}
+              if (operator == ">=" && truth) || (operator == "<" && !truth) {
+                next = Bounds(true, value, bound.has_upper, bound.upper, reason)
+              } else {}
+              if operator == "<=" && truth {
+                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin)
+              } else {}
+              if operator == ">" && !truth {
+                next = Bounds(bound.has_lower, bound.lower, true, value, bound.lower_origin)
+              } else {}
+              if (operator == "<" && truth) || (operator == ">=" && !truth) {
+                if value > 0 {
+                  next = Bounds(bound.has_lower, bound.lower, true, value - 1, bound.lower_origin)
+                } else {}
+              } else {}
+              if operator == "==" && truth {
+                next = Bounds(true, value, true, value, reason)
+              } else {}
               if operator == "==" && !truth && value == 0 {
                 next = Bounds(true, 1, bound.has_upper, bound.upper, reason)
               } else {}
               result = map_put(result, name, next)
             },
-            LocatedExpr(other_position, other_value) => {}, DecimalExpr(other_decimal) => {}, StringExpr(other_string) => {}, BoolExpr(other_bool) => {}, NameExpr(other_name) => {}, FunctionExpr(other_function) => {}, ArrayExpr(other_items) => {}, UnaryExpr(other_op, other_operand) => {}, BinaryExpr(other_binary_op, other_left, other_right) => {}, CallExpr(other_call, other_arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(other_target, other_field) => {}, IndexExpr(other_collection,other_index) => {}, IfExpr(other_condition, other_yes, other_no, other_has_else) => {}, BlockExpr(other_block) => {}, MatchExpr(other_subject, other_arms) => {}
+            LocatedExpr(other_position, other_value) => {},
+            DecimalExpr(other_decimal) => {},
+            StringExpr(other_string) => {},
+            BoolExpr(other_bool) => {},
+            NameExpr(other_name) => {},
+            FunctionExpr(other_function) => {},
+            ArrayExpr(other_items) => {},
+            UnaryExpr(other_op, other_operand) => {},
+            BinaryExpr(other_binary_op, other_left, other_right) => {},
+            CallExpr(other_call, other_arguments, type_arguments) => {},
+            DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+            FieldExpr(other_target, other_field) => {},
+            IndexExpr(other_collection, other_index) => {},
+            IfExpr(other_condition, other_yes, other_no, other_has_else) => {},
+            BlockExpr(other_block) => {},
+            MatchExpr(other_subject, other_arms) => {}
           }
         },
-        LocatedExpr(other_position, other_value) => {}, NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(op, operand) => {}, BinaryExpr(op, a, b) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+        LocatedExpr(other_position, other_value) => {},
+        NatExpr(value) => {},
+        DecimalExpr(text) => {},
+        StringExpr(text) => {},
+        BoolExpr(value) => {},
+        FunctionExpr(function_name) => {},
+        ArrayExpr(items) => {},
+        UnaryExpr(op, operand) => {},
+        BinaryExpr(op, a, b) => {},
+        CallExpr(name, arguments, type_arguments) => {},
+        DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+        FieldExpr(target, field) => {},
+        IndexExpr(target, index) => {},
+        IfExpr(value, yes, no, has_else) => {},
+        BlockExpr(block) => {},
+        MatchExpr(subject, arms) => {}
       }
     },
-    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {}, NameExpr(name) => {}, FunctionExpr(function_name) => {}, ArrayExpr(items) => {}, UnaryExpr(operator, operand) => {}, CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {}, IfExpr(value, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    NatExpr(value) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(function_name) => {},
+    ArrayExpr(items) => {},
+    UnaryExpr(operator, operand) => {},
+    CallExpr(name, arguments, type_arguments) => {},
+    DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+    FieldExpr(target, field) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(value, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {}
   }
+
   result
 }
 
@@ -1326,23 +3097,41 @@ pure condition_facts_evidence(condition: Expr, facts: Map[Str,Bounds], truth: Bo
 pure inferred_type_complete(name: Str): Bool {
   mut complete: Bool = len(name) > 0 && name != "Unknown" && !starts_with(name, "$")
   shape: TypeShape = type_shape(name)
+
   for argument in shape.arguments {
-    if !inferred_type_complete(argument) { complete = false }
+    if !inferred_type_complete(argument) {
+      complete = false
+    }
   }
   complete
 }
 
-pure inferred_binding_diagnostics(name: Str, checked: CheckedExpression, value: Expr): [Diagnostic] {
+pure inferred_binding_diagnostics(
+  name: Str,
+  checked: CheckedExpression,
+  value: Expr
+): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
+
   if len(checked.diagnostics) == 0 {
     if checked.info.name == "Void" {
-      diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot infer local ${name} from Void; Void is not a value"))
+      diagnostics = append(
+        diagnostics,
+        checker_diagnostic_for(value, "cannot infer local ${name} from Void; Void is not a value")
+      )
     } else {
       if !inferred_type_complete(checked.info.name) {
-        diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot infer complete type for local ${name}; add a type annotation"))
+        diagnostics = append(
+          diagnostics,
+          checker_diagnostic_for(
+          value,
+          "cannot infer complete type for local ${name}; add a type annotation"
+        )
+        )
       }
     }
   }
+
   diagnostics
 }
 
@@ -1350,7 +3139,13 @@ pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
   TypeInfo(name, value.has_nat && !mutable, value.nat_value, mutable)
 }
 
-pure check_block(block: Block, parent: Map[Str,TypeInfo], facts: Map[Str,Bounds], program: Program, scope_types: [Str]): CheckedBlock {
+pure check_block(
+  block: Block,
+  parent: Map[Str, TypeInfo],
+  facts: Map[Str, Bounds],
+  program: Program,
+  scope_types: [Str]
+): CheckedBlock {
   check_block_evidence(block, parent, facts, program, scope_types, false)
 }
 
@@ -1358,56 +3153,228 @@ pure check_program_types(program: Program): [Diagnostic] {
   check_program_evidence(program, false).diagnostics
 }
 
-pure check_block_evidence(block: Block, parent: Map[Str,TypeInfo], incoming_facts: Map[Str,Bounds], program: Program, scope_types: [Str], retain: Bool): CheckedBlock {
-  mut facts: Map[Str,Bounds] = incoming_facts
-  mut environment: Map[Str,TypeInfo] = parent
+pure check_block_evidence(
+  block: Block,
+  parent: Map[Str, TypeInfo],
+  incoming_facts: Map[Str, Bounds],
+  program: Program,
+  scope_types: [Str],
+  retain: Bool
+): CheckedBlock {
+  mut facts: Map[Str, Bounds] = incoming_facts
+  mut environment: Map[Str, TypeInfo] = parent
   mut diagnostics: [Diagnostic] = []
   mut evidence: [SubtractionEvidence] = []
+
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
         facts = facts_after_expression(value, facts)
-        checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None())
-        diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
+        checked: CheckedExpression = check_expression_evidence(
+          value,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        }
         mut binding_type: Str = type_name
         if len(type_name) == 0 {
           binding_type = checked.info.name
           diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
         } else {
           diagnostics = concat(diagnostics, require_type(program, type_name, scope_types, false))
-          if !assignable_checked(program, checked.info, type_name, value, facts) { value_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${type_name}; guard is not proven")); } else {}
+          if !assignable_checked(program, checked.info, type_name, value, facts) {
+            value_type: Str = checked.info.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic_for(
+              value,
+              "cannot assign ${value_type} to ${type_name}; guard is not proven"
+            )
+            )
+          } else {}
         }
-        environment = map_put(environment, name, local_binding_info(binding_type, checked.info, mutable))
+        environment = map_put(
+          environment,
+          name,
+          local_binding_info(binding_type, checked.info, mutable)
+        )
       },
       AssignmentStatement(name, value) => {
         facts = facts_after_expression(value, facts)
-        target: TypeInfo = environment_type(environment, name); checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
+        target: TypeInfo = environment_type(environment, name)
+        checked: CheckedExpression = check_expression_evidence(
+          value,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        }
         if !map_has(environment, name) {
           diagnostics = concat(diagnostics, inferred_binding_diagnostics(name, checked, value))
-          environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
+          environment = map_put(
+            environment,
+            name,
+            local_binding_info(checked.info.name, checked.info, false)
+          )
+        } else {
+          if !target.mutable {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic_for(value, "cannot assign to immutable local ${name}")
+            )
+          } else {
+            if !assignable_checked(program, checked.info, target.name, value, facts) {
+              value_type: Str = checked.info.name
+              target_type: Str = target.name
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic_for(value, "cannot assign ${value_type} to ${target_type}")
+              )
+            } else {}
+          }
         }
-        else { if !target.mutable { diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign to immutable local ${name}")); } else { if !assignable_checked(program, checked.info, target.name, value, facts) { value_type: Str = checked.info.name; target_type: Str = target.name; diagnostics = append(diagnostics, checker_diagnostic_for(value, "cannot assign ${value_type} to ${target_type}")); } else {} } }
       },
-      ExpressionStatement(value) => { checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }; },
+      ExpressionStatement(value) => {
+        checked: CheckedExpression = check_expression_evidence(
+          value,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        };
+      },
       WhileStatement(condition, body) => {
         // A later iteration must not reuse pre-loop facts for written locals.
         // The condition can then establish fresh bounds on every iteration.
         facts = facts_after_statement(statement, facts)
-        checked: CheckedExpression = check_expression_evidence(condition, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }
-        if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic_for(condition, "while condition must be Bool")); } else {}
-        body_facts: Map[Str,Bounds] = condition_facts_evidence(condition, facts, true, retain, None()); checked_body: CheckedBlock = check_block_evidence(body, environment, body_facts, program, scope_types, retain); diagnostics = concat(diagnostics, checked_body.diagnostics); if retain { evidence = concat(evidence, checked_body.evidence); }
+        checked: CheckedExpression = check_expression_evidence(
+          condition,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        }
+        if checked.info.name != "Bool" {
+          diagnostics = append(
+            diagnostics,
+            checker_diagnostic_for(condition, "while condition must be Bool")
+          )
+        } else {}
+        body_facts: Map[Str, Bounds] = condition_facts_evidence(
+          condition,
+          facts,
+          true,
+          retain,
+          None()
+        )
+        checked_body: CheckedBlock = check_block_evidence(
+          body,
+          environment,
+          body_facts,
+          program,
+          scope_types,
+          retain
+        )
+        diagnostics = concat(diagnostics, checked_body.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked_body.evidence)
+        }
       },
       ForStatement(name, iterable, body) => {
         facts = facts_after_statement(statement, facts)
-        checked: CheckedExpression = check_expression_evidence(iterable, environment, facts, program, scope_types, retain, None()); diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }; shape: TypeShape = type_shape(checked.info.name); mut item: Str = "Unknown"
-        if checked.info.name == "Range" || checked.info.name == "Bytes" { item = "Nat"; } else { if shape.base == "Array" && len(shape.arguments) == 1 { item = shape.arguments[0]; } else { iterable_type: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic_for(iterable, "for requires a Range or array, got ${iterable_type}")); } }
-        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item)); checked_body: CheckedBlock = check_block_evidence(body, loop_environment, facts, program, scope_types, retain); diagnostics = concat(diagnostics, checked_body.diagnostics); if retain { evidence = concat(evidence, checked_body.evidence); }
+        checked: CheckedExpression = check_expression_evidence(
+          iterable,
+          environment,
+          facts,
+          program,
+          scope_types,
+          retain,
+          None()
+        )
+        diagnostics = concat(diagnostics, checked.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked.evidence)
+        }
+        shape: TypeShape = type_shape(checked.info.name)
+        mut item: Str = "Unknown"
+        if checked.info.name == "Range" || checked.info.name == "Bytes" {
+          item = "Nat"
+        } else {
+          if shape.base == "Array" && len(shape.arguments) == 1 {
+            item = shape.arguments[0]
+          } else {
+            iterable_type: Str = checked.info.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic_for(
+              iterable,
+              "for requires a Range or array, got ${iterable_type}"
+            )
+            )
+          }
+        }
+        loop_environment: Map[Str, TypeInfo] = map_put(environment, name, plain_type(item))
+        checked_body: CheckedBlock = check_block_evidence(
+          body,
+          loop_environment,
+          facts,
+          program,
+          scope_types,
+          retain
+        )
+        diagnostics = concat(diagnostics, checked_body.diagnostics)
+        if retain {
+          evidence = concat(evidence, checked_body.evidence)
+        }
       }
     }
     facts = facts_after_statement(statement, facts)
   }
   mut info: TypeInfo = plain_type("Void")
-  match block.value { NoBlockValue() => {}, TailBlockValue(value) => { checked: CheckedExpression = check_expression_evidence(value, environment, facts, program, scope_types, retain, None()); info = checked.info; diagnostics = concat(diagnostics, checked.diagnostics); if retain { evidence = concat(evidence, checked.evidence); }; } }
+  match block.value {
+    NoBlockValue() => {},
+    TailBlockValue(value) => {
+      checked: CheckedExpression = check_expression_evidence(
+        value,
+        environment,
+        facts,
+        program,
+        scope_types,
+        retain,
+        None()
+      )
+      info = checked.info
+      diagnostics = concat(diagnostics, checked.diagnostics)
+      if retain {
+        evidence = concat(evidence, checked.evidence)
+      };
+    }
+  }
   CheckedBlock(info, diagnostics, evidence)
 }
 
@@ -1416,14 +3383,21 @@ pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
 }
 
 // Inventory may check a library as a root; ordinary compilation still requires main.
-pure check_program_evidence_mode(program: Program, retain: Bool, require_main: Bool): CheckedProgram {
+pure check_program_evidence_mode(
+  program: Program,
+  retain: Bool,
+  require_main: Bool
+): CheckedProgram {
   mut evidence: [SubtractionEvidence] = []
   // Only the explanation path retains function availability. Global errors
   // invalidate all recovery, even when discovered after a valid body.
-  mut function_types: Map[Str,Bool] = map()
+  mut function_types: Map[Str, Bool] = map()
   mut declarations_valid: Bool = true
   mut diagnostics: [Diagnostic] = resolve_program(program)
-  if len(diagnostics) > 0 { declarations_valid = false; }
+
+  if len(diagnostics) > 0 {
+    declarations_valid = false
+  }
   if len(diagnostics) == 0 {
     mut has_main: Bool = false
     for declaration in program.declarations {
@@ -1431,51 +3405,201 @@ pure check_program_evidence_mode(program: Program, retain: Bool, require_main: B
       mut function_declaration: Bool = false
       match declaration {
         TypeDeclaration(name, base, guard) => {
-          if !is_scalar_base(base) || base == "Rat" || base == "Unit" { diagnostics = append(diagnostics, checker_diagnostic("guarded type base must be a scalar, got ${base}")); } else {}
-          environment: Map[Str,TypeInfo] = map_put(map(), "value", plain_type(base)); facts: Map[Str,Bounds] = map(); checked: CheckedExpression = check_expression_evidence(guard, environment, facts, program, [], false, None()); diagnostics = concat(diagnostics, checked.diagnostics)
-          if checked.info.name != "Bool" { diagnostics = append(diagnostics, checker_diagnostic("type guard must produce Bool")); } else {}
+          if !is_scalar_base(base) || base == "Rat" || base == "Unit" {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("guarded type base must be a scalar, got ${base}")
+            )
+          } else {}
+          environment: Map[Str, TypeInfo] = map_put(map(), "value", plain_type(base))
+          facts: Map[Str, Bounds] = map()
+          checked: CheckedExpression = check_expression_evidence(
+            guard,
+            environment,
+            facts,
+            program,
+            [],
+            false,
+            None()
+          )
+          diagnostics = concat(diagnostics, checked.diagnostics)
+          if checked.info.name != "Bool" {
+            diagnostics = append(diagnostics, checker_diagnostic("type guard must produce Bool"))
+          } else {}
         },
         RecordDeclaration(name, parameters, fields) => {
-          parameter_names: Set[Str] = set(); mut seen_parameters: Set[Str] = parameter_names
-          for parameter in parameters { if parameter == "Path" || parameter == "Duration" || parameter == "Instant" { diagnostics = append(diagnostics, checker_diagnostic("type parameter conflicts with an opaque type name")); }; if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in record ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
-          field_names: Set[Str] = set(); mut seen_fields: Set[Str] = field_names
-          for field in fields { if set_has(seen_fields, field.name) { field_name: Str = field.name; diagnostics = append(diagnostics, checker_diagnostic("duplicate field ${field_name} in record ${name}")); } else {}; seen_fields = set_add(seen_fields, field.name); diagnostics = concat(diagnostics, require_type(program, field.type_name, parameters, false)); }
+          parameter_names: Set[Str] = set()
+          mut seen_parameters: Set[Str] = parameter_names
+          for parameter in parameters {
+            if parameter == "Path" || parameter == "Duration" || parameter == "Instant" {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("type parameter conflicts with an opaque type name")
+              )
+            }
+            if set_has(seen_parameters, parameter) {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("duplicate type parameter in record ${name}")
+              )
+            } else {}
+            seen_parameters = set_add(seen_parameters, parameter)
+          }
+          field_names: Set[Str] = set()
+          mut seen_fields: Set[Str] = field_names
+          for field in fields {
+            if set_has(seen_fields, field.name) {
+              field_name: Str = field.name
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("duplicate field ${field_name} in record ${name}")
+              )
+            } else {}
+            seen_fields = set_add(seen_fields, field.name)
+            diagnostics = concat(
+              diagnostics,
+              require_type(program, field.type_name, parameters, false)
+            )
+          }
         },
         EnumDeclaration(name, parameters, variants) => {
-          parameter_names: Set[Str] = set(); mut seen_parameters: Set[Str] = parameter_names
-          for parameter in parameters { if parameter == "Path" || parameter == "Duration" || parameter == "Instant" { diagnostics = append(diagnostics, checker_diagnostic("type parameter conflicts with an opaque type name")); }; if set_has(seen_parameters, parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in enum ${name}")); } else {}; seen_parameters = set_add(seen_parameters, parameter); }
-          if len(variants) == 0 { diagnostics = append(diagnostics, checker_diagnostic("enum ${name} must contain at least one variant")); } else {}
-          for variant in variants { for payload in variant.payload { diagnostics = concat(diagnostics, require_type(program, payload, parameters, false)); } }
+          parameter_names: Set[Str] = set()
+          mut seen_parameters: Set[Str] = parameter_names
+          for parameter in parameters {
+            if parameter == "Path" || parameter == "Duration" || parameter == "Instant" {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("type parameter conflicts with an opaque type name")
+              )
+            }
+            if set_has(seen_parameters, parameter) {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("duplicate type parameter in enum ${name}")
+              )
+            } else {}
+            seen_parameters = set_add(seen_parameters, parameter)
+          }
+          if len(variants) == 0 {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("enum ${name} must contain at least one variant")
+            )
+          } else {}
+          for variant in variants {
+            for payload in variant.payload {
+              diagnostics = concat(diagnostics, require_type(program, payload, parameters, false))
+            }
+          }
         },
         FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
           function_declaration = true
           mut seen_type_parameters: Set[Str] = set()
           for parameter in type_parameters {
-            if seen_type_parameters.has(parameter) { diagnostics = append(diagnostics, checker_diagnostic("duplicate type parameter in function ${name}")); }
+            if seen_type_parameters.has(parameter) {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("duplicate type parameter in function ${name}")
+              )
+            }
             seen_type_parameters = seen_type_parameters.add(parameter)
-            if is_scalar_base(parameter) || parameter == "Void" || parameter == "Bytes" || parameter == "Path" || parameter == "Duration" || parameter == "Instant" || parameter == "Array" || parameter == "Map" || parameter == "Set" || parameter == "Fn" || parameter == "PureFn" || parameter == "AsyncFn" || parameter == "Any" || parameter == "Unknown" || parameter == "Range" || parameter == "Iterator" || record_type(program, parameter).found || enum_type(program, parameter).found || guarded_type(program, parameter).found {
-              diagnostics = append(diagnostics, checker_diagnostic("type parameter ${parameter} conflicts with a type name"))
+            if is_scalar_base(parameter) ||
+              parameter == "Void" ||
+              parameter == "Bytes" ||
+              parameter == "Path" ||
+              parameter == "Duration" ||
+              parameter == "Instant" ||
+              parameter == "Array" ||
+              parameter == "Map" ||
+              parameter == "Set" ||
+              parameter == "Fn" ||
+              parameter == "PureFn" ||
+              parameter == "AsyncFn" ||
+              parameter == "Any" ||
+              parameter == "Unknown" ||
+              parameter == "Range" ||
+              parameter == "Iterator" ||
+              record_type(
+              program,
+              parameter
+            ).found || enum_type(
+              program,
+              parameter
+            ).found || guarded_type(program, parameter).found {
+              diagnostics = append(
+                diagnostics,
+                checker_diagnostic("type parameter ${parameter} conflicts with a type name")
+              )
             }
           }
-          if is_async && return_type == "Void" { diagnostics = append(diagnostics, checker_diagnostic("async functions return a value; use Unit instead of Void")); }
-          if is_async && name == "main" && return_type != "Unit" { diagnostics = append(diagnostics, checker_diagnostic("async main must return Unit")); }
-          if name == "main" && len(type_parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot have type parameters")); }
-          if name == "main" { has_main = true; if len(parameters) > 0 { diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters")); } else {} } else {}
-          environment: Map[Str,TypeInfo] = map(); mut values: Map[Str,TypeInfo] = environment
-          for parameter in parameters { diagnostics = concat(diagnostics, require_type(program, parameter.type_name, type_parameters, false)); values = map_put(values, parameter.name, plain_type(parameter.type_name)); }
-          diagnostics = concat(diagnostics, require_type(program, return_type, type_parameters, true))
-          if len(diagnostics) != declaration_start { declarations_valid = false; }
-          facts: Map[Str,Bounds] = map()
-          checked: CheckedBlock = check_block_evidence(body, values, facts, program, type_parameters, retain)
+          if is_async && return_type == "Void" {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("async functions return a value; use Unit instead of Void")
+            )
+          }
+          if is_async && name == "main" && return_type != "Unit" {
+            diagnostics = append(diagnostics, checker_diagnostic("async main must return Unit"))
+          }
+          if name == "main" && len(type_parameters) > 0 {
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("main cannot have type parameters")
+            )
+          }
+          if name == "main" {
+            has_main = true
+            if len(parameters) > 0 {
+              diagnostics = append(diagnostics, checker_diagnostic("main cannot take parameters"))
+            } else {}
+          } else {}
+          environment: Map[Str, TypeInfo] = map()
+          mut values: Map[Str, TypeInfo] = environment
+          for parameter in parameters {
+            diagnostics = concat(
+              diagnostics,
+              require_type(program, parameter.type_name, type_parameters, false)
+            )
+            values = map_put(values, parameter.name, plain_type(parameter.type_name))
+          }
+          diagnostics = concat(
+            diagnostics,
+            require_type(program, return_type, type_parameters, true)
+          )
+          if len(diagnostics) != declaration_start {
+            declarations_valid = false
+          }
+          facts: Map[Str, Bounds] = map()
+          checked: CheckedBlock = check_block_evidence(
+            body,
+            values,
+            facts,
+            program,
+            type_parameters,
+            retain
+          )
           diagnostics = concat(diagnostics, checked.diagnostics)
-          if retain { evidence = concat(evidence, evidence_for_function(checked.evidence, name)); }
+          if retain {
+            evidence = concat(evidence, evidence_for_function(checked.evidence, name))
+          }
           mut return_ok: Bool = assignable(program, checked.info.name, return_type)
           guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
-          if !return_ok && guarded_return.found && checked.info.has_nat && base_type(program, checked.info.name) == guarded_return.base {
+          if !return_ok && guarded_return.found && checked.info.has_nat && base_type(
+            program,
+            checked.info.name
+          ) == guarded_return.base {
             return_ok = evaluate_nat_guard(guarded_return.guard, checked.info.nat_value)
           } else {}
-          if !return_ok { actual_return: Str = checked.info.name; diagnostics = append(diagnostics, checker_diagnostic("function ${name} returns ${actual_return}, expected ${return_type}")); } else {}
-          if retain { function_types = function_types.put(name, len(diagnostics) == declaration_start); }
+          if !return_ok {
+            actual_return: Str = checked.info.name
+            diagnostics = append(
+              diagnostics,
+              checker_diagnostic("function ${name} returns ${actual_return}, expected ${return_type}")
+            )
+          } else {}
+          if retain {
+            function_types = function_types.put(name, len(diagnostics) == declaration_start)
+          }
         },
         ImportDeclaration(path) => {}
       }
@@ -1493,14 +3617,24 @@ pure check_program_evidence_mode(program: Program, retain: Bool, require_main: B
 
 pure check_source_types(source: Str): Str {
   match lex(source) {
-    Ok(tokens) => { match parse_program_complete(tokens) { Ok(program) => render_resolver_diagnostics(check_program_types(program)), Error(error) => error.message } },
+    Ok(tokens) => {
+      match parse_program_complete(tokens) {
+        Ok(program) => render_resolver_diagnostics(check_program_types(program)),
+        Error(error) => error.message
+      }
+    },
     Error(errors) => "lexing failed"
   }
 }
 
 pure check_module_graph_types(units: [SourceUnit], entry: Str): [Diagnostic] {
   empty: Set[Str] = set()
-  initial: ModuleGraphState = ModuleGraphState([], empty, empty, duplicate_module_diagnostics(units))
+  initial: ModuleGraphState = ModuleGraphState(
+    [],
+    empty,
+    empty,
+    duplicate_module_diagnostics(units)
+  )
   graph: ModuleGraphState = visit_module(units, entry, initial)
   program: Program = append_program_declarations(graph.programs)
   concat(graph.diagnostics, check_program_types(program))
@@ -1509,16 +3643,29 @@ pure check_module_graph_types(units: [SourceUnit], entry: Str): [Diagnostic] {
 pure check_loaded_source_types(sources: [LoadedSource], entry: Str): Str {
   mut units: [SourceUnit] = []
   mut diagnostics: [Diagnostic] = []
+
   for source in sources {
     match lex_file(source.source, source.path) {
       Ok(tokens) => {
         match parse_program_complete(tokens) {
-          Ok(program) => { units = append(units, SourceUnit(source.path, program)); },
-          Error(error) => { diagnostics = append(diagnostics, error); }
+          Ok(program) => {
+            units = append(units, SourceUnit(source.path, program))
+          },
+          Error(error) => {
+            diagnostics = append(diagnostics, error)
+          }
         }
       },
-      Error(errors) => { for error in errors { diagnostics = append(diagnostics, error); } }
+      Error(errors) => {
+        for error in errors {
+          diagnostics = append(diagnostics, error)
+        }
+      }
     }
   }
-  if len(diagnostics) > 0 { render_resolver_diagnostics(diagnostics) } else { render_resolver_diagnostics(check_module_graph_types(units, entry)) }
+  if len(diagnostics) > 0 {
+    render_resolver_diagnostics(diagnostics)
+  } else {
+    render_resolver_diagnostics(check_module_graph_types(units, entry))
+  }
 }

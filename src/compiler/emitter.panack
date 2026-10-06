@@ -1,5 +1,8 @@
 import "purity.panack"
 
+// Lower checked syntax to deterministic instructions. Temporary names and jump
+// offsets are local to each function; source attribution is explicitly optional.
+
 enum ConstantValue {
   NatConstant(Nat),
   IntConstant(Bool, Nat),
@@ -67,15 +70,27 @@ record EmissionProbe {
   end: Nat
 }
 
-record FunctionProbes { name: Str, entries: [EmissionProbe] }
+record FunctionProbes {
+  name: Str,
+  entries: [EmissionProbe]
+}
 
-pure add_emission_probe(probes: [EmissionProbe], kind: Str, expression: Expr, start: Nat, end: Nat, enabled: Bool): [EmissionProbe] {
+pure add_emission_probe(
+  probes: [EmissionProbe],
+  kind: Str,
+  expression: Expr,
+  start: Nat,
+  end: Nat,
+  enabled: Bool
+): [EmissionProbe] {
   if enabled {
     match expression_span(expression) {
       Some(span) => append(probes, EmissionProbe(kind, span, start, end)),
       None() => probes
     }
-  } else { probes }
+  } else {
+    probes
+  }
 }
 
 record InstructionSource {
@@ -95,20 +110,29 @@ record SourceMappedProgram {
   probes: [FunctionProbes]
 }
 
-pure add_instruction_source(sources: [InstructionSource], origin: Option[SourceSpan], index: Nat, lowered: Bool): [InstructionSource] {
+pure add_instruction_source(
+  sources: [InstructionSource],
+  origin: Option[SourceSpan],
+  index: Nat,
+  lowered: Bool
+): [InstructionSource] {
   match origin {
     None() => sources,
     Some(span) => append(sources, InstructionSource(index, span, lowered))
   }
 }
 
-pure parameter_name(parameter: FunctionParameter): Str { parameter.name }
+pure parameter_name(parameter: FunctionParameter): Str {
+  parameter.name
+}
 
 pure parameter_names(parameters: [FunctionParameter]): [Str] {
   parameters.map(@parameter_name)
 }
 
-pure record_field_name(field: RecordField): Str { field.name }
+pure record_field_name(field: RecordField): Str {
+  field.name
+}
 
 pure record_field_names(fields: [RecordField]): [Str] {
   fields.map(@record_field_name)
@@ -116,47 +140,103 @@ pure record_field_names(fields: [RecordField]): [Str] {
 
 pure resolve_pending_jumps(instructions: [Instruction], target: Nat): [Instruction] {
   mut result: [Instruction] = []
+
   for instruction in instructions {
     match instruction {
       PendingEndJumpInstruction() => {
         result = append(result, JumpInstruction(target))
       },
-      ConstInstruction(value) => { result = append(result, instruction); },
-      LoadInstruction(name) => { result = append(result, instruction); },
-      StoreInstruction(name) => { result = append(result, instruction); },
-      PopInstruction() => { result = append(result, instruction); },
-      UnaryInstruction(operator) => { result = append(result, instruction); },
-      BinaryInstruction(operator) => { result = append(result, instruction); },
-      MakeRangeInstruction() => { result = append(result, instruction); },
-      MakeArrayInstruction(count) => { result = append(result, instruction); },
-      IndexGetInstruction() => { result = append(result, instruction); },
-      InterpolateInstruction(parts) => { result = append(result, instruction); },
-      IterInitInstruction(name) => { result = append(result, instruction); },
-      IterNextInstruction(iterator, name, end) => { result = append(result, instruction); },
-      MakeRecordInstruction(name, fields) => { result = append(result, instruction); },
-      FieldGetInstruction(name) => { result = append(result, instruction); },
-      MakeVariantInstruction(enum_name, variant, count) => { result = append(result, instruction); },
-      MatchVariantInstruction(variant, failure) => { result = append(result, instruction); },
-      MatchFailInstruction() => { result = append(result, instruction); },
-      CallInstruction(name, arity) => { result = append(result, instruction); },
-      CallValueInstruction(arity) => { result = append(result, instruction); },
-      AwaitCallInstruction(name, arity) => { result = append(result, instruction); },
-      AwaitValueInstruction(arity) => { result = append(result, instruction); },
-      JumpFalseInstruction(jump_target) => { result = append(result, instruction); },
-      JumpInstruction(jump_target) => { result = append(result, instruction); },
-      ReturnInstruction() => { result = append(result, instruction); }
+      ConstInstruction(value) => {
+        result = append(result, instruction)
+      },
+      LoadInstruction(name) => {
+        result = append(result, instruction)
+      },
+      StoreInstruction(name) => {
+        result = append(result, instruction)
+      },
+      PopInstruction() => {
+        result = append(result, instruction)
+      },
+      UnaryInstruction(operator) => {
+        result = append(result, instruction)
+      },
+      BinaryInstruction(operator) => {
+        result = append(result, instruction)
+      },
+      MakeRangeInstruction() => {
+        result = append(result, instruction)
+      },
+      MakeArrayInstruction(count) => {
+        result = append(result, instruction)
+      },
+      IndexGetInstruction() => {
+        result = append(result, instruction)
+      },
+      InterpolateInstruction(parts) => {
+        result = append(result, instruction)
+      },
+      IterInitInstruction(name) => {
+        result = append(result, instruction)
+      },
+      IterNextInstruction(iterator, name, end) => {
+        result = append(result, instruction)
+      },
+      MakeRecordInstruction(name, fields) => {
+        result = append(result, instruction)
+      },
+      FieldGetInstruction(name) => {
+        result = append(result, instruction)
+      },
+      MakeVariantInstruction(enum_name, variant, count) => {
+        result = append(result, instruction)
+      },
+      MatchVariantInstruction(variant, failure) => {
+        result = append(result, instruction)
+      },
+      MatchFailInstruction() => {
+        result = append(result, instruction)
+      },
+      CallInstruction(name, arity) => {
+        result = append(result, instruction)
+      },
+      CallValueInstruction(arity) => {
+        result = append(result, instruction)
+      },
+      AwaitCallInstruction(name, arity) => {
+        result = append(result, instruction)
+      },
+      AwaitValueInstruction(arity) => {
+        result = append(result, instruction)
+      },
+      JumpFalseInstruction(jump_target) => {
+        result = append(result, instruction)
+      },
+      JumpInstruction(jump_target) => {
+        result = append(result, instruction)
+      },
+      ReturnInstruction() => {
+        result = append(result, instruction)
+      }
     }
   }
+
   result
 }
 
 pure render_string_items(items: [Str]): Str {
   mut output: Str = ""
   mut first: Bool = true
+
   for item in items {
-    if first { first = false; } else { output = output + ","; }
+    if first {
+      first = false
+    } else {
+      output = output + ","
+    }
     output = output + item
   }
+
   output
 }
 
@@ -164,19 +244,37 @@ pure render_constant(value: ConstantValue): Str {
   match value {
     NatConstant(number) => "Nat:${number}",
     IntConstant(negative, magnitude) => {
-      if negative { "Int:-${magnitude}" } else { "Int:${magnitude}" }
+      if negative {
+        "Int:-${magnitude}"
+      } else {
+        "Int:${magnitude}"
+      }
     },
     DecimalConstant(text) => "Dec:${text}",
     DecimalPartsConstant(negative, digits, exponent_negative, exponent_magnitude) => {
-      sign: Str = if negative { "-" } else { "" }
-      exponent_sign: Str = if exponent_negative { "-" } else { "+" }
+      sign: Str = if negative {
+        "-"
+      } else {
+        ""
+      }
+      exponent_sign: Str = if exponent_negative {
+        "-"
+      } else {
+        "+"
+      }
       digits_text: Str = ""
       mut rendered_digits: Str = digits_text
-      for digit in digits { rendered_digits = rendered_digits + "${digit}"; }
+      for digit in digits {
+        rendered_digits = rendered_digits + "${digit}"
+      }
       "DecParts:${sign}${rendered_digits}e${exponent_sign}${exponent_magnitude}"
     },
     StringConstant(text) => "Str:${text}",
-    BoolConstant(flag) => if flag { "Bool:true" } else { "Bool:false" },
+    BoolConstant(flag) => if flag {
+      "Bool:true"
+    } else {
+      "Bool:false"
+    },
     VoidConstant() => "Void"
   }
 }
@@ -222,8 +320,17 @@ pure render_instruction(instruction: Instruction): Str {
 
 pure render_bytecode(program: BytecodeProgram): Str {
   mut output: Str = ""
+
   for function in program.functions {
-    purity: Str = if function.is_async { "async" } else { if function.is_pure { "pure" } else { "impure" } }
+    purity: Str = if function.is_async {
+      "async"
+    } else {
+      if function.is_pure {
+        "pure"
+      } else {
+        "impure"
+      }
+    }
     function_name: Str = function.name
     parameters_text: Str = render_string_items(function.parameters)
     output = output + "FUNCTION|${function_name}|${purity}|${parameters_text}\n"
@@ -234,16 +341,30 @@ pure render_bytecode(program: BytecodeProgram): Str {
       index = index + 1
     }
   }
+
   output
 }
 
-pure emit_expression_list(expressions: [Expr], program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool): EmittedCode {
+pure emit_expression_list(
+  expressions: [Expr],
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
   mut instructions: [Instruction] = []
   mut temporary: Nat = next_temporary
+
   for expression in expressions {
-    emitted: EmittedCode = emit_expression(expression, program, temporary, offset + len(instructions), retain_sources)
+    emitted: EmittedCode = emit_expression(
+      expression,
+      program,
+      temporary,
+      offset + len(instructions),
+      retain_sources
+    )
     sources = concat(sources, emitted.sources)
     probes = concat(probes, emitted.probes)
     instructions = concat(instructions, emitted.instructions)
@@ -252,16 +373,29 @@ pure emit_expression_list(expressions: [Expr], program: Program, next_temporary:
   EmittedCode(instructions, temporary, sources, probes)
 }
 
-pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool): EmittedCode {
+pure emit_block(
+  block: Block,
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
   mut instructions: [Instruction] = []
   mut temporary: Nat = next_temporary
+
   for statement in block.statements {
     statement_offset: Nat = offset + len(instructions)
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
-        emitted: EmittedCode = emit_expression(value, program, temporary, statement_offset, retain_sources)
+        emitted: EmittedCode = emit_expression(
+          value,
+          program,
+          temporary,
+          statement_offset,
+          retain_sources
+        )
         sources = concat(sources, emitted.sources)
         probes = concat(probes, emitted.probes)
         instructions = concat(instructions, emitted.instructions)
@@ -269,7 +403,13 @@ pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat
         temporary = emitted.next_temporary
       },
       AssignmentStatement(name, value) => {
-        emitted: EmittedCode = emit_expression(value, program, temporary, statement_offset, retain_sources)
+        emitted: EmittedCode = emit_expression(
+          value,
+          program,
+          temporary,
+          statement_offset,
+          retain_sources
+        )
         sources = concat(sources, emitted.sources)
         probes = concat(probes, emitted.probes)
         instructions = concat(instructions, emitted.instructions)
@@ -277,7 +417,13 @@ pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat
         temporary = emitted.next_temporary
       },
       ExpressionStatement(value) => {
-        emitted: EmittedCode = emit_expression(value, program, temporary, statement_offset, retain_sources)
+        emitted: EmittedCode = emit_expression(
+          value,
+          program,
+          temporary,
+          statement_offset,
+          retain_sources
+        )
         sources = concat(sources, emitted.sources)
         probes = concat(probes, emitted.probes)
         instructions = concat(instructions, emitted.instructions)
@@ -285,14 +431,33 @@ pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat
         temporary = emitted.next_temporary
       },
       WhileStatement(condition, body) => {
-        condition_code: EmittedCode = emit_expression(condition, program, temporary, statement_offset, retain_sources)
+        condition_code: EmittedCode = emit_expression(
+          condition,
+          program,
+          temporary,
+          statement_offset,
+          retain_sources
+        )
         jump_index: Nat = statement_offset + len(condition_code.instructions)
-        body_code: EmittedCode = emit_block(body, program, condition_code.next_temporary, jump_index + 1, retain_sources)
+        body_code: EmittedCode = emit_block(
+          body,
+          program,
+          condition_code.next_temporary,
+          jump_index + 1,
+          retain_sources
+        )
         end: Nat = jump_index + 1 + len(body_code.instructions) + 2
         sources = concat(sources, condition_code.sources)
         probes = concat(probes, condition_code.probes)
         instructions = concat(instructions, condition_code.instructions)
-        probes = add_emission_probe(probes, "while", condition, jump_index, jump_index + 1, retain_sources)
+        probes = add_emission_probe(
+          probes,
+          "while",
+          condition,
+          jump_index,
+          jump_index + 1,
+          retain_sources
+        )
         instructions = append(instructions, JumpFalseInstruction(end))
         sources = concat(sources, body_code.sources)
         probes = concat(probes, body_code.probes)
@@ -303,17 +468,36 @@ pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat
       },
       ForStatement(name, iterable, body) => {
         iterator: Str = "$iter${temporary}"
-        iterable_code: EmittedCode = emit_expression(iterable, program, temporary + 1, statement_offset, retain_sources)
+        iterable_code: EmittedCode = emit_expression(
+          iterable,
+          program,
+          temporary + 1,
+          statement_offset,
+          retain_sources
+        )
         iter_init_index: Nat = statement_offset + len(iterable_code.instructions)
         loop_start: Nat = iter_init_index + 1
         body_start: Nat = loop_start + 1
-        body_code: EmittedCode = emit_block(body, program, iterable_code.next_temporary, body_start, retain_sources)
+        body_code: EmittedCode = emit_block(
+          body,
+          program,
+          iterable_code.next_temporary,
+          body_start,
+          retain_sources
+        )
         end: Nat = body_start + len(body_code.instructions) + 2
         sources = concat(sources, iterable_code.sources)
         probes = concat(probes, iterable_code.probes)
         instructions = concat(instructions, iterable_code.instructions)
         instructions = append(instructions, IterInitInstruction(iterator))
-        probes = add_emission_probe(probes, "for", iterable, loop_start, loop_start + 1, retain_sources)
+        probes = add_emission_probe(
+          probes,
+          "for",
+          iterable,
+          loop_start,
+          loop_start + 1,
+          retain_sources
+        )
         instructions = append(instructions, IterNextInstruction(iterator, name, end))
         sources = concat(sources, body_code.sources)
         probes = concat(probes, body_code.probes)
@@ -329,7 +513,13 @@ pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat
       instructions = append(instructions, ConstInstruction(VoidConstant()))
     },
     TailBlockValue(value) => {
-      emitted: EmittedCode = emit_expression(value, program, temporary, offset + len(instructions), retain_sources)
+      emitted: EmittedCode = emit_expression(
+        value,
+        program,
+        temporary,
+        offset + len(instructions),
+        retain_sources
+      )
       sources = concat(sources, emitted.sources)
       probes = concat(probes, emitted.probes)
       instructions = concat(instructions, emitted.instructions)
@@ -339,42 +529,76 @@ pure emit_block(block: Block, program: Program, next_temporary: Nat, offset: Nat
   EmittedCode(instructions, temporary, sources, probes)
 }
 
-pure emit_short_circuit(operator: Str, left: Expr, right: Expr, program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool, origin: Option[SourceSpan]): EmittedCode {
+pure emit_short_circuit(
+  operator: Str,
+  left: Expr,
+  right: Expr,
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool,
+  origin: Option[SourceSpan]
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
   left_code: EmittedCode = emit_expression(left, program, next_temporary, offset, retain_sources)
   branch: Nat = offset + len(left_code.instructions)
+
   if operator == "&&" {
-    right_code: EmittedCode = emit_expression(right, program, left_code.next_temporary, branch + 1, retain_sources)
+    right_code: EmittedCode = emit_expression(
+      right,
+      program,
+      left_code.next_temporary,
+      branch + 1,
+      retain_sources
+    )
     false_target: Nat = branch + 1 + len(right_code.instructions) + 1
     end: Nat = false_target + 1
     sources = left_code.sources
     probes = left_code.probes
     mut instructions: [Instruction] = left_code.instructions
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, JumpFalseInstruction(false_target))
     sources = concat(sources, right_code.sources)
     probes = concat(probes, right_code.probes)
     instructions = concat(instructions, right_code.instructions)
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, JumpInstruction(end))
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, ConstInstruction(BoolConstant(false)))
     probes = add_emission_probe(probes, operator, left, branch, branch + 1, retain_sources)
     EmittedCode(instructions, right_code.next_temporary, sources, probes)
   } else {
     true_index: Nat = branch + 1
     right_target: Nat = true_index + 2
-    right_code: EmittedCode = emit_expression(right, program, left_code.next_temporary, right_target, retain_sources)
+    right_code: EmittedCode = emit_expression(
+      right,
+      program,
+      left_code.next_temporary,
+      right_target,
+      retain_sources
+    )
     end: Nat = right_target + len(right_code.instructions)
     sources = left_code.sources
     probes = left_code.probes
     mut instructions: [Instruction] = left_code.instructions
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, JumpFalseInstruction(right_target))
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, ConstInstruction(BoolConstant(true)))
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, JumpInstruction(end))
     sources = concat(sources, right_code.sources)
     probes = concat(probes, right_code.probes)
@@ -384,223 +608,457 @@ pure emit_short_circuit(operator: Str, left: Expr, right: Expr, program: Program
   }
 }
 
-pure emit_string_expression(token_text: Str, next_temporary: Nat, retain_sources: Bool, origin: Option[SourceSpan], offset: Nat): EmittedCode {
+pure emit_string_expression(
+  token_text: Str,
+  next_temporary: Nat,
+  retain_sources: Bool,
+  origin: Option[SourceSpan],
+  offset: Nat
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
   text: Str = decode_string_literal(token_text)
   interpolation: InterpolatedString = split_interpolated_string(text)
   mut instructions: [Instruction] = []
+
   if len(interpolation.variables) == 0 {
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+    }
     instructions = append(instructions, ConstInstruction(StringConstant(text)))
   } else {
     for variable in interpolation.variables {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
       instructions = append(instructions, LoadInstruction(variable))
     }
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+    }
     instructions = append(instructions, InterpolateInstruction(interpolation.parts))
   }
   EmittedCode(instructions, next_temporary, sources, probes)
 }
 
-pure emit_call(name: Str, arguments: [Expr], program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool, origin: Option[SourceSpan]): EmittedCode {
+pure emit_call(
+  name: Str,
+  arguments: [Expr],
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool,
+  origin: Option[SourceSpan]
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
+
   if name == "$method_call" {
-    emitted: EmittedCode = emit_expression_list(arguments, program, next_temporary, offset, retain_sources)
-    EmittedCode(append(emitted.instructions, CallValueInstruction(prior_index(len(arguments)))), emitted.next_temporary,
-      if retain_sources { add_instruction_source(emitted.sources, origin, offset + len(emitted.instructions), false) } else { [] }, emitted.probes)
-  } else { if name == "$method_map" || name == "$method_reduce" {
-    collection_name: Str = "$collection${next_temporary}"
-    callback_name: Str = "$callback${next_temporary}"
-    item_name: Str = "$item${next_temporary}"
-    iterator_name: Str = "$iterator${next_temporary}"
-    accumulator_name: Str = "$accumulator${next_temporary}"
-    collection: EmittedCode = emit_expression(arguments[0], program, next_temporary + 1, offset, retain_sources)
-    sources = collection.sources
-    probes = collection.probes
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(collection.instructions), true); }
-    mut instructions: [Instruction] = append(collection.instructions, StoreInstruction(collection_name))
-    mut temporary: Nat = collection.next_temporary
-    if name == "$method_reduce" {
-      initial: EmittedCode = emit_expression(arguments[1], program, temporary, offset + len(instructions), retain_sources)
-      sources = concat(sources, initial.sources)
-      probes = concat(probes, initial.probes)
-      instructions = concat(instructions, initial.instructions)
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, StoreInstruction(accumulator_name))
-      temporary = initial.next_temporary
-    } else {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, MakeArrayInstruction(0))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, StoreInstruction(accumulator_name))
-    }
-    callback: EmittedCode = emit_expression(arguments[prior_index(len(arguments))], program, temporary, offset + len(instructions), retain_sources)
-    sources = concat(sources, callback.sources)
-    probes = concat(probes, callback.probes)
-    instructions = concat(instructions, callback.instructions)
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-    instructions = append(instructions, StoreInstruction(callback_name))
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-    instructions = append(instructions, LoadInstruction(collection_name))
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-    instructions = append(instructions, IterInitInstruction(iterator_name))
-    loop_start: Nat = offset + len(instructions)
-    next_index: Nat = len(instructions)
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-    instructions = append(instructions, IterNextInstruction(iterator_name, item_name, 0))
-    if name == "$method_map" {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, LoadInstruction(accumulator_name))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, LoadInstruction(callback_name))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, LoadInstruction(item_name))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, CallValueInstruction(1))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, CallInstruction("append", 2))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, StoreInstruction(accumulator_name))
-    } else {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, LoadInstruction(callback_name))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, LoadInstruction(accumulator_name))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, LoadInstruction(item_name))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, CallValueInstruction(2))
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-      instructions = append(instructions, StoreInstruction(accumulator_name))
-    }
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-    instructions = append(instructions, JumpInstruction(loop_start))
-    end: Nat = offset + len(instructions)
-    mut resolved: [Instruction] = []
-    mut instruction_index: Nat = 0
-    for instruction in instructions {
-      if instruction_index == next_index { resolved = append(resolved, IterNextInstruction(iterator_name, item_name, end)); }
-      else { resolved = append(resolved, instruction); }
-      instruction_index = instruction_index + 1
-    }
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(resolved), true); }
-    resolved = append(resolved, LoadInstruction(accumulator_name))
-    EmittedCode(resolved, callback.next_temporary, sources, probes)
+    emitted: EmittedCode = emit_expression_list(
+      arguments,
+      program,
+      next_temporary,
+      offset,
+      retain_sources
+    )
+    EmittedCode(
+      append(emitted.instructions, CallValueInstruction(prior_index(len(arguments)))),
+      emitted.next_temporary,
+      if retain_sources {
+        add_instruction_source(emitted.sources, origin, offset + len(emitted.instructions), false)
+      } else {
+        []
+      }, emitted.probes)
   } else {
-  emitted: EmittedCode = emit_expression_list(arguments, program, next_temporary, offset, retain_sources)
-  sources = emitted.sources
-  probes = emitted.probes
-  mut instructions: [Instruction] = emitted.instructions
-  record: RecordLookup = record_type(program, name)
-  variant: VariantLookup = variant_type(program, name)
-  if record.found {
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
-    instructions = append(instructions, MakeRecordInstruction(name, record_field_names(record.fields)))
-  } else {
-    if variant.found {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
-      instructions = append(instructions, MakeVariantInstruction(variant.enum_name, name, len(arguments)))
+    if name == "$method_map" || name == "$method_reduce" {
+      collection_name: Str = "$collection${next_temporary}"
+      callback_name: Str = "$callback${next_temporary}"
+      item_name: Str = "$item${next_temporary}"
+      iterator_name: Str = "$iterator${next_temporary}"
+      accumulator_name: Str = "$accumulator${next_temporary}"
+      collection: EmittedCode = emit_expression(
+        arguments[0],
+        program,
+        next_temporary + 1,
+        offset,
+        retain_sources
+      )
+      sources = collection.sources
+      probes = collection.probes
+      if retain_sources {
+        sources = add_instruction_source(
+          sources,
+          origin,
+          offset + len(collection.instructions),
+          true
+        )
+      }
+      mut instructions: [Instruction] = append(
+        collection.instructions,
+        StoreInstruction(collection_name)
+      )
+      mut temporary: Nat = collection.next_temporary
+      if name == "$method_reduce" {
+        initial: EmittedCode = emit_expression(
+          arguments[1],
+          program,
+          temporary,
+          offset + len(instructions),
+          retain_sources
+        )
+        sources = concat(sources, initial.sources)
+        probes = concat(probes, initial.probes)
+        instructions = concat(instructions, initial.instructions)
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, StoreInstruction(accumulator_name))
+        temporary = initial.next_temporary
+      } else {
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, MakeArrayInstruction(0))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, StoreInstruction(accumulator_name))
+      }
+      callback: EmittedCode = emit_expression(
+        arguments[prior_index(len(arguments))],
+        program,
+        temporary,
+        offset + len(instructions),
+        retain_sources
+      )
+      sources = concat(sources, callback.sources)
+      probes = concat(probes, callback.probes)
+      instructions = concat(instructions, callback.instructions)
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
+      instructions = append(instructions, StoreInstruction(callback_name))
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
+      instructions = append(instructions, LoadInstruction(collection_name))
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
+      instructions = append(instructions, IterInitInstruction(iterator_name))
+      loop_start: Nat = offset + len(instructions)
+      next_index: Nat = len(instructions)
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
+      instructions = append(instructions, IterNextInstruction(iterator_name, item_name, 0))
+      if name == "$method_map" {
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, LoadInstruction(accumulator_name))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, LoadInstruction(callback_name))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, LoadInstruction(item_name))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, CallValueInstruction(1))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, CallInstruction("append", 2))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, StoreInstruction(accumulator_name))
+      } else {
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, LoadInstruction(callback_name))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, LoadInstruction(accumulator_name))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, LoadInstruction(item_name))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, CallValueInstruction(2))
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
+        instructions = append(instructions, StoreInstruction(accumulator_name))
+      }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
+      instructions = append(instructions, JumpInstruction(loop_start))
+      end: Nat = offset + len(instructions)
+      mut resolved: [Instruction] = []
+      mut instruction_index: Nat = 0
+      for instruction in instructions {
+        if instruction_index == next_index {
+          resolved = append(resolved, IterNextInstruction(iterator_name, item_name, end))
+        } else {
+          resolved = append(resolved, instruction)
+        }
+        instruction_index = instruction_index + 1
+      }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(resolved), true)
+      }
+      resolved = append(resolved, LoadInstruction(accumulator_name))
+      EmittedCode(resolved, callback.next_temporary, sources, probes)
     } else {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
-      instructions = append(instructions, CallInstruction(if name == "tcp_exchange" { "$tcp_exchange" } else { if name == "tcp_serve" { "$tcp_serve" } else { name } }, len(arguments)))
+      emitted: EmittedCode = emit_expression_list(
+        arguments,
+        program,
+        next_temporary,
+        offset,
+        retain_sources
+      )
+      sources = emitted.sources
+      probes = emitted.probes
+      mut instructions: [Instruction] = emitted.instructions
+      record: RecordLookup = record_type(program, name)
+      variant: VariantLookup = variant_type(program, name)
+      if record.found {
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+        }
+        instructions = append(
+          instructions,
+          MakeRecordInstruction(name, record_field_names(record.fields))
+        )
+      } else {
+        if variant.found {
+          if retain_sources {
+            sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+          }
+          instructions = append(
+            instructions,
+            MakeVariantInstruction(variant.enum_name, name, len(arguments))
+          )
+        } else {
+          if retain_sources {
+            sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+          }
+          instructions = append(instructions, CallInstruction(if name == "tcp_exchange" {
+              "$tcp_exchange"
+            } else {
+              if name == "tcp_serve" {
+                "$tcp_serve"
+              } else {
+                name
+              }
+            }, len(arguments)))
+        }
+      }
+      EmittedCode(instructions, emitted.next_temporary, sources, probes)
     }
   }
-  EmittedCode(instructions, emitted.next_temporary, sources, probes)
-  } }
 }
 
-pure emit_match(subject: Expr, arms: [MatchArm], program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool, origin: Option[SourceSpan]): EmittedCode {
+pure emit_match(
+  subject: Expr,
+  arms: [MatchArm],
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool,
+  origin: Option[SourceSpan]
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
   temporary_name: Str = "$match${next_temporary}"
-  subject_code: EmittedCode = emit_expression(subject, program, next_temporary + 1, offset, retain_sources)
+  subject_code: EmittedCode = emit_expression(
+    subject,
+    program,
+    next_temporary + 1,
+    offset,
+    retain_sources
+  )
   sources = subject_code.sources
   probes = subject_code.probes
   mut instructions: [Instruction] = subject_code.instructions
-  if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+
+  if retain_sources {
+    sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+  }
   instructions = append(instructions, StoreInstruction(temporary_name))
   mut temporary: Nat = subject_code.next_temporary
   for arm in arms {
     arm_offset: Nat = offset + len(instructions)
     body_offset: Nat = arm_offset + 2 + len(arm.pattern.bindings)
-    body_code: EmittedCode = emit_expression(arm.body, program, temporary, body_offset, retain_sources)
+    body_code: EmittedCode = emit_expression(
+      arm.body,
+      program,
+      temporary,
+      body_offset,
+      retain_sources
+    )
     failure: Nat = body_offset + len(body_code.instructions) + 1
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, LoadInstruction(temporary_name))
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
-    probes = add_emission_probe(probes, "arm:" + arm.pattern.variant, arm.body, arm_offset + 1, arm_offset + 2, retain_sources)
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
+    probes = add_emission_probe(
+      probes,
+      "arm:" + arm.pattern.variant,
+      arm.body,
+      arm_offset + 1,
+      arm_offset + 2,
+      retain_sources
+    )
     instructions = append(instructions, MatchVariantInstruction(arm.pattern.variant, failure))
     mut binding_index: Nat = len(arm.pattern.bindings)
     while binding_index > 0 {
       binding_index = binding_index - 1
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+      }
       instructions = append(instructions, StoreInstruction(arm.pattern.bindings[binding_index]))
     }
     sources = concat(sources, body_code.sources)
     probes = concat(probes, body_code.probes)
     instructions = concat(instructions, body_code.instructions)
-    if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+    if retain_sources {
+      sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+    }
     instructions = append(instructions, PendingEndJumpInstruction())
     temporary = body_code.next_temporary
   }
-  if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+  if retain_sources {
+    sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+  }
   instructions = append(instructions, MatchFailInstruction())
   end: Nat = offset + len(instructions)
   EmittedCode(resolve_pending_jumps(instructions, end), temporary, sources, probes)
 }
 
-pure emit_expression(expression: Expr, program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool): EmittedCode {
+pure emit_expression(
+  expression: Expr,
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool
+): EmittedCode {
   emit_expression_at(expression, program, next_temporary, offset, retain_sources, None())
 }
 
-pure emit_expression_at(expression: Expr, program: Program, next_temporary: Nat, offset: Nat, retain_sources: Bool, origin: Option[SourceSpan]): EmittedCode {
+pure emit_expression_at(
+  expression: Expr,
+  program: Program,
+  next_temporary: Nat,
+  offset: Nat,
+  retain_sources: Bool,
+  origin: Option[SourceSpan]
+): EmittedCode {
   mut sources: [InstructionSource] = []
   mut probes: [EmissionProbe] = []
+
   match expression {
     LocatedExpr(span, value) => {
-      emitted: EmittedCode = emit_expression_at(value, program, next_temporary, offset, retain_sources, if retain_sources { Some(span) } else { None() })
+      emitted: EmittedCode = emit_expression_at(
+        value,
+        program,
+        next_temporary,
+        offset,
+        retain_sources,
+        if retain_sources {
+          Some(span)
+        } else {
+          None()
+        })
       EmittedCode(emitted.instructions, emitted.next_temporary, emitted.sources,
-        if retain_sources { append(emitted.probes, EmissionProbe("expression", span, offset, offset + len(emitted.instructions))) } else { [] })
+        if retain_sources {
+          append(
+            emitted.probes,
+            EmissionProbe("expression", span, offset, offset + len(emitted.instructions))
+          )
+        } else {
+          []
+        })
     },
     NatExpr(value) => {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset, false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset, false)
+      }
       instructions: [Instruction] = [ConstInstruction(NatConstant(value))]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
     DecimalExpr(text) => {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset, false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset, false)
+      }
       instructions: [Instruction] = [ConstInstruction(DecimalConstant(text))]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
-    StringExpr(text) => emit_string_expression(text, next_temporary, retain_sources, origin, offset),
+    StringExpr(text) => emit_string_expression(
+      text,
+      next_temporary,
+      retain_sources,
+      origin,
+      offset
+    ),
     BoolExpr(value) => {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset, false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset, false)
+      }
       instructions: [Instruction] = [ConstInstruction(BoolConstant(value))]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
     NameExpr(name) => {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset, false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset, false)
+      }
       instructions: [Instruction] = [LoadInstruction(name)]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
     FunctionExpr(name) => {
-      if retain_sources { sources = add_instruction_source(sources, origin, offset, false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset, false)
+      }
       instructions: [Instruction] = [ConstInstruction(StringConstant(name))]
       EmittedCode(instructions, next_temporary, sources, probes)
     },
     ArrayExpr(items) => {
-      emitted: EmittedCode = emit_expression_list(items, program, next_temporary, offset, retain_sources)
+      emitted: EmittedCode = emit_expression_list(
+        items,
+        program,
+        next_temporary,
+        offset,
+        retain_sources
+      )
       sources = emitted.sources
       probes = emitted.probes
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(emitted.instructions), false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(emitted.instructions), false)
+      }
       instructions: [Instruction] = append(emitted.instructions, MakeArrayInstruction(len(items)))
       EmittedCode(instructions, emitted.next_temporary, sources, probes)
     },
     UnaryExpr(operator, operand) => {
-      emitted: EmittedCode = emit_expression(operand, program, next_temporary, offset, retain_sources)
+      emitted: EmittedCode = emit_expression(
+        operand,
+        program,
+        next_temporary,
+        offset,
+        retain_sources
+      )
       sources = emitted.sources
       probes = emitted.probes
       mut instructions: [Instruction] = []
@@ -610,74 +1068,165 @@ pure emit_expression_at(expression: Expr, program: Program, next_temporary: Nat,
         for instruction in emitted.instructions {
           if index + 1 == len(emitted.instructions) {
             instructions = append(instructions, awaited_instruction(instruction))
-          } else { instructions = append(instructions, instruction); }
+          } else {
+            instructions = append(instructions, instruction)
+          }
           index = index + 1
         }
       } else {
-        if retain_sources { sources = add_instruction_source(sources, origin, offset + len(emitted.instructions), false); }
+        if retain_sources {
+          sources = add_instruction_source(
+            sources,
+            origin,
+            offset + len(emitted.instructions),
+            false
+          )
+        }
         instructions = append(emitted.instructions, UnaryInstruction(operator))
       }
       EmittedCode(instructions, emitted.next_temporary, sources, probes)
     },
     BinaryExpr(operator, left, right) => {
       if operator == "&&" || operator == "||" {
-        emit_short_circuit(operator, left, right, program, next_temporary, offset, retain_sources, origin)
+        emit_short_circuit(
+          operator,
+          left,
+          right,
+          program,
+          next_temporary,
+          offset,
+          retain_sources,
+          origin
+        )
       } else {
-        left_code: EmittedCode = emit_expression(left, program, next_temporary, offset, retain_sources)
+        left_code: EmittedCode = emit_expression(
+          left,
+          program,
+          next_temporary,
+          offset,
+          retain_sources
+        )
         right_offset: Nat = offset + len(left_code.instructions)
-        right_code: EmittedCode = emit_expression(right, program, left_code.next_temporary, right_offset, retain_sources)
+        right_code: EmittedCode = emit_expression(
+          right,
+          program,
+          left_code.next_temporary,
+          right_offset,
+          retain_sources
+        )
         sources = concat(left_code.sources, right_code.sources)
         probes = concat(left_code.probes, right_code.probes)
         mut instructions: [Instruction] = concat(left_code.instructions, right_code.instructions)
         if operator == ".." {
-          if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
+          if retain_sources {
+            sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+          }
           instructions = append(instructions, MakeRangeInstruction())
         } else {
-          if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
+          if retain_sources {
+            sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+          }
           instructions = append(instructions, BinaryInstruction(operator))
         }
         EmittedCode(instructions, right_code.next_temporary, sources, probes)
       }
     },
     // Defensive trap for internal callers bypassing the checked frontend.
-    DotCallExpr(target, name, arguments, types) => EmittedCode([MatchFailInstruction()], next_temporary, [], []),
-    CallExpr(name, arguments, type_arguments) => emit_call(name, arguments, program, next_temporary, offset, retain_sources, origin),
+    DotCallExpr(target, name, arguments, types) => EmittedCode(
+      [MatchFailInstruction()],
+      next_temporary,
+      [],
+      []
+    ),
+    CallExpr(name, arguments, type_arguments) => emit_call(
+      name,
+      arguments,
+      program,
+      next_temporary,
+      offset,
+      retain_sources,
+      origin
+    ),
     FieldExpr(target, field) => {
-      emitted: EmittedCode = emit_expression(target, program, next_temporary, offset, retain_sources)
+      emitted: EmittedCode = emit_expression(
+        target,
+        program,
+        next_temporary,
+        offset,
+        retain_sources
+      )
       sources = emitted.sources
       probes = emitted.probes
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(emitted.instructions), false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(emitted.instructions), false)
+      }
       instructions: [Instruction] = append(emitted.instructions, FieldGetInstruction(field))
       EmittedCode(instructions, emitted.next_temporary, sources, probes)
     },
     IndexExpr(target, index) => {
-      target_code: EmittedCode = emit_expression(target, program, next_temporary, offset, retain_sources)
-      index_code: EmittedCode = emit_expression(index, program, target_code.next_temporary, offset + len(target_code.instructions), retain_sources)
+      target_code: EmittedCode = emit_expression(
+        target,
+        program,
+        next_temporary,
+        offset,
+        retain_sources
+      )
+      index_code: EmittedCode = emit_expression(
+        index,
+        program,
+        target_code.next_temporary,
+        offset + len(target_code.instructions),
+        retain_sources
+      )
       sources = concat(target_code.sources, index_code.sources)
       probes = concat(target_code.probes, index_code.probes)
       mut instructions: [Instruction] = concat(target_code.instructions, index_code.instructions)
-      if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), false); }
+      if retain_sources {
+        sources = add_instruction_source(sources, origin, offset + len(instructions), false)
+      }
       instructions = append(instructions, IndexGetInstruction())
       EmittedCode(instructions, index_code.next_temporary, sources, probes)
     },
     IfExpr(condition, yes, no, has_else) => {
-      condition_code: EmittedCode = emit_expression(condition, program, next_temporary, offset, retain_sources)
+      condition_code: EmittedCode = emit_expression(
+        condition,
+        program,
+        next_temporary,
+        offset,
+        retain_sources
+      )
       branch: Nat = offset + len(condition_code.instructions)
-      yes_code: EmittedCode = emit_block(yes, program, condition_code.next_temporary, branch + 1, retain_sources)
+      yes_code: EmittedCode = emit_block(
+        yes,
+        program,
+        condition_code.next_temporary,
+        branch + 1,
+        retain_sources
+      )
       if has_else {
         jump: Nat = branch + 1 + len(yes_code.instructions)
         no_start: Nat = jump + 1
-        no_code: EmittedCode = emit_block(no, program, yes_code.next_temporary, no_start, retain_sources)
+        no_code: EmittedCode = emit_block(
+          no,
+          program,
+          yes_code.next_temporary,
+          no_start,
+          retain_sources
+        )
         end: Nat = no_start + len(no_code.instructions)
         sources = condition_code.sources
         probes = condition_code.probes
         mut instructions: [Instruction] = condition_code.instructions
-        if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
         instructions = append(instructions, JumpFalseInstruction(no_start))
         sources = concat(sources, yes_code.sources)
         probes = concat(probes, yes_code.probes)
         instructions = concat(instructions, yes_code.instructions)
-        if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
         instructions = append(instructions, JumpInstruction(end))
         sources = concat(sources, no_code.sources)
         probes = concat(probes, no_code.probes)
@@ -689,21 +1238,35 @@ pure emit_expression_at(expression: Expr, program: Program, next_temporary: Nat,
         sources = condition_code.sources
         probes = condition_code.probes
         mut instructions: [Instruction] = condition_code.instructions
-        if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
         instructions = append(instructions, JumpFalseInstruction(void_start))
         sources = concat(sources, yes_code.sources)
         probes = concat(probes, yes_code.probes)
         instructions = concat(instructions, yes_code.instructions)
-        if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
         instructions = append(instructions, PopInstruction())
-        if retain_sources { sources = add_instruction_source(sources, origin, offset + len(instructions), true); }
+        if retain_sources {
+          sources = add_instruction_source(sources, origin, offset + len(instructions), true)
+        }
         instructions = append(instructions, ConstInstruction(VoidConstant()))
         probes = add_emission_probe(probes, "if", condition, branch, branch + 1, retain_sources)
         EmittedCode(instructions, yes_code.next_temporary, sources, probes)
       }
     },
     BlockExpr(block) => emit_block(block, program, next_temporary, offset, retain_sources),
-    MatchExpr(subject, arms) => emit_match(subject, arms, program, next_temporary, offset, retain_sources, origin)
+    MatchExpr(subject, arms) => emit_match(
+      subject,
+      arms,
+      program,
+      next_temporary,
+      offset,
+      retain_sources,
+      origin
+    )
   }
 }
 
@@ -742,6 +1305,7 @@ pure core_call_name(instruction: Instruction): Str {
 pure used_core_functions(functions: [FunctionCode]): Set[Str] {
   mut used: Set[Str] = set()
   mut changed: Bool = true
+
   while changed {
     changed = false
     for function in functions {
@@ -771,6 +1335,7 @@ pure compile_program_emission(program: Program, retain_sources: Bool): SourceMap
   mut sources: [FunctionSources] = []
   mut probes: [FunctionProbes] = []
   mut functions: [FunctionCode] = []
+
   for declaration in program.declarations {
     match declaration {
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
@@ -780,7 +1345,10 @@ pure compile_program_emission(program: Program, retain_sources: Bool): SourceMap
           sources = append(sources, FunctionSources(name, emitted.sources))
           probes = append(probes, FunctionProbes(name, emitted.probes))
         }
-        functions = append(functions, FunctionCode(name, parameter_names(parameters), is_pure, is_async, instructions))
+        functions = append(
+          functions,
+          FunctionCode(name, parameter_names(parameters), is_pure, is_async, instructions)
+        )
       },
       ImportDeclaration(path) => {},
       TypeDeclaration(name, base, guard) => {},
@@ -803,7 +1371,9 @@ pure compile_program_emission(program: Program, retain_sources: Bool): SourceMap
   }
   mut selected_probes: [FunctionProbes] = []
   for probe in probes {
-    if !probe.name.starts_with("$core_") || used.has(probe.name) { selected_probes = append(selected_probes, probe); }
+    if !probe.name.starts_with("$core_") || used.has(probe.name) {
+      selected_probes = append(selected_probes, probe)
+    }
   }
   SourceMappedProgram(BytecodeProgram(selected), selected_sources, selected_probes)
 }

@@ -1,52 +1,116 @@
 import "checker.panack"
 
+// Walk calls, callable values and await constraints in their lexical effect context.
+// Ordinary validation and opt-in explanations share the same decisions.
+
 pure is_impure_builtin(name: Str): Bool {
-  (name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve") || name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" || name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" || name == "host_sleep" || name == "process_run" ||
-  name == "instant_now" || name == "print" || name == "read_line" || name == "read_file" ||
-  name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
-  name == "command_args" || name == "environment_has" ||
-  name == "environment_get" || name == "eprint" || name == "process_exit" ||
-  name == "path_resolve" || name == "file_exists" || name == "run_bytecode" ||
-  name == "run_bytecode_args"
+  (name == "async_fake_read" ||
+    name == "tcp_exchange" ||
+    name == "tcp_serve") ||
+    name == "fs_read" ||
+    name == "fs_write" ||
+    name == "fs_metadata" ||
+    name == "fs_list" ||
+    name == "fs_create_directory" ||
+    name == "fs_remove_file" ||
+    name == "fs_remove_directory" ||
+    name == "fs_temp_file" ||
+    name == "fs_temp_directory" ||
+    name == "host_sleep" ||
+    name == "process_run" ||
+    name == "instant_now" || name == "print" || name == "read_line" || name == "read_file" ||
+    name == "write_file" || name == "read_bytes" || name == "write_bytes" ||
+    name == "command_args" || name == "environment_has" ||
+    name == "environment_get" || name == "eprint" || name == "process_exit" ||
+    name == "path_resolve" || name == "file_exists" || name == "run_bytecode" ||
+    name == "run_bytecode_args"
 }
 
 record EffectEvidence {
-  function_name: Str, span: Option[SourceSpan], kind: Str, mode: Str,
-  target: Str, basis: Str, target_effect: Str, awaited: Bool, violations: [Str]
+  function_name: Str,
+  span: Option[SourceSpan],
+  kind: Str,
+  mode: Str,
+  target: Str,
+  basis: Str,
+  target_effect: Str,
+  awaited: Bool,
+  violations: [Str]
 }
-record CheckedEffects { diagnostics: [Diagnostic], evidence: [EffectEvidence] }
+
+record CheckedEffects {
+  diagnostics: [Diagnostic],
+  evidence: [EffectEvidence]
+}
 
 pure combine_effects(left: CheckedEffects, right: CheckedEffects): CheckedEffects {
   CheckedEffects(concat(left.diagnostics, right.diagnostics), concat(left.evidence, right.evidence))
 }
 
-pure check_expression_purity(expression: Expr, program: Program, environment: Map[Str,TypeInfo]): [Diagnostic] {
+pure check_expression_purity(
+  expression: Expr,
+  program: Program,
+  environment: Map[Str, TypeInfo]
+): [Diagnostic] {
   check_expression_effects(expression, program, environment, false)
 }
-pure check_expression_effects(expression: Expr, program: Program, environment: Map[Str,TypeInfo], awaited: Bool): [Diagnostic] {
+
+pure check_expression_effects(
+  expression: Expr,
+  program: Program,
+  environment: Map[Str, TypeInfo],
+  awaited: Bool
+): [Diagnostic] {
   check_effect_expression(expression, program, environment, awaited, false, None()).diagnostics
 }
-pure check_block_purity(block: Block, program: Program, parent: Map[Str,TypeInfo]): [Diagnostic] {
+
+pure check_block_purity(block: Block, program: Program, parent: Map[Str, TypeInfo]): [Diagnostic] {
   check_effect_block(block, program, parent, false).diagnostics
 }
+
 pure check_program_purity(program: Program): [Diagnostic] {
   check_program_effect_evidence(program, false).diagnostics
 }
 
-pure check_effect_expression(expression: Expr, program: Program, environment: Map[Str,TypeInfo], awaited: Bool, retain: Bool, origin: Option[SourceSpan]): CheckedEffects {
+pure check_effect_expression(
+  expression: Expr,
+  program: Program,
+  environment: Map[Str, TypeInfo],
+  awaited: Bool,
+  retain: Bool,
+  origin: Option[SourceSpan]
+): CheckedEffects {
   mut result: CheckedEffects = CheckedEffects([], [])
-  mode: Str = if map_has(environment, "$effect") { map_get(environment, "$effect").name } else { "pure" }
+  mode: Str = if map_has(environment, "$effect") {
+    map_get(environment, "$effect").name
+  } else {
+    "pure"
+  }
   mut await_call: Bool = false
   mut kind: Str = ""
   mut target_name: Str = ""
   mut basis: Str = ""
   mut target_effect: Str = ""
   mut violations: [Str] = []
+
   match expression {
     LocatedExpr(position, value) => {
       await_call = true
-      nested: CheckedEffects = check_effect_expression(value, program, environment, awaited, retain, if retain { Some(position) } else { None() })
-      result = CheckedEffects(checker_diagnostics_at(nested.diagnostics, position.start), nested.evidence)
+      nested: CheckedEffects = check_effect_expression(
+        value,
+        program,
+        environment,
+        awaited,
+        retain,
+        if retain {
+          Some(position)
+        } else {
+          None()
+        })
+      result = CheckedEffects(
+        checker_diagnostics_at(nested.diagnostics, position.start),
+        nested.evidence
+      )
     },
     NatExpr(value) => {},
     DecimalExpr(text) => {},
@@ -56,7 +120,10 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
     FunctionExpr(name) => {},
     ArrayExpr(items) => {
       for item in items {
-        result = combine_effects(result, check_effect_expression(item, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(item, program, environment, false, retain, None())
+        )
       }
     },
     UnaryExpr(operator, operand) => {
@@ -64,23 +131,43 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
         kind = "await"
         if mode != "async" {
           reason: Str = "await requires an async function"
-          result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
-          if retain { violations = append(violations, reason); }
+          result = CheckedEffects(
+            append(result.diagnostics, checker_diagnostic(reason)),
+            result.evidence
+          )
+          if retain {
+            violations = append(violations, reason)
+          }
         }
-        result = combine_effects(result, check_effect_expression(operand, program, environment, true, retain, None()))
-      } else { result = check_effect_expression(operand, program, environment, false, retain, None()); }
+        result = combine_effects(
+          result,
+          check_effect_expression(operand, program, environment, true, retain, None())
+        )
+      } else {
+        result = check_effect_expression(operand, program, environment, false, retain, None())
+      }
     },
     BinaryExpr(operator, left, right) => {
       result = check_effect_expression(left, program, environment, false, retain, None())
-      result = combine_effects(result, check_effect_expression(right, program, environment, false, retain, None()))
+      result = combine_effects(
+        result,
+        check_effect_expression(right, program, environment, false, retain, None())
+      )
     },
     DotCallExpr(target, name, arguments, types) => {
-      result = CheckedEffects([checker_diagnostic("unresolved dot call requires module binding resolution")], [])
+      result = CheckedEffects(
+        [checker_diagnostic("unresolved dot call requires module binding resolution")],
+        []
+      )
     },
     CallExpr(name, arguments, type_arguments) => {
       await_call = true
       function: FunctionLookup = function_type(program, name)
-      mut async_call: Bool = (name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve") || (function.found && function.is_async)
+      mut async_call: Bool = (name == "async_fake_read" ||
+        name == "tcp_exchange" ||
+        name == "tcp_serve") ||
+        (function.found &&
+        function.is_async)
       mut impure: Bool = is_impure_builtin(name) || (function.found && !function.is_pure)
       if name == "$method_call" && len(arguments) > 0 {
         target: CheckedExpression = check_expression(arguments[0], environment, map(), program)
@@ -90,35 +177,80 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
       }
       if retain {
         kind = "call"
-        target_name = if name == "$method_call" { "call" } else { name }
-        basis = if name == "$method_call" { "callable type" } else {
-          if function.found { "function declaration" } else { "builtin or constructor contract" }
+        target_name = if name == "$method_call" {
+          "call"
+        } else {
+          name
         }
-        target_effect = if async_call { "async" } else { if impure { "ordinary" } else { "pure" } }
+        basis = if name == "$method_call" {
+          "callable type"
+        } else {
+          if function.found {
+            "function declaration"
+          } else {
+            "builtin or constructor contract"
+          }
+        }
+        target_effect = if async_call {
+          "async"
+        } else {
+          if impure {
+            "ordinary"
+          } else {
+            "pure"
+          }
+        }
       }
-      display_name: Str = if name == "$method_call" { "call" } else { name }
+      display_name: Str = if name == "$method_call" {
+        "call"
+      } else {
+        name
+      }
       if awaited && !async_call {
         reason: Str = "await requires an async call"
-        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
-        if retain { violations = append(violations, reason); }
+        result = CheckedEffects(
+          append(result.diagnostics, checker_diagnostic(reason)),
+          result.evidence
+        )
+        if retain {
+          violations = append(violations, reason)
+        }
       }
       if async_call && (!awaited || mode != "async") {
         reason: Str = "async call requires await inside an async function"
-        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
-        if retain { violations = append(violations, reason); }
+        result = CheckedEffects(
+          append(result.diagnostics, checker_diagnostic(reason)),
+          result.evidence
+        )
+        if retain {
+          violations = append(violations, reason)
+        }
       }
       if mode == "pure" && impure {
         reason: Str = "pure function cannot call impure function ${display_name}"
-        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
-        if retain { violations = append(violations, reason); }
+        result = CheckedEffects(
+          append(result.diagnostics, checker_diagnostic(reason)),
+          result.evidence
+        )
+        if retain {
+          violations = append(violations, reason)
+        }
       }
       if mode == "async" && impure && !async_call {
         reason: Str = "async function cannot call blocking function ${display_name}"
-        result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
-        if retain { violations = append(violations, reason); }
+        result = CheckedEffects(
+          append(result.diagnostics, checker_diagnostic(reason)),
+          result.evidence
+        )
+        if retain {
+          violations = append(violations, reason)
+        }
       }
       for argument in arguments {
-        result = combine_effects(result, check_effect_expression(argument, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(argument, program, environment, false, retain, None())
+        )
       }
     },
     FieldExpr(target, field) => {
@@ -126,7 +258,10 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
     },
     IndexExpr(target, index) => {
       result = check_effect_expression(target, program, environment, false, retain, None())
-      result = combine_effects(result, check_effect_expression(index, program, environment, false, retain, None()))
+      result = combine_effects(
+        result,
+        check_effect_expression(index, program, environment, false, retain, None())
+      )
     },
     IfExpr(condition, yes, no, has_else) => {
       result = check_effect_expression(condition, program, environment, false, retain, None())
@@ -141,27 +276,34 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
       checked: CheckedExpression = check_expression(subject, environment, map(), program)
       shape: TypeShape = type_shape(checked.info.name)
       enum_value: EnumLookup = enum_type(program, shape.base)
-      mut substitutions: Map[Str,Str] = map()
+      mut substitutions: Map[Str, Str] = map()
       mut index: Nat = 0
       while index < len(enum_value.parameters) && index < len(shape.arguments) {
         substitutions = map_put(substitutions, enum_value.parameters[index], shape.arguments[index])
         index = index + 1
       }
       for arm in arms {
-        mut arm_environment: Map[Str,TypeInfo] = environment
+        mut arm_environment: Map[Str, TypeInfo] = environment
         for variant in enum_value.variants {
           if variant.name == arm.pattern.variant {
             mut binding_index: Nat = 0
             for binding in arm.pattern.bindings {
               if binding_index < len(variant.payload) {
-                binding_type: Str = substitute_type(variant.payload[binding_index], enum_value.parameters, substitutions)
+                binding_type: Str = substitute_type(
+                  variant.payload[binding_index],
+                  enum_value.parameters,
+                  substitutions
+                )
                 arm_environment = map_put(arm_environment, binding, plain_type(binding_type))
               }
               binding_index = binding_index + 1
             }
           }
         }
-        result = combine_effects(result, check_effect_expression(arm.body, program, arm_environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(arm.body, program, arm_environment, false, retain, None())
+        )
       }
     }
   }
@@ -169,34 +311,67 @@ pure check_effect_expression(expression: Expr, program: Program, environment: Ma
     kind = "await operand"
     reason: Str = "await requires an async call"
     result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
-    if retain { violations = append(violations, reason); }
+    if retain {
+      violations = append(violations, reason)
+    }
   }
   if retain && kind != "" {
-    entry: EffectEvidence = EffectEvidence("", origin, kind, mode, target_name, basis, target_effect, awaited, violations)
+    entry: EffectEvidence = EffectEvidence(
+      "",
+      origin,
+      kind,
+      mode,
+      target_name,
+      basis,
+      target_effect,
+      awaited,
+      violations
+    )
     result = CheckedEffects(result.diagnostics, concat([entry], result.evidence))
   }
+
   result
 }
 
-pure check_effect_block(block: Block, program: Program, parent: Map[Str,TypeInfo], retain: Bool): CheckedEffects {
+pure check_effect_block(
+  block: Block,
+  program: Program,
+  parent: Map[Str, TypeInfo],
+  retain: Bool
+): CheckedEffects {
   mut result: CheckedEffects = CheckedEffects([], [])
-  mut environment: Map[Str,TypeInfo] = parent
+  mut environment: Map[Str, TypeInfo] = parent
+
   for statement in block.statements {
     match statement {
       BindingStatement(name, type_name, mutable, value) => {
-        result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(value, program, environment, false, retain, None())
+        )
         if len(type_name) > 0 {
           environment = map_put(environment, name, TypeInfo(type_name, false, 0, mutable))
         } else {
           checked: CheckedExpression = check_expression(value, environment, map(), program)
-          environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, mutable))
+          environment = map_put(
+            environment,
+            name,
+            local_binding_info(checked.info.name, checked.info, mutable)
+          )
         }
       },
       AssignmentStatement(name, value) => {
-        result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(value, program, environment, false, retain, None())
+        )
         if !map_has(environment, name) {
           checked: CheckedExpression = check_expression(value, environment, map(), program)
-          environment = map_put(environment, name, local_binding_info(checked.info.name, checked.info, false))
+          environment = map_put(
+            environment,
+            name,
+            local_binding_info(checked.info.name, checked.info, false)
+          )
         }
       },
       ExpressionStatement(value) => {
@@ -204,36 +379,73 @@ pure check_effect_block(block: Block, program: Program, parent: Map[Str,TypeInfo
           checked: CheckedExpression = check_expression(value, environment, map(), program)
           if checked.info.name != "Unit" {
             reason: Str = "bind, match or return a non-Unit await result"
-            result = CheckedEffects(append(result.diagnostics, checker_diagnostic(reason)), result.evidence)
+            result = CheckedEffects(
+              append(result.diagnostics, checker_diagnostic(reason)),
+              result.evidence
+            )
             if retain {
-              mode: Str = if map_has(environment, "$effect") { map_get(environment, "$effect").name } else { "pure" }
-              entry: EffectEvidence = EffectEvidence("", expression_span(value), "await result", mode, "", "result type", checked.info.name, true, [reason])
+              mode: Str = if map_has(environment, "$effect") {
+                map_get(environment, "$effect").name
+              } else {
+                "pure"
+              }
+              entry: EffectEvidence = EffectEvidence(
+                "",
+                expression_span(value),
+                "await result",
+                mode,
+                "",
+                "result type",
+                checked.info.name,
+                true,
+                [reason]
+              )
               result = CheckedEffects(result.diagnostics, append(result.evidence, entry))
             }
           }
         }
-        result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(value, program, environment, false, retain, None())
+        )
       },
       WhileStatement(condition, body) => {
-        result = combine_effects(result, check_effect_expression(condition, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(condition, program, environment, false, retain, None())
+        )
         result = combine_effects(result, check_effect_block(body, program, environment, retain))
       },
       ForStatement(name, iterable, body) => {
-        result = combine_effects(result, check_effect_expression(iterable, program, environment, false, retain, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(iterable, program, environment, false, retain, None())
+        )
         checked: CheckedExpression = check_expression(iterable, environment, map(), program)
         shape: TypeShape = type_shape(checked.info.name)
-        item: Str = if len(shape.arguments) > 0 { shape.arguments[0] } else { "Nat" }
-        loop_environment: Map[Str,TypeInfo] = map_put(environment, name, plain_type(item))
-        result = combine_effects(result, check_effect_block(body, program, loop_environment, retain))
+        item: Str = if len(shape.arguments) > 0 {
+          shape.arguments[0]
+        } else {
+          "Nat"
+        }
+        loop_environment: Map[Str, TypeInfo] = map_put(environment, name, plain_type(item))
+        result = combine_effects(
+          result,
+          check_effect_block(body, program, loop_environment, retain)
+        )
       }
     }
   }
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      result = combine_effects(result, check_effect_expression(value, program, environment, false, retain, None()))
+      result = combine_effects(
+        result,
+        check_effect_expression(value, program, environment, false, retain, None())
+      )
     }
   }
+
   result
 }
 
@@ -241,17 +453,34 @@ pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffec
   check_selected_effect_evidence(program, retain, false, map())
 }
 
-pure check_selected_effect_evidence(program: Program, retain: Bool, selected: Bool, function_types: Map[Str,Bool]): CheckedEffects {
+pure check_selected_effect_evidence(
+  program: Program,
+  retain: Bool,
+  selected: Bool,
+  function_types: Map[Str, Bool]
+): CheckedEffects {
   mut result: CheckedEffects = CheckedEffects([], [])
+
   for declaration in program.declarations {
     match declaration {
       TypeDeclaration(name, base, guard) => {
-        result = combine_effects(result, check_effect_expression(guard, program, map(), false, false, None()))
+        result = combine_effects(
+          result,
+          check_effect_expression(guard, program, map(), false, false, None())
+        )
       },
       FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) => {
         if !selected || (function_types.has(name) && function_types.get(name)) {
-          mut environment: Map[Str,TypeInfo] = map()
-          environment = map_put(environment, "$effect", plain_type(if is_async { "async" } else { if is_pure { "pure" } else { "ordinary" } }))
+          mut environment: Map[Str, TypeInfo] = map()
+          environment = map_put(environment, "$effect", plain_type(if is_async {
+              "async"
+            } else {
+              if is_pure {
+                "pure"
+              } else {
+                "ordinary"
+              }
+            }))
           for parameter in parameters {
             environment = map_put(environment, parameter.name, plain_type(parameter.type_name))
           }
@@ -259,7 +488,9 @@ pure check_selected_effect_evidence(program: Program, retain: Bool, selected: Bo
           mut entries: [EffectEvidence] = []
           if retain {
             for entry in checked.evidence {
-              entries = append(entries, EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
+              entries = append(
+                entries,
+                EffectEvidence(name, entry.span, entry.kind, entry.mode, entry.target,
                 entry.basis, entry.target_effect, entry.awaited, entry.violations))
             }
           }
@@ -271,20 +502,32 @@ pure check_selected_effect_evidence(program: Program, retain: Bool, selected: Bo
       EnumDeclaration(name, parameters, variants) => {}
     }
   }
+
   result
 }
 
 // Ordinary compilation preserves the type-first diagnostic contract. Recovery
 // is evidence-only: effect violations remain on local records, never replacing
 // or extending the original type diagnostics for an already rejected program.
-pure check_frontend_effects(program: Program, checked: CheckedProgram, retain: Bool): CheckedEffects {
+pure check_frontend_effects(
+  program: Program,
+  checked: CheckedProgram,
+  retain: Bool
+): CheckedEffects {
   if len(checked.diagnostics) == 0 {
     check_program_effect_evidence(program, retain)
   } else {
     if retain && checked.declarations_valid {
-      recovered: CheckedEffects = check_selected_effect_evidence(program, true, true, checked.function_types)
+      recovered: CheckedEffects = check_selected_effect_evidence(
+        program,
+        true,
+        true,
+        checked.function_types
+      )
       CheckedEffects(checked.diagnostics, recovered.evidence)
-    } else { CheckedEffects(checked.diagnostics, []) }
+    } else {
+      CheckedEffects(checked.diagnostics, [])
+    }
   }
 }
 
@@ -307,8 +550,14 @@ pure check_source_frontend(source: Str): Str {
 
 pure check_module_graph_frontend(units: [SourceUnit], entry: Str): [Diagnostic] {
   empty: Set[Str] = set()
-  initial: ModuleGraphState = ModuleGraphState([], empty, empty, duplicate_module_diagnostics(units))
+  initial: ModuleGraphState = ModuleGraphState(
+    [],
+    empty,
+    empty,
+    duplicate_module_diagnostics(units)
+  )
   graph: ModuleGraphState = visit_module(units, entry, initial)
+
   if len(graph.diagnostics) > 0 {
     graph.diagnostics
   } else {
@@ -319,12 +568,17 @@ pure check_module_graph_frontend(units: [SourceUnit], entry: Str): [Diagnostic] 
 pure check_loaded_source_frontend(sources: [LoadedSource], entry: Str): Str {
   mut units: [SourceUnit] = []
   mut diagnostics: [Diagnostic] = []
+
   for source in sources {
     match lex_file(source.source, source.path) {
       Ok(tokens) => {
         match parse_program_complete(tokens) {
-          Ok(program) => { units = append(units, SourceUnit(source.path, program)); },
-          Error(error) => { diagnostics = append(diagnostics, error); }
+          Ok(program) => {
+            units = append(units, SourceUnit(source.path, program))
+          },
+          Error(error) => {
+            diagnostics = append(diagnostics, error)
+          }
         }
       },
       Error(errors) => {
@@ -343,13 +597,30 @@ pure check_loaded_source_frontend(sources: [LoadedSource], entry: Str): Str {
 
 pure expression_is_await(expression: Expr): Bool {
   mut result: Bool = false
+
   match expression {
-    LocatedExpr(position, value) => { result = expression_is_await(value); },
-    NatExpr(value) => {}, DecimalExpr(text) => {}, StringExpr(text) => {}, BoolExpr(value) => {},
-    NameExpr(name) => {}, FunctionExpr(name) => {}, ArrayExpr(items) => {},
-    UnaryExpr(operator, operand) => { result = operator == "await"; }, BinaryExpr(operator, left, right) => {},
-    CallExpr(name, arguments, type_arguments) => {}, DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {}, FieldExpr(target, field) => {}, IndexExpr(target, index) => {},
-    IfExpr(condition, yes, no, has_else) => {}, BlockExpr(block) => {}, MatchExpr(subject, arms) => {}
+    LocatedExpr(position, value) => {
+      result = expression_is_await(value)
+    },
+    NatExpr(value) => {},
+    DecimalExpr(text) => {},
+    StringExpr(text) => {},
+    BoolExpr(value) => {},
+    NameExpr(name) => {},
+    FunctionExpr(name) => {},
+    ArrayExpr(items) => {},
+    UnaryExpr(operator, operand) => {
+      result = operator == "await"
+    },
+    BinaryExpr(operator, left, right) => {},
+    CallExpr(name, arguments, type_arguments) => {},
+    DotCallExpr(dot_target, dot_name, dot_arguments, dot_types) => {},
+    FieldExpr(target, field) => {},
+    IndexExpr(target, index) => {},
+    IfExpr(condition, yes, no, has_else) => {},
+    BlockExpr(block) => {},
+    MatchExpr(subject, arms) => {}
   }
+
   result
 }

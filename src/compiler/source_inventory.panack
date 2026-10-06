@@ -1,5 +1,8 @@
 import "source_maps.panack"
 
+// Describe executable source constructs with structural IDs independent of emitted
+// PCs. Exact snapshots and artifacts bind each observation to its source.
+
 // IDs are structural paths within a source snapshot, never emitted PCs. The
 // exact snapshot/artifact/compiler envelope is part of every ID's identity.
 record InventoryItem {
@@ -18,54 +21,79 @@ pure inventory_item(id: Str, kind: Str, detail: Str, expression: Expr): [Invento
 
 pure inventory_decision(id: Str, kind: Str, expression: Expr, outcomes: [Str]): [InventoryItem] {
   mut items: [InventoryItem] = inventory_item(id, "decision", kind, expression)
+
   for outcome in outcomes {
     items = concat(items, inventory_item(id + "/" + outcome, "outcome", outcome, expression))
   }
+
   items
 }
 
 pure inventory_expressions(values: [Expr], id: Str): [InventoryItem] {
   mut items: [InventoryItem] = []
   mut index: Nat = 0
+
   for value in values {
     items = concat(items, inventory_expression(value, id + "/${index}"))
     index = index + 1
   }
+
   items
 }
 
 pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
   mut items: [InventoryItem] = inventory_item(id, "expression", "attempt", expression)
+
   match unlocated_expression(expression) {
     LocatedExpr(span, value) => {},
-    NatExpr(value) => {}, DecimalExpr(value) => {}, StringExpr(value) => {},
-    BoolExpr(value) => {}, NameExpr(value) => {}, FunctionExpr(value) => {},
-    ArrayExpr(values) => { items = concat(items, inventory_expressions(values, id)); },
-    UnaryExpr(operator, value) => { items = concat(items, inventory_expression(value, id + "/operand")); },
+    NatExpr(value) => {},
+    DecimalExpr(value) => {},
+    StringExpr(value) => {},
+    BoolExpr(value) => {},
+    NameExpr(value) => {},
+    FunctionExpr(value) => {},
+    ArrayExpr(values) => {
+      items = concat(items, inventory_expressions(values, id))
+    },
+    UnaryExpr(operator, value) => {
+      items = concat(items, inventory_expression(value, id + "/operand"))
+    },
     BinaryExpr(operator, left, right) => {
       if operator == "&&" || operator == "||" {
-        items = concat(items, inventory_decision(id + "/decision", operator, left, ["evaluate-right", "skip-right"]))
+        items = concat(
+          items,
+          inventory_decision(id + "/decision", operator, left, ["evaluate-right", "skip-right"])
+        )
       }
       items = concat(items, inventory_expression(left, id + "/left"))
       items = concat(items, inventory_expression(right, id + "/right"))
     },
-    CallExpr(name, arguments, types) => { items = concat(items, inventory_expressions(arguments, id + "/args")); },
+    CallExpr(name, arguments, types) => {
+      items = concat(items, inventory_expressions(arguments, id + "/args"))
+    },
     DotCallExpr(target, name, arguments, types) => {
       items = concat(items, inventory_expression(target, id + "/receiver"))
       items = concat(items, inventory_expressions(arguments, id + "/args"))
     },
-    FieldExpr(target, name) => { items = concat(items, inventory_expression(target, id + "/receiver")); },
+    FieldExpr(target, name) => {
+      items = concat(items, inventory_expression(target, id + "/receiver"))
+    },
     IndexExpr(target, index) => {
       items = concat(items, inventory_expression(target, id + "/receiver"))
       items = concat(items, inventory_expression(index, id + "/index"))
     },
     IfExpr(condition, yes, no, has_else) => {
-      items = concat(items, inventory_decision(id + "/decision", "if", condition, ["true", "false"]))
+      items = concat(
+        items,
+        inventory_decision(id + "/decision", "if", condition, ["true", "false"])
+      )
       items = concat(items, inventory_expression(condition, id + "/condition"))
       items = concat(items, inventory_block(yes, id + "/true"))
       items = concat(items, inventory_block(no, id + "/false"))
     },
-    BlockExpr(block) => { items = concat(items, inventory_block(block, id + "/block")); },
+    BlockExpr(block) => {
+      items = concat(items, inventory_block(block, id + "/block"))
+    },
     MatchExpr(subject, arms) => {
       items = concat(items, inventory_item(id + "/decision", "decision", "match", subject))
       items = concat(items, inventory_expression(subject, id + "/subject"))
@@ -78,6 +106,7 @@ pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
       }
     }
   }
+
   items
 }
 
@@ -86,6 +115,7 @@ pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
 pure inventory_block(block: Block, id: Str): [InventoryItem] {
   mut items: [InventoryItem] = []
   mut index: Nat = 0
+
   for statement in block.statements {
     key: Str = id + "/statement/${index}"
     match statement {
@@ -94,7 +124,10 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
         items = concat(items, inventory_expression(value, key + "/value"))
       },
       AssignmentStatement(name, value) => {
-        items = concat(items, inventory_item(key, "statement", "assignment-or-inferred-binding", value))
+        items = concat(
+          items,
+          inventory_item(key, "statement", "assignment-or-inferred-binding", value)
+        )
         items = concat(items, inventory_expression(value, key + "/value"))
       },
       ExpressionStatement(value) => {
@@ -103,13 +136,19 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
       },
       WhileStatement(condition, body) => {
         items = concat(items, inventory_item(key, "statement", "while", condition))
-        items = concat(items, inventory_decision(key + "/decision", "while", condition, ["body", "exit"]))
+        items = concat(
+          items,
+          inventory_decision(key + "/decision", "while", condition, ["body", "exit"])
+        )
         items = concat(items, inventory_expression(condition, key + "/condition"))
         items = concat(items, inventory_block(body, key + "/body"))
       },
       ForStatement(name, values, body) => {
         items = concat(items, inventory_item(key, "statement", "for", values))
-        items = concat(items, inventory_decision(key + "/decision", "for", values, ["body", "exit"]))
+        items = concat(
+          items,
+          inventory_decision(key + "/decision", "for", values, ["body", "exit"])
+        )
         items = concat(items, inventory_expression(values, key + "/iterable"))
         items = concat(items, inventory_block(body, key + "/body"))
       }
@@ -118,14 +157,18 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
   }
   match block.value {
     NoBlockValue() => {},
-    TailBlockValue(value) => { items = concat(items, inventory_expression(value, id + "/tail")); }
+    TailBlockValue(value) => {
+      items = concat(items, inventory_expression(value, id + "/tail"))
+    }
   }
+
   items
 }
 
 pure inventory_module(module: LoadedModule): [InventoryItem] {
   mut items: [InventoryItem] = []
   mut index: Nat = 0
+
   for declaration in module.parsed.program.declarations {
     id: Str = "declaration/${index}"
     span: SourceSpan = module.parsed.syntax[index].span
@@ -134,30 +177,55 @@ pure inventory_module(module: LoadedModule): [InventoryItem] {
         items = items.append(InventoryItem(id, "function", name, span))
         items = concat(items, inventory_block(body, id))
       },
-      ImportDeclaration(path) => { items = items.append(InventoryItem(id, "excluded", "import", span)); },
-      TypeDeclaration(name, base, guard) => { items = items.append(InventoryItem(id, "excluded", "compile-time-refinement", span)); },
-      RecordDeclaration(name, types, fields) => { items = items.append(InventoryItem(id, "excluded", "record-declaration", span)); },
-      EnumDeclaration(name, types, variants) => { items = items.append(InventoryItem(id, "excluded", "enum-declaration", span)); }
+      ImportDeclaration(path) => {
+        items = items.append(InventoryItem(id, "excluded", "import", span))
+      },
+      TypeDeclaration(name, base, guard) => {
+        items = items.append(InventoryItem(id, "excluded", "compile-time-refinement", span))
+      },
+      RecordDeclaration(name, types, fields) => {
+        items = items.append(InventoryItem(id, "excluded", "record-declaration", span))
+      },
+      EnumDeclaration(name, types, variants) => {
+        items = items.append(InventoryItem(id, "excluded", "enum-declaration", span))
+      }
     }
     index = index + 1
   }
+
   items
 }
 
 // Foreign inventories are never decoded. The caller reproduces this envelope
 // using explicit local roots and the installed compiler, then compares bytes.
-pure serialize_source_inventory(project: LoadedProject, artifact: Bytes, compiler: Bytes, entry: Str, root: Str, stdlib: Str): Bytes {
+pure serialize_source_inventory(
+  project: LoadedProject,
+  artifact: Bytes,
+  compiler: Bytes,
+  entry: Str,
+  root: Str,
+  stdlib: Str
+): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib)
   mut chunks: [Bytes] = [utf8_encode("PANACKINV1\nlocal-replay-v9\n"), source_map_blob(compiler),
-    encode_text(source_identifier(entry, root, stdlib)), source_map_blob(artifact), encode_u32(len(snapshots))]
+    encode_text(source_identifier(
+    entry,
+    root,
+    stdlib
+  )), source_map_blob(artifact), encode_u32(len(snapshots))]
   mut size: Nat = 0
   mut valid: Bool = byte_len(compiler) > 0 && byte_len(compiler) <= 16777216 &&
     byte_len(artifact) <= 16777216 && len(snapshots) <= 256
-  for chunk in chunks { size = size + byte_len(chunk); }
+
+  for chunk in chunks {
+    size = size + byte_len(chunk)
+  }
   for snapshot in snapshots {
     mut items: [InventoryItem] = []
     for module in project.modules {
-      if module.source_path == snapshot.path { items = inventory_module(module); }
+      if module.source_path == snapshot.path {
+        items = inventory_module(module)
+      }
     }
     chunks = chunks.append(encode_text(snapshot.name)).append(encode_text(snapshot.text)).append(encode_u32(len(items)))
     size = size + 12 + byte_len(utf8_encode(snapshot.name)) + byte_len(utf8_encode(snapshot.text))
@@ -168,10 +236,16 @@ pure serialize_source_inventory(project: LoadedProject, artifact: Bytes, compile
           source_map_position(item.span.start), source_map_position(item.span.end)], 0, 5)
         chunks = chunks.append(chunk)
         size = size + byte_len(chunk)
-      } else { valid = false }
+      } else {
+        valid = false
+      }
     }
   }
-  if valid && size <= 16777216 { source_map_join(chunks, 0, len(chunks)) } else { bytes() }
+  if valid && size <= 16777216 {
+    source_map_join(chunks, 0, len(chunks))
+  } else {
+    bytes()
+  }
 }
 
 record InventoryArguments {
@@ -184,20 +258,37 @@ pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
   mut roots: [Str] = []
   mut output: Str = ""
   mut valid: Bool = len(values) >= 4
-  if valid { roots = roots.append(values[1]); }
+
+  if valid {
+    roots = roots.append(values[1])
+  }
   mut index: Nat = 2
   while index + 1 < len(values) {
     flag: Str = values[index]
     value: Str = values[index + 1]
-    if flag == (if checking { "--inventory" } else { "-o" }) && output == "" {
-      output = value
-    } else {
-      if flag == "--include" { roots = roots.append(value); } else { valid = false; }
-    }
+    if flag == (if checking {
+        "--inventory"
+      } else {
+        "-o"
+      }) && output == "" {
+        output = value
+      } else {
+        if flag == "--include" {
+          roots = roots.append(value)
+        } else {
+          valid = false
+        }
+      }
     index = index + 2
   }
-  for root in roots { valid = valid && path_suffix(root) == ".panack"; }
-  InventoryArguments(valid && index == len(values) && output != "" && len(roots) <= 16, roots, output)
+  for root in roots {
+    valid = valid && path_suffix(root) == ".panack"
+  }
+  InventoryArguments(
+    valid && index == len(values) && output != "" && len(roots) <= 16,
+    roots,
+    output
+  )
 }
 
 // Repeating roots deliberately creates distinct compilation contexts. Shared
@@ -205,13 +296,17 @@ pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
 // adding these counts. Sources are rechecked after *all* roots have been loaded.
 run_inventory_command(values: [Str], checking: Bool): Nat {
   args: InventoryArguments = inventory_arguments(values, checking)
+
   if !args.valid {
     eprint("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
     1
   } else {
     compiler_path: Str = environment_get("PANACKELTY_COMPILER_PATH")
     match source_map_read(compiler_path, 16777216) {
-      Error(error) => { eprint("error: inventory compiler identity unavailable"); 1 },
+      Error(error) => {
+        eprint("error: inventory compiler identity unavailable")
+        1
+      },
       Ok(compiler) => {
         // The running compiler was verified by the VM. This trusted identity
         // input is compared exactly, not decoded again in the hosted compiler.
@@ -223,37 +318,66 @@ run_inventory_command(values: [Str], checking: Bool): Nat {
         root: Str = path_parent(path_resolve(args.roots[0]))
         stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
         output: Str = path_resolve(args.output)
-        if !checking && !source_map_destination_available(output) { valid = false; }
+        if !checking && !source_map_destination_available(output) {
+          valid = false
+        }
         for source in args.roots {
           entry: Str = path_resolve(source)
-          if paths.has(entry) { valid = false; }
+          if paths.has(entry) {
+            valid = false
+          }
           paths = paths.add(entry)
           if valid {
             project: LoadedProject = load_project_for_inventory(entry)
             projects = projects.append(project)
-            if len(project.diagnostics) > 0 { valid = false; }
-            else {
+            if len(project.diagnostics) > 0 {
+              valid = false
+            } else {
               artifact: Bytes = serialize_bytecode(compile_program(project.program))
-              inventory: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
+              inventory: Bytes = serialize_source_inventory(
+                project,
+                artifact,
+                compiler,
+                entry,
+                root,
+                stdlib
+              )
               size = size + 4 + byte_len(inventory)
               valid = byte_len(inventory) > 0 && size <= 16777216
-              if valid { chunks = chunks.append(source_map_blob(inventory)); }
+              if valid {
+                chunks = chunks.append(source_map_blob(inventory))
+              }
             }
           }
         }
-        for project in projects { valid = valid && source_snapshots_unchanged(project); }
+        for project in projects {
+          valid = valid && source_snapshots_unchanged(project)
+        }
         valid = valid && source_map_matches(compiler_path, compiler)
-        if !valid { eprint("error: inventory unavailable: invalid, changed, duplicate or excessive inputs, or existing output"); 1 }
-        else {
+        if !valid {
+          eprint("error: inventory unavailable: invalid, changed, duplicate or excessive inputs, or existing output")
+          1
+        } else {
           expected: Bytes = source_map_join(chunks, 0, len(chunks))
           if checking {
-            if source_map_matches(output, expected) { print("inventory: valid"); 0 }
-            else { eprint("error: inventory unavailable: missing, malformed, stale or incompatible inventory"); 1 }
+            if source_map_matches(output, expected) {
+              print("inventory: valid")
+              0
+            } else {
+              eprint("error: inventory unavailable: missing, malformed, stale or incompatible inventory")
+              1
+            }
           } else {
-            if source_map_destination_available(output) && source_map_write(output, expected) && source_map_matches(output, expected) {
+            if source_map_destination_available(output) && source_map_write(
+              output,
+              expected
+            ) && source_map_matches(output, expected) {
               print("wrote inventory " + args.output)
               0
-            } else { eprint("error: could not write inventory; discard any partial output"); 1 }
+            } else {
+              eprint("error: could not write inventory; discard any partial output")
+              1
+            }
           }
         }
       }

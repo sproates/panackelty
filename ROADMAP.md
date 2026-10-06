@@ -48,7 +48,7 @@ wording in older issue histories as well. See the
 **RM#143: Next release — source coverage, namespaces and else if.**
 
 The owner selected these three outcomes for the next core release after
-alpha.11. Version and date are not selected. This is an alpha-era release plan,
+alpha.11. The intended version is alpha.12; no date is selected. This is an alpha-era release plan,
 distinct from [RM#126: First non-alpha release](#rm-126); it does not claim the
 broader non-alpha milestone is complete.
 
@@ -56,7 +56,7 @@ broader non-alpha milestone is complete.
 | --- | --- | --- |
 | Panackelty source coverage — [RM#46](#rm-46), [GI#131](https://github.com/sproates/panackelty/issues/131) | Integrated into `next`; bounded SC1–SC6 programme accepted and reports verified live. | Validate the promoted toolchain and packaged inventory/collection/report commands; retain explicit measured-corpus limits, source identities and regression policy. |
 | Namespaces — [RM#41](#rm-41), [GI#198](https://github.com/sproates/panackelty/issues/198) | Foundations and partial checking delivered; executable namespace support is unfinished. | Complete the agreed namespace delivery checklist, including identity-based checking/emission, imports/name isolation, source and saved-bytecode execution, diagnostics, bootstrap and documented limitations. |
-| Else-if chains — [RM#142](#rm-142), [GI#312](https://github.com/sproates/panackelty/issues/312) | Requested; implementation not started. | Accept chained conditional syntax with correct evaluation, type/effect rules, source locations and tested source/bytecode behaviour; update the specification and examples. |
+| Else-if chains — [RM#142](#rm-142), [GI#312](https://github.com/sproates/panackelty/issues/312) | Integrated into next through PR#316; compiler, bootstrap and examples tested. | Accept chained conditional syntax with correct evaluation, type/effect rules, source locations and tested source/bytecode behaviour; update the specification and examples. |
 
 Release only after all three outcomes meet their acceptance gates, the
 `next`-to-`main` promotion passes required checks and receives explicit owner
@@ -76,6 +76,41 @@ the repository-wide readability/test programme are not additional gates for
 this three-outcome release. Their existing scope and dependencies remain intact;
 further scope requires an explicit owner decision.
 
+### Alpha 13 — HTTP and expanded explanations
+
+<a id="rm-144"></a>
+
+**RM#144: Planned alpha.13 — HTTP and expanded explanations.**
+
+Owner decision, 2026-10-06: plan a further alpha release after alpha.12 around
+HTTP and expanded explanations, using existing backlog scope. **Planned, not
+released; no date selected.** This records release intent, not feature delivery,
+implementation selection or completion of the first non-alpha milestone.
+
+| Planned outcome | Backlog scope and current state | Release acceptance |
+| --- | --- | --- |
+| Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
+| Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
+| Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
+| Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
+
+HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
+language/local-package checkpoint before HTTP, and client-before-server sequencing.
+Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
+scope does not complete reproducible dependencies or the whole GI#233 programme.
+
+GI#180's owner-requested pause remains in effect: scheduling this release does
+not restart explanation implementation. Concrete U3/U4 slice contracts need
+selection before work. U5 counterfactuals, U6 change prediction and U7 runtime
+value provenance remain outside this alpha.13 plan unless separately selected;
+all retain their full programme scope and acceptance criteria.
+
+Release only after agreed outcomes and supporting prerequisites are accepted,
+required promotion/package/install checks pass and the owner approves publication.
+Update version-specific documentation and website claims through a separate
+reviewed publication with an iPhone-accessible preview. Do not claim experimental
+work is shipped or describe this release as production-ready.
+
 ### Else-if chains
 
 <a id="rm-142"></a>
@@ -83,7 +118,7 @@ further scope requires an explicit owner decision.
 **RM#142: Else-if chains** ·
 [GI#312: Else-if chains](https://github.com/sproates/panackelty/issues/312).
 
-**Planned — included in the next release; implementation not started.** Accept
+**Implemented in next through PR#316; planned for alpha.12, not released.** Accept
 `if ... { ... } else if ... { ... }` chains with an optional final else block.
 Preserve existing nested syntax and conditional result/Void rules, type/effect
 checking, ordered short-circuit evaluation and useful malformed-input diagnostics.

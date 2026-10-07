@@ -88,6 +88,32 @@ for PR#331, which merged to
 `next` on 2026-10-08. Broader body, diagnostic/tooling, browser, installed and
 coordinated seed/source acceptance remain open for later P2 work.
 
+### Namespace guard-helper identity follow-up — 2026-10-08
+
+The identity emitter now rewrites guarded-type predicate calls and namespace
+calls through their resolved declaration identities, including nested expressions,
+conditionals, blocks and match arms. The module-binding probe passes 577
+assertions, including two modules with the same guarded-type and helper spellings;
+the stage-2 compiler driver passes all 12 checks against the rebuilt compiler.
+The canonical `make check` passed in 197s on its first run and in 123s on the
+final host-loopback run, against the unchanged 120s target; bootstrap took 19s
+and 18s respectively, and both included stage-2/stage-3 fixed-point and
+seed-refresh checks. The final run also passed the native TCP contracts. An
+intervening sandboxed retry failed because the native tests could not bind their
+loopback sockets; rerunning with host loopback access resolved that environmental
+failure. These successful timings vary by 74s, and neither is a paired
+base/head comparison. They do not attribute the budget misses to this change.
+No tests, budgets or coverage were reduced.
+
+Proposed disposition for merge approval: retain the 120s/15s targets and all
+coverage; accept this bounded identity-correctness follow-up while keeping the
+observed validation miss open under the existing GI#106/RM#123 ownership. Make no
+speedup or causal-regression claim. The validation maintainer's next action is a
+matched base/head full and focused comparison before performance acceptance;
+review the concern at the next compiler-heavy slice or when comparable evidence
+changes. This PR is an intermediate P2 slice-6 delivery; broader acceptance
+remains open.
+
 ## Namespace guard proofs — 2026-10-07
 
 Base: `next` after slice 3, macOS arm64. The slice adds checker-only,

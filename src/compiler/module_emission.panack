@@ -136,6 +136,173 @@ pure module_emission_slot_type(
   result
 }
 
+pure module_emission_guard_target(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  owner: ModuleIdentity,
+  name: Str
+): Str {
+  match resolve_module_path(graph, owner, name) {
+    Error(message) => name,
+    Ok(target) => match target {
+      NamespaceTarget(identity) => name,
+      DeclarationTarget(binding) => module_emission_symbol(graph, entry, binding.identity)
+    }
+  }
+}
+
+pure module_emission_guard_expressions(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  owner: ModuleIdentity,
+  expressions: [Expr]
+): [Expr] {
+  mut result: [Expr] = []
+  for expression in expressions {
+    result = append(result, module_emission_guard_expression(graph, entry, owner, expression))
+  }
+  result
+}
+
+pure module_emission_guard_block(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  owner: ModuleIdentity,
+  block: Block
+): Block {
+  mut statements: [Statement] = []
+  for statement in block.statements {
+    statements = append(statements, match statement {
+      BindingStatement(name, type_name, mutable, value) => BindingStatement(
+        name,
+        type_name,
+        mutable,
+        module_emission_guard_expression(graph, entry, owner, value)
+      ),
+      AssignmentStatement(name, value) => AssignmentStatement(
+        name,
+        module_emission_guard_expression(graph, entry, owner, value)
+      ),
+      ExpressionStatement(value) => ExpressionStatement(
+        module_emission_guard_expression(graph, entry, owner, value)
+      ),
+      WhileStatement(condition, body) => WhileStatement(
+        module_emission_guard_expression(graph, entry, owner, condition),
+        module_emission_guard_block(graph, entry, owner, body)
+      ),
+      ForStatement(name, values, body) => ForStatement(
+        name,
+        module_emission_guard_expression(graph, entry, owner, values),
+        module_emission_guard_block(graph, entry, owner, body)
+      )
+    })
+  }
+  Block(statements, match block.value {
+    NoBlockValue() => NoBlockValue(),
+    TailBlockValue(value) => TailBlockValue(
+      module_emission_guard_expression(graph, entry, owner, value)
+    )
+  })
+}
+
+pure module_emission_guard_arms(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  owner: ModuleIdentity,
+  arms: [MatchArm]
+): [MatchArm] {
+  mut result: [MatchArm] = []
+  for arm in arms {
+    result = append(result, MatchArm(
+      MatchPattern(module_emission_guard_target(graph, entry, owner, arm.pattern.variant), arm.pattern.bindings),
+      module_emission_guard_expression(graph, entry, owner, arm.body)
+    ))
+  }
+  result
+}
+
+pure module_emission_guard_expression(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  owner: ModuleIdentity,
+  expression: Expr
+): Expr {
+  match expression {
+    LocatedExpr(span, value) => LocatedExpr(
+      span,
+      module_emission_guard_expression(graph, entry, owner, value)
+    ),
+    NatExpr(value) => NatExpr(value),
+    DecimalExpr(value) => DecimalExpr(value),
+    StringExpr(value) => StringExpr(value),
+    BoolExpr(value) => BoolExpr(value),
+    NameExpr(name) => NameExpr(name),
+    FunctionExpr(name) => FunctionExpr(module_emission_guard_target(graph, entry, owner, name)),
+    ArrayExpr(items) => ArrayExpr(module_emission_guard_expressions(graph, entry, owner, items)),
+    UnaryExpr(operator, value) => UnaryExpr(
+      operator,
+      module_emission_guard_expression(graph, entry, owner, value)
+    ),
+    BinaryExpr(operator, left, right) => BinaryExpr(
+      operator,
+      module_emission_guard_expression(graph, entry, owner, left),
+      module_emission_guard_expression(graph, entry, owner, right)
+    ),
+    CallExpr(name, arguments, types) => CallExpr(
+      module_emission_guard_target(graph, entry, owner, name),
+      module_emission_guard_expressions(graph, entry, owner, arguments),
+      types
+    ),
+    DotCallExpr(target, name, arguments, types) => match resolve_module_dot_call(
+      graph,
+      owner,
+      target,
+      name,
+      arguments,
+      types
+    ) {
+      Error(message) => DotCallExpr(
+        module_emission_guard_expression(graph, entry, owner, target),
+        name,
+        module_emission_guard_expressions(graph, entry, owner, arguments),
+        types
+      ),
+      Ok(resolved) => match resolved {
+        NamespaceCall(binding, values, type_arguments) => CallExpr(
+          module_emission_symbol(graph, entry, binding.identity),
+          module_emission_guard_expressions(graph, entry, owner, values),
+          type_arguments
+        ),
+        ValueMethodCall(receiver, method, values, type_arguments) => DotCallExpr(
+          module_emission_guard_expression(graph, entry, owner, receiver),
+          method,
+          module_emission_guard_expressions(graph, entry, owner, values),
+          type_arguments
+        )
+      }
+    },
+    FieldExpr(target, field) => FieldExpr(
+      module_emission_guard_expression(graph, entry, owner, target),
+      field
+    ),
+    IndexExpr(target, index) => IndexExpr(
+      module_emission_guard_expression(graph, entry, owner, target),
+      module_emission_guard_expression(graph, entry, owner, index)
+    ),
+    IfExpr(condition, yes, no, has_else) => IfExpr(
+      module_emission_guard_expression(graph, entry, owner, condition),
+      module_emission_guard_block(graph, entry, owner, yes),
+      module_emission_guard_block(graph, entry, owner, no),
+      has_else
+    ),
+    BlockExpr(block) => BlockExpr(module_emission_guard_block(graph, entry, owner, block)),
+    MatchExpr(value, arms) => MatchExpr(
+      module_emission_guard_expression(graph, entry, owner, value),
+      module_emission_guard_arms(graph, entry, owner, arms)
+    )
+  }
+}
+
 pure module_emission_escape_string(text: Str): Str {
   mut result: Str = ""
   mut index: Nat = 0
@@ -507,7 +674,12 @@ pure module_emission_program(
                 base
               )
             },
-            guard
+            module_emission_guard_expression(
+              graph,
+              entry,
+              module.bindings.identity,
+              guard
+            )
           )),
           RecordDeclaration(name, parameters, fields) => {
             identity: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)

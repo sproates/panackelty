@@ -368,7 +368,7 @@ by PR#320; PR#321 delivered the core/indirect-call work on the selected `next`
 integration branch, followed by the completed contract matrix in PR#326.
 
 Slice 6 is in progress. Merged PR#331 provides the first bounded identity-emission
-and standalone-loading subset. This follow-up adds identity-based rewriting for
+and standalone-loading subset. Follow-up PR#333 adds identity-based rewriting for
 guarded-type predicate helpers, including colliding helper names across modules;
 it remains an intermediate delivery and does not complete or reweight slice 6.
 Broader body, diagnostic/tooling, coordinated source/seed, browser, installed and

@@ -248,7 +248,8 @@ Nat-to-Int compatibility rules. Public function bodies can use private helpers.
 
 A missing type is not successful validation. Deferred spans record operations
 awaiting later contracts or proof checking: general core/indirect calls, guarded
-operations, Nat subtraction, mixed Rat/integer joins and async call/await results.
+operations, Nat subtraction and mixed Rat/integer joins. Async direct and indirect
+calls retain their inferred result types for effect checking.
 Empty arrays, Option/Result constructors and map/set creation carry tagged,
 expression-owned inference holes, distinct from rigid declaration parameters.
 Generic function calls gather all argument evidence before checking substituted
@@ -263,14 +264,16 @@ is part of the later diagnostics slice.
 Checked bodies distinguish invalid, deferred and checked-identity-subset status.
 An invalid body cannot appear checked merely because its return type is known;
 child obligations propagate through conditions and operators. Even checked-subset
-status certifies only these identity types, not purity,
-await legality or executable code. Checked signatures and the bound body tree are
-the input boundary for subsequent consumer migration; no identity is encoded as a
-synthetic name or fed through a flattened legacy checker. The raw full-module
-projection survives only as a test adapter for lower-level binding contracts.
+status certifies only identity types. `module_effects.panack` checks purity,
+ordinary/async calls and await legality against these exact signatures and body
+identities, including indirect callable effects and explanation recovery for
+separately valid functions. Neither pass certifies executable code. No identity is
+encoded as a synthetic name or fed through a flattened legacy checker. The raw
+full-module projection survives only as a test adapter for lower-level binding
+contracts.
 
 This is not checked namespace execution. Remaining body inference/proofs,
-effect evidence, emission and source/explanation tooling integration,
+emission and source/explanation tooling integration,
 more precise type/pattern use spans and coordinated source migration remain P2 work. `parse_program_complete` and the loader fail closed on staged
 syntax, including qualified uses with default imports or no explicit `pub`.
 Only the gated legacy execution tree lowers value methods and combines names;

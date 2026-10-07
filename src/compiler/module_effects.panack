@@ -1,0 +1,382 @@
+import "module_bodies.panack"
+import "purity.panack"
+
+// Check local call/await boundaries after names and callable types have been
+// resolved to module identities. This pass does not infer transitive effects.
+record ModuleEffectContext {
+  body: BodyContext,
+  function_name: Str,
+  mode: Str
+}
+
+record CheckedModuleEffects {
+  diagnostics: [Diagnostic],
+  evidence: [EffectEvidence],
+  function_types: Map[Str, Bool]
+}
+
+pure module_effect_mode(effect: Option[SignatureEffect]): Str {
+  match effect {
+    None() => "ordinary",
+    Some(value) => match value {
+      SignaturePure() => "pure",
+      SignatureOrdinary() => "ordinary",
+      SignatureAsync() => "async"
+    }
+  }
+}
+
+pure module_async_builtin(name: Str): Bool {
+  name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve"
+}
+
+pure module_effect_for_target(
+  context: BodyContext,
+  target: BodyTarget
+): Option[SignatureEffect] {
+  match target {
+    BodyDeclaration(binding) => match body_signature(context.signatures, binding.identity) {
+      None() => if binding.kind == ModuleFunction() { None() } else { Some(SignaturePure()) },
+      Some(signature) => match signature.effect {
+        None() => if binding.kind == ModuleFunction() { None() } else { Some(SignaturePure()) },
+        Some(effect) => Some(effect)
+      }
+    },
+    BodyCore(name) => {
+      if name == "$method_call" {
+        None()
+      } else {
+        if module_async_builtin(name) {
+          Some(SignatureAsync())
+        } else {
+          if is_impure_builtin(name) {
+            Some(SignatureOrdinary())
+          } else {
+            core_name: Str = body_core_function_name(name)
+            if core_name == "" {
+              Some(SignaturePure())
+            } else {
+              match body_signature(context.signatures, body_core_owner(core_name)) {
+                None() => Some(SignaturePure()),
+                Some(signature) => signature.effect
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure module_effect_for_call(
+  context: BodyContext,
+  target: BodyTarget,
+  expression: BoundBody
+): Option[SignatureEffect] {
+  match target {
+    BodyCore(name) => if name == "$method_call" {
+      if len(expression.children) == 0 {
+        None()
+      } else {
+        match expression.children[0].type {
+          None() => None(),
+          Some(signature_type) => match signature_type.identity {
+            SignatureCallable(callable_effect) => Some(callable_effect),
+            SignatureCore(core_name) => None(),
+            SignatureNominal(identity) => None(),
+            SignatureParameter(owner, index) => None(),
+            SignatureHole(owner, path, index) => None()
+          }
+        }
+      }
+    } else {
+      module_effect_for_target(context, target)
+    },
+    BodyDeclaration(binding) => module_effect_for_target(context, target)
+  }
+}
+
+pure module_call_effect_known(context: BodyContext, target: BodyTarget, expression: BoundBody): Bool {
+  match target {
+    BodyCore(name) => if name == "$method_call" {
+      if len(expression.children) == 0 {
+        false
+      } else {
+        match expression.children[0].type {
+          None() => false,
+          Some(signature_type) => match signature_type.identity {
+            SignatureHole(owner, path, index) => false,
+            SignatureCore(core_name) => true,
+            SignatureNominal(identity) => true,
+            SignatureParameter(owner, index) => true,
+            SignatureCallable(effect) => true
+          }
+        }
+      }
+    } else { true },
+    BodyDeclaration(binding) => match module_effect_for_target(context, target) {
+      None() => false,
+      Some(effect) => true
+    }
+  }
+}
+
+pure module_effect_target_name(target: BodyTarget): Str {
+  match target {
+    BodyDeclaration(binding) => binding.identity.module.path + ":" + binding.identity.name,
+    BodyCore(name) => if name == "$method_call" {
+      "call"
+    } else {
+      if body_core_function_name(name) != "" {
+        body_core_function_name(name)
+      } else {
+        name
+      }
+    }
+  }
+}
+
+pure module_effect_name(effect: SignatureEffect): Str {
+  match effect {
+    SignaturePure() => "pure",
+    SignatureOrdinary() => "ordinary",
+    SignatureAsync() => "async"
+  }
+}
+
+pure module_effect_call(
+  context: ModuleEffectContext,
+  target: BodyTarget,
+  expression: BoundBody,
+  awaited: Bool,
+  retain: Bool
+): CheckedEffects {
+  mut diagnostics: [Diagnostic] = []
+  mut evidence: [EffectEvidence] = []
+  mut violations: [Str] = []
+  effect: Option[SignatureEffect] = module_effect_for_call(context.body, target, expression)
+  target_name: Str = module_effect_target_name(target)
+  display_name: Str = if target_name == "call" { "call" } else { target_name }
+
+  match effect {
+    None() => {
+      if awaited && module_call_effect_known(context.body, target, expression) {
+        reason: Str = "await requires an async call"
+        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+        violations = append(violations, reason)
+      }
+    },
+    Some(target_effect) => {
+      async_call: Bool = target_effect == SignatureAsync()
+      impure: Bool = target_effect != SignaturePure()
+      if awaited && !async_call {
+        reason: Str = "await requires an async call"
+        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+        violations = append(violations, reason)
+      }
+      if async_call && !awaited {
+        reason: Str = "async call requires await inside an async function"
+        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+        violations = append(violations, reason)
+      }
+      if context.mode == "pure" && impure {
+        reason: Str = "pure function cannot call impure function ${display_name}"
+        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+        violations = append(violations, reason)
+      }
+      if context.mode == "async" && impure && !async_call {
+        reason: Str = "async function cannot call blocking function ${display_name}"
+        diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+        violations = append(violations, reason)
+      }
+      if retain {
+        evidence = append(evidence, EffectEvidence(
+          context.function_name,
+          Some(expression.span),
+          "call",
+          context.mode,
+          target_name,
+          if target_name == "call" { "callable type" } else { "checked declaration identity" },
+          module_effect_name(target_effect),
+          awaited,
+          violations
+        ))
+      }
+    }
+  }
+  CheckedEffects(diagnostics, evidence)
+}
+
+pure module_effect_expression(
+  context: ModuleEffectContext,
+  expression: BoundBody,
+  awaited: Bool,
+  retain: Bool
+): CheckedEffects {
+  mut result: CheckedEffects = CheckedEffects([], [])
+  mut children_walked: Bool = false
+  match expression.node {
+    BodyUnary(operator) => {
+      if operator == "await" {
+        mut violations: [Str] = []
+        mut diagnostics: [Diagnostic] = []
+        if context.mode != "async" {
+          reason: Str = "await requires an async function"
+          diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+          violations = append(violations, reason)
+        }
+        mut invalid_await_operand: Bool = len(expression.children) == 0
+        if len(expression.children) > 0 {
+          match expression.children[0].node {
+            BodyCall(target, types) => {},
+            BodyLiteral(value) => { invalid_await_operand = true },
+            BodyInterpolation(parts) => { invalid_await_operand = true },
+            BodyLocalUse(identity) => { invalid_await_operand = true },
+            BodyFunction(binding) => { invalid_await_operand = true },
+            BodyArray() => { invalid_await_operand = true },
+            BodyUnary(nested) => { invalid_await_operand = true },
+            BodyBinary(nested) => { invalid_await_operand = true },
+            BodyField(field) => { invalid_await_operand = true },
+            BodyIndex() => { invalid_await_operand = true },
+            BodyIf(has_else) => { invalid_await_operand = true },
+            BodyBlock(has_value) => { invalid_await_operand = true },
+            BodyMatch(targets, locals) => { invalid_await_operand = true },
+            BodyBinding(identity, type, mutable) => { invalid_await_operand = true },
+            BodyAssignment(identity) => { invalid_await_operand = true },
+            BodyWhile() => { invalid_await_operand = true },
+            BodyFor(identity) => { invalid_await_operand = true },
+            BodyEmpty() => { invalid_await_operand = true }
+          }
+        }
+        if invalid_await_operand {
+          reason: Str = "await requires an async call"
+          diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
+          violations = append(violations, reason)
+        }
+        if retain {
+          result = CheckedEffects(diagnostics, [EffectEvidence(
+            context.function_name,
+            Some(expression.span),
+            "await",
+            context.mode,
+            "",
+            "checked call boundary",
+            "async",
+            true,
+            violations
+          )])
+        } else {
+          result = CheckedEffects(diagnostics, [])
+        }
+        if len(expression.children) > 0 {
+          result = combine_effects(result, module_effect_expression(context, expression.children[0], true, retain))
+        }
+        children_walked = true
+      } else {
+        if len(expression.children) > 0 {
+          result = module_effect_expression(context, expression.children[0], false, retain)
+        }
+        children_walked = true
+      }
+    },
+    BodyCall(target, types) => {
+      result = module_effect_call(context, target, expression, awaited, retain)
+      for child in expression.children {
+        result = combine_effects(result, module_effect_expression(context, child, false, retain))
+      }
+      children_walked = true
+    },
+    BodyBlock(has_value) => {
+      mut statement_count: Nat = len(expression.children)
+      if has_value {
+        if statement_count > 0 {
+          statement_count = statement_count - 1
+        }
+      }
+      mut index: Nat = 0
+      for child in expression.children {
+        if index < statement_count {
+          match child.node {
+            BodyUnary(operator) => if operator == "await" {
+              match child.type {
+                None() => {},
+                Some(type) => if type.identity != SignatureCore("Unit") {
+                  reason: Str = "bind, match or return a non-Unit await result"
+                  result = combine_effects(result, CheckedEffects(
+                    [Diagnostic(reason, child.span.start)],
+                    if retain { [EffectEvidence(
+                      context.function_name,
+                      Some(child.span),
+                      "await result",
+                      context.mode,
+                      "",
+                      "result type",
+                      body_type_text(type),
+                      true,
+                      [reason]
+                    )] } else { [] }
+                  ))
+                }
+              }
+            },
+            BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
+            BodyFunction(binding) => {}, BodyCall(target, types) => {}, BodyArray() => {},
+            BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
+            BodyBlock(value) => {}, BodyMatch(targets, locals) => {}, BodyBinding(identity, type, mutable) => {},
+            BodyAssignment(identity) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+          }
+        }
+        result = combine_effects(result, module_effect_expression(context, child, false, retain))
+        index = index + 1
+      }
+      children_walked = true
+    },
+    BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
+    BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
+    BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals) => {},
+    BodyBinding(identity, type, mutable) => {}, BodyAssignment(identity) => {},
+    BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+  }
+  if !children_walked {
+    for child in expression.children {
+      result = combine_effects(result, module_effect_expression(context, child, false, retain))
+    }
+  }
+  result
+}
+
+pure check_module_effects(
+  graph: ModuleBindingGraph,
+  modules: [LoadedModule],
+  signatures: [ModuleSignature],
+  functions: [BoundFunctionBody],
+  retain: Bool
+): CheckedModuleEffects {
+  mut diagnostics: [Diagnostic] = []
+  mut evidence: [EffectEvidence] = []
+  mut function_types: Map[Str, Bool] = map()
+  for function in functions {
+    valid_body: Bool = function.status != BodyInvalid()
+    function_types = function_types.put(function.signature.binding.identity.name,
+      valid_body && function.status == BodyIdentityChecked())
+    if valid_body {
+      body_context: BodyContext = BodyContext(
+        graph,
+        modules,
+        signatures,
+        function.signature.binding.identity,
+        function.signature.parameters,
+        map()
+      )
+      context: ModuleEffectContext = ModuleEffectContext(
+        body_context,
+        function.signature.binding.identity.name,
+        module_effect_mode(function.signature.effect)
+      )
+      checked: CheckedEffects = module_effect_expression(context, function.body, false, retain)
+      diagnostics = concat(diagnostics, checked.diagnostics)
+      evidence = concat(evidence, checked.evidence)
+    }
+  }
+  CheckedModuleEffects(diagnostics, evidence, function_types)
+}

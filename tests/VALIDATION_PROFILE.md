@@ -6,6 +6,32 @@
 
 # Validation profiling baseline
 
+## Namespace checked-graph effects and await — 2026-10-07
+
+Base: `next` after slice 4. The checker now resolves pure, ordinary and async
+call/await boundaries from checked declaration and callable identities. Coverage
+includes imported aliases, generic and indirect calls, async result typing,
+non-Unit await use, and recovered evidence from a valid sibling. The staged
+namespace execution gate remains; no bytecode, VM or runtime behavior changed.
+The module-binding suite passes 556 assertions.
+
+Canonical `make check` passed all suites in three host-level loopback runs:
+126s (unit 81s, functional 4s, bootstrap 18s, plus native/package setup), 191s
+(unit 146s, functional 3s, bootstrap 19s), and 121s on the final implementation
+tree (unit 76s, functional 3s, bootstrap 18s). The observed range is 121–191s,
+with every run exceeding the 120s target. `make check-compiler` passed in 51s/52s
+on repeat and 51s on the final implementation tree, against the 15s focused target.
+This spread is not a controlled before/after comparison and does not establish that
+this slice caused the increase. No required test, assertion or time budget was
+removed or weakened.
+
+Proposed disposition: keep the current targets and coverage; accept this bounded
+checker slice with the observed budget misses recorded and no claim of a speedup
+or causal regression. The validation maintainer, tracked under RM#106 / GI#106,
+will compare the exact base and head focused/full workloads on the same host and
+identify the phase cost before the next checker-heavy slice. Review that evidence
+before selecting performance remediation. No runtime performance claim is made.
+
 ## Namespace guard proofs — 2026-10-07
 
 Base: `next` after slice 3, macOS arm64. The slice adds checker-only,

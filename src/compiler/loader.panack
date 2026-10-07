@@ -1,5 +1,6 @@
 import "../bytecode/decoder.panack"
 import "module_bodies.panack"
+import "module_effects.panack"
 import "../stdlib/filesystem.panack"
 
 // Resolve and read the module closure once, preserving traversal order and original
@@ -457,6 +458,9 @@ load_project_mode_with_main(
   mut diagnostics: [Diagnostic] = loaded.diagnostics
   mut signatures: [ModuleSignature] = []
   mut bodies: [BoundFunctionBody] = []
+  mut effects: [EffectEvidence] = []
+  mut effects_checked: Bool = false
+  mut function_types: Map[Str, Bool] = map()
   mut staged: Bool = false
   for module in loaded.modules {
     staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
@@ -466,6 +470,7 @@ load_project_mode_with_main(
     graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
     diagnostics = concat(diagnostics, graph_errors)
     if len(graph_errors) == 0 {
+      mut signatures_valid: Bool = true
       // Complete contracts before bodies: source/import order and recursion
       // cannot select a different callable identity or miss a later contract.
       for module in loaded.modules {
@@ -475,6 +480,7 @@ load_project_mode_with_main(
           module
         )
         signatures = concat(signatures, checked_signatures.declarations)
+        signatures_valid = signatures_valid && len(checked_signatures.diagnostics) == 0
         if len(module_execution_diagnostics(module.parsed)) > 0 {
           diagnostics = concat(diagnostics, checked_signatures.diagnostics)
         }
@@ -489,6 +495,24 @@ load_project_mode_with_main(
           )
           diagnostics = concat(diagnostics, checked_bodies.diagnostics)
           bodies = concat(bodies, checked_bodies.functions)
+          if signatures_valid {
+            checked_effects: CheckedModuleEffects = check_module_effects(
+              graph,
+              loaded.modules,
+              signatures,
+              checked_bodies.functions,
+              retain
+            )
+            diagnostics = concat(diagnostics, checked_effects.diagnostics)
+            effects = concat(effects, checked_effects.evidence)
+            effects_checked = true
+            for function in checked_bodies.functions {
+              name: Str = function.signature.binding.identity.name
+              if checked_effects.function_types.has(name) {
+                function_types = function_types.put(name, checked_effects.function_types.get(name))
+              }
+            }
+          }
         }
       }
     }
@@ -500,9 +524,6 @@ load_project_mode_with_main(
     )
   } else {}
   mut evidence: [SubtractionEvidence] = []
-  mut effects: [EffectEvidence] = []
-  mut effects_checked: Bool = false
-  mut function_types: Map[Str, Bool] = map()
   if len(diagnostics) == 0 {
     checked: CheckedProgram = check_program_evidence_mode(program, retain, require_main)
     checked_effects: CheckedEffects = check_frontend_effects(program, checked, retain)

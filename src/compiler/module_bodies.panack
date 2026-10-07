@@ -1021,14 +1021,10 @@ pure body_call(
             diagnostics = append(diagnostics, Diagnostic(message, span.start))
           },
           Ok(type) => {
-            if contract.async_flag {
-              deferred = append(deferred, span)
+            if inference_deferred && !body_type_complete(type) {
+              output = None()
             } else {
-              if inference_deferred && !body_type_complete(type) {
-                output = None()
-              } else {
-                output = Some(type)
-              }
+              output = Some(type)
             }
           }
         }
@@ -1119,9 +1115,6 @@ pure body_check_special_core_call(
             index = index + 1
           }
           output = Some(callable.arguments[expected_count])
-          if effect == SignatureAsync() {
-            deferred = append(deferred, span)
-          }
         },
         SignatureHole(owner, path, index) => {
           deferred = append(deferred, span)
@@ -2071,7 +2064,7 @@ pure check_body_operation(
     node.children[1].type
   }
   if operator == "await" {
-    deferred = append(deferred, node.span)
+    output = left_type
   } else {
     match left_type {
       None() => {
@@ -2862,8 +2855,7 @@ record BodyContract {
   parameters: [Str],
   inputs: [SignatureType],
   output: SignatureType,
-  constructor: Bool,
-  async_flag: Bool
+  constructor: Bool
 }
 
 pure body_core_owner(name: Str): DeclarationIdentity {
@@ -2906,8 +2898,7 @@ pure body_signature_contract(signature: ModuleSignature, name: Str): BodyContrac
     signature.parameters,
     inputs,
     output,
-    false,
-    signature.effect == Some(SignatureAsync())
+    false
   )
 }
 
@@ -2956,7 +2947,7 @@ pure body_core_constructor(name: Str): Option[BodyContract] {
         } else {
           ["T", "E"]
         }
-      }, inputs, SignatureType(SignatureCore(parent), arguments), true, false))
+      }, inputs, SignatureType(SignatureCore(parent), arguments), true))
   }
 }
 
@@ -3041,8 +3032,7 @@ pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[Body
                 signature.parameters,
                 inputs,
                 output,
-                binding.kind != ModuleFunction(),
-                signature.effect == Some(SignatureAsync())
+                binding.kind != ModuleFunction()
               )))
             }
           }

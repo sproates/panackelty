@@ -108,9 +108,8 @@ control flow merged in PR#297 as `1ffd023`; aggregate, pattern and generic
 inference complete slice 2. [PR#321](https://github.com/sproates/panackelty/pull/321)
 and [PR#326](https://github.com/sproates/panackelty/pull/326) complete slice 3 on
 `next`, and [PR#327](https://github.com/sproates/panackelty/pull/327) completes
-slice 4. P2 is approximately 55% complete; effects/await,
-identity emission and loading, diagnostics, and coordinated source/seed migration
-remain. Compiler understanding
+slice 4. Slice 5 effects/await is in review in this delivery; identity emission
+and loading, diagnostics, and coordinated source/seed migration remain. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -122,7 +121,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. [Current delivery evidence and proposed disposition](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. The bounded startup/loader/full comparison now supplies the preceding delivery's phase evidence; it is not a full-corpus attribution. Proposed disposition: accept the bounded aggregate slice with possible roughly 4% compilation regression, seed growth and unresolved budgets disclosed, retaining unchanged targets and coverage. The validation maintainer owns a bounded loader/core reuse feasibility assessment as the next candidate for explicit selection, with immutable-source identity and diagnostic/failure isolation; review the selection and recheck this final-versus-base compilation cost before the next affected compiler delivery. No optimization starts through this handover. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. Slice 5 passes canonical `make check` in 121s, 126s and 191s (unit 76–146s, functional 3–4s, bootstrap 18–19s) and `make check-compiler` in 51–52s; both targets remain exceeded and there is no controlled before/after attribution. [Slice 5 evidence and disposition](tests/VALIDATION_PROFILE.md#namespace-checked-graph-effects-and-await--2026-10-07). [Prior delivery profile](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. The bounded startup/loader/full comparison supplies preceding delivery evidence; it is not a full-corpus attribution. Proposed disposition for slice 5: retain unchanged targets and coverage, record its observed 126s full / 51–52s focused checks without claiming cause, and compare exact base/head workloads before the next checker-heavy slice. The validation maintainer owns a bounded loader/core reuse feasibility assessment as the next candidate for explicit selection, with immutable-source identity and diagnostic/failure isolation; review the selection and recheck this final-versus-base compilation cost before the next affected compiler delivery. No optimization starts through this handover. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -225,7 +224,7 @@ unchanged.
 **RM#108: Modules programme** ·
 [GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233).
 
-**P2 implementation in progress; foundations and slices 1–4 are merged on `next`.**
+**P2 implementation in progress; foundations and slices 1–4 are merged on `next`, with slice 5 in review.**
 P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
 merged on 2026-10-03 as `80cd50f`. The user selected P2 on 2026-10-04;
 its first module/binding foundation merged in
@@ -275,7 +274,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — four foundations and slices 1–4 merged on `next`; slices 5–8 remain | P1 | Large; provisionally 5–9 remaining PRs after slice 4; reassess from remaining scope |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — foundations and slices 1–4 merged on `next`; slice 5 is in review and slices 6–8 remain | P1 | Large; provisionally 5–9 remaining PRs after slice 4; reassess from remaining scope |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -386,7 +385,7 @@ complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. On `next`, P2 slices 1–4
 are complete: PR#297 delivered slice 1; slice 2 is complete; PR#321 and PR#326
-complete slice 3; PR#327 completes slice 4. GI#198 remains open for slices 5–8.
+complete slice 3; PR#327 completes slice 4. Slice 5 is in review in this delivery; GI#198 remains open for slices 6–8.
 P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -2957,7 +2956,7 @@ invalidates only the written local's fact, while unavailable proofs and nested
 condition obligations remain deferred. Known failing conversions reject.
 Focused tests cover positive, rejected, deferred and mutation cases, including
 parenthesized conditions and loop obligations. This does not complete effects,
-emission or executable namespace acceptance; slices 5–8 and GI#198 remain open.
+emission or executable namespace acceptance; slice 5 is in review in this delivery, with slices 6–8 and GI#198 still open.
 
 The focused compiler unit suite passes 543 assertions in 0.40s with the native
 toolchain already built. Canonical `make check` passes all suites: one run took
@@ -2980,9 +2979,9 @@ behavior.
 | 7. Diagnostics, explain and locate | Preserve original module/source identity and precise expression/type/pattern spans across checking and lowering. Qualified selectors are unambiguous; unqualified selectors work only when unique. Wrong identity, ambiguous selectors and stale mappings fail safely. | 1–6; span preservation applies throughout | 1–2 |
 | 8. Coordinated seed/source cutover and acceptance | Audit initial stdlib exports; migrate compiler, tests, examples and package inputs under one namespace model. Produce the namespace-capable seed, prove fresh compiler/stdlib fixed points and native/browser/installed conformance, document breaking migration, and remove obsolete flat execution and transitional code when its removal criterion is met. | 1–7; bootstrap-root staging established before source cutover | 2–3 |
 
-After slice 4, **5–9 PRs remain provisionally**, including implementation, tests,
-documentation and integration; this is a forecast, not a commitment. Reassess at
-the next grooming checkpoint using actual checker gaps, evidence and integration costs.
+After slice 5 merges, **4–7 PRs remain provisionally**, including implementation,
+tests, documentation and integration; this is a forecast, not a commitment. Reassess
+using actual checker gaps, evidence and integration costs.
 Splitting or combining PRs must preserve these finish lines. Each handoff records
 the checklist slice, exact revision, positive/negative evidence, remaining gaps,
 performance disposition and next action. No slice is complete from assertion
@@ -3009,11 +3008,11 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 2: Aggregates/patterns/generic inference | 12% | PR#298: constructor/nested identity, inference and match evidence above | 100% | 12 pp |
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
-| Slice 5: Effects/await | 10% | Remaining whole checked-graph effect boundaries and async integration | 0% | 0 pp |
+| Slice 5: Effects/await | 10% | This PR adds identity-based pure/ordinary/async call and await checks, including imported, generic and indirect paths, and recovers valid sibling effect evidence; effective on merge | 100% on merge | 10 pp on merge |
 | Slice 6: Identity emission/standalone loading | 14% | Remaining unique symbols, standalone execution, root confinement and bootstrap loading | 0% | 0 pp |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
-| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp** | **55% current estimate** | **55 pp** |
+| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; this PR adds 10 pp on merge** | **55% current; 65% on merge** | **55 pp current; 65 pp on merge** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -3024,10 +3023,11 @@ later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
 At the current baseline, P2 contributes an estimated 20% × 55% = **11 pp**;
-with P1's formally accepted 10 pp, estimated programme progress is **21 pp**.
+this PR would add 2 pp on merge. With P1's formally accepted 10 pp, estimated
+programme progress is **21 pp current; 23 pp on merge**.
 Formal whole-task acceptance remains **10 pp** until P2's remaining execution and
-migration gates are accepted. Slices 1–4 are Done on `next`; GI#198 remains open
-for slices 5–8.
+migration gates are accepted. Slices 1–4 are Done on `next`; slice 5 is in review
+and takes effect on merge. GI#198 remains open for slices 6–8.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset
@@ -3057,7 +3057,7 @@ starts through this plan. Compiler understanding stays paused. This planning
 record changes no executable behavior or published capability; no runtime
 measurement or website promotion is needed for the record itself.
 
-Remaining P2 scope (slices 5–8): whole-graph effects and await; identity emission
+Remaining P2 scope (slice 5 in review, then slices 6–8): whole-graph effects and await; identity emission
 and standalone loading; precise type/pattern spans and diagnostics/explain/locate;
 audited stdlib exports, coordinated source/seed migration, and native/browser,
 installed and bootstrap conformance. Remove the staged

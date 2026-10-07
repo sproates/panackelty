@@ -144,7 +144,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -534,6 +534,63 @@ pure body_test_graph(modules: [LoadedModule], graph: ModuleBindingGraph, entry: 
   bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
   CheckedModuleBodies(bodies.functions, concat(diagnostics, bodies.diagnostics))
 }
+pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
+  match namespace_parse(source) {
+    Error(error) => CheckedModuleEffects([error], [], map()),
+    Ok(parsed) => {
+      identity: ModuleIdentity = namespace_identity("body.panack")
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+      graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
+      checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
+      checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [module], checked_signatures.declarations, module)
+      checked: CheckedModuleEffects = check_module_effects(graph, [module], checked_signatures.declarations, checked_bodies.functions, retain)
+      CheckedModuleEffects(concat(checked_signatures.diagnostics, concat(checked_bodies.diagnostics, checked.diagnostics)), checked.evidence, checked.function_types)
+    }
+  }
+}
+pure body_effect_error(source: Str): Str {
+  checked: CheckedModuleEffects = body_test_effects(source, false)
+  if len(checked.diagnostics) == 0 { "ok" } else { checked.diagnostics[0].message }
+}
+pure body_test_graph_effects(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule): CheckedModuleEffects {
+  mut signatures: [ModuleSignature] = []
+  mut diagnostics: [Diagnostic] = []
+  for module in modules {
+    checked: CheckedModuleSignatures = check_module_signatures(graph, modules, module)
+    signatures = concat(signatures, checked.declarations)
+    diagnostics = concat(diagnostics, checked.diagnostics)
+  }
+  bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
+  checked: CheckedModuleEffects = check_module_effects(graph, modules, signatures, bodies.functions, false)
+  CheckedModuleEffects(concat(diagnostics, concat(bodies.diagnostics, checked.diagnostics)), checked.evidence, checked.function_types)
+}
+pure namespace_effect_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str("identity effects allow pure direct call", body_effect_error("pub pure f(): Nat { later() }; pure later(): Nat { 1 }"), "ok"))
+  results = append(results, test_equal_str("identity effects reject ordinary call from pure", body_effect_error("pub pure f(): Nat { later() }; later(): Nat { 1 }"), "pure function cannot call impure function body.panack:later"))
+  results = append(results, test_equal_str("identity effects allow ordinary call from ordinary", body_effect_error("pub f(): Nat { later() }; later(): Nat { 1 }"), "ok"))
+  results = append(results, test_equal_str("identity effects reject blocking call from async", body_effect_error("pub async f(): Unit { print(1); () }"), "async function cannot call blocking function print"))
+  results = append(results, test_equal_str("identity effects require awaiting async direct calls", body_effect_error("pub async f(): Unit { later(); () }; async later(): Unit { () }"), "async call requires await inside an async function"))
+  results = append(results, test_equal_str("identity effects reject async call from pure", body_effect_error("pub pure f(): Nat { later() }; async later(): Nat { 1 }"), "async call requires await inside an async function"))
+  results = append(results, test_equal_str("identity effects accept awaited async direct calls", body_effect_error("pub async f(): Nat { await later() }; async later(): Nat { 1 }"), "ok"))
+  results = append(results, test_equal_str("identity effects require async context for await", body_effect_error("pub f(): Nat { await later() }; async later(): Nat { 1 }"), "await requires an async function"))
+  results = append(results, test_equal_str("identity effects reject awaiting ordinary calls", body_effect_error("pub async f(): Nat { await later() }; later(): Nat { 1 }"), "await requires an async call"))
+  results = append(results, test_equal_str("identity effects reject await of values", body_effect_error("pub async f(): Nat { await 1 }"), "await requires an async call"))
+  results = append(results, test_equal_str("identity effects reject discarded non-Unit await", body_effect_error("pub async f(): Unit { await later(); () }; async later(): Nat { 1 }"), "bind, match or return a non-Unit await result"))
+  results = append(results, test_equal_str("identity effects allow discarded Unit await", body_effect_error("pub async f(): Unit { await later(); () }; async later(): Unit { () }"), "ok"))
+  indirect: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Nat { await callback.call() }", false)
+  results = append(results, test_equal_str("identity effects accept awaited async indirect call", if len(indirect.diagnostics) == 0 { "ok" } else { indirect.diagnostics[0].message }, "ok"))
+  indirect_bare: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Unit { callback.call(); () }", false)
+  results = append(results, test_equal_str("identity effects reject bare async indirect call", if len(indirect_bare.diagnostics) == 0 { "ok" } else { indirect_bare.diagnostics[0].message }, "async call requires await inside an async function"))
+  imported: LoadedModule = signature_test_module(namespace_identity("effect_imported"), "pub async identity[T](value: T): T { value }; pub pure ordinary(): Nat { 1 }; pub ordinary_blocking(): Nat { 2 }")
+  app: LoadedModule = signature_test_module(namespace_identity("effect_app"), "import project/effect_imported as api; pub async f(): Nat { await api.identity[Nat](1) }; pub pure g(): Nat { api.ordinary() }; pub pure h(): Nat { api.ordinary_blocking() }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, imported.bindings], [ModuleImportEdge(app.bindings.identity, 0, imported.bindings.identity)])
+  imported_effects: CheckedModuleEffects = body_test_graph_effects([app, imported], graph, app)
+  results = append(results, test_expect("identity effects follow imported generic and aliased declarations", len(imported_effects.diagnostics) == 1 && imported_effects.diagnostics[0].message == "pure function cannot call impure function effect_imported:ordinary_blocking", if len(imported_effects.diagnostics) > 0 { imported_effects.diagnostics[0].message } else { "imported callable effect lost canonical identity" }))
+  recovered: CheckedModuleEffects = body_test_effects("pub pure bad(): Nat { ordinary() }; pub pure good(): Nat { later() }; ordinary(): Nat { 1 }; pure later(): Nat { 2 }", true)
+  results = append(results, test_expect("identity effect explanation retains valid sibling evidence", len(recovered.diagnostics) == 1 && len(recovered.evidence) == 2 && recovered.evidence[0].function_name == "bad" && len(recovered.evidence[0].violations) == 1 && recovered.evidence[1].function_name == "good", "valid sibling effect evidence was not recovered"))
+  results
+}
 pure namespace_body_tests(): [TestResult] {
   mut results: [TestResult] = []
   for source in [
@@ -565,7 +622,7 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("non-callable receiver rejects", body_test_error("pub pure apply(value: Nat): Nat { value.call(1) }"), "call expects a callable, got Nat"))
   results = append(results, test_equal_str("indirect result mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Str { callback.call(1) }"), "return of apply is Nat, expected Str"))
   async_indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: AsyncFn[Nat,Nat]): Nat { callback.call(1) }")
-  results = append(results, test_expect("async indirect call remains deferred", len(async_indirect.diagnostics) == 0 && len(async_indirect.functions) == 1 && len(async_indirect.functions[0].deferred) > 0, "async indirect call was certified as complete"))
+  results = append(results, test_expect("async indirect call retains identity and result types", len(async_indirect.diagnostics) == 0 && len(async_indirect.functions) == 1 && async_indirect.functions[0].status == BodyIdentityChecked() && len(async_indirect.functions[0].deferred) == 0 && async_indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "async indirect result was not inferred"))
   core_method_library: LoadedModule = signature_test_module(
     ModuleIdentity(ToolchainModulePackage(), "core.panack"),
     "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; " +
@@ -716,7 +773,6 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("explicit generic arity checked", body_test_error("pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value: T): T { value }"), "call identity has incorrect type argument count"))
   for source in [
 
-    "pub pure f(): Nat { next() }; async next(): Nat { 1 }",
     "pub pure f(): Nat { [1].first() }",
     "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }"
   ] {
@@ -925,8 +981,7 @@ pure namespace_expression_tests(): [TestResult] {
     "pub pure f(): Void { while (2 - 1) == 1 {} }",
     "pub pure f(): Void { for item in 0..(2 - 1) {} }",
     "pub pure f(a: Bool, rational: Rat): Rat { if a { rational } else { 1 } }",
-    "pub pure f(a: Bool, rational: Rat): Int { if a { 1 } else { rational } }",
-    "pub pure f(): Nat { await next() }; async next(): Nat { 1 }"
+    "pub pure f(a: Bool, rational: Rat): Int { if a { 1 } else { rational } }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = append(results, test_expect("pending identity obligation propagates/" + source, len(checked.diagnostics) == 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyDeferred() && len(checked.functions[0].deferred) > 0, "pending proof/inference/effect appeared checked"))

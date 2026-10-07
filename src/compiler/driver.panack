@@ -1,5 +1,6 @@
 import "explanations.panack"
 import "coverage_session.panack"
+import "module_emission.panack"
 
 // The command boundary owns host I/O and user-visible status. Pure compiler passes
 // receive prepared projects; failed checks must not publish bytecode.
@@ -26,13 +27,54 @@ pure diagnostic_messages(diagnostics: [Diagnostic], sources: Map[Str, Str]): Str
   output
 }
 
+pure namespace_gate_diagnostic(diagnostic: Diagnostic): Bool {
+  diagnostic.message == "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
+}
+
 prepare_project(path: Str): PreparedProject {
   loaded: LoadedProject = load_project(path)
-
-  if len(loaded.diagnostics) == 0 {
-    PreparedProject(true, loaded.program, "")
+  mut staged: Bool = false
+  mut diagnostics: [Diagnostic] = []
+  for module in loaded.modules {
+    staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
+  }
+  if staged {
+    for diagnostic in loaded.diagnostics {
+      if !namespace_gate_diagnostic(diagnostic) {
+        diagnostics = append(diagnostics, diagnostic)
+      } else {}
+    }
+    if len(diagnostics) > 0 {
+      PreparedProject(false, loaded.program, diagnostic_messages(diagnostics, loaded.sources))
+    } else {
+      entry: Str = path_resolve(path)
+      root: Str = path_parent(entry)
+      stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
+        path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+      } else {
+        ""
+      }
+      graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, root, stdlib_root)
+      identity: ModuleIdentity = source_module_identity(entry, root, stdlib_root)
+      emitted: ModuleEmissionResult = module_emission_program(
+        graph,
+        loaded.modules,
+        loaded.module_signatures,
+        loaded.module_bodies,
+        identity
+      )
+      if len(emitted.diagnostics) > 0 {
+        PreparedProject(false, loaded.program, diagnostic_messages(emitted.diagnostics, loaded.sources))
+      } else {
+        PreparedProject(true, emitted.program, "")
+      }
+    }
   } else {
-    PreparedProject(false, loaded.program, diagnostic_messages(loaded.diagnostics, loaded.sources))
+    if len(loaded.diagnostics) == 0 {
+      PreparedProject(true, loaded.program, "")
+    } else {
+      PreparedProject(false, loaded.program, diagnostic_messages(loaded.diagnostics, loaded.sources))
+    }
   }
 }
 
@@ -66,11 +108,11 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
   if !prepared.valid {
     report_driver_error(prepared.message)
   } else {
+    bytecode: BytecodeProgram = compile_program(prepared.program)
     if command == "check" {
       print("ok")
       0
     } else {
-      bytecode: BytecodeProgram = compile_program(prepared.program)
       if command == "compile" {
         destination: Str = if len(output) > 0 {
           output

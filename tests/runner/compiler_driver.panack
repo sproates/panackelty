@@ -32,10 +32,13 @@ main(): Void {
         None() => own_compiler_text
       }
       source = "tests/functional/cases/hello_world/main.panack"
+      namespace_source = "tests/fixtures/compiler_contracts/namespaces/emission/main.panack"
       self_hosted = child(workspace.root, "self-hosted.bc")
       bootstrap = child(workspace.root, "bootstrap.bc")
+      namespace_artifact = child(workspace.root, "namespace.bc")
       self_hosted_text = result_value_or(path_to_text(self_hosted), "invalid-self-hosted")
       bootstrap_text = result_value_or(path_to_text(bootstrap), "invalid-bootstrap")
+      namespace_artifact_text = result_value_or(path_to_text(namespace_artifact), "invalid-namespace-artifact")
       mut results: [TestResult] = []
       match environment("PANACK_TEST_COMPILER") {
         Some(cached) => {},
@@ -53,6 +56,23 @@ main(): Void {
       results = results.append(test_run_command("self-hosted run",
         compiler_command(compiler, ["run", source]),
         ProcessOutput(0, 0, utf8_encode("hello world\n"), bytes())))
+      match environment("PANACK_TEST_NAMESPACE_EMISSION") {
+        Some(enabled) => {
+          results = results.append(test_run_command("namespace identity check",
+            compiler_command(compiler, ["check", namespace_source]),
+            ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+          results = results.append(test_run_command("namespace identity source execution",
+            compiler_command(compiler, ["run", namespace_source]),
+            ProcessOutput(0, 0, utf8_encode("41\n42\n"), bytes())))
+          results = results.append(test_run_command("namespace identity compile",
+            compiler_command(compiler, ["compile", namespace_source, "-o", namespace_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("wrote ${namespace_artifact_text}\n"), bytes())))
+          results = results.append(test_run_command("namespace saved bytecode execution",
+            compiler_command(compiler, ["run", namespace_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("41\n42\n"), bytes())))
+        },
+        None() => {}
+      }
       results = results.append(test_run_command("self-hosted compile",
         compiler_command(compiler, ["--", "compile", source, "-o", self_hosted_text]),
         ProcessOutput(0, 0, utf8_encode("wrote ${self_hosted_text}\n"), bytes())))
@@ -91,6 +111,13 @@ main(): Void {
           Error(error) => { results = results.append(test_expect("artifact cleanup", false,
             "file removal failed")) }
         }
+      }
+      match environment("PANACK_TEST_NAMESPACE_EMISSION") {
+        Some(enabled) => match fs_remove_file(namespace_artifact) {
+          Ok(removed) => {},
+          Error(error) => { results = results.append(test_expect("namespace artifact cleanup", false, "file removal failed")) }
+        },
+        None() => {}
       }
       match environment("PANACK_TEST_COMPILER") {
         Some(cached) => {},

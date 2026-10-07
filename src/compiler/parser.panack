@@ -2138,10 +2138,9 @@ pure parse_module_complete(tokens: [Token]): Result[ParsedModule, Diagnostic] {
   parse_module_items(tokens, [], [], 0)
 }
 
-// Temporary bootstrap boundary: the checked/emitted AST still uses unqualified
-// names. Never execute pub/alias/selective syntax with those flat semantics.
-// Remove this gate only when every downstream consumer uses module identities
-// and the compiler/stdlib/source fixtures have migrated with a fresh seed proof.
+// Guard the legacy single-program parser from staged syntax because its AST
+// keeps source spellings. The project loader/driver may proceed only after its
+// identity graph, checked bodies, effects and identity emitter all succeed.
 pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   mut aliases: Set[Str] = set()
 

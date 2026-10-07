@@ -760,22 +760,23 @@ active toolchain. These namespaces are reserved, so a project file cannot
 shadow a standard-library module and resolution does not use a search-path
 precedence rule.
 
-Empty segments, `.` or `..`, non-identifier segments, other suffixes, and
-absolute file imports are rejected. Resolved paths are canonical module
-identities: importing the same file through extensionless and suffixed logical
-spellings still loads it once. All imports are checked for cycles and duplicate
-declarations. The current module system combines declarations into one program
-namespace; visibility, selective imports, third-party packages, and configurable
-project roots are still pending. The frontend retains per-module declaration and
-import metadata as an implementation foundation, but `pub`, `import ... as ...`
-and `import ...::{...}` fail with an explicit namespace-migration diagnostic.
-They cannot execute with today's combined-name semantics. The raw frontend also
-parses qualified types, named function references and variant patterns, and retains
-dot calls until binding; qualified uses through a default namespace alias fail
-closed too. Staged declaration signatures check tagged type/callable identity
-and public reachability, including private type and guard-helper leaks. These
-diagnostics do not enable executable
-namespace calls/types, public visibility or re-exports.
+Empty logical segments, non-identifier logical segments, other suffixes,
+absolute imports and paths outside the entry root are rejected. Quoted imports
+that traverse a symlink are also rejected. Resolved files load once and retain
+their source identity; cycles and duplicate declarations are checked. In the
+staged namespace path, function, type and variant identities remain distinct
+across modules, and aliases, re-exports and public visibility are checked before
+emission. Checked programs receive deterministic private names; only the entry
+module's `main` launches. The bytecode format remains v9.
+
+Namespace execution is enabled for the checked body subset only. Bodies with
+deferred type or proof obligations fail closed. Source-map and explain/locate
+replay, broader source migration, and final namespace-capable seed acceptance
+remain pending. `parse_program_complete` remains a legacy single-program adapter
+and rejects staged syntax instead of applying the flattened name model. The raw
+frontend also retains qualified types, function references, variant patterns
+and dot calls; declaration signatures check tagged type/callable identity and
+public reachability, including private type and guard-helper leaks.
 Staged function bodies additionally retain declaration/local identities and check
 ordinary expressions/control flow, lexical interpolation, records/enums, arrays,
 field access, exhaustive variant patterns and direct generic calls. Constructor and
@@ -783,10 +784,10 @@ empty-collection evidence is contextual; user-function inference uses only value
 arguments and preserves rigid caller parameters. Nominal identities remain distinct
 inside nested types and patterns. Shared unresolved evidence cannot acquire
 conflicting types at different uses, and inferred locals require complete types
-before later statements. General core/indirect calls, guarded arithmetic proofs,
-mixed Rat/integer joins, effects and emission remain pending. Discarded incomplete
-values retain explicit deferred status. Invalid, deferred and checked-subset bodies
-remain distinct; these checks do not enable a new execution mode.
+before later statements. General core/indirect calls, guarded arithmetic proofs
+and mixed Rat/integer joins remain partially deferred. Identity emission consumes
+only fully checked bodies; unsupported or deferred constructs cannot be emitted.
+Invalid, deferred and checked-subset bodies remain distinct.
 See [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
 
 ## Compilation and the Panackelty VM

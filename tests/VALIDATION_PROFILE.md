@@ -29,9 +29,63 @@ removed or weakened.
 Proposed disposition: keep the current targets and coverage; accept this bounded
 checker slice with the observed budget misses recorded and no claim of a speedup
 or causal regression. The validation maintainer, tracked under RM#106 / GI#106,
-will compare the exact base and head focused/full workloads on the same host and
-identify the phase cost before the next checker-heavy slice. Review that evidence
-before selecting performance remediation. No runtime performance claim is made.
+compared the exact base and head focused/full workloads on the same host before
+slice 6. The paired evidence and bounded reuse assessment follow. The timing targets
+remain open; no runtime performance claim is made.
+
+### Exact base/head validation comparison and bounded reuse assessment — 2026-10-08
+
+Compared base `ca2fa3b` (immediately before slice 5) with implementation head
+`8fa9f0d` (slice 5), in clean detached checkouts on the same macOS arm64 host.
+Each revision had one clean canonical run (`make clean`, then `make -j1 check`)
+with native loopback access, followed by one warm focused run (`make -j1
+check-compiler`). Base ran before head; no competing build ran. OS cache state and
+other host activity were uncontrolled. All four checks passed.
+
+| Workload | Base | Slice 5 head | Target |
+| --- | ---: | ---: | ---: |
+| Clean canonical `make check` | 193s | 193s | 120s |
+| Warm focused `make check-compiler` | 51s | 52s | 15s |
+
+The full check is equal at the timer's one-second resolution; the focused result
+differs by one second. A single pair cannot distinguish a small code effect from
+run-to-run noise, and these results do not establish causation or cost neutrality.
+The base itself also exceeds both budgets, and no difference is resolved by this
+pair. Retain the established budgets and all coverage.
+
+The bounded loader/core reuse assessment found that `tests/run_probe.sh` already
+reuses only verified compiled probe artifacts, keyed by the VM, seed, source and
+source-tree digests; it reruns each probe and never caches test results. Public
+runner commands use separate process invocations, so in-memory loader reuse cannot
+cross calls. The earlier six-command phase sample puts loader-minus-startup at
+about 18ms per command, with uncontrolled host/cache noise. A shared cache or
+long-lived compiler service would add invalidation and diagnostic/failure-isolation
+state for a small and unproven share of the full-check cost. No reuse optimization
+is selected. Preserve the existing cache and failure contracts, and repeat a
+matched comparison if a later change materially affects loading or checking.
+
+The measurement itself required two clean full checks (193s each) and two focused
+checks (51–52s). The existing baseline tooling already records these workloads;
+wrapping the same executions in another script would reduce manual polling but
+not the elapsed validation time, so no new measurement script is warranted.
+
+### Namespace identity emission and loading — 2026-10-08
+
+The staged source-built compiler now emits the bounded, checked namespace subset
+using module identities, preserves the selected entry `main`, and confines module
+loading to the entry and standard-library roots while rejecting symlink traversal.
+The canonical full `make check` passed all gates in 123s against the unchanged
+120s target. This run provides no distinct unit-phase timing, and a single run
+does not establish that this slice caused the three-second overrun. The focused
+module-binding probe passed 575 assertions, loader-confinement probe passed 3,
+and the stage-2 compiler-driver probe passed 12; `make docs` also passed. The
+bootstrap fixed point and seed-refresh path passed within the full check. Proposed
+delivery disposition for owner acceptance: retain the full/focused budgets and
+coverage, accept this bounded correctness delivery with the observed full-check
+miss recorded under the existing GI#106/RM#123 ownership, and make no speedup or
+causal-regression claim. This disposition still needs acceptance with merge
+approval. Broader body, diagnostic/tooling, browser, installed and coordinated
+seed/source acceptance remain open for later P2 work.
 
 ## Namespace guard proofs — 2026-10-07
 

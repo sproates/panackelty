@@ -1050,7 +1050,17 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "$method_reduce" || name == "$method_put" || name == "$method_get" ||
       name == "$method_has" || name == "$method_add" || name == "map_put" ||
       name == "map_get" || name == "map_has" || name == "has" || name == "set_add" ||
-      name == "set_has" || name == "append" || name == "concat"
+      name == "set_has" || name == "append" || name == "concat" || name == "print" ||
+      name == "eprint"
+  }
+}
+
+pure body_nat_text(value: Nat): Str {
+  digits: Str = "0123456789"
+  if value < 10 {
+    digits[value]
+  } else {
+    body_nat_text(quotient(value, 10)) + digits[value % 10]
   }
 }
 
@@ -1137,6 +1147,22 @@ pure body_check_special_core_call(
       }
     }
     } else {
+      if name == "print" || name == "eprint" {
+        if len(children) != 1 {
+          diagnostics = append(diagnostics, Diagnostic(name + " expects 1 arguments, got " + body_nat_text(len(children)), span.start))
+        } else {
+          match children[0].type {
+            None() => { deferred = append(deferred, span) },
+            Some(type) => {
+              if type == SignatureType(SignatureCore("Void"), []) {
+                diagnostics = append(diagnostics, Diagnostic("Void is not a value and cannot be printed", span.start))
+              } else {
+                output = body_core_type("Void")
+              }
+            }
+          }
+        }
+      } else {
       if name == "len" {
         if len(children) != 1 {
           diagnostics = append(diagnostics, Diagnostic("len expects 1 arguments, got ${len(children)}", span.start))
@@ -1166,6 +1192,7 @@ pure body_check_special_core_call(
         diagnostics = checked.diagnostics
         deferred = checked.deferred
         output = checked.body.type
+      }
       }
     }
   }

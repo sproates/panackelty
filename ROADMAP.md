@@ -1519,34 +1519,34 @@ checkpoints and crash recovery are not delivered by the completed in-memory VM
 suspension work. It is distinct from value provenance and remains unscheduled.
 #162, the Panackelty-written preview server, remains separate from completed #160.
 
-## Next integration workflow — planned, gated and unstarted
+## Next integration workflow — active; promotion acceptance remains
 
 <a id="rm-135"></a>
 
 **RM#135: Next integration workflow** · [GI#287: Next integration workflow](https://github.com/sproates/panackelty/issues/287).
 
-**Planned; gated and unstarted — user decision, 2026-10-04.** Introduce a core
-`next` integration branch only after both the next release is complete and
-[RM#14: Independent website publishing](#rm-14) /
-[GI#178: Independent website publishing](https://github.com/sproates/panackelty/issues/178)
-has completed its repository separation and acceptance. Website separation is
-accepted on 2026-10-05; the next-release prerequisite remains outstanding.
-The integration workflow is still unstarted and is not activated by this record.
+**In progress — active core integration since 2026-10-05.** The user's decision
+on 2026-10-05 supersedes the earlier 2026-10-04 release-before-activation gate:
+`next` is the core integration branch, and core feature PRs branch from and target
+`next`. Independent website publishing was accepted on 2026-10-05; [GI#178:
+Independent website publishing](https://github.com/sproates/panackelty/issues/178)
+is closed, so website separation is complete and is no longer an activation
+prerequisite.
 
-Once activated, scoped core feature PRs target `next` and may auto-merge after
-the applicable independent review and required checks, without separate user
-approval for each merge to `next`. Every promotion to `main` still requires
-explicit user approval. Until activation is accepted, existing branch and merge
-approval rules remain in force; this record creates no branch, changes no
-protection and enables no auto-merge.
+Preserve PR-only integration, required checks, branch currency and the prohibition
+on force-pushes and branch deletion. Do not enable auto-merge. Agreed-scope core
+PRs may merge to `next` once applicable review and required checks pass. Every
+promotion to `main` still requires explicit user approval; production releases
+remain tied to approved `main` ancestry. The current `next` protections and checks
+were verified on 2026-10-07; PR#321 and PR#323 demonstrate the active integration
+path.
 
-Acceptance must cover CI for pushes to `next`, validation against the actual PR
-target, release ancestry on `main`, and an agreed strategy for promoting and
-realigning branches. Verify that website, browser and coverage publication remain
-independent of core integration and retain their own accepted release/publication
-boundaries. Reconcile contributor and automation guidance before activation.
-Implementation effort and detailed branch mechanics need assessment; this
-sequencing decision changes no other programme scope, weights or priorities.
+Remaining acceptance is to document and verify promotion history, release
+ancestry, branch realignment after releases, hotfix synchronization and rollback.
+Keep website, browser and coverage publication independent of core integration
+and preserve their own release boundaries. RM#135 remains In progress until those
+promotion and synchronization checks are accepted; its scope changes no other
+programme weights or priorities.
 
 ## Independent website publishing
 
@@ -1585,11 +1585,10 @@ workflow requires the domain to be deliberately returned to core; it cannot
 reclaim production itself. The website owns [deferred CI work](https://github.com/sproates/panackelty-website/issues/3);
 its broader trials remain deferred.
 
-Sequencing decision, 2026-10-04: complete and accept this repository separation
-before activating [RM#135: Next integration workflow](#rm-135). That workflow
-also waits for the next release; this records no ordering between those two
-prerequisites. Website separation is complete; the `next` workflow remains unstarted and
-its release prerequisite remains outstanding.
+Website separation completed and was accepted on 2026-10-05. The user's
+2026-10-05 decision superseded the earlier release-before-activation prerequisite
+and activated [RM#135: Next integration workflow](#rm-135); remaining promotion
+and synchronization acceptance is tracked there.
 
 The [website repository](https://github.com/sproates/panackelty-website) owns pages, assets, release-note snapshots,
 previews and publishing. Compiler, VM, specification and runtime bundle contracts

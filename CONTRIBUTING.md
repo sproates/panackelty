@@ -25,7 +25,8 @@ Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
 
 ### Branches, commits and pull requests
 
-- Branch from current `main` using `<kind>/<short-kebab-case-description>`.
+- For core feature work, branch from current `next` and target the PR to `next`,
+  using `<kind>/<short-kebab-case-description>`.
   Use `feat/`, `fix/`, `docs/`, `refactor/`, `test/`, `ci/` or `chore/`
   for the principal purpose; use `chore/` for maintenance that does not fit
   another kind. For example: `feat/compiler-name-suggestions` or
@@ -48,8 +49,10 @@ Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
 - Obtain independent review of substantive delivery revisions before merge approval;
   record the reviewed commit or tree, findings and resolution under the
   [review rules](docs/ROADMAP_PROCESS.md#independent-review).
-- Never push directly to `main`. Obtain explicit user permission for each PR
-  merge; scope approval and green checks alone are not merge permission.
+- Never push directly to `main` or `next`; integrate through PRs and required
+  checks. Maintainers merge agreed-scope core work into `next` under the active
+  integration workflow. Do not enable auto-merge. Promotions to `main` require
+  a separate PR and explicit user approval.
 
 ### Panackelty source
 

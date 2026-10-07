@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#144.**
+The initial allocation contains **105 identities**. **Next available: RM#149.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -4070,6 +4070,63 @@ needs guide the work.
 This direction does not set a release date, promise a particular platform or
 compiler strategy, or relax Panackelty's guarantees. Specific proposals still
 need their own semantics, evidence, and maintenance assessment.
+
+### Further language research — unscheduled
+
+The following are research and discussion topics only. They are not selected
+implementation work, are not included in alpha 12, alpha 13, or the first
+non-alpha release plan, and have no target release or date. Each needs a
+separate user decision before scope or delivery is selected.
+
+<a id="rm-145"></a>
+
+**RM#145: Foreign-function interface (FFI).**
+
+**Idea; research and discussion only.** Assess whether Panackelty should call
+foreign code, and what a safe, maintainable boundary would require. Compare
+possible ABI and platform scope, mapping of Panackelty types and effects,
+ownership and lifetime rules, error handling, and containment of unsafe
+behavior. Identify which use cases cannot be served by the current host boundary.
+This does not select a foreign language, ABI, syntax, or implementation.
+
+<a id="rm-146"></a>
+
+**RM#146: Tracked concurrency.**
+
+**Idea; research and discussion only.** Explore how pure computations and an
+explicit model for effects and shared resources could prevent data races while
+allowing useful multi-core scaling. Define what the compiler and runtime would
+need to track across task creation, communication, cancellation, and resource
+ownership. Test the idea against representative parallel workloads and compare
+its guarantees, determinism, usability, and overhead with simpler alternatives.
+Purity alone is not assumed to solve synchronization or scheduling.
+
+<a id="rm-147"></a>
+
+**RM#147: Compile-time macros.**
+
+**Idea; research and discussion only.** Assess whether compile-time macros
+would solve demonstrated repetition or abstraction problems. Compare expansion
+models and their effects on type checking, hygiene, diagnostics, build
+reproducibility, caching, and compiler trust boundaries. Define useful examples
+and costs before considering syntax or implementation; no macro system is
+selected.
+
+<a id="rm-148"></a>
+
+**RM#148: Resource lifecycle types.**
+
+**Idea; research and discussion only.** Compare linear types and typestate as
+alternative ways for the compiler to track the lifecycle of external resources
+such as files, sockets, or processes. Evaluate ownership, valid state
+transitions, error and cancellation paths, API complexity, and whether the
+guarantees prevent practical resource misuse without making ordinary programs
+harder to write. No type system or syntax is selected.
+
+JIT feasibility is already recorded as an unscheduled research question under
+[RM#56: Performance baselines](#rm-56); retain that record rather than creating
+a duplicate item. Research there does not select a JIT, native backend, or
+release scope.
 
 ### Error propagation shorthand
 

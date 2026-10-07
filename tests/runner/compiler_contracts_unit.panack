@@ -90,7 +90,7 @@ pure readable_compiler_contracts(): [TestResult] {
   parsed: ParsedModule = ParsedModule(program, [])
   bindings: ModuleBindings = ModuleBindings(module_identity, [], [])
   module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings)
-  context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [])
+  context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [], map())
   natural: SignatureType = SignatureType(SignatureCore("Nat"), [])
   integer: SignatureType = SignatureType(SignatureCore("Int"), [])
   text: SignatureType = SignatureType(SignatureCore("Str"), [])

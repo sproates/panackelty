@@ -6,6 +6,30 @@
 
 # Validation profiling baseline
 
+## Namespace guard proofs — 2026-10-07
+
+Base: `next` after slice 3, macOS arm64. The slice adds checker-only,
+identity-keyed bounds facts for branch conditions, guarded conversions,
+`Nat` subtraction and local mutation invalidation. It does not change the VM,
+runtime semantics or bytecode format; previously accepted programs retain their
+existing emitted behavior. Canonical `make check` passed all suites, including
+543 compiler module-binding assertions and native loopback contracts. One run
+took 125s and the final run took 118s against the 120s full-check target. The
+final run reported 75s for the aggregate unit phase; that is not the distinct
+15s focused incremental check. The targeted module-binding probe passed all 543
+assertions in 0.40s with the native toolchain already built. No comparable
+before/after sample was taken, so these figures do not establish a checker
+regression.
+
+Proposed merge disposition: retain the existing 120s full / 15s focused targets
+and leave checker-performance attribution open; both the final full check and
+focused incremental target must pass in their applicable environments. Responsible role:
+validation maintainer, tracked under RM#106 / GI#106. Next action: before the next
+checker-heavy slice, compare base and head focused compiler-unit and canonical
+validation timings on the same host. Review trigger: before merging that slice,
+or sooner if CI repeats the breach. No runtime performance claim is made. The
+PR handover presents this proposed trade-off for owner acceptance.
+
 ## Source-coverage feasibility — 2026-10-05
 
 Base: `7599b30` on `next`, Linux x86-64, `cc -O2`, Node 24.19.0. The test-only

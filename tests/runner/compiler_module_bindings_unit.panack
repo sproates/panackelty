@@ -557,6 +557,82 @@ pure namespace_body_tests(): [TestResult] {
   }
   results = append(results, test_equal_str("annotated local mismatch", body_test_error("pub pure f(): Nat { value: Nat = \"bad\"; value }"), "binding value is Str, expected Nat"))
   results = append(results, test_equal_str("direct argument mismatch", body_test_error("pub pure f(): Nat { next(\"bad\") }; pure next(value: Nat): Nat { value }"), "argument 1 to next is Str, expected Nat"))
+  indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat { callback.call(value) }")
+  results = append(results, test_expect("indirect call shares callable parameter and result contract", len(indirect.diagnostics) == 0 && len(indirect.functions) == 1 && indirect.functions[0].status == BodyIdentityChecked() && indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "callable signature was not checked"))
+  results = append(results, test_equal_str("indirect argument mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(\"bad\") }"), "argument 1 to call is Str, expected Nat"))
+  results = append(results, test_equal_str("indirect arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call() }"), "call expects 1 arguments, got 0"))
+  results = append(results, test_equal_str("non-callable receiver rejects", body_test_error("pub pure apply(value: Nat): Nat { value.call(1) }"), "call expects a callable, got Nat"))
+  results = append(results, test_equal_str("indirect result mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Str { callback.call(1) }"), "return of apply is Nat, expected Str"))
+  core_method_library: LoadedModule = signature_test_module(
+    ModuleIdentity(ToolchainModulePackage(), "core.panack"),
+    "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; " +
+      "pure core_first[T](values: [T]): Option[T] { None() }; " +
+      "pure core_ends_with(value: Str, suffix: Str): Bool { true }; " +
+      "pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] { values }"
+  )
+  core_app: LoadedModule = signature_test_module(
+    namespace_identity("core_methods"),
+    "pub pure core_first(value: Str): Option[Str] { None() }; " +
+      "pub pure first_value(): Option[Nat] { [1].first() }; " +
+      "pub pure suffix(): Bool { \"panackelty\".ends_with(\"ty\") }; " +
+      "pub pure ordered(): [Nat] { [2,1].sort_by(@less) }; " +
+      "pub pure length(): Nat { len([1,2]) }; " +
+      "pub pure map_operations(): Bool { values: Map[Str,Nat] = map(); values.put(\"key\",1); values.has(\"key\") }; " +
+      "pub pure map_value(): Nat { values: Map[Str,Nat] = map(); values.put(\"key\",1); values.get(\"key\") }; " +
+      "pub pure set_operations(): Bool { values: Set[Nat] = set(); values.add(1); values.has(1) }; " +
+      "pub pure append_value(): [Nat] { [1].append(2) }; " +
+      "pub pure concat_value(): [Nat] { [1].concat([2]) }; " +
+      "pub pure mapped(): [Nat] { [1,2].map(@twice) }; " +
+      "pub pure reduced(): Nat { [1,2].reduce(0,@sum) }; " +
+      "pure twice(value: Nat): Nat { value + value }; " +
+      "pure sum(left: Nat, right: Nat): Nat { left + right }; " +
+      "pure less(left: Nat, right: Nat): Bool { left < right }"
+  )
+  core_method_graph: ModuleBindingGraph = ModuleBindingGraph([core_app.bindings, core_method_library.bindings], [ModuleImportEdge(core_app.bindings.identity, 0, core_method_library.bindings.identity)])
+  core_methods: CheckedModuleBodies = body_test_graph([core_app, core_method_library], core_method_graph, core_app)
+  results = append(results, test_expect("core methods use reserved original signatures", len(core_methods.diagnostics) == 0 && len(core_methods.functions) == 15 && core_methods.functions[0].status == BodyIdentityChecked() && core_methods.functions[1].body.children[0].type == Some(SignatureType(SignatureCore("Option"), [SignatureType(SignatureCore("Nat"), [])])) && core_methods.functions[2].body.children[0].type == Some(SignatureType(SignatureCore("Bool"), [])) && core_methods.functions[1].status == BodyIdentityChecked() && core_methods.functions[2].status == BodyIdentityChecked() && core_methods.functions[3].status == BodyIdentityChecked() && core_methods.functions[4].status == BodyIdentityChecked() && core_methods.functions[5].status == BodyIdentityChecked() && core_methods.functions[6].status == BodyIdentityChecked() && core_methods.functions[7].status == BodyIdentityChecked() && core_methods.functions[8].status == BodyIdentityChecked() && core_methods.functions[9].status == BodyIdentityChecked() && core_methods.functions[10].status == BodyIdentityChecked() && core_methods.functions[11].status == BodyIdentityChecked(), if len(core_methods.diagnostics) > 0 { core_methods.diagnostics[0].message } else { "core method identity/type evidence missing" }))
+  aliases: CheckedModuleBodies = body_test_module(
+    "pub pure append_alias(): [Nat] { append([1], 2) }; " +
+      "pub pure concat_alias(): [Nat] { concat([1], [2]) }; " +
+      "pub pure map_put_alias(): Map[Str,Nat] { map_put(map(), \"key\", 1) }; " +
+      "pub pure map_get_alias(): Nat { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); map_get(values, \"key\") }; " +
+      "pub pure map_has_alias(): Bool { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); map_has(values, \"key\") }; " +
+      "pub pure set_add_alias(): Set[Nat] { set_add(set(), 1) }; " +
+      "pub pure set_has_alias(): Bool { values: Set[Nat] = set(); set_add(values, 1); set_has(values, 1) }"
+  )
+  mut aliases_checked: Bool = len(aliases.diagnostics) == 0
+  for function in aliases.functions {
+    aliases_checked = aliases_checked && function.status == BodyIdentityChecked()
+  }
+  results = append(results, test_expect("direct core aliases share checked contracts", aliases_checked, if len(aliases.diagnostics) > 0 { aliases.diagnostics[0].message } else { "a direct core alias remained unchecked" }))
+  for source in [
+    "pub pure f(): Nat { len(1) }",
+    "pub pure f(): [Nat] { [1].append(\"bad\") }",
+    "pub pure f(): [Nat] { [1].concat([\"bad\"]) }",
+    "pub pure f(): [Nat] { append([1], \"bad\") }",
+    "pub pure f(): [Nat] { concat([1], [\"bad\"]) }",
+    "pub pure f(): Option[Nat] { [1].first(\"bad\") }",
+    "pub pure f(): Bool { \"text\".ends_with(1) }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values.put(\"bad\", 1); values }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values.put(1, \"bad\"); values }",
+    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); values.has(\"bad\") }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); map_put(values, \"bad\", 1) }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); map_put(values, 1, \"bad\") }",
+    "pub pure f(): Nat { values: Map[Nat,Nat] = map(); map_get(values, \"bad\") }",
+    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); map_has(values, \"bad\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add(\"bad\"); values }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values.has(\"bad\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); set_add(values, \"bad\") }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); set_has(values, \"bad\") }"
+  ] {
+    invalid_app: LoadedModule = signature_test_module(namespace_identity("invalid_core_argument"), source)
+    invalid_graph: ModuleBindingGraph = ModuleBindingGraph([invalid_app.bindings, core_method_library.bindings], [ModuleImportEdge(invalid_app.bindings.identity, 0, core_method_library.bindings.identity)])
+    checked: CheckedModuleBodies = body_test_graph([invalid_app, core_method_library], invalid_graph, invalid_app)
+    results = append(results, test_expect("core argument mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "invalid core argument was accepted" }))
+  }
+  results = append(results, test_equal_str("core method arity checked", body_test_graph([signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1].first(\"extra\") }") , core_method_library], ModuleBindingGraph([namespace_test_bindings("wrong_core_method", "pub pure f(): Option[Nat] { [1].first(\"extra\") }"), core_method_library.bindings], []), signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1].first(\"extra\") }")).diagnostics[0].message, "first expects 1 arguments, got 2"))
   results = append(results, test_equal_str("return mismatch", body_test_error("pub pure f(): Nat { \"bad\" }"), "return of f is Str, expected Nat"))
   results = append(results, test_equal_str("initializer cannot see new binding", body_test_error("pub pure f(): Nat { value = value; value }"), "unknown local value value"))
   results = append(results, test_equal_str("inferred binding remains immutable", body_test_error("pub pure f(): Nat { value = 1; value = 2; value }"), "cannot assign immutable binding value"))
@@ -877,15 +953,18 @@ pure namespace_aggregate_tests(): [TestResult] {
     "pub record Box[T] { value:T }; pub pure f(): Box[Nat] { Box(2 - 1) }",
     "pub pure f(): Nat { match Some(2 - 1) { Some(item) => item, None() => 0 } }",
     "pub pure f(): Nat { identity(2 - 1) }; pure identity[T](value:T):T { value }",
-    "pub pure f(): Nat { match Some(1) { Some(item) => unknown_core(item), None() => 0 } }; pure unknown_core(value:Nat):Nat { value - 1 }",
-    "pub pure f(): Map[Nat,Nat] { map().put(1, 2) }",
-    "pub pure f(): Set[Nat] { set().add(1) }"
+    "pub pure f(): Nat { match Some(1) { Some(item) => unknown_core(item), None() => 0 } }; pure unknown_core(value:Nat):Nat { value - 1 }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
-    // Callee proofs are checked in their own body, not certified transitively here.
     mut pending: Bool = false
     for function in checked.functions { pending = pending || function.status == BodyDeferred() }
     results = append(results, test_expect("aggregate retains later obligations/" + source, len(checked.diagnostics) == 0 && pending, "later proof/core check lost or rejected"))
+  }
+  for source in ["pub pure f(): Map[Nat,Nat] { map().put(1, 2) }", "pub pure f(): Set[Nat] { set().add(1) }"] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("core receiver contract checks/" + source,
+      len(checked.diagnostics) == 0 && checked.functions[0].status == BodyIdentityChecked(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "core receiver contract remained deferred" }))
   }
   results = append(results, test_equal_str("inference failure explains missing evidence", body_test_error("pub pure f(): [Nat] { identity([]) }; pure identity[T](value:T):T { value }"), "cannot infer type parameter T for identity; supply explicit type arguments"))
   results = append(results, test_equal_str("constructor arity is concrete", body_test_error("pub record Box { value:Nat }; pub pure f():Box { Box() }"), "Box expects 1 arguments, got 0"))

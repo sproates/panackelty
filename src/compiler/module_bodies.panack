@@ -358,7 +358,8 @@ pure body_call(
     }
   }
   mut output: Option[SignatureType] = None()
-  match body_contract(context, target) {
+  if !body_special_core_call(target) {
+    match body_contract(context, target) {
     Error(message) => {
       diagnostics = append(diagnostics, Diagnostic(message, span.start))
     },
@@ -513,12 +514,341 @@ pure body_call(
         }
       }
     }
+    }
   }
-  BodyResult(
-    BoundBody(BodyCall(target, resolved_types), span, children, output, []),
-    diagnostics,
-    deferred
-  )
+  if body_special_core_call(target) {
+    body_check_special_core_call(context, target, children, resolved_types, span, diagnostics, deferred)
+  } else {
+    BodyResult(
+      BoundBody(BodyCall(target, resolved_types), span, children, output, []),
+      diagnostics,
+      deferred
+    )
+  }
+}
+
+pure body_special_core_call(target: BodyTarget): Bool {
+  match target {
+    BodyDeclaration(binding) => false,
+    BodyCore(name) => name == "$method_call" || name == "len" || name == "$method_map" ||
+      name == "$method_reduce" || name == "$method_put" || name == "$method_get" ||
+      name == "$method_has" || name == "$method_add" || name == "map_put" ||
+      name == "map_get" || name == "map_has" || name == "has" || name == "set_add" ||
+      name == "set_has" || name == "append" || name == "concat"
+  }
+}
+
+pure body_check_special_core_call(
+  context: BodyContext,
+  target: BodyTarget,
+  children: [BoundBody],
+  types: [SignatureType],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+  name: Str = match target {
+    BodyCore(value) => value,
+    BodyDeclaration(binding) => ""
+  }
+
+  if name != "$method_call" && len(types) > 0 {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic("explicit type arguments require a generic function", span.start)
+    )
+  }
+  if name == "$method_call" && len(types) > 0 {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic("explicit type arguments require a generic function", span.start)
+    )
+  }
+  if name == "$method_call" && len(children) == 0 {
+    diagnostics = append(diagnostics, Diagnostic("call requires a callable", span.start))
+  } else {
+    if name == "$method_call" {
+    match children[0].type {
+      None() => {
+        deferred = append(deferred, span)
+      },
+      Some(callable) => match callable.identity {
+        SignatureCallable(effect) => {
+          expected_count: Nat = prior_index(len(callable.arguments))
+          actual_count: Nat = prior_index(len(children))
+          if expected_count != actual_count {
+            diagnostics = append(
+              diagnostics,
+              Diagnostic("call expects ${expected_count} arguments, got ${actual_count}", span.start)
+            )
+          }
+          mut index: Nat = 0
+          while index < expected_count && index < actual_count {
+            number: Nat = index + 1
+            required: BodyResult = body_require(
+              context,
+              children[index + 1].type,
+              callable.arguments[index],
+              "argument ${number} to call",
+              children[index + 1].span
+            )
+            diagnostics = concat(diagnostics, required.diagnostics)
+            deferred = concat(deferred, required.deferred)
+            index = index + 1
+          }
+          output = Some(callable.arguments[expected_count])
+          if effect == SignatureAsync() {
+            deferred = append(deferred, span)
+          }
+        },
+        SignatureHole(owner, path, index) => {
+          deferred = append(deferred, span)
+        },
+        SignatureParameter(owner, index) => {
+          deferred = append(deferred, span)
+        },
+        SignatureCore(core_name) => {
+          diagnostics = append(
+            diagnostics,
+            Diagnostic("call expects a callable, got " + body_type_text(callable), span.start)
+          )
+        },
+        SignatureNominal(identity) => {
+          diagnostics = append(
+            diagnostics,
+            Diagnostic("call expects a callable, got " + body_type_text(callable), span.start)
+          )
+        }
+      }
+    }
+    } else {
+      if name == "len" {
+        if len(children) != 1 {
+          diagnostics = append(diagnostics, Diagnostic("len expects 1 arguments, got ${len(children)}", span.start))
+        } else {
+          match children[0].type {
+            None() => { deferred = append(deferred, span) },
+            Some(type) => {
+              valid: Bool = type.identity == SignatureCore("Str") ||
+                type.identity == SignatureCore("Bytes") || type.identity == SignatureCore("Array")
+              if valid {
+                output = body_core_type("Nat")
+              } else {
+                diagnostics = append(diagnostics, Diagnostic("len expects Str, Bytes, or array, got " + body_type_text(type), span.start))
+              }
+            }
+          }
+        }
+      } else {
+        checked: BodyResult = body_check_collection_core_call(
+          context,
+          name,
+          children,
+          span,
+          diagnostics,
+          deferred
+        )
+        diagnostics = checked.diagnostics
+        deferred = checked.deferred
+        output = checked.body.type
+      }
+    }
+  }
+  BodyResult(BoundBody(BodyCall(target, types), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_optional_type(type: Option[SignatureType]): SignatureType {
+  match type {
+    Some(value) => value,
+    None() => SignatureType(SignatureCore("Void"), [])
+  }
+}
+
+pure body_check_collection_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  operation: Str = if name == "$method_put" { "map_put" } else {
+    if name == "$method_get" { "map_get" } else {
+      if name == "$method_add" { "set_add" } else {
+        if name == "$method_has" { "has" } else {
+          if name == "$method_map" { "array_map" } else {
+            if name == "$method_reduce" { "array_reduce" } else { name }
+          }
+        }
+      }
+    }
+  }
+  expected_count: Nat = if operation == "map_put" || operation == "array_reduce" { 3 } else { 2 }
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+
+  if len(children) != expected_count {
+    diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got ${len(children)}", span.start))
+  } else {
+    if children[0].type == None() || children[1].type == None() ||
+      (operation == "map_put" && children[2].type == None()) ||
+      (operation == "array_reduce" && children[2].type == None()) {
+      deferred = append(deferred, span)
+    } else {
+      collection: SignatureType = body_optional_type(children[0].type)
+      value: SignatureType = body_optional_type(children[1].type)
+      if operation == "append" || operation == "concat" {
+        if operation == "append" {
+          if collection.identity != SignatureCore("Array") || len(collection.arguments) != 1 {
+            diagnostics = append(diagnostics, Diagnostic("append expects an array, got " + body_type_text(collection), span.start))
+          } else {
+            match body_join(context, collection.arguments[0], value) {
+              Error(message) => {
+                diagnostics = append(diagnostics, Diagnostic("cannot append " + body_type_text(value) + " to " + body_type_text(collection), span.start))
+              },
+              Ok(joined) => match joined {
+                None() => { deferred = append(deferred, span) },
+                Some(item) => { output = Some(SignatureType(SignatureCore("Array"), [item])) }
+              }
+            }
+          }
+        } else {
+          if collection.identity != SignatureCore("Array") || value.identity != SignatureCore("Array") ||
+            len(collection.arguments) != 1 || len(value.arguments) != 1 {
+            diagnostics = append(diagnostics, Diagnostic("concat expects two arrays", span.start))
+          } else {
+            match body_join(context, collection.arguments[0], value.arguments[0]) {
+              Error(message) => {
+                diagnostics = append(diagnostics, Diagnostic("cannot concatenate " + body_type_text(collection) + " and " + body_type_text(value), span.start))
+              },
+              Ok(joined) => match joined {
+                None() => { deferred = append(deferred, span) },
+                Some(item) => { output = Some(SignatureType(SignatureCore("Array"), [item])) }
+              }
+            }
+          }
+        }
+      } else {
+        if operation == "array_map" || operation == "array_reduce" {
+          if collection.identity != SignatureCore("Array") || len(collection.arguments) != 1 {
+            diagnostics = append(diagnostics, Diagnostic(operation + " expects an array, got " + body_type_text(collection), span.start))
+          } else {
+            callback_index: Nat = if operation == "array_map" { 1 } else { 2 }
+            callback_option: Option[SignatureType] = children[callback_index].type;
+            match callback_option {
+              None() => { deferred = append(deferred, span) },
+              Some(callback) => match callback.identity {
+                SignatureCallable(effect) => {
+                  expected_arguments: Nat = if operation == "array_map" { 1 } else { 2 }
+                  if effect != SignaturePure() {
+                    diagnostics = append(diagnostics, Diagnostic(operation + " requires a pure callable", span.start))
+                  } else {
+                    if len(callback.arguments) != expected_arguments + 1 {
+                      diagnostics = append(diagnostics, Diagnostic(operation + " callback has incorrect arity", span.start))
+                    } else {
+                      accumulator: SignatureType = value
+                      expected_input: SignatureType = if operation == "array_map" { collection.arguments[0] } else { accumulator }
+                      first_argument: BodyResult = body_require(context, Some(expected_input), callback.arguments[0], operation + " callback", children[callback_index].span)
+                      diagnostics = concat(diagnostics, first_argument.diagnostics)
+                      deferred = concat(deferred, first_argument.deferred)
+                      if operation == "array_map" {
+                        if callback.arguments[1] == SignatureType(SignatureCore("Void"), []) {
+                          diagnostics = append(diagnostics, Diagnostic("map callback cannot return Void", span.start))
+                        } else {
+                          output = Some(SignatureType(SignatureCore("Array"), [callback.arguments[1]]))
+                        }
+                      } else {
+                        second_argument: BodyResult = body_require(context, Some(collection.arguments[0]), callback.arguments[1], "reduce callback", children[callback_index].span)
+                        result_argument: BodyResult = body_require(context, Some(callback.arguments[2]), accumulator, "reduce callback result", children[callback_index].span)
+                        diagnostics = concat(diagnostics, concat(second_argument.diagnostics, result_argument.diagnostics))
+                        deferred = concat(deferred, concat(second_argument.deferred, result_argument.deferred))
+                        output = Some(accumulator)
+                      }
+                    }
+                  }
+                },
+                SignatureHole(owner, path, index) => { deferred = append(deferred, span) },
+                SignatureParameter(owner, index) => { deferred = append(deferred, span) },
+                SignatureCore(core_identity) => { diagnostics = append(diagnostics, Diagnostic(operation + " requires a callable", span.start)) },
+                SignatureNominal(identity) => { diagnostics = append(diagnostics, Diagnostic(operation + " requires a callable", span.start)) }
+              }
+            }
+          }
+        } else {
+          checked: BodyResult = body_check_map_set_call(
+            context,
+            operation,
+            collection,
+            children,
+            span,
+            diagnostics,
+            deferred
+          )
+          diagnostics = checked.diagnostics
+          deferred = checked.deferred
+          output = checked.body.type
+        }
+      }
+    }
+  }
+  BodyResult(BoundBody(BodyEmpty(), span, [], output, []), diagnostics, deferred)
+}
+
+pure body_check_map_set_call(
+  context: BodyContext,
+  operation: Str,
+  collection: SignatureType,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+  is_map: Bool = collection.identity == SignatureCore("Map") && len(collection.arguments) == 2
+  is_set: Bool = collection.identity == SignatureCore("Set") && len(collection.arguments) == 1
+  is_lookup: Bool = operation == "map_get" || operation == "map_has" || operation == "has"
+
+  if (operation == "map_put" || operation == "map_get" || operation == "map_has") && !is_map {
+    diagnostics = append(diagnostics, Diagnostic(operation + " expects a Map, got " + body_type_text(collection), span.start))
+  } else {
+    if (operation == "set_add" || operation == "set_has") && !is_set {
+      diagnostics = append(diagnostics, Diagnostic(operation + " expects a Set, got " + body_type_text(collection), span.start))
+    } else {
+      if operation == "has" && !is_map && !is_set {
+        diagnostics = append(diagnostics, Diagnostic("has expects a Map or Set, got " + body_type_text(collection), span.start))
+      } else {
+        if is_map {
+          expected_key: SignatureType = collection.arguments[0]
+          key: BodyResult = body_require(context, children[1].type, expected_key, "key to " + operation, children[1].span)
+          diagnostics = concat(diagnostics, key.diagnostics)
+          deferred = concat(deferred, key.deferred)
+          if operation == "map_put" {
+            value: BodyResult = body_require(context, children[2].type, collection.arguments[1], "value to map_put", children[2].span)
+            diagnostics = concat(diagnostics, value.diagnostics)
+            deferred = concat(deferred, value.deferred)
+            output = Some(collection)
+          } else {
+            if is_lookup {
+              output = if operation == "map_get" { Some(collection.arguments[1]) } else { body_core_type("Bool") }
+            }
+          }
+        }
+        if is_set {
+          item: BodyResult = body_require(context, children[1].type, collection.arguments[0], operation, children[1].span)
+          diagnostics = concat(diagnostics, item.diagnostics)
+          deferred = concat(deferred, item.deferred)
+          output = if operation == "set_add" { Some(collection) } else { body_core_type("Bool") }
+        }
+      }
+    }
+  }
+  BodyResult(BoundBody(BodyEmpty(), span, [], output, []), diagnostics, deferred)
 }
 
 pure bind_body_expression(
@@ -1948,6 +2278,47 @@ pure body_core_owner(name: Str): DeclarationIdentity {
   DeclarationIdentity(ModuleIdentity(ToolchainModulePackage(), "core.panack"), name)
 }
 
+pure body_core_function_name(name: Str): Str {
+  if name == "$core_first" {
+    "core_first"
+  } else {
+    if name == "$core_ends_with" {
+      "core_ends_with"
+    } else {
+      if name == "$core_sort_by" {
+        "core_sort_by"
+      } else {
+        ""
+      }
+    }
+  }
+}
+
+pure body_signature_contract(signature: ModuleSignature, name: Str): BodyContract {
+  owner: DeclarationIdentity = signature.binding.identity
+  mut inputs: [SignatureType] = []
+  mut output: SignatureType = SignatureType(SignatureCore("Void"), [])
+  mut index: Nat = 0
+
+  for slot in signature.slots {
+    if index + 1 == len(signature.slots) {
+      output = slot.type
+    } else {
+      inputs = append(inputs, slot.type)
+    }
+    index = index + 1
+  }
+  BodyContract(
+    owner,
+    name,
+    signature.parameters,
+    inputs,
+    output,
+    false,
+    signature.effect == Some(SignatureAsync())
+  )
+}
+
 pure body_core_constructor(name: Str): Option[BodyContract] {
   mut parent: Str = ""
   mut count: Nat = 0
@@ -1999,7 +2370,31 @@ pure body_core_constructor(name: Str): Option[BodyContract] {
 
 pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[BodyContract], Str] {
   match target {
-    BodyCore(name) => Ok(body_core_constructor(name)),
+    BodyCore(name) => match body_core_constructor(name) {
+      Some(contract) => Ok(Some(contract)),
+      None() => {
+        function_name: Str = body_core_function_name(name)
+        if function_name == "" {
+          Ok(None())
+        } else {
+          match body_signature(context.signatures, body_core_owner(function_name)) {
+            None() => Ok(None()),
+            Some(signature) => Ok(Some(body_signature_contract(
+              signature,
+              if function_name == "core_first" {
+                "first"
+              } else {
+                if function_name == "core_ends_with" {
+                  "ends_with"
+                } else {
+                  "sort_by"
+                }
+              }
+            )))
+          }
+        }
+      }
+    },
     BodyDeclaration(binding) => {
       mut owner: DeclarationIdentity = binding.identity
       mut variant: Str = ""

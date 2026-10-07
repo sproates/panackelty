@@ -96,8 +96,8 @@ documented in `../../docs/SOURCE_MAPS.md`.
   Interpolation references retain ordered local IDs. Invalid, deferred and
   checked-subset statuses preserve numeric and callable compatibility without
   implying effects or execution readiness. Deferred spans distinguish
-  unresolved expression holes, guard proofs, general core/indirect operations and
-  async results from successful identity-type checks. Expression-owned holes never
+  unresolved expression holes, guard proofs, async results and core operations
+  outside the checked call subset from successful identity-type checks. Expression-owned holes never
   become declaration identities or rigid type parameters. Bound nodes retain
   contextual constraints for one final whole-body solve, preserving shared local
   evidence across calls/statements and rejecting contradictory/recursive solutions.
@@ -107,6 +107,14 @@ documented in `../../docs/SOURCE_MAPS.md`.
   consumer boundary; the legacy checker/emitter and namespace execution gate
   remain until coordinated migration. The obsolete full-module raw walk is
   removed from production; its low-level contracts use a test-only adapter.
+- The staged body checker validates identity-bound contracts for indirect
+  callable invocation, `len`, array `first`/`ends_with`/`sort_by`, `map` and
+  `reduce`, array append/concat, and Map/Set receiver operations. Reserved core
+  aliases resolve to the original core declaration identity, so a same-named
+  application function cannot replace the method contract. Argument arity and
+  types and result types are checked for this subset. Guard proofs, effects,
+  async result handling and full executable namespace readiness remain later
+  work.
 - `expression_contracts.panack` shares exact scalar arithmetic result rules and
   string decoding/interpolation parsing between the bound checker and legacy
   checker/emitter. Nominal comparison remains tagged and is not rendered to names.

@@ -370,10 +370,9 @@ integration branch, followed by the completed contract matrix in PR#326.
 Slice 6 is in progress. Merged PR#331 provides the first bounded identity-emission
 and standalone-loading subset. Follow-up PR#333 adds identity-based rewriting for
 guarded-type predicate helpers, including colliding helper names across modules;
-it remains an intermediate delivery and does not complete or reweight slice 6.
-The current slice-6 delivery extends complete source and saved-bytecode execution
-coverage to same-spelled generic records and functions across imported modules;
-its acceptance is pending merge and does not reweight the slice. Broader body,
+PR#334 extends complete source and saved-bytecode execution coverage to
+same-spelled generic records and functions across imported modules. These are
+intermediate deliveries and do not complete or reweight slice 6. Broader body,
 diagnostic/tooling, coordinated source/seed, browser, installed and bootstrap
 acceptance remains open under GI#198.
 
@@ -3029,10 +3028,10 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
-| Slice 6: Identity emission/standalone loading | 14% | Intermediate PR#331 merged to `next` on 2026-10-08: checked-subset identity emission, entry selection, path/symlink confinement and isolated compiler bootstrap; full slice acceptance remains | Not re-estimated | Unquantified |
+| Slice 6: Identity emission/standalone loading | 14% | Intermediate PR#331, PR#333 and PR#334 merged to `next` on 2026-10-08: checked-subset identity emission, guard-helper identity, generic record/function collisions through source and saved bytecode, entry selection, path/symlink confinement and isolated compiler bootstrap; full slice acceptance remains | Not re-estimated | Unquantified |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
-| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp; PR#331 adds unquantified partial slice 6 progress** | **65% last quantified estimate; current estimate pending** | **65 pp known; slice 6 unquantified** |
+| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp; PR#331, PR#333 and PR#334 add unquantified partial slice 6 progress** | **65% last quantified estimate; current estimate pending** | **65 pp known; slice 6 unquantified** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -3043,12 +3042,13 @@ later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
 At the last quantified baseline, P2 contributed an estimated 20% × 65% = **13 pp**.
-PR#331 adds partial slice 6 progress that is not yet quantified, so the current
+PR#331, PR#333 and PR#334 add partial slice 6 progress that is not yet
+quantified, so the current
 estimated programme total is not restated. The known estimated contribution is
 23 pp including P1, plus unquantified P2 progress. Formal whole-task acceptance
 remains **10 pp** until P2's remaining execution and migration gates are accepted.
-Slices 1–5 are Done on `next`; PR#331 is an intermediate slice 6 delivery, and
-GI#198 remains open for slices 6–8.
+Slices 1–5 are Done on `next`; PR#331, PR#333 and PR#334 are intermediate slice 6
+deliveries, and GI#198 remains open for slices 6–8.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset
@@ -3071,6 +3071,13 @@ compiler migration changes no published feature claim, and the browser seed
 remains unchanged. Performance impact: canonical `make check` passed in 123s
 against the 120s target; the validation profile records the observed miss and
 proposed disposition without attributing it to this identity-emission work.
+
+PR#334, merged to `next` on 2026-10-08, adds two imported modules with colliding
+generic `Item[T]`, `make` and `identity[T]` declarations. The complete entry
+program checks, runs, compiles and runs saved bytecode with exact output. Its
+canonical check passed in 195s against the unchanged 120s budget; the validation
+profile records the measurement, sandboxed rerun and accepted disposition under
+GI#106/RM#123. This is additional checked-subset evidence, not slice completion.
 
 P2 owns standalone namespace semantics, entry selection and entry-directory
 root confinement, necessary initial stdlib exports and its own

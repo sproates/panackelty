@@ -2,7 +2,7 @@
 
 Design outcome for [RM#109: Module and package design](../ROADMAP.md#rm-109)
 and [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234),
-within [RM#108: Modules, packages and HTTP programme](../ROADMAP.md#rm-108).
+within [RM#108: Modules programme](../ROADMAP.md#rm-108).
 
 This document records the P1 design accepted in PR#240. It is a design contract,
 not executable feature evidence. All syntax, manifests, commands and HTTP APIs below

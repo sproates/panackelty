@@ -114,6 +114,26 @@ review the concern at the next compiler-heavy slice or when comparable evidence
 changes. This PR is an intermediate P2 slice-6 delivery; broader acceptance
 remains open.
 
+### Namespace generic identity execution coverage — 2026-10-08
+
+The entry fixture now imports two modules that both export `Item[T]`, `make`,
+and `identity[T]`. Its complete program constructs and reads both generic record
+identities and invokes both generic functions. `make check` passed, including the
+source and saved-v9-bytecode runs with exact output; the namespace body probe
+passed 577 assertions. The full check took 195s against the unchanged 120s
+budget; the functional phase took 4s and bootstrap took 20s. This delivery changes
+only namespace test fixtures and informational coverage/roadmap records, not
+compiler or VM implementation. The new measurement does not establish that the
+fixture caused the budget miss; no matched base/head comparison was run.
+
+Proposed disposition for merge under existing GI#106/RM#123 ownership: retain
+all coverage and the 120s/15s targets, make no causal-regression or speedup claim,
+and keep performance acceptance open. The validation maintainer's next action
+is a matched base/head full and focused comparison before the next compiler-heavy
+slice; review the concern at that slice or when comparable evidence changes.
+Owner acceptance of this disclosed disposition is required with merge approval.
+This remains an intermediate slice-6 delivery, not P2 completion.
+
 ## Namespace guard proofs — 2026-10-07
 
 Base: `next` after slice 3, macOS arm64. The slice adds checker-only,

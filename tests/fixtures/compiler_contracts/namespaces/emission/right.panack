@@ -1,6 +1,7 @@
-pub record Item { value: Nat }
+pub record Item[T] { value: T }
 pub enum Outcome { Finished }
-pub pure make(): Item { Item(42) }
+pub pure make(): Item[Nat] { Item(42) }
+pub pure identity[T](value: T): T { value }
 pub pure make_outcome(): Outcome { Finished() }
 pub pure positive(value: Nat): Bool { value > 0 }
 pub type Positive = Nat where positive(value)

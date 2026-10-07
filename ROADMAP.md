@@ -101,7 +101,7 @@ reports under the [performance review process](docs/ROADMAP_PROCESS.md#performan
 The standing programme has no lifetime completion percentage. The finite core
 establishment tranche below has its own stable denominator.
 
-The modules/packages/HTTP programme remains the principal feature initiative;
+The modules programme remains the principal feature initiative;
 its checked declaration/signature identity slice merged in PR#275 as `0bcf092`;
 bounded body identities merged in PR#284 as `9f8f8a0`. Ordinary expressions and
 control flow merged in PR#297 as `1ffd023`; aggregates, patterns and generic
@@ -214,12 +214,12 @@ installer or new-platform change. Website parity remains separately unscheduled
 under [RM#118: Website installation command parity](#rm-118); release pins remain
 unchanged.
 
-## Modules, packages and HTTP programme — 2026-10-03
+## Modules programme — 2026-10-03
 
 <a id="rm-108"></a>
 
-**RM#108: Modules, packages and HTTP programme** ·
-[GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233).
+**RM#108: Modules programme** ·
+[GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233).
 
 **P2 implementation in progress; accepted contribution 10 pp; 1 of 8 tasks accepted.**
 P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
@@ -336,7 +336,7 @@ implementation estimates above and detailed slices in the design. No public
 registry, separate compilation, web framework or new engine is required.
 
 Provisional scope/effort baseline recorded on 2026-10-03 in
-[GI#233: Modules, packages and HTTP](https://github.com/sproates/panackelty/issues/233):
+[GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233):
 
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |

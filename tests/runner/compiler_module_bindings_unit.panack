@@ -561,8 +561,11 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_expect("indirect call shares callable parameter and result contract", len(indirect.diagnostics) == 0 && len(indirect.functions) == 1 && indirect.functions[0].status == BodyIdentityChecked() && indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "callable signature was not checked"))
   results = append(results, test_equal_str("indirect argument mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(\"bad\") }"), "argument 1 to call is Str, expected Nat"))
   results = append(results, test_equal_str("indirect arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call() }"), "call expects 1 arguments, got 0"))
+  results = append(results, test_equal_str("indirect excess arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(1, 2) }"), "call expects 1 arguments, got 2"))
   results = append(results, test_equal_str("non-callable receiver rejects", body_test_error("pub pure apply(value: Nat): Nat { value.call(1) }"), "call expects a callable, got Nat"))
   results = append(results, test_equal_str("indirect result mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Str { callback.call(1) }"), "return of apply is Nat, expected Str"))
+  async_indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: AsyncFn[Nat,Nat]): Nat { callback.call(1) }")
+  results = append(results, test_expect("async indirect call remains deferred", len(async_indirect.diagnostics) == 0 && len(async_indirect.functions) == 1 && len(async_indirect.functions[0].deferred) > 0, "async indirect call was certified as complete"))
   core_method_library: LoadedModule = signature_test_module(
     ModuleIdentity(ToolchainModulePackage(), "core.panack"),
     "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; " +
@@ -605,6 +608,75 @@ pure namespace_body_tests(): [TestResult] {
     aliases_checked = aliases_checked && function.status == BodyIdentityChecked()
   }
   results = append(results, test_expect("direct core aliases share checked contracts", aliases_checked, if len(aliases.diagnostics) > 0 { aliases.diagnostics[0].message } else { "a direct core alias remained unchecked" }))
+  for source in [
+    "pub pure f(): Nat { len() }",
+    "pub pure f(): Nat { len(\"a\", \"b\") }",
+    "pub pure f(): [Nat] { append([1]) }",
+    "pub pure f(): [Nat] { append([1], 2, 3) }",
+    "pub pure f(): [Nat] { concat([1]) }",
+    "pub pure f(): [Nat] { concat([1], [2], [3]) }",
+    "pub pure f(): Map[Str,Nat] { map_put(map(), \"key\") }",
+    "pub pure f(): Nat { map_get(map(), \"key\", \"extra\") }",
+    "pub pure f(): Bool { map_has(map(), \"key\", \"extra\") }",
+    "pub pure f(): Set[Nat] { set_add(set()) }",
+    "pub pure f(): Bool { set_has(set(), 1, 2) }",
+    "pub pure f(): [Nat] { [1].append() }",
+    "pub pure f(): [Nat] { [1].append(2, 3) }",
+    "pub pure f(): [Nat] { [1].concat() }",
+    "pub pure f(): [Nat] { [1].concat([2], [3]) }",
+    "pub pure f(): [Nat] { [1].map() }",
+    "pub pure f(): [Nat] { [1].map(@twice, @twice) }; pure twice(value: Nat): Nat { value }",
+    "pub pure f(): Nat { [1].reduce(0) }",
+    "pub pure f(): Nat { [1].reduce(0, @sum, @sum) }; pure sum(left: Nat, right: Nat): Nat { left + right }",
+    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\") }",
+    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\", 1, 2) }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.get() }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.get(\"key\", \"extra\") }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.has() }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.has(\"key\", \"extra\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add() }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add(1, 2) }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values.has() }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values.has(1, 2) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("reserved core arity mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "invalid core arity was accepted" }))
+  }
+  for source in [
+    "pub pure f(): [Nat] { [1].map(@wrong_input) }; pure wrong_input(value: Str): Nat { 1 }",
+    "pub pure f(): Nat { [1].reduce(0, @wrong_result) }; pure wrong_result(left: Nat, right: Nat): Str { \"bad\" }",
+    "pub pure f(): [Nat] { [1].map(@void_result) }; pure void_result(value: Nat): Void {}",
+    "pub pure f(): [Nat] { [1].map(@ordinary) }; ordinary(value: Nat): Nat { value }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("core callback contract mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "invalid core callback contract was accepted" }))
+  }
+  wrong_sort_app: LoadedModule = signature_test_module(namespace_identity("wrong_sort"),
+    "pub pure f(): [Nat] { [1].sort_by(@wrong_sort) }; pure wrong_sort(left: Str, right: Str): Bool { true }")
+  wrong_sort_graph: ModuleBindingGraph = ModuleBindingGraph([wrong_sort_app.bindings, core_method_library.bindings], [ModuleImportEdge(wrong_sort_app.bindings.identity, 0, core_method_library.bindings.identity)])
+  wrong_sort_checked: CheckedModuleBodies = body_test_graph([wrong_sort_app, core_method_library], wrong_sort_graph, wrong_sort_app)
+  results = append(results, test_expect("sort_by rejects callback type mismatch",
+    len(wrong_sort_checked.diagnostics) > 0 && len(wrong_sort_checked.functions) > 0 && wrong_sort_checked.functions[0].status == BodyInvalid(),
+    if len(wrong_sort_checked.diagnostics) > 0 { wrong_sort_checked.diagnostics[0].message } else { "sort_by accepted a callback for the wrong element type" }))
+  for source in [
+    "pub pure f(): Str { len([1]) }",
+    "pub pure f(): Bool { [1].append(2) }",
+    "pub pure f(): [Str] { [1].concat([2]) }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.put(\"key\", 1) }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.get(\"key\") }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.has(\"key\") }",
+    "pub pure f(): Nat { values: Set[Nat] = set(); values.add(1) }",
+    "pub pure f(): Nat { values: Set[Nat] = set(); values.has(1) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("reserved core result contract mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "core result was accepted against the declared return type" }))
+  }
   for source in [
     "pub pure f(): Nat { len(1) }",
     "pub pure f(): [Nat] { [1].append(\"bad\") }",

@@ -83,9 +83,10 @@ bootstrap fixed point and seed-refresh path passed within the full check. Propos
 delivery disposition for owner acceptance: retain the full/focused budgets and
 coverage, accept this bounded correctness delivery with the observed full-check
 miss recorded under the existing GI#106/RM#123 ownership, and make no speedup or
-causal-regression claim. This disposition still needs acceptance with merge
-approval. Broader body, diagnostic/tooling, browser, installed and coordinated
-seed/source acceptance remain open for later P2 work.
+causal-regression claim. The user accepted this disposition with merge approval
+for PR#331, which merged to
+`next` on 2026-10-08. Broader body, diagnostic/tooling, browser, installed and
+coordinated seed/source acceptance remain open for later P2 work.
 
 ## Namespace guard proofs — 2026-10-07
 

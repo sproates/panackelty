@@ -109,9 +109,10 @@ inference complete slice 2. [PR#321](https://github.com/sproates/panackelty/pull
 and [PR#326](https://github.com/sproates/panackelty/pull/326) complete slice 3 on
 `next`, and [PR#327](https://github.com/sproates/panackelty/pull/327) completes
 slice 4. [PR#329](https://github.com/sproates/panackelty/pull/329) completes
-slice 5 effects/await on `next`; slice 6 identity emission/loading is in progress,
-with the current canonical check passing in 123s against the 120s budget
-(observational; no causal claim). Its acceptance disposition is recorded in the
+slice 5 effects/await on `next`; PR#331 merged an intermediate slice 6 delivery
+for identity emission/loading to `next`. The current canonical check passed in
+123s against the 120s budget (observational; no causal claim). Its acceptance
+disposition is recorded in the
 [slice 6 validation profile](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08).
 Diagnostics and coordinated source/seed migration remain. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
@@ -2998,11 +2999,14 @@ partial completion estimated below and 10 pp formally accepted across the progra
 
 <a id="namespace-completion-assessment"></a>
 
-Provisional scope baseline updated 2026-10-07 after slice 5: **approximately
-65% of RM#41, versus 55% after slice 4 and 48% before slice 4**. PR#329 merged
-slice 5 to `next`; this is the current estimate, not a pending-on-merge forecast.
-This replaces the earlier estimate after slice 2; it is a reasoned allocation of
-implementation, tests, integration, migration and acceptance effort, not measured
+Last quantified scope baseline, updated 2026-10-07 after slice 5: **approximately
+65% of RM#41, versus 55% after slice 4 and 48% before slice 4**. PR#331 has since
+merged an intermediate slice 6 delivery to `next`; it does not complete the slice,
+and its partial contribution has not yet been quantified. Keep 65% as the last
+measured baseline, not the current estimate, until the remaining slice 6 scope is
+reassessed. This replaces the earlier estimate after slice 2; it is a reasoned
+allocation of implementation, tests, integration, migration and acceptance effort,
+not measured
 completion time, equal slice weights or credit by PR count. The denominator and
 P2's 20% parent programme weight are unchanged. Keep these internal weights stable
 until a documented scope/estimate revision explains its effect on the total.
@@ -3015,10 +3019,10 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
-| Slice 6: Identity emission/standalone loading | 14% | In progress on `feat/namespace-identity-emission`: checked identity emission, entry selection, symlink/path confinement and isolated compiler bootstrap are exercised; broader migration and acceptance remain | 0% | 0 pp |
+| Slice 6: Identity emission/standalone loading | 14% | Intermediate PR#331 merged to `next` on 2026-10-08: checked-subset identity emission, entry selection, path/symlink confinement and isolated compiler bootstrap; full slice acceptance remains | Not re-estimated | Unquantified |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
-| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp** | **65% current estimate** | **65 pp** |
+| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp; PR#331 adds unquantified partial slice 6 progress** | **65% last quantified estimate; current estimate pending** | **65 pp known; slice 6 unquantified** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -3028,11 +3032,13 @@ v9 fixed points are evidence within delivered slices, not partial credit toward
 later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
-At the current baseline, P2 contributes an estimated 20% × 65% = **13 pp**.
-With P1's formally accepted 10 pp, estimated programme progress is **23 pp**.
-Formal whole-task acceptance remains **10 pp** until P2's remaining execution and
-migration gates are accepted. Slices 1–5 are Done on `next`, with slice 5 merged
-through PR#329. GI#198 remains open for slices 6–8.
+At the last quantified baseline, P2 contributed an estimated 20% × 65% = **13 pp**.
+PR#331 adds partial slice 6 progress that is not yet quantified, so the current
+estimated programme total is not restated. The known estimated contribution is
+23 pp including P1, plus unquantified P2 progress. Formal whole-task acceptance
+remains **10 pp** until P2's remaining execution and migration gates are accepted.
+Slices 1–5 are Done on `next`; PR#331 is an intermediate slice 6 delivery, and
+GI#198 remains open for slices 6–8.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset
@@ -3043,18 +3049,18 @@ permit parent-path escape from a `src/compiler/` confinement root. Remove stagin
 outputs after each build. Temporary bootstrap inputs need explicit removal
 criteria and must not become a second installed language mode.
 
-Slice 6 work in progress on `feat/namespace-identity-emission` exercises
+PR#331, merged to `next` on 2026-10-08, exercises
 same-spelled imported functions, records, enums and variants through source and
 saved v9 bytecode, confirms that only the selected entry `main` launches, rejects
 relative-root escapes and symlink traversal, and stages compiler builds under an
-explicit `src/` bootstrap root. This is an unmerged checked-subset delivery, not
+explicit `src/` bootstrap root. This is a merged checked-subset delivery, not
 slice completion. Remaining acceptance includes broader body behavior, exact
 diagnostics and tooling migration, complete seed fixed-point evidence, and native,
 browser and installed conformance. Website impact: no website update; this
 compiler migration changes no published feature claim, and the browser seed
-remains unchanged. Performance impact: the bounded base/head check comparison is
-recorded in the validation profile; no compiler/runtime performance change is
-claimed for this identity-emission work.
+remains unchanged. Performance impact: canonical `make check` passed in 123s
+against the 120s target; the validation profile records the observed miss and
+proposed disposition without attributing it to this identity-emission work.
 
 P2 owns standalone namespace semantics, entry selection and entry-directory
 root confinement, necessary initial stdlib exports and its own

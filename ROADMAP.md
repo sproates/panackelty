@@ -341,31 +341,35 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
-| P2 / [RM#41: Language namespaces](#rm-41) | 20% | Estimated 28% merged; 40% on slice 2 merge | Estimated 5.6 pp merged; 8 pp on slice 2 merge |
+| P2 / [RM#41: Language namespaces](#rm-41) | 20% | 40% estimated after slice 2; PR#321 adds unquantified partial slice 3 progress | 8 pp known subtotal at slice 2 baseline; current additional contribution unquantified |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | Estimated 15.6% merged; 18% on slice 2 merge | **10 pp formally accepted; estimated total 18 pp on slice 2 merge** |
+| **Total** | **100%** | 18% estimated after slice 2; PR#321 adds unquantified partial progress | **10 pp formally accepted; 18 pp known subtotal at slice 2 baseline; current additional contribution unquantified** |
 
 P1 has earned its design-task credit through merged PR#240, supported by the deliverable above;
 P2 is In progress: PR#261 merged its metadata/identity foundation and PR#262
 merged raw qualified syntax, cross-module binding/re-export resolution and
 diagnostics. PR#275 merged checked declaration/signature identities as `0bcf092`;
 PR#284 merged bounded function-body identities as `9f8f8a0`; PR#297 merged
-ordinary expressions/control flow as `1ffd023`. Aggregates, patterns and generic
-inference complete checklist slice 2 on this delivery's merge. Core contracts,
-guard proofs, effects, emission/loading, tooling and coordinated migration remain.
+ordinary expressions/control flow as `1ffd023`. PR#297 completed checklist slice 2
+on merge. PR#321 merged intermediate core and indirect-call contract work into
+`next`; slice 3 remains in progress and its partial completion has not been
+quantified. Guard proofs, effects, emission/loading, tooling and coordinated
+migration remain.
 The owner's requested completion assessment establishes a new provisional
 [RM#41 scope-weighted baseline](#namespace-completion-assessment) rather than
 counting PRs. It replaces the previously unquantified partial estimate without
-changing programme scope or P2's 20% programme weight. Merged evidence supports
-approximately 28% of P2 now; validated slice 2 adds 12 percentage points on merge,
-for approximately 40%. Estimated programme contribution from P2 therefore rises
-from 5.6 to 8 pp, and estimated overall completion from 15.6% to 18%. The formally
-accepted whole-task subtotal remains 10 pp from P1; P2 is not fully accepted.
+changing programme scope or P2's 20% programme weight. The last quantified P2
+assessment was approximately 40% after slice 2, giving an 8 pp estimated P2
+contribution and approximately 18% estimated programme completion. PR#321 provides
+additional delivered slice 3 evidence, but its remaining finish line has not been
+reassessed, so current partial credit and the updated overall estimate are unknown;
+18 pp is the known subtotal, not a current total. The formally accepted whole-task
+subtotal remains 10 pp from P1; P2 is not fully accepted.
 P3–P8 remain Planned, not started. Namespace execution remains unaccepted. Namespace/compiler
 integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
@@ -382,10 +386,11 @@ in its issue and update this register at delivery. A design or experiment does n
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
 closing such followups. P1 design acceptance is complete. Slice 1 of the
-[P2 delivery checklist](#p2-delivery-checklist) merged in PR#297; slice 2 is Done
-on this delivery's merge. Slice 3, core and indirect-call contracts, is the next
-candidate for explicit selection, followed by the remaining P2 acceptance and
-selected P3/P4 sequence. P3–P8 have not started.
+[P2 delivery checklist](#p2-delivery-checklist) merged in PR#297; slice 2 is Done.
+Slice 3, core and indirect-call contracts, is in progress after intermediate
+delivery in PR#321 merged to `next` on 2026-10-07. Its remaining acceptance is
+unquantified and GI#198 remains open. The remaining P2 acceptance and selected
+P3/P4 sequence follow; P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -2933,8 +2938,11 @@ aggregate program checks source and saved-bytecode behavior. Final clean canonic
 validation passes in 152s (465 namespace and 145 CLI assertions); the 120s full
 and 15s unit targets remain open. Performance disposition is recorded in the
 [delivery evidence](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05).
-GI#198 remains open for slices 3–8. Slice 3 is the next candidate for explicit
-selection; this handover does not start it or imply executable namespace acceptance.
+PR#321 merged intermediate slice 3 work on 2026-10-07: core operations and methods,
+receiver calls, indirect callable contracts and reserved core identity checks.
+This advances the slice but does not complete its finish line or imply executable
+namespace acceptance. Remaining core contracts and acceptance evidence must be
+assessed against the checklist; GI#198 remains open for slices 3–8.
 
 | Slice | Finish line and required evidence | Dependencies | Provisional remaining PRs |
 | --- | --- | --- | ---: |
@@ -2973,13 +2981,13 @@ until a documented scope/estimate revision explains its effect on the total.
 | Binding/signature/body foundations | 20% | Merged PR#261, PR#262, PR#275 and PR#284: graph/re-exports, tagged nominal/parameter contracts and lexical body identities | 100% | 20 pp |
 | Slice 1: Ordinary expressions/control flow | 8% | Merged PR#297: checked operations, bindings, branches, loops and interpolation; explicit child obligations | 100% | 8 pp |
 | Slice 2: Aggregates/patterns/generic inference | 12% | This validated delivery; Done on merge with constructor/nested identity, inference and match evidence above | 100% on merge | 12 pp on merge; 0 pp before merge |
-| Slice 3: Core/indirect-call contracts | 8% | Remaining core methods, receiver and indirect-call integration | 0% | 0 pp |
+| Slice 3: Core/indirect-call contracts | 8% | PR#321 merged intermediate core/method/receiver/indirect-call contract work; remaining checklist acceptance not yet assessed | Unknown | Unquantified |
 | Slice 4: Guard proofs | 7% | Remaining identity-aware facts, conversions and mutation invalidation | 0% | 0 pp |
 | Slice 5: Effects/await | 10% | Remaining whole checked-graph effect boundaries and async integration | 0% | 0 pp |
 | Slice 6: Identity emission/standalone loading | 14% | Remaining unique symbols, standalone execution, root confinement and bootstrap loading | 0% | 0 pp |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
-| **Total** | **100%** | **28 pp merged; 40 pp on slice 2 merge; 60 pp remain** | **Approximately 40% on merge** | **40 pp on merge** |
+| **Total** | **100%** | **28 pp before slice 2; 40 pp known after slice 2; PR#321 adds unquantified partial slice 3 evidence** | **Unknown current estimate pending slice 3 gap assessment** | **40 pp known subtotal after slice 2; additional contribution unquantified** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -2989,12 +2997,13 @@ v9 fixed points are evidence within delivered slices, not partial credit toward
 later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
-At the programme level, P2 contributes an estimated 20% × 40% = **8 pp on merge**,
-versus 5.6 pp from currently merged scope. Adding P1's formally accepted 10 pp
-gives approximately **18% estimated programme completion on merge**, versus 15.6%
-now. Formal whole-task acceptance remains **10 pp** until P2's remaining contracts,
-execution and migration gates are accepted. The next candidate is slice 3;
-implementation still requires selection. GI#198 remains open.
+At the last quantified programme baseline, P2 contributed an estimated
+20% × 40% = **8 pp**, and P1's formally accepted 10 pp brought the known subtotal
+to **18 pp**. PR#321 adds delivered but unquantified slice 3 progress, so the
+current estimated total is unknown pending a gap assessment; do not present the
+18 pp subtotal as the current total. Formal whole-task acceptance remains
+**10 pp** until P2's remaining contracts, execution and migration gates are
+accepted. Slice 3 remains in progress. GI#198 remains open.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset

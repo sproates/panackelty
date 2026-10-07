@@ -1,4 +1,5 @@
 import "../../src/compiler/loader.panack"
+import "../../src/compiler/module_emission.panack"
 import stdlib/testing
 
 pure namespace_parse(source: Str): Result[ParsedModule,Diagnostic] {
@@ -144,7 +145,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -160,6 +161,118 @@ main(): Void {
   results = append(results, test_expect("loader retains entry module bindings", saw_main, "missing entry metadata"))
   results = append(results, test_expect("core origin precedes internalization", saw_core, "missing original core name"))
   if test_report(results) > 0 { process_exit(1) }
+}
+
+pure module_emission_identity_tests(): [TestResult] {
+  entry: ModuleIdentity = namespace_identity("app")
+  left: ModuleIdentity = namespace_identity("left")
+  right: ModuleIdentity = namespace_identity("right")
+  graph: ModuleBindingGraph = ModuleBindingGraph([
+    ModuleBindings(left, [], []),
+    ModuleBindings(right, [], []),
+    ModuleBindings(entry, [], [])
+  ], [])
+  left_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "same"))
+  right_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "same"))
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str(
+    "module emission names left origin",
+    left_name,
+    "$module0_same"
+  ))
+  results = append(results, test_equal_str(
+    "module emission names right origin",
+    right_name,
+    "$module1_same"
+  ))
+  results = append(results, test_expect(
+    "module emission separates equal source names",
+    left_name != right_name,
+    "source declaration spellings collided: " + left_name
+  ))
+  results = append(results, test_equal_str(
+    "module emission reserves entry main",
+    module_emission_symbol(graph, entry, DeclarationIdentity(entry, "main")),
+    "main"
+  ))
+  results = append(results, test_expect(
+    "module emission renames imported main",
+    module_emission_symbol(graph, entry, DeclarationIdentity(left, "main")) != "main",
+    "imported main collides with the entry"
+  ))
+  results
+}
+
+module_emission_program_tests(): [TestResult] {
+  entry_path: Str = path_resolve("tests/fixtures/compiler_contracts/namespaces/emission/main.panack")
+  project_root: Str = path_parent(entry_path)
+  stdlib_root: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+  loaded: LoadedProject = load_project(entry_path)
+  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  identity: ModuleIdentity = source_module_identity(entry_path, project_root, stdlib_root)
+  emitted: ModuleEmissionResult = module_emission_program(graph, loaded.modules, loaded.module_signatures, loaded.module_bodies, identity)
+  mut results: [TestResult] = []
+  results = append(results, test_expect("identity emission accepts checked public fixture", len(emitted.diagnostics) == 0, if len(emitted.diagnostics) > 0 { emitted.diagnostics[0].message } else { "unexpected emission failure" }))
+  results = append(results, test_expect("identity emission retains only entry main", emitted.program.function_indices.has("main"), "entry main missing"))
+  left_identity: ModuleIdentity = source_module_identity(path_join(project_root, "left.panack"), project_root, stdlib_root)
+  right_identity: ModuleIdentity = source_module_identity(path_join(project_root, "right.panack"), project_root, stdlib_root)
+  left_make: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "make"))
+  right_make: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "make"))
+  left_main: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "main"))
+  right_main: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "main"))
+  left_item: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Item"))
+  right_item: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Item"))
+  left_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Outcome"))
+  right_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Outcome"))
+  left_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Finished"))
+  right_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Finished"))
+  results = append(results, test_expect("identity emission includes left same-spelled function", emitted.program.function_indices.has(left_make), left_make + " missing"))
+  results = append(results, test_expect("identity emission includes right same-spelled function", emitted.program.function_indices.has(right_make), right_make + " missing"))
+  results = append(results, test_expect("identity emission internalizes imported mains", left_main != "main" && right_main != "main" && emitted.program.function_indices.has(left_main) && emitted.program.function_indices.has(right_main), "imported main was not internalized"))
+  results = append(results, test_expect("identity emission keeps same-spelled functions distinct", left_make != right_make, "make identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled records distinct", emitted.program.record_indices.has(left_item) && emitted.program.record_indices.has(right_item) && left_item != right_item, "Item identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled enums distinct", emitted.program.enum_indices.has(left_outcome) && emitted.program.enum_indices.has(right_outcome) && left_outcome != right_outcome, "Outcome identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled variants distinct", emitted.program.variants.has(left_finished) && emitted.program.variants.has(right_finished) && left_finished != right_finished, "Finished identities collided"))
+  left_target: ResolvedModuleTarget = match resolve_module_path(graph, identity, "left.make") {
+    Error(message) => NamespaceTarget(identity),
+    Ok(target) => target
+  }
+  left_binding: ModuleDeclarationBinding = match left_target {
+    DeclarationTarget(binding) => binding,
+    NamespaceTarget(module) => ModuleDeclarationBinding(DeclarationIdentity(module, "make"), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)))
+  }
+  call: BoundBody = BoundBody(
+    BodyCall(BodyDeclaration(left_binding), []),
+    SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)),
+    [],
+    Some(SignatureType(SignatureCore("Nat"), [])),
+    []
+  )
+  emitted_call: Expr = module_emission_expression(graph, identity, call)
+  results = append(results, test_expect("identity expression targets the left declaration", match emitted_call {
+    CallExpr(name, arguments, types) => name == left_make,
+    LocatedExpr(span, expression) => false,
+    DotCallExpr(target, name, arguments, types) => false,
+    StringExpr(text) => false,
+    NatExpr(value) => false,
+    DecimalExpr(value) => false,
+    BoolExpr(value) => false,
+    NameExpr(name) => false,
+    FunctionExpr(name) => false,
+    ArrayExpr(items) => false,
+    UnaryExpr(operator, operand) => false,
+    BinaryExpr(operator, left, right) => false,
+    FieldExpr(target, name) => false,
+    IndexExpr(target, index) => false,
+    IfExpr(condition, yes, no, has_else) => false,
+    BlockExpr(block) => false,
+    MatchExpr(subject, arms) => false
+  }, "wrong target"))
+  if len(emitted.diagnostics) == 0 {
+    artifact: Bytes = serialize_bytecode(compile_program(emitted.program))
+    results = append(results, test_expect("identity emission produces verified bytecode", len(artifact) > 0, "empty artifact"))
+  } else {}
+  results
 }
 
 pure namespace_identity(path: Str): ModuleIdentity {
@@ -570,6 +683,7 @@ pure namespace_effect_tests(): [TestResult] {
   results = append(results, test_equal_str("identity effects reject ordinary call from pure", body_effect_error("pub pure f(): Nat { later() }; later(): Nat { 1 }"), "pure function cannot call impure function body.panack:later"))
   results = append(results, test_equal_str("identity effects allow ordinary call from ordinary", body_effect_error("pub f(): Nat { later() }; later(): Nat { 1 }"), "ok"))
   results = append(results, test_equal_str("identity effects reject blocking call from async", body_effect_error("pub async f(): Unit { print(1); () }"), "async function cannot call blocking function print"))
+  results = append(results, test_equal_str("identity effects accept ordinary printing", body_effect_error("pub f(): Void { print(1) }"), "ok"))
   results = append(results, test_equal_str("identity effects require awaiting async direct calls", body_effect_error("pub async f(): Unit { later(); () }; async later(): Unit { () }"), "async call requires await inside an async function"))
   results = append(results, test_equal_str("identity effects reject async call from pure", body_effect_error("pub pure f(): Nat { later() }; async later(): Nat { 1 }"), "async call requires await inside an async function"))
   results = append(results, test_equal_str("identity effects accept awaited async direct calls", body_effect_error("pub async f(): Nat { await later() }; async later(): Nat { 1 }"), "ok"))
@@ -593,6 +707,8 @@ pure namespace_effect_tests(): [TestResult] {
 }
 pure namespace_body_tests(): [TestResult] {
   mut results: [TestResult] = []
+  results = append(results, test_equal_str("print body contract", body_test_error("pub f(): Void { print(1) }"), "ok"))
+  results = append(results, test_equal_str("print wrong arity", body_test_error("pub f(): Void { print() }"), "print expects 1 arguments, got 0"))
   for source in [
     "pub pure identity(value: Nat): Nat { value }",
     "pub pure widen(value: Nat): Int { value }",

@@ -124,6 +124,58 @@ pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_r
   }
 }
 
+pure loader_path_within(path: Str, root: Str): Bool {
+  if root == "/" {
+    starts_with(path, "/")
+  } else {
+    path == root || starts_with(path, root + "/")
+  }
+}
+
+loader_path_component_is_symlink(path: Str): Bool {
+  match path_from_text(path) {
+    Error(error) => true,
+    Ok(file) => match fs_metadata(file) {
+      Error(error) => false,
+      Ok(metadata) => metadata.kind == SymbolicLink()
+    }
+  }
+}
+
+loader_path_has_symlink(path: Str, root: Str): Bool {
+  if !loader_path_within(path, root) {
+    true
+  } else {
+    relative: Str = if path == root {
+      ""
+    } else {
+      if root == "/" { slice(path, 1, len(path)) } else { slice(path, len(root) + 1, len(path)) }
+    }
+    mut current: Str = root
+    mut segment: Str = ""
+    mut found: Bool = false
+    mut index: Nat = 0
+    while index < len(relative) {
+      character: Str = relative[index]
+      if character == "/" {
+        if len(segment) > 0 {
+          current = path_join(current, segment)
+          found = found || loader_path_component_is_symlink(current)
+          segment = ""
+        } else {}
+      } else {
+        segment = segment + character
+      }
+      index = index + 1
+    }
+    if len(segment) > 0 {
+      current = path_join(current, segment)
+      found = found || loader_path_component_is_symlink(current)
+    } else {}
+    found
+  }
+}
+
 read_project_source(
   path: Str,
   bounded: Bool,
@@ -172,6 +224,21 @@ load_project_module(
   if state.visited.has(path) {
     state
   } else {
+    if !loader_path_within(path, project_root) && !loader_path_within(path, stdlib_root) {
+      diagnostics: [Diagnostic] = append(
+        state.diagnostics,
+        loader_diagnostic("module path escapes the entry directory and standard library roots: " + path)
+      )
+      ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
+    } else {
+    trusted_root: Str = if loader_path_within(path, stdlib_root) { stdlib_root } else { project_root }
+    if loader_path_has_symlink(path, trusted_root) {
+      diagnostics: [Diagnostic] = append(
+        state.diagnostics,
+        loader_diagnostic("module path traverses a symbolic link: " + path)
+      )
+      ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
+    } else {
     if path_in_stack(stack, path) {
       diagnostics: [Diagnostic] = append(
         state.diagnostics,
@@ -390,6 +457,8 @@ load_project_module(
         }
       }
     }
+    }
+    }
   }
 }
 
@@ -420,7 +489,11 @@ load_project_mode_with_main(
   require_main: Bool
 ): LoadedProject {
   resolved: Str = path_resolve(entry)
-  project_root: Str = path_parent(resolved)
+  project_root: Str = if environment_has("PANACKELTY_BOOTSTRAP_ROOT") {
+    path_resolve(environment_get("PANACKELTY_BOOTSTRAP_ROOT"))
+  } else {
+    path_parent(resolved)
+  }
   stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
     path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
   } else {

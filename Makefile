@@ -77,6 +77,7 @@ check-compiler-impl:
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
 		tests/runner/compiler_module_bindings_unit.panack \
+		tests/runner/compiler_loader_confinement_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \
@@ -172,7 +173,7 @@ $(BUILD_DIR)/vm/tcp_client: tests/tcp_client.c
 functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"
 	@report=$$(mktemp); artifact="$(abspath $(BUILD_DIR))/runner-smoke.bc"; \
 		trap 'rm -f "$$report" "$$artifact"' 0; \
@@ -324,12 +325,12 @@ probe-inputs:
 # The helper checks content, including imports, even when timestamps are restored.
 $(STAGE2_COMPILER): $(STAGE1_COMPILER) probe-inputs
 	@mkdir -p "$(dir $@)"
-	@PANACK_PROBE_SEED="$(abspath $(STAGE1_COMPILER))" $(PROFILE) "bootstrap-build/$@" $(PROBE) --compile $(COMPILER_SOURCE) "$@"
+	@PANACKELTY_BOOTSTRAP_ROOT="$(abspath src)" PANACK_PROBE_SEED="$(abspath $(STAGE1_COMPILER))" $(PROFILE) "bootstrap-build/$@" $(PROBE) --compile $(COMPILER_SOURCE) "$@"
 	@./panack-vm check "$@"
 
 $(STAGE3_COMPILER): $(STAGE2_COMPILER) $(COMPILER_SOURCE)
 	mkdir -p $(dir $@)
-	$(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE2_COMPILER) compile $(COMPILER_SOURCE) -o $@
+	PANACKELTY_BOOTSTRAP_ROOT="$(abspath src)" $(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE2_COMPILER) compile $(COMPILER_SOURCE) -o $@
 	./panack-vm check $@
 
 $(STAGE1_STDLIB): $(STAGE1_COMPILER) $(STDLIB_CONFORMANCE)

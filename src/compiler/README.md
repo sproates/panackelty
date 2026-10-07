@@ -149,10 +149,15 @@ documented in `../../docs/SOURCE_MAPS.md`.
   the same core-function pruning as the instruction table.
 - `loader.panack` is the effectful project boundary. It resolves quoted paths
   relative to their importer, `project/` paths from the entry directory, and
-  `stdlib/` paths from the active toolchain. It canonicalizes and recursively
-  reads each module once, detects invalid paths, cycles, and missing modules,
-  retains ordered source paths and snapshots for diagnostic rendering and source maps, and hands one combined
-  program to the pure frontend and emitter.
+  `stdlib/` paths from the active toolchain. It confines standalone imports to
+  the entry directory, rejects symlink traversal, and supports an explicit
+  `PANACKELTY_BOOTSTRAP_ROOT` for isolated compiler-stage builds. It loads each
+  module once, retains ordered source snapshots, and supplies the identity graph
+  to staged checking and emission.
+- `module_emission.panack` lowers fully identity-checked bodies and canonical
+  function/type/variant identities to deterministic private names. Entry `main`
+  remains the launch point; imported `main` functions are internalized. The
+  emitter preserves the existing version-9 bytecode format.
 - `source_maps.panack` owns canonical optional sidecars and exact local replay
   validation, portable identifiers, bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
@@ -160,9 +165,10 @@ documented in `../../docs/SOURCE_MAPS.md`.
 - `explanations.panack` presents opt-in subtraction decisions and guard origins
   retained by the checker, using loaded source snapshots. See the
   [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
-- `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and `explain` for source
-  and version-9 bytecode, including default output paths and primary positioned
-  lexer, parser, name, and type diagnostics.
+- `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
+  `explain` for source and version-9 bytecode. Staged checked programs use
+  identity emission for check/run/compile; source-map and explain/locate
+  migration remains pending.
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute

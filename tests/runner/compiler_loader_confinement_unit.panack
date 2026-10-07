@@ -1,0 +1,72 @@
+import "../../src/compiler/loader.panack"
+import stdlib/result
+import stdlib/testing
+import stdlib/testing_files
+import stdlib/filesystem
+import stdlib/process
+
+pure confinement_path(text: Str): Path {
+  result_value_or(path_from_text(text), path_current())
+}
+
+pure confinement_child(root: Path, name: Str): Path {
+  result_value_or(path_append(root, confinement_path(name)), root)
+}
+
+pure confinement_text(path: Path): Str {
+  result_value_or(path_to_text(path), "")
+}
+
+main(): Void {
+  match test_workspace_create(confinement_path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Ok(workspace) => {
+      root_text: Str = confinement_text(workspace.root)
+      project: Path = confinement_child(workspace.root, "project")
+      entry: Path = confinement_child(project, "main.panack")
+      link: Path = confinement_child(project, "link.panack")
+      outside: Path = confinement_child(workspace.root, "outside.panack")
+      fs_create_directory(project)
+      fs_write(outside, utf8_encode("pub pure answer(): Nat { 42 }\n"))
+      fs_write(entry, utf8_encode("import \"link.panack\"\nmain(): Void {}\n"))
+      setup: ProcessOutput = match process_run(
+        confinement_path("/bin/ln"),
+        ["-s", confinement_text(outside), confinement_text(link)],
+        bytes(),
+        workspace.root,
+        [],
+        duration_seconds(5),
+        1024
+      ) {
+        Error(error) => ProcessOutput(1, 0, bytes(), bytes()),
+        Ok(output) => output
+      }
+      mut results: [TestResult] = []
+      results = append(results, test_expect("symlink fixture setup", setup.exit_code == 0 && setup.signal == 0, "ln failed"))
+      loaded: LoadedProject = load_project(confinement_text(entry))
+      results = append(results, test_expect(
+        "loader rejects import through symbolic link",
+        len(loaded.diagnostics) > 0 && starts_with(loaded.diagnostics[0].message, "module path traverses a symbolic link:"),
+        if len(loaded.diagnostics) > 0 { loaded.diagnostics[0].message } else { "import unexpectedly loaded" }
+      ))
+      fs_remove_file(link)
+      fs_remove_file(entry)
+      escape_entry: Path = confinement_child(project, "escape.panack")
+      fs_write(escape_entry, utf8_encode("import \"../outside.panack\"\nmain(): Void {}\n"))
+      escaped: LoadedProject = load_project(confinement_text(escape_entry))
+      results = append(results, test_expect(
+        "loader rejects relative import outside entry root",
+        len(escaped.diagnostics) > 0 && starts_with(escaped.diagnostics[0].message, "module path escapes the entry directory"),
+        if len(escaped.diagnostics) > 0 { escaped.diagnostics[0].message } else { "outside import unexpectedly loaded" }
+      ))
+      fs_remove_file(escape_entry)
+      fs_remove_file(outside)
+      fs_remove_directory(project)
+      match test_workspace_remove_empty(workspace) {
+        Error(error) => { results = append(results, test_expect("workspace cleanup", false, "temporary files remain")) },
+        Ok(removed) => {}
+      }
+      if test_report(results) > 0 { process_exit(1) }
+    }
+  }
+}

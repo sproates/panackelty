@@ -1,0 +1,5 @@
+pub record Item { value: Nat }
+pub enum Outcome { Finished }
+pub pure make(): Item { Item(41) }
+pub pure make_outcome(): Outcome { Finished() }
+main(): Void { print(999) }

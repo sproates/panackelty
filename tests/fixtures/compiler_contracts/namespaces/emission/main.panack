@@ -1,0 +1,12 @@
+import "left.panack" as left
+import "right.panack" as right
+main(): Void {
+  left_item: left.Item = left.make()
+  right_item: right.Item = right.make()
+  left_outcome: left.Outcome = left.make_outcome()
+  right_outcome: right.Outcome = right.make_outcome()
+  match left_outcome { left.Outcome.Finished() => {} }
+  match right_outcome { right.Outcome.Finished() => {} }
+  print(left_item.value)
+  print(right_item.value)
+}

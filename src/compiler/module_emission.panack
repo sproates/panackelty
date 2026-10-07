@@ -1,0 +1,593 @@
+import "module_bodies.panack"
+
+// Convert only fully checked namespace bodies to the legacy instruction
+// frontend. Module and declaration identities become deterministic private
+// bytecode names; source names remain available to later diagnostic tooling.
+
+record ModuleEmissionResult {
+  program: Program,
+  diagnostics: [Diagnostic]
+}
+
+pure module_emission_module_index(
+  graph: ModuleBindingGraph,
+  identity: ModuleIdentity
+): Option[Nat] {
+  mut result: Option[Nat] = None()
+  mut index: Nat = 0
+  for module in graph.modules {
+    if module.identity == identity {
+      result = Some(index)
+    } else {}
+    index = index + 1
+  }
+  result
+}
+
+pure module_emission_nat_text(value: Nat): Str {
+  digits: Str = "0123456789"
+  if value < 10 {
+    digits[value]
+  } else {
+    module_emission_nat_text(quotient(value, 10)) + digits[value % 10]
+  }
+}
+
+pure module_emission_symbol(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  identity: DeclarationIdentity
+): Str {
+  if identity.module.package == ToolchainModulePackage() {
+    if identity.name == "core_first" || identity.name == "core_ends_with" ||
+      identity.name == "core_sort_by" {
+      "$" + identity.name
+    } else {
+      identity.name
+    }
+  } else {
+    if identity.module == entry && identity.name == "main" {
+      "main"
+    } else {
+      match module_emission_module_index(graph, identity.module) {
+        None() => "$missing_" + identity.name,
+        Some(index) => "$module" + module_emission_nat_text(index) + "_" + identity.name
+      }
+    }
+  }
+}
+
+pure module_emission_target(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  target: BodyTarget
+): Str {
+  match target {
+    BodyCore(name) => name,
+    BodyDeclaration(binding) => module_emission_symbol(graph, entry, binding.identity)
+  }
+}
+
+pure module_emission_signature_type(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  owner: DeclarationIdentity,
+  parameters: [Str],
+  value: SignatureType
+): Str {
+  head: Str = match value.identity {
+    SignatureCore(name) => name,
+    SignatureNominal(identity) => module_emission_symbol(graph, entry, identity),
+    SignatureParameter(binder, index) => if binder == owner && index < len(parameters) {
+      parameters[index]
+    } else {
+      "$unresolved_type_parameter"
+    },
+    SignatureCallable(effect) => match effect {
+      SignaturePure() => "PureFn",
+      SignatureOrdinary() => "Fn",
+      SignatureAsync() => "AsyncFn"
+    },
+    SignatureHole(binder, path, index) => "$unresolved_type"
+  }
+  mut arguments: [Str] = []
+  for child in value.arguments {
+    arguments = append(arguments, module_emission_signature_type(graph, entry, owner, parameters, child))
+  }
+  if len(arguments) == 0 {
+    head
+  } else {
+    render_type(head, arguments)
+  }
+}
+
+pure module_emission_signature(
+  signatures: [ModuleSignature],
+  identity: DeclarationIdentity
+): Option[ModuleSignature] {
+  mut selected: Option[ModuleSignature] = None()
+  for signature in signatures {
+    if signature.binding.identity == identity {
+      selected = Some(signature)
+    } else {}
+  }
+  selected
+}
+
+pure module_emission_slot_type(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  signature: ModuleSignature,
+  name: Str,
+  fallback: Str
+): Str {
+  mut result: Str = fallback
+  for slot in signature.slots {
+    if slot.name == name {
+      result = module_emission_signature_type(
+        graph,
+        entry,
+        signature.binding.identity,
+        signature.parameters,
+        slot.type
+      )
+    } else {}
+  }
+  result
+}
+
+pure module_emission_escape_string(text: Str): Str {
+  mut result: Str = ""
+  mut index: Nat = 0
+  while index < len(text) {
+    character: Str = text[index]
+    if character == "\\" {
+      result = result + "\\\\"
+    } else {
+      if character == "\"" {
+        result = result + "\\\""
+      } else {
+        if character == "\n" {
+          result = result + "\\n"
+        } else {
+          if character == "\r" {
+            result = result + "\\r"
+          } else {
+            if character == "\t" {
+              result = result + "\\t"
+            } else {
+              result = result + character
+            }
+          }
+        }
+      }
+    }
+    index = index + 1
+  }
+  result
+}
+
+pure module_emission_interpolation(body: BoundBody): Expr {
+  match body.node {
+    BodyInterpolation(parts) => {
+      mut text: Str = if len(parts) > 0 { parts[0] } else { "" }
+      mut index: Nat = 0
+      for child in body.children {
+        mut local_name: Str = ""
+        match child.node {
+          BodyLocalUse(identity) => {
+            local_name = identity.name
+          },
+          BodyLiteral(value) => {},
+          BodyInterpolation(values) => {},
+          BodyFunction(binding) => {},
+          BodyCall(target, types) => {},
+          BodyArray() => {},
+          BodyUnary(operator) => {},
+          BodyBinary(operator) => {},
+          BodyField(name) => {},
+          BodyIndex() => {},
+          BodyIf(has_else) => {},
+          BodyBlock(has_tail) => {},
+          BodyMatch(targets, bindings) => {},
+          BodyBinding(identity, type, mutable) => {},
+          BodyAssignment(identity) => {},
+          BodyWhile() => {},
+          BodyFor(identity) => {},
+          BodyEmpty() => {}
+        }
+        text = text + "${" + local_name + "}"
+        if index + 1 < len(parts) {
+          text = text + parts[index + 1]
+        } else {}
+        index = index + 1
+      }
+      StringExpr("\"" + module_emission_escape_string(text) + "\"")
+    },
+    BodyLiteral(value) => value,
+    BodyLocalUse(identity) => NameExpr(identity.name),
+    BodyFunction(binding) => FunctionExpr(""),
+    BodyCall(target, types) => CallExpr("$unit", [], []),
+    BodyArray() => CallExpr("$unit", [], []),
+    BodyUnary(operator) => CallExpr("$unit", [], []),
+    BodyBinary(operator) => CallExpr("$unit", [], []),
+    BodyField(name) => CallExpr("$unit", [], []),
+    BodyIndex() => CallExpr("$unit", [], []),
+    BodyIf(has_else) => CallExpr("$unit", [], []),
+    BodyBlock(has_tail) => CallExpr("$unit", [], []),
+    BodyMatch(targets, bindings) => CallExpr("$unit", [], []),
+    BodyBinding(identity, type, mutable) => CallExpr("$unit", [], []),
+    BodyAssignment(identity) => CallExpr("$unit", [], []),
+    BodyWhile() => CallExpr("$unit", [], []),
+    BodyFor(identity) => CallExpr("$unit", [], []),
+    BodyEmpty() => CallExpr("$unit", [], [])
+  }
+}
+
+pure module_emission_expressions(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  bodies: [BoundBody]
+): [Expr] {
+  mut result: [Expr] = []
+  for body in bodies {
+    result = append(result, module_emission_expression(graph, entry, body))
+  }
+  result
+}
+
+pure module_emission_block(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  body: BoundBody
+): Block {
+  mut statements: [Statement] = []
+  mut count: Nat = len(body.children)
+  has_tail: Bool = match body.node {
+    BodyBlock(value) => value,
+    BodyLiteral(value) => false,
+    BodyInterpolation(parts) => false,
+    BodyLocalUse(identity) => false,
+    BodyFunction(binding) => false,
+    BodyCall(target, types) => false,
+    BodyArray() => false,
+    BodyUnary(operator) => false,
+    BodyBinary(operator) => false,
+    BodyField(name) => false,
+    BodyIndex() => false,
+    BodyIf(value) => false,
+    BodyMatch(targets, bindings) => false,
+    BodyBinding(identity, type, mutable) => false,
+    BodyAssignment(identity) => false,
+    BodyWhile() => false,
+    BodyFor(identity) => false,
+    BodyEmpty() => false
+  }
+  if has_tail && count > 0 {
+    count = prior_index(count)
+  } else {}
+  mut index: Nat = 0
+  for child in body.children {
+    if index < count {
+      statement: Option[Statement] = match child.node {
+        BodyBinding(identity, type, mutable) => Some(BindingStatement(
+          identity.name,
+          "",
+          mutable,
+          module_emission_expression(graph, entry, child.children[0])
+        )),
+        BodyAssignment(identity) => Some(AssignmentStatement(
+          identity.name,
+          module_emission_expression(graph, entry, child.children[0])
+        )),
+        BodyWhile() => Some(WhileStatement(
+          module_emission_expression(graph, entry, child.children[0]),
+          module_emission_block(graph, entry, child.children[1])
+        )),
+        BodyFor(identity) => Some(ForStatement(
+          identity.name,
+          module_emission_expression(graph, entry, child.children[0]),
+          module_emission_block(graph, entry, child.children[1])
+        )),
+        BodyEmpty() => None(),
+        BodyLiteral(value) => Some(ExpressionStatement(value)),
+        BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyLocalUse(identity) => Some(ExpressionStatement(NameExpr(identity.name))),
+        BodyFunction(binding) => Some(ExpressionStatement(FunctionExpr(module_emission_symbol(graph, entry, binding.identity)))),
+        BodyCall(target, types) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyArray() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyBinary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyField(name) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyIndex() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyIf(value) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyBlock(value) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyMatch(targets, bindings) => Some(ExpressionStatement(module_emission_expression(graph, entry, child)))
+      }
+      match statement {
+        None() => {},
+        Some(value) => {
+          statements = append(statements, value)
+        }
+      }
+    } else {}
+    index = index + 1
+  }
+  block_value: BlockValue = if has_tail && len(body.children) > 0 {
+    TailBlockValue(module_emission_expression(graph, entry, body.children[prior_index(len(body.children))]))
+  } else {
+    NoBlockValue()
+  }
+  Block(statements, block_value)
+}
+
+pure module_emission_expression(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  body: BoundBody
+): Expr {
+  match body.node {
+    BodyInterpolation(parts) => module_emission_interpolation(body),
+    BodyLiteral(value) => value,
+    BodyLocalUse(identity) => NameExpr(identity.name),
+    BodyFunction(binding) => FunctionExpr(module_emission_symbol(graph, entry, binding.identity)),
+    BodyCall(target, types) => CallExpr(
+      module_emission_target(graph, entry, target),
+      module_emission_expressions(graph, entry, body.children),
+      []
+    ),
+    BodyArray() => ArrayExpr(module_emission_expressions(graph, entry, body.children)),
+    BodyUnary(operator) => UnaryExpr(operator, module_emission_expression(graph, entry, body.children[0])),
+    BodyBinary(operator) => BinaryExpr(
+      operator,
+      module_emission_expression(graph, entry, body.children[0]),
+      module_emission_expression(graph, entry, body.children[1])
+    ),
+    BodyField(name) => FieldExpr(module_emission_expression(graph, entry, body.children[0]), name),
+    BodyIndex() => IndexExpr(
+      module_emission_expression(graph, entry, body.children[0]),
+      module_emission_expression(graph, entry, body.children[1])
+    ),
+    BodyIf(has_else) => IfExpr(
+      module_emission_expression(graph, entry, body.children[0]),
+      module_emission_block(graph, entry, body.children[1]),
+      module_emission_block(graph, entry, body.children[2]),
+      has_else
+    ),
+    BodyBlock(has_tail) => BlockExpr(module_emission_block(graph, entry, body)),
+    BodyMatch(targets, bindings) => {
+      mut arms: [MatchArm] = []
+      mut index: Nat = 0
+      for target in targets {
+        mut names: [Str] = []
+        if index < len(bindings) {
+          for local in bindings[index] {
+            names = append(names, local.name)
+          }
+        } else {}
+        arms = append(arms, MatchArm(
+          MatchPattern(module_emission_target(graph, entry, target), names),
+          module_emission_expression(graph, entry, body.children[index + 1])
+        ))
+        index = index + 1
+      }
+      MatchExpr(module_emission_expression(graph, entry, body.children[0]), arms)
+    },
+    BodyBinding(identity, type, mutable) => CallExpr("$unit", [], []),
+    BodyAssignment(identity) => CallExpr("$unit", [], []),
+    BodyWhile() => CallExpr("$unit", [], []),
+    BodyFor(identity) => CallExpr("$unit", [], []),
+    BodyEmpty() => CallExpr("$unit", [], [])
+  }
+}
+
+pure module_emission_function(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  module: LoadedModule,
+  declaration: TopLevel,
+  bodies: [BoundFunctionBody]
+): Option[TopLevel] {
+  match declaration {
+    FunctionDeclaration(name, parameters, return_type, is_pure, is_async, original_body, type_parameters) => {
+      identity: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
+      mut selected: Option[BoundFunctionBody] = None()
+      for body in bodies {
+        if body.signature.binding.identity == identity {
+          selected = Some(body)
+        } else {}
+      }
+      match selected {
+        None() => None(),
+        Some(body) => match body.status {
+          BodyIdentityChecked() => if len(body.deferred) == 0 {
+            mut emitted_parameters: [FunctionParameter] = []
+            mut parameter_index: Nat = 0
+            for parameter in parameters {
+              parameter_type: Str = if parameter_index < len(body.signature.slots) {
+                module_emission_signature_type(
+                  graph,
+                  entry,
+                  identity,
+                  body.signature.parameters,
+                  body.signature.slots[parameter_index].type
+                )
+              } else {
+                parameter.type_name
+              }
+              emitted_parameters = append(emitted_parameters, FunctionParameter(parameter.name, parameter_type))
+              parameter_index = parameter_index + 1
+            }
+            result_type: Str = if len(body.signature.slots) > parameter_index {
+              module_emission_signature_type(
+                graph,
+                entry,
+                identity,
+                body.signature.parameters,
+                body.signature.slots[parameter_index].type
+              )
+            } else {
+              return_type
+            }
+            Some(FunctionDeclaration(
+              module_emission_symbol(graph, entry, identity),
+              emitted_parameters,
+              result_type,
+              is_pure,
+              is_async,
+              module_emission_block(graph, entry, body.body),
+              type_parameters
+            ))
+          } else {
+            None()
+          },
+          BodyDeferred() => None(),
+          BodyInvalid() => None()
+        }
+      }
+    },
+    ImportDeclaration(path) => None(),
+    TypeDeclaration(name, base, guard) => None(),
+    RecordDeclaration(name, parameters, fields) => None(),
+    EnumDeclaration(name, parameters, variants) => None()
+  }
+}
+
+pure module_emission_declaration_span(module: LoadedModule, name: Str): SourceSpan {
+  mut span: SourceSpan = SourceSpan(
+    SourcePos(module.source_path, 0, 1, 1),
+    SourcePos(module.source_path, 0, 1, 1)
+  )
+  mut index: Nat = 0
+  for declaration in module.parsed.program.declarations {
+    declared: Str = match declaration {
+      ImportDeclaration(path) => "",
+      TypeDeclaration(value, base, guard) => value,
+      RecordDeclaration(value, parameters, fields) => value,
+      EnumDeclaration(value, parameters, variants) => value,
+      FunctionDeclaration(value, parameters, return_type, is_pure, is_async, body, type_parameters) => value
+    }
+    if declared == name {
+      span = module.parsed.syntax[index].span
+    } else {}
+    index = index + 1
+  }
+  span
+}
+
+pure module_emission_program(
+  graph: ModuleBindingGraph,
+  modules: [LoadedModule],
+  signatures: [ModuleSignature],
+  bodies: [BoundFunctionBody],
+  entry: ModuleIdentity
+): ModuleEmissionResult {
+  mut declarations: [TopLevel] = []
+  mut diagnostics: [Diagnostic] = []
+  for module in modules {
+    if module.bindings.identity.package == ToolchainModulePackage() {
+      declarations = concat(declarations, module.execution_program.declarations)
+    } else {
+      for declaration in module.parsed.program.declarations {
+        converted: Option[TopLevel] = match declaration {
+          ImportDeclaration(path) => None(),
+          TypeDeclaration(name, base, guard) => Some(TypeDeclaration(
+            module_emission_symbol(
+              graph,
+              entry,
+              DeclarationIdentity(module.bindings.identity, name)
+            ),
+            match module_emission_signature(signatures, DeclarationIdentity(module.bindings.identity, name)) {
+              None() => base,
+              Some(signature) => module_emission_slot_type(
+                graph,
+                entry,
+                signature,
+                "base",
+                base
+              )
+            },
+            guard
+          )),
+          RecordDeclaration(name, parameters, fields) => {
+            identity: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
+            mut emitted_fields: [RecordField] = []
+            match module_emission_signature(signatures, identity) {
+              None() => {
+                emitted_fields = fields
+              },
+              Some(signature) => {
+                for field in fields {
+                  emitted_fields = append(emitted_fields, RecordField(
+                    field.name,
+                    module_emission_slot_type(graph, entry, signature, field.name, field.type_name)
+                  ))
+                }
+              }
+            }
+            Some(RecordDeclaration(
+              module_emission_symbol(graph, entry, identity),
+              parameters,
+              emitted_fields
+            ))
+          },
+          EnumDeclaration(name, parameters, variants) => {
+            identity: DeclarationIdentity = DeclarationIdentity(module.bindings.identity, name)
+            mut renamed: [EnumVariant] = []
+            mut signature: Option[ModuleSignature] = module_emission_signature(signatures, identity)
+            for variant in variants {
+              mut payload: [Str] = []
+              mut payload_index: Nat = 0
+              for type_name in variant.payload {
+                payload_slot: Str = variant.name + ":" + module_emission_nat_text(payload_index)
+                mapped: Str = match signature {
+                  None() => type_name,
+                  Some(value) => module_emission_slot_type(graph, entry, value, payload_slot, type_name)
+                }
+                payload = append(payload, mapped)
+                payload_index = payload_index + 1
+              }
+              renamed = append(renamed, EnumVariant(
+                module_emission_symbol(
+                  graph,
+                  entry,
+                  DeclarationIdentity(module.bindings.identity, variant.name)
+                ),
+                payload
+              ))
+            }
+            Some(EnumDeclaration(
+              module_emission_symbol(
+                graph,
+                entry,
+                DeclarationIdentity(module.bindings.identity, name)
+              ),
+              parameters,
+              renamed
+            ))
+          },
+          FunctionDeclaration(name, parameters, return_type, is_pure, is_async, body, type_parameters) =>
+            module_emission_function(graph, entry, module, declaration, bodies)
+        }
+        match converted {
+          None() => match declaration {
+            FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {
+              diagnostics = append(diagnostics, Diagnostic(
+                "function is not completely checked for identity emission: " + name,
+                module_emission_declaration_span(module, name).start
+              ))
+            },
+            ImportDeclaration(path) => {},
+            TypeDeclaration(name, base, guard) => {},
+            RecordDeclaration(name, parameters, fields) => {},
+            EnumDeclaration(name, parameters, variants) => {}
+          },
+          Some(value) => {
+            declarations = append(declarations, value)
+          }
+        }
+      }
+    }
+  }
+  ModuleEmissionResult(indexed_program(declarations), diagnostics)
+}

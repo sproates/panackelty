@@ -109,8 +109,11 @@ inference complete slice 2. [PR#321](https://github.com/sproates/panackelty/pull
 and [PR#326](https://github.com/sproates/panackelty/pull/326) complete slice 3 on
 `next`, and [PR#327](https://github.com/sproates/panackelty/pull/327) completes
 slice 4. [PR#329](https://github.com/sproates/panackelty/pull/329) completes
-slice 5 effects/await on `next`; identity emission and loading, diagnostics, and
-coordinated source/seed migration remain. Compiler understanding
+slice 5 effects/await on `next`; slice 6 identity emission/loading is in progress,
+with the current canonical check passing in 123s against the 120s budget
+(observational; no causal claim). Its acceptance disposition is recorded in the
+[slice 6 validation profile](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08).
+Diagnostics and coordinated source/seed migration remain. Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -122,7 +125,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. Slice 5 passes canonical `make check` in 119s, 121s, 126s and 191s (unit 76–146s, functional 3–4s, bootstrap 17–19s) and `make check-compiler` in 51–52s; both targets remain exceeded and there is no controlled before/after attribution. [Slice 5 evidence and disposition](tests/VALIDATION_PROFILE.md#namespace-checked-graph-effects-and-await--2026-10-07). [Prior delivery profile](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. The bounded startup/loader/full comparison supplies preceding delivery evidence; it is not a full-corpus attribution. Proposed disposition for slice 5: retain unchanged targets and coverage, record its observed 119–191s full / 51–52s focused checks without claiming cause, and compare exact base/head workloads before the next checker-heavy slice. The validation maintainer owns a bounded loader/core reuse feasibility assessment as the next candidate for explicit selection, with immutable-source identity and diagnostic/failure isolation; review the selection and recheck this final-versus-base compilation cost before the next affected compiler delivery. No optimization starts through this handover. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. Slice 5 passes canonical `make check` in 119s, 121s, 126s and 191s (unit 76–146s, functional 3–4s, bootstrap 17–19s) and `make check-compiler` in 51–52s; both targets remain exceeded. Slice 6's canonical check passes in 123s, 3s over target; one run does not establish attribution. The exact pre-slice-5/base and slice-5/head comparison passed at 193s/193s full and 51s/52s focused; one pair cannot establish attribution or cost neutrality. [Slice 6 evidence and proposed disposition](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08). [Slice 5 evidence, comparison and reuse assessment](tests/VALIDATION_PROFILE.md#namespace-checked-graph-effects-and-await--2026-10-07). [Prior delivery profile](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). | Open performance concern. Keep the 120s/15s targets and all coverage. The bounded loader/core reuse assessment found the existing content-verified probe cache already reuses compiled test programs; the separate CLI process model and small noisy loader sample do not justify a shared cache or long-lived service, so no optimization is selected. The proposed acceptance disposition for this bounded delivery is recorded in the validation profile and requires owner acceptance with merge approval; GI#106 remains the owner for comparable evidence and remediation review. No optimization starts through this handover. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -2995,9 +2998,9 @@ partial completion estimated below and 10 pp formally accepted across the progra
 
 <a id="namespace-completion-assessment"></a>
 
-Provisional scope baseline updated 2026-10-07 after slice 4: **approximately
-55% of RM#41, versus 48% before slice 4**. PR#327 merged slice 4 to `next`;
-this is the current estimate, not a pending-on-merge forecast.
+Provisional scope baseline updated 2026-10-07 after slice 5: **approximately
+65% of RM#41, versus 55% after slice 4 and 48% before slice 4**. PR#329 merged
+slice 5 to `next`; this is the current estimate, not a pending-on-merge forecast.
 This replaces the earlier estimate after slice 2; it is a reasoned allocation of
 implementation, tests, integration, migration and acceptance effort, not measured
 completion time, equal slice weights or credit by PR count. The denominator and
@@ -3012,7 +3015,7 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
-| Slice 6: Identity emission/standalone loading | 14% | Remaining unique symbols, standalone execution, root confinement and bootstrap loading | 0% | 0 pp |
+| Slice 6: Identity emission/standalone loading | 14% | In progress on `feat/namespace-identity-emission`: checked identity emission, entry selection, symlink/path confinement and isolated compiler bootstrap are exercised; broader migration and acceptance remain | 0% | 0 pp |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
 | **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp** | **65% current estimate** | **65 pp** |
@@ -3039,6 +3042,19 @@ root-level entry in an isolated snapshot of the compiler/bytecode closure; do no
 permit parent-path escape from a `src/compiler/` confinement root. Remove staging
 outputs after each build. Temporary bootstrap inputs need explicit removal
 criteria and must not become a second installed language mode.
+
+Slice 6 work in progress on `feat/namespace-identity-emission` exercises
+same-spelled imported functions, records, enums and variants through source and
+saved v9 bytecode, confirms that only the selected entry `main` launches, rejects
+relative-root escapes and symlink traversal, and stages compiler builds under an
+explicit `src/` bootstrap root. This is an unmerged checked-subset delivery, not
+slice completion. Remaining acceptance includes broader body behavior, exact
+diagnostics and tooling migration, complete seed fixed-point evidence, and native,
+browser and installed conformance. Website impact: no website update; this
+compiler migration changes no published feature claim, and the browser seed
+remains unchanged. Performance impact: the bounded base/head check comparison is
+recorded in the validation profile; no compiler/runtime performance change is
+claimed for this identity-emission work.
 
 P2 owns standalone namespace semantics, entry selection and entry-directory
 root confinement, necessary initial stdlib exports and its own

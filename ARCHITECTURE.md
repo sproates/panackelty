@@ -267,20 +267,22 @@ child obligations propagate through conditions and operators. Even checked-subse
 status certifies only identity types. `module_effects.panack` checks purity,
 ordinary/async calls and await legality against these exact signatures and body
 identities, including indirect callable effects and explanation recovery for
-separately valid functions. Neither pass certifies executable code. No identity is
-encoded as a synthetic name or fed through a flattened legacy checker. The raw
-full-module projection survives only as a test adapter for lower-level binding
-contracts.
+separately valid functions. `module_emission.panack` lowers fully checked bodies,
+replacing standalone function, nominal type and variant identities with
+deterministic private names. The selected entry's `main` remains the launch point;
+imported `main` declarations are internalized. Toolchain core names stay
+reserved, and emitted ASTs use the existing version-9 bytecode format. The
+source driver compiles staged programs for check, run and compile; saved
+artifacts use the same verifier and VM. Source-map and explain/locate integration
+remains follow-up work.
 
-This is not checked namespace execution. Remaining body inference/proofs,
-emission and source/explanation tooling integration,
-more precise type/pattern use spans and coordinated source migration remain P2 work. `parse_program_complete` and the loader fail closed on staged
-syntax, including qualified uses with default imports or no explicit `pub`.
-Only the gated legacy execution tree lowers value methods and combines names;
-raw trees remain intact. The temporary boundary has no user-selectable mode and
-must disappear with downstream identity integration and bootstrap migration.
-The loader supplies normalized path-derived graph edges and reports staged graph
-and use diagnostics without emitting executable namespace programs.
+The loader builds one identity graph for every module in a staged project.
+Quoted imports are confined to the entry directory or bundled standard library,
+and symlink components in loaded module paths are rejected. Compiler bootstrap
+uses an explicit `PANACKELTY_BOOTSTRAP_ROOT` for the staged `src/` closure,
+separate from standalone project roots. `parse_program_complete` remains a
+legacy single-program adapter and rejects staged syntax rather than applying
+flat-name semantics.
 
 Parsed `Program` values retain declarations in source order and immutable
 per-kind name indexes constructed by `indexed_program`. Module combination

@@ -7,8 +7,11 @@ remains `614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
 with unchanged output. Constructor/field/pattern and generic-call checking now
 retains nominal, parameter and expression-hole identities. Whole-body constraints
 prevent one unresolved local acquiring incompatible types at separate uses.
-General core/indirect calls, guard proofs, effects, emission and coordinated source
-migration remain pending, and namespace execution stays gated. See the
+General core/indirect calls, guard proofs and coordinated source migration remain
+pending. A source-built stage-2 compiler now exercises bounded identity emission,
+root-confined standalone imports and source/saved-bytecode execution. The checked-in
+v9 seed remains unchanged until coordinated cutover; fresh fixed-point and release
+acceptance remain required. See the
 [aggregate validation evidence](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05).
 
 The preceding P2 ordinary-expression/control-flow slice refreshed the v9 seed to

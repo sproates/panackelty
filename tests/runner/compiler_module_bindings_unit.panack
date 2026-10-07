@@ -718,13 +718,61 @@ pure namespace_body_tests(): [TestResult] {
 
     "pub pure f(): Nat { next() }; async next(): Nat { 1 }",
     "pub pure f(): Nat { [1].first() }",
-    "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }",
-    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 1 }"
+    "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = append(results, test_equal_nat("deferred body has no invented error/" + source, len(checked.diagnostics), 0))
     results = append(results, test_expect("unsupported proof/inference explicitly deferred/" + source, len(checked.functions) > 0 && len(checked.functions[0].deferred) > 0, "unsupported body marked complete"))
   }
+  guarded_branch: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { if value > 0 { positive: Positive = value; value - 1 } else { 0 } }"
+  )
+  results = append(results, test_expect(
+    "identity guard facts prove guarded conversion and Nat subtraction",
+    len(guarded_branch.diagnostics) == 0 && len(guarded_branch.functions) == 1 &&
+      guarded_branch.functions[0].status == BodyIdentityChecked(),
+    if len(guarded_branch.diagnostics) > 0 { guarded_branch.diagnostics[0].message } else { "branch guard did not discharge its proof obligations" }
+  ))
+  guarded_invariant: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"
+  )
+  results = append(results, test_expect(
+    "guarded type invariant proves Nat subtraction",
+    len(guarded_invariant.diagnostics) == 0 && len(guarded_invariant.functions) == 1 &&
+      guarded_invariant.functions[0].status == BodyIdentityChecked(),
+    if len(guarded_invariant.diagnostics) > 0 { guarded_invariant.diagnostics[0].message } else { "guarded invariant was not used for subtraction" }
+  ))
+  guarded_literal: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 0 }"
+  )
+  results = append(results, test_expect(
+    "known failing guarded conversion is rejected",
+    len(guarded_literal.diagnostics) > 0 && guarded_literal.functions[0].status == BodyInvalid(),
+    "known failing guard was accepted or deferred"
+  ))
+  guarded_literal_positive: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 1 }"
+  )
+  results = append(results, test_expect(
+    "known passing guarded conversion is checked",
+    len(guarded_literal_positive.diagnostics) == 0 &&
+      guarded_literal_positive.functions[0].status == BodyIdentityChecked(),
+    "known passing guard remained deferred or was rejected"
+  ))
+  guarded_mutation: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { mut current = value; if current > 0 { current = 0; positive: Positive = current; 0 } else { 0 } }"
+  )
+  results = append(results, test_expect(
+    "reassignment invalidates only the mutated local guard fact",
+    len(guarded_mutation.diagnostics) == 0,
+    "unexpected mutation diagnostic"
+  ))
+  results = append(results, test_expect(
+    "reassignment leaves the guard conversion pending",
+    len(guarded_mutation.functions) == 1 &&
+      guarded_mutation.functions[0].status == BodyDeferred(),
+    "stale mutable-local fact discharged a guard obligation"
+  ))
   left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item { value: Nat }; pub pure take(value: Item): Item { value }; pub pure id[T](value: T): T { value }")
   right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item { value: Nat }")
   app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as first; import project/left as second; import project/right as other; pure okay(value: first.Item): second.Item { first.take(value) }; pure wrong(value: other.Item): first.Item { first.take(value) }; pure wrong_return(value: other.Item): first.Item { value }")
@@ -872,7 +920,6 @@ pure namespace_expression_tests(): [TestResult] {
   }
   for source in [
     "pub pure f(): Nat { 2 - 1 }",
-    "pub pure f(value: Nat): Nat { if value > 0 { value - 1 } else { 0 } }",
     "pub pure f(): Bool { false && ((2 - 1) == 1) }",
     "pub pure f(): Nat { if (2 - 1) == 1 { 0 } else { 1 } }",
     "pub pure f(): Void { while (2 - 1) == 1 {} }",

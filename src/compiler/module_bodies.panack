@@ -55,7 +55,8 @@ record BodyContext {
   modules: [LoadedModule],
   signatures: [ModuleSignature],
   owner: DeclarationIdentity,
-  parameters: [Str]
+  parameters: [Str],
+  facts: Map[Str, Bounds]
 }
 
 record BodyResult {
@@ -164,6 +165,526 @@ pure body_is_guarded(context: BodyContext, type: SignatureType): Bool {
     SignatureHole(owner, path, index) => {}
   }
   guarded
+}
+
+// Fact keys are derived from the structural binder path, never the spelling.
+// The context is scoped to one function, so the path uniquely identifies a local.
+pure body_fact_key(identity: BodyLocalIdentity): Str {
+  mut result: Str = ""
+  for part in identity.path {
+    result = result + "/${part}"
+  }
+  result
+}
+
+pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
+  mut result: Option[Bounds] = None()
+  match value.node {
+    BodyLocalUse(identity) => {
+      key: Str = body_fact_key(identity)
+      if context.facts.has(key) {
+        bounds: Bounds = context.facts.get(key)
+        if bounds.has_lower || bounds.has_upper {
+          result = Some(bounds)
+        }
+      }
+    },
+    BodyBlock(has_tail) => {
+      if has_tail && len(value.children) > 0 {
+        mut last: Option[BoundBody] = None()
+        for child in value.children {
+          last = Some(child)
+        }
+        match last {
+          None() => {},
+          Some(child) => {
+            result = body_guard_bounds(context, child)
+          }
+        }
+      }
+    },
+    BodyLiteral(literal) => match unlocated_expression(literal) {
+      NatExpr(number) => {
+        result = Some(Bounds(true, number, true, number, None()))
+      },
+      LocatedExpr(position, inner) => {},
+      DecimalExpr(text) => {},
+      StringExpr(text) => {},
+      BoolExpr(flag) => {},
+      NameExpr(name) => {},
+      FunctionExpr(name) => {},
+      ArrayExpr(items) => {},
+      UnaryExpr(operator, operand) => {},
+      BinaryExpr(operator, left, right) => {},
+      CallExpr(name, arguments, types) => {},
+      DotCallExpr(target, name, arguments, types) => {},
+      FieldExpr(target, field) => {},
+      IndexExpr(target, index) => {},
+      IfExpr(condition, yes, no, has_else) => {},
+      BlockExpr(block) => {},
+      MatchExpr(subject, arms) => {}
+    },
+    BodyInterpolation(parts) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyMatch(targets, bindings) => {},
+    BodyBinding(identity, type, mutable) => {},
+    BodyAssignment(identity) => {},
+    BodyWhile() => {},
+    BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  result
+}
+
+pure body_guard_spec(context: BodyContext, type: SignatureType): Option[GuardedTypeLookup] {
+  mut result: Option[GuardedTypeLookup] = None()
+  match type.identity {
+    SignatureNominal(identity) => match signature_declaration(context.modules, identity) {
+      Error(message) => {},
+      Ok(declaration) => match declaration {
+        TypeDeclaration(name, base, guard) => {
+          result = Some(GuardedTypeLookup(true, base, guard))
+        },
+        ImportDeclaration(path) => {},
+        RecordDeclaration(name, types, fields) => {},
+        EnumDeclaration(name, types, variants) => {},
+        FunctionDeclaration(name, values, output, pure_flag, async_flag, body, types) => {}
+      }
+    },
+    SignatureCore(name) => {},
+    SignatureParameter(owner, index) => {},
+    SignatureCallable(effect) => {},
+    SignatureHole(owner, path, index) => {}
+  }
+  result
+}
+
+pure body_guard_conversion(
+  context: BodyContext,
+  value: BoundBody,
+  expected: SignatureType
+): Option[Bool] {
+  mut result: Option[Bool] = None()
+  match value.type {
+    None() => {},
+    Some(actual) => {
+      match body_guard_spec(context, expected) {
+        Some(target) => {
+          match actual.identity {
+            SignatureCore(actual_base) => {
+              compatible: Bool = actual_base == target.base ||
+                (actual_base == "Nat" && target.base == "Int")
+              if compatible {
+                match body_guard_bounds(context, value) {
+                  None() => {},
+                  Some(bounds) => {
+                    result = Some(prove_guard_bounds(target.guard, bounds))
+                  }
+                }
+              } else {}
+            },
+            SignatureNominal(identity) => match body_guard_spec(context, actual) {
+              None() => {},
+              Some(source) => {
+                compatible: Bool = source.base == target.base ||
+                  (source.base == "Nat" && target.base == "Int")
+                if compatible {
+                  source_facts: Map[Str, Bounds] = condition_facts(source.guard, map(), true)
+                  if source_facts.has("value") {
+                    result = Some(prove_guard_bounds(target.guard, source_facts.get("value")))
+                  }
+                } else {}
+              }
+            },
+            SignatureParameter(owner, index) => {},
+            SignatureCallable(effect) => {},
+            SignatureHole(owner, path, index) => {}
+          }
+        },
+        None() => {
+          match body_guard_spec(context, actual) {
+            Some(source) => {
+              target_base: Str = match expected.identity {
+                SignatureCore(name) => name,
+                SignatureNominal(identity) => "",
+                SignatureParameter(owner, index) => "",
+                SignatureCallable(effect) => "",
+                SignatureHole(owner, path, index) => ""
+              }
+              if target_base == source.base ||
+                (source.base == "Nat" && target_base == "Int") {
+                result = Some(true)
+              } else {}
+            },
+            None() => {}
+          }
+        }
+      }
+    }
+  }
+  result
+}
+
+pure body_compatibility_value(
+  context: BodyContext,
+  value: BoundBody,
+  expected: SignatureType
+): Option[Bool] {
+  match body_guard_conversion(context, value, expected) {
+    Some(valid) => Some(valid),
+    None() => match value.type {
+      None() => None(),
+      Some(actual) => body_compatibility(context, actual, expected)
+    }
+  }
+}
+
+pure body_require_value(
+  context: BodyContext,
+  value: BoundBody,
+  expected: SignatureType,
+  label: Str
+): BodyResult {
+  match body_compatibility_value(context, value, expected) {
+    None() => BodyResult(body_result(BodyEmpty(), value.span, [], None()).body, [], [value.span]),
+    Some(valid) => if valid {
+      body_result(BodyEmpty(), value.span, [], None())
+    } else {
+      body_failure(
+        label + " is " + body_type_text(match value.type {
+          Some(actual) => actual,
+          None() => expected
+        }) + ", expected " + body_type_text(expected),
+        value.span
+      )
+    }
+  }
+}
+
+pure body_operation_scalar(context: BodyContext, value: BoundBody): Str {
+  mut result: Str = ""
+  match value.type {
+    None() => {},
+    Some(type) => {
+      result = body_scalar(type)
+      if result == "" {
+        match body_guard_spec(context, type) {
+          None() => {},
+          Some(guarded) => {
+            result = guarded.base
+          }
+        }
+      }
+    }
+  }
+  result
+}
+
+pure body_operand_lower_bound(context: BodyContext, value: BoundBody): Option[Nat] {
+  mut result: Option[Nat] = None()
+  match body_guard_bounds(context, value) {
+    None() => {},
+    Some(bounds) => if bounds.has_lower {
+      result = Some(bounds.lower)
+    }
+  }
+  match value.type {
+    None() => {},
+    Some(type) => match body_guard_spec(context, type) {
+      None() => {},
+      Some(guarded) => {
+        intrinsic: Map[Str, Bounds] = condition_facts(guarded.guard, map(), true)
+        if intrinsic.has("value") {
+          intrinsic_bounds: Bounds = intrinsic.get("value")
+          if intrinsic_bounds.has_lower {
+            match result {
+              None() => {
+                result = Some(intrinsic_bounds.lower)
+              },
+              Some(existing) => if intrinsic_bounds.lower > existing {
+                result = Some(intrinsic_bounds.lower)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  result
+}
+
+pure body_proves_nat_subtraction(
+  context: BodyContext,
+  left: BoundBody,
+  right: BoundBody
+): Bool {
+  match body_condition_literal(right) {
+    None() => false,
+    Some(amount) => match left.node {
+      BodyLocalUse(identity) => match body_operand_lower_bound(context, left) {
+        None() => false,
+        Some(lower) => lower >= amount
+      },
+      BodyLiteral(literal) => false,
+      BodyInterpolation(parts) => false,
+      BodyFunction(binding) => false,
+      BodyCall(target, types) => false,
+      BodyArray() => false,
+      BodyUnary(operator) => false,
+      BodyBinary(operator) => false,
+      BodyField(field) => false,
+      BodyIndex() => false,
+      BodyIf(has_else) => false,
+      BodyBlock(has_tail) => false,
+      BodyMatch(targets, bindings) => false,
+      BodyBinding(identity, type, mutable) => false,
+      BodyAssignment(identity) => false,
+      BodyWhile() => false,
+      BodyFor(identity) => false,
+      BodyEmpty() => false
+    }
+  }
+}
+
+pure body_context_with_facts(context: BodyContext, facts: Map[Str, Bounds]): BodyContext {
+  BodyContext(
+    context.graph,
+    context.modules,
+    context.signatures,
+    context.owner,
+    context.parameters,
+    facts
+  )
+}
+
+pure body_condition_literal(value: BoundBody): Option[Nat] {
+  mut result: Option[Nat] = None()
+  match value.node {
+    BodyLiteral(literal) => match unlocated_expression(literal) {
+      NatExpr(number) => {
+        result = Some(number)
+      },
+      LocatedExpr(position, inner) => {},
+      DecimalExpr(text) => {},
+      StringExpr(text) => {},
+      BoolExpr(flag) => {},
+      NameExpr(name) => {},
+      FunctionExpr(name) => {},
+      ArrayExpr(items) => {},
+      UnaryExpr(operator, operand) => {},
+      BinaryExpr(operator, left, right) => {},
+      CallExpr(name, arguments, types) => {},
+      DotCallExpr(target, name, arguments, types) => {},
+      FieldExpr(target, field) => {},
+      IndexExpr(target, index) => {},
+      IfExpr(condition, yes, no, has_else) => {},
+      BlockExpr(block) => {},
+      MatchExpr(subject, arms) => {}
+    },
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings) => {},
+    BodyBinding(identity, type, mutable) => {},
+    BodyAssignment(identity) => {},
+    BodyWhile() => {},
+    BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  result
+}
+
+pure body_add_local_bound(
+  facts: Map[Str, Bounds],
+  identity: BodyLocalIdentity,
+  operator: Str,
+  value: Nat,
+  truth: Bool
+): Map[Str, Bounds] {
+  key: Str = body_fact_key(identity)
+  prior: Bounds = if facts.has(key) {
+    facts.get(key)
+  } else {
+    Bounds(false, 0, false, 0, None())
+  }
+  mut next: Bounds = prior
+  if (operator == ">" && truth) || (operator == "<=" && !truth) {
+    next = Bounds(true, value + 1, prior.has_upper, prior.upper, None())
+  }
+  if (operator == ">=" && truth) || (operator == "<" && !truth) {
+    next = Bounds(true, value, prior.has_upper, prior.upper, None())
+  }
+  if (operator == "<=" && truth) || (operator == ">" && !truth) {
+    next = Bounds(prior.has_lower, prior.lower, true, value, prior.lower_origin)
+  }
+  if (operator == "<" && truth) || (operator == ">=" && !truth) {
+    if value > 0 {
+      next = Bounds(prior.has_lower, prior.lower, true, value - 1, prior.lower_origin)
+    }
+  }
+  if operator == "==" && truth {
+    next = Bounds(true, value, true, value, None())
+  }
+  if operator == "!=" && truth && value == 0 {
+    next = Bounds(true, 1, prior.has_upper, prior.upper, None())
+  }
+  if operator == "==" && !truth && value == 0 {
+    next = Bounds(true, 1, prior.has_upper, prior.upper, None())
+  }
+  facts.put(key, next)
+}
+
+// Facts flow only when a boolean composition guarantees them on this path.
+// Both conjunction-true and disjunction-false establish each operand in order.
+pure body_condition_facts(
+  condition: BoundBody,
+  facts: Map[Str, Bounds],
+  truth: Bool
+): Map[Str, Bounds] {
+  mut result: Map[Str, Bounds] = facts
+  match condition.node {
+    BodyUnary(operator) => {
+      if operator == "!" && len(condition.children) == 1 {
+        result = body_condition_facts(condition.children[0], facts, !truth)
+      }
+    },
+    BodyBinary(operator) => {
+      if (operator == "&&" && truth) || (operator == "||" && !truth) {
+        result = body_condition_facts(condition.children[0], facts, truth)
+        result = body_condition_facts(condition.children[1], result, truth)
+      } else {
+        if operator != "&&" && operator != "||" && len(condition.children) == 2 {
+          match condition.children[0].node {
+            BodyLocalUse(identity) => match body_condition_literal(condition.children[1]) {
+              None() => {},
+              Some(value) => {
+                result = body_add_local_bound(facts, identity, operator, value, truth)
+              }
+            },
+            BodyLiteral(literal) => match condition.children[1].node {
+              BodyLocalUse(identity) => match body_condition_literal(condition.children[0]) {
+                None() => {},
+                Some(value) => {
+                  reversed: Str = if operator == ">" {
+                    "<"
+                  } else {
+                    if operator == ">=" {
+                      "<="
+                    } else {
+                      if operator == "<" {
+                        ">"
+                      } else {
+                        if operator == "<=" { ">=" } else { operator }
+                      }
+                    }
+                  }
+                  result = body_add_local_bound(facts, identity, reversed, value, truth)
+                }
+              },
+              BodyLiteral(other_literal) => {},
+              BodyInterpolation(parts) => {},
+              BodyFunction(binding) => {},
+              BodyCall(target, types) => {},
+              BodyArray() => {},
+              BodyUnary(other_operator) => {},
+              BodyBinary(other_operator) => {},
+              BodyField(field) => {},
+              BodyIndex() => {},
+              BodyIf(has_else) => {},
+              BodyBlock(has_tail) => {},
+              BodyMatch(targets, bindings) => {},
+              BodyBinding(other_identity, type, mutable) => {},
+              BodyAssignment(other_identity) => {},
+              BodyWhile() => {},
+              BodyFor(other_identity) => {},
+              BodyEmpty() => {}
+            },
+            BodyInterpolation(parts) => {},
+            BodyFunction(binding) => {},
+            BodyCall(target, types) => {},
+            BodyArray() => {},
+            BodyField(field) => {},
+            BodyIndex() => {},
+            BodyIf(has_else) => {},
+            BodyBlock(has_tail) => {},
+            BodyMatch(targets, bindings) => {},
+            BodyBinding(identity, type, mutable) => {},
+            BodyAssignment(identity) => {},
+            BodyFor(identity) => {},
+            BodyWhile() => {},
+            BodyUnary(other_operator) => {},
+            BodyBinary(other_operator) => {},
+            BodyEmpty() => {}
+          }
+        }
+      }
+    },
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings) => {},
+    BodyBinding(identity, type, mutable) => {},
+    BodyAssignment(identity) => {},
+    BodyWhile() => {},
+    BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  result
+}
+
+pure body_invalidate_assigned_locals(
+  facts: Map[Str, Bounds],
+  body: BoundBody
+): Map[Str, Bounds] {
+  mut result: Map[Str, Bounds] = facts
+  match body.node {
+    BodyAssignment(identity) => {
+      result = result.put(body_fact_key(identity), Bounds(false, 0, false, 0, None()))
+    },
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings) => {},
+    BodyBinding(identity, type, mutable) => {},
+    BodyWhile() => {},
+    BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  for child in body.children {
+    result = body_invalidate_assigned_locals(result, child)
+  }
+  result
 }
 
 pure body_is_callable(type: SignatureType): Bool {
@@ -472,12 +993,11 @@ pure body_call(
               },
               Ok(expected) => {
                 number: Nat = index + 1
-                required: BodyResult = body_require(
+                required: BodyResult = body_require_value(
                   context,
-                  child.type,
+                  child,
                   expected,
-                  "argument ${number} to " + contract.name,
-                  child.span
+                  "argument ${number} to " + contract.name
                 )
                 diagnostics = concat(diagnostics, required.diagnostics)
                 deferred = concat(deferred, required.deferred)
@@ -588,12 +1108,11 @@ pure body_check_special_core_call(
           mut index: Nat = 0
           while index < expected_count && index < actual_count {
             number: Nat = index + 1
-            required: BodyResult = body_require(
+            required: BodyResult = body_require_value(
               context,
-              children[index + 1].type,
+              children[index + 1],
               callable.arguments[index],
-              "argument ${number} to call",
-              children[index + 1].span
+              "argument ${number} to call"
             )
             diagnostics = concat(diagnostics, required.diagnostics)
             deferred = concat(deferred, required.deferred)
@@ -706,14 +1225,16 @@ pure body_check_collection_core_call(
           if collection.identity != SignatureCore("Array") || len(collection.arguments) != 1 {
             diagnostics = append(diagnostics, Diagnostic("append expects an array, got " + body_type_text(collection), span.start))
           } else {
-            match body_join(context, collection.arguments[0], value) {
-              Error(message) => {
-                diagnostics = append(diagnostics, Diagnostic("cannot append " + body_type_text(value) + " to " + body_type_text(collection), span.start))
-              },
-              Ok(joined) => match joined {
-                None() => { deferred = append(deferred, span) },
-                Some(item) => { output = Some(SignatureType(SignatureCore("Array"), [item])) }
-              }
+            item: BodyResult = body_require_value(
+              context,
+              children[1],
+              collection.arguments[0],
+              "append item"
+            )
+            diagnostics = concat(diagnostics, item.diagnostics)
+            deferred = concat(deferred, item.deferred)
+            if len(item.diagnostics) == 0 && len(item.deferred) == 0 {
+              output = Some(collection)
             }
           }
         } else {
@@ -825,11 +1346,11 @@ pure body_check_map_set_call(
       } else {
         if is_map {
           expected_key: SignatureType = collection.arguments[0]
-          key: BodyResult = body_require(context, children[1].type, expected_key, "key to " + operation, children[1].span)
+          key: BodyResult = body_require_value(context, children[1], expected_key, "key to " + operation)
           diagnostics = concat(diagnostics, key.diagnostics)
           deferred = concat(deferred, key.deferred)
           if operation == "map_put" {
-            value: BodyResult = body_require(context, children[2].type, collection.arguments[1], "value to map_put", children[2].span)
+            value: BodyResult = body_require_value(context, children[2], collection.arguments[1], "value to map_put")
             diagnostics = concat(diagnostics, value.diagnostics)
             deferred = concat(deferred, value.deferred)
             output = Some(collection)
@@ -840,7 +1361,7 @@ pure body_check_map_set_call(
           }
         }
         if is_set {
-          item: BodyResult = body_require(context, children[1].type, collection.arguments[0], operation, children[1].span)
+          item: BodyResult = body_require_value(context, children[1], collection.arguments[0], operation)
           diagnostics = concat(diagnostics, item.diagnostics)
           deferred = concat(deferred, item.deferred)
           output = if operation == "set_add" { Some(collection) } else { body_core_type("Bool") }
@@ -1046,19 +1567,7 @@ pure bind_body_expression(
       )
     },
     IfExpr(condition, yes, no, has_else) => {
-      result = check_body_conditional(
-        context,
-        bind_body_children(
-        context,
-        BodyIf(has_else),
-        [condition, BlockExpr(yes), BlockExpr(no)],
-        origin,
-        locals,
-        path
-      ),
-        has_else,
-        false
-      )
+      result = bind_body_if(context, condition, yes, no, has_else, origin, locals, path)
     },
     MatchExpr(subject, arms) => {
       result = bind_body_match(context, subject, arms, origin, locals, path)
@@ -1066,6 +1575,59 @@ pure bind_body_expression(
   }
 
   result
+}
+
+pure bind_body_if(
+  context: BodyContext,
+  condition: Expr,
+  yes: Block,
+  no: Block,
+  has_else: Bool,
+  origin: SourceSpan,
+  locals: Map[Str, BodyLocal],
+  path: [Nat]
+): BodyResult {
+  checked_condition: BodyResult = bind_body_expression(
+    context,
+    condition,
+    origin,
+    locals,
+    append(path, 0)
+  )
+  yes_context: BodyContext = body_context_with_facts(
+    context,
+    body_condition_facts(checked_condition.body, context.facts, true)
+  )
+  no_context: BodyContext = body_context_with_facts(
+    context,
+    body_condition_facts(checked_condition.body, context.facts, false)
+  )
+  checked_yes: BodyResult = bind_body_expression(
+    yes_context,
+    BlockExpr(yes),
+    origin,
+    locals,
+    append(path, 1)
+  )
+  checked_no: BodyResult = bind_body_expression(
+    no_context,
+    BlockExpr(no),
+    origin,
+    locals,
+    append(path, 2)
+  )
+  condition_result: BodyResult = BodyResult(
+    BoundBody(
+    BodyIf(has_else),
+    origin,
+    [checked_condition.body, checked_yes.body, checked_no.body],
+    None(),
+    []
+  ),
+    concat(checked_condition.diagnostics, concat(checked_yes.diagnostics, checked_no.diagnostics)),
+    concat(checked_condition.deferred, concat(checked_yes.deferred, checked_no.deferred))
+  )
+  check_body_conditional(context, condition_result, has_else, false)
 }
 
 pure bind_body_children(
@@ -1104,6 +1666,7 @@ pure bind_body_block(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
+  mut current_context: BodyContext = context
   mut visible: Map[Str, BodyLocal] = locals
   mut children: [BoundBody] = []
   mut diagnostics: [Diagnostic] = []
@@ -1121,7 +1684,7 @@ pure bind_body_block(
             Diagnostic("local " + name + " shadows an existing binding", span.start)
           )
         }
-        checked = bind_body_expression(context, value, span, visible, append(statement_path, 0))
+        checked = bind_body_expression(current_context, value, span, visible, append(statement_path, 0))
         if checked.body.type == body_core_type("Void") {
           diagnostics = append(
             diagnostics,
@@ -1134,10 +1697,10 @@ pure bind_body_block(
         mut type: Option[SignatureType] = checked.body.type;
         if spelling != "" {
           match signature_type(
-            context.graph,
-            context.modules,
-            context.owner,
-            context.parameters,
+            current_context.graph,
+            current_context.modules,
+            current_context.owner,
+            current_context.parameters,
             spelling,
             false,
             false
@@ -1146,24 +1709,23 @@ pure bind_body_block(
               diagnostics = append(diagnostics, Diagnostic(message, checked.body.span.start))
             },
             Ok(annotation) => {
-              required: BodyResult = body_require(
-                context,
-                checked.body.type,
+              required: BodyResult = body_require_value(
+                current_context,
+                checked.body,
                 annotation,
-                "binding " + name,
-                checked.body.span
+                "binding " + name
               )
               diagnostics = concat(diagnostics, required.diagnostics)
               deferred = concat(deferred, required.deferred)
               type = Some(annotation)
-              checked = body_refine(context, checked, annotation)
+              checked = body_refine(current_context, checked, annotation)
             }
           }
         }
         if spelling == "" {
           diagnostics = concat(diagnostics, body_incomplete_local(name, checked))
         }
-        local: BodyLocalIdentity = BodyLocalIdentity(context.owner, statement_path, name)
+        local: BodyLocalIdentity = BodyLocalIdentity(current_context.owner, statement_path, name)
         visible = visible.put(name, BodyLocal(local, type, mutable))
         checked = BodyResult(
           BoundBody(
@@ -1178,7 +1740,7 @@ pure bind_body_block(
         )
       },
       AssignmentStatement(name, value) => {
-        checked = bind_body_expression(context, value, span, visible, append(statement_path, 0))
+        checked = bind_body_expression(current_context, value, span, visible, append(statement_path, 0))
         if !visible.has(name) {
           diagnostics = concat(diagnostics, body_incomplete_local(name, checked))
           if checked.body.type == body_core_type("Void") {
@@ -1190,7 +1752,7 @@ pure bind_body_block(
             )
             )
           }
-          local: BodyLocalIdentity = BodyLocalIdentity(context.owner, statement_path, name)
+          local: BodyLocalIdentity = BodyLocalIdentity(current_context.owner, statement_path, name)
           visible = visible.put(name, BodyLocal(local, checked.body.type, false))
           checked = BodyResult(
             BoundBody(
@@ -1216,16 +1778,15 @@ pure bind_body_block(
               deferred = append(deferred, checked.body.span)
             },
             Some(type) => {
-              required: BodyResult = body_require(
-                context,
-                checked.body.type,
+              required: BodyResult = body_require_value(
+                current_context,
+                checked.body,
                 type,
-                "assignment " + name,
-                checked.body.span
+                "assignment " + name
               )
               diagnostics = concat(diagnostics, required.diagnostics)
               deferred = concat(deferred, required.deferred)
-              checked = body_refine(context, checked, type)
+              checked = body_refine(current_context, checked, type)
             }
           }
           checked = BodyResult(
@@ -1242,19 +1803,34 @@ pure bind_body_block(
         }
       },
       ExpressionStatement(value) => {
-        checked = bind_body_expression(context, value, span, visible, statement_path)
+        checked = bind_body_expression(current_context, value, span, visible, statement_path)
       },
       WhileStatement(condition, body) => {
-        checked = check_body_conditional(
-          context,
-          bind_body_children(
-          context,
-          BodyWhile(),
-          [condition, BlockExpr(body)],
+        checked_condition: BodyResult = bind_body_expression(
+          current_context,
+          condition,
           span,
           visible,
-          statement_path
-        ),
+          append(statement_path, 0)
+        )
+        loop_context: BodyContext = body_context_with_facts(
+          current_context,
+          body_condition_facts(checked_condition.body, current_context.facts, true)
+        )
+        checked_body: BodyResult = bind_body_expression(
+          loop_context,
+          BlockExpr(body),
+          span,
+          visible,
+          append(statement_path, 1)
+        )
+        checked = check_body_conditional(
+          current_context,
+          BodyResult(
+            BoundBody(BodyWhile(), span, [checked_condition.body, checked_body.body], None(), []),
+            concat(checked_condition.diagnostics, checked_body.diagnostics),
+            concat(checked_condition.deferred, checked_body.deferred)
+          ),
           false,
           true
         )
@@ -1266,17 +1842,17 @@ pure bind_body_block(
             Diagnostic("loop variable " + name + " shadows an existing binding", span.start)
           )
         }
-        local: BodyLocalIdentity = BodyLocalIdentity(context.owner, append(statement_path, 0), name)
+        local: BodyLocalIdentity = BodyLocalIdentity(current_context.owner, append(statement_path, 0), name)
         iterable: BodyResult = bind_body_expression(
-          context,
+          current_context,
           values,
           span,
           visible,
           append(statement_path, 1)
         )
-        item: BodyResult = body_iteration_item(context, iterable)
+        item: BodyResult = body_iteration_item(current_context, iterable)
         nested: BodyResult = bind_body_block(
-          context,
+          current_context,
           body,
           span,
           visible.put(name, BodyLocal(local, item.body.type, false)),
@@ -1289,6 +1865,10 @@ pure bind_body_block(
         )
       }
     }
+    current_context = body_context_with_facts(
+      current_context,
+      body_invalidate_assigned_locals(current_context.facts, checked.body)
+    )
     children = append(children, checked.body)
     diagnostics = concat(diagnostics, checked.diagnostics)
     deferred = concat(deferred, checked.deferred)
@@ -1298,7 +1878,7 @@ pure bind_body_block(
   match block.value {
     NoBlockValue() => {},
     TailBlockValue(value) => {
-      checked: BodyResult = bind_body_expression(context, value, span, visible, append(path, index))
+      checked: BodyResult = bind_body_expression(current_context, value, span, visible, append(path, index))
       children = append(children, checked.body)
       diagnostics = concat(diagnostics, checked.diagnostics)
       deferred = concat(deferred, checked.deferred)
@@ -1330,7 +1910,7 @@ pure check_module_bodies(
             None() => {},
             Some(signature) => {
               diagnostic_start: Nat = len(diagnostics)
-              context: BodyContext = BodyContext(graph, modules, signatures, owner, type_parameters)
+              context: BodyContext = BodyContext(graph, modules, signatures, owner, type_parameters, map())
               mut locals: Map[Str, BodyLocal] = map()
               mut bound_parameters: [BodyLocal] = []
               mut index: Nat = 0
@@ -1365,12 +1945,11 @@ pure check_module_bodies(
                 context,
                 body_refine(context, initial, expected)
               )
-              required: BodyResult = body_require(
+              required: BodyResult = body_require_value(
                 context,
-                checked.body.type,
+                checked.body,
                 expected,
-                "return of " + name,
-                checked.body.span
+                "return of " + name
               )
               diagnostics = concat(diagnostics, concat(checked.diagnostics, required.diagnostics))
               all_deferred: [SourceSpan] = concat(
@@ -1503,11 +2082,12 @@ pure check_body_operation(
           deferred = append(deferred, node.span)
         },
         Some(right) => {
-          if body_guarded(context, left) || body_guarded(context, right) {
-            deferred = append(deferred, node.span)
-          } else {
-            a: Str = body_scalar(left)
-            b: Str = body_scalar(right)
+            a: Str = body_operation_scalar(context, node.children[0])
+            b: Str = if unary {
+              a
+            } else {
+              body_operation_scalar(context, node.children[1])
+            }
             mut valid: Bool = true
             if unary {
               if operator == "!" && a == "Bool" {
@@ -1581,9 +2161,10 @@ pure check_body_operation(
                       ) && !(operator == "%" && (a == "Rat" || b == "Rat"))
                       if valid {
                         output = body_core_type(scalar_arithmetic_result(operator, a, b))
-                        // Even literal/proven-looking subtraction awaits the identity
-                        // fact checker. Knowing its type does not discharge its proof.
-                        if operator == "-" && output == body_core_type("Nat") {
+                        // A Nat subtraction is checked against the lower bound for
+                        // this exact local identity, including its guarded type.
+                        if operator == "-" && output == body_core_type("Nat") &&
+                          !body_proves_nat_subtraction(context, node.children[0], node.children[1]) {
                           deferred = append(deferred, node.span)
                         }
                       }
@@ -1601,7 +2182,6 @@ pure check_body_operation(
               diagnostics = append(diagnostics, Diagnostic(message, node.span.start))
               output = None()
             }
-          }
         }
       }
     }
@@ -1717,7 +2297,9 @@ pure check_body_conditional(
       "if condition"
     }, node.children[0].span)
   mut diagnostics: [Diagnostic] = concat(checked.diagnostics, required.diagnostics)
-  mut deferred: [SourceSpan] = concat(body_child_obligations(checked), required.deferred)
+  // If/while callers already aggregate condition and branch obligations, so
+  // there is no synthetic leading marker to remove here.
+  mut deferred: [SourceSpan] = concat(checked.deferred, required.deferred)
   mut output: Option[SignatureType] = body_core_type("Void")
   if has_else {
     output = None()
@@ -2072,9 +2654,19 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
 }
 
 pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureType): BodyResult {
-  match checked.body.type {
-    None() => checked,
-    Some(actual) => body_apply_solutions(context, checked, body_solutions(actual, expected))
+  match body_guard_conversion(context, checked.body, expected) {
+    Some(proven) => if proven {
+      checked
+    } else {
+      match checked.body.type {
+        None() => checked,
+        Some(actual) => body_apply_solutions(context, checked, body_solutions(actual, expected))
+      }
+    },
+    None() => match checked.body.type {
+      None() => checked,
+      Some(actual) => body_apply_solutions(context, checked, body_solutions(actual, expected))
+    }
   }
 }
 

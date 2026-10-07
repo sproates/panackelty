@@ -15,12 +15,13 @@ non-Unit await use, and recovered evidence from a valid sibling. The staged
 namespace execution gate remains; no bytecode, VM or runtime behavior changed.
 The module-binding suite passes 556 assertions.
 
-Canonical `make check` passed all suites in three host-level loopback runs:
+Canonical `make check` passed all suites in four host-level loopback runs:
 126s (unit 81s, functional 4s, bootstrap 18s, plus native/package setup), 191s
-(unit 146s, functional 3s, bootstrap 19s), and 121s on the final implementation
-tree (unit 76s, functional 3s, bootstrap 18s). The observed range is 121–191s,
-with every run exceeding the 120s target. `make check-compiler` passed in 51s/52s
-on repeat and 51s on the final implementation tree, against the 15s focused target.
+(unit 146s, functional 3s, bootstrap 19s), 121s (unit 76s, functional 3s,
+bootstrap 18s), and 119s on the final documentation tree (unit 76s, functional 4s,
+bootstrap 17s). The observed range is 119–191s; three of the four runs exceeded
+the 120s target. `make check-compiler` passed in 51s/52s on repeat and 51s on the
+final implementation tree, against the 15s focused target.
 This spread is not a controlled before/after comparison and does not establish that
 this slice caused the increase. No required test, assertion or time budget was
 removed or weakened.

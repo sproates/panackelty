@@ -2,4 +2,6 @@ pub record Item { value: Nat }
 pub enum Outcome { Finished }
 pub pure make(): Item { Item(42) }
 pub pure make_outcome(): Outcome { Finished() }
+pub pure positive(value: Nat): Bool { value > 0 }
+pub type Positive = Nat where positive(value)
 main(): Void { print(998) }

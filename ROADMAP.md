@@ -367,6 +367,13 @@ through [PR#327](https://github.com/sproates/panackelty/pull/327). PR#319's slic
 by PR#320; PR#321 delivered the core/indirect-call work on the selected `next`
 integration branch, followed by the completed contract matrix in PR#326.
 
+Slice 6 is in progress. Merged PR#331 provides the first bounded identity-emission
+and standalone-loading subset. This follow-up adds identity-based rewriting for
+guarded-type predicate helpers, including colliding helper names across modules;
+it remains an intermediate delivery and does not complete or reweight slice 6.
+Broader body, diagnostic/tooling, coordinated source/seed, browser, installed and
+bootstrap acceptance remains open under GI#198.
+
 The stable scope-weighted baseline gives P2 approximately 55% completion:
 foundations 20%, slice 1 8%, slice 2 12%, slice 3 8%, and slice 4 7%. With P2's
 20% programme weight, that earns an estimated 11 percentage points; P1's accepted

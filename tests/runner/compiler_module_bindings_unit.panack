@@ -203,6 +203,28 @@ pure module_emission_identity_tests(): [TestResult] {
   results
 }
 
+module_emission_guard_call_name(expression: Expr): Str {
+  match unlocated_expression(expression) {
+    CallExpr(name, arguments, types) => name,
+    LocatedExpr(span, value) => "",
+    NatExpr(value) => "",
+    DecimalExpr(value) => "",
+    StringExpr(value) => "",
+    BoolExpr(value) => "",
+    NameExpr(name) => "",
+    FunctionExpr(name) => "",
+    ArrayExpr(items) => "",
+    UnaryExpr(operator, value) => "",
+    BinaryExpr(operator, left, right) => "",
+    DotCallExpr(target, name, arguments, types) => "",
+    FieldExpr(target, name) => "",
+    IndexExpr(target, index) => "",
+    IfExpr(condition, yes, no, has_else) => "",
+    BlockExpr(block) => "",
+    MatchExpr(subject, arms) => ""
+  }
+}
+
 module_emission_program_tests(): [TestResult] {
   entry_path: Str = path_resolve("tests/fixtures/compiler_contracts/namespaces/emission/main.panack")
   project_root: Str = path_parent(entry_path)
@@ -226,6 +248,27 @@ module_emission_program_tests(): [TestResult] {
   right_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Outcome"))
   left_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Finished"))
   right_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Finished"))
+  left_positive: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "positive"))
+  right_positive: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "positive"))
+  mut left_guard_call: Str = ""
+  mut right_guard_call: Str = ""
+  for declaration in emitted.program.declarations {
+    match declaration {
+      TypeDeclaration(name, base, guard) => {
+        if name == module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Positive")) {
+          left_guard_call = module_emission_guard_call_name(guard)
+        } else if name == module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Positive")) {
+          right_guard_call = module_emission_guard_call_name(guard)
+        } else {}
+      },
+      ImportDeclaration(path) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {},
+      FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {}
+    }
+  }
+  results = append(results, test_expect("identity emission binds left guarded type helper", left_guard_call == left_positive && left_guard_call != right_positive, left_guard_call))
+  results = append(results, test_expect("identity emission binds right guarded type helper", right_guard_call == right_positive && right_guard_call != left_positive, right_guard_call))
   results = append(results, test_expect("identity emission includes left same-spelled function", emitted.program.function_indices.has(left_make), left_make + " missing"))
   results = append(results, test_expect("identity emission includes right same-spelled function", emitted.program.function_indices.has(right_make), right_make + " missing"))
   results = append(results, test_expect("identity emission internalizes imported mains", left_main != "main" && right_main != "main" && emitted.program.function_indices.has(left_main) && emitted.program.function_indices.has(right_main), "imported main was not internalized"))

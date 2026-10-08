@@ -610,6 +610,15 @@ control-flow and emitted-bytecode tests remain intact. The native trap assertion
 ranges by re-parsing. Public source mapping is covered below; automatic runtime
 diagnostics remain separate.
 
+The identity-bound body checker additionally asserts exact type-token locations
+for invalid explicit type arguments, parenthesized direct calls, receiver calls,
+reserved core calls and both excess and missing type-argument counts. Direct and
+receiver under-arity cases point to the last supplied type. The source-map CLI
+matrix exercises exact imported-expression ranges, lowered ranges, qualified
+selection, ambiguous and wrong-module rejection, forged/malformed maps, and
+stale entry/import/transitive source closures. `cli_explanations` repeats the
+qualified, ambiguous and wrong-identity selector cases through `explain`.
+
 The seed refresh also updates 15 existing functional failure transcripts. Their
 rejection status and diagnostic messages are unchanged; expectations now include
 newly available excerpts or point to the offending compound expression rather

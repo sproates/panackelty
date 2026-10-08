@@ -130,9 +130,10 @@ Proposed disposition for merge under existing GI#106/RM#123 ownership: retain
 all coverage and the 120s/15s targets, make no causal-regression or speedup claim,
 and keep performance acceptance open. The validation maintainer's next action
 is a matched base/head full and focused comparison before the next compiler-heavy
-slice; review the concern at that slice or when comparable evidence changes.
-Owner acceptance of this disclosed disposition is required with merge approval.
-This remains an intermediate slice-6 delivery, not P2 completion.
+slice; review the concern at that slice or when comparable evidence changes. The
+owner accepted this disclosed disposition by merging PR#334 under the standing
+exact-head green-pipeline authorization. This remains an intermediate slice-6
+delivery, not P2 completion.
 
 ## Namespace guard proofs — 2026-10-07
 

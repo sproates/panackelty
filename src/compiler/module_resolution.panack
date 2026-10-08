@@ -875,7 +875,7 @@ pure expression_import_shadows(
       diagnostics = expression_import_shadows(subject, names, origin)
       for arm in arms {
         for name in arm.pattern.bindings {
-          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
+          diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, arm.pattern.span))
         }
         diagnostics = concat(diagnostics, expression_import_shadows(arm.body, names, origin))
       }

@@ -75,7 +75,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   implicit guarded-type `value` also participates in import collision checks.
   Invalid lexical scopes return no misleading reference identities. Core reserved
   names remain for later checked resolution. Expression use spans are exact;
-  type and pattern diagnostics currently fall back to declaration/match spans.
+  Match-arm diagnostics point to the arm pattern; type-use diagnostics still
+  fall back to declaration spans where type-reference tokens lack retained
+  source spans.
   Receiver-first nonbuiltin helper uses retain their declaration identity too,
   so public guards cannot hide private helpers behind method spelling.
   The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary

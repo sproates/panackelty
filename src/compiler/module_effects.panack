@@ -240,7 +240,7 @@ pure module_effect_expression(
             BodyIndex() => { invalid_await_operand = true },
             BodyIf(has_else) => { invalid_await_operand = true },
             BodyBlock(has_value) => { invalid_await_operand = true },
-            BodyMatch(targets, locals) => { invalid_await_operand = true },
+            BodyMatch(targets, locals, spans) => { invalid_await_operand = true },
             BodyBinding(identity, type, mutable) => { invalid_await_operand = true },
             BodyAssignment(identity) => { invalid_await_operand = true },
             BodyWhile() => { invalid_await_operand = true },
@@ -322,7 +322,7 @@ pure module_effect_expression(
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
             BodyFunction(binding) => {}, BodyCall(target, types) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
-            BodyBlock(value) => {}, BodyMatch(targets, locals) => {}, BodyBinding(identity, type, mutable) => {},
+            BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable) => {},
             BodyAssignment(identity) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
           }
         }
@@ -333,7 +333,7 @@ pure module_effect_expression(
     },
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
     BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
-    BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals) => {},
+    BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, spans) => {},
     BodyBinding(identity, type, mutable) => {}, BodyAssignment(identity) => {},
     BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
   }

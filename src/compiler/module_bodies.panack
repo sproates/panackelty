@@ -34,7 +34,7 @@ enum BodyNode {
   BodyIndex,
   BodyIf(Bool),
   BodyBlock(Bool),
-  BodyMatch([BodyTarget], [[BodyLocalIdentity]]),
+  BodyMatch([BodyTarget], [[BodyLocalIdentity]], [SourceSpan]),
   BodyBinding(BodyLocalIdentity, Option[SignatureType], Bool),
   BodyAssignment(BodyLocalIdentity),
   BodyWhile,
@@ -233,7 +233,7 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
     BodyField(field) => {},
     BodyIndex() => {},
     BodyIf(has_else) => {},
-    BodyMatch(targets, bindings) => {},
+    BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
@@ -443,7 +443,7 @@ pure body_proves_nat_subtraction(
       BodyIndex() => false,
       BodyIf(has_else) => false,
       BodyBlock(has_tail) => false,
-      BodyMatch(targets, bindings) => false,
+      BodyMatch(targets, bindings, spans) => false,
       BodyBinding(identity, type, mutable) => false,
       BodyAssignment(identity) => false,
       BodyWhile() => false,
@@ -499,7 +499,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
-    BodyMatch(targets, bindings) => {},
+    BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
@@ -607,7 +607,7 @@ pure body_condition_facts(
               BodyIndex() => {},
               BodyIf(has_else) => {},
               BodyBlock(has_tail) => {},
-              BodyMatch(targets, bindings) => {},
+              BodyMatch(targets, bindings, spans) => {},
               BodyBinding(other_identity, type, mutable) => {},
               BodyAssignment(other_identity) => {},
               BodyWhile() => {},
@@ -622,7 +622,7 @@ pure body_condition_facts(
             BodyIndex() => {},
             BodyIf(has_else) => {},
             BodyBlock(has_tail) => {},
-            BodyMatch(targets, bindings) => {},
+            BodyMatch(targets, bindings, spans) => {},
             BodyBinding(identity, type, mutable) => {},
             BodyAssignment(identity) => {},
             BodyFor(identity) => {},
@@ -644,7 +644,7 @@ pure body_condition_facts(
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
-    BodyMatch(targets, bindings) => {},
+    BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
@@ -675,7 +675,7 @@ pure body_invalidate_assigned_locals(
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
-    BodyMatch(targets, bindings) => {},
+    BodyMatch(targets, bindings, spans) => {},
     BodyBinding(identity, type, mutable) => {},
     BodyWhile() => {},
     BodyFor(identity) => {},
@@ -2672,7 +2672,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
-    BodyMatch(targets, bindings) => {},
+    BodyMatch(targets, bindings, spans) => {},
     BodyAssignment(local) => {},
     BodyWhile() => {},
     BodyFor(local) => {},
@@ -3384,6 +3384,7 @@ pure bind_body_match(
   mut children: [BoundBody] = [subject_result.body]
   mut targets: [BodyTarget] = []
   mut bindings: [[BodyLocalIdentity]] = []
+  mut pattern_spans: [SourceSpan] = []
   mut diagnostics: [Diagnostic] = subject_result.diagnostics
   mut deferred: [SourceSpan] = subject_result.deferred
   mut variants: [BodyTarget] = []
@@ -3406,15 +3407,17 @@ pure bind_body_match(
   mut seen: [DeclarationIdentity] = []
   mut index: Nat = 1
   for arm in arms {
+    pattern_position: SourcePos = arm.pattern.span.start
     mut payload: [SignatureType] = []
     mut arm_locals: Map[Str, BodyLocal] = locals
     mut arm_bindings: [BodyLocalIdentity] = []
     match body_target(context, arm.pattern.variant, false) {
       Error(message) => {
-        diagnostics = append(diagnostics, Diagnostic(message, span.start))
+        diagnostics = append(diagnostics, Diagnostic(message, pattern_position))
       },
       Ok(target) => {
         targets = append(targets, target)
+        pattern_spans = append(pattern_spans, arm.pattern.span)
         is_variant: Bool = match target {
           BodyCore(name) => name == "Some" || name == "None" || name == "Ok" || name == "Error",
           BodyDeclaration(binding) => match binding.kind {
@@ -3428,7 +3431,7 @@ pure bind_body_match(
         if !is_variant {
           diagnostics = append(
             diagnostics,
-            Diagnostic("pattern is not a variant: " + arm.pattern.variant, span.start)
+            Diagnostic("pattern is not a variant: " + arm.pattern.variant, pattern_position)
           )
         }
         identity: DeclarationIdentity = body_variant_identity(target)
@@ -3443,7 +3446,7 @@ pure bind_body_match(
             diagnostics,
             Diagnostic(
             "pattern " + arm.pattern.variant + " is not a variant of the matched enum",
-            span.start
+            pattern_position
           )
           )
         }
@@ -3451,7 +3454,7 @@ pure bind_body_match(
           if previous == identity {
             diagnostics = append(
               diagnostics,
-              Diagnostic("duplicate match arm " + arm.pattern.variant, span.start)
+              Diagnostic("duplicate match arm " + arm.pattern.variant, pattern_position)
             )
           }
         }
@@ -3459,7 +3462,7 @@ pure bind_body_match(
         if is_variant {
           match body_contract(context, target) {
             Error(message) => {
-              diagnostics = append(diagnostics, Diagnostic(message, span.start))
+              diagnostics = append(diagnostics, Diagnostic(message, pattern_position))
             },
             Ok(optional) => match optional {
               None() => {
@@ -3472,7 +3475,7 @@ pure bind_body_match(
                     diagnostics,
                     Diagnostic(
                     "pattern " + arm.pattern.variant + " expects ${count} bindings",
-                    span.start
+                    pattern_position
                   )
                   )
                 }
@@ -3483,7 +3486,7 @@ pure bind_body_match(
                       for input in contract.inputs {
                         match substitute_signature_type(input, contract.owner, type.arguments) {
                           Error(message) => {
-                            diagnostics = append(diagnostics, Diagnostic(message, span.start))
+                            diagnostics = append(diagnostics, Diagnostic(message, pattern_position))
                           },
                           Ok(value) => {
                             payload = append(payload, value)
@@ -3504,7 +3507,7 @@ pure bind_body_match(
       if arm_locals.has(name) {
         diagnostics = append(
           diagnostics,
-          Diagnostic("pattern binding " + name + " shadows an existing binding", span.start)
+          Diagnostic("pattern binding " + name + " shadows an existing binding", pattern_position)
         )
       }
       local: BodyLocalIdentity = BodyLocalIdentity(
@@ -3596,6 +3599,6 @@ pure bind_body_match(
       }
     }
   }
-  body: BoundBody = BoundBody(BodyMatch(targets, bindings), span, children, output, [])
+  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [])
   body_apply_solutions(context, BodyResult(body, diagnostics, deferred), solutions)
 }

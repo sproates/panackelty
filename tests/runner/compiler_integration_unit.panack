@@ -1,4 +1,5 @@
 import stdlib/result
+import stdlib/environment
 import stdlib/testing_commands
 import stdlib/testing_files
 
@@ -30,6 +31,19 @@ integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: St
     Ok(actual) => test_expect(name, actual.exit_code == status && actual.signal == 0 &&
       actual.stdout == utf8_encode(output) && integration_contains(utf8_decode(actual.stderr), expected),
       "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${utf8_decode(actual.stdout)}, stderr: ${utf8_decode(actual.stderr)}")
+  }
+}
+integration_candidate_error(name: Str, args: [Str], expected: Str): TestResult {
+  compiler = match environment("PANACK_TEST_COMPILER") {
+    Some(value) => value,
+    None() => "bootstrap/compiler-v9.bc"
+  }
+  match process_run(contract_path("./panack-vm"), ["run", compiler].concat(args), bytes(),
+      path_current(), [], duration_seconds(90), 1048576) {
+    Error(error) => test_expect(name, false, "compiler process failed"),
+    Ok(actual) => test_expect(name, actual.exit_code == 1 && actual.signal == 0 &&
+      actual.stdout == bytes() && integration_contains(utf8_decode(actual.stderr), expected),
+      "candidate compiler did not report ${expected}")
   }
 }
 integration_bytes(name: Str, left: Path, right: Path): TestResult {
@@ -122,9 +136,13 @@ main(): Void {
           !file_exists("tests/fixtures/compiler_contracts/namespaces/expression_types.bc"), "invalid expression wrote bytecode"))
       }
       for operation in ["check", "run", "compile"] {
-        for diagnostic in ["aggregate_types.panack:3:29: argument 1 to Box is Str, expected Nat", "aggregate_types.panack:5:3: non-exhaustive match; missing Empty", "aggregate_types.panack:7:31: cannot infer type parameter T for identity; supply explicit type arguments", "aggregate_types.panack:11:3: pattern is not a variant: map"] {
+        for diagnostic in ["aggregate_types.panack:3:29: argument 1 to Box is Str, expected Nat", "aggregate_types.panack:5:3: non-exhaustive match; missing Empty", "aggregate_types.panack:7:31: cannot infer type parameter T for identity; supply explicit type arguments"] {
           results = results.append(integration_error("aggregate identity diagnostic/" + operation + "/" + diagnostic,
             [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_types.panack"], 1, "", diagnostic))
+        }
+        for diagnostic in ["aggregate_types.panack:11:23: pattern is not a variant: map", "aggregate_types.panack:11:23: pattern map is not a variant of the matched enum"] {
+          results = results.append(integration_candidate_error("pattern identity diagnostic/" + operation + "/" + diagnostic,
+            [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_types.panack"], diagnostic))
         }
         results = results.append(integration_error("shared inference constraint diagnostic/" + operation,
           [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_constraints.panack"], 1, "", "aggregate_constraints.panack:1:1: incompatible inference constraints"))

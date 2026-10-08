@@ -55,7 +55,8 @@ pure unlocated_expression(expression: Expr): Expr {
 
 record MatchPattern {
   variant: Str,
-  bindings: [Str]
+  bindings: [Str],
+  span: SourceSpan
 }
 
 record MatchArm {
@@ -716,7 +717,14 @@ pure parse_match_arms(
                   } else {
                     match parse_match_arm_body(tokens, parsed_bindings.next + 1) {
                       Ok(body) => {
-                        pattern: MatchPattern = MatchPattern(variant, parsed_bindings.values)
+                        pattern: MatchPattern = MatchPattern(
+                          variant,
+                          parsed_bindings.values,
+                          SourceSpan(
+                            token_position(tokens, index),
+                            token_end_position(tokens, parsed_bindings.next)
+                          )
+                        )
                         arm: MatchArm = MatchArm(pattern, body.value)
                         values: [MatchArm] = append(arms, arm)
                         if body.next >= len(tokens) {

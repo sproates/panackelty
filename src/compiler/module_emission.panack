@@ -214,7 +214,11 @@ pure module_emission_guard_arms(
   mut result: [MatchArm] = []
   for arm in arms {
     result = append(result, MatchArm(
-      MatchPattern(module_emission_guard_target(graph, entry, owner, arm.pattern.variant), arm.pattern.bindings),
+      MatchPattern(
+        module_emission_guard_target(graph, entry, owner, arm.pattern.variant),
+        arm.pattern.bindings,
+        arm.pattern.span
+      ),
       module_emission_guard_expression(graph, entry, owner, arm.body)
     ))
   }
@@ -356,7 +360,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyIndex() => {},
           BodyIf(has_else) => {},
           BodyBlock(has_tail) => {},
-          BodyMatch(targets, bindings) => {},
+          BodyMatch(targets, bindings, spans) => {},
           BodyBinding(identity, type, mutable) => {},
           BodyAssignment(identity) => {},
           BodyWhile() => {},
@@ -382,7 +386,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyIndex() => CallExpr("$unit", [], []),
     BodyIf(has_else) => CallExpr("$unit", [], []),
     BodyBlock(has_tail) => CallExpr("$unit", [], []),
-    BodyMatch(targets, bindings) => CallExpr("$unit", [], []),
+    BodyMatch(targets, bindings, spans) => CallExpr("$unit", [], []),
     BodyBinding(identity, type, mutable) => CallExpr("$unit", [], []),
     BodyAssignment(identity) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
@@ -423,7 +427,7 @@ pure module_emission_block(
     BodyField(name) => false,
     BodyIndex() => false,
     BodyIf(value) => false,
-    BodyMatch(targets, bindings) => false,
+    BodyMatch(targets, bindings, spans) => false,
     BodyBinding(identity, type, mutable) => false,
     BodyAssignment(identity) => false,
     BodyWhile() => false,
@@ -469,7 +473,7 @@ pure module_emission_block(
         BodyIndex() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyIf(value) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyBlock(value) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
-        BodyMatch(targets, bindings) => Some(ExpressionStatement(module_emission_expression(graph, entry, child)))
+        BodyMatch(targets, bindings, spans) => Some(ExpressionStatement(module_emission_expression(graph, entry, child)))
       }
       match statement {
         None() => {},
@@ -522,7 +526,7 @@ pure module_emission_expression(
       has_else
     ),
     BodyBlock(has_tail) => BlockExpr(module_emission_block(graph, entry, body)),
-    BodyMatch(targets, bindings) => {
+    BodyMatch(targets, bindings, pattern_spans) => {
       mut arms: [MatchArm] = []
       mut index: Nat = 0
       for target in targets {
@@ -533,7 +537,7 @@ pure module_emission_expression(
           }
         } else {}
         arms = append(arms, MatchArm(
-          MatchPattern(module_emission_target(graph, entry, target), names),
+          MatchPattern(module_emission_target(graph, entry, target), names, pattern_spans[index]),
           module_emission_expression(graph, entry, body.children[index + 1])
         ))
         index = index + 1

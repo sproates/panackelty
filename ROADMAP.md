@@ -3210,14 +3210,15 @@ website feature claims remain unchanged. Its clean canonical check passed in
 against the 15s target; the validation profile records both and the limits on
 causal attribution.
 
-The current 6a follow-up passes same-spelled imported `indirect_value` functions
+The 6a follow-up in [PR#342](https://github.com/sproates/panackelty/pull/342)
+passes same-spelled imported `indirect_value` functions
 from `left` and `right` as `PureFn` values, then invokes each through `call`.
 The staged namespace fixture expects distinct results (`43` and `44`) from both
 source execution and saved v9 bytecode, alongside the existing generic direct-call
 and guard-helper identity cases. This is regression coverage for the existing
 emitter path; it changes no compiler or VM implementation. The canonical `make
 check` passes both source and saved-bytecode assertions; gate 6a's acceptance
-evidence is complete on this delivery's merge. This does not complete slice 6.
+evidence is complete on PR#342's merge. This does not complete slice 6.
 
 P2 owns standalone namespace semantics, entry selection and entry-directory
 root confinement, necessary initial stdlib exports and its own

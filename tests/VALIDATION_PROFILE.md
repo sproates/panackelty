@@ -185,7 +185,7 @@ claim. The validation maintainer owns the open GI#106/RM#123 follow-up; next,
 repeat the comparison after the next compiler-heavy change, with review before
 that merge or sooner if hosted CI repeats the budget breach.
 
-### Namespace indirect callable identity follow-up — 2026-10-08
+### Namespace indirect callable identity follow-up — PR#342 — 2026-10-08
 
 The staged namespace fixture now passes same-spelled imported function references
 from two modules as `PureFn` values and invokes them indirectly. Source and saved

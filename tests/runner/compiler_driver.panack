@@ -126,6 +126,64 @@ main(): Void {
             compiler_command(compiler, ["run", namespace_async_artifact_text]),
             ProcessOutput(0, 0, bytes(), bytes())))
 
+          // Compile an isolated multi-module program, remove every source
+          // file, then validate and execute only the saved artifact.
+          standalone_root = child(workspace.root, "standalone-project")
+          standalone_left = child(standalone_root, "left.panack")
+          standalone_right = child(standalone_root, "right.panack")
+          standalone_main = child(standalone_root, "main.panack")
+          standalone_artifact = child(workspace.root, "standalone.bc")
+          standalone_left_text = result_value_or(path_to_text(standalone_left), "invalid-standalone-left")
+          standalone_right_text = result_value_or(path_to_text(standalone_right), "invalid-standalone-right")
+          standalone_main_text = result_value_or(path_to_text(standalone_main), "invalid-standalone-main")
+          standalone_artifact_text = result_value_or(path_to_text(standalone_artifact), "invalid-standalone-artifact")
+          fs_create_directory(standalone_root)
+          left_write = fs_write(standalone_left, utf8_encode(
+            "pub pure answer(): Nat { 11 }\nmain(): Void { print(991) }\n"))
+          right_write = fs_write(standalone_right, utf8_encode(
+            "pub pure answer(): Nat { 22 }\nmain(): Void { print(992) }\n"))
+          main_write = fs_write(standalone_main, utf8_encode(
+            "import \"left.panack\" as left\nimport \"right.panack\" as right\nmain(): Void {\n  print(left.answer())\n  print(right.answer())\n}\n"))
+          results = append(results, test_expect(
+            "standalone bytecode fixture setup",
+            match left_write { Ok(written) => true, Error(error) => false } &&
+              match right_write { Ok(written) => true, Error(error) => false } &&
+              match main_write { Ok(written) => true, Error(error) => false },
+            "source fixture write failed"
+          ))
+          results = append(results, test_run_command("standalone namespace source compile",
+            compiler_command(compiler, ["compile", standalone_main_text, "-o", standalone_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("wrote ${standalone_artifact_text}\n"), bytes())))
+          for file in [standalone_main, standalone_left, standalone_right] {
+            match fs_remove_file(file) {
+              Ok(removed) => {},
+              Error(error) => { results = append(results, test_expect(
+                "standalone bytecode source removal", false, "source file removal failed")) }
+            }
+          }
+          results = append(results, test_expect(
+            "standalone bytecode sources are absent",
+            !file_exists(standalone_main_text) && !file_exists(standalone_left_text) &&
+              !file_exists(standalone_right_text),
+            "source files remained after compilation"
+          ))
+          results = append(results, test_run_command("standalone saved bytecode validation without sources",
+            compiler_command(compiler, ["check", standalone_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+          results = append(results, test_run_command("standalone saved bytecode execution without sources",
+            compiler_command(compiler, ["run", standalone_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("11\n22\n"), bytes())))
+          match fs_remove_file(standalone_artifact) {
+            Ok(removed) => {},
+            Error(error) => { results = append(results, test_expect(
+              "standalone bytecode artifact cleanup", false, "artifact removal failed")) }
+          }
+          match fs_remove_directory(standalone_root) {
+            Ok(removed) => {},
+            Error(error) => { results = append(results, test_expect(
+              "standalone bytecode directory cleanup", false, "directory removal failed")) }
+          }
+
           source_root = child(workspace.root, "source-project")
           outside_source = child(workspace.root, "outside.panack")
           escape_entry = child(source_root, "escape.panack")

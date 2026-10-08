@@ -3955,3 +3955,31 @@ caused the observed difference. Retain the existing GI#106 validation-budget
 follow-up and all coverage; no timeouts, assertions or budgets were changed.
 Website impact: none; the checked-in seed's namespace gate and published feature
 claims are unchanged.
+
+## P2 slice 6f standalone saved-bytecode loading — 2026-10-08
+
+`compiler_driver.panack` now builds a temporary two-module source project whose
+imported modules define same-named `answer` and `main` functions. The staged
+compiler compiles the selected entry to a saved artifact; the test removes the
+entry and both imported source files, verifies they are absent, then asks the
+compiler to validate and execute only the artifact. Validation succeeds and
+execution prints exactly `11` and `22`; the imported `main` functions' sentinel
+outputs (`991` and `992`) do not appear. This demonstrates that the v9 artifact
+preserves the imported identities and selected entry behavior without source
+files at run time, so no bytecode format change is needed for this gate.
+
+The checked-in bootstrap seed still rejects namespace syntax. This acceptance
+test runs with the staged source-built compiler; it does not enable public
+namespace execution or complete the core/bootstrap staging, source-map,
+explain/locate, coordinated cutover or platform acceptance gates. Slice 6g and
+slices 7–8 remain open. Website impact: none; the public execution gate and
+published feature claims are unchanged.
+
+The direct namespace driver run passed all 26 assertions with zero failures.
+`make -j1 check-compiler` passed all 207 tests in 86s against the unchanged 15s
+budget. Host-access `make -j1 check` passed with no test failures in 133s against
+the unchanged 120s budget. `make docs` and `git diff --check` passed. These are
+single-run observations rather than a matched performance comparison. This is
+test and progress-record work only: compiler, VM, serialized format and bytecode
+version remain unchanged. Retain the GI#106 validation-budget follow-up; this
+evidence makes no performance claim and does not relax any target or test.

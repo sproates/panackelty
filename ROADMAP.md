@@ -455,14 +455,17 @@ through [PR#327](https://github.com/sproates/panackelty/pull/327). PR#319's slic
 by PR#320; PR#321 delivered the core/indirect-call work on the selected `next`
 integration branch, followed by the completed contract matrix in PR#326.
 
-Slice 6 is in progress. Merged PR#331 provides the first bounded identity-emission
-and standalone-loading subset. Follow-up PR#333 adds identity-based rewriting for
-guarded-type predicate helpers, including colliding helper names across modules;
-PR#334 extends complete source and saved-bytecode execution coverage to
-same-spelled generic records and functions across imported modules. These are
-intermediate deliveries and do not complete or reweight slice 6. Broader body,
-diagnostic/tooling, coordinated source/seed, browser, installed and bootstrap
-acceptance remains open under GI#198.
+Slice 6 is in progress and is now organised into seven sequenced acceptance gates.
+Merged PR#331 provides partial evidence for callable identity, nominal identity,
+standalone loading and bootstrap staging. PR#333 adds identity-based rewriting
+for guarded-type predicate helpers, including colliding helper names across
+modules; PR#334 extends source and saved-bytecode coverage to same-spelled
+generic records and functions; PR#337 adds nested generic enum payloads. These
+are intermediate deliveries and do not complete or reweight slice 6. The remaining
+gates cover broader emission, source loading, saved-bytecode loading, and
+core/bootstrap acceptance. Slice 7 owns diagnostics and tooling; slice 8 owns
+coordinated source/seed migration and browser/installed acceptance. GI#198 remains
+open for P2.
 
 The stable scope-weighted baseline gives P2 approximately 55% completion:
 foundations 20%, slice 1 8%, slice 2 12%, slice 3 8%, and slice 4 7%. With P2's
@@ -3079,9 +3082,33 @@ behavior.
 | 3. Core and indirect-call contracts — Done through PR#321 and PR#326 | Core operations/methods, receiver calls and indirect callable values share checked contracts with direct calls. Reserved core identity cannot be forged; wrong arguments/results and ambiguous receiver/namespace uses reject correctly. | 1–2 | 0 |
 | 4. Guard proofs — Done through PR#327 | Guarded conversions, arithmetic obligations and mutation invalidation use identity-aware facts through the completed body checker. Positive, rejected and unavailable proofs preserve existing soundness and exact semantics. | 1–3 | 0 |
 | 5. Effects and await | Purity, callable effects, ordinary/async calls and await use the checked graph consistently, including imported/generic/indirect paths and recovered local explanation evidence. Invalid boundaries reject without implying whole-program validity. | 1–4 and callable contracts | 1–2 |
-| 6. Identity emission and standalone loading | Lower checked identities to unique emitted symbols and execute complete standalone programs through source and saved bytecode; no same-name collisions. All FILE-loaded modules use one namespace model; only the selected entry's main launches. Use reserved standalone compilation identity, the entry-directory root and local/toolchain-only imports; quoted paths cannot escape that root. Establish core loading and isolated bootstrap-root staging. Prove v9 conformance or justify a format change. | 1–5 | 1–2 |
-| 7. Diagnostics, explain and locate | Preserve original module/source identity and precise expression/type/pattern spans across checking and lowering. Qualified selectors are unambiguous; unqualified selectors work only when unique. Wrong identity, ambiguous selectors and stale mappings fail safely. | 1–6; span preservation applies throughout | 1–2 |
-| 8. Coordinated seed/source cutover and acceptance | Audit initial stdlib exports; migrate compiler, tests, examples and package inputs under one namespace model. Produce the namespace-capable seed, prove fresh compiler/stdlib fixed points and native/browser/installed conformance, document breaking migration, and remove obsolete flat execution and transitional code when its removal criterion is met. | 1–7; bootstrap-root staging established before source cutover | 2–3 |
+| 6. Identity emission and standalone loading | Complete the seven sequenced acceptance gates below. Keep this an implementation slice: source-map/explain/locate behavior belongs to slice 7; coordinated source/seed migration and platform acceptance belong to slice 8. | 1–5 | Re-estimate by gate; provisionally one focused PR per gate, with adjacent gates combined only when one coherent change proves both |
+| 7. Diagnostics, explain and locate | Consume the stable module/source identities and mappings from slice 6. Preserve precise expression/type/pattern spans across checking and lowering; make qualified selectors unambiguous and unqualified selectors valid only when unique; reject wrong identities, ambiguous selectors and stale mappings safely. Own source-map, explain and locate migration. | 1–6; preserve source identity and spans throughout | 1–2 |
+| 8. Coordinated seed/source cutover and acceptance | Audit initial stdlib exports; migrate compiler, tests, examples and package inputs under one namespace model. Produce the namespace-capable seed, prove fresh compiler/stdlib fixed points and native/browser/installed conformance, document breaking migration, and remove obsolete flat execution and transitional code when its removal criterion is met. Own the broad source/seed cutover and cross-platform acceptance. | 1–7; bootstrap-root staging established before source cutover | 2–3 |
+
+Slice 6 is split into sequential gates within RM#41, not separately prioritised or
+weighted tasks. The existing 14% slice weight remains unchanged, and progress is
+credited once against the parent slice. Each gate should be reviewable as one
+focused PR; combine adjacent gates only when the code and acceptance evidence form
+one coherent change.
+
+| Gate | Bounded outcome and exit evidence |
+| --- | --- |
+| 6a. Callable identity emission | Functions, generic functions, direct/indirect calls and compiler-generated helpers lower from declaration identities to collision-free symbols. Same-spelled cross-module callable fixtures pass. |
+| 6b. Ordinary body emission | Operators, bindings/assignments, branches, loops, returns and collections lower the checked body without changing evaluation order or lexical identity; positive and rejected cases remain explicit. |
+| 6c. Aggregate and pattern emission | Records, enums, constructors, field access, variant patterns and nested generic payloads retain declaration identity through emission; same-spelled cross-module fixtures assert exact values. |
+| 6d. Proof and effect emission | Guard-proven conversions/arithmetic, mutation invalidation, purity, async calls and await preserve the checked identity/effect decisions through emitted code; valid and rejected boundaries are covered. |
+| 6e. Standalone source loading | A complete multi-file source program loads its modules into one namespace, resolves the reserved entry identity and entry-directory root, restricts imports to local/toolchain files, confines quoted paths, and launches only the selected entry's `main`. |
+| 6f. Standalone saved-bytecode loading | Compiling, saving, loading and running that program preserves the same identities and entry behavior without requiring source files at run time. Record evidence that bytecode v9 is sufficient or justify a deliberate format change. |
+| 6g. Core loading and bootstrap staging | Core modules load through the same identity model, and the compiler can use the isolated bootstrap-root staging path without escaping its root or leaving staging outputs behind. Namespace-capable seed generation, fixed-point proof and platform matrix remain slice 8. |
+
+Slice 6 completes only when all seven gates pass together in the supported end-to-end
+path. PR#331, PR#333, PR#334 and PR#337 provide partial evidence for 6a–6g; none
+alone closes a gate or enables public namespace execution. Slice 6 preserves the
+source identity and spans needed by slice 7, but detailed source-map, explain and
+locate behavior is slice 7. Slice 8 owns coordinated migration, namespace-capable
+seed fixed points, native/browser/installed acceptance and transitional-path
+removal.
 
 After slice 5 merges, **4–7 PRs remain provisionally**, including implementation,
 tests, documentation and integration; this is a forecast, not a commitment. Reassess
@@ -3116,7 +3143,7 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
-| Slice 6: Identity emission/standalone loading | 14% | Intermediate PR#331, PR#333 and PR#334 merged to `next` on 2026-10-08: checked-subset identity emission, guard-helper identity, generic record/function collisions through source and saved bytecode, entry selection, path/symlink confinement and isolated compiler bootstrap; full slice acceptance remains | Not re-estimated | Unquantified |
+| Slice 6: Identity emission/standalone loading | 14% | Seven sequenced gates: callable; ordinary body; aggregate/pattern; proof/effect; source loading; saved-bytecode loading; core/bootstrap staging. PR#331, PR#333, PR#334 and PR#337 provide partial evidence; full slice acceptance remains | Not re-estimated | Unquantified |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
 | **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp; PR#331, PR#333 and PR#334 add unquantified partial slice 6 progress** | **65% last quantified estimate; current estimate pending** | **65 pp known; slice 6 unquantified** |
@@ -3152,9 +3179,12 @@ same-spelled imported functions, records, enums and variants through source and
 saved v9 bytecode, confirms that only the selected entry `main` launches, rejects
 relative-root escapes and symlink traversal, and stages compiler builds under an
 explicit `src/` bootstrap root. This is a merged checked-subset delivery, not
-slice completion. Remaining acceptance includes broader body behavior, exact
-diagnostics and tooling migration, complete seed fixed-point evidence, and native,
-browser and installed conformance. Website impact: no website update; this
+slice completion. Remaining slice-6 acceptance is tracked as callable, ordinary
+body, aggregate/pattern, proof/effect, source-loading, saved-bytecode-loading,
+and core/bootstrap gates.
+Slice 7 owns precise diagnostics and tooling migration; slice 8 owns
+complete seed fixed-point evidence and native, browser and installed conformance.
+Website impact: no website update; this
 compiler migration changes no published feature claim, and the browser seed
 remains unchanged. Performance impact: canonical `make check` passed in 123s
 against the 120s target; the validation profile records the observed miss and
@@ -3171,9 +3201,10 @@ GI#106/RM#123. This is additional checked-subset evidence, not slice completion.
 extends that fixture through nested generic records inside same-named generic
 enum payloads. Source and saved-v9 execution assert the values read back through
 each module's variant pattern. This strengthens the identity-emission evidence
-without enabling public namespace execution or completing slice 6;
-source-map/tooling, coordinated seed migration and platform acceptance remain
-open. Website impact: none; the public namespace execution gate and current
+without enabling public namespace execution or completing slice 6. Its work
+provides partial nominal/variant-emission evidence; source-map/tooling remains in
+slice 7, and coordinated seed migration and platform acceptance remain in slice
+8. Website impact: none; the public namespace execution gate and current
 website feature claims remain unchanged. Its clean canonical check passed in
 200.88s against the 120s target and the warm focused compiler check in 54.90s
 against the 15s target; the validation profile records both and the limits on
@@ -3198,10 +3229,12 @@ starts through this plan. Compiler understanding stays paused. This planning
 record changes no executable behavior or published capability; no runtime
 measurement or website promotion is needed for the record itself.
 
-Remaining P2 scope (slices 6–8): identity emission
-and standalone loading; precise type/pattern spans and diagnostics/explain/locate;
-audited stdlib exports, coordinated source/seed migration, and native/browser,
-installed and bootstrap conformance. Remove the staged
+Remaining P2 scope (slices 6–8): callable, ordinary-body, aggregate/pattern,
+proof/effect emission; source and saved-bytecode loading; core/bootstrap staging;
+precise type/pattern spans
+and diagnostics/explain/locate; audited stdlib exports, coordinated source/seed
+migration, namespace-capable seed fixed points, and native/browser/installed
+acceptance. Remove the staged
 execution gate and current flattening only with that identity integration and
 fresh namespace-capable seed/source migration. GI#198 remains open. Website
 impact: none for this slice, because executable namespace syntax remains disabled

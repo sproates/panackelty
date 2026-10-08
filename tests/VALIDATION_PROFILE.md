@@ -124,7 +124,8 @@ passed 577 assertions. The full check took 195s against the unchanged 120s
 budget; the functional phase took 4s and bootstrap took 20s. This delivery changes
 only namespace test fixtures and informational coverage/roadmap records, not
 compiler or VM implementation. The new measurement does not establish that the
-fixture caused the budget miss; no matched base/head comparison was run.
+fixture caused the budget miss. The matched base/head comparison below records
+the requested evidence.
 
 Proposed disposition for merge under existing GI#106/RM#123 ownership: retain
 all coverage and the 120s/15s targets, make no causal-regression or speedup claim,
@@ -134,6 +135,29 @@ slice; review the concern at that slice or when comparable evidence changes. The
 owner accepted this disclosed disposition by merging PR#334 under the standing
 exact-head green-pipeline authorization. This remains an intermediate slice-6
 delivery, not P2 completion.
+
+### Matched validation for namespace generic identity coverage — 2026-10-08
+
+Compared the exact parent of #334 (`9cad9175d5ec91c61b43a87b5612ea1041541368`)
+with #334's merged head (`96c7fb52968c6f8c29b0143fb9a6d24b39707bde`) in clean,
+detached checkouts on the same macOS arm64 host. The base ran first, followed by
+the head; no other validation build ran concurrently. Each revision had one clean
+canonical `make -j1 check` after `make clean`, then one warm `make -j1
+check-compiler`. Native loopback access was available. All four commands passed.
+
+| Workload | Pre-#334 base | #334 head | Target |
+|---|---:|---:|---:|
+| Clean canonical `make check` | 200s (199.78s wall) | 200s (200.32s wall) | 120s |
+| Warm focused `make check-compiler` | 54s (54.03s wall) | 55s (54.83s wall) | 15s |
+
+The full-check measurements are equal at the project's one-second timer
+resolution; the focused head is one second slower. Both revisions exceed both
+budgets. This single pair does not establish that #334 caused or avoided the
+overruns, nor does it establish performance neutrality. Host activity and OS
+cache state were not controlled. Retain the existing budgets and all coverage;
+make no speedup or causal-regression claim. GI#106/RM#123 performance acceptance
+remains open for later compiler-heavy work or comparable evidence. This remains
+an intermediate P2 slice-6 delivery, not P2 completion.
 
 ## Namespace guard proofs — 2026-10-07
 

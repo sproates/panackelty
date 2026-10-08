@@ -1,9 +1,8 @@
 # Panackelty
 
-**Exact math. Guarded types. A compiler written in Panackelty.**
+**Exact arithmetic. Guarded types. Compiler explanations. Self hosted.**
 
-Panackelty is an experimental, statically checked programming language for
-command-line programs. It combines arbitrary-precision integers and exact
+Panackelty is an evolving, statically checked programming language. It combines arbitrary-precision integers and exact
 rational and decimal arithmetic with guarded domain types, explicit effects,
 structured data, and a portable bytecode VM. The `panack explain` command shows
 evidence for selected natural-number subtraction proofs and local call/await

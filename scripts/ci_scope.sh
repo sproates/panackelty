@@ -56,8 +56,14 @@ else
     git diff --no-renames --name-only -z "$base" "$head" -- > "$files" || full
 fi
 count=0
+position_mode=commit
+[[ "$worktree" == 1 ]] && position_mode=worktree
 while IFS= read -r -d '' path; do
-    component=$(validation_component "$path")
+    if [[ "$path" == README.md ]] && ci_readme_positioning_only "$base" "$head" "$position_mode"; then
+        component=documentation
+    else
+        component=$(validation_component "$path")
+    fi
     add_component "$component"
     case "$component" in documentation|process) ;; *) route=full ;; esac
     for revision in "$base" "$head"; do

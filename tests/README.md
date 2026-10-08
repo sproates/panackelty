@@ -448,21 +448,28 @@ without building the compiler, and remains part of `make check` through policy.
 
 | Changes | Check workflow |
 | --- | --- |
+| `README.md` changes confined to the marked positioning-copy region before `## Exact fractions and Unit` | Document, local-link and whitespace checks; quick-start, examples, installation and packaged README content remain full-validation inputs |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Any other `README.md` change, or a mixture of positioning copy with any full-validation input | Full native validation and both platform packages |
 | Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
 All document inputs must be regular non-executable files on both sides.
-All other inputs retain full validation. The
-classifier compares the complete PR diff from its merge base. Renames expand
-into old-path deletion/new-path addition; symlinks, executable Markdown and
-unmerged local indexes cannot use the fast path. `scripts/ci_docs.sh` owns the
-explicit allowlist. New entries require an audit of build, package and test
-consumers, not just a Markdown extension. In particular `README.md` supplies the
-packaged quick start, `SPEC.md` defines executable behavior, and workflow files
-control execution; these retain full checks.
+README.md stays package-owned except when comparing the complete file outside
+the bounded positioning-copy markers leaves it identical. Before those markers
+exist on a historical base, the classifier uses the preamble through the fixed
+`## Exact fractions and Unit` boundary; malformed or moved boundaries fall back
+to full validation. The local selector checks both index and working-tree
+versions so an unsafe staged edit cannot be hidden by an unstaged reversal. All
+other inputs retain full validation. The classifier compares the complete PR
+diff from its merge base. Renames expand into old-path deletion/new-path
+addition; symlinks, executable Markdown and unmerged local indexes cannot use
+the fast path. `scripts/ci_docs.sh` owns the explicit document allowlist and
+positioning boundary. Other README content remains a packaged input, `SPEC.md`
+defines executable behavior, and workflow files control execution; those retain
+full checks.
 
 ### Component dependencies and retained coupling
 

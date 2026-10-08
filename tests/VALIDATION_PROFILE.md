@@ -4089,15 +4089,24 @@ compiler or standard-library source imports or establish the final fixed points
 and platform acceptance; those Slice 8 checks are recorded below.
 
 
-## Slice 8 coordinated cutover and acceptance — 2026-10-08
+## Slice 8 namespace project checkpoint — 2026-10-08
 
-The Slice 8 candidate migrates active compiler and bytecode-source imports,
-standard-library imports, compiler/unit runners, native-oracle fixtures, source
-coverage and examples to logical `project/` and `stdlib/` imports. The refreshed
-v9 seed is `cab3c28a0d32d286f2fd62cca722073e2669103531c6f3dc5eda486c6f31737f`;
-fresh stage-2/3/4 compiler outputs and stage-1/2/3 standard-library outputs
-match. `tests/namespace_seed.sh` checks source check/run/compile and saved-v9
-check/run after removing every source file.
+Core commit `7ea353f9c312c348e94190e63ba9ac958aa56cd7` provides a useful
+standalone-project checkpoint: namespace source and source-free saved-v9 behavior
+are exercised, the v9 seed is
+`cab3c28a0d32d286f2fd62cca722073e2669103531c6f3dc5eda486c6f31737f`, and fresh
+stage-2/3/4 compiler outputs and stage-1/2/3 standard-library outputs match.
+`tests/namespace_seed.sh` checks source check/run/compile and saved-v9 check/run
+after removing every source file.
+
+This is not the coordinated Slice 8 cutover. Although active compiler,
+bytecode-source, standard-library, runner, native-oracle, coverage and example
+imports use logical `project/` or `stdlib/` paths, the compiler's own source still
+passes through the legacy flat combined-loader path. A namespace-only source
+compile exposed missing explicit bindings, enum-variant imports and public
+re-export routes. The attempted migration was discarded; it did not change the
+checkpoint commit. Do not count this as compiler/stdlib migration or flat-path
+removal.
 
 Core validation passed: `make unit-harness`, `make unit-compiler`,
 loopback-enabled `make unit-runtime`, `make functional` (355 fixture assertions),
@@ -4125,10 +4134,11 @@ remain unavailable. The local browser package command uses GNU tar options and
 could not run with macOS BSD tar; the Browser PR's Ubuntu CI packages the tested
 artifact.
 
-The public project compiler executes namespaces. A parse-only migration diagnostic
-is still used internally by the standalone parser boundary and is filtered by
-project commands; removing it previously regressed standalone parser contracts.
-It does not gate project or installed namespace execution. Core and Browser PR
-checks and merge remain required before formal P2 issue closure. Website impact:
+Standalone project and installed compiler commands execute namespace imports in
+the tested project path. The compiler's own source has not yet been proven to
+compile through namespace semantics alone, and the legacy flat loader remains.
+Slice 8 still requires explicit export/import migration, flat-path removal, final
+fresh seed fixed points, and repeat native/browser/installed acceptance. Core and
+Browser PR integration remains separate from Slice 8 completion. Website impact:
 the browser runtime's support for project namespace loading is an implementation
 compatibility fix; no new published language feature claim is made.

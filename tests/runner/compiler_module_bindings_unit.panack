@@ -145,7 +145,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_status_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -316,6 +316,80 @@ module_emission_program_tests(): [TestResult] {
     results = append(results, test_expect("identity emission produces verified bytecode", len(artifact) > 0, "empty artifact"))
   } else {}
   results
+}
+
+pure module_emission_bodies_with_status(
+  bodies: [BoundFunctionBody],
+  target: DeclarationIdentity,
+  status: BodyCheckStatus
+): [BoundFunctionBody] {
+  mut result: [BoundFunctionBody] = []
+  for body in bodies {
+    if body.signature.binding.identity == target {
+      result = append(result, BoundFunctionBody(
+        body.signature,
+        body.parameters,
+        body.body,
+        body.deferred,
+        status
+      ))
+    } else {
+      result = append(result, body)
+    }
+  }
+  result
+}
+
+pure module_emission_rejects_unchecked_function(
+  result: ModuleEmissionResult,
+  symbol: Str,
+  name: Str
+): Bool {
+  mut diagnostic_found: Bool = false
+  for diagnostic in result.diagnostics {
+    if diagnostic.message == "function is not completely checked for identity emission: " + name {
+      diagnostic_found = true
+    } else {}
+  }
+  diagnostic_found && !result.program.function_indices.has(symbol)
+}
+
+module_emission_status_tests(): [TestResult] {
+  entry_path: Str = path_resolve("tests/fixtures/compiler_contracts/namespaces/emission/main.panack")
+  project_root: Str = path_parent(entry_path)
+  stdlib_root: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+  loaded: LoadedProject = load_project(entry_path)
+  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  entry: ModuleIdentity = source_module_identity(entry_path, project_root, stdlib_root)
+  left: ModuleIdentity = source_module_identity(path_join(project_root, "left.panack"), project_root, stdlib_root)
+  target: DeclarationIdentity = DeclarationIdentity(left, "indirect_value")
+  symbol: Str = module_emission_symbol(graph, entry, target)
+  deferred: ModuleEmissionResult = module_emission_program(
+    graph,
+    loaded.modules,
+    loaded.module_signatures,
+    module_emission_bodies_with_status(loaded.module_bodies, target, BodyDeferred()),
+    entry
+  )
+  invalid: ModuleEmissionResult = module_emission_program(
+    graph,
+    loaded.modules,
+    loaded.module_signatures,
+    module_emission_bodies_with_status(loaded.module_bodies, target, BodyInvalid()),
+    entry
+  )
+  [
+    test_expect(
+      "identity emission rejects deferred ordinary bodies",
+      module_emission_rejects_unchecked_function(deferred, symbol, "indirect_value"),
+      "deferred function was emitted or lacked its diagnostic"
+    ),
+    test_expect(
+      "identity emission rejects invalid ordinary bodies",
+      module_emission_rejects_unchecked_function(invalid, symbol, "indirect_value"),
+      "invalid function was emitted or lacked its diagnostic"
+    )
+  ]
 }
 
 pure namespace_identity(path: Str): ModuleIdentity {

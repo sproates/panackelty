@@ -3835,3 +3835,45 @@ contracts and all 1,987 allocation-failure cases pass. The existing 90s timeout,
 all 343 runner assertions, and the bytecode/compiler seed remain unchanged.
 The improvement addresses observed runtime cost and narrow timeout margin;
 it does not claim to recover the original lost diagnostic or close GI#106.
+
+## P2 slice 6b ordinary-body emission — 2026-10-08
+
+The cross-module emission fixture now gives each same-spelled imported
+`indirect_value` a checked body with a mutable accumulator, array collection,
+`for` loop, arithmetic, equality branch and returned tail value. Source execution
+and saved bytecode continue to produce exactly `43` and `44`. Compiler unit tests
+also verify identity emission rejects both deferred and invalid function bodies.
+The namespace path already lowered these constructs through the checked-body
+adapter; this delivery adds acceptance coverage and changes no compiler or VM
+implementation. It does not enable public namespace execution or complete slice 6.
+
+### Matched validation and performance assessment
+
+Both clean canonical checks ran on the same macOS 26.5 arm64 workstation, after
+`make clean`, with host access and no competing build. The base is merged `next`
+revision `d5dd68ab3f1fcea76be9499f049eeb2a72ac0d91`; the candidate adds only
+fixture, unit-test and documentation coverage.
+
+| Revision | Command | Result | Functional phase |
+| --- | --- | ---: | ---: |
+| Base `d5dd68a` | `/usr/bin/time -p make check` | 202.23s real; `make check` reported 202s | 4s |
+| 6b candidate | `/usr/bin/time -p make check` | 204.08s real; `make check` reported 205s | 5s |
+
+The observed difference is +1.85s (about 0.9%) in one clean run per revision.
+OS caches and unrelated machine activity were not controlled; this pair does not
+establish causation or a stable regression. Both full runs pass, and both exceed
+the unchanged 120s target. The candidate focused `make check-compiler` passes in
+84.89s against 15s; there is no matched base focused run here, so this is not a
+comparative result. The implementation change is test-only, so no compiler or VM
+runtime impact is expected. No latency improvement or cost neutrality is claimed.
+
+A sandboxed baseline attempt failed in `unit-runtime`; the same isolated target
+passed with host access, and the clean base and candidate `make check` runs above
+both passed with host access. The sandboxed attempt is excluded from the comparison.
+
+Keep all coverage and the 120s/15s targets. GI#106 retains ownership of the
+standing validation-budget concern; revisit it if a later gate changes compiler
+implementation. This bounded evidence-only delivery selects no optimization and
+makes no performance claim about compiler execution, memory or runtime behavior.
+Website impact: none; executable namespace syntax remains gated, so no published
+feature claim changes.

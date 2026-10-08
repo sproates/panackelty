@@ -3,7 +3,14 @@ pub record Envelope[T] { item: Item[T] }
 pub enum Outcome[T] { Finished(Envelope[T]) }
 pub pure make(): Envelope[Nat] { Envelope(Item(41)) }
 pub pure identity[T](value: T): T { value }
-pub pure indirect_value(): Nat { 43 }
+pub pure indirect_value(): Nat {
+  mut total: Nat = 0
+  values: [Nat] = [20, 21]
+  for value in values {
+    total = total + value
+  }
+  if total == 41 { total + 2 } else { 0 }
+}
 pub pure make_outcome(): Outcome[Nat] { Finished(make()) }
 pub pure positive(value: Nat): Bool { value > 0 }
 pub type Positive = Nat where positive(value)

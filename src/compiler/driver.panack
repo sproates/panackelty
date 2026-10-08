@@ -1,6 +1,6 @@
-import "explanations.panack"
-import "coverage_session.panack"
-import "module_emission.panack"
+import project/src/compiler/explanations
+import project/src/compiler/coverage_session
+import project/src/compiler/module_emission
 
 // The command boundary owns host I/O and user-visible status. Pure compiler passes
 // receive prepared projects; failed checks must not publish bytecode.

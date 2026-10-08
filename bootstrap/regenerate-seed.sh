@@ -48,10 +48,8 @@ printf 'Input seed SHA-256: %s\n' "$input_digest"
 previous=$lock/input.bc
 for stage in 2 3 4; do
     artifact=$lock/stage$stage.bc
-    # The compiler's own relative imports are rooted at src/ during bootstrap.
-    # The standard-library conformance source later in this script keeps its
-    # ordinary entry-directory root.
-    PANACKELTY_BOOTSTRAP_ROOT=$(pwd)/src "$vm" run "$previous" compile "$source" -o "$artifact"
+    # Compiler source modules use the same repository-root namespace as tests.
+    PANACKELTY_BOOTSTRAP_ROOT=$(pwd) "$vm" run "$previous" compile "$source" -o "$artifact"
     "$vm" check "$artifact"
     stage_digest=$(digest "$artifact")
     printf 'Stage %s compiler SHA-256: %s\n' "$stage" "$stage_digest"

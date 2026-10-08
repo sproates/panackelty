@@ -1,4 +1,4 @@
-import "helper.panack"
-import "other.panack"
-import "third.panack"
-main(): Void { print(answer()) }
+import "helper.panack" as first
+import "other.panack" as second
+import "third.panack" as third
+main(): Void { print(first.answer() + second.answer() + third.answer()) }

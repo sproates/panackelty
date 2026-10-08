@@ -1,9 +1,9 @@
-import "option.panack"
-import "result.panack"
-import "bytes.panack"
-import "path.panack"
-import "environment.panack"
+import stdlib/option
+import stdlib/result
+import stdlib/bytes
+import stdlib/path
+import stdlib/environment
 
-import "time.panack"
-import "filesystem.panack"
-import "process.panack"
+import stdlib/time
+import stdlib/filesystem
+import stdlib/process

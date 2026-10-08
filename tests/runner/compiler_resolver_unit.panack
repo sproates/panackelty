@@ -1,4 +1,4 @@
-import "../../src/compiler/resolver.panack"
+import project/src/compiler/resolver
 import stdlib/testing
 
 // Fixed resolver contracts, grouped by the former Python test methods.

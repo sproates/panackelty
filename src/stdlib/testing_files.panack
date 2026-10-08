@@ -1,4 +1,4 @@
-import "filesystem.panack"
+import stdlib/filesystem
 
 // The caller owns this unique temporary directory and all files created in it.
 record TestWorkspace { root: Path }

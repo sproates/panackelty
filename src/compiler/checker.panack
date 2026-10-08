@@ -1,5 +1,5 @@
-import "resolver.panack"
-import "expression_contracts.panack"
+import project/src/compiler/resolver
+import project/src/compiler/expression_contracts
 
 // Type checking keeps value types, mutation-sensitive guard facts and optional
 // proof evidence together. Ordinary checks must not retain explanation data.

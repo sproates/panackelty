@@ -1,4 +1,4 @@
-import "../compiler/emitter.panack"
+import project/src/compiler/emitter
 
 pure encode_u8(value: Nat): Bytes {
   byte_append(bytes(), value)

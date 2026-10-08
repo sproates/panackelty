@@ -1,4 +1,4 @@
-import "module_bindings.panack"
+import project/src/compiler/module_bindings
 
 // Resolve ordered import edges, aliases and re-exports to their original identities.
 // Cycle detection tracks the active path separately from completed modules.

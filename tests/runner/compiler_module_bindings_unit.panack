@@ -1,5 +1,5 @@
-import "../../src/compiler/loader.panack"
-import "../../src/compiler/module_emission.panack"
+import project/src/compiler/loader
+import project/src/compiler/module_emission
 import stdlib/testing
 
 pure namespace_parse(source: Str): Result[ParsedModule,Diagnostic] {

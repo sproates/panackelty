@@ -16,17 +16,30 @@ fail() { echo "native conformance: $*" >&2; exit 1; }
 artifact="$temporary/$label.bc"
 actual="$temporary/$label.stdout"
 errors="$temporary/$label.stderr"
+project_root=
+case "$label" in
+  case-compiler_skeleton|case-compiler_lexer) project_root=$project ;;
+  case-runner_smoke) project_root=$project ;;
+esac
+
+profiled() {
+  if [ -n "$project_root" ]; then
+    env PANACKELTY_BOOTSTRAP_ROOT="$project_root" sh "$project/tests/profile_command.sh" "$@"
+  else
+    sh "$project/tests/profile_command.sh" "$@"
+  fi
+}
 
 if [ "$mode" != bytecode ]; then
-  sh "$project/tests/profile_command.sh" "conformance/$label/source" "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
+  profiled "conformance/$label/source" "$panack" run "$source" >"$actual" 2>"$errors" || fail "$label source execution failed"
   test ! -s "$errors" || fail "$label wrote unexpected stderr"
   cmp "$expected" "$actual" || fail "$label source output differs"
 fi
 
 if [ "$mode" != source ]; then
-  sh "$project/tests/profile_command.sh" "conformance/$label/compile" "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
+  profiled "conformance/$label/compile" "$panack" compile "$source" -o "$artifact" >"$temporary/compile.stdout" 2>"$errors" || fail "$label compilation failed"
   test ! -s "$errors" || fail "$label compilation wrote unexpected stderr"
-  sh "$project/tests/profile_command.sh" "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
+  profiled "conformance/$label/bytecode" "$panack" run "$artifact" >"$actual" 2>"$errors" || fail "$label artifact execution failed"
   test ! -s "$errors" || fail "$label artifact wrote unexpected stderr"
   cmp "$expected" "$actual" || fail "$label artifact output differs"
 fi

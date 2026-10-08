@@ -1,4 +1,4 @@
-import "host.panack"
+import stdlib/host
 
 enum DurationError { FractionalNanosecond, ZeroDurationDivisor }
 enum ClockError { ClockUnavailable }

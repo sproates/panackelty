@@ -1,4 +1,4 @@
-import "../../../src/compiler/loader.panack"
+import project/src/compiler/loader
 
 // Private, fixture-only transport of actual checker records. No diagnostic parsing,
 // alternate checking or production serialization contract. Excerpts contain no tabs.

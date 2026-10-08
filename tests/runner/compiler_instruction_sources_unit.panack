@@ -1,4 +1,4 @@
-import "../../src/compiler/driver.panack"
+import project/src/compiler/driver
 import stdlib/testing
 
 pure instruction_origin(entries: [InstructionSource], pc: Nat): Str {

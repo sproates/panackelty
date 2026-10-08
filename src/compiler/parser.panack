@@ -1,4 +1,4 @@
-import "lexer.panack"
+import project/src/compiler/lexer
 
 // Build located syntax and retain module metadata without enabling staged features.
 // Parsing errors refer to the original token stream, including import boundaries.
@@ -2006,7 +2006,7 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
 }
 
 // Source syntax stays separate from checked declaration identities. This metadata
-// survives parsing before the staged execution boundary rejects new syntax.
+// lets the project loader choose identity-aware checking before lowering.
 record ImportSelector {
   name: Str,
   alias: Str,
@@ -2239,9 +2239,8 @@ pure parse_module_complete(tokens: [Token]): Result[ParsedModule, Diagnostic] {
   parse_module_items(tokens, [], [], 0)
 }
 
-// Guard the legacy single-program parser from staged syntax because its AST
-// keeps source spellings. The project loader/driver may proceed only after its
-// identity graph, checked bodies, effects and identity emitter all succeed.
+// The standalone parser has no module graph, so callers that need namespace
+// identity must use project loading and its checked module pipeline.
 pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   mut aliases: Set[Str] = set()
 

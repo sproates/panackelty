@@ -1,6 +1,6 @@
-import "loader.panack"
-import "diagnostics.panack"
-import "module_emission.panack"
+import project/src/compiler/loader
+import project/src/compiler/diagnostics
+import project/src/compiler/module_emission
 
 // Serialize and replay bounded, local source maps. Foreign paths and lengths are
 // never instructions to open files or allocate unchecked buffers.

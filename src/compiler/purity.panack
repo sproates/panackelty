@@ -1,4 +1,4 @@
-import "checker.panack"
+import project/src/compiler/checker
 
 // Walk calls, callable values and await constraints in their lexical effect context.
 // Ordinary validation and opt-in explanations share the same decisions.

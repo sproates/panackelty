@@ -1,4 +1,4 @@
-import "source_inventory.panack"
+import project/src/compiler/source_inventory
 
 // Decode bounded execution records and join them to exact source inventory IDs.
 // A missing association stays unavailable rather than becoming inferred coverage.

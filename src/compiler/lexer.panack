@@ -1,4 +1,4 @@
-import "types.panack"
+import project/src/compiler/types
 
 // Scan Unicode source while retaining original offsets and line/column positions.
 // Physical line breaks become separators only at statement boundaries.

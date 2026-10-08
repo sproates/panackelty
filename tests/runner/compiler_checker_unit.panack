@@ -1,4 +1,4 @@
-import "../../src/bytecode/codec.panack"
+import project/src/bytecode/codec
 import stdlib/testing
 
 // Shared source fixtures preserve independently recorded acceptance expectations.

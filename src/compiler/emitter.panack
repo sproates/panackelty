@@ -1,4 +1,4 @@
-import "purity.panack"
+import project/src/compiler/purity
 
 // Lower checked syntax to deterministic instructions. Temporary names and jump
 // offsets are local to each function; source attribution is explicitly optional.

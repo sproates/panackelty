@@ -1,5 +1,5 @@
-import "testing.panack"
-import "process.panack"
+import stdlib/testing
+import stdlib/process
 
 // Callers select the exact executable and resource bounds; there is no shell
 // or PATH search unless the caller explicitly invokes a shell.

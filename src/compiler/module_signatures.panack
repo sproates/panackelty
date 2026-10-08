@@ -1,5 +1,5 @@
-import "module_resolution.panack"
-import "checker.panack"
+import project/src/compiler/module_resolution
+import project/src/compiler/checker
 
 // Check declaration signatures before binding bodies. Tagged nominal, parameter,
 // callable and hole identities must never collapse into spelling-based equality.

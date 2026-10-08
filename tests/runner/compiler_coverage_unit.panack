@@ -1,4 +1,4 @@
-import "../../src/compiler/coverage_session.panack"
+import project/src/compiler/coverage_session
 import stdlib/testing
 
 pure coverage_test_u64(value: Nat): Bytes { bytes_concat(encode_u32(0), encode_u32(value)) }

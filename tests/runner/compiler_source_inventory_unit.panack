@@ -1,4 +1,4 @@
-import "../../src/compiler/source_inventory.panack"
+import project/src/compiler/source_inventory
 import stdlib/testing
 
 pure inventory_summary(items: [InventoryItem], source: Str): Str {
@@ -73,7 +73,7 @@ main(): Void {
       results = results.append(test_equal_str("literal statement inventory", statements,
         "binding;while;assignment-or-inferred-binding;for;expression;binding;binding;expression;expression;expression;expression;"))
     }
-    if module.source_path.ends_with("/unused.panack") {
+    if module.source_path.ends_with("/unused") {
       results = results.append(test_equal_str("unused imported function exact inventory",
         inventory_summary(inventory_module(module), project.sources.get(module.source_path)),
         "declaration/0|excluded|compile-time-refinement|type Positive = Nat where value > 0;\ndeclaration/1|excluded|record-declaration|record Box { value: Nat }\ndeclaration/2|excluded|enum-declaration|enum Choice { Yes, No }\ndeclaration/3|function|never_called|pure never_called(): Nat { 9 }\ndeclaration/3/tail|expression|attempt|9\n"))
@@ -123,7 +123,7 @@ main(): Void {
   results = results.append(test_expect("compiler identity participates", inventory != serialize_source_inventory(project, artifact, utf8_encode("other compiler"), entry, root, stdlib), "compiler identity lost"))
   results = results.append(test_expect("artifact identity participates", inventory != serialize_source_inventory(project, bytes(), compiler, entry, root, stdlib), "artifact identity lost"))
   results = results.append(test_expect("missing compiler identity rejects", serialize_source_inventory(project, artifact, bytes(), entry, root, stdlib) == bytes(), "missing identity accepted"))
-  for args in [["inventory"], ["inventory", "a.bc", "-o", "out"], ["inventory", "a.panack", "-o", "out", "extra"], ["inventory", "a.panack", "-o", "out", "-o", "other"], ["inventory", "a.panack", "--unknown", "out"]] {
+  for args in [["inventory"], ["inventory", "a.bc", "-o", "out"], ["inventory", "a", "-o", "out", "extra"], ["inventory", "a", "-o", "out", "-o", "other"], ["inventory", "a", "--unknown", "out"]] {
     results = results.append(test_expect("inventory argument rejection", !inventory_arguments(args, false).valid, "invalid arguments accepted"))
   }
   if test_report(results) > 0 { process_exit(1); }

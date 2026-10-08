@@ -1,4 +1,4 @@
-import "resolver.panack"
+import project/src/compiler/resolver
 
 // Collect declaration and import identities without lowering them to global names.
 // Source spelling, visibility and semantic identity remain separate.

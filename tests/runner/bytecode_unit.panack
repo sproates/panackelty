@@ -1,4 +1,4 @@
-import "../../src/bytecode/decoder.panack"
+import project/src/bytecode/decoder
 import stdlib/testing
 
 record Utf8Case { name: Str, hex: Str, accepted: Bool }

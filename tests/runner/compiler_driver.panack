@@ -3,6 +3,7 @@ import stdlib/testing
 import stdlib/testing_files
 import stdlib/testing_commands
 import stdlib/environment
+import stdlib/process
 
 pure path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
@@ -19,6 +20,45 @@ pure command(arguments: [Str], timeout: Nat): TestCommand {
 
 pure compiler_command(compiler: Str, arguments: [Str]): TestCommand {
   command(["run", compiler].concat(arguments), 30)
+}
+
+pure compiler_driver_contains(text: Str, expected: Str): Bool {
+  mut found: Bool = false
+  for offset in 0..len(text) {
+    found = found || starts_with_at(text, expected, offset)
+  }
+  found
+}
+
+namespace_source_load_rejection(
+  compiler: Str,
+  operation: Str,
+  source: Str,
+  output_path: Str,
+  expected: Str
+): TestResult {
+  name: Str = "namespace source loading rejects ${operation}"
+  mut arguments: [Str] = ["run", compiler, operation, source]
+  if operation == "compile" {
+    arguments = concat(arguments, ["-o", output_path])
+  } else {}
+  match process_run(
+    path("./panack"),
+    arguments,
+    bytes(),
+    path_current(),
+    [],
+    duration_seconds(30),
+    1048576
+  ) {
+    Error(error) => test_expect(name, false, "compiler process failed"),
+    Ok(output) => test_expect(
+      name,
+      output.exit_code == 1 && output.signal == 0 && output.stdout == bytes() &&
+        compiler_driver_contains(utf8_decode(output.stderr), expected),
+      utf8_decode(output.stderr)
+    )
+  }
 }
 
 main(): Void {
@@ -85,6 +125,72 @@ main(): Void {
           results = results.append(test_run_command("namespace proof and effect saved bytecode execution",
             compiler_command(compiler, ["run", namespace_async_artifact_text]),
             ProcessOutput(0, 0, bytes(), bytes())))
+
+          source_root = child(workspace.root, "source-project")
+          outside_source = child(workspace.root, "outside.panack")
+          escape_entry = child(source_root, "escape.panack")
+          symlink_entry = child(source_root, "symlink.panack")
+          symlink_import = child(source_root, "outside-link.panack")
+          escape_artifact = child(workspace.root, "escape.bc")
+          escape_entry_text = result_value_or(path_to_text(escape_entry), "invalid-escape-entry")
+          symlink_entry_text = result_value_or(path_to_text(symlink_entry), "invalid-symlink-entry")
+          symlink_import_text = result_value_or(path_to_text(symlink_import), "invalid-symlink-import")
+          escape_artifact_text = result_value_or(path_to_text(escape_artifact), "invalid-escape-artifact")
+          outside_source_text = result_value_or(path_to_text(outside_source), "invalid-outside-source")
+          fs_create_directory(source_root)
+          fs_write(outside_source, utf8_encode("pure answer(): Nat { 99 }\n"))
+          fs_write(escape_entry, utf8_encode("import \"../outside.panack\"\nmain(): Void {}\n"))
+          results = append(results, namespace_source_load_rejection(
+            compiler,
+            "check",
+            escape_entry_text,
+            "",
+            "module path escapes the entry directory"
+          ))
+          results = append(results, namespace_source_load_rejection(
+            compiler,
+            "compile",
+            escape_entry_text,
+            escape_artifact_text,
+            "module path escapes the entry directory"
+          ))
+          results = append(results, test_expect(
+            "source-loading rejection publishes no bytecode",
+            !file_exists(escape_artifact_text),
+            "rejected project produced an artifact"
+          ))
+          fs_write(symlink_entry, utf8_encode("import \"outside-link.panack\"\nmain(): Void {}\n"))
+          link_setup = process_run(
+            path("/bin/ln"),
+            ["-s", outside_source_text, symlink_import_text],
+            bytes(),
+            workspace.root,
+            [],
+            duration_seconds(5),
+            1024
+          )
+          results = append(results, test_expect(
+            "source-loading symlink fixture setup",
+            match link_setup { Ok(output) => output.exit_code == 0 && output.signal == 0, Error(error) => false },
+            "symlink setup failed"
+          ))
+          results = append(results, namespace_source_load_rejection(
+            compiler,
+            "run",
+            symlink_entry_text,
+            "",
+            "module path traverses a symbolic link"
+          ))
+          for file in [escape_entry, symlink_entry, symlink_import, outside_source] {
+            match fs_remove_file(file) {
+              Ok(removed) => {},
+              Error(error) => { results = append(results, test_expect("source-loading fixture cleanup", false, "file removal failed")) }
+            }
+          }
+          match fs_remove_directory(source_root) {
+            Ok(removed) => {},
+            Error(error) => { results = append(results, test_expect("source-loading directory cleanup", false, "directory removal failed")) }
+          }
         },
         None() => {}
       }

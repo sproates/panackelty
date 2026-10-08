@@ -3983,3 +3983,34 @@ single-run observations rather than a matched performance comparison. This is
 test and progress-record work only: compiler, VM, serialized format and bytecode
 version remain unchanged. Retain the GI#106 validation-budget follow-up; this
 evidence makes no performance claim and does not relax any target or test.
+
+## P2 slice 6g core loading and bootstrap staging — 2026-10-08
+
+`compiler_driver.panack` now exercises the explicit
+`PANACKELTY_BOOTSTRAP_ROOT` with a temporary root-level entry importing a
+compiler submodule. Both modules use the automatically loaded core `Option`
+type; source execution and saved-v9 execution print exactly `61`, while the
+imported module's sentinel `main` remains uncalled. The test also rejects a
+quoted import above the configured root and a symlink into an outside file,
+and confirms the rejected compile leaves no artifact. Its cleanup removes the
+entry, compiler module, symlink, output artifacts and temporary directories;
+the test workspace's empty-directory removal is the final cleanup assertion.
+This tests the existing staged loading path without changing compiler or VM
+implementation.
+
+The stage-2 compiler used here was itself produced by the repository bootstrap.
+The canonical bootstrap/seed-refresh checks remain part of `make check`; they
+continue to compare compiler fixed points and clean their refresh lock. The
+checked-in namespace-incompatible seed, public namespace execution gate and
+slice-8 fixed-point/platform obligations remain unchanged. Source-map,
+explain/locate and coordinated seed migration remain later work. Website impact:
+none.
+
+The direct namespace compiler-driver run passed all 34 assertions with zero
+failures. `make -j1 check-compiler` passed all 207 tests in 86s against the
+unchanged 15s budget. Host-access `make -j1 check` passed with no test failures
+in 132s against the unchanged 120s budget; the real seed-refresh fixed-point
+checks passed and left no refresh lock. `make docs` and `git diff --check` passed.
+These are single-run observations, not a matched performance comparison. GI#106
+retains the validation-budget follow-up; no budget, timeout or assertion has
+been relaxed.

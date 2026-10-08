@@ -61,6 +61,37 @@ namespace_source_load_rejection(
   }
 }
 
+namespace_bootstrap_root_rejection(
+  compiler: Str,
+  operation: Str,
+  source: Str,
+  output_path: Str,
+  expected: Str,
+  environment: [Str]
+): TestResult {
+  mut arguments: [Str] = ["run", compiler, operation, source]
+  if operation == "compile" {
+    arguments = concat(arguments, ["-o", output_path])
+  } else {}
+  match process_run(
+    path("./panack"),
+    arguments,
+    bytes(),
+    path_current(),
+    environment,
+    duration_seconds(30),
+    1048576
+  ) {
+    Error(error) => test_expect("bootstrap-root ${operation} rejection", false, "compiler process failed"),
+    Ok(output) => test_expect(
+      "bootstrap-root ${operation} rejection",
+      output.exit_code == 1 && output.signal == 0 && output.stdout == bytes() &&
+        compiler_driver_contains(utf8_decode(output.stderr), expected),
+      utf8_decode(output.stderr)
+    )
+  }
+}
+
 main(): Void {
   match test_workspace_create(path("/tmp")) {
     Error(error) => { print("workspace creation failed"); process_exit(1) },
@@ -182,6 +213,124 @@ main(): Void {
             Ok(removed) => {},
             Error(error) => { results = append(results, test_expect(
               "standalone bytecode directory cleanup", false, "directory removal failed")) }
+          }
+
+          // The bootstrap root may contain compiler modules below the entry
+          // directory. Core declarations must retain one toolchain identity,
+          // while imports that cross the configured root still fail closed.
+          bootstrap_root = child(workspace.root, "bootstrap-root")
+          bootstrap_compiler_dir = child(bootstrap_root, "compiler")
+          bootstrap_main = child(bootstrap_root, "main.panack")
+          bootstrap_escape = child(bootstrap_root, "escape.panack")
+          bootstrap_symlink_entry = child(bootstrap_root, "symlink.panack")
+          bootstrap_shared = child(bootstrap_compiler_dir, "shared.panack")
+          bootstrap_outside = child(workspace.root, "bootstrap-outside.panack")
+          bootstrap_link = child(bootstrap_root, "outside-link.panack")
+          bootstrap_artifact = child(workspace.root, "bootstrap-root.bc")
+          bootstrap_escape_artifact = child(workspace.root, "bootstrap-escape.bc")
+          bootstrap_main_text = result_value_or(path_to_text(bootstrap_main), "invalid-bootstrap-main")
+          bootstrap_escape_text = result_value_or(path_to_text(bootstrap_escape), "invalid-bootstrap-escape")
+          bootstrap_symlink_entry_text = result_value_or(path_to_text(bootstrap_symlink_entry), "invalid-bootstrap-symlink-entry")
+          bootstrap_shared_text = result_value_or(path_to_text(bootstrap_shared), "invalid-bootstrap-shared")
+          bootstrap_outside_text = result_value_or(path_to_text(bootstrap_outside), "invalid-bootstrap-outside")
+          bootstrap_link_text = result_value_or(path_to_text(bootstrap_link), "invalid-bootstrap-link")
+          bootstrap_artifact_text = result_value_or(path_to_text(bootstrap_artifact), "invalid-bootstrap-artifact")
+          bootstrap_escape_artifact_text = result_value_or(path_to_text(bootstrap_escape_artifact), "invalid-bootstrap-escape-artifact")
+          bootstrap_root_text = result_value_or(path_to_text(bootstrap_root), "invalid-bootstrap-root")
+          bootstrap_stdlib_text = environment_get("PANACKELTY_STDLIB_PATH")
+          bootstrap_environment = [
+            "PANACKELTY_BOOTSTRAP_ROOT=${bootstrap_root_text}",
+            "PANACKELTY_STDLIB_PATH=${bootstrap_stdlib_text}"
+          ]
+          fs_create_directory(bootstrap_root)
+          fs_create_directory(bootstrap_compiler_dir)
+          bootstrap_shared_write = fs_write(bootstrap_shared, utf8_encode(
+            "pub pure answer(): Option[Nat] { Some(61) }\nmain(): Void { print(999) }\n"))
+          bootstrap_main_write = fs_write(bootstrap_main, utf8_encode(
+            "import \"compiler/shared.panack\" as shared\nmain(): Void {\n  value: Option[Nat] = shared.answer()\n  match value { Some(item) => print(item), None() => print(0) }\n}\n"))
+          bootstrap_outside_write = fs_write(bootstrap_outside, utf8_encode(
+            "main(): Void { print(777) }\n"))
+          results = append(results, test_expect(
+            "bootstrap-root fixture setup",
+            match bootstrap_shared_write { Ok(written) => true, Error(error) => false } &&
+              match bootstrap_main_write { Ok(written) => true, Error(error) => false } &&
+              match bootstrap_outside_write { Ok(written) => true, Error(error) => false },
+            "source fixture write failed"
+          ))
+          results = append(results, test_run_command(
+            "bootstrap-root core identity source execution",
+            TestCommand(path("./panack"), ["run", compiler, "run", bootstrap_main_text],
+              bytes(), path_current(), bootstrap_environment, duration_seconds(30), 1048576),
+            ProcessOutput(0, 0, utf8_encode("61\n"), bytes())))
+          results = append(results, test_run_command(
+            "bootstrap-root core identity compile",
+            TestCommand(path("./panack"), ["run", compiler, "compile", bootstrap_main_text,
+              "-o", bootstrap_artifact_text], bytes(), path_current(), bootstrap_environment,
+              duration_seconds(30), 1048576),
+            ProcessOutput(0, 0, utf8_encode("wrote ${bootstrap_artifact_text}\n"), bytes())))
+          results = append(results, test_run_command(
+            "bootstrap-root core identity saved bytecode execution",
+            compiler_command(compiler, ["run", bootstrap_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("61\n"), bytes())))
+          fs_write(bootstrap_escape, utf8_encode(
+            "import \"../bootstrap-outside.panack\"\nmain(): Void {}\n"))
+          results = append(results, namespace_bootstrap_root_rejection(
+            compiler,
+            "compile",
+            bootstrap_escape_text,
+            bootstrap_escape_artifact_text,
+            "module path escapes the entry directory and standard library roots",
+            bootstrap_environment
+          ))
+          results = append(results, test_expect(
+            "bootstrap-root escape publishes no artifact",
+            !file_exists(bootstrap_escape_artifact_text),
+            "rejected bootstrap import produced an artifact"
+          ))
+          fs_write(bootstrap_symlink_entry, utf8_encode(
+            "import \"outside-link.panack\"\nmain(): Void {}\n"))
+          bootstrap_link_setup = process_run(
+            path("/bin/ln"),
+            ["-s", bootstrap_outside_text, bootstrap_link_text],
+            bytes(),
+            workspace.root,
+            [],
+            duration_seconds(5),
+            1024
+          )
+          results = append(results, test_expect(
+            "bootstrap-root symlink fixture setup",
+            match bootstrap_link_setup { Ok(output) => output.exit_code == 0 && output.signal == 0, Error(error) => false },
+            "symlink setup failed"
+          ))
+          results = append(results, namespace_bootstrap_root_rejection(
+            compiler,
+            "run",
+            bootstrap_symlink_entry_text,
+            "",
+            "module path traverses a symbolic link",
+            bootstrap_environment
+          ))
+          for file in [bootstrap_main, bootstrap_escape, bootstrap_symlink_entry,
+              bootstrap_shared, bootstrap_link, bootstrap_outside, bootstrap_artifact,
+              bootstrap_escape_artifact] {
+            if file_exists(result_value_or(path_to_text(file), "")) {
+              match fs_remove_file(file) {
+                Ok(removed) => {},
+                Error(error) => { results = append(results, test_expect(
+                  "bootstrap-root fixture cleanup", false, "file removal failed")) }
+              }
+            } else {}
+          }
+          match fs_remove_directory(bootstrap_compiler_dir) {
+            Ok(removed) => {},
+            Error(error) => { results = append(results, test_expect(
+              "bootstrap-root compiler directory cleanup", false, "directory removal failed")) }
+          }
+          match fs_remove_directory(bootstrap_root) {
+            Ok(removed) => {},
+            Error(error) => { results = append(results, test_expect(
+              "bootstrap-root directory cleanup", false, "directory removal failed")) }
           }
 
           source_root = child(workspace.root, "source-project")

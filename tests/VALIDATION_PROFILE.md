@@ -185,6 +185,22 @@ claim. The validation maintainer owns the open GI#106/RM#123 follow-up; next,
 repeat the comparison after the next compiler-heavy change, with review before
 that merge or sooner if hosted CI repeats the budget breach.
 
+### Namespace indirect callable identity follow-up — PR#342 — 2026-10-08
+
+The staged namespace fixture now passes same-spelled imported function references
+from two modules as `PureFn` values and invokes them indirectly. Source and saved
+v9-bytecode runs both produce exact output `41`, `42`, `43`, `44`, `41`, `42`.
+This delivery changes test fixtures, the stage-2 driver expectations and
+informational coverage/roadmap records; it changes no compiler or VM implementation.
+
+The canonical `make check` passed in 202s against the 120s target; the functional
+phase took 5s and bootstrap took 19s. Native test artifacts were rebuilt during
+this run, so it is not a matched comparison with the #337 run (200.88s). The
+one-second difference does not establish causal cost. Keep all tests and existing
+120s/15s targets; make no performance-neutrality claim. The next matched
+comparison remains due after a compiler-heavy change under GI#106/RM#123; this
+test-only delivery does not trigger it.
+
 ## Namespace guard proofs — 2026-10-07
 
 Base: `next` after slice 3, macOS arm64. The slice adds checker-only,

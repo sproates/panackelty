@@ -63,13 +63,13 @@ main(): Void {
             ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
           results = results.append(test_run_command("namespace identity source execution",
             compiler_command(compiler, ["run", namespace_source]),
-            ProcessOutput(0, 0, utf8_encode("41\n42\n41\n42\n"), bytes())))
+            ProcessOutput(0, 0, utf8_encode("41\n42\n43\n44\n41\n42\n"), bytes())))
           results = results.append(test_run_command("namespace identity compile",
             compiler_command(compiler, ["compile", namespace_source, "-o", namespace_artifact_text]),
             ProcessOutput(0, 0, utf8_encode("wrote ${namespace_artifact_text}\n"), bytes())))
           results = results.append(test_run_command("namespace saved bytecode execution",
             compiler_command(compiler, ["run", namespace_artifact_text]),
-            ProcessOutput(0, 0, utf8_encode("41\n42\n41\n42\n"), bytes())))
+            ProcessOutput(0, 0, utf8_encode("41\n42\n43\n44\n41\n42\n"), bytes())))
         },
         None() => {}
       }

@@ -159,6 +159,32 @@ make no speedup or causal-regression claim. GI#106/RM#123 performance acceptance
 remains open for later compiler-heavy work or comparable evidence. This remains
 an intermediate P2 slice-6 delivery, not P2 completion.
 
+### Nested generic payload emission follow-up — 2026-10-08
+
+The two imported fixture modules now each define `Item[T]`, `Envelope[T]`
+containing that item, and `Outcome[T]` with a `Finished(Envelope[T])` payload.
+The entry constructs each module's nested records and outcomes, calls both
+same-spelled generic identities, matches both same-spelled variants, and reads
+the payload fields. The staged compiler's source and saved-v9-bytecode runs
+both produce exact output `41`, `42`, `41`, `42`. This expands checked-subset
+execution evidence; it changes no compiler or VM implementation and does not
+enable public namespace execution.
+
+The clean canonical `make -j1 check` passed in 200.88s wall (200s at the
+project timer's resolution), with bootstrap in 19s, against the unchanged 120s
+budget. After that build, warm `make -j1 check-compiler` passed in 54.90s wall
+(55s reported), against the 15s target. Its first run immediately after `make
+clean` took 85s while rebuilding the native toolchain and is not comparable to
+the warm focused target. These single observations are near the previous
+#334-head measurements of 200.32s and 54.83s; they do not establish the fixture's
+causal cost. The target-matched routed validation then passed on the warm tree in
+124s, four seconds over the 120s budget. Its earlier sandboxed attempt failed at
+`unit-runtime`; rerunning with host loopback access passed. Both timing budgets
+remain exceeded. Retain all tests and budgets; make no performance-neutrality
+claim. The validation maintainer owns the open GI#106/RM#123 follow-up; next,
+repeat the comparison after the next compiler-heavy change, with review before
+that merge or sooner if hosted CI repeats the budget breach.
+
 ## Namespace guard proofs — 2026-10-07
 
 Base: `next` after slice 3, macOS arm64. The slice adds checker-only,

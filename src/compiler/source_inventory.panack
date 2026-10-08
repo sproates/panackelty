@@ -119,7 +119,7 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
   for statement in block.statements {
     key: Str = id + "/statement/${index}"
     match statement {
-      BindingStatement(name, annotation, mutable, value) => {
+      BindingStatement(name, annotation, annotation_span, mutable, value) => {
         items = concat(items, inventory_item(key, "statement", "binding", value))
         items = concat(items, inventory_expression(value, key + "/value"))
       },

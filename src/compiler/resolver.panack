@@ -422,7 +422,7 @@ pure resolve_block(block: Block, parent_scope: Set[Str], symbols: ResolverSymbol
 
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         diagnostics = concat(diagnostics, resolve_expression(value, scope, symbols))
         if set_has(scope, name) {
           diagnostics = append(

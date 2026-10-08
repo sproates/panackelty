@@ -1884,7 +1884,7 @@ pure facts_after_expression(expression: Expr, facts: Map[Str, Bounds]): Map[Str,
 
 pure facts_after_statement(statement: Statement, facts: Map[Str, Bounds]): Map[Str, Bounds] {
   match statement {
-    BindingStatement(name, type_name, mutable, value) => facts_after_expression(value, facts),
+    BindingStatement(name, type_name, annotation_span, mutable, value) => facts_after_expression(value, facts),
     AssignmentStatement(name, value) => forget_written_fact(
       facts_after_expression(value, facts),
       name
@@ -3168,7 +3168,7 @@ pure check_block_evidence(
 
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         facts = facts_after_expression(value, facts)
         checked: CheckedExpression = check_expression_evidence(
           value,

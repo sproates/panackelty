@@ -31,7 +31,7 @@ pure trace_block(block: Block): Str {
   mut output: Str = ""
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => { output = output + trace_span(value); },
+      BindingStatement(name, type_name, annotation_span, mutable, value) => { output = output + trace_span(value); },
       AssignmentStatement(name, value) => { output = output + trace_span(value); },
       ExpressionStatement(value) => { output = output + trace_span(value); },
       WhileStatement(condition, body) => { output = output + trace_span(condition) + trace_block(body); },

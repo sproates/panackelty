@@ -388,7 +388,7 @@ pure emit_block(
   for statement in block.statements {
     statement_offset: Nat = offset + len(instructions)
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         emitted: EmittedCode = emit_expression(
           value,
           program,

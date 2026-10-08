@@ -140,7 +140,7 @@ pure indexed_program(declarations: [TopLevel]): Program {
 
 enum Statement {
   // Empty type text means an inferred explicit declaration (mut name = value).
-  BindingStatement(Str, Str, Bool, Expr),
+  BindingStatement(Str, Str, Option[SourceSpan], Bool, Expr),
   // Plain = is resolved as declaration or assignment using the lexical scope.
   AssignmentStatement(Str, Expr),
   ExpressionStatement(Expr),
@@ -1466,9 +1466,15 @@ pure parse_block_items(
                   match parse_expression(tokens, type_ref.next + 1) {
                     Ok(value) => {
                       initializer: Expr = value.value
+                      annotation_span: Option[SourceSpan] = if tokens[colon_index].text == ":" {
+                        Some(type_ref.span)
+                      } else {
+                        None()
+                      }
                       statement: Statement = BindingStatement(
                         name,
                         type_ref.text,
+                        annotation_span,
                         mutable,
                         initializer
                       )
@@ -2378,7 +2384,7 @@ pure render_expr(expression: Expr): Str {
 
 pure render_statement(statement: Statement): Str {
   match statement {
-    BindingStatement(name, type_name, mutable, value) => {
+    BindingStatement(name, type_name, annotation_span, mutable, value) => {
       prefix: Str = if mutable {
         "mut "
       } else {
@@ -2724,9 +2730,10 @@ pure lower_legacy_block(block: Block): Block {
 
   for statement in block.statements {
     converted: Statement = match statement {
-      BindingStatement(name, type_name, mutable, value) => BindingStatement(
+      BindingStatement(name, type_name, annotation_span, mutable, value) => BindingStatement(
         name,
         type_name,
+        annotation_span,
         mutable,
         lower_legacy_expression(value)
       ),
@@ -2941,7 +2948,7 @@ pure block_requires_namespaces(block: Block, aliases: Set[Str], locals: Set[Str]
 
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         required = required || type_has_qualification(type_name) || expression_requires_namespaces(
           value,
           aliases,

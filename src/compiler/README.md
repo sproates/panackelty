@@ -78,8 +78,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   Match-arm diagnostics point to the arm pattern. Declaration-signature type
   references retain parser spans, so invalid record fields, enum payloads,
   guarded-type bases, and function parameter/results point to their type tokens.
-  Body-local type annotations and explicit type arguments still need dedicated
-  retained spans.
+  Body-local type annotations retain parser spans and invalid local types point
+  to their type tokens. Explicit type arguments still need dedicated retained
+  spans.
   Receiver-first nonbuiltin helper uses retain their declaration identity too,
   so public guards cannot hide private helpers behind method spelling.
   The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary

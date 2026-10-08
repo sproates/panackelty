@@ -959,6 +959,21 @@ pure namespace_body_tests(): [TestResult] {
     results = append(results, test_expect("checked subset has explicit type evidence/" + source, len(checked.functions) > 0 && checked.functions[0].body.type != None() && len(checked.functions[0].deferred) == 0, "missing type evidence or unexpectedly deferred"))
   }
   results = append(results, test_equal_str("annotated local mismatch", body_test_error("pub pure f(): Nat { value: Nat = \"bad\"; value }"), "binding value is Str, expected Nat"))
+  annotated_type_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { value: MissingType = 1; value }"
+  )
+  results = append(results, test_expect(
+    "invalid body-local type points to its type token",
+    len(annotated_type_location.diagnostics) > 0 &&
+      annotated_type_location.diagnostics[0].position.file == "module.panack" &&
+      annotated_type_location.diagnostics[0].position.line == 1 &&
+      annotated_type_location.diagnostics[0].position.column == 28,
+    if len(annotated_type_location.diagnostics) > 0 {
+      diagnostic_text(annotated_type_location.diagnostics[0])
+    } else {
+      "invalid local type was accepted"
+    }
+  ))
   results = append(results, test_equal_str("direct argument mismatch", body_test_error("pub pure f(): Nat { next(\"bad\") }; pure next(value: Nat): Nat { value }"), "argument 1 to next is Str, expected Nat"))
   indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat { callback.call(value) }")
   results = append(results, test_expect("indirect call shares callable parameter and result contract", len(indirect.diagnostics) == 0 && len(indirect.functions) == 1 && indirect.functions[0].status == BodyIdentityChecked() && indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "callable signature was not checked"))

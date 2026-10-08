@@ -3926,3 +3926,32 @@ with zero failures in 87s against the 15s budget. The full host-access
 observations, not a matched comparison; this delivery changes tests and progress
 documentation only, so they do not attribute the overruns to 6c. The preceding
 6b matched pair remains the latest comparative compiler-performance evidence.
+
+## P2 slice 6e standalone source loading — 2026-10-08
+
+`compiler_driver.panack` now exercises the staged compiler's command-line loading
+path. The existing two-module identity fixture has distinct `main` functions in
+both imported modules; its exact source output confirms only the entry module's
+`main` launches. New CLI checks reject a quoted `..` import during check and
+compile, reject a symlink import during run, and verify rejected compilation
+does not publish bytecode. Existing loader tests continue to cover root-relative
+and toolchain resolution. The loader and staged CLI integration were already
+implemented, so this delivery adds end-to-end acceptance evidence without
+changing compiler or VM source.
+
+The checked-in bootstrap seed still rejects namespace syntax. The tests use the
+source-built stage-2 compiler, so this gate does not publish namespace support or
+remove the migration gate; seed/source cutover and full platform acceptance
+remain in slice 8. Saved-bytecode loading and core/bootstrap acceptance remain
+the later 6f and 6g gates.
+
+The focused compiler suite passed all 207 tests in 86s against its unchanged
+15s budget. Host-access `make -j1 check` completed with no reported test
+failures in 132s against the unchanged 120s budget. The preceding 6d observations
+were 85s and 128s respectively; these are separate single runs, not a controlled
+matched comparison. This delivery adds a few CLI subprocess checks but changes
+no compiler or VM implementation, so the timings do not establish that the tests
+caused the observed difference. Retain the existing GI#106 validation-budget
+follow-up and all coverage; no timeouts, assertions or budgets were changed.
+Website impact: none; the checked-in seed's namespace gate and published feature
+claims are unchanged.

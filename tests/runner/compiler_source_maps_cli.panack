@@ -9,7 +9,14 @@ pure map_contains(actual: Str, expected: Str): Bool {
   found
 }
 map_command(name: Str, args: [Str], status: Nat, stdout: Str, diagnostic: Str): TestResult {
-  match process_run(map_path("./panack"), args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
+  mut command: Str = "./panack"
+  mut command_args: [Str] = args
+  if environment_has("PANACK_TEST_COMPILER") {
+    command = "./panack-vm"
+    command_args = ["run", environment_get("PANACK_TEST_COMPILER")]
+    for argument in args { command_args = command_args.append(argument) }
+  }
+  match process_run(map_path(command), command_args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
     Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => test_expect(name, actual.exit_code == status && actual.signal == 0 &&
       actual.stdout == utf8_encode(stdout) && (if diagnostic == "" { actual.stderr == bytes() } else { map_contains(utf8_decode(actual.stderr), diagnostic) }),
@@ -42,6 +49,7 @@ main(): Void {
       root: Str = result_value_or(path_to_text(workspace.root), "")
       source: Str = root + "/main.panack"
       library: Str = root + "/library.panack"
+      other: Str = root + "/right.panack"
       unused: Str = root + "/unused.panack"
       artifact: Str = root + "/mapped.bc"
       sidecar: Str = root + "/mapped.pmap"
@@ -49,6 +57,9 @@ main(): Void {
       second: Str = root + "/second.bc"
       second_map: Str = root + "/second.pmap"
       broken: Str = root + "/broken.pmap"
+      identity_artifact: Str = root + "/identity.bc"
+      identity_map: Str = root + "/identity.pmap"
+      identity_plain: Str = root + "/identity-plain.bc"
       original: Str = "import \"library.panack\"\nmain(): Void { print(pick[Nat]([7], 0)); print(pick[Str]([\"x\"], 0)); }\n"
       lib_text: Str = "// λ🙂\nimport \"unused.panack\"\npure pick[T](items: [T], index: Nat): T { items[index] }\npure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }\n"
       map_write(source, utf8_encode(original))
@@ -98,6 +109,35 @@ main(): Void {
       results = results.append(test_expect("source never overwritten", map_read(source) == utf8_encode(original) && map_read(library) == utf8_encode(lib_text), "output destroyed source"))
       results = results.append(map_command("pair publication failure", ["compile", source, "-o", root + "/partial.bc", "--source-map", root + "/missing/map"], 1, "", "discard any partial output"))
       results = results.append(map_command("partial pair unavailable", map_lookup(root + "/partial.bc", source, root + "/missing/map", "pick", "2"), 0, "source-map: unavailable\n", ""))
+      // Staged module emission must retain each body's original source spans.
+      // Bare names cannot select between same-spelled declarations.
+      map_write(source, utf8_encode("import \"library.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.duplicate()); print(right.duplicate()); }\n"))
+      map_write(library, utf8_encode("pub pure duplicate(): Nat { 11 }\n"))
+      map_write(other, utf8_encode("pub pure duplicate(): Nat { 22 }\n"))
+      results = results.append(map_compile(source, identity_artifact, identity_map))
+      results = results.append(map_command("staged ordinary compile",
+        ["compile", source, "-o", identity_plain], 0, "wrote ${identity_plain}\n", ""))
+      results = results.append(test_expect("staged map leaves bytecode unchanged",
+        map_read(identity_artifact) == map_read(identity_plain), "identity mapping changed executable bytes"))
+      results = results.append(map_command("staged mapped artifact executes", ["run", identity_artifact], 0, "11\n22\n", ""))
+      results = results.append(map_command("qualified left identity location",
+        map_lookup(identity_artifact, source, identity_map, "project/library.panack:duplicate", "0"), 0,
+        "source-map: expression\nfunction: project/library.panack:duplicate\ninstruction: 0\nfile: project/library.panack\nrange: 28..30\nstart: 1:29\nend: 1:31\nexpression: 11\n", ""))
+      results = results.append(map_command("qualified right identity location",
+        map_lookup(identity_artifact, source, identity_map, "project/right.panack:duplicate", "0"), 0,
+        "source-map: expression\nfunction: project/right.panack:duplicate\ninstruction: 0\nfile: project/right.panack\nrange: 28..30\nstart: 1:29\nend: 1:31\nexpression: 22\n", ""))
+      results = results.append(map_command("ambiguous bare function rejected",
+        map_lookup(identity_artifact, source, identity_map, "duplicate", "0"), 1, "", "ambiguous function selector duplicate"))
+      results = results.append(map_command("wrong module identity rejected",
+        map_lookup(identity_artifact, source, identity_map, "project/missing.panack:duplicate", "0"), 1, "", "mismatched module identity selector"))
+      original_right: Bytes = map_read(other)
+      map_write(other, utf8_encode("pub pure duplicate(): Nat { 23 }\n"))
+      results = results.append(map_command("stale staged module map unavailable",
+        map_lookup(identity_artifact, source, identity_map, "project/right.panack:duplicate", "0"), 0,
+        "source-map: unavailable\n", ""))
+      map_write(other, original_right)
+      map_write(source, utf8_encode(original))
+      map_write(library, utf8_encode(lib_text))
       // Fresh path spellings can alias through a directory symlink. The first
       // write must reveal that alias before the sidecar can overwrite bytecode.
       real: Str = root + "/real"
@@ -126,7 +166,8 @@ main(): Void {
       for args in [lookup.concat(["--instruction", "3"]), map_lookup(artifact, source, sidecar, "pick", "-1"), ["compile", source, "--source-map", sidecar]] {
         results = results.append(map_command("invalid CLI arguments", args, 1, "", "source-map usage:"))
       }
-      for file in [source, library, unused, artifact, sidecar, ordinary, second, second_map, broken, root + "/partial.bc"] { fs_remove_file(map_path(file)); }
+      for file in [source, library, other, unused, artifact, sidecar, ordinary, second, second_map, broken,
+          identity_artifact, identity_map, identity_plain, root + "/partial.bc"] { fs_remove_file(map_path(file)); }
       match test_workspace_remove_empty(workspace) {
         Ok(done) => {},
         Error(error) => { results = results.append(test_expect("source-map workspace cleanup", false, "unexpected leftover files")); }

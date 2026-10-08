@@ -114,23 +114,90 @@ pure render_subtraction_evidence(
   output
 }
 
+pure explanation_span_matches(span: Option[SourceSpan], source_path: Str): Bool {
+  match span {
+    None() => false,
+    Some(value) => value.start.file == source_path && value.end.file == source_path
+  }
+}
+
+explanation_function_selector(
+  project: LoadedProject,
+  selector: Str,
+  entry_path: Str,
+  root: Str,
+  stdlib_root: Str
+): Result[SourceMapFunctionSelector, Str] {
+  selected: Result[SourceMapFunctionSelector, Str] = source_map_function_selector(
+    project,
+    selector,
+    entry_path,
+    root,
+    stdlib_root
+  )
+  match selected {
+    Error(message) => if starts_with(message, "unknown function selector ") &&
+      len(project.diagnostics) > 0 {
+      identity: DeclarationIdentity = DeclarationIdentity(
+        source_module_identity(entry_path, root, stdlib_root),
+        selector
+      )
+      Ok(SourceMapFunctionSelector(identity, entry_path, selector, selector))
+    } else {
+      Error(message)
+    },
+    Ok(value) => Ok(value)
+  }
+}
+
+pure explanation_function_valid(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector
+): Bool {
+  mut found: Option[Bool] = None()
+  if source_map_project_staged(project) {
+    for body in project.module_bodies {
+      if body.signature.binding.identity == selector.identity {
+        match body.status {
+          BodyIdentityChecked() => { found = Some(true) },
+          BodyDeferred() => { found = Some(false) },
+          BodyInvalid() => { found = Some(false) }
+        }
+      }
+    }
+  } else {
+    if project.function_types.has(selector.identity.name) {
+      found = Some(project.function_types.get(selector.identity.name))
+    } else {
+      found = Some(true)
+    }
+  }
+  match found {
+    None() => false,
+    Some(valid) => valid
+  }
+}
+
 pure render_subtraction_explanations(
   project: LoadedProject,
-  name: Str,
+  function_name: Str,
+  display_name: Str,
+  source_path: Str,
+  accepted: Bool,
   root: Str,
   stdlib_root: Str
 ): Str {
-  state: Str = if len(project.diagnostics) == 0 {
+  state: Str = if accepted {
     "accepted"
   } else {
     "rejected"
   }
-  function_name: Str = source_map_escape(name)
-  mut output: Str = "program: ${state}\nfunction: ${function_name}\nscope: Nat subtraction; generic definitions, not call-site specialisations"
+  displayed_function: Str = source_map_escape(display_name)
+  mut output: Str = "program: ${state}\nfunction: ${displayed_function}\nscope: Nat subtraction; generic definitions, not call-site specialisations"
   mut count: Nat = 0
 
   for entry in project.evidence {
-    if entry.function_name == name {
+    if entry.function_name == function_name && explanation_span_matches(entry.span, source_path) {
       output = output + "\n\n" + render_subtraction_evidence(
         entry,
         project.sources,
@@ -216,22 +283,32 @@ pure render_effect_evidence(
 
 pure render_function_explanations(
   project: LoadedProject,
-  name: Str,
+  selector: SourceMapFunctionSelector,
+  accepted: Bool,
   root: Str,
   stdlib_root: Str
 ): Str {
-  mut output: Str = render_subtraction_explanations(project, name, root, stdlib_root)
+  name: Str = selector.identity.name
+  mut output: Str = render_subtraction_explanations(
+    project,
+    name,
+    selector.display_name,
+    selector.source_path,
+    accepted,
+    root,
+    stdlib_root
+  )
   output = output + "\n\neffect scope: local call and await boundaries; declarations and callable types, not transitive/runtime effects"
 
   if !project.effects_checked {
     output = output + "\neffects: unavailable\nreason: loading, resolution or global declaration checking prevented the effect pass"
   } else {
-    if project.function_types.has(name) && !project.function_types.get(name) {
+      if !explanation_function_valid(project, selector) {
       output = output + "\neffects: unavailable\nreason: function body type checking prevented the effect pass for this function"
     } else {
       mut count: Nat = 0
       for entry in project.effects {
-        if entry.function_name == name {
+        if entry.function_name == name && explanation_span_matches(entry.span, selector.source_path) {
           output = output + "\n\n" + render_effect_evidence(
             entry,
             project.sources,

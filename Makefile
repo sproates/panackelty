@@ -66,11 +66,11 @@ test: check
 check-compiler: native
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
-check-compiler-impl:
+check-compiler-impl: $(STAGE2_COMPILER)
 	@$(PROFILE) harness/compiler sh tests/harness.sh compiler
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@$(PROBES) tests/runner/compiler_integration_unit.panack \
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
 		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \
@@ -89,6 +89,7 @@ check-compiler-impl:
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
 		tests/runner/compiler_lexer_unit.panack
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations $(PROBE) tests/runner/main.panack --case cli_explanations
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
 
@@ -138,9 +139,9 @@ unit-runtime-probes:
 		tests/runner/bytecode_unit.panack \
 		tests/runner/bytecode_native_unit.panack
 
-unit-compiler: native
+unit-compiler: native $(STAGE2_COMPILER)
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@$(PROBES) tests/runner/compiler_integration_unit.panack \
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
 		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \

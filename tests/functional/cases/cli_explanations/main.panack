@@ -14,7 +14,14 @@ explain_write(path: Str, text: Str): Void {
   }
 }
 explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden: [Str], diagnostic: Str): TestResult {
-  match process_run(explain_path("./panack"), arguments, bytes(), path_current(), [], duration_seconds(15), 1048576) {
+  mut command: Str = "./panack"
+  mut command_arguments: [Str] = arguments
+  if environment_has("PANACK_TEST_COMPILER") {
+    command = "./panack-vm"
+    command_arguments = ["run", environment_get("PANACK_TEST_COMPILER")]
+    for argument in arguments { command_arguments = command_arguments.append(argument) }
+  }
+  match process_run(explain_path(command), command_arguments, bytes(), path_current(), [], duration_seconds(15), 1048576) {
     Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => {
       text: Str = utf8_decode(actual.stdout)
@@ -33,6 +40,7 @@ main(): Void {
       root: Str = result_value_or(path_to_text(workspace.root), "")
       source: Str = root + "/main.panack"
       library: Str = root + "/library.panack"
+      other: Str = root + "/right.panack"
       artifact: Str = root + "/main.bc"
       mut results: [TestResult] = []
       original: Str = "import \"library.panack\"\nmain(): Void { print(remaining[Str](\"x\", 5)); print(remaining[Nat](7, 4)); }\n"
@@ -161,9 +169,27 @@ main(): Void {
       explain_write(source, "main(): Void { ??? }")
       results = append(results, explain_run("syntax failure skips effects", ["explain", source, "--function", "main"], 1,
         ["effects: unavailable"], ["effect boundary:"], "error:"))
+      explain_write(source, "import \"library.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.duplicate()); print(right.duplicate()); }\n")
+      explain_write(library, "pub duplicate(): Nat { print(11); 11 }\n")
+      explain_write(other, "pub duplicate(): Nat { print(22); 22 }\n")
+      results = append(results, explain_run("qualified explanation selects left identity",
+        ["explain", source, "--function", "project/library.panack:duplicate"], 0,
+        ["program: accepted", "function: project/library.panack:duplicate", "source: project/library.panack:", "expression: print(11)"],
+        ["expression: print(22)"], ""))
+      results = append(results, explain_run("qualified explanation selects right identity",
+        ["explain", source, "--function", "project/right.panack:duplicate"], 0,
+        ["program: accepted", "function: project/right.panack:duplicate", "source: project/right.panack:", "expression: print(22)"],
+        ["expression: print(11)"], ""))
+      results = append(results, explain_run("ambiguous explanation selector rejected",
+        ["explain", source, "--function", "duplicate"], 1,
+        [], [], "ambiguous function selector duplicate"))
+      results = append(results, explain_run("wrong explanation identity rejected",
+        ["explain", source, "--function", "project/missing.panack:duplicate"], 1,
+        [], [], "mismatched module identity selector"))
       for file in [source, library, artifact] {
         match fs_remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("cleanup", false, error.code)); } }
       }
+      fs_remove_file(explain_path(other))
       match test_workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("workspace cleanup", false, error.code)); } }
       if test_report(results) > 0 { process_exit(1); }
     }

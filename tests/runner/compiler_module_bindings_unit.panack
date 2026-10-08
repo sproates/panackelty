@@ -295,7 +295,7 @@ module_emission_program_tests(): [TestResult] {
     []
   )
   emitted_call: Expr = module_emission_expression(graph, identity, call)
-  results = append(results, test_expect("identity expression targets the left declaration", match emitted_call {
+  results = append(results, test_expect("identity expression targets the left declaration", match unlocated_expression(emitted_call) {
     CallExpr(name, arguments, types) => name == left_make,
     LocatedExpr(span, expression) => false,
     DotCallExpr(target, name, arguments, types) => false,

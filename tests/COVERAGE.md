@@ -648,6 +648,9 @@ and plain/mapped byte identity, execution, corrupt maps, missing pairs, comment
 changes in local/imported/transitive-unused sources and invalid UTF-8. It checks
 fresh-output requirements, direct/directory/hard-link/symlink aliases, preservation
 of source and artifact bytes, partial writes and strict argument rejection.
+It also checks staged identity emission with same-named module functions,
+qualified source locations, ambiguous bare-name rejection and wrong-module
+rejection using the freshly built stage-2 compiler.
 Both suites run under `make unit` and `make check-compiler`, preserving all earlier
 span/emitter/control-flow tests. Native-PC and coherent binary-forgery checks use
 the separate observer suite above. Hostile concurrent output-directory mutation,

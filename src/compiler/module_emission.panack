@@ -493,7 +493,7 @@ pure module_emission_expression(
   entry: ModuleIdentity,
   body: BoundBody
 ): Expr {
-  match body.node {
+  emitted: Expr = match body.node {
     BodyInterpolation(parts) => module_emission_interpolation(body),
     BodyLiteral(value) => value,
     BodyLocalUse(identity) => NameExpr(identity.name),
@@ -546,6 +546,7 @@ pure module_emission_expression(
     BodyFor(identity) => CallExpr("$unit", [], []),
     BodyEmpty() => CallExpr("$unit", [], [])
   }
+  LocatedExpr(body.span, emitted)
 }
 
 pure module_emission_function(

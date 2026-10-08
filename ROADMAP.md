@@ -3079,6 +3079,18 @@ canonical check passed in 195s against the unchanged 120s budget; the validation
 profile records the measurement, sandboxed rerun and accepted disposition under
 GI#106/RM#123. This is additional checked-subset evidence, not slice completion.
 
+[PR#337: Nested generic payload emission](https://github.com/sproates/panackelty/pull/337)
+extends that fixture through nested generic records inside same-named generic
+enum payloads. Source and saved-v9 execution assert the values read back through
+each module's variant pattern. This strengthens the identity-emission evidence
+without enabling public namespace execution or completing slice 6;
+source-map/tooling, coordinated seed migration and platform acceptance remain
+open. Website impact: none; the public namespace execution gate and current
+website feature claims remain unchanged. Its clean canonical check passed in
+200.88s against the 120s target and the warm focused compiler check in 54.90s
+against the 15s target; the validation profile records both and the limits on
+causal attribution.
+
 P2 owns standalone namespace semantics, entry selection and entry-directory
 root confinement, necessary initial stdlib exports and its own
 bootstrap/native/browser/installed acceptance. P3 owns manifests, explicit

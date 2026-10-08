@@ -1,12 +1,12 @@
 import "left.panack" as left
 import "right.panack" as right
 main(): Void {
-  left_item: left.Item[Nat] = left.make()
-  right_item: right.Item[Nat] = right.make()
-  left_outcome: left.Outcome = left.make_outcome()
-  right_outcome: right.Outcome = right.make_outcome()
-  match left_outcome { left.Outcome.Finished() => {} }
-  match right_outcome { right.Outcome.Finished() => {} }
-  print(left.identity(left_item.value))
-  print(right.identity(right_item.value))
+  left_item: left.Envelope[Nat] = left.make()
+  right_item: right.Envelope[Nat] = right.make()
+  left_outcome: left.Outcome[Nat] = left.make_outcome()
+  right_outcome: right.Outcome[Nat] = right.make_outcome()
+  print(left.identity(left_item.item.value))
+  print(right.identity(right_item.item.value))
+  match left_outcome { left.Outcome.Finished(value) => print(value.item.value) }
+  match right_outcome { right.Outcome.Finished(value) => print(value.item.value) }
 }

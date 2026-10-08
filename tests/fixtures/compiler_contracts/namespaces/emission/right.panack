@@ -1,8 +1,9 @@
 pub record Item[T] { value: T }
-pub enum Outcome { Finished }
-pub pure make(): Item[Nat] { Item(42) }
+pub record Envelope[T] { item: Item[T] }
+pub enum Outcome[T] { Finished(Envelope[T]) }
+pub pure make(): Envelope[Nat] { Envelope(Item(42)) }
 pub pure identity[T](value: T): T { value }
-pub pure make_outcome(): Outcome { Finished() }
+pub pure make_outcome(): Outcome[Nat] { Finished(make()) }
 pub pure positive(value: Nat): Bool { value > 0 }
 pub type Positive = Nat where positive(value)
 main(): Void { print(998) }

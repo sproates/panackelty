@@ -47,7 +47,7 @@ pure trace_block(block: Block): Str {
 
 pure trace_children(expression: Expr): Str {
   match expression {
-    LocatedExpr(span, value) => "unexpected wrapper;",
+    LocatedExpr(span, value, located_type_argument_spans) => "unexpected wrapper;",
     NatExpr(value) => "", DecimalExpr(text) => "", StringExpr(text) => "", BoolExpr(value) => "",
     NameExpr(name) => "", FunctionExpr(name) => "",
     ArrayExpr(items) => { mut output: Str = ""; for item in items { output = output + trace_span(item); } output },

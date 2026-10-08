@@ -233,9 +233,10 @@ pure module_emission_guard_expression(
   expression: Expr
 ): Expr {
   match expression {
-    LocatedExpr(span, value) => LocatedExpr(
+    LocatedExpr(span, value, located_type_argument_spans) => LocatedExpr(
       span,
-      module_emission_guard_expression(graph, entry, owner, value)
+      module_emission_guard_expression(graph, entry, owner, value),
+      located_type_argument_spans
     ),
     NatExpr(value) => NatExpr(value),
     DecimalExpr(value) => DecimalExpr(value),
@@ -552,7 +553,7 @@ pure module_emission_expression(
     BodyFor(identity) => CallExpr("$unit", [], []),
     BodyEmpty() => CallExpr("$unit", [], [])
   }
-  LocatedExpr(body.span, emitted)
+  LocatedExpr(body.span, emitted, [])
 }
 
 pure module_emission_function(

@@ -971,7 +971,7 @@ pure emit_expression_at(
   mut probes: [EmissionProbe] = []
 
   match expression {
-    LocatedExpr(span, value) => {
+    LocatedExpr(span, value, located_type_argument_spans) => {
       emitted: EmittedCode = emit_expression_at(
         value,
         program,

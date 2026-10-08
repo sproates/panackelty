@@ -326,7 +326,7 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
   mut diagnostics: [Diagnostic] = []
 
   match expression {
-    LocatedExpr(position, value) => {
+    LocatedExpr(position, value, located_type_argument_spans) => {
       diagnostics = resolver_diagnostics_at(
         resolve_expression(value, scope, symbols),
         position.start

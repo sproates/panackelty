@@ -138,7 +138,7 @@ pure subtraction_decision(
         }
       }
     },
-    LocatedExpr(span, value) => {},
+    LocatedExpr(span, value, located_type_argument_spans) => {},
     NatExpr(value) => {},
     DecimalExpr(text) => {},
     StringExpr(text) => {},
@@ -179,7 +179,7 @@ pure checker_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Di
 
 pure checker_diagnostic_for(expression: Expr, message: Str): Diagnostic {
   match expression {
-    LocatedExpr(position, value) => Diagnostic(message, position.start),
+    LocatedExpr(position, value, located_type_argument_spans) => Diagnostic(message, position.start),
     NatExpr(value) => checker_diagnostic(message),
     DecimalExpr(text) => checker_diagnostic(message),
     StringExpr(text) => checker_diagnostic(message),
@@ -572,7 +572,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
   mut result: Bool = false
 
   match expression {
-    LocatedExpr(position, inner) => {
+    LocatedExpr(position, inner, located_type_argument_spans) => {
       result = evaluate_nat_guard(inner, value)
     },
     BoolExpr(item) => {
@@ -614,7 +614,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
                       result = value != bound
                     } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {},
+                  LocatedExpr(other_position, other_value, located_type_argument_spans) => {},
                   DecimalExpr(other_decimal) => {},
                   StringExpr(other_string) => {},
                   BoolExpr(other_bool) => {},
@@ -633,7 +633,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {},
+            LocatedExpr(other_position, other_value, located_type_argument_spans) => {},
             NatExpr(item) => {},
             DecimalExpr(text) => {},
             StringExpr(text) => {},
@@ -675,7 +675,7 @@ pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
   mut result: Bool = false
 
   match expression {
-    LocatedExpr(position, inner) => {
+    LocatedExpr(position, inner, located_type_argument_spans) => {
       result = prove_guard_bounds(inner, bounds)
     },
     BinaryExpr(operator, left, right) => {
@@ -709,7 +709,7 @@ pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
                         bounds.upper == bound
                     } else {}
                   },
-                  LocatedExpr(other_position, other_value) => {},
+                  LocatedExpr(other_position, other_value, located_type_argument_spans) => {},
                   DecimalExpr(other_decimal) => {},
                   StringExpr(other_string) => {},
                   BoolExpr(other_bool) => {},
@@ -728,7 +728,7 @@ pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
                 }
               } else {}
             },
-            LocatedExpr(other_position, other_value) => {},
+            LocatedExpr(other_position, other_value, located_type_argument_spans) => {},
             NatExpr(item) => {},
             DecimalExpr(text) => {},
             StringExpr(text) => {},
@@ -791,7 +791,7 @@ pure assignable_checked(
       } else {
         mut proven: Bool = false
         match unlocated_expression(source) {
-          LocatedExpr(position, inner) => {},
+          LocatedExpr(position, inner, located_type_argument_spans) => {},
           NameExpr(name) => {
             if map_has(facts, name) {
               proven = prove_guard_bounds(guarded.guard, map_get(facts, name))
@@ -1823,7 +1823,7 @@ pure facts_after_expression(expression: Expr, facts: Map[Str, Bounds]): Map[Str,
 
   if facts != empty {
     match expression {
-      LocatedExpr(position, value) => {
+      LocatedExpr(position, value, located_type_argument_spans) => {
         result = facts_after_expression(value, result)
       },
       ArrayExpr(items) => {
@@ -1953,7 +1953,7 @@ pure check_expression_evidence(
   mut info: TypeInfo = no_type()
 
   match expression {
-    LocatedExpr(position, value) => {
+    LocatedExpr(position, value, located_type_argument_spans) => {
       checked: CheckedExpression = check_expression_evidence(
         value,
         environment,
@@ -2988,7 +2988,7 @@ pure condition_facts_evidence(
   mut result: Map[Str, Bounds] = facts
 
   match condition {
-    LocatedExpr(position, value) => {
+    LocatedExpr(position, value, located_type_argument_spans) => {
       result = condition_facts_evidence(value, facts, truth, retain, if retain {
           Some(position)
         } else {
@@ -3036,7 +3036,7 @@ pure condition_facts_evidence(
               } else {}
               result = map_put(result, name, next)
             },
-            LocatedExpr(other_position, other_value) => {},
+            LocatedExpr(other_position, other_value, located_type_argument_spans) => {},
             DecimalExpr(other_decimal) => {},
             StringExpr(other_string) => {},
             BoolExpr(other_bool) => {},
@@ -3054,7 +3054,7 @@ pure condition_facts_evidence(
             MatchExpr(other_subject, other_arms) => {}
           }
         },
-        LocatedExpr(other_position, other_value) => {},
+        LocatedExpr(other_position, other_value, located_type_argument_spans) => {},
         NatExpr(value) => {},
         DecimalExpr(text) => {},
         StringExpr(text) => {},

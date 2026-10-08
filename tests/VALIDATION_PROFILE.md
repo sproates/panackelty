@@ -3878,6 +3878,38 @@ makes no performance claim about compiler execution, memory or runtime behavior.
 Website impact: none; executable namespace syntax remains gated, so no published
 feature claim changes.
 
+## P2 slice 6d proof and effect emission — 2026-10-08
+
+The same-spelled imported `positive` predicates remain attached to their
+originating guarded types, while local inline proofs permit checked conversion
+and arithmetic. Source and saved-v9 execution assert exact results for both
+modules. Existing namespace body tests cover pure/effect boundaries, invalid
+and deferred emission, and mutation invalidation. The async fixture awaits
+identically named imported `fetch` functions through async wrappers, asserts
+their distinct values in an async entry point, and passes source and saved-v9
+execution. The identity-bound emitter tests also inspect both retained async
+flags and their qualified awaited targets.
+
+This exposed a narrow checked-body gap: the internal `()` expression was not
+bound as a value, which kept async `main(): Unit` incomplete for identity
+emission. The body checker now recognizes that internal zero-argument call as
+`Unit`; it preserves the existing fail-closed rules for all other incomplete
+bodies. Bytecode v9, the bootstrap seed and the public namespace execution gate
+are unchanged. Source loading, source-map/explain/locate migration, seed
+cutover and native/browser namespace acceptance remain open.
+
+The local focused `make -j1 check-compiler` passed all 207 tests in 85s against
+the unchanged 15s budget. The full host-access `make -j1 check` completed in
+128s against its unchanged 120s budget. An earlier focused run on this working
+slice before the Unit fix took 86s; the prior 6c full-check observation was
+135s. These are separate single runs, not a controlled matched base/candidate
+pair, so they do not establish causation or regression. The known validation
+budget concern remains assigned to GI#106; the next action is its existing
+owned compiler-delivery comparison/remediation review. No timeout, assertion or
+budget was weakened, and no compiler/runtime speedup or cost-neutrality claim is
+made. Website impact: none; executable namespace syntax remains gated, so no
+published feature claim changes.
+
 ## P2 slice 6c aggregate and pattern emission — 2026-10-08
 
 The cross-module fixture constructs same-spelled generic `Item` and `Envelope`

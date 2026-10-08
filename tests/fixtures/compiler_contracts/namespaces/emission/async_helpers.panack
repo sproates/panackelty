@@ -1,0 +1,12 @@
+import "left.panack" as left
+import "right.panack" as right
+async left_value(): Nat { await left.fetch() }
+async right_value(): Nat { await right.fetch() }
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+async main(): Unit {
+  left_result: Nat = await left_value()
+  right_result: Nat = await right_value()
+  expect(left_result == 51)
+  expect(right_result == 52)
+  ()
+}

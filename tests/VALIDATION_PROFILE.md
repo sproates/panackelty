@@ -3877,3 +3877,20 @@ implementation. This bounded evidence-only delivery selects no optimization and
 makes no performance claim about compiler execution, memory or runtime behavior.
 Website impact: none; executable namespace syntax remains gated, so no published
 feature claim changes.
+
+## P2 slice 6c aggregate and pattern emission — 2026-10-08
+
+The cross-module fixture constructs same-spelled generic `Item` and `Envelope`
+records in both imported modules, nests each inside a same-spelled
+`Outcome.Finished` payload, reads the nested fields and matches each variant.
+The module-emission unit test now asserts that both `Item` and `Envelope` record
+symbols, both `Outcome` enum symbols, and both `Finished` variant symbols remain
+distinct. `compiler_driver` asserts exact source and saved-v9 output
+(`41`, `42`, `43`, `44`, `41`, `42`). This closes bounded 6c acceptance
+evidence without changing compiler or VM source; proof/effect emission and later
+loading gates remain open. The focused `make -j1 check-compiler` passed 207 tests
+with zero failures in 87s against the 15s budget. The full host-access
+`make -j1 check` passed in 135s against the 120s budget. These are single-run
+observations, not a matched comparison; this delivery changes tests and progress
+documentation only, so they do not attribute the overruns to 6c. The preceding
+6b matched pair remains the latest comparative compiler-performance evidence.

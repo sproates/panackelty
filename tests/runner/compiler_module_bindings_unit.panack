@@ -244,6 +244,8 @@ module_emission_program_tests(): [TestResult] {
   right_main: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "main"))
   left_item: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Item"))
   right_item: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Item"))
+  left_envelope: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Envelope"))
+  right_envelope: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Envelope"))
   left_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Outcome"))
   right_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Outcome"))
   left_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Finished"))
@@ -274,6 +276,7 @@ module_emission_program_tests(): [TestResult] {
   results = append(results, test_expect("identity emission internalizes imported mains", left_main != "main" && right_main != "main" && emitted.program.function_indices.has(left_main) && emitted.program.function_indices.has(right_main), "imported main was not internalized"))
   results = append(results, test_expect("identity emission keeps same-spelled functions distinct", left_make != right_make, "make identities collided"))
   results = append(results, test_expect("identity emission keeps same-spelled records distinct", emitted.program.record_indices.has(left_item) && emitted.program.record_indices.has(right_item) && left_item != right_item, "Item identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled nested generic records distinct", emitted.program.record_indices.has(left_envelope) && emitted.program.record_indices.has(right_envelope) && left_envelope != right_envelope, "Envelope identities collided"))
   results = append(results, test_expect("identity emission keeps same-spelled enums distinct", emitted.program.enum_indices.has(left_outcome) && emitted.program.enum_indices.has(right_outcome) && left_outcome != right_outcome, "Outcome identities collided"))
   results = append(results, test_expect("identity emission keeps same-spelled variants distinct", emitted.program.variants.has(left_finished) && emitted.program.variants.has(right_finished) && left_finished != right_finished, "Finished identities collided"))
   left_target: ResolvedModuleTarget = match resolve_module_path(graph, identity, "left.make") {

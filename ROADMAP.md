@@ -3100,8 +3100,8 @@ one coherent change.
 | Gate | Bounded outcome and exit evidence |
 | --- | --- |
 | 6a. Callable identity emission — Done through PR#342 | Functions, generic functions, direct/indirect calls and compiler-generated helpers lower from declaration identities to collision-free symbols. Same-spelled cross-module callable fixtures pass, including imported function values invoked indirectly through `PureFn`. |
-| 6b. Ordinary body emission — evidence delivered in this change | Operators, bindings/assignments, branches, loops, returns and collections lower the checked body without changing evaluation order or lexical identity; positive and rejected cases remain explicit. |
-| 6c. Aggregate and pattern emission | Records, enums, constructors, field access, variant patterns and nested generic payloads retain declaration identity through emission; same-spelled cross-module fixtures assert exact values. |
+| 6b. Ordinary body emission — evidence delivered in PR#343 | Operators, bindings/assignments, branches, loops, returns and collections lower the checked body without changing evaluation order or lexical identity; positive and rejected cases remain explicit. |
+| 6c. Aggregate and pattern emission — evidence delivered in this change | Same-spelled cross-module `Item`, `Envelope`, `Outcome` and `Finished` identities remain distinct through record/enum/variant emission; nested generic constructors, field access and variant patterns produce exact source and saved-bytecode values. |
 | 6d. Proof and effect emission | Guard-proven conversions/arithmetic, mutation invalidation, purity, async calls and await preserve the checked identity/effect decisions through emitted code; valid and rejected boundaries are covered. |
 | 6e. Standalone source loading | A complete multi-file source program loads its modules into one namespace, resolves the reserved entry identity and entry-directory root, restricts imports to local/toolchain files, confines quoted paths, and launches only the selected entry's `main`. |
 | 6f. Standalone saved-bytecode loading | Compiling, saving, loading and running that program preserves the same identities and entry behavior without requiring source files at run time. Record evidence that bytecode v9 is sufficient or justify a deliberate format change. |
@@ -3109,7 +3109,8 @@ one coherent change.
 
 Slice 6 completes only when all seven gates pass together in the supported end-to-end
 path. PR#331, PR#333, PR#334 and PR#337 provide partial evidence across the gates;
-PR#342 completes 6a, and this delivery provides 6b acceptance evidence. No
+PR#342 completes 6a, and this delivery provides 6c acceptance evidence. 6b and
+6c are delivered. No
 intermediate delivery enables public namespace execution. Slice 6 preserves the
 source identity and spans needed by slice 7, but detailed source-map, explain and
 locate behavior is slice 7. Slice 8 owns coordinated migration, namespace-capable
@@ -3131,8 +3132,9 @@ partial completion estimated below and 10 pp formally accepted across the progra
 
 Last quantified scope baseline, updated 2026-10-07 after slice 5: **approximately
 65% of RM#41, versus 55% after slice 4 and 48% before slice 4**. PR#331 has since
-merged an intermediate slice 6 delivery, PR#342 completes gate 6a, and this
-delivery adds 6b evidence; these partial contributions have not been quantified.
+merged intermediate slice 6 deliveries, PR#342 completes gate 6a, and this
+delivery adds 6c acceptance evidence alongside the existing 6b evidence; these
+partial slice 6 contributions have not been quantified.
 Keep 65% as the last
 measured baseline, not the current estimate, until the remaining slice 6 scope is
 reassessed. This replaces the earlier estimate after slice 2; it is a reasoned
@@ -3150,7 +3152,7 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
-| Slice 6: Identity emission/standalone loading | 14% | Seven sequenced gates: callable; ordinary body; aggregate/pattern; proof/effect; source loading; saved-bytecode loading; core/bootstrap staging. PR#331, PR#333, PR#334 and PR#337 provide partial evidence; PR#342 completes 6a and this delivery adds 6b evidence; full slice acceptance remains | Not re-estimated | Unquantified |
+| Slice 6: Identity emission/standalone loading | 14% | Seven sequenced gates: callable; ordinary body; aggregate/pattern; proof/effect; source loading; saved-bytecode loading; core/bootstrap staging. PR#331, PR#333, PR#334 and PR#337 provide partial evidence; PR#342 completes 6a and this delivery adds 6c evidence alongside 6b; full slice acceptance remains | Not re-estimated | Unquantified |
 | Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
 | **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp; PR#331, PR#333, PR#334, PR#337, PR#342 and this delivery add unquantified partial slice 6 progress** | **65% last quantified estimate; current estimate pending** | **65 pp known; slice 6 unquantified** |
@@ -3169,9 +3171,9 @@ quantified, so the current
 estimated programme total is not restated. The known estimated contribution is
 23 pp including P1, plus unquantified P2 progress. Formal whole-task acceptance
 remains **10 pp** until P2's remaining execution and migration gates are accepted.
-Slices 1–5 are Done on `next`; PR#342 completes gate 6a, and the 6b evidence in
-this delivery is an intermediate slice 6 result. GI#198 remains open for slices
-6–8.
+Slices 1–5 are Done on `next`; PR#342 completes gate 6a, and gates 6b and 6c
+have acceptance evidence delivered. These are intermediate slice 6 results.
+GI#198 remains open for slices 6–8.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset
@@ -3237,6 +3239,16 @@ implemented in the checked-body adapter, so this delivery adds executable
 acceptance evidence without changing compiler or VM source. Its matched
 clean `make check` comparison is recorded in the validation profile; this is an
 intermediate gate, not completion of slice 6 or public namespace execution.
+
+The 6c aggregate/pattern delivery adds a direct identity assertion for the
+nested generic `Envelope` records alongside the existing `Item`, `Outcome` and
+`Finished` symbol checks. The fixture's source and saved-v9 executions assert
+distinct exact values through nested field reads and variant patterns. This
+adds acceptance evidence without compiler or VM source changes. Focused
+`make check-compiler` passed in 87s and full host-access `make check` passed in
+135s; both exceed unchanged budgets, and these single runs do not attribute the
+overruns to this test-only delivery. 6d–6g and the public namespace execution
+gate remain open.
 
 P2 owns standalone namespace semantics, entry selection and entry-directory
 root confinement, necessary initial stdlib exports and its own

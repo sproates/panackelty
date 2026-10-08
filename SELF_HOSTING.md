@@ -2,14 +2,17 @@
 
 ## P2 Slice 8 handoff — 2026-10-08
 
-Resume from core commit `7ea353f9c312c348e94190e63ba9ac958aa56cd7` on branch
-`feature/p2-slice-8-compiler-cutover` (PR #356). The exploratory source-only
-migration after that commit failed and was discarded; the checkout is clean at
-the checkpoint. The commit's project-level namespace, saved-v9, seed, native,
-browser and installed-package evidence remains recorded in the
+Resume from the `next` checkpoint merge `6a13fafc0412c43a494a8d3c0b9ad22c6a36c2ba`.
+The bootstrap prerequisite on `fix/namespace-text-intrinsic-contracts` adds
+identity contracts for text-core lexer calls and refreshes the checked-in seed;
+merge that prerequisite before starting the next migration branch. The earlier
+exploratory source-only migration failed and was discarded. The checkpoint's
+project-level namespace, saved-v9, seed, native, browser and installed-package
+evidence remains recorded in the
 [validation profile](tests/VALIDATION_PROFILE.md#slice-8-namespace-project-checkpoint--2026-10-08).
 
-The cutover is not complete. An audit found the self-hosted compiler still uses
+The cutover is not complete, and the prerequisite earns no Slice 8 completion
+credit. An audit found the self-hosted compiler still uses
 the legacy flat combined-loader path even though its import spellings are
 namespace paths. A first namespace-only compile exposed missing selective enum
 variant imports and public re-export routes. Continue by migrating the compiler

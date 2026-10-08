@@ -1098,7 +1098,8 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "$method_has" || name == "$method_add" || name == "map_put" ||
       name == "map_get" || name == "map_has" || name == "has" || name == "set_add" ||
       name == "set_has" || name == "append" || name == "concat" || name == "print" ||
-      name == "eprint"
+      name == "eprint" || name == "is_digit" || name == "is_letter" ||
+      name == "is_whitespace" || name == "starts_with_at" || name == "slice"
   }
 }
 
@@ -1236,23 +1237,86 @@ pure body_check_special_core_call(
           }
         }
       } else {
-        checked: BodyResult = body_check_collection_core_call(
-          context,
-          name,
-          children,
-          span,
-          diagnostics,
-          deferred
-        )
-        diagnostics = checked.diagnostics
-        deferred = checked.deferred
-        output = checked.body.type
+        if name == "is_digit" || name == "is_letter" || name == "is_whitespace" ||
+          name == "starts_with_at" || name == "slice" {
+          checked: BodyResult = body_check_text_core_call(
+            context,
+            name,
+            children,
+            span,
+            diagnostics,
+            deferred
+          )
+          diagnostics = checked.diagnostics
+          deferred = checked.deferred
+          output = checked.body.type
+        } else {
+          checked: BodyResult = body_check_collection_core_call(
+            context,
+            name,
+            children,
+            span,
+            diagnostics,
+            deferred
+          )
+          diagnostics = checked.diagnostics
+          deferred = checked.deferred
+          output = checked.body.type
+        }
       }
       }
     }
   }
   }
   BodyResult(BoundBody(BodyCall(target, types), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_check_text_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  expected_count: Nat = if name == "starts_with_at" || name == "slice" { 3 } else { 1 }
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+  mut index: Nat = 0
+
+  if len(children) != expected_count {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects ${expected_count} arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    while index < expected_count {
+      expected: SignatureType = if name == "starts_with_at" && index == 2 {
+        SignatureType(SignatureCore("Nat"), [])
+      } else {
+        if name == "slice" && index > 0 {
+          SignatureType(SignatureCore("Nat"), [])
+        } else {
+          SignatureType(SignatureCore("Str"), [])
+        }
+      }
+      number: Nat = index + 1
+      required: BodyResult = body_require_value(
+        context,
+        children[index],
+        expected,
+        "argument ${number} to " + name
+      )
+      diagnostics = concat(diagnostics, required.diagnostics)
+      deferred = concat(deferred, required.deferred)
+      index = index + 1
+    }
+    if len(diagnostics) == 0 && len(deferred) == 0 {
+      output = if name == "slice" { body_core_type("Str") } else { body_core_type("Bool") }
+    }
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
 }
 
 pure body_optional_type(type: Option[SignatureType]): SignatureType {

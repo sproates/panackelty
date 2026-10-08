@@ -744,6 +744,11 @@ pure signature_test_error(source: Str): Str {
   result: CheckedModuleSignatures = check_module_signatures(ModuleBindingGraph([module.bindings], []), [module], module)
   if len(result.diagnostics) == 0 { "ok" } else { result.diagnostics[0].message }
 }
+pure signature_test_position(source: Str): SourcePos {
+  module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
+  result: CheckedModuleSignatures = check_module_signatures(ModuleBindingGraph([module.bindings], []), [module], module)
+  if len(result.diagnostics) == 0 { SourcePos("", 0, 0, 0) } else { result.diagnostics[0].position }
+}
 pure signature_test_type(graph: ModuleBindingGraph, modules: [LoadedModule], binder: DeclarationIdentity, parameters: [Str], spelling: Str, public_flag: Bool): SignatureType {
   match signature_type(graph, modules, binder, parameters, spelling, public_flag, true) {
     Ok(value) => value, Error(message) => SignatureType(SignatureCore("ERROR:" + message), [])
@@ -794,6 +799,16 @@ pure namespace_signature_tests(): [TestResult] {
   results = append(results, test_equal_str("duplicate parameter rejected", signature_test_error("pub record Pair[T,T] { value: T }"), "invalid or duplicate type parameter T"))
   results = append(results, test_equal_str("callable Void parameter rejected", signature_test_error("pub pure f(value: Fn[Void,Nat]): Nat { 0 }"), "signature f.value: Void is only valid as a function return type"))
   results = append(results, test_equal_str("async Void result rejected", signature_test_error("pub async f(): Void {}"), "signature f.return: Void is only valid as a function return type"))
+  field_position: SourcePos = signature_test_position("pub record Box { first: Nat, missing: Missing }")
+  results = append(results, test_expect("unknown field type points at the type token", field_position.file == "module.panack" && field_position.line == 1 && field_position.column == 39, "wrong diagnostic position"))
+  nested_position: SourcePos = signature_test_position("pub pure f(value: Nat): Option[[Missing]] { 0 }")
+  results = append(results, test_expect("nested return type points at the type reference", nested_position.file == "module.panack" && nested_position.line == 1 && nested_position.column == 25, "wrong diagnostic position"))
+  enum_position: SourcePos = signature_test_position("pub enum Choice { Known(Nat), Broken(Missing) }")
+  results = append(results, test_expect("enum payload type points at the type token", enum_position.file == "module.panack" && enum_position.line == 1 && enum_position.column == 38, "wrong diagnostic position"))
+  parameter_position: SourcePos = signature_test_position("pub pure f(value: Missing): Nat { 0 }")
+  results = append(results, test_expect("function parameter type points at the type token", parameter_position.file == "module.panack" && parameter_position.line == 1 && parameter_position.column == 19, "wrong diagnostic position"))
+  guarded_base_position: SourcePos = signature_test_position("pub type Positive = Missing where value > 0")
+  results = append(results, test_expect("guarded type base points at the type token", guarded_base_position.file == "module.panack" && guarded_base_position.line == 1 && guarded_base_position.column == 21, "wrong diagnostic position"))
   leaked: LoadedModule = signature_test_module(namespace_identity("leaked"), "import project/left as api; pub pure expose(): api.Item[Nat] { 0 }")
   leak_graph: ModuleBindingGraph = ModuleBindingGraph([left.bindings, leaked.bindings], [ModuleImportEdge(leaked.bindings.identity, 0, left.bindings.identity)])
   leak_result: CheckedModuleSignatures = check_module_signatures(leak_graph, [left, leaked], leaked)

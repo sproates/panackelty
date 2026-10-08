@@ -180,6 +180,7 @@ record ParsedMatchArmList {
 
 record ParsedTypeRef {
   text: Str,
+  span: SourceSpan,
   next: Nat
 }
 
@@ -190,6 +191,7 @@ record ParsedImportPath {
 
 record ParsedTypeRefList {
   values: [Str],
+  spans: [SourceSpan],
   next: Nat
 }
 
@@ -200,6 +202,7 @@ record ParsedBlock {
 
 record ParsedTopLevel {
   value: TopLevel,
+  type_spans: [SourceSpan],
   next: Nat
 }
 
@@ -215,6 +218,10 @@ pure token_end_position(tokens: [Token], next: Nat): SourcePos {
   } else {
     SourcePos("", 0, 0, 0)
   }
+}
+
+pure token_span(tokens: [Token], start: Nat, next: Nat): SourceSpan {
+  SourceSpan(token_position(tokens, start), token_end_position(tokens, next))
 }
 
 pure located_expression(tokens: [Token], index: Nat, next: Nat, value: Expr): Expr {
@@ -257,6 +264,7 @@ pure extended_expression(tokens: [Token], left: Expr, next: Nat, value: Expr): E
 
 record ParsedFunctionParameterList {
   values: [FunctionParameter],
+  type_spans: [SourceSpan],
   next: Nat
 }
 
@@ -380,17 +388,23 @@ pure render_type_ref_list(types: [Str]): Str {
 pure parse_type_ref_list_tail(
   tokens: [Token],
   values: [Str],
+  spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTypeRefList, Diagnostic] {
   if index >= len(tokens) {
     Error(parse_error("expected closing type bracket", token_position(tokens, index)))
   } else {
     if tokens[index].text == "]" {
-      Ok(ParsedTypeRefList(values, index + 1))
+      Ok(ParsedTypeRefList(values, spans, index + 1))
     } else {
       if tokens[index].text == "," {
         match parse_type_ref(tokens, index + 1) {
-          Ok(parsed) => parse_type_ref_list_tail(tokens, append(values, parsed.text), parsed.next),
+          Ok(parsed) => parse_type_ref_list_tail(
+            tokens,
+            append(values, parsed.text),
+            append(spans, parsed.span),
+            parsed.next
+          ),
           Error(error) => Error(error)
         }
       } else {
@@ -404,7 +418,7 @@ pure parse_type_ref_list(tokens: [Token], index: Nat): Result[ParsedTypeRefList,
   match parse_type_ref(tokens, index) {
     Ok(parsed) => {
       values: [Str] = [parsed.text]
-      parse_type_ref_list_tail(tokens, values, parsed.next)
+      parse_type_ref_list_tail(tokens, values, [parsed.span], parsed.next)
     },
     Error(error) => Error(error)
   }
@@ -428,7 +442,7 @@ pure parse_reference_path(tokens: [Token], index: Nat): Result[ParsedTypeRef, Di
     if invalid {
       Error(parse_error("expected name after '.'", token_position(tokens, cursor + 1)))
     } else {
-      Ok(ParsedTypeRef(name, cursor))
+      Ok(ParsedTypeRef(name, token_span(tokens, index, cursor), cursor))
     }
   }
 }
@@ -442,7 +456,7 @@ pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnost
         Ok(inner) => {
           if inner.next < len(tokens) && tokens[inner.next].text == "]" {
             text: Str = inner.text
-            Ok(ParsedTypeRef("[${text}]", inner.next + 1))
+            Ok(ParsedTypeRef("[${text}]", token_span(tokens, index, inner.next + 1), inner.next + 1))
           } else {
             Error(parse_error("expected closing type bracket", token_position(tokens, inner.next)))
           }
@@ -459,12 +473,12 @@ pure parse_type_ref(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnost
               match parse_type_ref_list(tokens, path.next + 1) {
                 Ok(arguments) => {
                   argument_text: Str = render_type_ref_list(arguments.values)
-                  Ok(ParsedTypeRef("${name}[${argument_text}]", arguments.next))
+                  Ok(ParsedTypeRef("${name}[${argument_text}]", token_span(tokens, index, arguments.next), arguments.next))
                 },
                 Error(error) => Error(error)
               }
             } else {
-              Ok(ParsedTypeRef(name, path.next))
+              Ok(ParsedTypeRef(name, token_span(tokens, index, path.next), path.next))
             }
           }
         }
@@ -538,19 +552,21 @@ pure parse_generic_parameters(tokens: [Token], index: Nat): Result[ParsedNameLis
 pure parse_variant_payload_tail(
   tokens: [Token],
   payload: [Str],
+  spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTypeRefList, Diagnostic] {
   if index >= len(tokens) {
     Error(parse_error("expected closing variant parenthesis", token_position(tokens, index)))
   } else {
     if tokens[index].text == ")" {
-      Ok(ParsedTypeRefList(payload, index + 1))
+      Ok(ParsedTypeRefList(payload, spans, index + 1))
     } else {
       if tokens[index].text == "," {
         match parse_type_ref(tokens, index + 1) {
           Ok(parsed) => parse_variant_payload_tail(
             tokens,
             append(payload, parsed.text),
+            append(spans, parsed.span),
             parsed.next
           ),
           Error(error) => Error(error)
@@ -565,12 +581,12 @@ pure parse_variant_payload_tail(
 pure parse_variant_payload(tokens: [Token], index: Nat): Result[ParsedTypeRefList, Diagnostic] {
   if index < len(tokens) && tokens[index].text == ")" {
     payload: [Str] = []
-    Ok(ParsedTypeRefList(payload, index + 1))
+    Ok(ParsedTypeRefList(payload, [], index + 1))
   } else {
     match parse_type_ref(tokens, index) {
       Ok(parsed) => {
         payload: [Str] = [parsed.text]
-        parse_variant_payload_tail(tokens, payload, parsed.next)
+        parse_variant_payload_tail(tokens, payload, [parsed.span], parsed.next)
       },
       Error(error) => Error(error)
     }
@@ -898,7 +914,7 @@ pure parse_call_type_arguments(tokens: [Token], index: Nat): Result[ParsedTypeRe
   if closing > index && closing + 1 < len(tokens) && tokens[closing + 1].text == "(" {
     parse_type_ref_list(tokens, index + 1)
   } else {
-    Ok(ParsedTypeRefList([], index))
+    Ok(ParsedTypeRefList([], [], index))
   }
 }
 
@@ -1437,7 +1453,7 @@ pure parse_block_items(
             annotation: Result[ParsedTypeRef, Diagnostic] = if tokens[colon_index].text == ":" {
               parse_type_ref(tokens, colon_index + 1)
             } else {
-              Ok(ParsedTypeRef("", colon_index))
+              Ok(ParsedTypeRef("", token_span(tokens, colon_index, colon_index), colon_index))
             }
             match annotation {
               Ok(type_ref) => {
@@ -1591,10 +1607,10 @@ pure parse_type_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
                 guard.value
               )
               if guard.next == len(tokens) {
-                Ok(ParsedTopLevel(declaration, guard.next))
+                Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next))
               } else {
                 if tokens[guard.next].text == ";" {
-                  Ok(ParsedTopLevel(declaration, guard.next + 1))
+                  Ok(ParsedTopLevel(declaration, [token_span(tokens, base_index, base_index + 1)], guard.next + 1))
                 } else {
                   Error(parse_error(
                     "expected line break or semicolon after type declaration",
@@ -1616,6 +1632,7 @@ pure parse_record_fields(
   name: Str,
   parameters: [Str],
   fields: [RecordField],
+  type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTopLevel, Diagnostic] {
   if index >= len(tokens) {
@@ -1623,7 +1640,7 @@ pure parse_record_fields(
   } else {
     if tokens[index].text == "}" {
       declaration: TopLevel = RecordDeclaration(name, parameters, fields)
-      Ok(ParsedTopLevel(declaration, index + 1))
+      Ok(ParsedTopLevel(declaration, type_spans, index + 1))
     } else {
       if tokens[index].kind != Identifier() {
         Error(parse_error("expected record field name", tokens[index].position))
@@ -1640,6 +1657,7 @@ pure parse_record_fields(
             Ok(type_ref) => {
               field: RecordField = RecordField(field_name, type_ref.text)
               values: [RecordField] = append(fields, field)
+              spans: [SourceSpan] = append(type_spans, type_ref.span)
               if type_ref.next >= len(tokens) {
                 Error(parse_error(
                   "expected closing record brace",
@@ -1647,11 +1665,11 @@ pure parse_record_fields(
                 ))
               } else {
                 if tokens[type_ref.next].text == "," {
-                  parse_record_fields(tokens, name, parameters, values, type_ref.next + 1)
+                  parse_record_fields(tokens, name, parameters, values, spans, type_ref.next + 1)
                 } else {
                   if tokens[type_ref.next].text == "}" {
                     declaration: TopLevel = RecordDeclaration(name, parameters, values)
-                    Ok(ParsedTopLevel(declaration, type_ref.next + 1))
+                    Ok(ParsedTopLevel(declaration, spans, type_ref.next + 1))
                   } else {
                     Error(parse_error(
                       "expected comma or closing record brace",
@@ -1685,7 +1703,7 @@ pure parse_record_declaration(tokens: [Token], index: Nat): Result[ParsedTopLeve
           ))
         } else {
           fields: [RecordField] = []
-          parse_record_fields(tokens, name, parameters.values, fields, parameters.next + 1)
+          parse_record_fields(tokens, name, parameters.values, fields, [], parameters.next + 1)
         }
       },
       Error(error) => Error(error)
@@ -1698,6 +1716,7 @@ pure parse_enum_variants(
   name: Str,
   parameters: [Str],
   variants: [EnumVariant],
+  type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTopLevel, Diagnostic] {
   if index >= len(tokens) {
@@ -1705,7 +1724,7 @@ pure parse_enum_variants(
   } else {
     if tokens[index].text == "}" {
       declaration: TopLevel = EnumDeclaration(name, parameters, variants)
-      Ok(ParsedTopLevel(declaration, index + 1))
+      Ok(ParsedTopLevel(declaration, type_spans, index + 1))
     } else {
       if tokens[index].kind != Identifier() {
         Error(parse_error("expected enum variant name", tokens[index].position))
@@ -1721,6 +1740,7 @@ pure parse_enum_variants(
               variants,
               variant_name,
               payload.values,
+              concat(type_spans, payload.spans),
               payload.next
             ),
             Error(error) => Error(error)
@@ -1734,6 +1754,7 @@ pure parse_enum_variants(
             variants,
             variant_name,
             payload,
+            type_spans,
             payload_index
           )
         }
@@ -1749,6 +1770,7 @@ pure parse_enum_variant_tail(
   variants: [EnumVariant],
   variant_name: Str,
   payload: [Str],
+  type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedTopLevel, Diagnostic] {
   variant: EnumVariant = EnumVariant(variant_name, payload)
@@ -1758,11 +1780,11 @@ pure parse_enum_variant_tail(
     Error(parse_error("expected closing enum brace", token_position(tokens, index)))
   } else {
     if tokens[index].text == "," {
-      parse_enum_variants(tokens, name, parameters, values, index + 1)
+      parse_enum_variants(tokens, name, parameters, values, type_spans, index + 1)
     } else {
       if tokens[index].text == "}" {
         declaration: TopLevel = EnumDeclaration(name, parameters, values)
-        Ok(ParsedTopLevel(declaration, index + 1))
+        Ok(ParsedTopLevel(declaration, type_spans, index + 1))
       } else {
         Error(parse_error("expected comma or closing enum brace", tokens[index].position))
       }
@@ -1783,7 +1805,7 @@ pure parse_enum_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
           Error(parse_error("expected opening enum brace", token_position(tokens, parameters.next)))
         } else {
           variants: [EnumVariant] = []
-          parse_enum_variants(tokens, name, parameters.values, variants, parameters.next + 1)
+          parse_enum_variants(tokens, name, parameters.values, variants, [], parameters.next + 1)
         }
       },
       Error(error) => Error(error)
@@ -1794,6 +1816,7 @@ pure parse_enum_declaration(tokens: [Token], index: Nat): Result[ParsedTopLevel,
 pure parse_function_parameter_items(
   tokens: [Token],
   parameters: [FunctionParameter],
+  type_spans: [SourceSpan],
   index: Nat
 ): Result[ParsedFunctionParameterList, Diagnostic] {
   if index >= len(tokens) {
@@ -1821,10 +1844,10 @@ pure parse_function_parameter_items(
               ))
             } else {
               if tokens[type_ref.next].text == ")" {
-                Ok(ParsedFunctionParameterList(values, type_ref.next + 1))
+                Ok(ParsedFunctionParameterList(values, append(type_spans, type_ref.span), type_ref.next + 1))
               } else {
                 if tokens[type_ref.next].text == "," {
-                  parse_function_parameter_items(tokens, values, type_ref.next + 1)
+                  parse_function_parameter_items(tokens, values, append(type_spans, type_ref.span), type_ref.next + 1)
                 } else {
                   Error(parse_error(
                     "expected comma or closing function parenthesis",
@@ -1847,10 +1870,10 @@ pure parse_function_parameters(
 ): Result[ParsedFunctionParameterList, Diagnostic] {
   if index < len(tokens) && tokens[index].text == ")" {
     parameters: [FunctionParameter] = []
-    Ok(ParsedFunctionParameterList(parameters, index + 1))
+    Ok(ParsedFunctionParameterList(parameters, [], index + 1))
   } else {
     parameters: [FunctionParameter] = []
-    parse_function_parameter_items(tokens, parameters, index)
+    parse_function_parameter_items(tokens, parameters, [], index)
   }
 }
 
@@ -1898,7 +1921,11 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
                           body.value,
                           generics.values
                         )
-                        Ok(ParsedTopLevel(declaration, body.next))
+                        Ok(ParsedTopLevel(
+                          declaration,
+                          concat(parameters.type_spans, [return_type.span]),
+                          body.next
+                        ))
                       },
                       Error(error) => Error(error)
                     }
@@ -1931,6 +1958,7 @@ enum ImportBindingSyntax {
 
 record DeclarationSyntax {
   span: SourceSpan,
+  type_spans: [SourceSpan],
   is_public: Bool,
   binding: ImportBindingSyntax
 }
@@ -2096,6 +2124,7 @@ pure parse_module_items(
             Ok(parsed) => {
               metadata: DeclarationSyntax = DeclarationSyntax(
                 SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
+                [],
                 is_public,
                 parsed.binding
               )
@@ -2126,6 +2155,7 @@ pure parse_module_items(
           Ok(parsed) => {
             metadata: DeclarationSyntax = DeclarationSyntax(
               SourceSpan(token_position(tokens, index), token_end_position(tokens, parsed.next)),
+              parsed.type_spans,
               is_public,
               NoImportBinding()
             )

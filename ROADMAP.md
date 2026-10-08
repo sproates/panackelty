@@ -202,7 +202,7 @@ slice-6 identity-emission and standalone-loading gates on `next`. PR#351–PR#35
 deliver Slice 7's retained pattern, declaration, local-annotation and explicit
 call-type spans. This delivery closes Slice 7 acceptance with direct/receiver
 under-arity diagnostic checks and the existing source-map identity/staleness
-matrix; Slice 8 retains coordinated source/seed migration and platform acceptance.
+matrix. The Slice 8 candidate now migrates compiler, standard-library, runner, test and example imports; refreshes the namespace-capable seed; and passes source-derived compiler/stdlib fixed points plus native, browser-WASI and installed-package acceptance. The public project path executes namespaces; the parse-only standalone diagnostic remains internal and is filtered from project commands. Core and browser PR checks and merge remain pending.
 The matched clean canonical checks took
 202s on base `d5dd68a` and 204s on the candidate; a single pair does not establish
 causation. Both exceed the 120s budget. The slice 6 acceptance disposition is recorded in the
@@ -372,7 +372,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — foundations and slices 1–6 merged; Slice 7 acceptance completes with this delivery; Slice 8 remains | P1 | Large; provisionally 2–3 PRs remain for Slice 8 |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Slice 8 candidate complete; core and browser PR checks/merge remain before P2 acceptance | P1 | Large; two coordinated PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -431,7 +431,9 @@ tasks or award completion merely for announcing a checkpoint. GI#166 typed servi
 replacement remain separate followups, not silently completed by raw HTTP.
 
 P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
-their earlier Idea/unscheduled and assessment-only status: P2 is In progress;
+their earlier Idea/unscheduled and assessment-only status: P2's implementation
+and acceptance evidence are complete on the current candidate, with integration
+pending PR checks and merge;
 P3–P8 are Planned, not started. Their shared design is recorded in P1, with provisional
 implementation estimates above and detailed slices in the design. No public
 registry, separate compilation, web framework or new engine is required.
@@ -442,14 +444,14 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
-| P2 / [RM#41: Language namespaces](#rm-41) | 20% | Approximately 85% on this Slice 7 acceptance delivery's merge, using the unchanged scope weights below | 17 pp estimated contribution; 3 pp of P2 scope remains |
+| P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100% candidate completion; core and browser PR integration remains | 20 pp estimated contribution; pending formal acceptance |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | Approximately 27% estimated: P1 contributes 10 pp and P2 contributes 17 pp | **Approximately 27 pp estimated; 10 pp formally accepted for completed P1; P2 remains partial** |
+| **Total** | **100%** | Approximately 30% estimated: P1 contributes 10 pp and P2 contributes 20 pp on its candidate | **Approximately 30 pp estimated; 10 pp formally accepted for completed P1; P2 awaits merge** |
 
 P1 earned its design-task credit through merged PR#240. P2 is in progress: its
 four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -502,8 +504,11 @@ PR#326 complete slice 3; PR#327 completes slice 4; PR#329 completes slice 5;
 and PR#349 completes slice 6. PR#351 adds match-pattern span retention and
 precise arm-diagnostic locations, PR#352 declaration-signature type spans, PR#353
 body-local annotation spans, and PR#354 explicit call type-argument spans. This
-delivery completes Slice 7 acceptance; Slice 8 remains.
-GI#198 stays open.
+delivery completes Slice 7 acceptance. The Slice 8 candidate now migrates all
+active compiler, stdlib, runner, test and example imports to logical namespaces,
+refreshes the v9 seed, and passes native, browser-WASI and installed-package
+acceptance; its two PRs are awaiting checks and merge. GI#198 stays open until
+the core integration PR is merged.
 P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -3142,8 +3147,9 @@ partial completion estimated below and 10 pp formally accepted across the progra
 
 <a id="namespace-completion-assessment"></a>
 
-Current scope baseline, updated 2026-10-08 after merged PR#349 and this Slice 7
-acceptance delivery: **approximately 85% of RM#41**, using the unchanged
+Current scope baseline, updated 2026-10-08 for the Slice 8 candidate: **100% of
+RM#41 implementation and acceptance evidence, pending the core and browser PR
+checks and merges**, using the unchanged
 20/8/12/8/7/10/14/6/15 scope weights.
 The integrated staged-root program exercises all seven slice-6 gates; PR#349
 records source and saved-bytecode execution, identity emission, aggregate and
@@ -3165,8 +3171,8 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
 | Slice 6: Identity emission/standalone loading | 14% | Seven gates integrated by merged PR#349, including staged-root source and saved-bytecode acceptance | 100% | 14 pp |
 | Slice 7: Diagnostics/explain/locate | 6% | Done on this delivery's merge: PR#351 retains match-pattern spans; PR#352 declaration-signature type spans; PR#353 body-local annotation spans; PR#354 explicit call type-argument spans. This acceptance adds exact under-arity locations for direct and receiver calls and revalidates qualified/ambiguous/wrong-identity selectors, exact mapped ranges, malformed maps and stale source closures in `explain`/`locate` | 100% | 6 pp |
-| Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
-| **Total** | **100%** | **Foundations and slices 1–7 complete; 85 pp earned under the scope estimate; slice 8 remains** | **85% estimated** | **17 pp estimated P2 contribution** |
+| Slice 8: Source/seed cutover and acceptance | 15% | Candidate migrates compiler, stdlib, runner, tests and examples; the 028ef seed and stdlib artifacts reach fresh fixed points; namespace source and source-free saved-v9 behavior pass on native and browser WASI; relocated installed archive smoke passes; full core and browser suites pass. Core and browser PRs await checks/merge. | 100% candidate; merge pending | 15 pp candidate |
+| **Total** | **100%** | **Foundations and slices 1–8 complete in the candidate; PR integration remains** | **100% candidate** | **20 pp estimated P2 contribution** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -3176,11 +3182,12 @@ v9 fixed points are evidence within delivered slices, not partial credit toward
 later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
-P2 contributes an estimated 20% × 85% = **17 pp**. Including P1's accepted
-10 pp, overall estimated programme contribution is **27 pp**. Formal whole-task
-acceptance remains **10 pp** until P2's remaining migration and final acceptance
-are complete. Slices 1–7 are Done on `next` with this delivery; slice 8 remains.
-GI#198 stays open.
+P2 contributes an estimated 20% × 100% = **20 pp** on this candidate. Including
+P1's accepted 10 pp, the estimated programme contribution is **30 pp**. Formal
+whole-task acceptance remains **10 pp** until the core PR merges with its required
+checks green and the companion browser PR's checks pass. The parse-only migration
+diagnostic remains an internal standalone-parser boundary; project commands filter
+it and execute namespace imports. GI#198 stays open until core merge.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset

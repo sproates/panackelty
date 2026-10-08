@@ -1,4 +1,4 @@
-import "../../src/compiler/coverage.panack"
+import project/src/compiler/coverage
 
 pure plan_parent_id(id: Str): Str {
   mut end: Nat = 0

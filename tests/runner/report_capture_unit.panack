@@ -1,5 +1,5 @@
 import stdlib/result
-import "report_capture.panack"
+import project/tests/runner/report_capture
 import stdlib/testing_files
 
 pure capture_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }

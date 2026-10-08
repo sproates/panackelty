@@ -1,2 +1,2 @@
 // The diagnostic belongs to this declaration, not the entry module.
-pure answer(): Nat { 7 }
+pub pure answer(): Nat { 7 }

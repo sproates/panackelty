@@ -1,1 +1,1 @@
-pure answer(): Nat { 42 }
+pub pure answer(): Nat { 42 }

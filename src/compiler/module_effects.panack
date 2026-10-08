@@ -1,5 +1,5 @@
-import "module_bodies.panack"
-import "purity.panack"
+import project/src/compiler/module_bodies
+import project/src/compiler/purity
 
 // Check local call/await boundaries after names and callable types have been
 // resolved to module identities. This pass does not infer transitive effects.

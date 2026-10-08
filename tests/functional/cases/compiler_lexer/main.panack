@@ -1,4 +1,4 @@
-import "../../../../src/compiler/lexer.panack"
+import project/src/compiler/lexer
 
 main(): Void {
   print(render(lex("// skipped\nitem_1 42 2.5 \"text\" => +")))

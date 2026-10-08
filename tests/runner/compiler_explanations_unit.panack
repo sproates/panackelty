@@ -1,4 +1,4 @@
-import "../../src/compiler/explanations.panack"
+import project/src/compiler/explanations
 import stdlib/testing
 
 pure explanation_program(source: Str): Program {

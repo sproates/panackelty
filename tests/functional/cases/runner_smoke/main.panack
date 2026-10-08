@@ -2,7 +2,7 @@ import stdlib/result
 import stdlib/testing_commands
 import stdlib/filesystem
 import stdlib/environment
-import "../../../runner/report_capture.panack"
+import project/tests/runner/report_capture
 
 pure runner_path(text: Str): Path {
   result_value_or(path_from_text(text), path_current())
@@ -64,7 +64,7 @@ main(): Void {
   expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 355, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes(), path_current(),
-    ["PANACKELTY_STDLIB_VALUE=ambient-test"],
+    ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"],
     duration_seconds(90), 1048576)
   result = match environment("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {

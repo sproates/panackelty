@@ -1,4 +1,4 @@
-import "module_signatures.panack"
+import project/src/compiler/module_signatures
 
 // Bind namespace-aware bodies and solve local type constraints by semantic identity.
 // A checked identity/type subset does not certify effects or enable execution.

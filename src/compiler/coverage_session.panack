@@ -1,4 +1,4 @@
-import "coverage.panack"
+import project/src/compiler/coverage
 
 // Aggregate complete, identity-bound execution trees. Registry, nonce and terminal
 // checks prevent unrelated or partial observations from entering a report.

@@ -1,4 +1,4 @@
-import "parser.panack"
+import project/src/compiler/parser
 
 // Literal decoding and scalar arithmetic rules shared by the legacy and bound
 // frontends. Nominal type identity belongs to the module passes.

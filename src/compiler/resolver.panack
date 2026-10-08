@@ -1,4 +1,4 @@
-import "parser.panack"
+import project/src/compiler/parser
 
 // Resolve names in the executable frontend and preserve ordered module diagnostics.
 // Builtin names and local bindings remain distinct from declaration indexes.

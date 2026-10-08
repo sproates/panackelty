@@ -1,4 +1,4 @@
-import "source_maps.panack"
+import project/src/compiler/source_maps
 
 // Describe executable source constructs with structural IDs independent of emitted
 // PCs. Exact snapshots and artifacts bind each observation to its source.

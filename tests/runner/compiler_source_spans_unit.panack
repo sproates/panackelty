@@ -1,4 +1,4 @@
-import "../../src/compiler/parser.panack"
+import project/src/compiler/parser
 import stdlib/testing
 
 pure span_text(span: SourceSpan): Str {

@@ -1,4 +1,4 @@
-import "../../src/compiler/parser.panack"
+import project/src/compiler/parser
 import stdlib/testing
 
 // Direct parser contracts, grouped by the former Python test method.

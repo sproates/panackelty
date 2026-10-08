@@ -150,12 +150,13 @@ main(): Void {
       smoke_bc: Str = dir + "/smoke.bc"
       smoke_inv: Str = dir + "/smoke.inv"
       for a in [["compile", smoke, "-o", smoke_bc], ["inventory", smoke, "-o", smoke_inv]] {
-        setup: ProcessOutput = session_command(a)
+        setup: ProcessOutput = session_command_env(a, ["PANACKELTY_BOOTSTRAP_ROOT=."])
         results = append(results, test_expect("cache guard setup", setup.exit_code == 0, utf8_decode(setup.stderr)))
       }
       cached: ProcessOutput = session_command_env(["coverage-session", dir + "/cached", smoke_bc, smoke_inv, "--"],
-        ["PANACK_TEST_RUNNER_REPORT=" + dir + "/absent-transcript"])
-      cached_report: ProcessOutput = session_command(["coverage-aggregate", "--source", smoke, smoke_inv, "--session", dir + "/cached"])
+        ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACK_TEST_RUNNER_REPORT=" + dir + "/absent-transcript"])
+      cached_report: ProcessOutput = session_command_env(["coverage-aggregate", "--source", smoke, smoke_inv, "--session", dir + "/cached"],
+        ["PANACKELTY_BOOTSTRAP_ROOT=."])
       results = append(results, test_expect("cached transcript cannot invent fresh execution", cached.exit_code == 1 &&
         session_contains(utf8_decode(cached.stderr), "cached runner transcript cannot establish fresh coverage") &&
         cached_report.exit_code == 1 && cached_report.stdout == bytes(), "cache bypassed collection"))

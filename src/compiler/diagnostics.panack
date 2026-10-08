@@ -1,4 +1,4 @@
-import "types.panack"
+import project/src/compiler/types
 
 // Render original source positions without changing the diagnostic contract.
 // Display widths account for tabs and escaped non-ASCII characters.

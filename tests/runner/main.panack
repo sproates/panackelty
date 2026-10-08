@@ -79,17 +79,23 @@ pure runner_command(arguments: [Str], clear_stdlib_value: Bool): TestCommand {
   runner_timed_command(arguments, clear_stdlib_value, 20)
 }
 
+pure runner_bootstrap_command(arguments: [Str], timeout: Nat): TestCommand {
+  TestCommand(runner_path("./panack"), arguments, bytes(), path_current(),
+    ["PANACKELTY_BOOTSTRAP_ROOT=."], duration_seconds(timeout), 1048576)
+}
+
 pure runner_timed_command(arguments: [Str], clear_stdlib_value: Bool,
                           timeout: Nat): TestCommand {
   // process_run can override inherited variables, but cannot remove them.
   // The stdlib fixture expects this variable to be absent, as in the Python harness.
   if clear_stdlib_value {
     TestCommand(runner_path("/bin/sh"),
-      ["-c", "unset PANACKELTY_STDLIB_VALUE; exec \"$@\"", "runner-stdlib",
+      ["-c", "unset PANACKELTY_STDLIB_VALUE PANACKELTY_BOOTSTRAP_ROOT; exec \"$@\"", "runner-stdlib",
         "./panack"].concat(arguments), bytes(), path_current(), [],
       duration_seconds(timeout), 1048576)
   } else {
-    TestCommand(runner_path("./panack"), arguments, bytes(), path_current(), [],
+    TestCommand(runner_path("/usr/bin/env"),
+      ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack"].concat(arguments), bytes(), path_current(), [],
       duration_seconds(timeout), 1048576)
   }
 }
@@ -119,8 +125,13 @@ runner_program(label: Str, source: Path, expected_file: Path,
       // This source path builds the complete compiler before executing it.
       // Match compiler_driver's build allowance; ordinary cases keep 20s.
       source_timeout = if label == "case/compiler_skeleton" { 90 } else { 20 }
+      source_command = if label == "case/compiler_skeleton" || label == "case/compiler_lexer" {
+        runner_bootstrap_command(["run", source_path], source_timeout)
+      } else {
+        runner_timed_command(["run", source_path], label == "case/stdlib", source_timeout)
+      }
       source_result = test_run_command("${label}/source",
-        runner_timed_command(["run", source_path], label == "case/stdlib", source_timeout),
+        source_command,
         ProcessOutput(0, 0, expected, bytes()))
       results = results.append(source_result)
 
@@ -128,8 +139,11 @@ runner_program(label: Str, source: Path, expected_file: Path,
         // The bootstrap recipe has already built and verified this artifact.
         TestCommand(runner_path("/bin/sh"),
           ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec ./panack compile \"$2\" -o \"$1\"; fi",
-            "runner-compiler", expected_path, source_path], bytes(), path_current(), [],
+            "runner-compiler", expected_path, source_path], bytes(), path_current(),
+          ["PANACKELTY_BOOTSTRAP_ROOT=."],
           duration_seconds(90), 1048576)
+      } else if label == "case/compiler_lexer" {
+        runner_bootstrap_command(["compile", source_path, "-o", expected_path], source_timeout)
       } else {
         runner_command(["compile", source_path, "-o", expected_path], label == "case/stdlib")
       }

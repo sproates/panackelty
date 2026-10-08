@@ -1,4 +1,4 @@
-import "codec.panack"
+import project/src/bytecode/codec
 
 record ByteReader {
   data: Bytes,

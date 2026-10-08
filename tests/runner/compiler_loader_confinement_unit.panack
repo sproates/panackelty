@@ -1,4 +1,4 @@
-import "../../src/compiler/loader.panack"
+import project/src/compiler/loader
 import stdlib/result
 import stdlib/testing
 import stdlib/testing_files

@@ -1,4 +1,4 @@
-import "module_bodies.panack"
+import project/src/compiler/module_bodies
 
 // Convert only fully checked namespace bodies to the legacy instruction
 // frontend. Module and declaration identities become deterministic private

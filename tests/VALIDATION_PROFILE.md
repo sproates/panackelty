@@ -4062,3 +4062,68 @@ changes tests and documents only, so it establishes no causal timing effect.
 Retain all coverage and budgets under GI#106. The public namespace execution
 gate, checked-in seed, and slice-7/8 acceptance remain unchanged. Website impact:
 none.
+
+
+## Namespace-capable stage-1 seed for Slice 8 — 2026-10-08
+
+The checked-in v9 seed from `e9bca79` rejects the namespace-emission acceptance
+fixture with the existing migration-pending diagnostic. Building stage 2 from
+the current compiler sources using that seed succeeds on the same program, with
+exact output `41, 42, 43, 44, 41, 42, 44, 45, 51, 52`. This establishes that
+the current compiler source contains the required namespace path while the
+checked-in seed had not yet been refreshed to it.
+
+`make regenerate-seed` passed. The stage-2, stage-3 and stage-4 compiler SHA-256
+values were all
+`028efbbb55abaf91d191e0b3b51e10354e15b34e3d8af090a0b7554b7c01e5ae`; the
+standard-library conformance artifact digest was
+`8b78b9722d18fb973a5d9da88d1a5df4c65f2703a7745d7160157445f9791af4`. The
+refreshed checked-in seed then passed the explicit `project/left` and
+`project/right` imports, source check/run, compilation, bytecode verification and
+execution after every source file was removed. The new
+`tests/namespace_seed.sh` makes that direct stage-1 acceptance part of
+`make bootstrap-check`.
+
+At the time this bootstrap prerequisite was recorded, it did not yet migrate
+compiler or standard-library source imports or establish the final fixed points
+and platform acceptance; those Slice 8 checks are recorded below.
+
+
+## Slice 8 coordinated cutover and acceptance — 2026-10-08
+
+The Slice 8 candidate migrates active compiler and bytecode-source imports,
+standard-library imports, compiler/unit runners, native-oracle fixtures, source
+coverage and examples to logical `project/` and `stdlib/` imports. The refreshed
+v9 seed is `028efbbb55abaf91d191e0b3b51e10354e15b34e3d8af090a0b7554b7c01e5ae`;
+fresh stage-2/3/4 compiler outputs and stage-1/2/3 standard-library outputs
+match. `tests/namespace_seed.sh` checks source check/run/compile and saved-v9
+check/run after removing every source file.
+
+Core validation passed: `make unit-harness`, `make unit-compiler`,
+loopback-enabled `make unit-runtime`, `make functional` (355 fixture assertions),
+`make bootstrap-check`, and `make release-smoke` (relocated installed archive).
+The canonical `make check` target passed all phases in 136s when invoked with
+`CHECK_BUDGET_SECONDS=240 INCREMENTAL_BUDGET_SECONDS=60`; the repository defaults
+remain 120s and 15s. The default unit budget was too small for this 53s aggregate
+unit phase. `make native-check` also passed the full native source/bytecode and
+diagnostic conformance matrix. Loopback access is required by native VM TCP contracts. The
+`tests/native_oracle_contracts.sh` root setup was corrected for migrated
+compiler-lexer and runner-smoke fixtures after this integrated check exposed
+their stale per-fixture project roots.
+
+Browser acceptance used WASI SDK 34.0 on macOS. `npm test` passed all 21 tests,
+including byte-identical native/WASI compilation of a namespaced project and
+execution of its bytecode after source removal. `npm run test:browser` passed all
+24 Chromium, Firefox and WebKit tests. The browser host adapter implements only
+`fs_metadata` over the WASI-preopened virtual filesystem; other host capabilities
+remain unavailable. The local browser package command uses GNU tar options and
+could not run with macOS BSD tar; the Browser PR's Ubuntu CI packages the tested
+artifact.
+
+The public project compiler executes namespaces. A parse-only migration diagnostic
+is still used internally by the standalone parser boundary and is filtered by
+project commands; removing it previously regressed standalone parser contracts.
+It does not gate project or installed namespace execution. Core and Browser PR
+checks and merge remain required before formal P2 issue closure. Website impact:
+the browser runtime's support for project namespace loading is an implementation
+compatibility fix; no new published language feature claim is made.

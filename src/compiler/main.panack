@@ -1,4 +1,4 @@
-import "driver.panack"
+import project/src/compiler/driver
 
 // Executable entry point for the self-hosted compiler command boundary.
 

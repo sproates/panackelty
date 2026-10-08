@@ -1,7 +1,7 @@
-import "../bytecode/decoder.panack"
-import "module_bodies.panack"
-import "module_effects.panack"
-import "../stdlib/filesystem.panack"
+import project/src/bytecode/decoder
+import project/src/compiler/module_bodies
+import project/src/compiler/module_effects
+import stdlib/filesystem
 
 // Resolve and read the module closure once, preserving traversal order and original
 // source snapshots. Host I/O belongs here rather than in the pure frontend.

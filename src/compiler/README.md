@@ -40,10 +40,11 @@ documented in `../../docs/SOURCE_MAPS.md`.
   with complete nested generic and
   array type references. Generic record fields and enum variant payloads are
   parsed alongside pure and impure functions with scoped type parameters and
-  optional explicit type arguments at direct and receiver-first calls. The parser covers the complete
-  accepted executable grammar; raw module parsing also retains staged namespace
-  declaration/import forms and qualified types/references/patterns without enabling
-  their execution. Gated legacy parsing lowers dot calls to receiver-first calls.
+  optional explicit type arguments at direct and receiver-first calls. Project
+  loading executes namespace declaration/import forms and qualified types,
+  references and patterns through the identity-aware pipeline. The standalone
+  legacy parser remains available to focused frontend contracts. Dot calls
+  lower to receiver-first calls.
   `indexed_program` retains declaration order while
   building separate type/record/enum/function indexes and variant metadata.
   Construct programs through this factory, including synthetic test ASTs.
@@ -83,8 +84,8 @@ documented in `../../docs/SOURCE_MAPS.md`.
   errors point to the corresponding type token, including receiver calls.
   Receiver-first nonbuiltin helper uses retain their declaration identity too,
   so public guards cannot hide private helpers behind method spelling.
-  The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary
-  execution gate until compiler/stdlib/fixture migration and fresh conformance.
+  The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` retains the legacy single-program boundary;
+  project commands use the complete checked identity pipeline.
 - `module_signatures.panack` resolves staged declaration signatures to tagged core,
   nominal, binder-position parameter and callable-effect identities. Original-ID
   public reachability validates nested fields/payloads/parameters/returns and

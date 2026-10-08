@@ -1,4 +1,4 @@
-import "../../src/compiler/lexer.panack"
+import project/src/compiler/lexer
 import stdlib/testing
 
 // Direct lexer unit contracts. Keep these independent of the public compiler CLI:

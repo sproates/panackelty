@@ -186,10 +186,13 @@ functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/t
 		fi && \
 		cat "$$report" && \
 		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
+			PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" \
 			PANACK_TEST_RUNNER_REPORT="$$report" \
 			./panack run tests/functional/cases/runner_smoke/main.panack && \
-		./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
+		PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" \
+			./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
 		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
+			PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" \
 			PANACK_TEST_RUNNER_REPORT="$$report" ./panack run "$$artifact"
 
 native: panack-vm
@@ -326,12 +329,12 @@ probe-inputs:
 # The helper checks content, including imports, even when timestamps are restored.
 $(STAGE2_COMPILER): $(STAGE1_COMPILER) probe-inputs
 	@mkdir -p "$(dir $@)"
-	@PANACKELTY_BOOTSTRAP_ROOT="$(abspath src)" PANACK_PROBE_SEED="$(abspath $(STAGE1_COMPILER))" $(PROFILE) "bootstrap-build/$@" $(PROBE) --compile $(COMPILER_SOURCE) "$@"
+	@PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" PANACK_PROBE_SEED="$(abspath $(STAGE1_COMPILER))" $(PROFILE) "bootstrap-build/$@" $(PROBE) --compile $(COMPILER_SOURCE) "$@"
 	@./panack-vm check "$@"
 
 $(STAGE3_COMPILER): $(STAGE2_COMPILER) $(COMPILER_SOURCE)
 	mkdir -p $(dir $@)
-	PANACKELTY_BOOTSTRAP_ROOT="$(abspath src)" $(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE2_COMPILER) compile $(COMPILER_SOURCE) -o $@
+	PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" $(PROFILE) "bootstrap-build/$@" ./panack-vm run $(STAGE2_COMPILER) compile $(COMPILER_SOURCE) -o $@
 	./panack-vm check $@
 
 $(STAGE1_STDLIB): $(STAGE1_COMPILER) $(STDLIB_CONFORMANCE)
@@ -350,6 +353,7 @@ bootstrap-check: native
 
 bootstrap-check-impl:
 	@sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh
+	@sh tests/namespace_seed.sh
 
 .PHONY: bootstrap-fixed-point bootstrap-seed-refresh
 bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)

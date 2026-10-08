@@ -1,4 +1,4 @@
-import "../../src/compiler/purity.panack"
+import project/src/compiler/purity
 import stdlib/testing
 
 // Shared source fixtures also feed the retained Python differential oracle.

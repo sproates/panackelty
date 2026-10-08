@@ -1,22 +1,7 @@
 PASS CRLF Unicode and tab
 PASS EOF closing brace
-PASS namespace boundary/check
-PASS namespace boundary/compile
-PASS namespace boundary/run
-PASS namespace boundary/check
-PASS namespace boundary/compile
-PASS namespace boundary/run
-PASS namespace boundary/check
-PASS namespace boundary/compile
-PASS namespace boundary/run
-PASS namespace boundary/check
-PASS namespace boundary/compile
-PASS namespace boundary/run
-PASS namespace boundary/check
-PASS namespace boundary/compile
-PASS namespace boundary/run
-PASS namespace boundary/check
-PASS namespace boundary/compile
-PASS namespace boundary/run
-PASS namespace rejection creates no bytecode
-tests: 21, failures: 0
+PASS namespace execution/check
+PASS namespace execution/compile
+PASS namespace execution/run
+PASS namespace saved bytecode
+tests: 6, failures: 0

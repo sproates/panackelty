@@ -1,20 +1,19 @@
 # Panackelty
 
-**A small, expressive programming language for dependable terminal tools and
-exact numerical work.**
+**Exact math. Guarded types. A compiler written in Panackelty.**
 
-[Website](https://panackelty.com) · [Native VM coverage](https://sproates.github.io/panackelty-coverage/) · [Specification](SPEC.md) ·
-[Releases](../../releases) · [Contributing](CONTRIBUTING.md)
+Panackelty is an experimental, statically checked programming language for
+command-line programs. It combines arbitrary-precision integers and exact
+rational and decimal arithmetic with guarded domain types, explicit effects,
+structured data, and a portable bytecode VM. The `panack explain` command shows
+evidence for selected natural-number subtraction proofs and local call/await
+effect boundaries. Successive self-hosted compiler builds are checked for
+byte-identical output.
 
-The [website repository](https://github.com/sproates/panackelty-website) owns site source, previews and publication.
-It deliberately pins native and [browser releases](https://github.com/sproates/panackelty-browser);
-new core releases do not automatically update the site. Native development
-requires neither WASI SDK nor JavaScript packages.
-
-Panackelty combines arbitrary-precision numbers, checked domain types, explicit
-effects, and a portable bytecode VM. Its syntax stays compact enough for a quick
-script while its compiler catches the mistakes that become expensive when a
-program grows.
+The name comes from [panackelty](https://en.wikipedia.org/wiki/Panackelty), a
+traditional North East English dish particularly associated with Sunderland
+and County Durham. It brings meat and vegetables together in one pan; **Panack**
+is also the name of this project's command-line tool.
 
 <p align="center">
   <img src="docs/assets/panackelty.jpg" width="800" alt="A home-cooked plate of panackelty with beef, potatoes, carrots, and peas in gravy">
@@ -26,6 +25,35 @@ program grows.
     <a href="docs/assets/README.md">licensed under CC BY 4.0</a>.
   </sub>
 </p>
+
+[Website](https://panackelty.com) · [Native VM coverage](https://sproates.github.io/panackelty-coverage/) · [Specification](SPEC.md) ·
+[Releases](../../releases) · [Contributing](CONTRIBUTING.md)
+
+## Why Panackelty?
+
+- **Exact arithmetic, with explicit conversions.** `Nat` and `Int` are
+  arbitrary-precision integers; `Rat` is an exact rational; and `Dec` uses
+  exact base-10 arithmetic. Conversions do not silently round. See the
+  [rational and conversion rules](SPEC.md#rational-arithmetic-and-exact-conversions).
+- **Domain rules the compiler can prove.** Guarded types represent values such
+  as valid port numbers, and conversions are accepted only when the compiler
+  can prove the rule. Try the [guarded-types example](examples/guards.panack)
+  or read the [specification](SPEC.md#guarded-types).
+- **Inspect selected compiler decisions.** `panack explain` exposes evidence
+  for supported `Nat` subtraction proofs and local call/await effect checks. Its
+  explanations are bounded; they do not certify whole-program validity or
+  explain runtime behavior. See the [explanation guide](docs/COMPILER_EXPLANATIONS.md).
+- **A compiler built with the language.** Panackelty's compiler is written in
+  Panackelty, and reproducible bootstrap checks require successive builds to
+  converge byte-for-byte. Follow the [self-hosting guide](SELF_HOSTING.md) for
+  the bootstrap chain and its evidence.
+- **Effects stay visible.** `pure` functions cannot perform I/O or call
+  effectful code; local loops and mutation remain available for clear algorithms.
+- **Model complete programs.** Records, generic tagged unions, exhaustive
+  matching, named callable values, persistent collections, Unicode strings,
+  modules, and host APIs are part of the language and standard library.
+- **One verified execution path.** Source compiles to versioned bytecode, which
+  the Panackelty VM verifies before it runs.
 
 ## Exact fractions and Unit
 
@@ -365,42 +393,6 @@ rm "$HOME/.local/bin/panack"
 rm -rf "$HOME/.local/opt/panackelty"
 ```
 
-## What's in the name?
-
-[Panackelty](https://en.wikipedia.org/wiki/Panackelty) is a traditional North
-East English dish, particularly associated with Sunderland and County Durham.
-It slowly brings simple ingredients—usually meat, potatoes, onions, and other
-root vegetables—together in one pan. **Panack** is the short form, and the name
-of this project's command-line tool.
-
-The name fits the language: Panackelty is built from a deliberately small set of
-ingredients that work well together, and everything ends up in one dependable
-runtime.
-
-## Why Panackelty?
-
-- **Numbers mean what they say.** `Nat` and `Int` are arbitrary precision, and
-  `Dec` uses exact base-10 arithmetic rather than binary floating point.
-- **Make invalid values harder to express.** Guarded types attach checked domain
-  rules—such as a valid port range—to ordinary scalar values.
-- **See side effects at a glance.** `pure` functions cannot quietly perform I/O
-  or call effectful code; local loops and mutation are still available when
-  they make an algorithm clearer.
-- **Model real programs directly.** Records, generic tagged unions, exhaustive
-  matching, named callable values, persistent collections, Unicode strings,
-  and modules are built in.
-- **Ship one execution model.** Source always compiles to versioned bytecode,
-  which is verified before the Panackelty VM runs it.
-- **Trust the bootstrap story.** The public compiler is written in Panackelty,
-  and the project checks that successive compiler builds are byte-for-byte
-  identical.
-
-Panackelty is experimental, but it is already capable of compiling itself and
-running complete command-line programs.
-
-`else` is optional for a conditional used only for control flow. A conditional
-that produces a value remains exhaustive and requires both branches.
-
 ## A quick language tour
 
 Every linked program is included in the download archive and exercised from
@@ -420,6 +412,9 @@ of an extracted archive, use `./bin/panack run examples/NAME.panack`.
 | Persistent arrays, maps, sets, and byte buffers | [`collections_and_bytes.panack`](examples/collections_and_bytes.panack) | [Persistent collections and bytes](SPEC.md#persistent-collections-and-bytes) |
 | Logical modules and the bundled standard library | [`option_result.panack`](examples/option_result.panack) | [Modules](SPEC.md#modules) and [standard library](SPEC.md#standard-library) |
 | One verified bytecode execution model | Any example above | [Compilation and the Panackelty VM](SPEC.md#compilation-and-the-panackelty-vm) |
+
+`else` is optional for a conditional used only for control flow. A conditional
+that produces a value remains exhaustive and requires both branches.
 
 The examples deliberately stay small enough to modify. The
 [`examples` guide](examples/README.md) continues with complete algorithms,
@@ -715,14 +710,18 @@ and bytecode.
   **Bug report** form and covers development expectations.
 - Panackelty is available under the [MIT License](LICENSE).
 
-The website promotes a reviewed snapshot of [CHANGELOG.md](CHANGELOG.md) through
-its own PR. See [release promotion](RELEASE_POLICY.md#website-release-history)
-and the [website repository](https://github.com/sproates/panackelty-website) for development and local previews.
+The [website repository](https://github.com/sproates/panackelty-website) owns
+site source, previews and publication. It pins native and
+[browser releases](https://github.com/sproates/panackelty-browser); new core
+releases do not automatically update the site. The website promotes a reviewed
+snapshot of [CHANGELOG.md](CHANGELOG.md) through its own PR. See
+[release promotion](RELEASE_POLICY.md#website-release-history) for details.
 
 ## Build Panackelty itself
 
 This workflow is for contributors and people who want to build or inspect the
 toolchain itself. Normal Panackelty programs should use a downloaded release.
+Native development requires neither WASI SDK nor JavaScript packages.
 
 A source build requires a POSIX-like Linux or macOS environment, a C11 compiler,
 and `make`, plus standard POSIX utilities and a SHA-256 utility. The complete

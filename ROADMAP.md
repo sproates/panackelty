@@ -19,7 +19,9 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#142.**
+The initial allocation contains **105 identities**. **Next available: RM#149.**
+RM#136–RM#141 are already allocated to source-coverage stages on `next`;
+reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
 pointer in the same change. Never renumber or reuse IDs on reordering, completion,
 deferral or retirement. Retain a linked tombstone for a removed or merged item.
@@ -38,6 +40,92 @@ Earlier review notes and outcome counts below are historical records only and
 must not be used to schedule a review or block work. This supersedes count-based
 wording in older issue histories as well. See the
 [review process](docs/ROADMAP_PROCESS.md#review-and-completion).
+
+## Next release — agreed scope, 2026-10-06
+
+<a id="rm-143"></a>
+
+**RM#143: Next release — source coverage, namespaces and else if.**
+
+The owner selected these three outcomes for the next core release after
+alpha.11. The intended version is alpha.12; no date is selected. This is an alpha-era release plan,
+distinct from [RM#126: First non-alpha release](#rm-126); it does not claim the
+broader non-alpha milestone is complete.
+
+| Included outcome | Current state | Release acceptance |
+| --- | --- | --- |
+| Panackelty source coverage — [RM#46](#rm-46), [GI#131](https://github.com/sproates/panackelty/issues/131) | Integrated into `next`; bounded SC1–SC6 programme accepted and reports verified live. | Validate the promoted toolchain and packaged inventory/collection/report commands; retain explicit measured-corpus limits, source identities and regression policy. |
+| Namespaces — [RM#41](#rm-41), [GI#198](https://github.com/sproates/panackelty/issues/198) | Foundations and partial checking delivered; executable namespace support is unfinished. | Complete the agreed namespace delivery checklist, including identity-based checking/emission, imports/name isolation, source and saved-bytecode execution, diagnostics, bootstrap and documented limitations. |
+| Else-if chains — [RM#142](#rm-142), [GI#312](https://github.com/sproates/panackelty/issues/312) | Integrated into next through PR#316; compiler, bootstrap and examples tested. | Accept chained conditional syntax with correct evaluation, type/effect rules, source locations and tested source/bytecode behaviour; update the specification and examples. |
+
+Release only after all three outcomes meet their acceptance gates, the
+`next`-to-`main` promotion passes required checks and receives explicit owner
+approval, and packaging/install/release validation passes. Release notes must
+describe delivered behaviour and limitations rather than planned features.
+The source coverage report remains distinct from native C coverage and does not
+claim whole-suite coverage or assertion quality.
+
+The website has its own reviewed publication: update release/download pins,
+feature text and coverage links, moving source coverage and executable namespaces
+from future work to delivered capabilities only after release verification.
+Document else-if syntax in the appropriate language examples. Provide a working
+preview before owner merge approval.
+
+Packages, HTTP, the post-namespace stdlib refactor, broad example expansion and
+the repository-wide readability/test programme are not additional gates for
+this three-outcome release. Their existing scope and dependencies remain intact;
+further scope requires an explicit owner decision.
+
+### Alpha 13 — HTTP and expanded explanations
+
+<a id="rm-144"></a>
+
+**RM#144: Planned alpha.13 — HTTP and expanded explanations.**
+
+Owner decision, 2026-10-06: plan a further alpha release after alpha.12 around
+HTTP and expanded explanations, using existing backlog scope. **Planned, not
+released; no date selected.** This records release intent, not feature delivery,
+implementation selection or completion of the first non-alpha milestone.
+
+| Planned outcome | Backlog scope and current state | Release acceptance |
+| --- | --- | --- |
+| Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
+| Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
+| Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
+| Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
+
+HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
+language/local-package checkpoint before HTTP, and client-before-server sequencing.
+Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
+scope does not complete reproducible dependencies or the whole GI#233 programme.
+
+GI#180's owner-requested pause remains in effect: scheduling this release does
+not restart explanation implementation. Concrete U3/U4 slice contracts need
+selection before work. U5 counterfactuals, U6 change prediction and U7 runtime
+value provenance remain outside this alpha.13 plan unless separately selected;
+all retain their full programme scope and acceptance criteria.
+
+Release only after agreed outcomes and supporting prerequisites are accepted,
+required promotion/package/install checks pass and the owner approves publication.
+Update version-specific documentation and website claims through a separate
+reviewed publication with an iPhone-accessible preview. Do not claim experimental
+work is shipped or describe this release as production-ready.
+
+### Else-if chains
+
+<a id="rm-142"></a>
+
+**RM#142: Else-if chains** ·
+[GI#312: Else-if chains](https://github.com/sproates/panackelty/issues/312).
+
+**Implemented in next through PR#316; planned for alpha.12, not released.** Accept
+`if ... { ... } else if ... { ... }` chains with an optional final else block.
+Preserve existing nested syntax and conditional result/Void rules, type/effect
+checking, ordered short-circuit evaluation and useful malformed-input diagnostics.
+Tests cover selected and skipped arms, omitted else where legal, rejected
+conditions/results/effects, source spans and source/saved-bytecode parity.
+Preserve source inventory/coverage meaning and compiler/stdlib fixed points.
+Update SPEC.md and coding guidance when the syntax is implemented.
 
 ## First non-alpha release — milestone definition
 
@@ -4221,6 +4309,92 @@ Panackelty should combine strong static guarantees with a low-friction programmi
 experience. Powerful checking is useful only when programmers can understand a
 failure and act on it quickly. New features should therefore be evaluated on
 both the guarantees they provide and the clarity of the resulting workflow.
+
+### Long-term direction: grow Panackelty through real programs
+
+Treat the following as strategic challenges and sources of direction, not release
+commitments or a fixed implementation plan. None is inherently infeasible; the
+cost and sequencing differ. Let representative programs, measurements, and user
+needs guide the work.
+
+- **Performance:** maintain representative benchmarks, then investigate options
+  such as fixed-width arithmetic with explicit overflow and conversion semantics,
+  JIT compilation, or ahead-of-time native compilation. These are distinct
+  possibilities to evaluate; recording them does not select one.
+- **Ecosystem:** grow the ecosystem by building useful software in Panackelty:
+  reusable libraries, tools, services, and eventually frameworks. Let real
+  projects expose which language, standard-library, packaging, and tooling gaps
+  matter next.
+- **Platforms:** expand the supported targets and distribution options when they
+  are useful and maintainable. Assess compiler/runtime portability, CI, packaging,
+  and ongoing support for each target. Windows is a candidate to consider, not a
+  commitment in this direction statement.
+- **Ease of use and guarantees:** use ordinary programs to find where the language
+  creates helpful confidence and where it adds avoidable friction. Improve common
+  workflows through clear diagnostics, inference, APIs, or syntax as evidence
+  supports. Strong checking should not be confused with requiring pure programs
+  or unnecessary defensive runtime guards.
+
+This direction does not set a release date, promise a particular platform or
+compiler strategy, or relax Panackelty's guarantees. Specific proposals still
+need their own semantics, evidence, and maintenance assessment.
+
+### Further language research — unscheduled
+
+The following are research and discussion topics only. They are not selected
+implementation work, are not included in alpha 12, alpha 13, or the first
+non-alpha release plan, and have no target release or date. Each needs a
+separate user decision before scope or delivery is selected.
+
+<a id="rm-145"></a>
+
+**RM#145: Foreign-function interface (FFI).**
+
+**Idea; research and discussion only.** Assess whether Panackelty should call
+foreign code, and what a safe, maintainable boundary would require. Compare
+possible ABI and platform scope, mapping of Panackelty types and effects,
+ownership and lifetime rules, error handling, and containment of unsafe
+behavior. Identify which use cases cannot be served by the current host boundary.
+This does not select a foreign language, ABI, syntax, or implementation.
+
+<a id="rm-146"></a>
+
+**RM#146: Tracked concurrency.**
+
+**Idea; research and discussion only.** Explore how pure computations and an
+explicit model for effects and shared resources could prevent data races while
+allowing useful multi-core scaling. Define what the compiler and runtime would
+need to track across task creation, communication, cancellation, and resource
+ownership. Test the idea against representative parallel workloads and compare
+its guarantees, determinism, usability, and overhead with simpler alternatives.
+Purity alone is not assumed to solve synchronization or scheduling.
+
+<a id="rm-147"></a>
+
+**RM#147: Compile-time macros.**
+
+**Idea; research and discussion only.** Assess whether compile-time macros
+would solve demonstrated repetition or abstraction problems. Compare expansion
+models and their effects on type checking, hygiene, diagnostics, build
+reproducibility, caching, and compiler trust boundaries. Define useful examples
+and costs before considering syntax or implementation; no macro system is
+selected.
+
+<a id="rm-148"></a>
+
+**RM#148: Resource lifecycle types.**
+
+**Idea; research and discussion only.** Compare linear types and typestate as
+alternative ways for the compiler to track the lifecycle of external resources
+such as files, sockets, or processes. Evaluate ownership, valid state
+transitions, error and cancellation paths, API complexity, and whether the
+guarantees prevent practical resource misuse without making ordinary programs
+harder to write. No type system or syntax is selected.
+
+JIT feasibility is already recorded as an unscheduled research question under
+[RM#56: Performance baselines](#rm-56); retain that record rather than creating
+a duplicate item. Research there does not select a JIT, native backend, or
+release scope.
 
 ### Error propagation shorthand
 

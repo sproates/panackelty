@@ -12,4 +12,10 @@ main(): Void {
   print(invoke(@right.indirect_value))
   match left_outcome { left.Outcome.Finished(value) => print(value.item.value) }
   match right_outcome { right.Outcome.Finished(value) => print(value.item.value) }
+  left_positive: left.ProvenPositive = 45
+  right_positive: right.ProvenPositive = 46
+  print(left_positive - 1)
+  print(right_positive - 1)
+  print(if left.positive(45) { 51 } else { 0 })
+  print(if right.positive(46) { 52 } else { 0 })
 }

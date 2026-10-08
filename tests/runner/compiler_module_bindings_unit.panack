@@ -145,7 +145,7 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_status_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
   results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
   mut saw_main: Bool = false
@@ -319,6 +319,101 @@ module_emission_program_tests(): [TestResult] {
     results = append(results, test_expect("identity emission produces verified bytecode", len(artifact) > 0, "empty artifact"))
   } else {}
   results
+}
+
+pure module_emission_await_call_name(expression: Expr): Str {
+  match unlocated_expression(expression) {
+    UnaryExpr(operator, operand) => if operator == "await" {
+      match unlocated_expression(operand) {
+        CallExpr(name, arguments, types) => name,
+        LocatedExpr(span, value) => "",
+        NatExpr(value) => "",
+        DecimalExpr(value) => "",
+        StringExpr(value) => "",
+        BoolExpr(value) => "",
+        NameExpr(name) => "",
+        FunctionExpr(name) => "",
+        ArrayExpr(items) => "",
+        UnaryExpr(nested, value) => "",
+        BinaryExpr(nested, left, right) => "",
+        DotCallExpr(target, name, arguments, types) => "",
+        FieldExpr(target, field) => "",
+        IndexExpr(target, index) => "",
+        IfExpr(condition, yes, no, has_else) => "",
+        BlockExpr(block) => "",
+        MatchExpr(subject, arms) => ""
+      }
+    } else {
+      ""
+    },
+    LocatedExpr(span, value) => "",
+    NatExpr(value) => "",
+    DecimalExpr(value) => "",
+    StringExpr(value) => "",
+    BoolExpr(value) => "",
+    NameExpr(name) => "",
+    FunctionExpr(name) => "",
+    ArrayExpr(items) => "",
+    BinaryExpr(operator, left, right) => "",
+    CallExpr(name, arguments, types) => "",
+    DotCallExpr(target, name, arguments, types) => "",
+    FieldExpr(target, field) => "",
+    IndexExpr(target, index) => "",
+    IfExpr(condition, yes, no, has_else) => "",
+    BlockExpr(block) => "",
+    MatchExpr(subject, arms) => ""
+  }
+}
+
+module_emission_effect_tests(): [TestResult] {
+  entry_path: Str = path_resolve("tests/fixtures/compiler_contracts/namespaces/emission/async_helpers.panack")
+  project_root: Str = path_parent(entry_path)
+  stdlib_root: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+  loaded: LoadedProject = load_project(entry_path)
+  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  entry: ModuleIdentity = source_module_identity(entry_path, project_root, stdlib_root)
+  left: ModuleIdentity = source_module_identity(path_join(project_root, "left.panack"), project_root, stdlib_root)
+  right: ModuleIdentity = source_module_identity(path_join(project_root, "right.panack"), project_root, stdlib_root)
+  left_function: Str = module_emission_symbol(graph, entry, DeclarationIdentity(entry, "left_value"))
+  right_function: Str = module_emission_symbol(graph, entry, DeclarationIdentity(entry, "right_value"))
+  left_fetch: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "fetch"))
+  right_fetch: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "fetch"))
+  emitted: ModuleEmissionResult = module_emission_program(graph, loaded.modules, loaded.module_signatures, loaded.module_bodies, entry)
+  mut left_is_async: Bool = false
+  mut right_is_async: Bool = false
+  mut left_await_target: Str = ""
+  mut right_await_target: Str = ""
+  for declaration in emitted.program.declarations {
+    match declaration {
+      FunctionDeclaration(name, parameters, result_type, is_pure, is_async, body, type_parameters) => {
+        if name == left_function {
+          left_is_async = is_async
+          match body.value {
+            TailBlockValue(value) => { left_await_target = module_emission_await_call_name(value) },
+            NoBlockValue() => {}
+          }
+        } else {
+          if name == right_function {
+            right_is_async = is_async
+            match body.value {
+              TailBlockValue(value) => { right_await_target = module_emission_await_call_name(value) },
+              NoBlockValue() => {}
+            }
+          } else {}
+        }
+      },
+      TypeDeclaration(name, base, guard) => {},
+      ImportDeclaration(path) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {}
+    }
+  }
+  [
+    test_equal_nat("proof/effect emission fixture diagnostics", len(emitted.diagnostics), 0),
+    test_expect("proof/effect emission retains async function identities", left_is_async && right_is_async, "async flags were dropped"),
+    test_expect("await emission targets the left imported async identity", left_await_target == left_fetch, left_await_target),
+    test_expect("await emission targets the right imported async identity", right_await_target == right_fetch && left_await_target != right_await_target, right_await_target)
+  ]
 }
 
 pure module_emission_bodies_with_status(

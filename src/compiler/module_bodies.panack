@@ -1046,7 +1046,7 @@ pure body_call(
 pure body_special_core_call(target: BodyTarget): Bool {
   match target {
     BodyDeclaration(binding) => false,
-    BodyCore(name) => name == "$method_call" || name == "len" || name == "$method_map" ||
+    BodyCore(name) => name == "$unit" || name == "$method_call" || name == "len" || name == "$method_map" ||
       name == "$method_reduce" || name == "$method_put" || name == "$method_get" ||
       name == "$method_has" || name == "$method_add" || name == "map_put" ||
       name == "map_get" || name == "map_has" || name == "has" || name == "set_add" ||
@@ -1093,6 +1093,13 @@ pure body_check_special_core_call(
       Diagnostic("explicit type arguments require a generic function", span.start)
     )
   }
+  if name == "$unit" {
+    if len(children) != 0 {
+      diagnostics = append(diagnostics, Diagnostic("Unit expects 0 arguments, got ${len(children)}", span.start))
+    } else {
+      output = body_core_type("Unit")
+    }
+  } else {
   if name == "$method_call" && len(children) == 0 {
     diagnostics = append(diagnostics, Diagnostic("call requires a callable", span.start))
   } else {
@@ -1195,6 +1202,7 @@ pure body_check_special_core_call(
       }
       }
     }
+  }
   }
   BodyResult(BoundBody(BodyCall(target, types), span, children, output, []), diagnostics, deferred)
 }

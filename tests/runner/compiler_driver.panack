@@ -33,12 +33,15 @@ main(): Void {
       }
       source = "tests/functional/cases/hello_world/main.panack"
       namespace_source = "tests/fixtures/compiler_contracts/namespaces/emission/main.panack"
+      namespace_async_source = "tests/fixtures/compiler_contracts/namespaces/emission/async_helpers.panack"
       self_hosted = child(workspace.root, "self-hosted.bc")
       bootstrap = child(workspace.root, "bootstrap.bc")
       namespace_artifact = child(workspace.root, "namespace.bc")
+      namespace_async_artifact = child(workspace.root, "namespace-async.bc")
       self_hosted_text = result_value_or(path_to_text(self_hosted), "invalid-self-hosted")
       bootstrap_text = result_value_or(path_to_text(bootstrap), "invalid-bootstrap")
       namespace_artifact_text = result_value_or(path_to_text(namespace_artifact), "invalid-namespace-artifact")
+      namespace_async_artifact_text = result_value_or(path_to_text(namespace_async_artifact), "invalid-namespace-async-artifact")
       mut results: [TestResult] = []
       match environment("PANACK_TEST_COMPILER") {
         Some(cached) => {},
@@ -63,13 +66,25 @@ main(): Void {
             ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
           results = results.append(test_run_command("namespace identity source execution",
             compiler_command(compiler, ["run", namespace_source]),
-            ProcessOutput(0, 0, utf8_encode("41\n42\n43\n44\n41\n42\n"), bytes())))
+            ProcessOutput(0, 0, utf8_encode("41\n42\n43\n44\n41\n42\n44\n45\n51\n52\n"), bytes())))
           results = results.append(test_run_command("namespace identity compile",
             compiler_command(compiler, ["compile", namespace_source, "-o", namespace_artifact_text]),
             ProcessOutput(0, 0, utf8_encode("wrote ${namespace_artifact_text}\n"), bytes())))
           results = results.append(test_run_command("namespace saved bytecode execution",
             compiler_command(compiler, ["run", namespace_artifact_text]),
-            ProcessOutput(0, 0, utf8_encode("41\n42\n43\n44\n41\n42\n"), bytes())))
+            ProcessOutput(0, 0, utf8_encode("41\n42\n43\n44\n41\n42\n44\n45\n51\n52\n"), bytes())))
+          results = results.append(test_run_command("namespace proof and effect check",
+            compiler_command(compiler, ["check", namespace_async_source]),
+            ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+          results = results.append(test_run_command("namespace proof and effect source execution",
+            compiler_command(compiler, ["run", namespace_async_source]),
+            ProcessOutput(0, 0, bytes(), bytes())))
+          results = results.append(test_run_command("namespace proof and effect compile",
+            compiler_command(compiler, ["compile", namespace_async_source, "-o", namespace_async_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("wrote ${namespace_async_artifact_text}\n"), bytes())))
+          results = results.append(test_run_command("namespace proof and effect saved bytecode execution",
+            compiler_command(compiler, ["run", namespace_async_artifact_text]),
+            ProcessOutput(0, 0, bytes(), bytes())))
         },
         None() => {}
       }
@@ -113,9 +128,13 @@ main(): Void {
         }
       }
       match environment("PANACK_TEST_NAMESPACE_EMISSION") {
-        Some(enabled) => match fs_remove_file(namespace_artifact) {
-          Ok(removed) => {},
-          Error(error) => { results = results.append(test_expect("namespace artifact cleanup", false, "file removal failed")) }
+        Some(enabled) => {
+          for file in [namespace_artifact, namespace_async_artifact] {
+            match fs_remove_file(file) {
+              Ok(removed) => {},
+              Error(error) => { results = results.append(test_expect("namespace artifact cleanup", false, "file removal failed")) }
+            }
+          }
         },
         None() => {}
       }

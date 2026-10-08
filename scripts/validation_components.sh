@@ -1,5 +1,11 @@
 # Reviewed ownership map shared by local and CI selection.
 validation_component() {
+    # README is packaged; ci_scope.sh separately admits the bounded positioning
+    # region as informational while all other README changes stay package-owned.
+    if [[ "$1" == README.md ]]; then
+        printf 'package\n'
+        return
+    fi
     if ci_informational_doc "$1"; then
         case "$1" in
             CONTRIBUTING.md|docs/ROADMAP_PROCESS.md|.github/pull_request_template.md) printf 'process\n' ;;

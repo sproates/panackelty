@@ -2012,6 +2012,19 @@ profiles, while a separate targeted workflow records focused warm checks.
 See [the profiling report](VALIDATION_PROFILE.md) for evidence and the
 next measured investigations. This instrumentation does not claim a speed fix.
 
+**README positioning routing — 2026-10-08.** The README refresh merged from
+`main` in PR #339 changed only introductory positioning and feature copy, but
+the path-only package rule selected full validation: the clean check took 199s
+against the 120s target. The root README now marks its positioning-copy section
+before the first executable example. Change selection compares the entire
+remaining README byte-for-byte; only a change confined to that marked section
+uses document, local-link and whitespace checks. The local selector checks the
+base, index and worktree snapshots, and historical unmarked bases use the fixed
+first-example heading as a migration boundary. Quick-start, examples, release
+instructions, packaged content, unmatched or duplicate markers, and mixed
+changes stay on full validation. The canonical checks and hosted
+package/platform gates are unchanged for those routes.
+
 The persistent-array append optimisation reduces the measured local cached VM
 median from 26.219s to 25.598s and the test-source-edit median from 36.338s to
 32.993s. A clean full check passes in 107s. The focused 15-second target remains

@@ -1,3 +1,4 @@
+<!-- validation:positioning-copy-begin -->
 # Panackelty
 
 **Exact arithmetic. Guarded types. Compiler explanations. Self hosted.**
@@ -54,6 +55,7 @@ is also the name of this project's command-line tool.
 - **One verified execution path.** Source compiles to versioned bytecode, which
   the Panackelty VM verifies before it runs.
 
+<!-- validation:positioning-copy-end -->
 ## Exact fractions and Unit
 
 ```panackelty

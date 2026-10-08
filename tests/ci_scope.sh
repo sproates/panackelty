@@ -17,7 +17,14 @@ fixture() {
     mkdir src
     printf '# Roadmap\n\n[Architecture](ARCHITECTURE.md)\n' > ROADMAP.md
     printf '# Architecture\n' > ARCHITECTURE.md
-    printf '# Readme\n\n[Roadmap](ROADMAP.md)\n' > README.md
+    cat > README.md <<'README'
+<!-- validation:positioning-copy-begin -->
+# Readme
+Positioning copy.
+[Roadmap](ROADMAP.md)
+<!-- validation:positioning-copy-end -->
+## Exact fractions and Unit
+README
     printf 'int main(void) { return 0; }\n' > src/main.c
     git add .
     git commit -qm baseline
@@ -36,6 +43,35 @@ fixture
 printf '\nNext step\n' >> ROADMAP.md
 commit; route docs
 bash "$root/scripts/check_docs.sh" >/dev/null
+# Copy inside the explicit README positioning region takes the docs route.
+fixture
+awk '{ if ($0 == "Positioning copy.") $0 = "Updated positioning copy."; print }' README.md > "$work/readme"
+mv "$work/readme" README.md
+commit; route docs
+plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+[[ "$plan" == $'route=docs\ncomponents=documentation\nchecks=documents,links,whitespace' ]] || fail 'README positioning plan'
+bash "$root/scripts/check_docs.sh" >/dev/null
+# A historical README without markers may add the bounded markers and edit the
+# preamble in one change; content from the first executable section onward must
+# still remain byte-identical.
+fixture
+awk '/^<!-- validation:positioning-copy-begin -->$/ { next }
+     /^<!-- validation:positioning-copy-end -->$/ { next }
+     { print }' README.md > "$work/readme"
+mv "$work/readme" README.md
+git add README.md
+git commit -qm 'legacy README fixture'
+base=$(git rev-parse HEAD)
+awk 'BEGIN { print "<!-- validation:positioning-copy-begin -->" }
+     /^Positioning copy\.$/ { print "Updated positioning copy."; next }
+     /^## Exact fractions and Unit$/ { print "<!-- validation:positioning-copy-end -->" }
+     { print }' README.md > "$work/readme"
+mv "$work/readme" README.md
+commit; route docs
+# Executable/example/package prose outside the bounded region remains full.
+fixture
+printf '\nREADME quick-start or package guidance\n' >> README.md
+commit; route full
 # The complete PR diff matters, not just its latest docs commit.
 printf '\n/* implementation */\n' >> src/main.c
 commit
@@ -140,6 +176,11 @@ git add src/main.c
 git show "$base:src/main.c" > src/main.c
 [[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored index-only change'
 fixture
+printf '\npackage guidance\n' >> README.md
+git add README.md
+git show "$base:README.md" > README.md
+[[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored staged README package change'
+fixture
 chmod +x ROADMAP.md
 [[ $(bash "$root/scripts/ci_scope.sh" --worktree "$base") == full ]] || fail 'ignored local executable mode'
 fixture
@@ -182,6 +223,11 @@ for tool in cc gcc clang panack panack-vm curl nc node npm; do
 done
 PATH="$work/forbidden:$PATH" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || { cat "$work/output"; fail 'local docs execution'; }
 [[ ! -e build && ! -e panack-vm ]] || fail 'documentation created native artifacts'
+# The local entry point also keeps a marked README positioning edit on docs.
+awk '{ if ($0 == "Positioning copy.") $0 = "Locally updated positioning copy."; print }' README.md > "$work/readme"
+mv "$work/readme" README.md
+PATH="$work/forbidden:$PATH" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || { cat "$work/output"; fail 'local README positioning route'; }
+[[ ! -e build && ! -e panack-vm ]] || fail 'README positioning created native artifacts'
 printf '\n[broken](absent.md)\n' >> ROADMAP.md
 bash scripts/validate_change.sh --plan "$base" >/dev/null || fail 'plan executed checks'
 if bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1; then fail 'local ignored docs failure'; fi

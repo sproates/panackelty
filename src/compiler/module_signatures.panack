@@ -460,6 +460,11 @@ pure check_module_signatures(
       mut slots: [SignatureSlot] = []
       mut field_index: Nat = 0
       for field in fields {
+        field_span: SourceSpan = if field_index < len(syntax.type_spans) {
+          syntax.type_spans[field_index]
+        } else {
+          syntax.span
+        }
         match signature_type(
           graph,
           modules,
@@ -472,7 +477,7 @@ pure check_module_signatures(
           Error(message) => {
             diagnostics = append(
               diagnostics,
-              Diagnostic("signature " + name + "." + field.name + ": " + message, syntax.span.start)
+              Diagnostic("signature " + name + "." + field.name + ": " + message, field_span.start)
             )
             valid = false
           },

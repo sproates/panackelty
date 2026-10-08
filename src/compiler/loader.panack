@@ -142,7 +142,7 @@ loader_path_component_is_symlink(path: Str): Bool {
   }
 }
 
-loader_path_has_symlink(path: Str, root: Str): Bool {
+loader_path_has_symlink(path: Str, root: Str, allow_leaf_symlink: Bool): Bool {
   if !loader_path_within(path, root) {
     true
   } else {
@@ -170,7 +170,9 @@ loader_path_has_symlink(path: Str, root: Str): Bool {
     }
     if len(segment) > 0 {
       current = path_join(current, segment)
-      found = found || loader_path_component_is_symlink(current)
+      if !allow_leaf_symlink {
+        found = found || loader_path_component_is_symlink(current)
+      } else {}
     } else {}
     found
   }
@@ -219,7 +221,8 @@ load_project_module(
   stack: [Str],
   project_root: Str,
   stdlib_root: Str,
-  bounded: Bool
+  bounded: Bool,
+  allow_leaf_symlink: Bool
 ): ProjectLoadState {
   if state.visited.has(path) {
     state
@@ -232,7 +235,7 @@ load_project_module(
       ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
     } else {
     trusted_root: Str = if loader_path_within(path, stdlib_root) { stdlib_root } else { project_root }
-    if loader_path_has_symlink(path, trusted_root) {
+    if loader_path_has_symlink(path, trusted_root, allow_leaf_symlink) {
       diagnostics: [Diagnostic] = append(
         state.diagnostics,
         loader_diagnostic("module path traverses a symbolic link: " + path)
@@ -384,7 +387,8 @@ load_project_module(
                                     next_stack,
                                     project_root,
                                     stdlib_root,
-                                    bounded
+                                    bounded,
+                                    false
                                   )
                                 }
                               }
@@ -428,7 +432,8 @@ load_project_module(
                                     next_stack,
                                     project_root,
                                     stdlib_root,
-                                    bounded
+                                    bounded,
+                                    false
                                   )
                                 }
                               }
@@ -519,11 +524,12 @@ load_project_mode_with_main(
       stack,
       project_root,
       stdlib_root,
-      bounded
+      bounded,
+      false
     )
   }
   loaded: ProjectLoadState = if len(core.diagnostics) == 0 {
-    load_project_module(resolved, core, stack, project_root, stdlib_root, bounded)
+    load_project_module(resolved, core, stack, project_root, stdlib_root, bounded, true)
   } else {
     core
   }

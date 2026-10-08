@@ -4094,19 +4094,24 @@ and platform acceptance; those Slice 8 checks are recorded below.
 The Slice 8 candidate migrates active compiler and bytecode-source imports,
 standard-library imports, compiler/unit runners, native-oracle fixtures, source
 coverage and examples to logical `project/` and `stdlib/` imports. The refreshed
-v9 seed is `028efbbb55abaf91d191e0b3b51e10354e15b34e3d8af090a0b7554b7c01e5ae`;
+v9 seed is `cab3c28a0d32d286f2fd62cca722073e2669103531c6f3dc5eda486c6f31737f`;
 fresh stage-2/3/4 compiler outputs and stage-1/2/3 standard-library outputs
 match. `tests/namespace_seed.sh` checks source check/run/compile and saved-v9
 check/run after removing every source file.
 
 Core validation passed: `make unit-harness`, `make unit-compiler`,
 loopback-enabled `make unit-runtime`, `make functional` (355 fixture assertions),
-`make bootstrap-check`, and `make release-smoke` (relocated installed archive).
-The canonical `make check` target passed all phases in 136s when invoked with
-`CHECK_BUDGET_SECONDS=240 INCREMENTAL_BUDGET_SECONDS=60`; the repository defaults
-remain 120s and 15s. The default unit budget was too small for this 53s aggregate
-unit phase. `make native-check` also passed the full native source/bytecode and
-diagnostic conformance matrix. Loopback access is required by native VM TCP contracts. The
+`make bootstrap-check`, `make release-smoke` (relocated installed archive), and
+`make source-mapping-experiment` (121 assertions, including explicit-entry
+symlink source replay). The loader-confinement unit also confirms that an
+explicit entry may be a symlink within its root while imported symlinks remain
+rejected.
+On the final candidate, canonical `make check CHECK_BUDGET_SECONDS=240
+INCREMENTAL_BUDGET_SECONDS=60` passed all phases in 137s, and `make native-check`
+passed the full native source/bytecode and diagnostic conformance matrix. The
+aggregate unit phase took 85s against its temporary 60s reporting budget and
+emitted a timing warning; repository defaults remain 120s and 15s, and no
+defaults were changed. Loopback access is required by native VM TCP contracts. The
 `tests/native_oracle_contracts.sh` root setup was corrected for migrated
 compiler-lexer and runner-smoke fixtures after this integrated check exposed
 their stale per-fixture project roots.

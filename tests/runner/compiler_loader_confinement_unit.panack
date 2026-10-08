@@ -51,6 +51,29 @@ main(): Void {
       ))
       fs_remove_file(link)
       fs_remove_file(entry)
+      target: Path = confinement_child(project, "target.panack")
+      alias: Path = confinement_child(project, "entry-link.panack")
+      fs_write(target, utf8_encode("main(): Void {}\n"))
+      alias_setup: ProcessOutput = match process_run(
+        confinement_path("/bin/ln"),
+        ["-s", confinement_text(target), confinement_text(alias)],
+        bytes(),
+        workspace.root,
+        [],
+        duration_seconds(5),
+        1024
+      ) {
+        Error(error) => ProcessOutput(1, 0, bytes(), bytes()),
+        Ok(output) => output
+      }
+      results = append(results, test_expect(
+        "explicit entry source may be a symlink within its root",
+        alias_setup.exit_code == 0 && alias_setup.signal == 0 &&
+          len(load_project(confinement_text(alias)).diagnostics) == 0,
+        "explicit entry symlink was rejected"
+      ))
+      fs_remove_file(alias)
+      fs_remove_file(target)
       escape_entry: Path = confinement_child(project, "escape.panack")
       fs_write(escape_entry, utf8_encode("import \"../outside.panack\"\nmain(): Void {}\n"))
       escaped: LoadedProject = load_project(confinement_text(escape_entry))

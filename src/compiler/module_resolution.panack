@@ -740,7 +740,7 @@ pure resolve_module_block_uses(
 
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         result = combine_module_uses(
           result,
           resolve_qualified_type_uses(graph, identity, type_name, origin)
@@ -896,7 +896,7 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
 
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         diagnostics = concat(diagnostics, import_shadow_diagnostic(names, name, origin))
         diagnostics = concat(diagnostics, expression_import_shadows(value, names, origin))
       },

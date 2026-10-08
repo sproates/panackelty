@@ -344,7 +344,7 @@ pure check_effect_block(
 
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         result = combine_effects(
           result,
           check_effect_expression(value, program, environment, false, retain, None())

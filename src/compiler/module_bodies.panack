@@ -1705,7 +1705,7 @@ pure bind_body_block(
     statement_path: [Nat] = append(path, index)
     mut checked: BodyResult = body_result(BodyEmpty(), span, [], None())
     match statement {
-      BindingStatement(name, spelling, mutable, value) => {
+      BindingStatement(name, spelling, annotation_span, mutable, value) => {
         if visible.has(name) {
           diagnostics = append(
             diagnostics,
@@ -1734,7 +1734,11 @@ pure bind_body_block(
             false
           ) {
             Error(message) => {
-              diagnostics = append(diagnostics, Diagnostic(message, checked.body.span.start))
+              error_position: SourcePos = match annotation_span {
+                Some(type_location) => type_location.start,
+                None() => checked.body.span.start
+              }
+              diagnostics = append(diagnostics, Diagnostic(message, error_position))
             },
             Ok(annotation) => {
               required: BodyResult = body_require_value(

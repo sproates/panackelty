@@ -173,9 +173,10 @@ pure module_emission_guard_block(
   mut statements: [Statement] = []
   for statement in block.statements {
     statements = append(statements, match statement {
-      BindingStatement(name, type_name, mutable, value) => BindingStatement(
+      BindingStatement(name, type_name, annotation_span, mutable, value) => BindingStatement(
         name,
         type_name,
+        annotation_span,
         mutable,
         module_emission_guard_expression(graph, entry, owner, value)
       ),
@@ -444,6 +445,7 @@ pure module_emission_block(
         BodyBinding(identity, type, mutable) => Some(BindingStatement(
           identity.name,
           "",
+          None(),
           mutable,
           module_emission_expression(graph, entry, child.children[0])
         )),

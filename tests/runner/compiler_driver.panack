@@ -88,6 +88,32 @@ namespace_bootstrap_root_rejection(
       output.exit_code == 1 && output.signal == 0 && output.stdout == bytes() &&
         compiler_driver_contains(utf8_decode(output.stderr), expected),
       utf8_decode(output.stderr)
+  )
+}
+}
+
+namespace_bootstrap_root_command(
+  name: Str,
+  compiler: Str,
+  arguments: [Str],
+  expected: ProcessOutput,
+  environment: [Str]
+): TestResult {
+  match process_run(
+    path("./panack"),
+    concat(["run", compiler], arguments),
+    bytes(),
+    path_current(),
+    environment,
+    duration_seconds(30),
+    1048576
+  ) {
+    Error(error) => test_expect(name, false, "compiler process failed"),
+    Ok(output) => test_expect(
+      name,
+      output.exit_code == expected.exit_code && output.signal == expected.signal &&
+        output.stdout == expected.stdout && output.stderr == expected.stderr,
+      utf8_decode(output.stderr)
     )
   }
 }
@@ -223,6 +249,8 @@ main(): Void {
           bootstrap_main = child(bootstrap_root, "main.panack")
           bootstrap_escape = child(bootstrap_root, "escape.panack")
           bootstrap_symlink_entry = child(bootstrap_root, "symlink.panack")
+          bootstrap_left = child(bootstrap_compiler_dir, "left.panack")
+          bootstrap_right = child(bootstrap_compiler_dir, "right.panack")
           bootstrap_shared = child(bootstrap_compiler_dir, "shared.panack")
           bootstrap_outside = child(workspace.root, "bootstrap-outside.panack")
           bootstrap_link = child(bootstrap_root, "outside-link.panack")
@@ -231,6 +259,8 @@ main(): Void {
           bootstrap_main_text = result_value_or(path_to_text(bootstrap_main), "invalid-bootstrap-main")
           bootstrap_escape_text = result_value_or(path_to_text(bootstrap_escape), "invalid-bootstrap-escape")
           bootstrap_symlink_entry_text = result_value_or(path_to_text(bootstrap_symlink_entry), "invalid-bootstrap-symlink-entry")
+          bootstrap_left_text = result_value_or(path_to_text(bootstrap_left), "invalid-bootstrap-left")
+          bootstrap_right_text = result_value_or(path_to_text(bootstrap_right), "invalid-bootstrap-right")
           bootstrap_shared_text = result_value_or(path_to_text(bootstrap_shared), "invalid-bootstrap-shared")
           bootstrap_outside_text = result_value_or(path_to_text(bootstrap_outside), "invalid-bootstrap-outside")
           bootstrap_link_text = result_value_or(path_to_text(bootstrap_link), "invalid-bootstrap-link")
@@ -244,34 +274,97 @@ main(): Void {
           ]
           fs_create_directory(bootstrap_root)
           fs_create_directory(bootstrap_compiler_dir)
+          bootstrap_left_write = fs_write(bootstrap_left, utf8_encode(
+            "pub record Item[T] { value: T }\npub record Envelope[T] { item: Item[T] }\npub enum Outcome[T] { Finished(Envelope[T]) }\npub pure make(): Envelope[Nat] { Envelope(Item(41)) }\npub async fetch(): Nat { 51 }\npub pure identity[T](value: T): T { value }\npub pure indirect_value(): Nat {\n  mut total: Nat = 0\n  values: [Nat] = [20, 21]\n  for value in values {\n    total = total + value\n  }\n  if total == 41 { total + 2 } else { 0 }\n}\npub pure make_outcome(): Outcome[Nat] { Finished(make()) }\npub pure positive(value: Nat): Bool { value == 45 }\npub type Positive = Nat where positive(value)\npub type ProvenPositive = Nat where value > 0\npub pure option_value(): Option[Nat] { Some(71) }\nmain(): Void { print(999) }\n"))
+          bootstrap_right_write = fs_write(bootstrap_right, utf8_encode(
+            "pub record Item[T] { value: T }\npub record Envelope[T] { item: Item[T] }\npub enum Outcome[T] { Finished(Envelope[T]) }\npub pure make(): Envelope[Nat] { Envelope(Item(42)) }\npub async fetch(): Nat { 52 }\npub pure identity[T](value: T): T { value }\npub pure indirect_value(): Nat {\n  mut total: Nat = 0\n  values: [Nat] = [20, 22]\n  for value in values {\n    total = total + value\n  }\n  if total == 42 { total + 2 } else { 0 }\n}\npub pure make_outcome(): Outcome[Nat] { Finished(make()) }\npub pure positive(value: Nat): Bool { value == 46 }\npub type Positive = Nat where positive(value)\npub type ProvenPositive = Nat where value > 0\npub pure option_value(): Option[Nat] { Some(72) }\nmain(): Void { print(998) }\n"))
           bootstrap_shared_write = fs_write(bootstrap_shared, utf8_encode(
-            "pub pure answer(): Option[Nat] { Some(61) }\nmain(): Void { print(999) }\n"))
+            "pub pure answer(): Option[Nat] { Some(61) }\nmain(): Void { print(997) }\n"))
           bootstrap_main_write = fs_write(bootstrap_main, utf8_encode(
-            "import \"compiler/shared.panack\" as shared\nmain(): Void {\n  value: Option[Nat] = shared.answer()\n  match value { Some(item) => print(item), None() => print(0) }\n}\n"))
+            "import \"compiler/left.panack\" as left\n" +
+            "import \"compiler/right.panack\" as right\n" +
+            "import \"compiler/shared.panack\" as shared\n" +
+            "pure invoke(callback: PureFn[Nat]): Nat { callback.call() }\n" +
+            "pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }\n" +
+            "async left_value(): Nat { await left.fetch() }\n" +
+            "async right_value(): Nat { await right.fetch() }\n" +
+            "async main(): Unit {\n" +
+            "  left_item: left.Envelope[Nat] = left.make()\n" +
+            "  right_item: right.Envelope[Nat] = right.make()\n" +
+            "  left_outcome: left.Outcome[Nat] = left.make_outcome()\n" +
+            "  right_outcome: right.Outcome[Nat] = right.make_outcome()\n" +
+            "  expect(left.identity(left_item.item.value) == 41)\n" +
+            "  expect(right.identity(right_item.item.value) == 42)\n" +
+            "  expect(invoke(@left.indirect_value) == 43)\n" +
+            "  expect(invoke(@right.indirect_value) == 44)\n" +
+            "  match left_outcome { left.Outcome.Finished(value) => expect(value.item.value == 41) }\n" +
+            "  match right_outcome { right.Outcome.Finished(value) => expect(value.item.value == 42) }\n" +
+            "  left_positive: left.ProvenPositive = 45\n" +
+            "  right_positive: right.ProvenPositive = 46\n" +
+            "  expect(left_positive - 1 == 44)\n" +
+            "  expect(right_positive - 1 == 45)\n" +
+            "  expect(if left.positive(45) { 51 } else { 0 } == 51)\n" +
+            "  expect(if right.positive(46) { 52 } else { 0 } == 52)\n" +
+            "  shared_option: Option[Nat] = shared.answer()\n" +
+            "  left_option: Option[Nat] = left.option_value()\n" +
+            "  right_option: Option[Nat] = right.option_value()\n" +
+            "  match shared_option { Some(item) => expect(item == 61), None() => expect(false) }\n" +
+            "  match left_option { Some(item) => expect(item == 71), None() => expect(false) }\n" +
+            "  match right_option { Some(item) => expect(item == 72), None() => expect(false) }\n" +
+            "  expect(await left_value() == 51)\n" +
+            "  expect(await right_value() == 52)\n" +
+            "  ()\n" +
+            "}\n"))
           bootstrap_outside_write = fs_write(bootstrap_outside, utf8_encode(
             "main(): Void { print(777) }\n"))
           results = append(results, test_expect(
             "bootstrap-root fixture setup",
-            match bootstrap_shared_write { Ok(written) => true, Error(error) => false } &&
+            match bootstrap_left_write { Ok(written) => true, Error(error) => false } &&
+              match bootstrap_right_write { Ok(written) => true, Error(error) => false } &&
+              match bootstrap_shared_write { Ok(written) => true, Error(error) => false } &&
               match bootstrap_main_write { Ok(written) => true, Error(error) => false } &&
               match bootstrap_outside_write { Ok(written) => true, Error(error) => false },
             "source fixture write failed"
           ))
-          results = append(results, test_run_command(
+          results = append(results, namespace_bootstrap_root_command(
             "bootstrap-root core identity source execution",
-            TestCommand(path("./panack"), ["run", compiler, "run", bootstrap_main_text],
-              bytes(), path_current(), bootstrap_environment, duration_seconds(30), 1048576),
-            ProcessOutput(0, 0, utf8_encode("61\n"), bytes())))
+            compiler,
+            ["run", bootstrap_main_text],
+            ProcessOutput(0, 0, bytes(), bytes()),
+            bootstrap_environment))
+          results = append(results, namespace_bootstrap_root_command(
+            "slice 6 integrated staged source check",
+            compiler,
+            ["check", bootstrap_main_text],
+            ProcessOutput(0, 0, utf8_encode("ok\n"), bytes()),
+            bootstrap_environment))
+          results = append(results, namespace_bootstrap_root_command(
+            "slice 6 integrated staged source compile",
+            compiler,
+            ["compile", bootstrap_main_text, "-o", bootstrap_artifact_text],
+            ProcessOutput(0, 0, utf8_encode("wrote ${bootstrap_artifact_text}\n"), bytes()),
+            bootstrap_environment))
+          for file in [bootstrap_main, bootstrap_left, bootstrap_right, bootstrap_shared] {
+            match fs_remove_file(file) {
+              Ok(removed) => {},
+              Error(error) => { results = append(results, test_expect(
+                "slice 6 integrated source removal", false, "source file removal failed")) }
+            }
+          }
+          results = append(results, test_expect(
+            "slice 6 integrated sources are absent",
+            !file_exists(bootstrap_main_text) && !file_exists(bootstrap_left_text) &&
+              !file_exists(bootstrap_right_text) && !file_exists(bootstrap_shared_text),
+            "source files remained after compilation"
+          ))
           results = append(results, test_run_command(
-            "bootstrap-root core identity compile",
-            TestCommand(path("./panack"), ["run", compiler, "compile", bootstrap_main_text,
-              "-o", bootstrap_artifact_text], bytes(), path_current(), bootstrap_environment,
-              duration_seconds(30), 1048576),
-            ProcessOutput(0, 0, utf8_encode("wrote ${bootstrap_artifact_text}\n"), bytes())))
+            "slice 6 integrated saved bytecode validation without sources",
+            compiler_command(compiler, ["check", bootstrap_artifact_text]),
+            ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
           results = append(results, test_run_command(
-            "bootstrap-root core identity saved bytecode execution",
+            "slice 6 integrated saved bytecode execution without sources",
             compiler_command(compiler, ["run", bootstrap_artifact_text]),
-            ProcessOutput(0, 0, utf8_encode("61\n"), bytes())))
+            ProcessOutput(0, 0, bytes(), bytes())))
           fs_write(bootstrap_escape, utf8_encode(
             "import \"../bootstrap-outside.panack\"\nmain(): Void {}\n"))
           results = append(results, namespace_bootstrap_root_rejection(
@@ -312,7 +405,8 @@ main(): Void {
             bootstrap_environment
           ))
           for file in [bootstrap_main, bootstrap_escape, bootstrap_symlink_entry,
-              bootstrap_shared, bootstrap_link, bootstrap_outside, bootstrap_artifact,
+              bootstrap_left, bootstrap_right, bootstrap_shared, bootstrap_link,
+              bootstrap_outside, bootstrap_artifact,
               bootstrap_escape_artifact] {
             if file_exists(result_value_or(path_to_text(file), "")) {
               match fs_remove_file(file) {

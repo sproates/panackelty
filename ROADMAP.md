@@ -197,13 +197,14 @@ inference complete slice 2. [PR#321](https://github.com/sproates/panackelty/pull
 and [PR#326](https://github.com/sproates/panackelty/pull/326) complete slice 3 on
 `next`, and [PR#327](https://github.com/sproates/panackelty/pull/327) completes
 slice 4. [PR#329](https://github.com/sproates/panackelty/pull/329) completes
-slice 5 effects/await on `next`; PR#331 merged an intermediate slice 6 delivery
-for identity emission/loading, PR#342 completes gate 6a, and this delivery adds
-6b ordinary-body emission evidence. The matched clean canonical checks took
+slice 5 effects/await on `next`; PR#349 now integrates and completes all seven
+slice-6 identity-emission and standalone-loading gates on `next`. Slice 7
+diagnostics/explain/locate is in progress, and slice 8 retains coordinated
+source/seed migration and platform acceptance. The matched clean canonical checks took
 202s on base `d5dd68a` and 204s on the candidate; a single pair does not establish
 causation. Both exceed the 120s budget. The slice 6 acceptance disposition is recorded in the
 [slice 6 validation profile](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08).
-Diagnostics and coordinated source/seed migration remain. Compiler understanding
+Compiler understanding
 remains paused. The selected build/validation baseline is established below;
 no optimisation, runtime/resource benchmark execution, backend investigation or
 automation starts with it. Remaining baseline scope requires separately selected
@@ -368,7 +369,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — foundations and slices 1–5 merged on `next`; slices 6–8 remain | P1 | Large; provisionally 4–7 remaining PRs after slice 5; reassess from remaining scope |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — foundations and slices 1–6 merged on `next`; slice 7 in progress and slice 8 remains | P1 | Large; provisionally 3–5 PRs remain across slices 7–8 |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -438,14 +439,14 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
-| P2 / [RM#41: Language namespaces](#rm-41) | 20% | Approximately 55% as of merged [PR#327](https://github.com/sproates/panackelty/pull/327), updated from 48% after slice 3 | 11 pp estimated contribution; 9 pp of P2 scope remains |
+| P2 / [RM#41: Language namespaces](#rm-41) | 20% | Approximately 79% after merged [PR#349](https://github.com/sproates/panackelty/pull/349), using the unchanged scope weights below | 15.8 pp estimated contribution; 4.2 pp of P2 scope remains |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | Approximately 21% estimated: P1 contributes 10 pp and P2 contributes 11 pp | **Approximately 21 pp estimated; 10 pp formally accepted for completed P1; P2 remains partial** |
+| **Total** | **100%** | Approximately 25.8% estimated: P1 contributes 10 pp and P2 contributes 15.8 pp | **Approximately 25.8 pp estimated; 10 pp formally accepted for completed P1; P2 remains partial** |
 
 P1 earned its design-task credit through merged PR#240. P2 is in progress: its
 four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -462,19 +463,20 @@ provide earlier partial evidence; PR#342 completes callable identity emission
 compiler driver with one staged-root program that checks all seven gates together:
 identity-aware emission, ordinary bodies, same-spelled aggregates and patterns,
 proof/effect behavior, confined source loading, saved-bytecode execution after
-source deletion, and shared core identity. On merge, this closes slice 6; it does
-not enable public namespace execution. Slice 7 owns diagnostics and tooling; slice
-8 owns coordinated source/seed migration and browser/installed acceptance. GI#198
+source deletion, and shared core identity. PR#349 merged this integrated
+acceptance to `next` on 2026-10-08 and closes slice 6; it does not enable public
+namespace execution. Slice 7 owns diagnostics and tooling; slice 8 owns
+coordinated source/seed migration and browser/installed acceptance. GI#198
 remains open for P2.
 
-The last quantified scope-weighted baseline gives P2 approximately 65%
-completion: foundations 20%, slice 1 8%, slice 2 12%, slice 3 8%, slice 4 7% and
-slice 5 10%. On merge, slice 6 adds its scoped 14%, bringing estimated P2
-completion to 79%. With P2's 20% programme weight, that contributes an estimated
-15.8 percentage points; P1's accepted 10 points bring the overall estimated
-programme contribution to 25.8 points. Formal whole-task acceptance remains 10
-points because P2 is not complete. Namespace execution and P2 release acceptance
-remain unaccepted.
+The unchanged scope-weighted assessment gives P2 approximately 79%
+completion: foundations 20%, slices 1–5 45%, and completed slice 6 14%.
+With P2's 20% programme weight, this contributes an estimated 15.8 percentage
+points; P1's accepted 10 points bring the overall estimated programme
+contribution to 25.8 points. Slice 7 and slice 8 contribute no completion credit
+until their acceptance evidence is merged. Formal whole-task acceptance remains
+10 points because P2 is not complete. Namespace execution and P2 release
+acceptance remain unaccepted.
 P3–P8 remain Planned, not started. Namespace execution remains unaccepted. Namespace/compiler
 integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
@@ -490,10 +492,11 @@ Accepted. On selection record owner, PR/revision, evidence, blockers and next ac
 in its issue and update this register at delivery. A design or experiment does not
 complete a production task. Website impact: planning only; record supporting
 release/adoption followups before feature promotion, and verify live claims before
-closing such followups. P1 design acceptance is complete. On `next`, P2 slices 1–5 are complete: PR#297
-delivered slice 1; slice 2 is complete; PR#321 and PR#326 complete slice 3;
-PR#327 completes slice 4; and PR#329 completes slice 5. GI#198 remains open for
-slices 6–8.
+closing such followups. P1 design acceptance is complete. On `next`, P2 slices
+1–6 are complete: PR#297 delivered slice 1; slice 2 is complete; PR#321 and
+PR#326 complete slice 3; PR#327 completes slice 4; PR#329 completes slice 5;
+and PR#349 completes slice 6. Slice 7 is in progress on
+`feat/p2-slice7-identity-diagnostics`; slice 8 remains. GI#198 stays open.
 P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -3132,15 +3135,12 @@ partial completion estimated below and 10 pp formally accepted across the progra
 
 <a id="namespace-completion-assessment"></a>
 
-Last quantified scope baseline, updated 2026-10-07 after slice 5: **approximately
-65% of RM#41, versus 55% after slice 4 and 48% before slice 4**. PR#331 has since
-merged intermediate slice 6 deliveries, PR#342 completes gate 6a, PR#343–PR#345
-deliver 6b–6d evidence, PR#346 adds 6e acceptance evidence, PR#347 adds 6f acceptance evidence,
-and this delivery adds 6g acceptance evidence; these
-partial slice 6 contributions have not been quantified.
-Keep 65% as the last
-measured baseline, not the current estimate, until the remaining slice 6 scope is
-reassessed. This replaces the earlier estimate after slice 2; it is a reasoned
+Current scope baseline, updated 2026-10-08 after merged PR#349: **approximately
+79% of RM#41**, using the unchanged 20/8/12/8/7/10/14/6/15 scope weights.
+The integrated staged-root program exercises all seven slice-6 gates; PR#349
+records source and saved-bytecode execution, identity emission, aggregate and
+pattern identity, proof/effect behavior, confined loading, and shared core
+identity. This replaces the prior 65% post-slice-5 estimate; it is a reasoned
 allocation of implementation, tests, integration, migration and acceptance effort,
 not measured
 completion time, equal slice weights or credit by PR count. The denominator and
@@ -3155,10 +3155,10 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 3: Core/indirect-call contracts | 8% | PR#321 and PR#326: arity, arguments/results, callback contracts, async deferral, reserved identities and namespace/value resolution | 100% | 8 pp |
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
-| Slice 6: Identity emission/standalone loading | 14% | Seven gates have individual evidence; this delivery adds the supported staged-root path exercising all seven together and completes the slice on merge | 100% on merge | 14 pp on merge |
-| Slice 7: Diagnostics/explain/locate | 6% | Remaining precise cross-module tooling, selectors and stale-map safety | 0% | 0 pp |
+| Slice 6: Identity emission/standalone loading | 14% | Seven gates integrated by merged PR#349, including staged-root source and saved-bytecode acceptance | 100% | 14 pp |
+| Slice 7: Diagnostics/explain/locate | 6% | In progress: staged identity emission preserves expression spans through lowering; explain/locate accept portable module-qualified selectors and reject ambiguity, wrong identities and stale maps | 0% pending PR acceptance | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
-| **Total** | **100%** | **48 pp before slice 4; PR#327 added 7 pp; PR#329 adds 10 pp; the completed slice 6 adds 14 pp on merge** | **79% on merge** | **79 pp estimated P2 contribution on merge** |
+| **Total** | **100%** | **Foundations and slices 1–6 complete; 79 pp earned under the scope estimate; slices 7–8 remain** | **79% estimated** | **15.8 pp estimated P2 contribution** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -3168,13 +3168,11 @@ v9 fixed points are evidence within delivered slices, not partial credit toward
 later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
-At the last quantified baseline, P2 contributed an estimated 20% × 65% = **13 pp**.
-On merge, slice 6 adds its scoped 14%, bringing estimated P2 completion to **79%**
-and its estimated programme contribution to **15.8 pp**. Including P1's accepted
-10 pp, the overall estimated programme contribution becomes **25.8 pp**. Formal
-whole-task acceptance remains **10 pp** until P2's remaining diagnostics, migration
-and final acceptance are complete. Slices 1–6 are Done on `next` after this
-delivery merges; GI#198 remains open for slices 7–8.
+P2 contributes an estimated 20% × 79% = **15.8 pp**. Including P1's accepted
+10 pp, overall estimated programme contribution is **25.8 pp**. Formal whole-task
+acceptance remains **10 pp** until P2's remaining diagnostics, migration and
+final acceptance are complete. Slices 1–6 are Done on `next`; slice 7 is in
+progress and slice 8 remains. GI#198 stays open.
 
 Keep the public namespace execution gate until the checked/effect/emission path
 and coordinated migration are accepted; zero deferred checks in a bounded subset
@@ -3283,14 +3281,14 @@ starts through this plan. Compiler understanding stays paused. This planning
 record changes no executable behavior or published capability; no runtime
 measurement or website promotion is needed for the record itself.
 
-Remaining P2 scope (slices 6–8): slice-6 integration; precise type/pattern spans
-and diagnostics/explain/locate; audited stdlib exports, coordinated source/seed
-migration, namespace-capable seed fixed points, and native/browser/installed
-acceptance. Remove the staged
-execution gate and current flattening only with that identity integration and
-fresh namespace-capable seed/source migration. GI#198 remains open. Website
-impact: none for this slice, because executable namespace syntax remains disabled
-and existing version-pinned examples and release claims remain accurate.
+Historical P2 handoff before merged PR#349: slice-6 integration, precise
+diagnostics/explain/locate, and coordinated source/seed migration remained. PR#349
+has since completed slice 6. Current progress and remaining slice-7 work are
+recorded in the [Namespace completion assessment](#namespace-completion-assessment)
+above; slice 8 still owns the namespace-capable seed, source migration, fixed
+points and native/browser/installed acceptance. Keep public namespace execution
+gated until that acceptance. Website impact remains none: executable namespace
+syntax is not a published capability and pinned claims remain accurate.
 
 The following original assessment is historical; P1 delivered its design outcome.
 The first outcome is a reviewed design with worked multi-file examples, a current

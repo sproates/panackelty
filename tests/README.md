@@ -584,6 +584,11 @@ test-only sidecar and compiler adapter are removed.
 both `make unit` and `make check-compiler`. They exercise the sidecar contract,
 bounds and the public CLI on complete programs, including execution, exact
 lookup output, stale closure, corrupt maps and alias-safe output failures.
+The CLI suite also compiles a staged two-module project with same-named
+declarations, requiring identity-qualified lookup and rejecting ambiguous bare
+names and mismatched module identities. It runs those CLI cases through the
+freshly prepared stage-2 compiler so they test this source tree's driver rather
+than an older checked-in seed.
 They need no Python or Node interpreter. The additional native observer suite
 constructs binary forgeries and checks actual runtime PCs; its decoder is only
 an adversarial test helper, never a production lookup implementation.

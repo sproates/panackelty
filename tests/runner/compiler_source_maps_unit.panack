@@ -38,10 +38,10 @@ main(): Void {
     results = results.append(test_expect("map ordinary byte identity/" + file, artifact == serialize_bytecode(compile_program(project.program)), "mapping changed execution"))
     results = results.append(test_expect("map deterministic serialization/" + file, byte_len(sidecar) > 0 && sidecar == serialize_source_map(project, mapped, artifact, entry, root, stdlib), "serialization differs"))
     results = results.append(test_expect("map entire loaded closure/" + file, len(source_snapshots(project, root, stdlib)) == len(project.source_paths) && len(project.source_paths) >= 2, "source closure lost core/entry"))
-    results = results.append(test_equal_str("map missing function/" + file, source_map_location(project, mapped, "unknown", 0, root, stdlib), "source-map: unavailable"))
-    results = results.append(test_equal_str("map invalid PC/" + file, source_map_location(project, mapped, "main", 4294967295, root, stdlib), "source-map: unavailable"))
+    results = results.append(test_equal_str("map missing function/" + file, source_map_location(project, mapped, "unknown", "unknown", 0, root, stdlib), "source-map: unavailable"))
+    results = results.append(test_equal_str("map invalid PC/" + file, source_map_location(project, mapped, "main", "main", 4294967295, root, stdlib), "source-map: unavailable"))
     if file.ends_with("generic.panack") {
-      results = results.append(test_equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
+      results = results.append(test_equal_str("map Unicode codepoint coordinates", source_map_location(project, mapped, "pick_generic", "pick_generic", 2, root, stdlib), "source-map: expression\nfunction: pick_generic\ninstruction: 2\nfile: project/generic.panack\nrange: 134..146\nstart: 3:3\nend: 3:15\nexpression: items[index]"))
     }
   }
   results = results.append(test_expect("map balanced empty chunks", source_map_join([], 0, 0) == bytes(), "empty join differs"))

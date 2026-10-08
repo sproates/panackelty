@@ -51,4 +51,8 @@ PASS global declaration prevents recovery
 PASS repaired source has fresh accepted evidence
 PASS resolution failure skips effects
 PASS syntax failure skips effects
-tests: 53, failures: 0
+PASS qualified explanation selects left identity
+PASS qualified explanation selects right identity
+PASS ambiguous explanation selector rejected
+PASS wrong explanation identity rejected
+tests: 57, failures: 0

@@ -159,7 +159,8 @@ documented in `../../docs/SOURCE_MAPS.md`.
   remains the launch point; imported `main` functions are internalized. The
   emitter preserves the existing version-9 bytecode format.
 - `source_maps.panack` owns canonical optional sidecars and exact local replay
-  validation, portable identifiers, bounded file comparison and location rendering.
+  validation, portable identifiers, identity-qualified function selection,
+  bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
   [source-map contract](../../docs/SOURCE_MAPS.md).
 - `explanations.panack` presents opt-in subtraction decisions and guard origins
@@ -167,8 +168,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
 - `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
   `explain` for source and version-9 bytecode. Staged checked programs use
-  identity emission for check/run/compile; source-map and explain/locate
-  migration remains pending.
+  identity emission for check/run/compile, validated `locate` and identity-
+  qualified `explain` selection. Coordinated source/seed migration remains
+  slice 8.
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute

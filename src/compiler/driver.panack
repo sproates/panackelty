@@ -31,8 +31,22 @@ pure namespace_gate_diagnostic(diagnostic: Diagnostic): Bool {
   diagnostic.message == "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
 }
 
+pure tooling_diagnostics(project: LoadedProject): [Diagnostic] {
+  staged: Bool = source_map_project_staged(project)
+  mut diagnostics: [Diagnostic] = []
+  for diagnostic in project.diagnostics {
+    if !staged || !namespace_gate_diagnostic(diagnostic) {
+      diagnostics = diagnostics.append(diagnostic)
+    }
+  }
+  diagnostics
+}
+
 prepare_project(path: Str): PreparedProject {
-  loaded: LoadedProject = load_project(path)
+  prepare_loaded_project(path, load_project(path))
+}
+
+prepare_loaded_project(path: Str, loaded: LoadedProject): PreparedProject {
   mut staged: Bool = false
   mut diagnostics: [Diagnostic] = []
   for module in loaded.modules {
@@ -147,26 +161,46 @@ run_explain_command(values: [Str]): Nat {
       report_driver_error("explain usage: explain SOURCE.panack --function NAME")
     } else {
       loaded: LoadedProject = load_project_explained(values[1])
-      name: Str = values[3]
-      valid: Bool = len(loaded.diagnostics) == 0
-      if !function_type(loaded.program, name).found && valid {
-        report_driver_error("explain: unknown function " + source_map_escape(name))
+      entry: Str = path_resolve(values[1])
+      root: Str = path_parent(entry)
+      stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
+        path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
       } else {
-        stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
-          path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+        ""
+      }
+      selected: Result[SourceMapFunctionSelector, Str] = explanation_function_selector(
+        loaded,
+        values[3],
+        entry,
+        root,
+        stdlib_root
+      )
+      match selected {
+        Error(message) => if starts_with(message, "unknown function selector ") {
+          report_driver_error("explain: unknown function " + source_map_escape(values[3]))
         } else {
-          ""
-        }
-        print(render_function_explanations(
-          loaded,
-          name,
-          path_parent(path_resolve(values[1])),
-          stdlib_root
-        ))
-        if valid {
-          0
-        } else {
-          report_driver_error(diagnostic_messages(loaded.diagnostics, loaded.sources))
+          report_driver_error("explain: " + message)
+        },
+        Ok(function) => {
+          prepared: PreparedProject = prepare_loaded_project(entry, loaded)
+          diagnostics: [Diagnostic] = tooling_diagnostics(loaded)
+          valid: Bool = prepared.valid && len(diagnostics) == 0
+          print(render_function_explanations(
+            loaded,
+            function,
+            valid,
+            root,
+            stdlib_root
+          ))
+          if valid {
+            0
+          } else {
+            if len(diagnostics) > 0 {
+              report_driver_error(diagnostic_messages(diagnostics, loaded.sources))
+            } else {
+              report_driver_error(prepared.message)
+            }
+          }
         }
       }
     }
@@ -329,39 +363,57 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
       report_driver_error("source-map compilation requires two distinct, nonexistent output files")
     } else {
       loaded: LoadedProject = load_project_for_source_map(entry)
-      if len(loaded.diagnostics) > 0 {
+      prepared: PreparedProject = prepare_loaded_project(entry, loaded)
+      if !prepared.valid {
         if locating {
           print("source-map: unavailable")
           0
         } else {
-          report_driver_error(diagnostic_messages(loaded.diagnostics, loaded.sources))
+          report_driver_error(prepared.message)
         }
       } else {
         root: Str = path_parent(entry)
         stdlib_root: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
-        mapped: SourceMappedProgram = compile_program_with_sources(loaded.program)
+        mapped: SourceMappedProgram = compile_program_with_sources(prepared.program)
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         sidecar: Bytes = serialize_source_map(loaded, mapped, artifact, entry, root, stdlib_root)
         valid: Bool = byte_len(sidecar) > 0 &&
           validate_bytecode(artifact) == "ok" &&
           source_snapshots_unchanged(loaded)
         if locating {
-          if valid && source_map_matches(
+          selected: Result[SourceMapFunctionSelector, Str] = source_map_function_selector(
+            loaded,
+            args.function_name,
+            entry,
+            root,
+            stdlib_root
+          )
+          match selected {
+            Error(message) => if starts_with(message, "unknown function selector ") {
+              print("source-map: unavailable")
+              0
+            } else {
+              report_driver_error(message)
+            },
+            Ok(function) => if valid && source_map_matches(
             artifact_path,
             artifact
           ) && source_map_matches(map_path, sidecar) {
             print(source_map_location(
               loaded,
               mapped,
-              args.function_name,
+              function.emitted_name,
+              function.display_name,
               args.instruction,
               root,
               stdlib_root
             ))
+            0
           } else {
             print("source-map: unavailable");
+            0
           }
-          0
+          }
         } else {
           if !valid {
             report_driver_error("source-map limit exceeded, invalid artifact, or source changed during compilation")

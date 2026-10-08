@@ -1,5 +1,6 @@
 import "loader.panack"
 import "diagnostics.panack"
+import "module_emission.panack"
 
 // Serialize and replay bounded, local source maps. Foreign paths and lengths are
 // never instructions to open files or allocate unchecked buffers.
@@ -8,6 +9,90 @@ record SourceSnapshot {
   name: Str,
   path: Str,
   text: Str
+}
+
+record SourceMapFunctionSelector {
+  identity: DeclarationIdentity,
+  source_path: Str,
+  emitted_name: Str,
+  display_name: Str
+}
+
+pure source_map_project_staged(project: LoadedProject): Bool {
+  mut staged: Bool = false
+  for module in project.modules {
+    staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
+  }
+  staged
+}
+
+// Tool queries use stable module identities rather than the private emitted
+// symbol. Bare names remain convenient only while they identify one function.
+source_map_function_selector(
+  project: LoadedProject,
+  selector: Str,
+  entry_path: Str,
+  root: Str,
+  stdlib_root: Str
+): Result[SourceMapFunctionSelector, Str] {
+  mut separator: Option[Nat] = None()
+  for index in 0..len(selector) {
+    if selector[index] == ":" {
+      separator = Some(index)
+    }
+  }
+  mut selected_module: Str = ""
+  mut function_name: Str = selector
+  qualified: Bool = match separator {
+    None() => false,
+    Some(index) => {
+      selected_module = slice(selector, 0, index)
+      function_name = slice(selector, index + 1, len(selector))
+      true
+    }
+  }
+  if function_name == "" || (qualified && selected_module == "") {
+    Error("invalid function selector " + source_map_escape(selector))
+  } else {
+    graph: ModuleBindingGraph = loaded_binding_graph(project.modules, root, stdlib_root)
+    entry: ModuleIdentity = source_module_identity(entry_path, root, stdlib_root)
+    staged: Bool = source_map_project_staged(project)
+    mut found: Option[SourceMapFunctionSelector] = None()
+    mut matches: Nat = 0
+    for module in project.modules {
+      module_selector: Str = source_identifier(module.source_path, root, stdlib_root)
+      module_matches: Bool = !qualified || module_selector == selected_module
+      if module_matches {
+        for binding in module.bindings.declarations {
+          if binding.kind == ModuleFunction() && binding.identity.name == function_name {
+            found = Some(SourceMapFunctionSelector(
+              binding.identity,
+              module.source_path,
+              if staged {
+                module_emission_symbol(graph, entry, binding.identity)
+              } else {
+                binding.identity.name
+              },
+              selector
+            ))
+            matches = matches + 1
+          }
+        }
+      }
+    }
+    if matches > 1 {
+      Error("ambiguous function selector " + source_map_escape(selector) + "; use a module-qualified selector")
+    } else {
+      match found {
+        None() => if qualified {
+          Error("mismatched module identity selector " + source_map_escape(selector))
+        } else {
+          Error("unknown function selector " + source_map_escape(selector))
+        },
+        Some(value) => Ok(value)
+      }
+    }
+  }
 }
 
 pure source_snapshot_less(left: SourceSnapshot, right: SourceSnapshot): Bool {
@@ -227,7 +312,8 @@ pure source_map_escape(text: Str): Str {
 pure source_map_location(
   project: LoadedProject,
   mapped: SourceMappedProgram,
-  function_name: Str,
+  emitted_name: Str,
+  display_name: Str,
   pc: Nat,
   root: Str,
   stdlib_root: Str
@@ -235,7 +321,7 @@ pure source_map_location(
   mut output: Str = "source-map: unavailable"
 
   for function in mapped.sources {
-    if function.name == function_name {
+    if function.name == emitted_name {
       for location in function.entries {
         if location.index == pc {
           span: SourceSpan = location.span
@@ -245,7 +331,7 @@ pure source_map_location(
             "expression"
           }
           file: Str = source_map_escape(source_identifier(span.start.file, root, stdlib_root))
-          name: Str = source_map_escape(function_name)
+          name: Str = source_map_escape(display_name)
           start: Nat = span.start.offset
           end: Nat = span.end.offset
           line: Nat = span.start.line

@@ -4014,3 +4014,28 @@ checks passed and left no refresh lock. `make docs` and `git diff --check` passe
 These are single-run observations, not a matched performance comparison. GI#106
 retains the validation-budget follow-up; no budget, timeout or assertion has
 been relaxed.
+
+## P2 slice 6 integrated acceptance coverage — 2026-10-08
+
+The slice-6 audit found strong focused evidence for all seven gates, but no one
+supported staged-root path exercised the full checked subset through both source
+and saved-bytecode loading. `compiler_driver.panack` now assembles that path in a
+temporary root: callable and ordinary-body emission, same-spelled generic
+aggregates and patterns, guard proofs, async calls/await, and implicit core
+`Option` identity across imported modules. It checks and runs the source, compiles
+it, removes every source file, then checks and runs the saved v9 artifact. Pure
+assertions verify each value; imported `main` sentinels ensure only the selected
+entry runs. Existing parent-root and symlink rejection/no-artifact checks remain.
+
+The focused compiler-driver probe passed all 37 assertions. Canonical `make
+check` passed all suites, including the integrated source/bytecode path and seed
+fixed points, in 198s against the unchanged 120s target (functional 5s,
+bootstrap 18s). `make docs` and whitespace/local-link validation passed. The first
+standalone `make functional` attempt stopped in its TCP setup at the existing
+loopback bind assertion; the full canonical run subsequently passed its
+functional phase. The 198s result is within the previously observed noisy
+195–204s slice-6 range and is not a controlled timing comparison; this delivery
+changes tests and documents only, so it establishes no causal timing effect.
+Retain all coverage and budgets under GI#106. The public namespace execution
+gate, checked-in seed, and slice-7/8 acceptance remain unchanged. Website impact:
+none.

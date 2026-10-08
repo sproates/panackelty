@@ -1186,6 +1186,34 @@ pure namespace_body_tests(): [TestResult] {
       "excess type argument was accepted"
     }
   ))
+  missing_explicit_type_argument_count_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Bool { combine[Nat](1, 2) }; pure combine[T,U](left:T,right:U): Bool { true }"
+  )
+  results = append(results, test_expect(
+    "missing type argument count points to final supplied type",
+    len(missing_explicit_type_argument_count_location.diagnostics) > 0 &&
+      missing_explicit_type_argument_count_location.diagnostics[0].position.column == 30 &&
+      missing_explicit_type_argument_count_location.diagnostics[0].message == "call combine has incorrect type argument count",
+    if len(missing_explicit_type_argument_count_location.diagnostics) > 0 {
+      diagnostic_text(missing_explicit_type_argument_count_location.diagnostics[0])
+    } else {
+      "missing explicit type argument was accepted"
+    }
+  ))
+  missing_dot_type_argument_count_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(value: Nat): Bool { value.combine[Nat](2) }; pure combine[T,U](value:T,right:U): Bool { true }"
+  )
+  results = append(results, test_expect(
+    "receiver missing type argument count points to final supplied type",
+    len(missing_dot_type_argument_count_location.diagnostics) > 0 &&
+      missing_dot_type_argument_count_location.diagnostics[0].position.column == 46 &&
+      missing_dot_type_argument_count_location.diagnostics[0].message == "call combine has incorrect type argument count",
+    if len(missing_dot_type_argument_count_location.diagnostics) > 0 {
+      diagnostic_text(missing_dot_type_argument_count_location.diagnostics[0])
+    } else {
+      "missing receiver-call type argument was accepted"
+    }
+  ))
   special_type_argument_location: CheckedModuleBodies = body_test_module(
     "pub pure f():Nat { len[Nat]([1]) }"
   )

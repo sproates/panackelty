@@ -6,6 +6,29 @@
 
 # Validation profiling baseline
 
+## P2 Slice 7 acceptance hardening — 2026-10-08
+
+The final Slice 7 audit added exact-position regressions for too few explicit
+type arguments on direct and receiver calls. Existing tests cover excess counts,
+invalid explicit types, parenthesized calls, reserved core calls, pattern and
+declaration spans, source-map identity selection, and stale or malformed maps.
+The compiler and VM implementation are unchanged by this acceptance-hardening
+delivery.
+
+The focused module-binding suite passed all 597 assertions; the source-map CLI
+suite passed all 54 checks. `make docs` passed. Host-access `make check` passed
+all suites in 225s against the unchanged 120s target (functional 6s, bootstrap
+20s). The preceding explicit-call-span delivery passed in 217s. These are
+separate single runs, not a controlled comparison; no cost-neutrality or causal
+claim is made from this test/docs-only change.
+
+Keep all tests and the 120s/15s budgets. GI#106 remains open under the existing
+validation maintainer; its next bounded compiler-delivery comparison/remediation
+review and trigger remain unchanged. This acceptance follow-up selects no
+optimization. The 225s miss is disclosed for the user's explicit merge decision.
+Website impact: none; namespace execution remains gated and published claims do
+not change.
+
 ## Namespace checked-graph effects and await — 2026-10-07
 
 Base: `next` after slice 4. The checker now resolves pure, ordinary and async

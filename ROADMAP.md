@@ -496,7 +496,9 @@ closing such followups. P1 design acceptance is complete. On `next`, P2 slices
 1–6 are complete: PR#297 delivered slice 1; slice 2 is complete; PR#321 and
 PR#326 complete slice 3; PR#327 completes slice 4; PR#329 completes slice 5;
 and PR#349 completes slice 6. Slice 7 is in progress on
-`feat/p2-slice7-identity-diagnostics`; slice 8 remains. GI#198 stays open.
+`next`; PR#351 adds match-pattern span retention and precise arm-diagnostic
+locations. Type-reference token spans remain follow-up work; slice 8 remains.
+GI#198 stays open.
 P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -3156,7 +3158,7 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
 | Slice 6: Identity emission/standalone loading | 14% | Seven gates integrated by merged PR#349, including staged-root source and saved-bytecode acceptance | 100% | 14 pp |
-| Slice 7: Diagnostics/explain/locate | 6% | In progress: staged identity emission preserves expression spans through lowering; explain/locate accept portable module-qualified selectors and reject ambiguity, wrong identities and stale maps | 0% pending PR acceptance | 0 pp |
+| Slice 7: Diagnostics/explain/locate | 6% | In progress: PR#351 carries parser-retained match-pattern spans through identity body checking and emission, and locates arm-specific diagnostics at the pattern; type-reference token spans remain follow-up work. Existing expression spans and explain/locate selector identity checks remain in place | 0% pending PR acceptance | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
 | **Total** | **100%** | **Foundations and slices 1–6 complete; 79 pp earned under the scope estimate; slices 7–8 remain** | **79% estimated** | **15.8 pp estimated P2 contribution** |
 

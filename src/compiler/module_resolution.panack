@@ -522,7 +522,7 @@ pure resolve_module_expression_uses(
   mut result: ResolvedModuleUses = ResolvedModuleUses([], [])
 
   match expression {
-    LocatedExpr(span, value) => {
+    LocatedExpr(span, value, located_type_argument_spans) => {
       result = resolve_module_expression_uses(graph, identity, value, span, locals)
     },
     DotCallExpr(target, name, arguments, types) => {
@@ -826,7 +826,7 @@ pure expression_import_shadows(
   mut diagnostics: [Diagnostic] = []
 
   match expression {
-    LocatedExpr(span, value) => {
+    LocatedExpr(span, value, located_type_argument_spans) => {
       diagnostics = expression_import_shadows(value, names, span)
     },
     DotCallExpr(target, name, arguments, types) => {

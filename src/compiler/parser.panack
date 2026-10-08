@@ -4,7 +4,8 @@ import "lexer.panack"
 // Parsing errors refer to the original token stream, including import boundaries.
 
 enum Expr {
-  LocatedExpr(SourceSpan, Expr),
+  // The sidecar retains exact explicit call-type spans for checked diagnostics.
+  LocatedExpr(SourceSpan, Expr, [SourceSpan]),
   NatExpr(Nat),
   DecimalExpr(Str),
   StringExpr(Str),
@@ -29,7 +30,7 @@ pure unlocated_expression(expression: Expr): Expr {
   mut result: Expr = expression
 
   match expression {
-    LocatedExpr(position, value) => {
+    LocatedExpr(position, value, located_type_argument_spans) => {
       result = unlocated_expression(value)
     },
     NatExpr(value) => {},
@@ -227,13 +228,50 @@ pure token_span(tokens: [Token], start: Nat, next: Nat): SourceSpan {
 pure located_expression(tokens: [Token], index: Nat, next: Nat, value: Expr): Expr {
   LocatedExpr(
     SourceSpan(token_position(tokens, index), token_end_position(tokens, next)),
-    unlocated_expression(value)
+    unlocated_expression(value),
+    expression_type_argument_spans(value)
   )
+}
+
+pure located_expression_with_type_argument_spans(
+  tokens: [Token],
+  index: Nat,
+  next: Nat,
+  value: Expr,
+  type_argument_spans: [SourceSpan]
+): Expr {
+  LocatedExpr(
+    SourceSpan(token_position(tokens, index), token_end_position(tokens, next)),
+    unlocated_expression(value),
+    type_argument_spans
+  )
+}
+
+pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
+  match expression {
+    LocatedExpr(span, value, type_argument_spans) => type_argument_spans,
+    NatExpr(value) => [],
+    DecimalExpr(text) => [],
+    StringExpr(text) => [],
+    BoolExpr(value) => [],
+    NameExpr(name) => [],
+    FunctionExpr(name) => [],
+    ArrayExpr(items) => [],
+    UnaryExpr(operator, operand) => [],
+    BinaryExpr(operator, left, right) => [],
+    CallExpr(name, arguments, types) => [],
+    DotCallExpr(target, name, arguments, types) => [],
+    FieldExpr(target, field) => [],
+    IndexExpr(target, index) => [],
+    IfExpr(condition, yes, no, has_else) => [],
+    BlockExpr(block) => [],
+    MatchExpr(subject, arms) => []
+  }
 }
 
 pure expression_span(expression: Expr): Option[SourceSpan] {
   match expression {
-    LocatedExpr(span, value) => Some(span),
+    LocatedExpr(span, value, located_type_argument_spans) => Some(span),
     NatExpr(value) => None(),
     DecimalExpr(text) => None(),
     StringExpr(text) => None(),
@@ -257,7 +295,24 @@ pure expression_span(expression: Expr): Option[SourceSpan] {
 // An unlocated synthetic input stays unlocated rather than acquiring a guess.
 pure extended_expression(tokens: [Token], left: Expr, next: Nat, value: Expr): Expr {
   match expression_span(left) {
-    Some(span) => LocatedExpr(SourceSpan(span.start, token_end_position(tokens, next)), value),
+    Some(span) => LocatedExpr(SourceSpan(span.start, token_end_position(tokens, next)), value, []),
+    None() => value
+  }
+}
+
+pure extended_expression_with_type_argument_spans(
+  tokens: [Token],
+  left: Expr,
+  next: Nat,
+  value: Expr,
+  type_argument_spans: [SourceSpan]
+): Expr {
+  match expression_span(left) {
+    Some(span) => LocatedExpr(
+      SourceSpan(span.start, token_end_position(tokens, next)),
+      value,
+      type_argument_spans
+    ),
     None() => value
   }
 }
@@ -925,11 +980,12 @@ pure parse_named_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Dia
       if types.next < len(tokens) && tokens[types.next].text == "(" {
         match parse_expression_list(tokens, types.next + 1, ")") {
           Ok(arguments) => Ok(ParsedExpr(
-            located_expression(
+            located_expression_with_type_argument_spans(
             tokens,
             index,
             arguments.next,
-            CallExpr(tokens[index].text, arguments.values, types.values)
+            CallExpr(tokens[index].text, arguments.values, types.values),
+            types.spans
           ),
             arguments.next
           )),
@@ -1117,11 +1173,12 @@ pure parse_postfix_tail(tokens: [Token], left: Expr, index: Nat): Result[ParsedE
                 Ok(arguments) => {
                   parse_postfix_tail(
                     tokens,
-                    extended_expression(
+                    extended_expression_with_type_argument_spans(
                     tokens,
                     left,
                     arguments.next,
-                    DotCallExpr(left, name, arguments.values, types.values)
+                    DotCallExpr(left, name, arguments.values, types.values),
+                    types.spans
                   ),
                     arguments.next
                   )
@@ -2311,7 +2368,7 @@ pure render_match_arms(arms: [MatchArm]): Str {
 
 pure render_expr(expression: Expr): Str {
   match expression {
-    LocatedExpr(position, value) => render_expr(value),
+    LocatedExpr(position, value, located_type_argument_spans) => render_expr(value),
     NatExpr(value) => "${value}",
     DecimalExpr(text) => text,
     StringExpr(text) => text,
@@ -2683,7 +2740,11 @@ pure lower_legacy_expressions(values: [Expr]): [Expr] {
 
 pure lower_legacy_expression(value: Expr): Expr {
   match value {
-    LocatedExpr(span, inner) => LocatedExpr(span, lower_legacy_expression(inner)),
+    LocatedExpr(span, inner, located_type_argument_spans) => LocatedExpr(
+      span,
+      lower_legacy_expression(inner),
+      located_type_argument_spans
+    ),
     DotCallExpr(target, name, arguments, types) => CallExpr(
       lowered_method_name(name),
       concat([lower_legacy_expression(target)], lower_legacy_expressions(arguments)),
@@ -2807,7 +2868,7 @@ pure reference_tail(name: Str): Str {
 
 pure expression_reference_path(expression: Expr): Str {
   match expression {
-    LocatedExpr(span, value) => expression_reference_path(value),
+    LocatedExpr(span, value, located_type_argument_spans) => expression_reference_path(value),
     NameExpr(name) => name,
     FieldExpr(target, field) => {
       path: Str = expression_reference_path(target)
@@ -2852,7 +2913,7 @@ pure type_has_qualification(name: Str): Bool {
 // Tracking unrelated locals changes no lookup and copies unnecessary sets.
 pure expression_requires_namespaces(expression: Expr, aliases: Set[Str], locals: Set[Str]): Bool {
   match expression {
-    LocatedExpr(span, value) => expression_requires_namespaces(value, aliases, locals),
+    LocatedExpr(span, value, located_type_argument_spans) => expression_requires_namespaces(value, aliases, locals),
     DotCallExpr(target, name, arguments, types) => {
       mut required: Bool = (aliases.has(reference_head(expression_reference_path(target))) &&
         !locals.has(reference_head(expression_reference_path(target)))) ||

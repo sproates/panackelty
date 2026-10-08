@@ -207,7 +207,7 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
       NatExpr(number) => {
         result = Some(Bounds(true, number, true, number, None()))
       },
-      LocatedExpr(position, inner) => {},
+      LocatedExpr(position, inner, located_type_argument_spans) => {},
       DecimalExpr(text) => {},
       StringExpr(text) => {},
       BoolExpr(flag) => {},
@@ -471,7 +471,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
       NatExpr(number) => {
         result = Some(number)
       },
-      LocatedExpr(position, inner) => {},
+      LocatedExpr(position, inner, located_type_argument_spans) => {},
       DecimalExpr(text) => {},
       StringExpr(text) => {},
       BoolExpr(flag) => {},
@@ -829,11 +829,40 @@ pure body_target(context: BodyContext, name: Str, function_only: Bool): Result[B
   }
 }
 
+pure body_type_argument_span(
+  type_argument_spans: [SourceSpan],
+  index: Nat,
+  fallback: SourceSpan
+): SourceSpan {
+  if index < len(type_argument_spans) {
+    type_argument_spans[index]
+  } else {
+    fallback
+  }
+}
+
+pure body_type_argument_count_span(
+  type_argument_spans: [SourceSpan],
+  expected_count: Nat,
+  fallback: SourceSpan
+): SourceSpan {
+  if len(type_argument_spans) > expected_count {
+    type_argument_spans[expected_count]
+  } else {
+    if len(type_argument_spans) > 0 {
+      type_argument_spans[prior_index(len(type_argument_spans))]
+    } else {
+      fallback
+    }
+  }
+}
+
 pure body_call(
   context: BodyContext,
   target: BodyTarget,
   arguments: [Expr],
   types: [Str],
+  type_argument_spans: [SourceSpan],
   span: SourceSpan,
   locals: Map[Str, BodyLocal],
   path: [Nat]
@@ -860,6 +889,7 @@ pure body_call(
     index = index + 1
   }
   mut resolved_types: [SignatureType] = []
+  mut type_index: Nat = 0
   for type in types {
     match signature_type(
       context.graph,
@@ -871,12 +901,14 @@ pure body_call(
       false
     ) {
       Error(message) => {
-        diagnostics = append(diagnostics, Diagnostic(message, span.start))
+        type_span: SourceSpan = body_type_argument_span(type_argument_spans, type_index, span)
+        diagnostics = append(diagnostics, Diagnostic(message, type_span.start))
       },
       Ok(resolved) => {
         resolved_types = append(resolved_types, resolved)
       }
     }
+    type_index = type_index + 1
   }
   mut output: Option[SignatureType] = None()
   if !body_special_core_call(target) {
@@ -901,9 +933,10 @@ pure body_call(
           )
         }
         if len(types) > 0 && (contract.constructor || len(contract.parameters) == 0) {
+          type_span: SourceSpan = body_type_argument_span(type_argument_spans, 0, span)
           diagnostics = append(
             diagnostics,
-            Diagnostic("explicit type arguments require a generic function", span.start)
+            Diagnostic("explicit type arguments require a generic function", type_span.start)
           )
         }
         mut inferred: [SignatureType] = []
@@ -915,9 +948,14 @@ pure body_call(
         mut inference_deferred: Bool = false
         if len(types) > 0 {
           if len(types) != len(contract.parameters) {
+            type_span: SourceSpan = body_type_argument_count_span(
+              type_argument_spans,
+              len(contract.parameters),
+              span
+            )
             diagnostics = append(
               diagnostics,
-              Diagnostic("call " + contract.name + " has incorrect type argument count", span.start)
+              Diagnostic("call " + contract.name + " has incorrect type argument count", type_span.start)
             )
           } else {
             if len(resolved_types) == len(types) {
@@ -1033,7 +1071,16 @@ pure body_call(
     }
   }
   if body_special_core_call(target) {
-    body_check_special_core_call(context, target, children, resolved_types, span, diagnostics, deferred)
+    body_check_special_core_call(
+      context,
+      target,
+      children,
+      resolved_types,
+      body_type_argument_span(type_argument_spans, 0, span),
+      span,
+      diagnostics,
+      deferred
+    )
   } else {
     BodyResult(
       BoundBody(BodyCall(target, resolved_types), span, children, output, []),
@@ -1069,6 +1116,7 @@ pure body_check_special_core_call(
   target: BodyTarget,
   children: [BoundBody],
   types: [SignatureType],
+  type_argument_span: SourceSpan,
   span: SourceSpan,
   initial_diagnostics: [Diagnostic],
   initial_deferred: [SourceSpan]
@@ -1084,13 +1132,13 @@ pure body_check_special_core_call(
   if name != "$method_call" && len(types) > 0 {
     diagnostics = append(
       diagnostics,
-      Diagnostic("explicit type arguments require a generic function", span.start)
+      Diagnostic("explicit type arguments require a generic function", type_argument_span.start)
     )
   }
   if name == "$method_call" && len(types) > 0 {
     diagnostics = append(
       diagnostics,
-      Diagnostic("explicit type arguments require a generic function", span.start)
+      Diagnostic("explicit type arguments require a generic function", type_argument_span.start)
     )
   }
   if name == "$unit" {
@@ -1407,11 +1455,36 @@ pure bind_body_expression(
   locals: Map[Str, BodyLocal],
   path: [Nat]
 ): BodyResult {
+  bind_body_expression_with_type_argument_spans(
+    context,
+    expression,
+    origin,
+    locals,
+    path,
+    []
+  )
+}
+
+pure bind_body_expression_with_type_argument_spans(
+  context: BodyContext,
+  expression: Expr,
+  origin: SourceSpan,
+  locals: Map[Str, BodyLocal],
+  path: [Nat],
+  type_argument_spans: [SourceSpan]
+): BodyResult {
   mut result: BodyResult = body_result(BodyEmpty(), origin, [], None())
 
   match expression {
-    LocatedExpr(span, value) => {
-      result = bind_body_expression(context, value, span, locals, path)
+    LocatedExpr(span, value, located_type_argument_spans) => {
+      result = bind_body_expression_with_type_argument_spans(
+        context,
+        value,
+        span,
+        locals,
+        path,
+        located_type_argument_spans
+      )
     },
     NatExpr(value) => {
       result = body_result(BodyLiteral(expression), origin, [], body_core_type("Nat"))
@@ -1479,7 +1552,16 @@ pure bind_body_expression(
           result = body_failure(message, origin)
         },
         Ok(target) => {
-          result = body_call(context, target, arguments, types, origin, locals, path)
+          result = body_call(
+            context,
+            target,
+            arguments,
+            types,
+            type_argument_spans,
+            origin,
+            locals,
+            path
+          )
         }
       }
     },
@@ -1508,6 +1590,7 @@ pure bind_body_expression(
               BodyDeclaration(binding),
               values,
               type_arguments,
+              type_argument_spans,
               origin,
               locals,
               path
@@ -1520,6 +1603,7 @@ pure bind_body_expression(
                 BodyCore(lowered_method_name(method)),
                 concat([value], values),
                 type_arguments,
+                type_argument_spans,
                 origin,
                 locals,
                 path
@@ -1535,6 +1619,7 @@ pure bind_body_expression(
                     target,
                     concat([value], values),
                     type_arguments,
+                    type_argument_spans,
                     origin,
                     locals,
                     path

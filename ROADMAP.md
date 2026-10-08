@@ -496,8 +496,10 @@ closing such followups. P1 design acceptance is complete. On `next`, P2 slices
 1–6 are complete: PR#297 delivered slice 1; slice 2 is complete; PR#321 and
 PR#326 complete slice 3; PR#327 completes slice 4; PR#329 completes slice 5;
 and PR#349 completes slice 6. Slice 7 is in progress on
-`next`; PR#351 adds match-pattern span retention and precise arm-diagnostic
-locations. Type-reference token spans remain follow-up work; slice 8 remains.
+`next`; merged PR#351 adds match-pattern span retention and precise arm-diagnostic
+locations, PR#352 adds declaration-signature type spans, and PR#353 adds
+body-local annotation spans. This delivery covers explicit call type-argument
+spans; Slice 7 acceptance remains in progress, and Slice 8 remains.
 GI#198 stays open.
 P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
@@ -3158,7 +3160,7 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
 | Slice 6: Identity emission/standalone loading | 14% | Seven gates integrated by merged PR#349, including staged-root source and saved-bytecode acceptance | 100% | 14 pp |
-| Slice 7: Diagnostics/explain/locate | 6% | In progress: merged PR#351 carries parser-retained match-pattern spans through identity body checking and emission, and locates arm-specific diagnostics at the pattern. Merged PR#352 retains declaration-signature type-reference spans and reports invalid field, enum payload, and function signature types at their type tokens. This change retains body-local annotation spans and locates invalid local types at the type token. Expression spans and explain/locate selector identity checks remain in place; explicit type-argument spans remain follow-up work | 0% | 0 pp |
+| Slice 7: Diagnostics/explain/locate | 6% | In progress: merged PR#351 carries parser-retained match-pattern spans through identity body checking and emission, and locates arm-specific diagnostics at the pattern. Merged PR#352 retains declaration-signature type-reference spans; merged PR#353 retains body-local annotation spans. This delivery retains explicit call type-argument spans and locates invalid types, unsupported explicit arguments, and wrong argument counts at the relevant type token, including receiver calls. Expression spans and explain/locate selector identity checks remain in place; final Slice 7 acceptance is pending | 0% | 0 pp |
 | Slice 8: Source/seed cutover and acceptance | 15% | Remaining stdlib/compiler/test/example migration, namespace-capable seed, native/browser/installed conformance and transitional-path removal | 0% | 0 pp |
 | **Total** | **100%** | **Foundations and slices 1–6 complete; 79 pp earned under the scope estimate; slices 7–8 remain** | **79% estimated** | **15.8 pp estimated P2 contribution** |
 

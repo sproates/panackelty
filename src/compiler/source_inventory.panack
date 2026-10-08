@@ -45,7 +45,7 @@ pure inventory_expression(expression: Expr, id: Str): [InventoryItem] {
   mut items: [InventoryItem] = inventory_item(id, "expression", "attempt", expression)
 
   match unlocated_expression(expression) {
-    LocatedExpr(span, value) => {},
+    LocatedExpr(span, value, located_type_argument_spans) => {},
     NatExpr(value) => {},
     DecimalExpr(value) => {},
     StringExpr(value) => {},

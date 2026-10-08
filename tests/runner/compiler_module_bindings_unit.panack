@@ -206,7 +206,7 @@ pure module_emission_identity_tests(): [TestResult] {
 module_emission_guard_call_name(expression: Expr): Str {
   match unlocated_expression(expression) {
     CallExpr(name, arguments, types) => name,
-    LocatedExpr(span, value) => "",
+    LocatedExpr(span, value, located_type_argument_spans) => "",
     NatExpr(value) => "",
     DecimalExpr(value) => "",
     StringExpr(value) => "",
@@ -297,7 +297,7 @@ module_emission_program_tests(): [TestResult] {
   emitted_call: Expr = module_emission_expression(graph, identity, call)
   results = append(results, test_expect("identity expression targets the left declaration", match unlocated_expression(emitted_call) {
     CallExpr(name, arguments, types) => name == left_make,
-    LocatedExpr(span, expression) => false,
+    LocatedExpr(span, expression, located_type_argument_spans) => false,
     DotCallExpr(target, name, arguments, types) => false,
     StringExpr(text) => false,
     NatExpr(value) => false,
@@ -326,7 +326,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
     UnaryExpr(operator, operand) => if operator == "await" {
       match unlocated_expression(operand) {
         CallExpr(name, arguments, types) => name,
-        LocatedExpr(span, value) => "",
+        LocatedExpr(span, value, located_type_argument_spans) => "",
         NatExpr(value) => "",
         DecimalExpr(value) => "",
         StringExpr(value) => "",
@@ -346,7 +346,7 @@ pure module_emission_await_call_name(expression: Expr): Str {
     } else {
       ""
     },
-    LocatedExpr(span, value) => "",
+    LocatedExpr(span, value, located_type_argument_spans) => "",
     NatExpr(value) => "",
     DecimalExpr(value) => "",
     StringExpr(value) => "",
@@ -629,7 +629,7 @@ pure namespace_qualified_syntax_tests(): [TestResult] {
 pure raw_namespace_dot_call(expression: Expr): Bool {
   match unlocated_expression(expression) {
     DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && len(arguments) == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
-    LocatedExpr(span, value) => false, NatExpr(value) => false, DecimalExpr(text) => false,
+    LocatedExpr(span, value, located_type_argument_spans) => false, NatExpr(value) => false, DecimalExpr(text) => false,
     StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
     FunctionExpr(name) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false, CallExpr(name, arguments, types) => false,
@@ -1132,6 +1132,74 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("generic function reference rejected", body_test_error("pub pure f(): Fn[Nat,Nat] { @identity }; pure identity[T](value: T): T { value }"), "generic function references require a non-generic wrapper"))
   results = append(results, test_equal_str("explicit generic substitution checks type", body_test_error("pub pure f(): Nat { identity[Nat](\"bad\") }; pure identity[T](value: T): T { value }"), "argument 1 to identity is Str, expected Nat"))
   results = append(results, test_equal_str("explicit generic arity checked", body_test_error("pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value: T): T { value }"), "call identity has incorrect type argument count"))
+  explicit_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { identity[MissingType](1) }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "invalid direct-call type argument points to its type token",
+    len(explicit_type_argument_location.diagnostics) > 0 &&
+      explicit_type_argument_location.diagnostics[0].position.file == "module.panack" &&
+      explicit_type_argument_location.diagnostics[0].position.column == 30,
+    if len(explicit_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(explicit_type_argument_location.diagnostics[0])
+    } else {
+      "invalid explicit type argument was accepted"
+    }
+  ))
+  parenthesized_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f():Nat { (identity[MissingType](1)) }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "parenthesized call retains type-argument location",
+    len(parenthesized_type_argument_location.diagnostics) > 0 &&
+      parenthesized_type_argument_location.diagnostics[0].position.column == 30,
+    if len(parenthesized_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(parenthesized_type_argument_location.diagnostics[0])
+    } else {
+      "invalid parenthesized type argument was accepted"
+    }
+  ))
+  explicit_dot_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(value:Nat):Nat { value.identity[MissingType]() }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "invalid receiver-call type argument points to its type token",
+    len(explicit_dot_type_argument_location.diagnostics) > 0 &&
+      explicit_dot_type_argument_location.diagnostics[0].position.file == "module.panack" &&
+      explicit_dot_type_argument_location.diagnostics[0].position.column == 44,
+    if len(explicit_dot_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(explicit_dot_type_argument_location.diagnostics[0])
+    } else {
+      "invalid receiver-call type argument was accepted"
+    }
+  ))
+  explicit_type_argument_count_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "excess type argument count points to the extra type",
+    len(explicit_type_argument_count_location.diagnostics) > 0 &&
+      explicit_type_argument_count_location.diagnostics[0].position.column == 34,
+    if len(explicit_type_argument_count_location.diagnostics) > 0 {
+      diagnostic_text(explicit_type_argument_count_location.diagnostics[0])
+    } else {
+      "excess type argument was accepted"
+    }
+  ))
+  special_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f():Nat { len[Nat]([1]) }"
+  )
+  results = append(results, test_expect(
+    "reserved core call type argument points to its type token",
+    len(special_type_argument_location.diagnostics) > 0 &&
+      special_type_argument_location.diagnostics[0].position.column == 24 &&
+      special_type_argument_location.diagnostics[0].message == "explicit type arguments require a generic function",
+    if len(special_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(special_type_argument_location.diagnostics[0])
+    } else {
+      "core type argument was accepted"
+    }
+  ))
   for source in [
 
     "pub pure f(): Nat { [1].first() }",

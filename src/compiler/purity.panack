@@ -94,7 +94,7 @@ pure check_effect_expression(
   mut violations: [Str] = []
 
   match expression {
-    LocatedExpr(position, value) => {
+    LocatedExpr(position, value, located_type_argument_spans) => {
       await_call = true
       nested: CheckedEffects = check_effect_expression(
         value,
@@ -599,7 +599,7 @@ pure expression_is_await(expression: Expr): Bool {
   mut result: Bool = false
 
   match expression {
-    LocatedExpr(position, value) => {
+    LocatedExpr(position, value, located_type_argument_spans) => {
       result = expression_is_await(value)
     },
     NatExpr(value) => {},

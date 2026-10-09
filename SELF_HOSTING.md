@@ -23,6 +23,13 @@ and rerun native, browser-WASI and relocated installed acceptance. Keep GI#198
 open until those gates pass. Browser packaging and conformance remain separate
 integration evidence.
 
+PR #357's first Linux compiler-package run failed because the isolated native
+tool `PATH` omitted `ls`, which the bootstrap harness uses; this made the
+incremental-failure corpus and direct-driver probe time out. The allowlist now
+includes `ls`, and both `make check-no-interpreter CI_SUITE=compiler` and
+canonical `make check` pass locally. The hosted rerun remains required before
+merging that prerequisite.
+
 The sections below retain earlier milestone notes as historical evidence; use
 the handoff above and the linked validation profile for current Slice 8 status.
 

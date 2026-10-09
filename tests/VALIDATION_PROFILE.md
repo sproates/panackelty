@@ -4103,6 +4103,16 @@ release-smoke 0s, quick-start 1s), above the unchanged 120s target. These local
 observations do not establish regression or cause. Keep the existing GI#106/RM#123
 performance disposition and next action unchanged.
 
+The first Linux compiler-package run for PR #357 exposed that the isolated native
+tool `PATH` omitted `ls`, which `tests/unit/harness/bootstrap.sh` requires. Its
+setup failed and caused timeout and follow-on failures in the incremental corpus
+and direct-driver probe. `tests/without_interpreter.sh` now includes `ls` in its
+allowlist. The exact local route `make check-no-interpreter CI_SUITE=compiler`
+passed, including both previously failing probes. Canonical `make check` also
+passed in 146s against the unchanged 120s budget; this one-off local timing does
+not establish a compiler performance regression, and the change has no compiler
+or runtime impact. The hosted PR rerun remains the merge gate.
+
 This is a compiler bootstrap prerequisite only. It does not migrate compiler or
 standard-library source imports, remove the legacy flat loader, or earn Slice 8
 completion credit. There is no runtime/VM behavior or website impact.

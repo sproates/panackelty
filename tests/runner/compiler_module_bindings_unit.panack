@@ -940,6 +940,47 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("print body contract", body_test_error("pub f(): Void { print(1) }"), "ok"))
   results = append(results, test_equal_str("print wrong arity", body_test_error("pub f(): Void { print() }"), "print expects 1 arguments, got 0"))
   for source in [
+    "pub pure f(): Bool { is_digit(\"9\") }",
+    "pub pure f(): Bool { is_letter(\"a\") }",
+    "pub pure f(): Bool { is_whitespace(\" \") }",
+    "pub pure f(): Bool { starts_with_at(\"=>\", \"=\", 0) }",
+    "pub pure f(): Str { slice(\"text\", 1, 3) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect(
+      "text intrinsic has complete identity contract/" + source,
+      len(checked.diagnostics) == 0 && len(checked.functions) == 1 &&
+        checked.functions[0].status == BodyIdentityChecked() &&
+        len(checked.functions[0].deferred) == 0,
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "text intrinsic remained deferred" }
+    ))
+  }
+  results = append(results, test_equal_str(
+    "starts_with_at checks argument types",
+    body_test_error("pub pure f(): Bool { starts_with_at(\"text\", 1, 0) }"),
+    "argument 2 to starts_with_at is Nat, expected Str"
+  ))
+  results = append(results, test_equal_str(
+    "character intrinsic checks arity",
+    body_test_error("pub pure f(): Bool { is_digit(\"1\", \"2\") }"),
+    "is_digit expects 1 arguments, got 2"
+  ))
+  results = append(results, test_equal_str(
+    "starts_with_at checks arity",
+    body_test_error("pub pure f(): Bool { starts_with_at(\"text\", \"t\") }"),
+    "starts_with_at expects 3 arguments, got 2"
+  ))
+  results = append(results, test_equal_str(
+    "slice checks argument types",
+    body_test_error("pub pure f(): Str { slice(\"text\", \"start\", 3) }"),
+    "argument 2 to slice is Str, expected Nat"
+  ))
+  results = append(results, test_equal_str(
+    "slice checks arity",
+    body_test_error("pub pure f(): Str { slice(\"text\", 1) }"),
+    "slice expects 3 arguments, got 2"
+  ))
+  for source in [
     "pub pure identity(value: Nat): Nat { value }",
     "pub pure widen(value: Nat): Int { value }",
     "pub pure widen(value: [Nat]): [Int] { value }",

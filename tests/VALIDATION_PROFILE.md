@@ -4084,10 +4084,38 @@ execution after every source file was removed. The new
 `tests/namespace_seed.sh` makes that direct stage-1 acceptance part of
 `make bootstrap-check`.
 
-At the time this bootstrap prerequisite was recorded, it did not yet migrate
-compiler or standard-library source imports or establish the final fixed points
-and platform acceptance; those Slice 8 checks are recorded below.
+## Slice 8 text-intrinsic bootstrap prerequisite — 2026-10-08
 
+The staged identity checker previously deferred text-core calls used by the
+lexer. It now checks arity and argument types for `is_digit`, `is_letter`,
+`is_whitespace`, `starts_with_at` and `slice`, with focused positive and failure
+coverage in `tests/runner/compiler_module_bindings_unit.panack` (607 assertions,
+0 failures). The refreshed checked-in v9 seed is
+`fd542e146ef06363deb54ea0cd9a1b60886080c44f9e12cdcdb40d73b1684bde`; the
+standard-library fixed-point digest remains
+`8b78b9722d18fb973a5d9da88d1a5df4c65f2703a7745d7160157445f9791af4`.
+`make bootstrap-check` passed with compiler stages 2/3 and standard-library
+stages 1/2/3 agreeing, seed refresh idempotent, and namespace source/saved-v9
+acceptance passing. The initial canonical check passed in 209s before the
+checked-in seed refresh (functional 6s, bootstrap 21s). After the refresh, the
+final-tree `make check` passed in 205s (functional 4s, bootstrap 20s,
+release-smoke 0s, quick-start 1s), above the unchanged 120s target. These local
+observations do not establish regression or cause. Keep the existing GI#106/RM#123
+performance disposition and next action unchanged.
+
+The first Linux compiler-package run for PR #357 exposed that the isolated native
+tool `PATH` omitted `ls`, which `tests/unit/harness/bootstrap.sh` requires. Its
+setup failed and caused timeout and follow-on failures in the incremental corpus
+and direct-driver probe. `tests/without_interpreter.sh` now includes `ls` in its
+allowlist. The exact local route `make check-no-interpreter CI_SUITE=compiler`
+passed, including both previously failing probes. Canonical `make check` also
+passed in 146s against the unchanged 120s budget; this one-off local timing does
+not establish a compiler performance regression, and the change has no compiler
+or runtime impact. The hosted PR rerun remains the merge gate.
+
+This is a compiler bootstrap prerequisite only. It does not migrate compiler or
+standard-library source imports, remove the legacy flat loader, or earn Slice 8
+completion credit. There is no runtime/VM behavior or website impact.
 
 ## Slice 8 namespace project checkpoint — 2026-10-08
 

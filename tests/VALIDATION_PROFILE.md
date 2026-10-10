@@ -6,6 +6,76 @@
 
 # Validation profiling baseline
 
+## Alpha.12 performance close-out — 2026-10-10
+
+The final clean canonical `make check` ran on the macOS arm64 development host
+against `next` commit `ecc2a35347f3c061016d9e19c44a6d7451b8780c` (the merge of
+PR #363). The host was macOS 26.5 (build 25F71), Apple clang 21.0.0, arm64; the
+checkout had no build directory. With `CFLAGS=-O2` and `VALIDATION_JOBS=4`,
+`make clean` followed by the profiled canonical `make check` passed in **375s**:
+unit 200s, functional 12s, bootstrap 133s, release smoke 1s and quick start 1s.
+The 120s clean-check budget was exceeded by 255s; the 60s bootstrap budget was
+exceeded by 73s. The aggregate unit phase is not the focused 15s incremental
+workload. All suites and assertions were retained. This is one host run; OS
+cache state and unrelated host load were not controlled.
+
+The regular Check workflow also passed for the same exact commit on Linux x86-64
+and macOS arm64 in run [38069721806](https://github.com/sproates/panackelty/actions/runs/38069721806).
+It partitions validation into independent jobs, so its job times are not a
+single canonical `make check` observation. A separate clean-checkout focused
+profile ran on both hosted reference images in
+[run 38071763613](https://github.com/sproates/panackelty/actions/runs/38071763613),
+using two workers, ordinary native prerequisites and initial then cached
+`check-compiler`, `check-bytecode` and `check-vm` commands:
+
+| Hosted reference | Compiler initial / cached | Bytecode initial / cached | VM initial / cached |
+| --- | ---: | ---: | ---: |
+| Linux x86-64, Ubuntu 22.04 image `20261004.315.1` | 459s / 127s | 26s / 6s | 148s / 145s |
+| macOS arm64, macOS 14 image `20260831.0302.1` | 377s / 110s | 22s / 5s | 117s / 114s |
+
+Each focused command has a 15s warning budget. Cached bytecode meets it; cached
+compiler and VM checks exceed it substantially on both runners. The Linux and
+macOS observations differ from the earlier profile of the same revision, so
+retain the run artifacts and treat these as noisy single-run samples, not a
+stable speed comparison. They identify no new measured hotspot that justifies
+another pre-release optimization.
+
+### Findings and disposition
+
+Ranked by evidence from this bounded investigation:
+
+1. **Repeated declaration-signature lookup:** confirmed by phase instrumentation
+   and source inspection; a per-module declaration index reduced the median
+   `check compiler.panack` time by 3.5% across three paired samples. The measured
+   workload and emitted bytecode comparison are recorded below.
+2. **Independent coverage-session scenarios:** confirmed as a costly focused
+   test workload. Splitting it into four isolated probes retained all 41
+   assertions and reduced one warm `make check-compiler` sample by about 20% at
+   both two and four workers.
+3. **Validation worker count:** one same-revision clean pair on macOS arm64
+   measured 530.32s at two workers and 379s at four, largely from the unit
+   phase. Today's clean run was 375s at four workers. This supports keeping the
+   local default at four; the small run count and order do not establish cause or
+   a cross-host gain.
+4. **Shared module-loading cache or narrower import closure:** not selected.
+   Existing probe caching already reuses verified compiled programs, while the
+   measured loader share and process model do not establish that a shared cache
+   is a safe or worthwhile fix. The matched runner-smoke increase from 30.005s
+   to 55.515s is an end-to-end, single-host observation; it does not prove that
+   namespace changes caused the increase. No comparable evidence established
+   that wider import closure caused it. More accurate incremental dependency
+   tracking remains a separate, larger design problem.
+
+**Owner decision, 2026-10-10:** accept the known developer-validation latency as
+a disclosed alpha.12 limitation after the evidence-backed improvements in
+PR #363. Keep the 120s clean-check, 15s focused-check and 60s bootstrap budgets
+unchanged, preserve all tests and coverage, and do not add another performance
+optimization as an alpha.12 prerequisite. This accepts the validation-time
+trade-off only; alpha.12 remains subject to its three feature gates, promotion,
+package/release validation and explicit release approval. Keep the broader
+GI#106 concern open and revisit it before the next compiler-heavy delivery or
+when comparable evidence shows a material change.
+
 ## Namespace declaration lookup index — 2026-10-10
 
 Phase timing on `check compiler.panack` attributed most of the 24.40s instrumented

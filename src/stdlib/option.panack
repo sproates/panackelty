@@ -1,4 +1,4 @@
-pure option_value_or[T](value: Option[T], fallback: T): T {
+pub pure option_value_or[T](value: Option[T], fallback: T): T {
   match value {
     Some(item) => item,
     None() => fallback

@@ -1,9 +1,8 @@
 // Retain library declarations even when the initial execution corpus never calls them.
-import stdlib/prelude
-import stdlib/core
-import stdlib/host
-import stdlib/testing
-import stdlib/testing_commands
-import stdlib/testing_files
-import stdlib/tcp
+import stdlib/prelude::{option_value_or}
+import stdlib/host::{host_command_arguments}
+import stdlib/testing::{test_expect}
+import stdlib/testing_commands::{test_command_output}
+import stdlib/testing_files::{test_workspace_create}
+import stdlib/tcp::{TcpServerLimits}
 main(): Void {}

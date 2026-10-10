@@ -1,11 +1,38 @@
-import project/src/compiler/source_maps
+import stdlib/bytes::{bytes_empty, bytes_length, text_encode_utf8}
+import stdlib/path::{path_string_suffix, path_string_parent, path_string_resolve}
+import stdlib/environment::{environment_value}
+pub import project/src/compiler/loader::{LoadedProject}
+import project/src/compiler/loader::{load_project_for_inventory}
+import project/src/compiler/project_frontend::{prepare_project_program}
+import project/src/compiler/module_bindings::{ModuleIdentity, source_module_identity}
+pub import project/src/compiler/module_bindings::{LoadedModule}
+import project/src/compiler/parser::{
+  Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr,
+  Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr,
+  Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr,
+  Expr.BlockExpr, Expr.MatchExpr,
+  Statement, Statement.BindingStatement, Statement.AssignmentStatement,
+  Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement,
+  Block, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue,
+  Program, TopLevel, TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration,
+  TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration,
+  expression_span, unlocated_expression
+}
+pub import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/source_maps::{
+  SourceSnapshot, source_snapshots, source_identifier, source_map_blob,
+  source_map_destination_available, source_map_join, source_map_matches,
+  source_map_position, source_map_read, source_map_write, source_snapshots_unchanged
+}
+import project/src/bytecode/codec::{encode_u32, encode_text, serialize_bytecode}
+import project/src/compiler/emitter::{compile_program}
 
 // Describe executable source constructs with structural IDs independent of emitted
 // PCs. Exact snapshots and artifacts bind each observation to its source.
 
 // IDs are structural paths within a source snapshot, never emitted PCs. The
 // exact snapshot/artifact/compiler envelope is part of every ID's identity.
-record InventoryItem {
+pub record InventoryItem {
   id: Str,
   kind: Str,
   detail: Str,
@@ -165,7 +192,7 @@ pure inventory_block(block: Block, id: Str): [InventoryItem] {
   items
 }
 
-pure inventory_module(module: LoadedModule): [InventoryItem] {
+pub pure inventory_module(module: LoadedModule): [InventoryItem] {
   mut items: [InventoryItem] = []
   mut index: Nat = 0
 
@@ -198,7 +225,7 @@ pure inventory_module(module: LoadedModule): [InventoryItem] {
 
 // Foreign inventories are never decoded. The caller reproduces this envelope
 // using explicit local roots and the installed compiler, then compares bytes.
-pure serialize_source_inventory(
+pub pure serialize_source_inventory(
   project: LoadedProject,
   artifact: Bytes,
   compiler: Bytes,
@@ -207,18 +234,18 @@ pure serialize_source_inventory(
   stdlib: Str
 ): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib)
-  mut chunks: [Bytes] = [utf8_encode("PANACKINV1\nlocal-replay-v9\n"), source_map_blob(compiler),
+  mut chunks: [Bytes] = [text_encode_utf8("PANACKINV1\nlocal-replay-v9\n"), source_map_blob(compiler),
     encode_text(source_identifier(
     entry,
     root,
     stdlib
   )), source_map_blob(artifact), encode_u32(len(snapshots))]
   mut size: Nat = 0
-  mut valid: Bool = byte_len(compiler) > 0 && byte_len(compiler) <= 16777216 &&
-    byte_len(artifact) <= 16777216 && len(snapshots) <= 256
+  mut valid: Bool = bytes_length(compiler) > 0 && bytes_length(compiler) <= 16777216 &&
+    bytes_length(artifact) <= 16777216 && len(snapshots) <= 256
 
   for chunk in chunks {
-    size = size + byte_len(chunk)
+    size = size + bytes_length(chunk)
   }
   for snapshot in snapshots {
     mut items: [InventoryItem] = []
@@ -228,14 +255,14 @@ pure serialize_source_inventory(
       }
     }
     chunks = chunks.append(encode_text(snapshot.name)).append(encode_text(snapshot.text)).append(encode_u32(len(items)))
-    size = size + 12 + byte_len(utf8_encode(snapshot.name)) + byte_len(utf8_encode(snapshot.text))
+    size = size + 12 + bytes_length(text_encode_utf8(snapshot.name)) + bytes_length(text_encode_utf8(snapshot.text))
     valid = valid && len(items) <= 100000
     for item in items {
       if valid && size <= 16777216 {
         chunk: Bytes = source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail),
           source_map_position(item.span.start), source_map_position(item.span.end)], 0, 5)
         chunks = chunks.append(chunk)
-        size = size + byte_len(chunk)
+        size = size + bytes_length(chunk)
       } else {
         valid = false
       }
@@ -244,17 +271,17 @@ pure serialize_source_inventory(
   if valid && size <= 16777216 {
     source_map_join(chunks, 0, len(chunks))
   } else {
-    bytes()
+    bytes_empty()
   }
 }
 
-record InventoryArguments {
+pub record InventoryArguments {
   valid: Bool,
   roots: [Str],
   output: Str
 }
 
-pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
+pub pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
   mut roots: [Str] = []
   mut output: Str = ""
   mut valid: Bool = len(values) >= 4
@@ -282,7 +309,7 @@ pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
     index = index + 2
   }
   for root in roots {
-    valid = valid && path_suffix(root) == ".panack"
+    valid = valid && path_string_suffix(root) == ".panack"
   }
   InventoryArguments(
     valid && index == len(values) && output != "" && len(roots) <= 16,
@@ -294,14 +321,14 @@ pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments {
 // Repeating roots deliberately creates distinct compilation contexts. Shared
 // source identities must be deduplicated by a future suite aggregator, never by
 // adding these counts. Sources are rechecked after *all* roots have been loaded.
-run_inventory_command(values: [Str], checking: Bool): Nat {
+pub run_inventory_command(values: [Str], checking: Bool): Nat {
   args: InventoryArguments = inventory_arguments(values, checking)
 
   if !args.valid {
     eprint("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
     1
   } else {
-    compiler_path: Str = environment_get("PANACKELTY_COMPILER_PATH")
+    compiler_path: Str = environment_value("PANACKELTY_COMPILER_PATH")
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
         eprint("error: inventory compiler identity unavailable")
@@ -310,19 +337,19 @@ run_inventory_command(values: [Str], checking: Bool): Nat {
       Ok(compiler) => {
         // The running compiler was verified by the VM. This trusted identity
         // input is compared exactly, not decoded again in the hosted compiler.
-        mut valid: Bool = byte_len(compiler) > 0
+        mut valid: Bool = bytes_length(compiler) > 0
         mut projects: [LoadedProject] = []
         mut paths: Set[Str] = set()
-        mut chunks: [Bytes] = [utf8_encode("PANACKINVENTORY1\n"), encode_u32(len(args.roots))]
-        mut size: Nat = byte_len(chunks[0]) + 4
-        root: Str = path_parent(path_resolve(args.roots[0]))
-        stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
-        output: Str = path_resolve(args.output)
+        mut chunks: [Bytes] = [text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(len(args.roots))]
+        mut size: Nat = bytes_length(chunks[0]) + 4
+        root: Str = path_string_parent(path_string_resolve(args.roots[0]))
+        stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+        output: Str = path_string_resolve(args.output)
         if !checking && !source_map_destination_available(output) {
           valid = false
         }
         for source in args.roots {
-          entry: Str = path_resolve(source)
+          entry: Str = path_string_resolve(source)
           if paths.has(entry) {
             valid = false
           }
@@ -330,22 +357,27 @@ run_inventory_command(values: [Str], checking: Bool): Nat {
           if valid {
             project: LoadedProject = load_project_for_inventory(entry)
             projects = projects.append(project)
-            if len(project.diagnostics) > 0 {
-              valid = false
-            } else {
-              artifact: Bytes = serialize_bytecode(compile_program(project.program))
-              inventory: Bytes = serialize_source_inventory(
-                project,
-                artifact,
-                compiler,
-                entry,
-                root,
-                stdlib
-              )
-              size = size + 4 + byte_len(inventory)
-              valid = byte_len(inventory) > 0 && size <= 16777216
-              if valid {
-                chunks = chunks.append(source_map_blob(inventory))
+            project_root: Str = path_string_parent(entry)
+            identity: ModuleIdentity = source_module_identity(entry, project_root, stdlib)
+            match prepare_project_program(project, project_root, stdlib, identity) {
+              Error(errors) => {
+                valid = false
+              },
+              Ok(program) => {
+                artifact: Bytes = serialize_bytecode(compile_program(program))
+                inventory: Bytes = serialize_source_inventory(
+                  project,
+                  artifact,
+                  compiler,
+                  entry,
+                  root,
+                  stdlib
+                )
+                size = size + 4 + bytes_length(inventory)
+                valid = valid && bytes_length(inventory) > 0 && size <= 16777216
+                if valid {
+                  chunks = chunks.append(source_map_blob(inventory))
+                }
               }
             }
           }

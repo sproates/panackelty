@@ -40,6 +40,31 @@ Python; the captured data retains the independence of its original calculation.
   digest and transformation provenance.
   Native compilation must reproduce them exactly. Direct compiler integration
   also compares the driver and public command for all three module graphs.
+  On 2026-10-09, the coordinated namespace/API migration required two reviewed
+  artifact updates. The logical-driver listing changes only the internal
+  identities of `answer` and `feature` and the corresponding call targets;
+  `main` and its instructions are unchanged. The stdlib listing now reflects
+  module-qualified program-local functions and the explicitly selected and
+  re-exported APIs. Its public behavior still matches the independent expected
+  stdout. Both artifacts were produced by the refreshed v9 seed only after the
+  prescribed stage-2/3/4 compiler and standard-library fixed-point checks
+  passed; `inventory.json` records the new digests and review rationale.
+  Once every loaded core body became identity-checked, readiness routing also
+  selected identity emission for fully checked ordinary projects. The reviewed
+  `driver-basic` change internalizes `answer` and retargets its single call;
+  `euler001` internalizes `divisible` and `sum_below` and retargets their calls.
+  The independent old artifacts match the prior seed byte-for-byte, and the
+  old/new disassemblies differ only in those function identities and call
+  targets (plus identity-emitter function ordering for Euler). Both old and new
+  artifacts run to identical stdout (`42` and `233168` respectively). The
+  fixture bytes and digests were updated only after this source/disassembly and
+  runtime comparison.
+  The relative-import contract was then migrated from an implicit global
+  import to an explicit namespace. Its old captured bytecode and the new
+  namespace-qualified source both run to `42`; their reviewed disassemblies
+  differ only in the imported `answer` identity and the matching `main` call
+  target (`answer` to `$module1_answer`). The new artifact matches the
+  equivalent independently reviewed driver-basic artifact.
 - `codec-disassembly.stdout`: Original stage-0 emitter listing for the codec
   disassembly source. The self-hosted decoder must match it exactly.
 

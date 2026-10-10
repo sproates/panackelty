@@ -1,1 +1,3 @@
-main(): Void { eprint("failure"); process_exit(7) }
+import stdlib/host::{host_exit}
+
+main(): Void { eprint("failure"); host_exit(7) }

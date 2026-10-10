@@ -536,11 +536,14 @@ and trap before any filesystem operation rather than being truncated.
 
 ## Standard library
 
-The canonical library is an explicit module graph imported as
-`stdlib/prelude`; no module is imported implicitly. It defines
-`Option[T]` with `None`/`Some` and `Result[T,E]` with `Ok`/`Error`. Portable
-source wrappers provide the `bytes_*` and checked
-`environment(name): Option[Str]` APIs listed in `src/stdlib/README.md`.
+The standard library is an explicit module graph. Core `Option[T]` and
+`Result[T,E]` types, their constructors, and built-in text/collection methods
+are available in every source program. The compatibility module
+`stdlib/prelude` explicitly re-exports the option/result helpers, byte/text,
+path, environment, time, filesystem and process APIs listed in
+`src/stdlib/README.md`; host, testing and TCP APIs remain separate modules.
+Portable source wrappers provide the `bytes_*` and checked
+`environment(name): Option[Str]` APIs.
 
 Persistent array, map, and set operations and the `path_*` operations retain
 their compiler-known polymorphic signatures. They are part of the standard
@@ -771,9 +774,13 @@ module's `main` launches. The bytecode format remains v9.
 
 Namespace execution is enabled for the checked body subset only. Bodies with
 deferred type or proof obligations fail closed. Source-map and explain/locate
-replay, broader source migration, and final namespace-capable seed acceptance
-remain pending. `parse_program_complete` remains a legacy single-program adapter
-and rejects staged syntax instead of applying the flattened name model. The raw
+replay, coordinated compiler/standard-library API migration, refreshed seed
+fixed points, and native/browser/installed acceptance now pass. The legacy
+single-program route remains for ordinary bodies the identity emitter does not
+yet fully check; an unconditional staged-emission probe failed ordinary generic
+driver and source-map cases. Remove that compatibility route only after equivalent
+identity checking and tooling behavior pass. `parse_program_complete` remains a
+legacy single-program adapter and rejects staged syntax instead of applying the flattened name model. The raw
 frontend also retains qualified types, function references, variant patterns
 and dot calls; declaration signatures check tagged type/callable identity and
 public reachability, including private type and guard-helper leaks.

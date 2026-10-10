@@ -1,2 +1,2 @@
 import project/shared/answer
-pure feature(): Option[Nat] { Some(answer()) }
+pub pure feature(): Option[Nat] { Some(answer.answer()) }

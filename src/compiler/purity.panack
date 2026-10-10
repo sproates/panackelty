@@ -1,9 +1,12 @@
-import project/src/compiler/checker
+pub import project/src/compiler/parser::{Expr, Program, Block, SourceSpan, Diagnostic, expression_span, parse_program_complete, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/checker::{TypeInfo, CheckedExpression, CheckedProgram, EnumLookup, FunctionLookup, TypeShape, check_expression, check_program_evidence, checker_diagnostic, checker_diagnostics_at, enum_type, function_type, local_binding_info, plain_type, substitute_type, type_shape}
+pub import project/src/compiler/resolver::{SourceUnit, LoadedSource, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, render_resolver_diagnostics, visit_module}
+import project/src/compiler/lexer::{lex, lex_file}
 
 // Walk calls, callable values and await constraints in their lexical effect context.
 // Ordinary validation and opt-in explanations share the same decisions.
 
-pure is_impure_builtin(name: Str): Bool {
+pub pure is_impure_builtin(name: Str): Bool {
   (name == "async_fake_read" ||
     name == "tcp_exchange" ||
     name == "tcp_serve") ||
@@ -26,7 +29,7 @@ pure is_impure_builtin(name: Str): Bool {
     name == "run_bytecode_args"
 }
 
-record EffectEvidence {
+pub record EffectEvidence {
   function_name: Str,
   span: Option[SourceSpan],
   kind: Str,
@@ -38,12 +41,12 @@ record EffectEvidence {
   violations: [Str]
 }
 
-record CheckedEffects {
+pub record CheckedEffects {
   diagnostics: [Diagnostic],
   evidence: [EffectEvidence]
 }
 
-pure combine_effects(left: CheckedEffects, right: CheckedEffects): CheckedEffects {
+pub pure combine_effects(left: CheckedEffects, right: CheckedEffects): CheckedEffects {
   CheckedEffects(concat(left.diagnostics, right.diagnostics), concat(left.evidence, right.evidence))
 }
 
@@ -68,11 +71,11 @@ pure check_block_purity(block: Block, program: Program, parent: Map[Str, TypeInf
   check_effect_block(block, program, parent, false).diagnostics
 }
 
-pure check_program_purity(program: Program): [Diagnostic] {
+pub pure check_program_purity(program: Program): [Diagnostic] {
   check_program_effect_evidence(program, false).diagnostics
 }
 
-pure check_effect_expression(
+pub pure check_effect_expression(
   expression: Expr,
   program: Program,
   environment: Map[Str, TypeInfo],
@@ -449,11 +452,11 @@ pure check_effect_block(
   result
 }
 
-pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffects {
+pub pure check_program_effect_evidence(program: Program, retain: Bool): CheckedEffects {
   check_selected_effect_evidence(program, retain, false, map())
 }
 
-pure check_selected_effect_evidence(
+pub pure check_selected_effect_evidence(
   program: Program,
   retain: Bool,
   selected: Bool,
@@ -509,7 +512,7 @@ pure check_selected_effect_evidence(
 // Ordinary compilation preserves the type-first diagnostic contract. Recovery
 // is evidence-only: effect violations remain on local records, never replacing
 // or extending the original type diagnostics for an already rejected program.
-pure check_frontend_effects(
+pub pure check_frontend_effects(
   program: Program,
   checked: CheckedProgram,
   retain: Bool
@@ -531,12 +534,12 @@ pure check_frontend_effects(
   }
 }
 
-pure check_program_frontend(program: Program): [Diagnostic] {
+pub pure check_program_frontend(program: Program): [Diagnostic] {
   checked: CheckedProgram = check_program_evidence(program, false)
   check_frontend_effects(program, checked, false).diagnostics
 }
 
-pure check_source_frontend(source: Str): Str {
+pub pure check_source_frontend(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_program_complete(tokens) {
@@ -565,7 +568,7 @@ pure check_module_graph_frontend(units: [SourceUnit], entry: Str): [Diagnostic] 
   }
 }
 
-pure check_loaded_source_frontend(sources: [LoadedSource], entry: Str): Str {
+pub pure check_loaded_source_frontend(sources: [LoadedSource], entry: Str): Str {
   mut units: [SourceUnit] = []
   mut diagnostics: [Diagnostic] = []
 

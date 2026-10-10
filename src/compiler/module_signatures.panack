@@ -1,17 +1,19 @@
-import project/src/compiler/module_resolution
-import project/src/compiler/checker
+pub import project/src/compiler/module_resolution::{ModuleBindingGraph, ResolvedModuleUses, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_import_names, module_reserved_binding}
+pub import project/src/compiler/module_bindings::{LoadedModule, ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage}
+pub import project/src/compiler/parser::{TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, SourceSpan, Diagnostic}
+import project/src/compiler/checker::{TypeShape, is_scalar_base, type_shape}
 
 // Check declaration signatures before binding bodies. Tagged nominal, parameter,
 // callable and hole identities must never collapse into spelling-based equality.
 
 // Semantic tags never encode nominal identity as an inference-placeholder name.
-enum SignatureEffect {
+pub enum SignatureEffect {
   SignaturePure,
   SignatureOrdinary,
   SignatureAsync
 }
 
-enum SignatureTypeIdentity {
+pub enum SignatureTypeIdentity {
   SignatureCore(Str),
   SignatureNominal(DeclarationIdentity),
   SignatureParameter(DeclarationIdentity, Nat),
@@ -20,29 +22,29 @@ enum SignatureTypeIdentity {
   SignatureHole(DeclarationIdentity, [Nat], Nat)
 }
 
-record SignatureType {
+pub record SignatureType {
   identity: SignatureTypeIdentity,
   arguments: [SignatureType]
 }
 
-record SignatureSlot {
+pub record SignatureSlot {
   name: Str,
   type: SignatureType
 }
 
-record ModuleSignature {
+pub record ModuleSignature {
   binding: ModuleDeclarationBinding,
   parameters: [Str],
   slots: [SignatureSlot],
   effect: Option[SignatureEffect]
 }
 
-record CheckedModuleSignatures {
+pub record CheckedModuleSignatures {
   declarations: [ModuleSignature],
   diagnostics: [Diagnostic]
 }
 
-pure signature_effect(is_pure: Bool, is_async: Bool): SignatureEffect {
+pub pure signature_effect(is_pure: Bool, is_async: Bool): SignatureEffect {
   if is_async {
     SignatureAsync()
   } else {
@@ -54,7 +56,7 @@ pure signature_effect(is_pure: Bool, is_async: Bool): SignatureEffect {
   }
 }
 
-pure signature_declaration(
+pub pure signature_declaration(
   modules: [LoadedModule],
   identity: DeclarationIdentity
 ): Result[TopLevel, Str] {
@@ -84,7 +86,7 @@ pure signature_declaration(
 
 // Reachability is by original identity, not the spelling chosen in a signature.
 // Thus an explicit public re-export can expose an otherwise private import alias.
-pure signature_public_identity(
+pub pure signature_public_identity(
   graph: ModuleBindingGraph,
   owner: ModuleIdentity,
   identity: DeclarationIdentity,
@@ -175,7 +177,7 @@ pure signature_public_identity(
   reachable
 }
 
-pure signature_type(
+pub pure signature_type(
   graph: ModuleBindingGraph,
   modules: [LoadedModule],
   owner: DeclarationIdentity,
@@ -300,7 +302,7 @@ pure signature_type(
 }
 
 // Substitution uses the binder's tagged identity, not another module's spelling.
-pure substitute_signature_type(
+pub pure substitute_signature_type(
   value: SignatureType,
   owner: DeclarationIdentity,
   arguments: [SignatureType]
@@ -343,7 +345,7 @@ pure substitute_signature_type(
   }
 }
 
-pure check_module_signatures(
+pub pure check_module_signatures(
   graph: ModuleBindingGraph,
   modules: [LoadedModule],
   module: LoadedModule

@@ -1,4 +1,4 @@
-.PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean
+.PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean identity-root-audit
 
 CFLAGS ?= -O2
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
@@ -40,7 +40,7 @@ PACKAGE_CHECKSUM := $(PACKAGE_ARCHIVE).sha256
 BOOTSTRAP_DIR := $(BUILD_DIR)/bootstrap
 SEED_COMPILER ?= bootstrap/compiler-v9.bc
 SEED_DIGEST ?= $(SEED_COMPILER).sha256
-COMPILER_SOURCE := src/compiler/main.panack
+COMPILER_SOURCE := compiler.panack
 STDLIB_CONFORMANCE := tests/functional/cases/stdlib/main.panack
 STAGE1_COMPILER := $(BOOTSTRAP_DIR)/stage1/compiler.bc
 STAGE2_COMPILER := $(BOOTSTRAP_DIR)/stage2/compiler.bc
@@ -70,7 +70,7 @@ check-compiler-impl: $(STAGE2_COMPILER)
 	@$(PROFILE) harness/compiler sh tests/harness.sh compiler
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
 		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \
@@ -141,7 +141,7 @@ unit-runtime-probes:
 
 unit-compiler: native $(STAGE2_COMPILER)
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
 		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \
@@ -172,6 +172,7 @@ $(BUILD_DIR)/vm/tcp_client: tests/tcp_client.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
 functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client
+	@$(MAKE) --no-print-directory identity-root-audit
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
@@ -185,17 +186,19 @@ functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/t
 				$(PROFILE) functional/runner $(PROBE) tests/runner/main.panack > "$$report"; \
 		fi && \
 		cat "$$report" && \
-		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
-			PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" \
+		env -u PANACKELTY_BOOTSTRAP_ROOT \
+			PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
 			PANACK_TEST_RUNNER_REPORT="$$report" \
 			./panack run tests/functional/cases/runner_smoke/main.panack && \
-		PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" \
-			./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
-		PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
-			PANACKELTY_BOOTSTRAP_ROOT="$(abspath .)" \
+		env -u PANACKELTY_BOOTSTRAP_ROOT ./panack compile tests/functional/cases/runner_smoke/main.panack -o "$$artifact" && \
+		env -u PANACKELTY_BOOTSTRAP_ROOT \
+			PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" \
 			PANACK_TEST_RUNNER_REPORT="$$report" ./panack run "$$artifact"
 
 native: panack-vm
+
+identity-root-audit:
+	@bash tests/identity_root_audit.sh
 
 # Compile each VM component separately. Dependency files track header edits.
 VM_SOURCES := $(sort $(wildcard src/vm/*.c))
@@ -309,9 +312,9 @@ native-coverage: native
 
 # Source coverage is opt-in SC4 collection, not LLVM instrumentation of .panack files.
 .PHONY: source-coverage-baseline source-coverage-report-tests
-source-coverage-report-tests: native
+source-coverage-report-tests: native $(STAGE2_COMPILER)
 	node --test tests/source_coverage/reader.test.cjs tests/source_coverage/policy.test.cjs
-	node tests/source_coverage/parity.cjs
+	PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" node tests/source_coverage/parity.cjs
 
 source-coverage-baseline: native
 	node scripts/source_coverage_baseline.cjs

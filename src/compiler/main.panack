@@ -1,4 +1,4 @@
-import project/src/compiler/driver
+import project/src/compiler/driver::{compiler_main}
 
 // Executable entry point for the self-hosted compiler command boundary.
 

@@ -1,6 +1,6 @@
-import project/src/compiler/parser
-import stdlib/testing
-
+import project/src/compiler/parser::{parse_source,parse_program_source,parse_block_source,parse_type_source}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_equal_str, test_report}
 // Direct parser contracts, grouped by the former Python test method.
 // Expected strings are fixed syntax/diagnostic contracts, not compiler output
 // generated at test time. Every expanded former subtest has its own assertion.
@@ -844,5 +844,5 @@ main(): Void {
   results = results.concat(parser_unit_reports_malformed_match_expressions())
   results = results.concat(parser_unit_reports_malformed_record_declarations())
   results = results.concat(parser_unit_reports_malformed_type_references())
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

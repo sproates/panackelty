@@ -1,4 +1,16 @@
-import project/src/compiler/coverage
+import stdlib/environment::{environment_value}
+import stdlib/host::{host_command_arguments, host_exit}
+import stdlib/path::{path_string_resolve, path_string_parent}
+import stdlib/filesystem::{filesystem_read_file_bytes}
+import stdlib/bytes::{bytes_length, text_encode_utf8}
+import project/src/compiler/coverage::{CoverageEdge, coverage_edge, coverage_probe_key, coverage_source_function_name, EmissionProbe, Instruction, Instruction.ReturnInstruction, Instruction.ConstInstruction, Instruction.LoadInstruction, Instruction.StoreInstruction, Instruction.PopInstruction, Instruction.UnaryInstruction, Instruction.BinaryInstruction, Instruction.MakeRangeInstruction, Instruction.MakeArrayInstruction, Instruction.IndexGetInstruction, Instruction.InterpolateInstruction, Instruction.IterInitInstruction, Instruction.IterNextInstruction, Instruction.MakeRecordInstruction, Instruction.FieldGetInstruction, Instruction.MakeVariantInstruction, Instruction.MatchVariantInstruction, Instruction.MatchFailInstruction, Instruction.CallInstruction, Instruction.CallValueInstruction, Instruction.AwaitCallInstruction, Instruction.AwaitValueInstruction, Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.PendingEndJumpInstruction}
+import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
+import project/src/compiler/module_bindings::{source_module_identity}
+import project/src/compiler/parser::{module_execution_diagnostics}
+import project/src/compiler/emitter::{compile_program_with_sources}
+import project/src/compiler/source_inventory::{inventory_module, serialize_source_inventory}
+import project/src/compiler/source_maps::{source_map_blob, source_map_join, source_map_position, source_map_write, source_snapshots, source_snapshots_unchanged}
+import project/src/bytecode/codec::{encode_text, encode_u8, encode_u32, serialize_bytecode, sort_functions}
 
 pure plan_parent_id(id: Str): Str {
   mut end: Nat = 0
@@ -28,27 +40,27 @@ pure plan_returns(instruction: Instruction): Nat {
 // Local compiler-produced plan. Consumers bind it to these exact artifact,
 // inventory, compiler and source bytes; no downloaded plan drives compilation.
 main(): Void {
-  args = command_args()
-  entry = path_resolve(args[0])
-  directory = path_parent(entry)
-  stdlib = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
-  compiler = read_bytes(environment_get("PANACKELTY_COMPILER_PATH"))
+  args = host_command_arguments()
+  entry = path_string_resolve(args[0])
+  directory = path_string_parent(entry)
+  stdlib = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+  compiler = filesystem_read_file_bytes(environment_value("PANACKELTY_COMPILER_PATH"))
   project = load_project_for_inventory(entry)
-  if len(project.diagnostics) > 0 { eprint("coverage plan: source diagnostics"); process_exit(1); }
+  if len(project.diagnostics) > 0 { eprint("coverage plan: source diagnostics"); host_exit(1); }
   mapped = compile_program_with_sources(project.program)
   artifact = serialize_bytecode(mapped.bytecode)
   inner = serialize_source_inventory(project, artifact, compiler, entry, directory, stdlib)
-  inventory = source_map_join([utf8_encode("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)], 0, 3)
+  inventory = source_map_join([text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)], 0, 3)
   codes = sort_functions(mapped.bytecode.functions)
   mut indices: Map[Str,Nat] = map()
   mut probes: Map[Str,Map[Str,[EmissionProbe]]] = map()
-  mut chunks: [Bytes] = [utf8_encode("PANACKPLAN1\n"), source_map_blob(compiler), source_map_blob(artifact), source_map_blob(inventory), encode_u32(len(codes))]
+  mut chunks: [Bytes] = [text_encode_utf8("PANACKPLAN1\n"), source_map_blob(compiler), source_map_blob(artifact), source_map_blob(inventory), encode_u32(len(codes))]
   for i in 0..len(codes) {
     code = codes[i]
     indices = indices.put(code.name, i)
     chunks = chunks.append(encode_text(code.name)).append(encode_u32(len(code.instructions)))
     for pc in 0..len(code.instructions) {
-      edge = coverage_edge(code.instructions[pc], pc)
+      edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
       chunks = chunks.append(source_map_join([
         encode_u8(if edge.conditional { 1 } else { 0 }),
         encode_u32(edge.target), encode_u8(if edge.falls { 1 } else { 0 }),
@@ -59,15 +71,19 @@ main(): Void {
   for mapping in mapped.probes {
     mut index: Map[Str,[EmissionProbe]] = if probes.has(mapping.name) { probes.get(mapping.name) } else { map() }
     for probe in mapping.entries {
-      key = coverage_probe_key(probe.kind, probe.span)
+      key: Str = coverage_probe_key(probe.kind, probe.span)
       prior: [EmissionProbe] = if index.has(key) { index.get(key) } else { [] }
       index = index.put(key, prior.append(probe))
     }
     probes = probes.put(mapping.name, index)
   }
   snapshots = source_snapshots(project, directory, stdlib)
+  graph = loaded_binding_graph(project.modules, directory, stdlib)
+  entry_identity = source_module_identity(entry, directory, stdlib)
+  mut staged: Bool = false
+  for module in project.modules { staged = staged || len(module_execution_diagnostics(module.parsed)) > 0 }
   chunks = chunks.append(encode_u32(len(snapshots)))
-  if !source_map_write(args[1] + ".plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: header output failure"); process_exit(1); }
+  if !source_map_write(args[1] + ".plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: header output failure"); host_exit(1); }
   mut source_number: Nat = 0
   for snapshot in snapshots {
     for module in project.modules {
@@ -81,7 +97,10 @@ main(): Void {
         for item in items {
           if item.kind == "function" || item.kind == "excluded" {
             while declaration < len(module.parsed.program.declarations) && item.id != "declaration/${declaration}" { declaration = declaration + 1; }
-            if declaration < len(module.execution_program.declarations) { name = coverage_function_name(module.execution_program.declarations[declaration]); }
+            if declaration < len(module.execution_program.declarations) {
+              name = coverage_source_function_name(graph, entry_identity, module.bindings.identity,
+                module.execution_program.declarations[declaration], staged)
+            }
           }
           mut function: Nat = if indices.has(name) && item.kind != "excluded" { indices.get(name) + 1 } else { 0 }
           mut start: Nat = 0
@@ -106,12 +125,12 @@ main(): Void {
           }
           chunks = chunks.append(source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail), source_map_position(item.span.start), source_map_position(item.span.end), encode_u32(function), encode_u32(start), encode_u32(end), encode_u8(mode)], 0, 9))
         }
-        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: source output failure"); process_exit(1); }
+        if !source_map_write(args[1] + ".source-${source_number}.plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: source output failure"); host_exit(1); }
         source_number = source_number + 1
       }
     }
   }
-  if !source_snapshots_unchanged(project) || byte_len(inner) == 0 { eprint("coverage plan: source changed"); process_exit(1); }
-  if source_number != len(snapshots) || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { eprint("coverage plan: output failure"); process_exit(1); }
+  if !source_snapshots_unchanged(project) || bytes_length(inner) == 0 { eprint("coverage plan: source changed"); host_exit(1); }
+  if source_number != len(snapshots) || !source_map_write(args[1] + ".bc", artifact) || !source_map_write(args[1] + ".inv", inventory) { eprint("coverage plan: output failure"); host_exit(1); }
   print("plan: wrote")
 }

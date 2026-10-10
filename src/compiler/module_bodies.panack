@@ -1,27 +1,41 @@
-import project/src/compiler/module_signatures
+import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
+import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_reserved_binding}
+import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
+import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name}
+import project/src/compiler/lexer::{prior_index}
+import project/src/compiler/types::{SourcePos}
+import project/src/compiler/checker::{GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
+import project/src/compiler/expression_contracts::{decode_string_literal, split_interpolated_string, scalar_arithmetic_result, scalar_compatible_numeric, scalar_numeric}
+pub import project/src/compiler/module_signatures::{SignatureEffect, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync, SignatureTypeIdentity, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureHole, SignatureType, SignatureSlot, ModuleSignature}
+pub import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
+pub import project/src/compiler/module_resolution::{ModuleBindingGraph}
+pub import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr}
+pub import project/src/compiler/types::{SourceSpan, Diagnostic}
+pub import project/src/compiler/checker::{Bounds}
+pub import project/src/compiler/expression_contracts::{InterpolatedString}
 
 // Bind namespace-aware bodies and solve local type constraints by semantic identity.
 // A checked identity/type subset does not certify effects or enable execution.
 
 // Structural lexical paths are identities, never names lowered into Program.
-record BodyLocalIdentity {
+pub record BodyLocalIdentity {
   owner: DeclarationIdentity,
   path: [Nat],
   name: Str
 }
 
-record BodyLocal {
+pub record BodyLocal {
   identity: BodyLocalIdentity,
   type: Option[SignatureType],
   mutable: Bool
 }
 
-enum BodyTarget {
+pub enum BodyTarget {
   BodyDeclaration(ModuleDeclarationBinding),
   BodyCore(Str)
 }
 
-enum BodyNode {
+pub enum BodyNode {
   BodyLiteral(Expr),
   BodyInterpolation([Str]),
   BodyLocalUse(BodyLocalIdentity),
@@ -42,7 +56,7 @@ enum BodyNode {
   BodyEmpty
 }
 
-record BoundBody {
+pub record BoundBody {
   node: BodyNode,
   span: SourceSpan,
   children: [BoundBody],
@@ -50,7 +64,7 @@ record BoundBody {
   constraints: [BodySolution]
 }
 
-record BodyContext {
+pub record BodyContext {
   graph: ModuleBindingGraph,
   modules: [LoadedModule],
   signatures: [ModuleSignature],
@@ -66,13 +80,13 @@ record BodyResult {
 }
 
 // Status certifies this identity-type subset only, never effects or execution.
-enum BodyCheckStatus {
+pub enum BodyCheckStatus {
   BodyIdentityChecked,
   BodyDeferred,
   BodyInvalid
 }
 
-record BoundFunctionBody {
+pub record BoundFunctionBody {
   signature: ModuleSignature,
   parameters: [BodyLocal],
   body: BoundBody,
@@ -80,7 +94,7 @@ record BoundFunctionBody {
   status: BodyCheckStatus
 }
 
-record CheckedModuleBodies {
+pub record CheckedModuleBodies {
   functions: [BoundFunctionBody],
   diagnostics: [Diagnostic]
 }
@@ -102,7 +116,7 @@ pure body_failure(message: Str, span: SourceSpan): BodyResult {
   BodyResult(BoundBody(BodyEmpty(), span, [], None(), []), [Diagnostic(message, span.start)], [])
 }
 
-pure body_signature(
+pub pure body_signature(
   signatures: [ModuleSignature],
   identity: DeclarationIdentity
 ): Option[ModuleSignature] {
@@ -117,7 +131,7 @@ pure body_signature(
   found
 }
 
-pure body_type_text(type: SignatureType): Str {
+pub pure body_type_text(type: SignatureType): Str {
   head: Str = match type.identity {
     SignatureCore(name) => name,
     SignatureNominal(identity) => identity.module.path + ":" + identity.name,
@@ -432,7 +446,10 @@ pure body_proves_nat_subtraction(
         None() => false,
         Some(lower) => lower >= amount
       },
-      BodyLiteral(literal) => false,
+      BodyLiteral(literal) => match body_condition_literal(left) {
+        None() => false,
+        Some(value) => value >= amount
+      },
       BodyInterpolation(parts) => false,
       BodyFunction(binding) => false,
       BodyCall(target, types) => false,
@@ -755,7 +772,7 @@ pure body_concrete_compatibility(
 
 // Missing expression evidence has a distinct hole tag. It admits constraints
 // for later solving, but never turns Void into a storable value.
-pure body_compatibility(
+pub pure body_compatibility(
   context: BodyContext,
   actual: SignatureType,
   expected: SignatureType
@@ -1098,21 +1115,140 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "$method_has" || name == "$method_add" || name == "map_put" ||
       name == "map_get" || name == "map_has" || name == "has" || name == "set_add" ||
       name == "set_has" || name == "append" || name == "concat" || name == "print" ||
-      name == "eprint" || name == "is_digit" || name == "is_letter" ||
-      name == "is_whitespace" || name == "starts_with_at" || name == "slice"
+      name == "eprint" || name == "nat_from_str" || name == "nat" || name == "dec" || name == "quotient" || name == "is_digit" || name == "is_letter" ||
+      name == "is_whitespace" || name == "starts_with" || name == "starts_with_at" ||
+      name == "reverse" || name == "slice" ||
+      name == "bytes" || name == "byte_append" || name == "bytes_concat" ||
+      name == "byte_len" || name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" ||
+      name == "environment_has" || name == "environment_get" ||
+      name == "duration_nanoseconds" || name == "duration_ticks" ||
+      name == "duration_from_seconds" || name == "instant_now" ||
+      name == "instant_add" || name == "instant_difference" || name == "instant_before" ||
+      name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
+      name == "process_run" || name == "host_sleep" || name == "host_decode_utf8" ||
+      name == "fs_metadata" || name == "fs_read" || name == "fs_write" ||
+      name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
+      name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
+      name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" ||
+      name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
+      body_path_core_call(target)
+  }
+}
+
+pure body_path_core_call(target: BodyTarget): Bool {
+  match target {
+    BodyDeclaration(binding) => false,
+    BodyCore(name) => name == "path_from_text" || name == "path_from_native" ||
+      name == "path_append" || name == "path_to_text" || name == "path_native_bytes" ||
+      name == "path_display" || name == "path_absolute" || name == "path_directory" ||
+      name == "path_filename" || name == "path_current" || name == "path_join" ||
+      name == "path_suffix" || name == "path_parent" || name == "path_is_absolute" ||
+      name == "path_with_suffix" || name == "path_resolve"
   }
 }
 
 pure body_nat_text(value: Nat): Str {
-  digits: Str = "0123456789"
-  if value < 10 {
-    digits[value]
-  } else {
-    body_nat_text(quotient(value, 10)) + digits[value % 10]
-  }
+  "${value}"
 }
 
-pure body_check_special_core_call(
+pure body_tcp_limits_type(): SignatureType {
+  SignatureType(
+    SignatureNominal(DeclarationIdentity(
+      ModuleIdentity(ToolchainModulePackage(), "tcp.panack"),
+      "TcpServerLimits"
+    )),
+    []
+  )
+}
+
+pure body_tcp_bytes_result_type(): SignatureType {
+  SignatureType(SignatureCore("Result"), [
+    SignatureType(SignatureCore("Bytes"), []),
+    SignatureType(SignatureCore("Str"), [])
+  ])
+}
+
+pure body_tcp_serve_result_type(): SignatureType {
+  item: SignatureType = SignatureType(SignatureCore("Result"), [
+    SignatureType(SignatureCore("Unit"), []),
+    SignatureType(SignatureCore("Str"), [])
+  ])
+  SignatureType(SignatureCore("Result"), [
+    SignatureType(SignatureCore("Array"), [item]),
+    SignatureType(SignatureCore("Str"), [])
+  ])
+}
+
+pure body_check_tcp_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  expected_count: Nat = if name == "tcp_serve" { 4 } else {
+    if name == "tcp_exchange" { 5 } else { 1 }
+  }
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+
+  if len(children) != expected_count {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects ${expected_count} arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    mut index: Nat = 0
+    while index < expected_count {
+      expected: SignatureType = if name == "async_fake_read" {
+        SignatureType(SignatureCore("Bool"), [])
+      } else {
+        if index == 0 {
+          SignatureType(SignatureCore("Str"), [])
+        } else {
+          if (name == "tcp_exchange" && index == 2) {
+            SignatureType(SignatureCore("Bytes"), [])
+          } else {
+            if (name == "tcp_serve" && index == 2) {
+              SignatureType(SignatureCallable(SignatureAsync()), [
+                SignatureType(SignatureCore("Bytes"), []),
+                body_tcp_bytes_result_type()
+              ])
+            } else {
+              if (name == "tcp_serve" && index == 3) {
+                body_tcp_limits_type()
+              } else {
+                SignatureType(SignatureCore("Nat"), [])
+              }
+            }
+          }
+        }
+      }
+      number: Nat = index + 1
+      required: BodyResult = body_require_value(
+        context,
+        children[index],
+        expected,
+        "argument ${number} to " + name
+      )
+      diagnostics = concat(diagnostics, required.diagnostics)
+      deferred = concat(deferred, required.deferred)
+      index = index + 1
+    }
+    if len(diagnostics) == 0 && len(deferred) == 0 {
+      output = if name == "tcp_serve" {
+        Some(body_tcp_serve_result_type())
+      } else {
+        Some(body_tcp_bytes_result_type())
+      }
+    }
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_check_existing_special_core_call(
   context: BodyContext,
   target: BodyTarget,
   children: [BoundBody],
@@ -1142,6 +1278,12 @@ pure body_check_special_core_call(
       Diagnostic("explicit type arguments require a generic function", type_argument_span.start)
     )
   }
+  if body_path_core_call(target) {
+    checked: BodyResult = body_check_path_core_call(context, name, children, span)
+    diagnostics = concat(diagnostics, checked.diagnostics)
+    deferred = concat(deferred, checked.deferred)
+    output = checked.body.type
+  } else {
   if name == "$unit" {
     if len(children) != 0 {
       diagnostics = append(diagnostics, Diagnostic("Unit expects 0 arguments, got ${len(children)}", span.start))
@@ -1238,7 +1380,7 @@ pure body_check_special_core_call(
         }
       } else {
         if name == "is_digit" || name == "is_letter" || name == "is_whitespace" ||
-          name == "starts_with_at" || name == "slice" {
+          name == "starts_with" || name == "starts_with_at" || name == "reverse" || name == "slice" {
           checked: BodyResult = body_check_text_core_call(
             context,
             name,
@@ -1251,24 +1393,496 @@ pure body_check_special_core_call(
           deferred = checked.deferred
           output = checked.body.type
         } else {
-          checked: BodyResult = body_check_collection_core_call(
-            context,
-            name,
-            children,
-            span,
-            diagnostics,
-            deferred
-          )
-          diagnostics = checked.diagnostics
-          deferred = checked.deferred
-          output = checked.body.type
+          if name == "bytes" || name == "byte_append" || name == "bytes_concat" ||
+            name == "byte_len" || name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" {
+            checked: BodyResult = body_check_bytes_core_call(context, name, children, span)
+            diagnostics = checked.diagnostics
+            deferred = checked.deferred
+            output = checked.body.type
+          } else {
+          if name == "nat_from_str" {
+            if len(children) != 1 {
+              diagnostics = append(diagnostics, Diagnostic("nat_from_str expects 1 arguments, got " + body_nat_text(len(children)), span.start))
+            } else {
+              required: BodyResult = body_require_value(
+                context,
+                children[0],
+                SignatureType(SignatureCore("Str"), []),
+                "argument 1 to nat_from_str"
+              )
+              diagnostics = concat(diagnostics, required.diagnostics)
+              deferred = concat(deferred, required.deferred)
+              if len(diagnostics) == 0 && len(deferred) == 0 {
+                output = body_core_type("Nat")
+              }
+            }
+          } else {
+            if name == "quotient" {
+              if len(children) != 2 {
+                diagnostics = append(diagnostics, Diagnostic("quotient expects 2 arguments, got " + body_nat_text(len(children)), span.start))
+              } else {
+                left: BodyResult = body_require_value(context, children[0], SignatureType(SignatureCore("Nat"), []), "argument 1 to quotient")
+                right: BodyResult = body_require_value(context, children[1], SignatureType(SignatureCore("Nat"), []), "argument 2 to quotient")
+                diagnostics = concat(diagnostics, concat(left.diagnostics, right.diagnostics))
+                deferred = concat(deferred, concat(left.deferred, right.deferred))
+                if len(diagnostics) == 0 && len(deferred) == 0 {
+                  output = body_core_type("Nat")
+                }
+              }
+            } else {
+              checked: BodyResult = body_check_collection_core_call(
+                context,
+                name,
+                children,
+                span,
+                diagnostics,
+                deferred
+              )
+              diagnostics = checked.diagnostics
+              deferred = checked.deferred
+              output = checked.body.type
+            }
+          }
         }
       }
       }
     }
   }
   }
-  BodyResult(BoundBody(BodyCall(target, types), span, children, output, []), diagnostics, deferred)
+  }
+  }
+  BodyResult(
+    BoundBody(
+      BodyCall(target, types),
+      span,
+      children,
+      output,
+      body_collection_call_solutions(name, children)
+    ),
+    diagnostics,
+    deferred
+  )
+}
+
+pure body_check_rational_conversion(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+
+  if len(children) != 1 {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects 1 arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    required: BodyResult = body_require_value(
+      context,
+      children[0],
+      SignatureType(SignatureCore("Rat"), []),
+      "argument 1 to " + name
+    )
+    diagnostics = concat(diagnostics, required.diagnostics)
+    deferred = concat(deferred, required.deferred)
+    if len(diagnostics) == 0 && len(deferred) == 0 {
+      output = body_core_type(if name == "nat" { "Nat" } else { "Dec" })
+    }
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_check_environment_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+  if len(children) != 1 {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects 1 arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    required: BodyResult = body_require_value(
+      context,
+      children[0],
+      SignatureType(SignatureCore("Str"), []),
+      "argument 1 to " + name
+    )
+    diagnostics = concat(diagnostics, required.diagnostics)
+    deferred = concat(deferred, required.deferred)
+    if len(diagnostics) == 0 && len(deferred) == 0 {
+      output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
+    }
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_check_time_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  mut diagnostics: [Diagnostic] = initial_diagnostics
+  mut deferred: [SourceSpan] = initial_deferred
+  mut output: Option[SignatureType] = None()
+  mut inputs: [SignatureType] = []
+  duration: SignatureType = SignatureType(SignatureCore("Duration"), [])
+  instant: SignatureType = SignatureType(SignatureCore("Instant"), [])
+  if name == "duration_nanoseconds" {
+    inputs = [SignatureType(SignatureCore("Int"), [])]
+    output = Some(duration)
+  } else {
+    if name == "duration_ticks" {
+      inputs = [duration]
+      output = body_core_type("Int")
+    } else {
+      if name == "duration_from_seconds" {
+        inputs = [SignatureType(SignatureCore("Rat"), [])]
+        output = Some(SignatureType(SignatureCore("Result"), [
+          duration,
+          body_intrinsic_type(context, "DurationError")
+        ]))
+      } else {
+        if name == "instant_now" {
+          output = Some(SignatureType(SignatureCore("Result"), [
+            instant,
+            body_intrinsic_type(context, "ClockError")
+          ]))
+        } else {
+          if name == "instant_add" {
+            inputs = [instant, duration]
+            output = Some(instant)
+          } else {
+            if name == "instant_difference" {
+              inputs = [instant, instant]
+              output = Some(duration)
+            } else {
+              if name == "instant_before" {
+                inputs = [instant, instant]
+                output = body_core_type("Bool")
+              } else {}
+            }
+          }
+        }
+      }
+    }
+  }
+  if len(children) != len(inputs) {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects " + body_nat_text(len(inputs)) + " arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    mut index: Nat = 0
+    for child in children {
+      number: Nat = index + 1
+      required: BodyResult = body_require_value(
+        context,
+        child,
+        inputs[index],
+        "argument ${number} to " + name
+      )
+      diagnostics = concat(diagnostics, required.diagnostics)
+      deferred = concat(deferred, required.deferred)
+      index = index + 1
+    }
+  }
+  if len(diagnostics) > 0 || len(deferred) > 0 {
+    output = None()
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_intrinsic_type(context: BodyContext, name: Str): SignatureType {
+  if name == "Path" || name == "Duration" || name == "Instant" || name == "Unit" ||
+    name == "Bool" || name == "Bytes" || name == "Int" || name == "Nat" ||
+    name == "Rat" || name == "Str" || name == "Void" {
+    SignatureType(SignatureCore(name), [])
+  } else {
+    mut module_path: Str = ""
+    if name == "PathError" {
+      module_path = "path.panack"
+    } else {
+      if name == "DurationError" || name == "ClockError" {
+        module_path = "time.panack"
+      } else {
+        if name == "HostError" {
+          module_path = "host.panack"
+        } else {
+          if name == "ProcessOutput" {
+            module_path = "process.panack"
+          } else {
+            if name == "FileMetadata" || name == "FileKind" {
+              module_path = "filesystem.panack"
+            } else {
+              if name == "TcpServerLimits" {
+                module_path = "tcp.panack"
+              } else {}
+            }
+          }
+        }
+      }
+    }
+    if module_path != "" {
+      SignatureType(SignatureNominal(DeclarationIdentity(
+        ModuleIdentity(ToolchainModulePackage(), module_path),
+        name
+      )), [])
+    } else {
+      match resolve_module_type(context.graph, context.owner.module, name) {
+        Ok(binding) => SignatureType(SignatureNominal(binding.identity), []),
+        Error(message) => SignatureType(SignatureCore(name), [])
+      }
+    }
+  }
+}
+
+pure body_intrinsic_array(element: SignatureType): SignatureType {
+  SignatureType(SignatureCore("Array"), [element])
+}
+
+pure body_intrinsic_result(value: SignatureType, error: SignatureType): SignatureType {
+  SignatureType(SignatureCore("Result"), [value, error])
+}
+
+pure body_check_typed_intrinsic(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan,
+  inputs: [SignatureType],
+  result: SignatureType
+): BodyResult {
+  mut diagnostics: [Diagnostic] = []
+  mut deferred: [SourceSpan] = []
+  mut output: Option[SignatureType] = None()
+  if len(children) != len(inputs) {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects " + body_nat_text(len(inputs)) + " arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    mut index: Nat = 0
+    for child in children {
+      number: Nat = index + 1
+      required: BodyResult = body_require_value(
+        context,
+        child,
+        inputs[index],
+        "argument ${number} to " + name
+      )
+      diagnostics = concat(diagnostics, required.diagnostics)
+      deferred = concat(deferred, required.deferred)
+      index = index + 1
+    }
+  }
+  if len(diagnostics) == 0 && len(deferred) == 0 {
+    output = Some(result)
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_check_host_filesystem_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan
+): BodyResult {
+  path: SignatureType = body_intrinsic_type(context, "Path")
+  duration: SignatureType = body_intrinsic_type(context, "Duration")
+  bytes: SignatureType = body_intrinsic_type(context, "Bytes")
+  strings: SignatureType = body_intrinsic_array(body_intrinsic_type(context, "Str"))
+  natural: SignatureType = body_intrinsic_type(context, "Nat")
+  unit: SignatureType = body_intrinsic_type(context, "Unit")
+  host_error: SignatureType = body_intrinsic_type(context, "HostError")
+  mut inputs: [SignatureType] = []
+  mut result: SignatureType = body_intrinsic_type(context, "Void")
+  if name == "run_bytecode_args" {
+    inputs = [bytes, strings]
+  } else {
+    if name == "command_args" {
+      result = strings
+    } else {
+      if name == "process_exit" {
+        inputs = [natural]
+      } else {
+        if name == "process_run" {
+          inputs = [path, strings, bytes, path, strings, duration, natural]
+          result = body_intrinsic_result(body_intrinsic_type(context, "ProcessOutput"), host_error)
+        } else {
+          if name == "host_sleep" {
+            inputs = [duration]
+            result = body_intrinsic_result(unit, host_error)
+          } else {
+            if name == "host_decode_utf8" {
+              inputs = [bytes]
+              result = body_intrinsic_result(body_intrinsic_type(context, "Str"), host_error)
+            } else {
+              if name == "fs_metadata" {
+                inputs = [path]
+                result = body_intrinsic_result(body_intrinsic_type(context, "FileMetadata"), host_error)
+              } else {
+                if name == "fs_read" {
+                  inputs = [path, natural]
+                  result = body_intrinsic_result(bytes, host_error)
+                } else {
+                  if name == "fs_write" {
+                    inputs = [path, bytes]
+                    result = body_intrinsic_result(unit, host_error)
+                  } else {
+                    if name == "fs_list" {
+                      inputs = [path]
+                      result = body_intrinsic_result(body_intrinsic_array(path), host_error)
+                    } else {
+                      if name == "fs_create_directory" || name == "fs_remove_file" ||
+                        name == "fs_remove_directory" {
+                        inputs = [path]
+                        result = body_intrinsic_result(unit, host_error)
+                      } else {
+                        if name == "fs_temp_file" || name == "fs_temp_directory" {
+                          inputs = [path]
+                          result = body_intrinsic_result(path, host_error)
+                        } else {
+                          if name == "read_file" {
+                            inputs = [body_intrinsic_type(context, "Str")]
+                            result = body_intrinsic_type(context, "Str")
+                          } else {
+                            if name == "file_exists" {
+                              inputs = [body_intrinsic_type(context, "Str")]
+                              result = body_intrinsic_type(context, "Bool")
+                            } else {
+                              if name == "read_bytes" {
+                                inputs = [body_intrinsic_type(context, "Str")]
+                                result = bytes
+                              } else {
+                                if name == "write_bytes" {
+                                  inputs = [body_intrinsic_type(context, "Str"), bytes]
+                                } else {}
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  body_check_typed_intrinsic(context, name, children, span, inputs, result)
+}
+
+pure body_check_special_core_call(
+  context: BodyContext,
+  target: BodyTarget,
+  children: [BoundBody],
+  types: [SignatureType],
+  type_argument_span: SourceSpan,
+  span: SourceSpan,
+  initial_diagnostics: [Diagnostic],
+  initial_deferred: [SourceSpan]
+): BodyResult {
+  name: Str = match target {
+    BodyCore(value) => value,
+    BodyDeclaration(binding) => ""
+  }
+  if name == "environment_has" || name == "environment_get" {
+    if len(types) > 0 {
+      body_failure("explicit type arguments require a generic function", type_argument_span)
+    } else {
+      body_check_environment_core_call(
+        context,
+        name,
+        children,
+        span,
+        initial_diagnostics,
+        initial_deferred
+      )
+    }
+  } else {
+  if name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
+    name == "process_run" || name == "host_sleep" || name == "host_decode_utf8" ||
+    name == "fs_metadata" || name == "fs_read" || name == "fs_write" ||
+    name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
+    name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
+    name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" {
+    if len(types) > 0 {
+      body_failure("explicit type arguments require a generic function", type_argument_span)
+    } else {
+      body_check_host_filesystem_core_call(context, name, children, span)
+    }
+  } else {
+  if name == "duration_nanoseconds" || name == "duration_ticks" ||
+    name == "duration_from_seconds" || name == "instant_now" ||
+    name == "instant_add" || name == "instant_difference" || name == "instant_before" {
+    if len(types) > 0 {
+      body_failure("explicit type arguments require a generic function", type_argument_span)
+    } else {
+      body_check_time_core_call(
+        context,
+        name,
+        children,
+        span,
+        initial_diagnostics,
+        initial_deferred
+      )
+    }
+  } else {
+  if name == "nat" || name == "dec" {
+    if len(types) > 0 {
+      body_failure("explicit type arguments require a generic function", type_argument_span)
+    } else {
+      body_check_rational_conversion(
+        context,
+        name,
+        children,
+        span,
+        initial_diagnostics,
+        initial_deferred
+      )
+    }
+  } else {
+  if name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" {
+    if len(types) > 0 {
+      body_failure("explicit type arguments require a generic function", type_argument_span)
+    } else {
+      body_check_tcp_core_call(context, name, children, span, initial_diagnostics, initial_deferred)
+    }
+  } else {
+    body_check_existing_special_core_call(
+      context,
+      target,
+      children,
+      types,
+      type_argument_span,
+      span,
+      initial_diagnostics,
+      initial_deferred
+    )
+  }
+  }
+  }
+  }
+  }
 }
 
 pure body_check_text_core_call(
@@ -1279,7 +1893,7 @@ pure body_check_text_core_call(
   initial_diagnostics: [Diagnostic],
   initial_deferred: [SourceSpan]
 ): BodyResult {
-  expected_count: Nat = if name == "starts_with_at" || name == "slice" { 3 } else { 1 }
+  expected_count: Nat = if name == "starts_with_at" || name == "slice" { 3 } else { if name == "starts_with" { 2 } else { 1 } }
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
@@ -1313,7 +1927,167 @@ pure body_check_text_core_call(
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
-      output = if name == "slice" { body_core_type("Str") } else { body_core_type("Bool") }
+      output = if name == "slice" || name == "reverse" { body_core_type("Str") } else { body_core_type("Bool") }
+    }
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_check_bytes_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan
+): BodyResult {
+  expected_count: Nat = if name == "bytes" { 0 } else {
+    if name == "byte_append" || name == "bytes_concat" || name == "byte_get" { 2 } else { 1 }
+  }
+  mut diagnostics: [Diagnostic] = []
+  mut deferred: [SourceSpan] = []
+  mut output: Option[SignatureType] = None()
+
+  if len(children) != expected_count {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects ${expected_count} arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    mut index: Nat = 0
+    while index < expected_count {
+      number: Nat = index + 1
+      expected: SignatureType = if name == "utf8_encode" {
+        SignatureType(SignatureCore("Str"), [])
+      } else {
+        if (name == "byte_append" || name == "byte_get") && index == 1 {
+          SignatureType(SignatureCore("Nat"), [])
+        } else {
+          SignatureType(SignatureCore("Bytes"), [])
+        }
+      }
+      required: BodyResult = body_require_value(
+        context,
+        children[index],
+        expected,
+        "argument ${number} to " + name
+      )
+      diagnostics = concat(diagnostics, required.diagnostics)
+      deferred = concat(deferred, required.deferred)
+      index = index + 1
+    }
+    if len(diagnostics) == 0 && len(deferred) == 0 {
+      output = if name == "byte_len" || name == "byte_get" {
+        body_core_type("Nat")
+      } else {
+        if name == "utf8_decode" {
+          body_core_type("Str")
+        } else {
+          body_core_type("Bytes")
+        }
+      }
+    }
+  }
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+}
+
+pure body_path_error_type(): SignatureType {
+  SignatureType(
+    SignatureNominal(DeclarationIdentity(
+      ModuleIdentity(ToolchainModulePackage(), "path.panack"),
+      "PathError"
+    )),
+    []
+  )
+}
+
+pure body_path_result_type(value: SignatureType): Option[SignatureType] {
+  Some(SignatureType(SignatureCore("Result"), [value, body_path_error_type()]))
+}
+
+pure body_check_path_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan
+): BodyResult {
+  expected_count: Nat = if name == "path_current" { 0 } else {
+    if name == "path_append" || name == "path_join" || name == "path_with_suffix" { 2 } else { 1 }
+  }
+  mut diagnostics: [Diagnostic] = []
+  mut deferred: [SourceSpan] = []
+  mut output: Option[SignatureType] = None()
+  if len(children) != expected_count {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic(name + " expects ${expected_count} arguments, got " + body_nat_text(len(children)), span.start)
+    )
+  } else {
+    mut index: Nat = 0
+    while index < expected_count {
+      number: Nat = index + 1
+      expected: SignatureType = if name == "path_from_text" {
+        SignatureType(SignatureCore("Str"), [])
+      } else {
+        if name == "path_from_native" {
+          SignatureType(SignatureCore("Bytes"), [])
+        } else {
+          if name == "path_join" || name == "path_suffix" || name == "path_parent" ||
+            name == "path_is_absolute" || name == "path_with_suffix" || name == "path_resolve" {
+            SignatureType(SignatureCore("Str"), [])
+          } else {
+            SignatureType(SignatureCore("Path"), [])
+          }
+        }
+      }
+      required: BodyResult = body_require_value(
+        context,
+        children[index],
+        expected,
+        "argument ${number} to " + name
+      )
+      diagnostics = concat(diagnostics, required.diagnostics)
+      deferred = concat(deferred, required.deferred)
+      index = index + 1
+    }
+    if len(diagnostics) == 0 && len(deferred) == 0 {
+      path: SignatureType = SignatureType(SignatureCore("Path"), [])
+      output = if name == "path_from_text" || name == "path_from_native" || name == "path_append" {
+        body_path_result_type(path)
+      } else {
+        if name == "path_join" || name == "path_suffix" || name == "path_parent" ||
+          name == "path_with_suffix" || name == "path_resolve" {
+          body_core_type("Str")
+        } else {
+        if name == "path_is_absolute" {
+          body_core_type("Bool")
+        } else {
+        if name == "path_to_text" {
+          body_path_result_type(SignatureType(SignatureCore("Str"), []))
+        } else {
+          if name == "path_native_bytes" {
+            body_core_type("Bytes")
+          } else {
+            if name == "path_display" {
+              body_core_type("Str")
+            } else {
+              if name == "path_absolute" {
+                body_core_type("Bool")
+              } else {
+                if name == "path_directory" || name == "path_current" {
+                  Some(path)
+                } else {
+                  if name == "path_filename" {
+                    Some(SignatureType(SignatureCore("Option"), [path]))
+                  } else {
+                    None()
+                  }
+                }
+              }
+            }
+          }
+        }
+        }
+        }
+      }
     }
   }
   BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
@@ -1509,7 +2283,52 @@ pure body_check_map_set_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyEmpty(), span, [], output, []), diagnostics, deferred)
+  BodyResult(
+    BoundBody(BodyEmpty(), span, [], output, body_collection_call_solutions(operation, children)),
+    diagnostics,
+    deferred
+  )
+}
+
+pure body_collection_call_solutions(
+  operation: Str,
+  children: [BoundBody]
+): [BodySolution] {
+  if (operation == "map_put" || operation == "$method_put") && len(children) == 3 {
+    match children[0].type {
+      None() => [],
+      Some(collection) => if collection.identity == SignatureCore("Map") && len(collection.arguments) == 2 {
+        match children[1].type {
+          None() => [],
+          Some(key) => concat(
+            body_solutions(collection.arguments[0], key),
+            match children[2].type {
+              None() => [],
+              Some(value) => body_solutions(collection.arguments[1], value)
+            }
+          )
+        }
+      } else {
+        []
+      }
+    }
+  } else {
+    if (operation == "set_add" || operation == "$method_add") && len(children) == 2 {
+      match children[0].type {
+        None() => [],
+        Some(collection) => if collection.identity == SignatureCore("Set") && len(collection.arguments) == 1 {
+          match children[1].type {
+            None() => [],
+            Some(item) => body_solutions(collection.arguments[0], item)
+          }
+        } else {
+          []
+        }
+      }
+    } else {
+      []
+    }
+  }
 }
 
 pure bind_body_expression(
@@ -2073,7 +2892,7 @@ pure bind_body_block(
   )
 }
 
-pure check_module_bodies(
+pub pure check_module_bodies(
   graph: ModuleBindingGraph,
   modules: [LoadedModule],
   signatures: [ModuleSignature],
@@ -2723,6 +3542,27 @@ pure body_type_complete(type: SignatureType): Bool {
   complete
 }
 
+pure body_type_holes_covered(
+  type: SignatureType,
+  constraints: [BodySolution]
+): Bool {
+  if body_is_hole(type) {
+    mut covered: Bool = false
+    for constraint in constraints {
+      if constraint.hole == type.identity && body_type_complete(constraint.type) {
+        covered = true
+      }
+    }
+    covered
+  } else {
+    mut covered: Bool = true
+    for argument in type.arguments {
+      covered = covered && body_type_holes_covered(argument, constraints)
+    }
+    covered
+  }
+}
+
 pure body_incomplete_local(name: Str, checked: BodyResult): [Diagnostic] {
   body: BoundBody = checked.body
   mut diagnostics: [Diagnostic] = []
@@ -2731,10 +3571,12 @@ pure body_incomplete_local(name: Str, checked: BodyResult): [Diagnostic] {
     None() => {},
     Some(type) => {
       if !body_type_complete(type) {
-        diagnostics = [Diagnostic(
-          "cannot infer complete type for local " + name + "; add a type annotation",
-          body.span.start
-        )]
+        if !body_type_holes_covered(type, body.constraints) {
+          diagnostics = [Diagnostic(
+            "cannot infer complete type for local " + name + "; add a type annotation",
+            body.span.start
+          )]
+        }
       }
     }
   }
@@ -2742,7 +3584,7 @@ pure body_incomplete_local(name: Str, checked: BodyResult): [Diagnostic] {
   diagnostics
 }
 
-record BodySolution {
+pub record BodySolution {
   hole: SignatureTypeIdentity,
   type: SignatureType
 }
@@ -3046,11 +3888,11 @@ record BodyContract {
   constructor: Bool
 }
 
-pure body_core_owner(name: Str): DeclarationIdentity {
+pub pure body_core_owner(name: Str): DeclarationIdentity {
   DeclarationIdentity(ModuleIdentity(ToolchainModulePackage(), "core.panack"), name)
 }
 
-pure body_core_function_name(name: Str): Str {
+pub pure body_core_function_name(name: Str): Str {
   if name == "$core_first" {
     "core_first"
   } else {
@@ -3208,7 +4050,7 @@ pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[Body
                     inputs = append(inputs, slot.type)
                   }
                 } else {
-                  if variant == "" || starts_with(slot.name, variant + ":") {
+                  if variant == "" || starts_with_at(slot.name, variant + ":", 0) {
                     inputs = append(inputs, slot.type)
                   }
                 }

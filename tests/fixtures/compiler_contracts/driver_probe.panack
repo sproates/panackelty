@@ -1,5 +1,2 @@
-import project/src/compiler/driver
-main(): Void {
-  status: Nat = run_compiler_command(command_args())
-  if status != 0 { print("status ${status}") }
-}
+import project/src/compiler/driver::{compiler_main}
+main(): Void { compiler_main() }

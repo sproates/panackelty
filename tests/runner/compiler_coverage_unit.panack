@@ -1,6 +1,15 @@
-import project/src/compiler/coverage_session
-import stdlib/testing
-
+import project/src/compiler/coverage::{CoverageCell, CoverageData, CoverageFunction, CoverageIncoming, decode_coverage, decode_coverage_at, coverage_attempted, coverage_attempted_indexed, coverage_completed_indexed, coverage_incoming, coverage_mapped_project, render_coverage}
+import project/src/compiler/coverage_session::{coverage_sum, coverage_execution_id}
+import project/src/compiler/source_maps::{source_map_join, source_map_blob, source_map_matches, source_snapshots, source_snapshots_unchanged}
+import project/src/compiler/emitter::{BytecodeProgram, FunctionCode, EmissionProbe, SourceMappedProgram, compile_program_with_sources}
+import project/src/compiler/loader::{LoadedProject, load_project_for_inventory}
+import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan}
+import project/src/compiler/emitter::{Instruction.ConstInstruction, Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.LoadInstruction, Instruction.ReturnInstruction, ConstantValue.VoidConstant}
+import stdlib/path::{path_string_parent, path_string_resolve}
+import stdlib/environment::{environment_value}
+import stdlib/host::{host_exit}
+import project/src/bytecode/codec::{encode_u32, serialize_bytecode, sort_functions}
+import stdlib/testing::{TestResult, test_expect, test_equal_nat, test_report}
 pure coverage_test_u64(value: Nat): Bytes { bytes_concat(encode_u32(0), encode_u32(value)) }
 pure coverage_test_cell(a: Nat, c: Nat, f: Nat, b: Nat): Bytes {
   source_map_join([coverage_test_u64(a), coverage_test_u64(c), coverage_test_u64(f), coverage_test_u64(b)], 0, 4)
@@ -65,9 +74,19 @@ main(): Void {
   results = append(results, test_equal_nat("indexed outer block entered once", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 5), 1, loop_index), 1))
   results = append(results, test_equal_nat("indexed loop condition entered three times", coverage_attempted_indexed(EmissionProbe("expression", span, 0, 1), 1, loop_index), 3))
   results = append(results, test_equal_nat("indexed block completed once", coverage_completed_indexed(EmissionProbe("expression", span, 0, 5), loop_index), 1))
-    entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
+    entry: Str = path_string_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
   project: LoadedProject = load_project_for_inventory(entry)
-  mapped: SourceMappedProgram = compile_program_with_sources(project.program)
+  mapped_result: Result[SourceMappedProgram, [Diagnostic]] = coverage_mapped_project(
+    project,
+    entry,
+    path_string_parent(entry),
+    path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+  )
+  mut mapped: SourceMappedProgram = SourceMappedProgram(BytecodeProgram([]), [], [])
+  match mapped_result {
+    Error(diagnostics) => { results = append(results, test_expect("identity coverage source compiles", false, "identity preparation failed")); },
+    Ok(value) => { mapped = value; results = append(results, test_expect("identity coverage source compiles", true, "")); }
+  }
   mut observations: [CoverageFunction] = []
   for function in sort_functions(mapped.bytecode.functions) {
     mut cells: [CoverageCell] = []
@@ -75,8 +94,8 @@ main(): Void {
     observations = append(observations, CoverageFunction(0, cells))
   }
   missing: Str = render_coverage(project, SourceMappedProgram(mapped.bytecode, mapped.sources, []),
-    CoverageData(true, 2, observations), path_parent(entry), path_resolve(environment_get("PANACKELTY_STDLIB_PATH")))
+    CoverageData(true, 2, observations), path_string_parent(entry), path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH")))
   results = append(results, test_expect("missing source probes preserve unavailable line", coverage_text_contains(missing,
     "project/main.panack\tline/3\tline\tanchor\tunavailable\t0\n"), "invented observed zero"))
-  if test_report(results) > 0 { process_exit(1); }
+  if test_report(results) > 0 { host_exit(1); }
 }

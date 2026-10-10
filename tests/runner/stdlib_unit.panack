@@ -1,7 +1,9 @@
-import stdlib/testing
-import stdlib/option
-import stdlib/result
-import stdlib/time
+import stdlib/testing::{test_expect, test_report}
+import stdlib/option::{option_value_or}
+import stdlib/result::{result_value_or}
+import stdlib/time::{DurationError.ZeroDurationDivisor, duration_divide, duration_ratio}
+import stdlib/time::{duration_value_nanoseconds, duration_value_ticks}
+import stdlib/host::{host_exit}
 
 record SortEntry { key: Nat, label: Str }
 pure nat_less(left: Nat, right: Nat): Bool { left < right }
@@ -58,12 +60,12 @@ main(): Void {
     test_expect("Ok keeps zero", result_value_or[Nat,Str](Ok(0), 99) == 0, "used fallback for Ok"),
     test_expect("Error uses fallback", result_value_or[Nat,Str](Error("failure"), 99) == 99, "lost error fallback"),
     test_expect("Ok keeps empty text", result_value_or[Str,Nat](Ok(""), "fallback") == "", "treated empty as failure"),
-    test_expect("duration ratio exact", duration_ratio(duration_nanoseconds(3), duration_nanoseconds(2)) == Ok(3/2), "rounded ratio"),
-    test_expect("duration ratio negative denominator", duration_ratio(duration_nanoseconds(3), duration_nanoseconds(-2)) == Ok(-3/2), "lost sign"),
-    test_expect("duration ratio zero denominator", duration_ratio(duration_nanoseconds(3), duration_nanoseconds(0)) == Error(ZeroDurationDivisor()), "accepted zero denominator"),
-    test_expect("duration ratio zero numerator", duration_ratio(duration_nanoseconds(0), duration_nanoseconds(2)) == Ok(0/1), "wrong zero ratio"),
-    test_expect("duration divide natural zero", duration_divide(duration_nanoseconds(3), 0) == Error(ZeroDurationDivisor()), "accepted natural zero"),
-    test_expect("duration divide signed zero", duration_divide(duration_nanoseconds(3), duration_ticks(duration_nanoseconds(0))) == Error(ZeroDurationDivisor()), "accepted signed zero")
+    test_expect("duration ratio exact", duration_ratio(duration_value_nanoseconds(3), duration_value_nanoseconds(2)) == Ok(3/2), "rounded ratio"),
+    test_expect("duration ratio negative denominator", duration_ratio(duration_value_nanoseconds(3), duration_value_nanoseconds(-2)) == Ok(-3/2), "lost sign"),
+    test_expect("duration ratio zero denominator", duration_ratio(duration_value_nanoseconds(3), duration_value_nanoseconds(0)) == Error(ZeroDurationDivisor()), "accepted zero denominator"),
+    test_expect("duration ratio zero numerator", duration_ratio(duration_value_nanoseconds(0), duration_value_nanoseconds(2)) == Ok(0/1), "wrong zero ratio"),
+    test_expect("duration divide natural zero", duration_divide(duration_value_nanoseconds(3), 0) == Error(ZeroDurationDivisor()), "accepted natural zero"),
+    test_expect("duration divide signed zero", duration_divide(duration_value_nanoseconds(3), duration_value_ticks(duration_value_nanoseconds(0))) == Error(ZeroDurationDivisor()), "accepted signed zero")
   ]
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

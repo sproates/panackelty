@@ -1,33 +1,36 @@
-import project/src/compiler/resolver
-import project/src/compiler/expression_contracts
+pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+pub import project/src/compiler/resolver::{LoadedSource}
+import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}
+import project/src/compiler/lexer::{lex, lex_file, prior_index}
+import project/src/compiler/expression_contracts::{scalar_arithmetic_result, scalar_compatible_numeric}
 
 // Type checking keeps value types, mutation-sensitive guard facts and optional
 // proof evidence together. Ordinary checks must not retain explanation data.
 
-record TypeShape {
+pub record TypeShape {
   base: Str,
   arguments: [Str]
 }
 
-record GuardedTypeLookup {
+pub record GuardedTypeLookup {
   found: Bool,
   base: Str,
   guard: Expr
 }
 
-record RecordLookup {
+pub record RecordLookup {
   found: Bool,
   parameters: [Str],
   fields: [RecordField]
 }
 
-record EnumLookup {
+pub record EnumLookup {
   found: Bool,
   parameters: [Str],
   variants: [EnumVariant]
 }
 
-record FunctionLookup {
+pub record FunctionLookup {
   found: Bool,
   parameters: [FunctionParameter],
   return_type: Str,
@@ -36,33 +39,33 @@ record FunctionLookup {
   type_parameters: [Str]
 }
 
-record VariantLookup {
+pub record VariantLookup {
   found: Bool,
   enum_name: Str,
   parameters: [Str],
   payload: [Str]
 }
 
-record TypeInfo {
+pub record TypeInfo {
   name: Str,
   has_nat: Bool,
   nat_value: Nat,
   mutable: Bool
 }
 
-record CheckedExpression {
+pub record CheckedExpression {
   info: TypeInfo,
   diagnostics: [Diagnostic],
   evidence: [SubtractionEvidence]
 }
 
-record CheckedBlock {
+pub record CheckedBlock {
   info: TypeInfo,
   diagnostics: [Diagnostic],
   evidence: [SubtractionEvidence]
 }
 
-record Bounds {
+pub record Bounds {
   has_lower: Bool,
   lower: Nat,
   has_upper: Bool,
@@ -72,12 +75,12 @@ record Bounds {
 
 // Evidence is retained only by the explicit query. It is produced at the same
 // decision point as the diagnostic, not reconstructed from diagnostic text.
-record GuardOrigin {
+pub record GuardOrigin {
   span: Option[SourceSpan],
   truth: Bool
 }
 
-record SubtractionDecision {
+pub record SubtractionDecision {
   proven: Bool,
   rule: Str,
   has_lower: Bool,
@@ -85,7 +88,7 @@ record SubtractionDecision {
   guard: Option[GuardOrigin]
 }
 
-record SubtractionEvidence {
+pub record SubtractionEvidence {
   function_name: Str,
   span: Option[SourceSpan],
   left: TypeInfo,
@@ -93,7 +96,7 @@ record SubtractionEvidence {
   decision: SubtractionDecision
 }
 
-record CheckedProgram {
+pub record CheckedProgram {
   diagnostics: [Diagnostic],
   evidence: [SubtractionEvidence],
   declarations_valid: Bool,
@@ -158,11 +161,11 @@ pure subtraction_decision(
   decision
 }
 
-pure checker_diagnostic(message: Str): Diagnostic {
+pub pure checker_diagnostic(message: Str): Diagnostic {
   Diagnostic(message, SourcePos("", 0, 1, 1))
 }
 
-pure checker_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Diagnostic] {
+pub pure checker_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Diagnostic] {
   mut result: [Diagnostic] = []
 
   for diagnostic in diagnostics {
@@ -203,7 +206,7 @@ pure no_type(): TypeInfo {
   TypeInfo("Unknown", false, 0, false)
 }
 
-pure plain_type(name: Str): TypeInfo {
+pub pure plain_type(name: Str): TypeInfo {
   TypeInfo(name, false, 0, false)
 }
 
@@ -238,7 +241,7 @@ pure type_argument_items(text: Str, start: Nat, closing: Nat): [Str] {
   arguments
 }
 
-pure type_shape(name: Str): TypeShape {
+pub pure type_shape(name: Str): TypeShape {
   if len(name) > 0 && name[0] == "[" {
     mut closing: Nat = len(name)
     mut cursor: Nat = 1
@@ -275,7 +278,7 @@ pure type_shape(name: Str): TypeShape {
   }
 }
 
-pure render_type(base: Str, arguments: [Str]): Str {
+pub pure render_type(base: Str, arguments: [Str]): Str {
   if len(arguments) == 0 {
     base
   } else {
@@ -293,7 +296,7 @@ pure render_type(base: Str, arguments: [Str]): Str {
   }
 }
 
-pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
+pub pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
   mut result: GuardedTypeLookup = GuardedTypeLookup(false, "", NatExpr(0))
 
   if map_has(program.type_indices, name) {
@@ -315,7 +318,7 @@ pure guarded_type(program: Program, name: Str): GuardedTypeLookup {
   result
 }
 
-pure record_type(program: Program, name: Str): RecordLookup {
+pub pure record_type(program: Program, name: Str): RecordLookup {
   mut result: RecordLookup = RecordLookup(false, [], [])
 
   if map_has(program.record_indices, name) {
@@ -337,7 +340,7 @@ pure record_type(program: Program, name: Str): RecordLookup {
   result
 }
 
-pure enum_type(program: Program, name: Str): EnumLookup {
+pub pure enum_type(program: Program, name: Str): EnumLookup {
   mut result: EnumLookup = EnumLookup(false, [], [])
 
   if map_has(program.enum_indices, name) {
@@ -359,7 +362,7 @@ pure enum_type(program: Program, name: Str): EnumLookup {
   result
 }
 
-pure function_type(program: Program, name: Str): FunctionLookup {
+pub pure function_type(program: Program, name: Str): FunctionLookup {
   mut result: FunctionLookup = FunctionLookup(false, [], "", false, false, [])
 
   if map_has(program.function_indices, name) {
@@ -381,7 +384,7 @@ pure function_type(program: Program, name: Str): FunctionLookup {
   result
 }
 
-pure variant_type(program: Program, name: Str): VariantLookup {
+pub pure variant_type(program: Program, name: Str): VariantLookup {
   if map_has(program.variants, name) {
     variant: IndexedVariant = map_get(program.variants, name)
     VariantLookup(true, variant.enum_name, variant.parameters, variant.payload)
@@ -401,7 +404,7 @@ pure base_type(program: Program, name: Str): Str {
   }
 }
 
-pure is_scalar_base(name: Str): Bool {
+pub pure is_scalar_base(name: Str): Bool {
   name == "Nat" ||
     name == "Int" ||
     name == "Dec" ||
@@ -546,10 +549,7 @@ pure assignable(program: Program, source: Str, target: Str): Bool {
         while index < len(source_shape.arguments) {
           left: Str = source_shape.arguments[index]
           right: Str = target_shape.arguments[index]
-          if !starts_with(
-            left,
-            "$"
-          ) && !starts_with(right, "$") && !assignable(program, left, right) {
+          if !starts_with_at(left, "$", 0) && !starts_with_at(right, "$", 0) && !assignable(program, left, right) {
             compatible = false
           } else {
           }
@@ -671,7 +671,7 @@ pure evaluate_nat_guard(expression: Expr, value: Nat): Bool {
   result
 }
 
-pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
+pub pure prove_guard_bounds(expression: Expr, bounds: Bounds): Bool {
   mut result: Bool = false
 
   match expression {
@@ -819,7 +819,7 @@ pure assignable_checked(
   }
 }
 
-pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str, Str]): Str {
+pub pure substitute_type(type_name: Str, parameters: [Str], substitutions: Map[Str, Str]): Str {
   if has_name(parameters, type_name) && map_has(substitutions, type_name) {
     map_get(substitutions, type_name)
   } else {
@@ -840,10 +840,10 @@ pure merge_types(program: Program, left: Str, right: Str): Str {
   if left == right {
     left
   } else {
-    if starts_with(left, "$") {
+    if starts_with_at(left, "$", 0) {
       right
     } else {
-      if starts_with(right, "$") {
+      if starts_with_at(right, "$", 0) {
         left
       } else {
         left_shape: TypeShape = type_shape(left)
@@ -1147,7 +1147,7 @@ pure builtin_return(name: Str): Str {
   }
 }
 
-pure builtin_arity(name: Str): Nat {
+pub pure builtin_arity(name: Str): Nat {
   if name == "tcp_serve" || name == "$tcp_serve" {
     4
   } else {
@@ -1917,7 +1917,7 @@ pure facts_after_block(block: Block, facts: Map[Str, Bounds]): Map[Str, Bounds] 
   result
 }
 
-pure check_expression(
+pub pure check_expression(
   expression: Expr,
   environment: Map[Str, TypeInfo],
   facts: Map[Str, Bounds],
@@ -1936,7 +1936,7 @@ pure check_expression_scoped(
   check_expression_evidence(expression, environment, facts, program, scope_types, false, None())
 }
 
-pure check_expression_evidence(
+pub pure check_expression_evidence(
   expression: Expr,
   environment: Map[Str, TypeInfo],
   incoming_facts: Map[Str, Bounds],
@@ -2974,7 +2974,7 @@ pure check_expression_evidence(
   CheckedExpression(info, diagnostics, evidence)
 }
 
-pure condition_facts(condition: Expr, facts: Map[Str, Bounds], truth: Bool): Map[Str, Bounds] {
+pub pure condition_facts(condition: Expr, facts: Map[Str, Bounds], truth: Bool): Map[Str, Bounds] {
   condition_facts_evidence(condition, facts, truth, false, None())
 }
 
@@ -3095,7 +3095,7 @@ pure condition_facts_evidence(
 // A local initializer must resolve every type argument now; later uses do not
 // supply evidence. Void is allowed inside a callable signature, but not as a value.
 pure inferred_type_complete(name: Str): Bool {
-  mut complete: Bool = len(name) > 0 && name != "Unknown" && !starts_with(name, "$")
+  mut complete: Bool = len(name) > 0 && name != "Unknown" && !starts_with_at(name, "$", 0)
   shape: TypeShape = type_shape(name)
 
   for argument in shape.arguments {
@@ -3135,7 +3135,7 @@ pure inferred_binding_diagnostics(
   diagnostics
 }
 
-pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
+pub pure local_binding_info(name: Str, value: TypeInfo, mutable: Bool): TypeInfo {
   TypeInfo(name, value.has_nat && !mutable, value.nat_value, mutable)
 }
 
@@ -3149,7 +3149,7 @@ pure check_block(
   check_block_evidence(block, parent, facts, program, scope_types, false)
 }
 
-pure check_program_types(program: Program): [Diagnostic] {
+pub pure check_program_types(program: Program): [Diagnostic] {
   check_program_evidence(program, false).diagnostics
 }
 
@@ -3378,12 +3378,12 @@ pure check_block_evidence(
   CheckedBlock(info, diagnostics, evidence)
 }
 
-pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
+pub pure check_program_evidence(program: Program, retain: Bool): CheckedProgram {
   check_program_evidence_mode(program, retain, true)
 }
 
 // Inventory may check a library as a root; ordinary compilation still requires main.
-pure check_program_evidence_mode(
+pub pure check_program_evidence_mode(
   program: Program,
   retain: Bool,
   require_main: Bool
@@ -3615,7 +3615,7 @@ pure check_program_evidence_mode(
   CheckedProgram(diagnostics, evidence, declarations_valid, function_types)
 }
 
-pure check_source_types(source: Str): Str {
+pub pure check_source_types(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_program_complete(tokens) {
@@ -3640,7 +3640,7 @@ pure check_module_graph_types(units: [SourceUnit], entry: Str): [Diagnostic] {
   concat(graph.diagnostics, check_program_types(program))
 }
 
-pure check_loaded_source_types(sources: [LoadedSource], entry: Str): Str {
+pub pure check_loaded_source_types(sources: [LoadedSource], entry: Str): Str {
   mut units: [SourceUnit] = []
   mut diagnostics: [Diagnostic] = []
 

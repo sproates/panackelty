@@ -1,5 +1,24 @@
-import project/src/compiler/module_bodies
-import project/src/compiler/purity
+pub import project/src/compiler/module_bodies::{
+  Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
+}
+import project/src/compiler/module_bodies::{
+  BodyCheckStatus, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid,
+  BodyContext, BodyTarget, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
+  BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary,
+  BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty,
+  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf,
+  BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral,
+  BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile,
+  BoundBody, body_signature, body_type_text,
+  body_core_function_name, body_core_owner,
+  ModuleDeclarationKind.ModuleFunction,
+  SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignatureOrdinary,
+  SignatureEffect.SignaturePure, SignatureTypeIdentity.SignatureCallable,
+  SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureHole,
+  SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter
+}
+pub import project/src/compiler/purity::{EffectEvidence}
+import project/src/compiler/purity::{CheckedEffects, combine_effects, is_impure_builtin}
 
 // Check local call/await boundaries after names and callable types have been
 // resolved to module identities. This pass does not infer transitive effects.
@@ -9,7 +28,7 @@ record ModuleEffectContext {
   mode: Str
 }
 
-record CheckedModuleEffects {
+pub record CheckedModuleEffects {
   diagnostics: [Diagnostic],
   evidence: [EffectEvidence],
   function_types: Map[Str, Bool]
@@ -345,7 +364,7 @@ pure module_effect_expression(
   result
 }
 
-pure check_module_effects(
+pub pure check_module_effects(
   graph: ModuleBindingGraph,
   modules: [LoadedModule],
   signatures: [ModuleSignature],

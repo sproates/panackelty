@@ -1,26 +1,28 @@
-import project/src/compiler/parser
+pub import project/src/compiler/parser::{indexed_program, parse_program_complete, lex, Expr, TopLevel, FunctionParameter, Program, Block, SourcePos, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/types::{diagnostic_text}
 
 // Resolve names in the executable frontend and preserve ordered module diagnostics.
 // Builtin names and local bindings remain distinct from declaration indexes.
 
-record ResolverSymbols {
+pub record ResolverSymbols {
   declarations: Set[Str],
   callables: Set[Str],
   variants: Set[Str],
   diagnostics: [Diagnostic]
 }
 
-record SourceUnit {
+pub record SourceUnit {
   path: Str,
   program: Program
 }
 
-record LoadedSource {
+pub record LoadedSource {
   path: Str,
   source: Str
 }
 
-record ModuleGraphState {
+pub record ModuleGraphState {
   programs: [Program],
   visiting: Set[Str],
   visited: Set[Str],
@@ -46,7 +48,7 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
   result
 }
 
-pure is_builtin(name: Str): Bool {
+pub pure is_builtin(name: Str): Bool {
   name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
     name == "fs_read" ||
     name == "fs_write" ||
@@ -209,6 +211,10 @@ pure collect_symbols(program: Program): ResolverSymbols {
   collect_symbols_at(program, [])
 }
 
+pub pure collect_symbol_diagnostics(program: Program): [Diagnostic] {
+  collect_symbols(program).diagnostics
+}
+
 // Synthetic AST callers have no declaration positions. Production loading
 // supplies positions in declaration order before any flattening occurs.
 pure declaration_position(positions: [SourcePos], index: Nat): SourcePos {
@@ -219,7 +225,7 @@ pure declaration_position(positions: [SourcePos], index: Nat): SourcePos {
   }
 }
 
-pure append_program_declarations(programs: [Program]): Program {
+pub pure append_program_declarations(programs: [Program]): Program {
   mut declarations: [TopLevel] = []
 
   for program in programs {
@@ -230,7 +236,7 @@ pure append_program_declarations(programs: [Program]): Program {
   indexed_program(declarations)
 }
 
-pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): ModuleGraphState {
+pub pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): ModuleGraphState {
   if set_has(state.visited, path) {
     state
   } else {
@@ -289,7 +295,7 @@ pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): Modu
   }
 }
 
-pure duplicate_module_diagnostics(units: [SourceUnit]): [Diagnostic] {
+pub pure duplicate_module_diagnostics(units: [SourceUnit]): [Diagnostic] {
   paths: Set[Str] = set()
   mut seen: Set[Str] = paths
   mut diagnostics: [Diagnostic] = []
@@ -492,7 +498,7 @@ pure resolve_function(
   concat(diagnostics, resolve_block(body, function_scope, symbols))
 }
 
-pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] {
+pub pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] {
   symbols: ResolverSymbols = collect_symbols_at(program, positions)
   mut diagnostics: [Diagnostic] = symbols.diagnostics
 
@@ -514,11 +520,11 @@ pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] 
   diagnostics
 }
 
-pure resolve_program(program: Program): [Diagnostic] {
+pub pure resolve_program(program: Program): [Diagnostic] {
   resolve_program_at(program, [])
 }
 
-pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
+pub pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
   if len(diagnostics) == 0 {
     "ok"
   } else {
@@ -534,7 +540,7 @@ pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
   }
 }
 
-pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
+pub pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
   mut units: [SourceUnit] = []
   mut diagnostics: [Diagnostic] = []
 
@@ -564,7 +570,7 @@ pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
   }
 }
 
-pure resolve_source(source: Str): Str {
+pub pure resolve_source(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_program_complete(tokens) {

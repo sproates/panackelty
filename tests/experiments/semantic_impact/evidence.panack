@@ -1,4 +1,6 @@
-import project/src/compiler/loader
+import project/src/compiler/loader::{LoadedProject, SubtractionEvidence, EffectEvidence, load_project_explained}
+import project/src/compiler/checker::{SubtractionDecision}
+import project/src/compiler/types::{SourceSpan}
 
 // Private, fixture-only transport of actual checker records. No diagnostic parsing,
 // alternate checking or production serialization contract. Excerpts contain no tabs.

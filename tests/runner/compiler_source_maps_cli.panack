@@ -1,8 +1,13 @@
-import stdlib/result
-import stdlib/testing_commands
-import stdlib/testing_files
-
-pure map_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+import stdlib/result::{result_value_or}
+import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, bytes_at, text_encode_utf8, text_decode_utf8}
+import stdlib/environment::{environment_value, environment_has_value}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_to_text}
+import stdlib/filesystem::{filesystem_read_bytes, filesystem_write_bytes, filesystem_create_directory, filesystem_remove_file, filesystem_remove_directory}
+import stdlib/host::{host_process_run, host_stderr_text, host_exit}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/time::{duration_seconds}
+pure map_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
 pure map_contains(actual: Str, expected: Str): Bool {
   mut found: Bool = false
   for offset in 0..len(actual) { if starts_with_at(actual, expected, offset) { found = true; } }
@@ -11,16 +16,16 @@ pure map_contains(actual: Str, expected: Str): Bool {
 map_command(name: Str, args: [Str], status: Nat, stdout: Str, diagnostic: Str): TestResult {
   mut command: Str = "./panack"
   mut command_args: [Str] = args
-  if environment_has("PANACK_TEST_COMPILER") {
+  if environment_has_value("PANACK_TEST_COMPILER") {
     command = "./panack-vm"
-    command_args = ["run", environment_get("PANACK_TEST_COMPILER")]
+    command_args = ["run", environment_value("PANACK_TEST_COMPILER")]
     for argument in args { command_args = command_args.append(argument) }
   }
-  match process_run(map_path(command), command_args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
+  match host_process_run(map_path(command), command_args, bytes_empty(), path_value_current(), [], duration_seconds(90), 1048576) {
     Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => test_expect(name, actual.exit_code == status && actual.signal == 0 &&
-      actual.stdout == utf8_encode(stdout) && (if diagnostic == "" { actual.stderr == bytes() } else { map_contains(utf8_decode(actual.stderr), diagnostic) }),
-      "unexpected output: " + utf8_decode(actual.stdout) + "; " + utf8_decode(actual.stderr))
+      actual.stdout == text_encode_utf8(stdout) && (if diagnostic == "" { actual.stderr == bytes_empty() } else { map_contains(text_decode_utf8(actual.stderr), diagnostic) }),
+      "unexpected output: " + text_decode_utf8(actual.stdout) + "; " + text_decode_utf8(actual.stderr))
   }
 }
 map_compile(source: Str, artifact: Str, sidecar: Str): TestResult {
@@ -30,23 +35,23 @@ map_compile(source: Str, artifact: Str, sidecar: Str): TestResult {
 pure map_lookup(artifact: Str, source: Str, sidecar: Str, function: Str, pc: Str): [Str] {
   ["locate", artifact, "--source", source, "--source-map", sidecar, "--function", function, "--instruction", pc]
 }
-map_read(path: Str): Bytes { result_value_or(fs_read(map_path(path), 16777216), bytes()) }
+map_read(path: Str): Bytes { result_value_or(filesystem_read_bytes(map_path(path), 16777216), bytes_empty()) }
 map_write(path: Str, data: Bytes): Void {
-  match fs_write(map_path(path), data) {
+  match filesystem_write_bytes(map_path(path), data) {
     Ok(done) => {},
-    Error(error) => { eprint("source-map fixture write failed"); process_exit(1); }
+    Error(error) => { host_stderr_text("source-map fixture write failed"); host_exit(1); }
   }
 }
 pure map_changed(data: Bytes, offset: Nat, value: Nat): Bytes {
-  mut output: Bytes = bytes()
-  for index in 0..byte_len(data) { output = byte_append(output, if index == offset { value } else { byte_get(data, index) }); }
+  mut output: Bytes = bytes_empty()
+  for index in 0..bytes_length(data) { output = bytes_push(output, if index == offset { value } else { bytes_at(data, index) }); }
   output
 }
 main(): Void {
   match test_workspace_create(map_path("/tmp")) {
-    Error(error) => { eprint("source-map workspace failed"); process_exit(1); },
+    Error(error) => { host_stderr_text("source-map workspace failed"); host_exit(1); },
     Ok(workspace) => {
-      root: Str = result_value_or(path_to_text(workspace.root), "")
+      root: Str = result_value_or(path_value_to_text(workspace.root), "")
       source: Str = root + "/main.panack"
       library: Str = root + "/library.panack"
       other: Str = root + "/right.panack"
@@ -60,11 +65,11 @@ main(): Void {
       identity_artifact: Str = root + "/identity.bc"
       identity_map: Str = root + "/identity.pmap"
       identity_plain: Str = root + "/identity-plain.bc"
-      original: Str = "import \"library.panack\"\nmain(): Void { print(pick[Nat]([7], 0)); print(pick[Str]([\"x\"], 0)); }\n"
-      lib_text: Str = "// λ🙂\nimport \"unused.panack\"\npure pick[T](items: [T], index: Nat): T { items[index] }\npure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }\n"
-      map_write(source, utf8_encode(original))
-      map_write(library, utf8_encode(lib_text))
-      map_write(unused, utf8_encode("// unused transitive dependency\n"))
+      original: Str = "import \"library.panack\" as library\nmain(): Void { print(library.pick[Nat]([7], 0)); print(library.pick[Str]([\"x\"], 0)); }\n"
+      lib_text: Str = "// λ🙂\nimport \"unused.panack\" as unused\npub pure pick[T](items: [T], index: Nat): T { items[index] }\npub pure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }\n"
+      map_write(source, text_encode_utf8(original))
+      map_write(library, text_encode_utf8(lib_text))
+      map_write(unused, text_encode_utf8("// unused transitive dependency\n"))
       mut results: [TestResult] = []
       results = results.append(map_compile(source, artifact, sidecar))
       results = results.append(map_command("ordinary compile", ["compile", source, "-o", ordinary], 0, "wrote ${ordinary}\n", ""))
@@ -73,47 +78,47 @@ main(): Void {
       results = results.append(test_expect("repeated map identity", map_read(sidecar) == map_read(second_map), "nondeterministic map"))
       results = results.append(map_command("mapped artifact executes", ["run", artifact], 0, "7\nx\n", ""))
       results = results.append(map_command("ordinary source executes", ["run", source], 0, "7\nx\n", ""))
-      lookup: [Str] = map_lookup(artifact, source, sidecar, "pick", "2")
-      expected: Str = "source-map: expression\nfunction: pick\ninstruction: 2\nfile: project/library.panack\nrange: 71..83\nstart: 3:43\nend: 3:55\nexpression: items[index]\n"
+      lookup: [Str] = map_lookup(artifact, source, sidecar, "project/library.panack:pick", "2")
+      expected: Str = "source-map: expression\nfunction: project/library.panack:pick\ninstruction: 2\nfile: project/library.panack\nrange: 85..97\nstart: 3:47\nend: 3:59\nexpression: items[index]\n"
       results = results.append(map_command("imported generic exact location", lookup, 0, expected, ""))
-      results = results.append(map_command("lowered condition attribution", map_lookup(artifact, source, sidecar, "choose", "1"), 0,
-        "source-map: lowered\nfunction: choose\ninstruction: 1\nfile: project/library.panack\nrange: 117..141\nstart: 4:32\nend: 4:56\nexpression: if flag { 1 } else { 2 }\n", ""))
+      results = results.append(map_command("lowered condition attribution", map_lookup(artifact, source, sidecar, "project/library.panack:choose", "1"), 0,
+        "source-map: lowered\nfunction: project/library.panack:choose\ninstruction: 1\nfile: project/library.panack\nrange: 135..159\nstart: 4:36\nend: 4:60\nexpression: if flag { 1 } else { 2 }\n", ""))
       for point in ["3", "4294967295"] {
-        results = results.append(map_command("unmapped or out-of-range PC", map_lookup(artifact, source, sidecar, "pick", point), 0, "source-map: unavailable\n", ""))
+        results = results.append(map_command("unmapped or out-of-range PC", map_lookup(artifact, source, sidecar, "project/library.panack:pick", point), 0, "source-map: unavailable\n", ""))
       }
       results = results.append(map_command("unknown function", map_lookup(artifact, source, sidecar, "missing", "2"), 0, "source-map: unavailable\n", ""))
       saved: Bytes = map_read(sidecar)
-      saved_size: Nat = byte_len(saved)
-      for invalid in [bytes(), utf8_encode("PANACKMAP2\n"), byte_append(bytes(), 255),
-          map_changed(saved, 0, 0), map_changed(saved, if saved_size > 0 { saved_size - 1 } else { 0 }, 1), bytes_concat(saved, utf8_encode("padding"))] {
+      saved_size: Nat = bytes_length(saved)
+      for invalid in [bytes_empty(), text_encode_utf8("PANACKMAP2\n"), bytes_push(bytes_empty(), 255),
+          map_changed(saved, 0, 0), map_changed(saved, if saved_size > 0 { saved_size - 1 } else { 0 }, 1), bytes_join(saved, text_encode_utf8("padding"))] {
         map_write(broken, invalid)
-        results = results.append(map_command("malformed or forged map", map_lookup(artifact, source, broken, "pick", "2"), 0, "source-map: unavailable\n", ""))
+        results = results.append(map_command("malformed or forged map", map_lookup(artifact, source, broken, "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
       }
-      results = results.append(map_command("missing map", map_lookup(artifact, source, root + "/missing", "pick", "2"), 0, "source-map: unavailable\n", ""))
-      results = results.append(map_command("missing artifact", map_lookup(root + "/missing.bc", source, sidecar, "pick", "2"), 0, "source-map: unavailable\n", ""))
-      map_write(ordinary, utf8_encode("not bytecode"))
-      results = results.append(map_command("mismatched artifact", map_lookup(ordinary, source, sidecar, "pick", "2"), 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("missing map", map_lookup(artifact, source, root + "/missing", "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("missing artifact", map_lookup(root + "/missing.bc", source, sidecar, "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
+      map_write(ordinary, text_encode_utf8("not bytecode"))
+      results = results.append(map_command("mismatched artifact", map_lookup(ordinary, source, sidecar, "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
       for changed in [source, library, unused] {
         previous: Bytes = map_read(changed)
-        map_write(changed, bytes_concat(previous, utf8_encode("\n// changed\n")))
+        map_write(changed, bytes_join(previous, text_encode_utf8("\n// changed\n")))
         results = results.append(map_command("stale closure " + changed, lookup, 0, "source-map: unavailable\n", ""))
         map_write(changed, previous)
       }
-      map_write(library, byte_append(bytes(), 255))
+      map_write(library, bytes_push(bytes_empty(), 255))
       results = results.append(map_command("invalid UTF8 source", lookup, 0, "source-map: unavailable\n", ""))
-      map_write(library, utf8_encode(lib_text))
+      map_write(library, text_encode_utf8(lib_text))
       results = results.append(map_command("restored closure", lookup, 0, expected, ""))
       for outputs in [[root + "/collision.bc", root + "/collision.bc"], [artifact, broken], [second, source], [root + "/new.bc", library]] {
         results = results.append(map_command("refuse output collision", ["compile", source, "-o", outputs[0], "--source-map", outputs[1]], 1, "", "distinct, nonexistent"))
       }
-      results = results.append(test_expect("source never overwritten", map_read(source) == utf8_encode(original) && map_read(library) == utf8_encode(lib_text), "output destroyed source"))
+      results = results.append(test_expect("source never overwritten", map_read(source) == text_encode_utf8(original) && map_read(library) == text_encode_utf8(lib_text), "output destroyed source"))
       results = results.append(map_command("pair publication failure", ["compile", source, "-o", root + "/partial.bc", "--source-map", root + "/missing/map"], 1, "", "discard any partial output"))
-      results = results.append(map_command("partial pair unavailable", map_lookup(root + "/partial.bc", source, root + "/missing/map", "pick", "2"), 0, "source-map: unavailable\n", ""))
+      results = results.append(map_command("partial pair unavailable", map_lookup(root + "/partial.bc", source, root + "/missing/map", "project/library.panack:pick", "2"), 0, "source-map: unavailable\n", ""))
       // Staged module emission must retain each body's original source spans.
       // Bare names cannot select between same-spelled declarations.
-      map_write(source, utf8_encode("import \"library.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.duplicate()); print(right.duplicate()); }\n"))
-      map_write(library, utf8_encode("pub pure duplicate(): Nat { 11 }\n"))
-      map_write(other, utf8_encode("pub pure duplicate(): Nat { 22 }\n"))
+      map_write(source, text_encode_utf8("import \"library.panack\" as left\nimport \"right.panack\" as right\nmain(): Void { print(left.duplicate()); print(right.duplicate()); }\n"))
+      map_write(library, text_encode_utf8("pub pure duplicate(): Nat { 11 }\n"))
+      map_write(other, text_encode_utf8("pub pure duplicate(): Nat { 22 }\n"))
       results = results.append(map_compile(source, identity_artifact, identity_map))
       results = results.append(map_command("staged ordinary compile",
         ["compile", source, "-o", identity_plain], 0, "wrote ${identity_plain}\n", ""))
@@ -131,48 +136,48 @@ main(): Void {
       results = results.append(map_command("wrong module identity rejected",
         map_lookup(identity_artifact, source, identity_map, "project/missing.panack:duplicate", "0"), 1, "", "mismatched module identity selector"))
       original_right: Bytes = map_read(other)
-      map_write(other, utf8_encode("pub pure duplicate(): Nat { 23 }\n"))
+      map_write(other, text_encode_utf8("pub pure duplicate(): Nat { 23 }\n"))
       results = results.append(map_command("stale staged module map unavailable",
         map_lookup(identity_artifact, source, identity_map, "project/right.panack:duplicate", "0"), 0,
         "source-map: unavailable\n", ""))
       map_write(other, original_right)
-      map_write(source, utf8_encode(original))
-      map_write(library, utf8_encode(lib_text))
+      map_write(source, text_encode_utf8(original))
+      map_write(library, text_encode_utf8(lib_text))
       // Fresh path spellings can alias through a directory symlink. The first
       // write must reveal that alias before the sidecar can overwrite bytecode.
       real: Str = root + "/real"
       alias: Str = root + "/alias"
-      fs_create_directory(map_path(real));
-      match process_run(map_path("/bin/ln"), ["-s", real, alias], bytes(), path_current(), [], duration_seconds(10), 1024) {
+      filesystem_create_directory(map_path(real));
+      match host_process_run(map_path("/bin/ln"), ["-s", real, alias], bytes_empty(), path_value_current(), [], duration_seconds(10), 1024) {
         Error(error) => { results = results.append(test_expect("directory alias setup", false, "ln failed")); },
         Ok(output) => { results = results.append(test_expect("directory alias setup", output.exit_code == 0 && output.signal == 0, "ln failed")); }
       }
       results = results.append(map_command("refuse directory alias pair", ["compile", source, "-o", real + "/out.bc", "--source-map", alias + "/out.bc"], 1, "", "discard any partial output"))
       results = results.append(map_command("alias never overwrites artifact", ["run", real + "/out.bc"], 0, "7\nx\n", ""))
-      fs_remove_file(map_path(real + "/out.bc"));
-      fs_remove_file(map_path(alias));
-      fs_remove_directory(map_path(real));
+      filesystem_remove_file(map_path(real + "/out.bc"));
+      filesystem_remove_file(map_path(alias));
+      filesystem_remove_directory(map_path(real));
       for mode in ["symbolic", "hard"] {
         link: Str = root + "/link.bc"
         options: [Str] = if mode == "symbolic" { ["-s", source, link] } else { [source, link] }
-        match process_run(map_path("/bin/ln"), options, bytes(), path_current(), [], duration_seconds(10), 1024) {
+        match host_process_run(map_path("/bin/ln"), options, bytes_empty(), path_value_current(), [], duration_seconds(10), 1024) {
           Error(error) => { results = results.append(test_expect("file alias setup", false, "ln failed")); },
           Ok(output) => { results = results.append(test_expect("file alias setup", output.exit_code == 0 && output.signal == 0, "ln failed")); }
         }
         results = results.append(map_command("refuse " + mode + " source alias", ["compile", source, "-o", link, "--source-map", root + "/link.map"], 1, "", "distinct, nonexistent"))
-        results = results.append(test_expect("aliased source preserved", map_read(source) == utf8_encode(original), "source overwritten"))
-        fs_remove_file(map_path(link));
+        results = results.append(test_expect("aliased source preserved", map_read(source) == text_encode_utf8(original), "source overwritten"))
+        filesystem_remove_file(map_path(link));
       }
       for args in [lookup.concat(["--instruction", "3"]), map_lookup(artifact, source, sidecar, "pick", "-1"), ["compile", source, "--source-map", sidecar]] {
         results = results.append(map_command("invalid CLI arguments", args, 1, "", "source-map usage:"))
       }
       for file in [source, library, other, unused, artifact, sidecar, ordinary, second, second_map, broken,
-          identity_artifact, identity_map, identity_plain, root + "/partial.bc"] { fs_remove_file(map_path(file)); }
+          identity_artifact, identity_map, identity_plain, root + "/partial.bc"] { filesystem_remove_file(map_path(file)); }
       match test_workspace_remove_empty(workspace) {
         Ok(done) => {},
         Error(error) => { results = results.append(test_expect("source-map workspace cleanup", false, "unexpected leftover files")); }
       }
-      if test_report(results) > 0 { process_exit(1); }
+      if test_report(results) > 0 { host_exit(1); }
     }
   }
 }

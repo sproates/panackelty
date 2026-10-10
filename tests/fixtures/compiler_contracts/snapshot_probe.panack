@@ -1,15 +1,19 @@
-import project/src/compiler/driver
-import stdlib/testing
+import project/src/compiler/loader::{LoadedProject, load_project}
+import project/src/compiler/diagnostics::{diagnostic_with_source}
+import stdlib/testing::{test_equal_str, test_report}
+import stdlib/host::{host_command_arguments, host_exit}
+import stdlib/bytes::{text_encode_utf8}
+import stdlib/filesystem::{filesystem_read_text, filesystem_write_file_bytes}
 main(): Void {
-  filename = command_args()[0]
-  write_file(filename, "main(): Void { print(missing) }\n")
+  filename = host_command_arguments()[0]
+  filesystem_write_file_bytes(filename, text_encode_utf8("main(): Void { print(missing) }\n"))
   loaded: LoadedProject = load_project(filename)
-  write_file(filename, "main(): Void {}")
+  filesystem_write_file_bytes(filename, text_encode_utf8("main(): Void {}"))
   results = [
-    test_equal_str("snapshot file changed", read_file(filename), "main(): Void {}"),
+    test_equal_str("snapshot file changed", filesystem_read_text(filename), "main(): Void {}"),
     test_equal_str("loader retains original diagnostic source",
-      diagnostic_messages(loaded.diagnostics, loaded.sources) + "\n",
+      diagnostic_with_source(loaded.diagnostics[0], loaded.sources) + "\n",
       "${filename}:1:22: unknown name missing\n  1 | main(): Void { print(missing) }\n    |                      ^\n")
   ]
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

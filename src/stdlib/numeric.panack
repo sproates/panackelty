@@ -1,0 +1,4 @@
+// Explicit library entry point for integer-truncating natural division.
+pub pure nat_quotient(dividend: Nat, divisor: Nat): Nat {
+  quotient(dividend, divisor)
+}

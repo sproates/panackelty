@@ -1,0 +1,7 @@
+import project/src/compiler/driver::{compiler_main}
+
+// Keep the bootstrap entry at the repository root so the seed compiler and
+// the compiler itself agree on the project's module identity.
+main(): Void {
+  compiler_main()
+}

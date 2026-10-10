@@ -1,6 +1,8 @@
-import project/src/compiler/parser
-import stdlib/testing
-
+import project/src/compiler/parser::{Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Block, Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, expression_span, unlocated_expression, parse_complete, parse_program_complete}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/types::{SourcePos, SourceSpan}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_equal_str, test_report}
 pure span_text(span: SourceSpan): Str {
   start: SourcePos = span.start
   end: SourcePos = span.end
@@ -147,5 +149,5 @@ main(): Void {
   results = results.append(test_equal_str("spans/else-if-partial-children",
     expression_trace("if a { 1 } else if b { 2 }"),
     "0..26;3..4;7..8;16..26;19..20;23..24;"))
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

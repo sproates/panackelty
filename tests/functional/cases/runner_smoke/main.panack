@@ -1,17 +1,22 @@
-import stdlib/result
-import stdlib/testing_commands
-import stdlib/filesystem
-import stdlib/environment
-import project/tests/runner/report_capture
+import stdlib/result::{result_value_or}
+import stdlib/testing_commands::{TestCommand, ProcessOutput}
+import stdlib/environment::{environment, environment_has_value}
+import stdlib/testing_commands::{capture_test_report}
+import stdlib/testing::{test_expect, test_report}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current}
+import stdlib/host::{host_exit, host_stderr_text}
+import stdlib/bytes::{bytes_empty, text_encode_utf8}
+import stdlib/filesystem::{filesystem_read_bytes}
 
 pure runner_path(text: Str): Path {
-  result_value_or(path_from_text(text), path_current())
+  result_value_or(path_value_from_text(text), path_value_current())
 }
 
 main(): Void {
-  if environment_has("PANACK_COVERAGE_ACTIVE") && environment_has("PANACK_TEST_RUNNER_REPORT") {
-    eprint("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
-    process_exit(1)
+  if environment_has_value("PANACK_COVERAGE_ACTIVE") && environment_has_value("PANACK_TEST_RUNNER_REPORT") {
+    host_stderr_text("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
+    host_exit(1)
   }
   names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
@@ -56,19 +61,19 @@ main(): Void {
     if name == "unknown_name" || name == "imported_unknown_name" ||
         name == "unexpected_character" || name == "same_line_without_separator" ||
         name == "inference_empty_array" || name == "inference_immutable" ||
-        starts_with(name, "fact_mutation_") {
+        name.starts_with_at("fact_mutation_", 0) {
       expected_text = "${expected_text}PASS failure/${name}/run\nPASS failure/${name}/disasm\n"
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = utf8_encode("${expected_text}PASS selected failure count\ntests: 355, failures: 0\n")
+  expected = text_encode_utf8("${expected_text}PASS selected failure count\ntests: 355, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
-    ["run", "tests/runner/main.panack"], bytes(), path_current(),
+    ["run", "tests/runner/main.panack"], bytes_empty(), path_value_current(),
     ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"],
     duration_seconds(90), 1048576)
   result = match environment("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {
-      match fs_read(runner_path(report_path), 1048576) {
+      match filesystem_read_bytes(runner_path(report_path), 1048576) {
         Error(error) => test_expect("Panackelty fixture runner", false,
           "runner report read failed"),
         Ok(actual) => test_expect("Panackelty fixture runner", actual == expected,
@@ -81,9 +86,9 @@ main(): Void {
         None() => None()
       }
       capture_test_report("Panackelty fixture runner", command,
-        ProcessOutput(0, 0, expected, bytes()), destination)
+        ProcessOutput(0, 0, expected, bytes_empty()), destination)
     }
   }
   failures = test_report([result])
-  if failures > 0 { process_exit(1) }
+  if failures > 0 { host_exit(1) }
 }

@@ -1,24 +1,30 @@
-import stdlib/result
-import project/tests/runner/report_capture
-import stdlib/testing_files
-
-pure capture_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+import stdlib/result::{result_value_or}
+import stdlib/bytes::{bytes_empty, text_encode_utf8}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append}
+import stdlib/filesystem::{filesystem_metadata, filesystem_read_bytes, filesystem_remove_file}
+import stdlib/host::{host_stderr_text, host_exit}
+import project/tests/runner/report_capture::{capture_test_report}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed, TestResult, test_expect, test_report}
+import stdlib/time::{duration_seconds}
+import stdlib/testing_commands::{TestCommand, ProcessOutput}
+pure capture_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
 pure capture_command(script: Str): TestCommand {
-  TestCommand(capture_path("/bin/sh"), ["-c", script], bytes(), path_current(), [],
+  TestCommand(capture_path("/bin/sh"), ["-c", script], bytes_empty(), path_value_current(), [],
     duration_seconds(5), 4096)
 }
 pure capture_passed(result: TestResult): Bool {
   match result.outcome { TestPassed() => true, TestFailed(reason) => false }
 }
 capture_missing(file: Path): Bool {
-  match fs_metadata(file) { Error(error) => error.code == "not_found", Ok(value) => false }
+  match filesystem_metadata(file) { Error(error) => error.code == "not_found", Ok(value) => false }
 }
 main(): Void {
   match test_workspace_create(capture_path("/tmp")) {
-    Error(error) => { eprint("capture workspace failed"); process_exit(1) },
+    Error(error) => { host_stderr_text("capture workspace failed"); host_exit(1) },
     Ok(workspace) => {
-      file = result_value_or(path_append(workspace.root, capture_path("report")), workspace.root)
-      expected = ProcessOutput(0, 0, utf8_encode("good\n"), bytes())
+      file = result_value_or(path_value_append(workspace.root, capture_path("report")), workspace.root)
+      expected = ProcessOutput(0, 0, text_encode_utf8("good\n"), bytes_empty())
       mut results: [TestResult] = []
       for script in ["printf 'wrong\\n'", "printf 'good\\n'; exit 7",
           "printf 'good\\n'; printf error >&2", "kill -TERM $$"] {
@@ -26,8 +32,8 @@ main(): Void {
         results = results.append(test_expect("capture rejects ${script}",
           !capture_passed(result) && capture_missing(file), "failed observation was published"))
       }
-      missing = TestCommand(capture_path("/not-a-test-executable"), [], bytes(),
-        path_current(), [], duration_seconds(5), 4096)
+      missing = TestCommand(capture_path("/not-a-test-executable"), [], bytes_empty(),
+        path_value_current(), [], duration_seconds(5), 4096)
       results = results.append(test_expect("capture rejects host error",
         !capture_passed(capture_test_report("runner", missing, expected, Some(file))) &&
           capture_missing(file), "host error was published"))
@@ -41,14 +47,14 @@ main(): Void {
       results = results.append(test_expect("capture accepts exact success",
         capture_passed(capture_test_report("runner", good, expected, Some(file))),
         "successful observation was rejected"))
-      actual = match fs_read(file, 4096) { Ok(value) => value, Error(error) => bytes() }
+      actual = match filesystem_read_bytes(file, 4096) { Ok(value) => value, Error(error) => bytes_empty() }
       results = results.append(test_expect("capture exact bytes", actual == expected.stdout,
         "captured bytes differ"))
-      fs_remove_file(file);
+      filesystem_remove_file(file);
       results = results.append(test_expect("capture workspace cleanup",
         match test_workspace_remove_empty(workspace) { Ok(value) => true, Error(error) => false },
         "workspace cleanup failed"))
-      if test_report(results) > 0 { process_exit(1) }
+      if test_report(results) > 0 { host_exit(1) }
     }
   }
 }

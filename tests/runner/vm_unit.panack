@@ -1,9 +1,13 @@
-import stdlib/result
-import stdlib/testing
-import stdlib/testing_files
-import stdlib/testing_commands
-import stdlib/time
-
+import stdlib/result::{result_value_or}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
+import stdlib/time::{duration_seconds}
+import stdlib/bytes::{bytes_empty, bytes_push}
+import stdlib/environment::{environment_value, environment_has_value}
+import stdlib/filesystem::{filesystem_read_text, filesystem_read_file_bytes, filesystem_write_bytes, filesystem_remove_file}
+import stdlib/host::{host_process_run, host_exit}
+import stdlib/path::{path_value_append, path_value_from_text, path_value_current, path_value_to_text}
 pure vm_nibble(character: Str): Nat {
   digits = "0123456789abcdef"
   mut result: Nat = 0
@@ -11,7 +15,7 @@ pure vm_nibble(character: Str): Nat {
   result
 }
 pure vm_hex(value: Str): Bytes {
-  mut output = bytes()
+  mut output = bytes_empty()
   mut high: Nat = 0
   mut half = false
   for index in 0..len(value) {
@@ -19,13 +23,13 @@ pure vm_hex(value: Str): Bytes {
     if !is_whitespace(character) {
       digit = vm_nibble(character)
       if !half { high = digit; half = true }
-      else { output = byte_append(output, high * 16 + digit); half = false }
+      else { output = bytes_push(output, high * 16 + digit); half = false }
     }
   }
   output
 }
-pure vm_path(value: Str): Path { result_value_or(path_from_text(value), path_current()) }
-pure vm_text(value: Path): Str { result_value_or(path_to_text(value), "invalid-path") }
+pure vm_path(value: Str): Path { result_value_or(path_value_from_text(value), path_value_current()) }
+pure vm_text(value: Path): Str { result_value_or(path_value_to_text(value), "invalid-path") }
 
 pure vm_contains(actual: Str, expected: Str): Bool {
   mut found = false
@@ -35,24 +39,24 @@ pure vm_contains(actual: Str, expected: Str): Bool {
 vm_environment(): [Str] {
   mut values: [Str] = []
   for key in ["ASAN_OPTIONS", "UBSAN_OPTIONS", "LLVM_PROFILE_FILE", "PANACKELTY_STDLIB_PATH"] {
-    if environment_has(key) { values = values.append("${key}=" + environment_get(key)) }
+    if environment_has_value(key) { values = values.append("${key}=" + environment_value(key)) }
   }
   values
 }
 vm_executable(key: Str, fallback: Str): Path {
-  vm_path(if environment_has(key) { environment_get(key) } else { fallback })
+  vm_path(if environment_has_value(key) { environment_value(key) } else { fallback })
 }
 vm_case(name: Str, mode: Str, status: Nat, target: Path): TestResult {
   prefix = "tests/fixtures/vm_contracts/${name}"
-  match fs_write(target, vm_hex(read_file("${prefix}.hex"))) {
+  match filesystem_write_bytes(target, vm_hex(filesystem_read_text("${prefix}.hex"))) {
     Error(problem) => test_expect(name, false, "fixture write failed"),
     Ok(done) => {
       result = test_run_command(if mode == "return-void" { "${name}/return kind" } else { name }, TestCommand(
         if mode == "return-void" || mode == "tasks" { vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules") }
         else { vm_executable("PANACK_NATIVE_BINARY", "./panack-vm") }, [mode, vm_text(target)],
-        bytes(), path_current(), vm_environment(), duration_seconds(30), 1048576),
-        ProcessOutput(status, 0, read_bytes("${prefix}.stdout"), read_bytes("${prefix}.stderr")))
-      match fs_remove_file(target) {
+        bytes_empty(), path_value_current(), vm_environment(), duration_seconds(30), 1048576),
+        ProcessOutput(status, 0, filesystem_read_file_bytes("${prefix}.stdout"), filesystem_read_file_bytes("${prefix}.stderr")))
+      match filesystem_remove_file(target) {
         Error(problem) => test_expect(name, false, "fixture cleanup failed"),
         Ok(removed) => result
       }
@@ -60,12 +64,12 @@ vm_case(name: Str, mode: Str, status: Nat, target: Path): TestResult {
   }
 }
 vm_fault(name: Str, file: Str, mode: Str, module: Bool, target: Path): TestResult {
-  match fs_write(target, vm_hex(read_file("tests/fixtures/vm_contracts/${file}.hex"))) {
+  match filesystem_write_bytes(target, vm_hex(filesystem_read_text("tests/fixtures/vm_contracts/${file}.hex"))) {
     Error(problem) => test_expect(name, false, "fixture write failed"),
     Ok(done) => {
       executable = if module { vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules") }
                    else { vm_executable("PANACK_NATIVE_FAULT_TEST", "./build/fault/test_faults") }
-      outcome = process_run(executable, [mode, vm_text(target)], bytes(), path_current(),
+      outcome = host_process_run(executable, [mode, vm_text(target)], bytes_empty(), path_value_current(),
                             vm_environment(), duration_seconds(30), 16777216)
       mut valid = false
       match outcome {
@@ -76,18 +80,18 @@ vm_fault(name: Str, file: Str, mode: Str, module: Bool, target: Path): TestResul
         }
       }
       if mode == "execute" || mode == "trap" {
-        match process_run(vm_executable("PANACK_NATIVE_BINARY", "./panack-vm"), ["run", "bootstrap/compiler-v9.bc", "disasm", vm_text(target)],
-          bytes(), path_current(), vm_environment(), duration_seconds(30), 1048576) {
+        match host_process_run(vm_executable("PANACK_NATIVE_BINARY", "./panack-vm"), ["run", "bootstrap/compiler-v9.bc", "disasm", vm_text(target)],
+          bytes_empty(), path_value_current(), vm_environment(), duration_seconds(30), 1048576) {
           Error(problem) => { valid = false },
           Ok(listing) => {
-            valid = valid && listing.exit_code == 0 && listing.signal == 0 && listing.stderr == bytes()
+            valid = valid && listing.exit_code == 0 && listing.signal == 0 && listing.stderr == bytes_empty()
             for opcode in ["INTERPOLATE", "UNARY", "CALL_VALUE", "ITER_NEXT", "MAKE_RECORD", "MAKE_VARIANT"] {
               valid = valid && vm_contains(utf8_decode(listing.stdout), opcode)
             }
           }
         }
       }
-      match fs_remove_file(target) {
+      match filesystem_remove_file(target) {
         Error(problem) => test_expect(name, false, "fixture cleanup failed"),
         Ok(removed) => test_expect(name, valid, "native fault/mutation contract failed")
       }
@@ -96,25 +100,25 @@ vm_fault(name: Str, file: Str, mode: Str, module: Bool, target: Path): TestResul
 }
 main(): Void {
   match test_workspace_create(vm_path("/tmp")) {
-    Error(problem) => { eprint("VM workspace creation failed"); process_exit(1) },
+    Error(problem) => { eprint("VM workspace creation failed"); host_exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
-      target = result_value_or(path_append(workspace.root, vm_path("input.bc")), workspace.root)
+      target = result_value_or(path_value_append(workspace.root, vm_path("input.bc")), workspace.root)
       results = results.append(test_run_command("native module contracts", TestCommand(
-        vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), [], bytes(),
-        path_current(), vm_environment(), duration_seconds(20), 1048576),
-        ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), bytes())))
+        vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), [], bytes_empty(),
+        path_value_current(), vm_environment(), duration_seconds(20), 1048576),
+        ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), bytes_empty())))
       results = results.append(test_run_command("bigint exceeds host word size", TestCommand(
-        vm_executable("PANACK_NATIVE_BIGINT_TEST", "./build/vm/test_bigint"), [], bytes(),
-        path_current(), vm_environment(), duration_seconds(20), 1048576),
-        ProcessOutput(0, 0, utf8_encode("8999999999999999999999999999991\n999999999999999999999999999999\n1\n"), bytes())))
+        vm_executable("PANACK_NATIVE_BIGINT_TEST", "./build/vm/test_bigint"), [], bytes_empty(),
+        path_value_current(), vm_environment(), duration_seconds(20), 1048576),
+        ProcessOutput(0, 0, utf8_encode("8999999999999999999999999999991\n999999999999999999999999999999\n1\n"), bytes_empty())))
       results = results.append(test_run_command("decimal division preserves significant zeros", TestCommand(
         vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), ["arithmetic"],
         utf8_encode("decimal 3 100000000000000000000 -2 80 -1\ndecimal 3 0 -20 80 -1\ndecimal 3 -1000 -3 20 -1\ndecimal 3 1000 -3 80 -1\ndecimal 2 100 -2 200 -2\n"),
-        path_current(), vm_environment(), duration_seconds(10), 1048576),
-        ProcessOutput(0, 0, utf8_encode("125000000000000000\n0\n-0.5\n0.125\n2.0000\n"), bytes())))
-      match process_run(vm_executable("PANACK_NATIVE_FAULT_TEST", "./build/fault/test_faults"), [],
-        bytes(), path_current(), vm_environment(), duration_seconds(30), 16777216) {
+        path_value_current(), vm_environment(), duration_seconds(10), 1048576),
+        ProcessOutput(0, 0, utf8_encode("125000000000000000\n0\n-0.5\n0.125\n2.0000\n"), bytes_empty())))
+      match host_process_run(vm_executable("PANACK_NATIVE_FAULT_TEST", "./build/fault/test_faults"), [],
+        bytes_empty(), path_value_current(), vm_environment(), duration_seconds(30), 16777216) {
         Error(problem) => { results = results.append(test_expect("allocation and host failures", false, "command failed")) },
         Ok(command) => { results = results.append(test_expect("allocation and host failures",
           command.exit_code == 0 && command.signal == 0 && vm_contains(utf8_decode(command.stdout), "allocation failures checked"),
@@ -297,7 +301,7 @@ main(): Void {
         Error(problem) => { results = results.append(test_expect("VM workspace cleanup", false, "directory not empty")) },
         Ok(removed) => {}
       }
-      if test_report(results) > 0 { process_exit(1) }
+      if test_report(results) > 0 { host_exit(1) }
     }
   }
 }

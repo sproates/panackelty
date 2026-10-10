@@ -1,6 +1,5 @@
-import stdlib/result
-import stdlib/option
-import stdlib/prelude
+import stdlib/result::{result_value_or}
+import stdlib/option::{option_value_or}
 
 pure identity[T](value: T): T { value }
 

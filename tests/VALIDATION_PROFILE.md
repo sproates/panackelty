@@ -6,6 +6,206 @@
 
 # Validation profiling baseline
 
+## Slice 8 follow-up: closure audit and current browser checks — 2026-10-10
+
+Migrated the remaining sampled valid fixtures from implicit quoted imports to
+explicit namespace aliases: local inference, indexed lookup, generic instruction
+sources, the relative driver, and the project-rooted import fixture. Public
+declarations are explicit where another module consumes them. The relative
+driver oracle was updated only after running the old captured bytecode and the
+new qualified source to the same output (`42`) and reviewing the disassembly;
+only the imported function identity and its `main` call target changed. The
+artifact rationale and inventory digest are recorded in
+[`tests/fixtures/oracle_contracts/README.md`](fixtures/oracle_contracts/README.md).
+
+After removing project compilation's flat compatibility route, an exhaustive
+identity-only check of 59 roots passed: all functional cases, compiler-contract
+fixtures, and top-level examples. This replaces the earlier 39-root probe in
+which `vm_numeric_boundaries` remained deferred. No broader arithmetic proof
+rule was added; that fixture now passes the identity-only route with its existing
+contracts intact. Focused source-map, explanation, and coverage checks passed
+after their selectors and retained evidence were aligned with emitted module
+identity. The check is now maintained as `tests/identity_root_audit.sh` and runs
+in `functional-impl`, so every canonical `make check` repeats the scoped audit.
+
+`make regenerate-seed` passed the stage-2/3/4 fixed point at compiler digest
+`54e0268ed3a2f939e22439925fb545857fc7ba0c6f67c2a7dd9cb948cd86a752`; the
+standard-library artifact digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Canonical
+`make check` passed all suites in 565s, including 355 functional fixture
+assertions and the maintained 59-root identity audit, release smoke, and quick
+start. The functional phase took 12s; bootstrap took 133s.
+Native staging was Python-free, and installed-package smoke passed. Browser
+`npm test` passed 21/21 against the current core source. Playwright passed 24/24
+across Chromium, Firefox and WebKit with the current compiler/standard-library
+bundle; the prior WASM artifact was reused because its VM C sources and browser
+host adapter are unchanged (WASM SHA-256
+`a1d255de55b1ba6e14e5e0da59598754449b44735eb3b5c1483c94ca48b0b830`). The local
+WASI SDK was unavailable, so no new WASM compilation is claimed.
+
+The canonical run exceeded the 120s budget, and bootstrap exceeded its 60s
+budget. This run does not isolate a cause; retain all tests and targets and keep
+GI#106's matched phase profile/remediation review as the owned next performance
+action. No tests or budgets were waived. Slice 8's candidate acceptance is
+complete locally; the additional persistent identity-root audit passed 59/59
+and is included in the functional phase. Formal scope credit and GI#198 closure
+await review and integration.
+
+## Slice 8 coordinated migration validation — 2026-10-09
+
+The current candidate migrates compiler/tooling APIs and standard-library export
+surfaces to selected namespace imports, refreshes the namespace-capable seed,
+and passes native, browser-WASI, and relocated installed-package acceptance.
+The canonical `make check` passed all suites in 528s. The focused namespace body
+suite passed 616 assertions. Fresh compiler stages 2/3/4 match at
+`ebbb7c85c00d5fc3e9b9feb1ea8d85650707338d97fea5632bf2af0320e87436`; the standard
+library artifact digest is
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Browser
+`npm test` passed 21/21; the Chromium/Firefox/WebKit Playwright matrix passed
+24/24. Native staging passed without Python.
+
+A separate removal probe temporarily routed all projects through staged identity
+emission. `make check-compiler` failed 11 driver/source-map assertions on ordinary
+projects using quoted legacy imports; the loader had skipped signature/body
+identity preparation for those modules. Three added focused regressions now
+show that the generic array-indexing, conditional-branch and core-call bodies
+from that failure set pass identity checking and emission when the module graph,
+signatures and bodies are supplied. The guarded legacy project route was
+restored. The remaining work is to prepare checked metadata for legacy-loaded
+modules, use identity emission only for fully checked closures, and preserve the
+fallback for genuinely deferred cases until that inventory is migrated. Then
+rerun native, browser, and installed acceptance. No checks were waived.
+
+### Follow-up: explicit-import fixtures and cutover probe — 2026-10-09
+
+Migrated the source-map CLI fixture's generic library and transitive dependency
+to explicit namespace imports, and its imported generic/lowered-function map
+selectors now assert module identity and exact spans. The `modules`,
+`semicolonless`, relative-import, and loader-confinement fixtures now use
+explicit aliases/exports or selected standard-library APIs. `make functional`
+passed 355 checks and both runner-smoke executions in 58s; the focused compiler
+integration probe passed 133 assertions, loader-confinement passed 4, and the
+source-map CLI probe passed 54. The guarded `make check-compiler` passed all
+probes with 0 failures in 96s when given a 300s budget.
+
+A fresh forced-identity trial passes the self-hosted driver (8 assertions) and
+source-map CLI (54 assertions), closing the earlier 11 driver/source-map
+failures for those migrated fixtures. The full forced-identity compiler suite
+still fails 4 coverage-session assertions: generated infinite-loop and trap
+fixtures cannot produce accepted inventories/reports. All other probe groups
+passed. The production guard is restored; inventory/session identity parity is
+the remaining code-level cutover gate. Keep the legacy route until that forced
+suite passes, then repeat fresh seed fixed-point and native/browser/installed
+acceptance. `git diff --check` passed. No tests or budgets were waived.
+
+### Update: identity-ready routing and canonical acceptance — 2026-10-09
+
+The loader now retains module signatures, checked bodies and effect evidence for
+ordinary files as well as namespace projects. `LoadedProject.identity_ready`
+marks complete closures; source, inventory, source-map and explanation commands
+select identity emission for those closures and retain the flat compatibility
+route only for incomplete legacy closures. Explicit namespace projects still
+fail closed. This resolves the four generated loop/trap inventory failures
+recorded above.
+
+The readiness-based compiler suite passed in 202s, and the full functional
+matrix passed in 57s. Canonical `make check` passed in 303s: unit 137s,
+functional 5s, bootstrap 134s, release smoke 0s, quick-start 1s. Fresh compiler
+fixed points and Python-free native staging passed. Compiler stage digest:
+`44ac16e15636c4218f7c3725bfdb329145fd59a0018a358a16b32b813cf043c9`; standard
+library digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. The
+remaining cutover work is to audit and migrate closures that still require
+fallback, remove that path, and repeat browser/WASI acceptance. `make docs` and
+`git diff --check` passed. No tests or budgets were waived.
+
+The 528s canonical run exceeded the 120s full-check target; bootstrap took 139s
+against its 60s target, while functional tests took 6s in that integrated run. A
+separate post-restore `make functional` passed in 55s with loopback access. The 356s unit aggregate
+is not the 15s focused incremental target. One host-level run does not attribute
+the timing to this migration. Keep all tests and targets. GI#106 remains with its
+existing validation owner; next action is a same-host phase profile of clean base
+and candidate runs, then a bounded remediation proposal if the measurements
+identify avoidable repeated work. Review that proposal before changing tests or
+budgets. Website impact: none; public namespace execution remains gated.
+
+### Follow-up: legacy-module identity preparation tests — 2026-10-09
+
+Added three focused assertions showing that ordinary generic indexing,
+conditional branches, and a core call can be identity-checked and emitted when
+the loader supplies module identities, signatures, and checked bodies. The
+focused module-binding/body suite passed 616 assertions. Canonical `make check`
+then passed all suites in 554s: unit 385s, functional 6s, bootstrap 134s,
+release smoke 1s, and quick-start 1s. The bootstrap fixed point and native
+Python-free seed refresh passed. No test failed.
+
+The 554s run exceeds the 120s full-check target, and bootstrap exceeds its 60s
+target. The unit aggregate is not a focused incremental sample for the 15s
+target. Compared with the preceding 528s run, this single follow-up does not
+establish causation or isolate the three new assertions' cost. Keep all tests
+and targets. GI#106's next action remains a matched phase profile of clean base
+and candidate runs, followed by a bounded remediation proposal if it identifies
+avoidable repeated work. The guarded legacy route remains until quoted-import
+modules receive checked metadata and existing driver/source-map behavior passes
+through identity emission. Website impact: none.
+
+### Update: core text identity calls and refreshed seed — 2026-10-09
+
+Added checked identity support for text `reverse` and `starts_with`, with
+positive receiver-call and wrong-arity/type coverage. Migrated the corresponding
+core-methods fixture to an explicit helper alias and public export. The
+source-map CLI fixture, module and semicolonless callers, relative import case,
+and loader-confinement checks also now exercise explicit identities or selected
+stdlib APIs. The focused module-binding/body suite passes 621 assertions; the
+source-map CLI suite passes 54; loader-confinement passes 5.
+
+The checked-in v9 seed was stale for these compiler changes and has been
+regenerated. Stage 2/3/4 match at
+`96b0f2f2d262cf86e98f05386a875b0a2cee4b4deddbe189342f3d885d873aea`; the
+standard-library artifact digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. The
+readiness-based compiler suite passed 207 assertions in 195s. Canonical `make
+check` passed in 314s: unit 145s, functional 5s (355 fixture assertions plus
+runner smoke), bootstrap 136s, release smoke 1s, and quick start 1s. Seed
+refresh was already at the verified fixed point and passed native staging with
+a Python-free `PATH`.
+
+At this checkpoint the ordinary `map().put(...)` and `set().add(...)` fixture
+still appeared to require fallback. The follow-up below resolves that case;
+this paragraph records the earlier finding.
+
+### Follow-up: identity inference, coverage identities, and repeated acceptance — 2026-10-09
+
+Receiver-context constraints now infer unannotated Map key/value and Set item
+types for `.put(...)` and `.add(...)`. Checked `nat()` and `dec()` contracts
+complete the loaded `core_ends_with` body. Loader tests confirm this ordinary
+source closure is identity-ready. Coverage reporting now chooses identity-
+qualified function names when those appear in emitted bytecode, falls back to
+legacy names only when present, and maps qualified enum-arm probes back to
+source inventory labels. Focused module-binding/body, loader-confinement,
+coverage-unit, and coverage-CLI suites pass 624, 6, 37, and 39 assertions.
+
+The readiness-based `make check-compiler` passed all 207 assertions in 232s.
+Canonical `make check` passed all phases in 305s: unit 140s, functional 6s,
+bootstrap 134s, release smoke 1s, and quick start 1s. Compiler Stage 2/3/4
+fixed points match at
+`9a3604071fd5fadcbcf6a6210eabc4171ffe2f834ef7b07cd06cdcbc2dbb4db2`; the
+standard-library artifact digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Native
+staging remains Python-free. The compiler bundle was rebuilt into the browser
+runtime; browser `npm test` passed 21/21 and Playwright passed 24/24 across
+Chromium, Firefox, and WebKit. Installed-package acceptance passed in canonical
+check.
+
+The canonical run exceeded its unchanged 120s target; unit and bootstrap also
+exceeded their focused targets. This remains a single-host observation and does
+not identify a cause; retain all tests and budgets. The compatibility route is
+still present because the full fallback-closure inventory is not complete.
+Audit those remaining cases, remove the route only after all valid closures have
+identity evidence, then repeat browser/WASI and installed acceptance. No tests
+or budgets were waived.
+
+
 ## P2 Slice 7 acceptance hardening — 2026-10-08
 
 The final Slice 7 audit added exact-position regressions for too few explicit
@@ -4117,6 +4317,113 @@ This is a compiler bootstrap prerequisite only. It does not migrate compiler or
 standard-library source imports, remove the legacy flat loader, or earn Slice 8
 completion credit. There is no runtime/VM behavior or website impact.
 
+## Slice 8 compiler leaf namespace migration — 2026-10-09
+
+`src/compiler/types.panack` now explicitly exports its source-position, token,
+and diagnostic API. `src/compiler/lexer.panack` selectively imports those
+declarations and token variants, then publicly re-exports the types required by
+its `lex` and `lex_file` signatures. `src/compiler/parser.panack` imports that
+public surface, exports the AST and consumed parser contracts, and re-exports
+the lexer types used by its API. `src/compiler/resolver.panack` selectively
+imports and re-exports parser dependencies. `module_bindings.panack` and
+`module_resolution.panack` expose the identity and graph APIs used by later
+compiler stages. `expression_contracts.panack` is an independently selectable
+public leaf for string/interpolation and scalar contracts. `checker.panack`
+selectively imports its parser, resolver and lexer dependencies and exposes the
+type shapes and cross-stage checking contracts consumed by later compiler
+passes. `module_signatures.panack` selectively imports binding, parser, graph
+and checker contracts, then exposes the signature API consumed by body and
+emission passes. `purity.panack` selectively imports parser, checker, resolver
+and lexer APIs and exports the frontend effect checks consumed by emission and
+loading. `tests/namespace_seed.sh` copies the migrated leaves plus module body, effect
+and emitter stages into an isolated project; the checked-in seed checks, runs
+and compiles a selective module-graph caller that exercises the public leaf, checker, signature purity, body, effect and bytecode-emitter APIs, then verifies and runs the
+saved-v9 artifact after removing all fourteen source modules. The fixture
+compiles its parsed program through the public emitter API and asserts the
+entry function emits exactly `CONST 42; RETURN`. The fixture also builds a
+two-module graph in memory and checks `encode_u8` plus its imported caller
+through the current source `module_signatures` and `module_bodies` APIs; both
+must have `BodyIdentityChecked` status with no deferred spans. It then passes
+that graph through `module_emission_program` and `compile_program`, asserting the
+entry call targets the imported `encode_u8` identity (`$module1_encode_u8`) in
+the exact emitted instruction sequence. The checked-in
+seed executes that fixture successfully. The same fixture checks exact failures
+for byte construction arity and both argument positions to byte append,
+concatenation and index access, plus length access, UTF-8 conversion and
+quotient types/arity. This guards
+the current source checker's byte-core contract matrix while the imported-module
+seed handoff remains unresolved. The same source-checker fixture verifies all ten Path core-call output contracts, including nominal `PathError` result identity, and exact wrong-type and arity diagnostics. The fixture also selectively imports all seven
+documented `stdlib/bytes` wrappers; the generic `option_value_or` and
+`result_value_or` helpers; `environment`; all assertion types, variants and
+functions in `stdlib/testing`; and the duration helpers and error types in
+`stdlib/time`. It checks byte/text round-trip, generic results, controlled host
+environment reads, exact assertion reports, duration arithmetic and zero-divisor
+errors through source and saved-v9 execution. It also selectively imports the
+documented `testing_commands` and `testing_files` APIs, and checks public host,
+filesystem, process, TCP and path data types, plus command output/result
+comparisons. Fixture-workspace function signatures resolve through the seed;
+calling the full filesystem lifecycle from this larger compiler harness still
+defers its `main` identity check, so runtime lifecycle coverage remains in the
+dedicated `testing_fixtures` acceptance. `sh tests/namespace_seed.sh` passed.
+
+This does not establish that the older checker embedded in the seed can compile
+that same byte-core function as an imported source module. A separate minimal
+project loaded by the seed fails with `function is not completely checked for
+identity emission: encode_u8`, although compiling the function standalone
+passes. The legacy standard-library conformance entry still imports the broad
+`stdlib/prelude`; the newly public `stdlib/bytes` module now collides with the
+prelude's implicit module binding under the saved seed. Scratch attempts to alias
+or selectively re-export that module instead defer the legacy entry's identity
+checks, so migrate the prelude and its consumers together after the seed checker
+handoff. The stage-2 build remains blocked on this seed-to-source-checker gap;
+the fixture proves the updated body checker handles the imported graph, not
+that the current seed can build the complete compiler source.
+The current migration also makes `bytecode/codec` imports explicit, exports the
+serializer entry points needed by the decoder and bytecode contract tests, and
+gives `bytecode/decoder`
+direct selected imports for emitter instructions, resolver builtin identity,
+purity and checker arity contracts. Its stable validation, disassembly,
+round-trip, and UTF-8 functions are now explicit public APIs; the compiler
+loader, driver, and bytecode contract runner select only the operations they
+use. The runner also selects its assertion APIs. This removes its former
+reliance on transitive imports from the codec and testing module. A direct checked-in-v9 compile of
+`src/compiler/main.panack` resolves those names but still defers codec/decoder
+bodies that use byte and quotient core operations. `make check-bytecode` reaches
+the compiler acceptance after its native module contracts pass when run with host
+permissions; its bytecode runner resolves every selected module API, then the
+seed stops source acceptance on the same codec/decoder and runner identity
+deferrals. The loopback listener succeeds with host permissions.
+The runner and test-fixture layer also replaces broad `stdlib/testing` imports
+with selected assertion/type APIs, and the main runner, standard-library unit
+probe, host-runtime unit probe, compiler-driver probe and loader-confinement
+probe now resolve their selected testing, result, time, environment, command,
+fixture and loader APIs. Those
+probes reach only the documented seed identity-emission deferrals; the broad
+`stdlib/testing` import in `tests/source_coverage/scope.panack` is retained
+because that file deliberately roots whole-library coverage declarations.
+The CLI, host-type and testing-library functional fixtures now also select the
+public result, path, time, assertion, command and workspace APIs. Focused
+compiles resolve those names; the host-type fixture reaches only its seed
+identity checks. Prelude-based compatibility examples remain a separate
+cutover item because the checked-in seed rejects the implicit `bytes` binding.
+
+Final `make docs`
+and `git diff --check` passed. Canonical `make check` reached the unit phase and
+stopped while building stage 2 on the same deferred identity errors; unit took
+34s and the check stopped at 60s. Compiler assertions and later validation
+phases therefore did not run. A legacy quoted-file import of the same module
+also produces the deferred-identity error, ruling out that import form as a
+bootstrap workaround. A second scratch-only check marked codec encoders public;
+the old seed still deferred byte-core functions, then correctly rejected public
+codec signatures that exposed private `ConstantValue`, `Instruction` and
+`BytecodeProgram` types. This rules out export visibility as a safe shortcut.
+
+This is the first compiler-source API chain increment, not coordinated compiler
+migration acceptance. Body/effect/emission/loader/tooling and
+stdlib modules still
+use the flat combined-loader assumptions; the legacy path remains. No runtime,
+VM or website behavior changes.
+
 ## Slice 8 namespace project checkpoint — 2026-10-08
 
 Core commit `7ea353f9c312c348e94190e63ba9ac958aa56cd7` provides a useful
@@ -4170,3 +4477,20 @@ fresh seed fixed points, and repeat native/browser/installed acceptance. Core an
 Browser PR integration remains separate from Slice 8 completion. Website impact:
 the browser runtime's support for project namespace loading is an implementation
 compatibility fix; no new published language feature claim is made.
+
+## P2 slice 8 compiler/tooling API migration — 2026-10-09
+
+The source API boundary now extends through the bytecode codec and decoder,
+project loader, source maps, explanations, source inventory, coverage/session,
+and compiler driver. A seed compile of `src/compiler/main.panack` resolves the
+selected APIs but stops during identity emission for function bodies across
+that graph. `make check` reached the same stage-2 compiler-build gate after the
+policy and routing checks; the unit and functional suites did not run. The
+focused `sh tests/namespace_seed.sh` fixture passed its isolated namespace and
+saved-v9 checks. That fixture is not full compiler acceptance, and no
+identity-emission failure has been waived or worked around.
+
+The standard-library prelude/consumer migration, flat-path removal, compiler
+seed fixed point, and repeat native/browser/installed acceptance remain open.
+No runtime or compiler performance claim is made; website impact remains none
+while public namespace execution is gated.

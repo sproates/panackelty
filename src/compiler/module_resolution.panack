@@ -1,33 +1,34 @@
-import project/src/compiler/module_bindings
+pub import project/src/compiler/module_bindings::{module_reserved_binding, module_import_names, module_binding_diagnostics, ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleImportBinding, ModuleBindings, ModuleDeclarationKind, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant}
+pub import project/src/compiler/parser::{parse_reference_path, lowered_method_name, reference_head, reference_tail, expression_reference_path, type_has_qualification, lex, Expr, TopLevel, Statement, BlockValue, Program, Block, ParsedModule, ParsedTypeRef, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourcePos, SourceSpan, Diagnostic, Token, TokenKind, TokenKind.Identifier, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
 
 // Resolve ordered import edges, aliases and re-exports to their original identities.
 // Cycle detection tracks the active path separately from completed modules.
 
 // Edges retain import order; paths are resolved by the loader, not guessed by
 // the semantic resolver. Aliases and re-exports never mint declaration IDs.
-record ModuleImportEdge {
+pub record ModuleImportEdge {
   owner: ModuleIdentity,
   index: Nat,
   target: ModuleIdentity
 }
 
-record ModuleBindingGraph {
+pub record ModuleBindingGraph {
   modules: [ModuleBindings],
   edges: [ModuleImportEdge]
 }
 
-enum ResolvedModuleTarget {
+pub enum ResolvedModuleTarget {
   DeclarationTarget(ModuleDeclarationBinding),
   NamespaceTarget(ModuleIdentity)
 }
 
-record ResolvedModuleReference {
+pub record ResolvedModuleReference {
   spelling: Str,
   target: ResolvedModuleTarget,
   span: SourceSpan
 }
 
-pure binding_graph_module(
+pub pure binding_graph_module(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity
 ): Result[ModuleBindings, Str] {
@@ -50,7 +51,7 @@ pure binding_graph_module(
   }
 }
 
-pure binding_graph_target(
+pub pure binding_graph_target(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   index: Nat
@@ -74,7 +75,7 @@ pure binding_graph_target(
   }
 }
 
-pure module_identity_in(identities: [ModuleIdentity], identity: ModuleIdentity): Bool {
+pub pure module_identity_in(identities: [ModuleIdentity], identity: ModuleIdentity): Bool {
   mut found: Bool = false
 
   for candidate in identities {
@@ -93,7 +94,7 @@ pure module_cycle_text(stack: [ModuleIdentity], identity: ModuleIdentity): Str {
   "module import cycle: " + text + identity.path
 }
 
-record ModuleGraphWalk {
+pub record ModuleGraphWalk {
   completed: [ModuleIdentity],
   error: Option[Str]
 }
@@ -139,7 +140,7 @@ pure binding_graph_visit(
   }
 }
 
-pure walk_module_graph(graph: ModuleBindingGraph): ModuleGraphWalk {
+pub pure walk_module_graph(graph: ModuleBindingGraph): ModuleGraphWalk {
   mut state: ModuleGraphWalk = ModuleGraphWalk([], None())
 
   for module in graph.modules {
@@ -199,7 +200,7 @@ pure resolve_target_member(
   }
 }
 
-pure resolve_module_path_inner(
+pub pure resolve_module_path_inner(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   spelling: Str,
@@ -282,7 +283,7 @@ pure resolve_module_path_inner(
   }
 }
 
-pure resolve_module_path(
+pub pure resolve_module_path(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   spelling: Str
@@ -292,7 +293,7 @@ pure resolve_module_path(
 
 // Validate imports even when no use refers to them. No transitive opening or
 // load-order fallback is permitted; every selective binding checks visibility.
-pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
+pub pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
   walked: ModuleGraphWalk = walk_module_graph(graph)
 
@@ -339,12 +340,12 @@ pure module_graph_diagnostics(graph: ModuleBindingGraph): [Diagnostic] {
 
 // Namespace/value disambiguation is explicit and precedes reserved core method
 // lowering. Value receivers stay raw until checked-identity integration.
-enum ResolvedDotCall {
+pub enum ResolvedDotCall {
   NamespaceCall(ModuleDeclarationBinding, [Expr], [Str]),
   ValueMethodCall(Expr, Str, [Expr], [Str])
 }
 
-pure resolve_module_dot_call_scoped(
+pub pure resolve_module_dot_call_scoped(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   target: Expr,
@@ -387,7 +388,7 @@ pure resolve_module_dot_call_scoped(
   }
 }
 
-pure resolve_module_type(
+pub pure resolve_module_type(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   name: Str
@@ -407,7 +408,7 @@ pure resolve_module_type(
   }
 }
 
-pure resolve_module_function(
+pub pure resolve_module_function(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   name: Str
@@ -427,12 +428,12 @@ pure resolve_module_function(
   }
 }
 
-record ResolvedModuleUses {
+pub record ResolvedModuleUses {
   references: [ResolvedModuleReference],
   diagnostics: [Diagnostic]
 }
 
-pure combine_module_uses(left: ResolvedModuleUses, right: ResolvedModuleUses): ResolvedModuleUses {
+pub pure combine_module_uses(left: ResolvedModuleUses, right: ResolvedModuleUses): ResolvedModuleUses {
   ResolvedModuleUses(
     concat(left.references, right.references),
     concat(left.diagnostics, right.diagnostics)
@@ -452,7 +453,7 @@ pure module_use_result(
 
 // Retain each qualified nominal leaf, including nested arrays/generic arguments.
 // Arity, core/type-parameter validation and substitutions belong to the checker.
-pure resolve_qualified_type_uses(
+pub pure resolve_qualified_type_uses(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   type_name: Str,
@@ -498,7 +499,7 @@ pure resolve_qualified_type_uses(
   result
 }
 
-pure module_head_is_namespace(
+pub pure module_head_is_namespace(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   path: Str
@@ -512,7 +513,7 @@ pure module_head_is_namespace(
   }
 }
 
-pure resolve_module_expression_uses(
+pub pure resolve_module_expression_uses(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   expression: Expr,
@@ -728,7 +729,7 @@ pure resolve_module_expression_uses(
   result
 }
 
-pure resolve_module_block_uses(
+pub pure resolve_module_block_uses(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   block: Block,
@@ -928,7 +929,7 @@ pure block_import_shadows(block: Block, names: Set[Str], origin: SourceSpan): [D
   diagnostics
 }
 
-pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModule): [Diagnostic] {
+pub pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModule): [Diagnostic] {
   names: Set[Str] = imported_binding_names(module)
   mut diagnostics: [Diagnostic] = []
   mut index: Nat = 0
@@ -967,7 +968,7 @@ pure module_import_shadow_diagnostics(module: ModuleBindings, parsed: ParsedModu
   diagnostics
 }
 
-pure resolve_module_dot_call(
+pub pure resolve_module_dot_call(
   graph: ModuleBindingGraph,
   identity: ModuleIdentity,
   target: Expr,

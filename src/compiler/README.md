@@ -125,7 +125,16 @@ documented in `../../docs/SOURCE_MAPS.md`.
   still do not certify emission or executable namespace readiness.
 - `expression_contracts.panack` shares exact scalar arithmetic result rules and
   string decoding/interpolation parsing between the bound checker and legacy
-  checker/emitter. Nominal comparison remains tagged and is not rendered to names.
+  checker/emitter. These contracts are a selectable public module API for the
+  staged namespace migration. Nominal comparison remains tagged and is not
+  rendered to names.
+- `checker.panack` exports the checked type shapes and shared expression/program
+  checking contracts consumed by the purity, signature, body and emission passes.
+- `module_signatures.panack` resolves declaration signatures through explicit
+  binding identities and exports the checked signature contracts for body and
+  emission passes.
+- `purity.panack` selectively imports checker, parser, resolver and lexer APIs,
+  then exports the frontend effect checks consumed by emission and loading.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete

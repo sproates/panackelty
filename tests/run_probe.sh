@@ -18,8 +18,13 @@ stdlib=${PANACKELTY_STDLIB_PATH:-src/stdlib}
 export PANACKELTY_STDLIB_PATH="$stdlib"
 # Compiler and unit-test sources import through repository-root project paths.
 case "$source" in
-    tests/runner/*|tests/experiments/semantic_impact/*) probe_root=$(pwd -P) ;;
-    src/compiler/*) probe_root=$(pwd -P) ;;
+    compiler.panack|src/compiler/*|tests/experiments/semantic_impact/*) probe_root=$(pwd -P) ;;
+    tests/runner/*)
+        if grep -q '^import project/' "$source"; then probe_root=$(pwd -P); else probe_root=; fi
+        ;;
+    tests/fixtures/compiler_contracts/*)
+        if grep -q '^import project/' "$source"; then probe_root=$(pwd -P); else probe_root=; fi
+        ;;
     *) probe_root= ;;
 esac
 test -f "$source"
@@ -58,8 +63,18 @@ if [ -f "$artifact" ] && [ -f "$digest" ]; then
     if cmp -s "$work/actual" "$digest"; then valid=true; fi
 fi
 if [ "$valid" = false ]; then
-    if ! env PANACKELTY_BOOTSTRAP_ROOT="$probe_root" sh tests/profile_command.sh "probe-build/$source" \
-        "$vm" run "$seed" compile "$source" -o "$work/probe.bc" \
+    if [ -n "$probe_root" ]; then
+        compile_probe() {
+            env PANACKELTY_BOOTSTRAP_ROOT="$probe_root" sh tests/profile_command.sh "probe-build/$source" \
+                "$vm" run "$seed" compile "$source" -o "$work/probe.bc"
+        }
+    else
+        compile_probe() {
+            env -u PANACKELTY_BOOTSTRAP_ROOT sh tests/profile_command.sh "probe-build/$source" \
+                "$vm" run "$seed" compile "$source" -o "$work/probe.bc"
+        }
+    fi
+    if ! compile_probe \
         > "$work/stdout" 2> "$work/stderr"; then
         cat "$work/stdout" "$work/stderr" >&2
         exit 1

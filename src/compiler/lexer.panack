@@ -1,9 +1,9 @@
-import project/src/compiler/types
+pub import project/src/compiler/types::{SourcePos, SourceSpan, TokenKind, TokenKind.Identifier, TokenKind.Number, TokenKind.DecimalNumber, TokenKind.StringLiteral, TokenKind.Punctuation, Token, Diagnostic}
 
 // Scan Unicode source while retaining original offsets and line/column positions.
 // Physical line breaks become separators only at statement boundaries.
 
-record StringScan {
+pub record StringScan {
   end: Nat,
   terminated: Bool
 }
@@ -41,7 +41,7 @@ pure scan_comment(source: Str, start: Nat): Nat {
   cursor
 }
 
-pure scan_string(source: Str, start: Nat): StringScan {
+pub pure scan_string(source: Str, start: Nat): StringScan {
   mut cursor: Nat = start + 1
   mut escaped: Bool = false
   mut terminated: Bool = false
@@ -138,7 +138,7 @@ pure token_can_start_statement(token: Token): Bool {
     token.text == "(" || token.text == "[")
 }
 
-pure prior_index(value: Nat): Nat {
+pub pure prior_index(value: Nat): Nat {
   if value == 0 {
     0
   } else {
@@ -206,7 +206,7 @@ pure normalize_line_breaks(tokens: [Token]): [Token] {
   result
 }
 
-pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
+pub pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
   mut tokens: [Token] = []
   mut diagnostics: [Diagnostic] = []
   mut cursor: Nat = 0
@@ -346,7 +346,7 @@ pure lex_file(source: Str, file: Str): Result[[Token], [Diagnostic]] {
   }
 }
 
-pure lex(source: Str): Result[[Token], [Diagnostic]] {
+pub pure lex(source: Str): Result[[Token], [Diagnostic]] {
   lex_file(source, "")
 }
 
@@ -385,7 +385,7 @@ pure render_diagnostics(diagnostics: [Diagnostic]): Str {
   output
 }
 
-pure render(result: Result[[Token], [Diagnostic]]): Str {
+pub pure render(result: Result[[Token], [Diagnostic]]): Str {
   match result {
     Ok(tokens) => render_tokens(tokens),
     Error(diagnostics) => render_diagnostics(diagnostics)

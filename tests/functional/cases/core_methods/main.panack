@@ -1,4 +1,4 @@
-import "helpers.panack"
+import "helpers.panack" as helpers
 
 pure less(a: Nat, b: Nat): Bool { a < b }
 pure ends_with(value: Nat): Nat { value + 1 }
@@ -12,8 +12,8 @@ main(): Void {
   absent: Option[Nat] = None()
   match present { Some(n) => print(n), None() => print(0) }
   match absent { Some(n) => print(n), None() => print("empty") }
-  print(describe(Ok(7)))
-  print(describe(Error("failed")))
+  print(helpers.describe(Ok(7)))
+  print(helpers.describe(Error("failed")))
   print("hello.panack".ends_with(".panack"))
   print("42".parse_nat().twice())
   print([3, 1, 2].sort_by(@less).first())

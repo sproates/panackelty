@@ -1,8 +1,19 @@
 
-environment(name: Str): Option[Str] {
+pub environment(name: Str): Option[Str] {
   if environment_has(name) {
     Some(environment_get(name))
   } else {
     None()
   }
+}
+
+pub environment_value(name: Str): Str {
+  match environment(name) {
+    Some(value) => value,
+    None() => ""
+  }
+}
+
+pub environment_has_value(name: Str): Bool {
+  environment_has(name)
 }

@@ -1,34 +1,36 @@
-import project/src/compiler/loader
-import project/src/compiler/diagnostics
-import project/src/compiler/module_emission
+import stdlib/numeric::{nat_quotient}
+import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, text_encode_utf8}
+import stdlib/path::{path_value_from_text}
+import stdlib/filesystem::{filesystem_read_bytes, filesystem_metadata, filesystem_write_bytes}
+pub import project/src/compiler/loader::{LoadedProject}
+import project/src/compiler/loader::{loaded_binding_graph}
+import project/src/compiler/diagnostics::{diagnostic_character}
+import project/src/compiler/module_emission::{module_emission_symbol}
+pub import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, source_module_identity}
+import project/src/compiler/module_resolution::{ModuleBindingGraph}
+pub import project/src/compiler/types::{SourcePos, SourceSpan}
+import project/src/bytecode/codec::{encode_u32, encode_text}
+pub import project/src/compiler/emitter::{SourceMappedProgram}
 
 // Serialize and replay bounded, local source maps. Foreign paths and lengths are
 // never instructions to open files or allocate unchecked buffers.
 
-record SourceSnapshot {
+pub record SourceSnapshot {
   name: Str,
   path: Str,
   text: Str
 }
 
-record SourceMapFunctionSelector {
+pub record SourceMapFunctionSelector {
   identity: DeclarationIdentity,
   source_path: Str,
   emitted_name: Str,
   display_name: Str
 }
 
-pure source_map_project_staged(project: LoadedProject): Bool {
-  mut staged: Bool = false
-  for module in project.modules {
-    staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
-  }
-  staged
-}
-
 // Tool queries use stable module identities rather than the private emitted
 // symbol. Bare names remain convenient only while they identify one function.
-source_map_function_selector(
+pub source_map_function_selector(
   project: LoadedProject,
   selector: Str,
   entry_path: Str,
@@ -56,7 +58,6 @@ source_map_function_selector(
   } else {
     graph: ModuleBindingGraph = loaded_binding_graph(project.modules, root, stdlib_root)
     entry: ModuleIdentity = source_module_identity(entry_path, root, stdlib_root)
-    staged: Bool = source_map_project_staged(project)
     mut found: Option[SourceMapFunctionSelector] = None()
     mut matches: Nat = 0
     for module in project.modules {
@@ -68,11 +69,7 @@ source_map_function_selector(
             found = Some(SourceMapFunctionSelector(
               binding.identity,
               module.source_path,
-              if staged {
-                module_emission_symbol(graph, entry, binding.identity)
-              } else {
-                binding.identity.name
-              },
+              module_emission_symbol(graph, entry, binding.identity),
               selector
             ))
             matches = matches + 1
@@ -119,7 +116,7 @@ pure source_path_parts(path: Str): [Str] {
 
 // Inputs are normalized absolute paths from the loader. Parent segments are
 // descriptive identifiers only: the consumer never opens paths from a sidecar.
-pure source_relative_path(root: Str, path: Str): Str {
+pub pure source_relative_path(root: Str, path: Str): Str {
   base: [Str] = source_path_parts(root)
   target: [Str] = source_path_parts(path)
   mut common: Nat = 0
@@ -141,15 +138,15 @@ pure source_relative_path(root: Str, path: Str): Str {
   output
 }
 
-pure source_identifier(path: Str, root: Str, stdlib_root: Str): Str {
-  if starts_with(path, stdlib_root + "/") {
+pub pure source_identifier(path: Str, root: Str, stdlib_root: Str): Str {
+  if starts_with_at(path, stdlib_root + "/", 0) {
     "stdlib/" + source_relative_path(stdlib_root, path)
   } else {
     "project/" + source_relative_path(root, path)
   }
 }
 
-pure source_snapshots(project: LoadedProject, root: Str, stdlib_root: Str): [SourceSnapshot] {
+pub pure source_snapshots(project: LoadedProject, root: Str, stdlib_root: Str): [SourceSnapshot] {
   mut snapshots: [SourceSnapshot] = []
 
   for path in project.source_paths {
@@ -161,28 +158,28 @@ pure source_snapshots(project: LoadedProject, root: Str, stdlib_root: Str): [Sou
   snapshots.sort_by(@source_snapshot_less)
 }
 
-pure source_map_blob(data: Bytes): Bytes {
-  bytes_concat(encode_u32(byte_len(data)), data)
+pub pure source_map_blob(data: Bytes): Bytes {
+  bytes_join(encode_u32(bytes_length(data)), data)
 }
 
-pure source_map_position(position: SourcePos): Bytes {
-  bytes_concat(
-    bytes_concat(encode_u32(position.offset), encode_u32(position.line)),
+pub pure source_map_position(position: SourcePos): Bytes {
+  bytes_join(
+    bytes_join(encode_u32(position.offset), encode_u32(position.line)),
     encode_u32(position.column)
   )
 }
 
 // Join a bounded set of chunks as a balanced tree. In particular, do not copy
 // the entire captured source closure for each emitted instruction.
-pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
+pub pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
   if start >= end {
-    bytes()
+    bytes_empty()
   } else {
     if end == start + 1 {
       chunks[start]
     } else {
-      middle: Nat = quotient(start + end, 2)
-      bytes_concat(source_map_join(chunks, start, middle), source_map_join(chunks, middle, end))
+      middle: Nat = nat_quotient(start + end, 2)
+      bytes_join(source_map_join(chunks, start, middle), source_map_join(chunks, middle, end))
     }
   }
 }
@@ -190,7 +187,7 @@ pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
 // No consumer decodes foreign bytes. Reproduction by the installed compiler is
 // the trust boundary; this marker specifies a format, not producer authentication.
 // The format embeds exact artifact/source bytes rather than collision-prone IDs.
-pure serialize_source_map(
+pub pure serialize_source_map(
   project: LoadedProject,
   mapped: SourceMappedProgram,
   artifact: Bytes,
@@ -199,8 +196,8 @@ pure serialize_source_map(
   stdlib_root: Str
 ): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib_root)
-  mut valid: Bool = byte_len(artifact) <= 16777216 && len(snapshots) <= 256
-  mut chunks: [Bytes] = [utf8_encode("PANACKMAP1\nlocal-replay-v9\n"),
+  mut valid: Bool = bytes_length(artifact) <= 16777216 && len(snapshots) <= 256
+  mut chunks: [Bytes] = [text_encode_utf8("PANACKMAP1\nlocal-replay-v9\n"),
     encode_text(source_identifier(
     entry,
     root,
@@ -209,7 +206,7 @@ pure serialize_source_map(
   mut size: Nat = 0
 
   for chunk in chunks {
-    size = size + byte_len(chunk)
+    size = size + bytes_length(chunk)
   }
   valid = valid && size <= 16777216
   mut indices: Map[Str, Nat] = map()
@@ -219,7 +216,7 @@ pure serialize_source_map(
       indices = indices.put(snapshot.path, index)
       name: Bytes = encode_text(snapshot.name)
       text: Bytes = encode_text(snapshot.text)
-      size = size + byte_len(name) + byte_len(text)
+      size = size + bytes_length(name) + bytes_length(text)
       valid = size <= 16777216
       if valid {
         chunks = chunks.append(name).append(text)
@@ -231,8 +228,8 @@ pure serialize_source_map(
   size = size + 4
   for function in mapped.sources {
     if valid {
-      header: Bytes = bytes_concat(encode_text(function.name), encode_u32(len(function.entries)))
-      size = size + byte_len(header)
+      header: Bytes = bytes_join(encode_text(function.name), encode_u32(len(function.entries)))
+      size = size + bytes_length(header)
       valid = size <= 16777216
       if valid {
         chunks = chunks.append(header)
@@ -244,13 +241,13 @@ pure serialize_source_map(
           size <= 16777216 &&
           indices.has(span.start.file) &&
           span.start.file == span.end.file {
-          mut chunk: Bytes = bytes_concat(
+          mut chunk: Bytes = bytes_join(
             encode_u32(location.index),
             encode_u32(indices.get(span.start.file))
           )
-          chunk = bytes_concat(chunk, source_map_position(span.start))
-          chunk = bytes_concat(chunk, source_map_position(span.end))
-          chunk = byte_append(chunk, if location.lowered {
+          chunk = bytes_join(chunk, source_map_position(span.start))
+          chunk = bytes_join(chunk, source_map_position(span.end))
+          chunk = bytes_push(chunk, if location.lowered {
               1
             } else {
               0
@@ -265,22 +262,22 @@ pure serialize_source_map(
   if valid && size <= 16777216 {
     source_map_join(chunks, 0, len(chunks))
   } else {
-    bytes()
+    bytes_empty()
   }
 }
 
-source_map_read(path: Str, limit: Nat): Result[Bytes, Str] {
-  match path_from_text(path) {
+pub source_map_read(path: Str, limit: Nat): Result[Bytes, Str] {
+  match path_value_from_text(path) {
     Error(error) => Error("invalid path"),
-    Ok(file) => match fs_read(file, limit) {
+    Ok(file) => match filesystem_read_bytes(file, limit) {
       Error(error) => Error("file unavailable or exceeds source-map limit"),
       Ok(data) => Ok(data)
     }
   }
 }
 
-source_map_matches(path: Str, expected: Bytes): Bool {
-  match source_map_read(path, byte_len(expected)) {
+pub source_map_matches(path: Str, expected: Bytes): Bool {
+  match source_map_read(path, bytes_length(expected)) {
     Error(error) => false,
     Ok(actual) => actual == expected
   }
@@ -288,18 +285,18 @@ source_map_matches(path: Str, expected: Bytes): Bool {
 
 // Detect observed modifications since loading. This is not an atomic snapshot
 // of a concurrently edited tree; all reported coordinates describe captured text.
-source_snapshots_unchanged(project: LoadedProject): Bool {
+pub source_snapshots_unchanged(project: LoadedProject): Bool {
   mut unchanged: Bool = true
 
   for path in project.source_paths {
-    if !source_map_matches(path, utf8_encode(project.sources.get(path))) {
+    if !source_map_matches(path, text_encode_utf8(project.sources.get(path))) {
       unchanged = false
     }
   }
   unchanged
 }
 
-pure source_map_escape(text: Str): Str {
+pub pure source_map_escape(text: Str): Str {
   mut output: Str = ""
 
   for index in 0..len(text) {
@@ -309,7 +306,7 @@ pure source_map_escape(text: Str): Str {
   output
 }
 
-pure source_map_location(
+pub pure source_map_location(
   project: LoadedProject,
   mapped: SourceMappedProgram,
   emitted_name: Str,
@@ -352,20 +349,20 @@ pure source_map_location(
 // Fresh destinations prevent overwriting loaded sources through existing hard
 // links or symlinks as well as ordinary path aliases. Publication is not atomic;
 // consumers reject incomplete pairs. Output directories must be caller-controlled.
-source_map_destination_available(path: Str): Bool {
-  match path_from_text(path) {
+pub source_map_destination_available(path: Str): Bool {
+  match path_value_from_text(path) {
     Error(error) => false,
-    Ok(file) => match fs_metadata(file) {
+    Ok(file) => match filesystem_metadata(file) {
       Ok(metadata) => false,
       Error(error) => error.code == "not_found"
     }
   }
 }
 
-source_map_write(path: Str, data: Bytes): Bool {
-  match path_from_text(path) {
+pub source_map_write(path: Str, data: Bytes): Bool {
+  match path_value_from_text(path) {
     Error(error) => false,
-    Ok(file) => match fs_write(file, data) {
+    Ok(file) => match filesystem_write_bytes(file, data) {
       Error(error) => false,
       Ok(unit) => true
     }

@@ -1,29 +1,34 @@
-import stdlib/result
-import stdlib/testing_commands
+import stdlib/result::{result_value_or}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current}
+import stdlib/host::{host_command_arguments, host_exit, host_process_run}
+import stdlib/environment::{environment_has_value, environment_value}
+import stdlib/filesystem::{filesystem_read_file_bytes, filesystem_write_file_bytes}
+import stdlib/bytes::{bytes_empty}
 
-pure oracle_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+pure oracle_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
 
 // Preserve the former registry/arithmetic subprocess timeouts while using only
 // native host capabilities. Arguments: seconds, stdin file, stdout file, command...
 main(): Void {
-  args = command_args()
-  if len(args) < 4 { eprint("oracle command requires timeout, input, output and executable"); process_exit(1) }
+  args = host_command_arguments()
+  if len(args) < 4 { eprint("oracle command requires timeout, input, output and executable"); host_exit(1) }
   mut command: [Str] = []
   for index in 4..len(args) { command = command.append(args[index]) }
   mut environment: [Str] = []
   for name in ["ASAN_OPTIONS", "UBSAN_OPTIONS", "LLVM_PROFILE_FILE"] {
-    if environment_has(name) { environment = environment.append("${name}=" + environment_get(name)) }
+    if environment_has_value(name) { environment = environment.append("${name}=" + environment_value(name)) }
   }
-  match process_run(oracle_path(args[3]), command, read_bytes(args[1]), path_current(),
+  match host_process_run(oracle_path(args[3]), command, filesystem_read_file_bytes(args[1]), path_value_current(),
       environment, duration_seconds(nat_from_str(args[0])), 16777216) {
-    Error(problem) => { eprint("oracle command failed: ${problem.code}"); process_exit(1) },
+    Error(problem) => { eprint("oracle command failed: ${problem.code}"); host_exit(1) },
     Ok(output) => {
-      if output.exit_code != 0 || output.signal != 0 || output.stderr != bytes() {
+      if output.exit_code != 0 || output.signal != 0 || output.stderr != bytes_empty() {
         eprint("oracle command failed status, signal or stderr contract")
-        if output.stderr != bytes() { eprint(utf8_decode(output.stderr)) }
-        process_exit(1)
+        if output.stderr != bytes_empty() { eprint(utf8_decode(output.stderr)) }
+        host_exit(1)
       }
-      write_bytes(args[2], output.stdout)
+      filesystem_write_file_bytes(args[2], output.stdout)
     }
   }
 }

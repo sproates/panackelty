@@ -1,0 +1,45 @@
+pub import project/src/compiler/loader::{LoadedProject}
+import project/src/compiler/loader::{loaded_binding_graph}
+import project/src/compiler/module_emission::{ModuleBindingGraph, ModuleEmissionResult, module_emission_program}
+pub import project/src/compiler/module_bindings::{ModuleIdentity}
+pub import project/src/compiler/parser::{Program}
+pub import project/src/compiler/types::{Diagnostic}
+
+pub pure namespace_gate_diagnostic(diagnostic: Diagnostic): Bool {
+  diagnostic.message == "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)"
+}
+
+// Prepare the exact executable declaration set for compiler tooling. Namespace
+// loading retains a temporary parser gate in diagnostics; the checked identity
+// pipeline is authoritative for every project and emits one shared program for
+// compile, inventory, coverage, and source-map commands.
+pub pure prepare_project_program(
+  project: LoadedProject,
+  project_root: Str,
+  stdlib_root: Str,
+  entry: ModuleIdentity
+): Result[Program, [Diagnostic]] {
+  mut diagnostics: [Diagnostic] = []
+  for diagnostic in project.diagnostics {
+    if !namespace_gate_diagnostic(diagnostic) {
+      diagnostics = diagnostics.append(diagnostic)
+    }
+  }
+  if len(diagnostics) > 0 {
+    Error(diagnostics)
+  } else {
+    graph: ModuleBindingGraph = loaded_binding_graph(project.modules, project_root, stdlib_root)
+    emitted: ModuleEmissionResult = module_emission_program(
+      graph,
+      project.modules,
+      project.module_signatures,
+      project.module_bodies,
+      entry
+    )
+    if len(emitted.diagnostics) > 0 {
+      Error(emitted.diagnostics)
+    } else {
+      Ok(emitted.program)
+    }
+  }
+}

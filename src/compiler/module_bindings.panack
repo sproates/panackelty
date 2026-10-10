@@ -1,26 +1,27 @@
-import project/src/compiler/resolver
+pub import project/src/compiler/parser::{Program, ParsedModule, ImportSelector, ImportBindingSyntax, DeclarationSyntax, SourceSpan, SourcePos, Diagnostic, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding}
+import project/src/compiler/resolver::{is_builtin}
 
 // Collect declaration and import identities without lowering them to global names.
 // Source spelling, visibility and semantic identity remain separate.
 
 // Tags keep semantic identities separate from source spelling and inference
 // placeholders. P3 will add manifest package identities to this sum type.
-enum ModulePackageIdentity {
+pub enum ModulePackageIdentity {
   StandaloneModulePackage,
   ToolchainModulePackage
 }
 
-record ModuleIdentity {
+pub record ModuleIdentity {
   package: ModulePackageIdentity,
   path: Str
 }
 
-record DeclarationIdentity {
+pub record DeclarationIdentity {
   module: ModuleIdentity,
   name: Str
 }
 
-enum ModuleDeclarationKind {
+pub enum ModuleDeclarationKind {
   ModuleFunction,
   ModuleGuardedType,
   ModuleRecord,
@@ -28,27 +29,27 @@ enum ModuleDeclarationKind {
   ModuleVariant(Str)
 }
 
-record ModuleDeclarationBinding {
+pub record ModuleDeclarationBinding {
   identity: DeclarationIdentity,
   kind: ModuleDeclarationKind,
   is_public: Bool,
   span: SourceSpan
 }
 
-record ModuleImportBinding {
+pub record ModuleImportBinding {
   path: Str,
   syntax: ImportBindingSyntax,
   is_public: Bool,
   span: SourceSpan
 }
 
-record ModuleBindings {
+pub record ModuleBindings {
   identity: ModuleIdentity,
   declarations: [ModuleDeclarationBinding],
   imports: [ModuleImportBinding]
 }
 
-record LoadedModule {
+pub record LoadedModule {
   source_path: Str,
   parsed: ParsedModule,
   execution_program: Program,
@@ -64,7 +65,7 @@ pure module_declaration_binding(
   ModuleDeclarationBinding(DeclarationIdentity(identity, name), kind, syntax.is_public, syntax.span)
 }
 
-pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): ModuleBindings {
+pub pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): ModuleBindings {
   mut declarations: [ModuleDeclarationBinding] = []
   mut imports: [ModuleImportBinding] = []
   mut index: Nat = 0
@@ -114,7 +115,7 @@ pure collect_module_bindings(identity: ModuleIdentity, parsed: ParsedModule): Mo
   ModuleBindings(identity, declarations, imports)
 }
 
-pure module_reserved_binding(name: Str): Bool {
+pub pure module_reserved_binding(name: Str): Bool {
   is_builtin(name) || name == "Nat" || name == "Int" || name == "Dec" ||
     name == "Rat" ||
     name == "Array" ||
@@ -128,7 +129,7 @@ pure module_reserved_binding(name: Str): Bool {
     name == "None" || name == "Some" || name == "Ok" || name == "Error"
 }
 
-pure module_import_names(imported: ModuleImportBinding): [ImportSelector] {
+pub pure module_import_names(imported: ModuleImportBinding): [ImportSelector] {
   match imported.syntax {
     NoImportBinding() => [],
     NamespaceImportBinding(alias, explicit_alias) => [ImportSelector("", alias, imported.span)],
@@ -136,7 +137,7 @@ pure module_import_names(imported: ModuleImportBinding): [ImportSelector] {
   }
 }
 
-pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
+pub pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
   mut names: Set[Str] = set()
   mut diagnostics: [Diagnostic] = []
 
@@ -178,7 +179,7 @@ pure module_binding_diagnostics(bindings: ModuleBindings): [Diagnostic] {
 
 // Export lookup returns the original declaration identity, never a renamed copy.
 // An enum binding is one binding; variants must be selected explicitly.
-pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclarationBinding, Str] {
+pub pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclarationBinding, Str] {
   mut found: Option[ModuleDeclarationBinding] = None()
   mut matches: Nat = 0
 
@@ -214,7 +215,7 @@ pure module_export(bindings: ModuleBindings, selector: Str): Result[ModuleDeclar
 
 // Source paths are kept separately. Semantic module paths are relative even for
 // the existing bootstrap's parent imports, and remain stable after relocation.
-pure module_relative_path(path: Str, root: Str): Str {
+pub pure module_relative_path(path: Str, root: Str): Str {
   mut cursor: Nat = 0
   mut common: Nat = 0
 
@@ -242,15 +243,15 @@ pure module_relative_path(path: Str, root: Str): Str {
   }
 }
 
-pure source_module_identity(path: Str, project_root: Str, stdlib_root: Str): ModuleIdentity {
-  if starts_with(path, stdlib_root + "/") {
+pub pure source_module_identity(path: Str, project_root: Str, stdlib_root: Str): ModuleIdentity {
+  if starts_with_at(path, stdlib_root + "/", 0) {
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
   } else {
     ModuleIdentity(StandaloneModulePackage(), module_relative_path(path, project_root))
   }
 }
 
-pure module_programs(modules: [LoadedModule]): [Program] {
+pub pure module_programs(modules: [LoadedModule]): [Program] {
   mut programs: [Program] = []
 
   for module in modules {
@@ -262,7 +263,7 @@ pure module_programs(modules: [LoadedModule]): [Program] {
 // Align positions with the exact declaration order used by module_programs.
 // The resolver attaches each origin while creating a diagnostic; repeated
 // spellings in three or more modules must never collapse onto the last source.
-pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
+pub pure module_declaration_positions(modules: [LoadedModule]): [SourcePos] {
   mut positions: [SourcePos] = []
 
   for module in modules {

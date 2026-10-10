@@ -1,1 +1,1 @@
-import "answer.panack"; main(): Void { print(answer()); }
+import "answer.panack" as answer_module; main(): Void { print(answer_module.answer()); }

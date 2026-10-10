@@ -111,7 +111,14 @@ no speedup or causal claim. Proposed disposition for merge: the GI#106 performan
 delivery owner runs a matched phase profile before the next compiler-heavy
 delivery is merged, or sooner if hosted CI repeats the breach, then reviews
 remediation with that evidence. The concern stays open under GI#106; acceptance
-of this bounded plan is presented with the final PR. No tests or budgets were
+of this bounded plan is presented with the final PR. The final exact-head hosted
+matrix subsequently passed on core PR #358 at
+`c8725b8ab16e7928afc7beb7c1217815959cc7ed`, including Linux/macOS package,
+conformance, validation, source-coverage policy and warm-profile checks. Browser
+PR #9 passed its exact-head workflow at
+`d4989f4d3288f7559400a9f056a465dc9fc5d740`, pinned to that core revision. This
+supersedes the earlier pending-CI statements above; it does not resolve the
+measured performance concern or authorize merging. No tests or budgets were
 waived. Slice 8's candidate acceptance is complete locally; the persistent
 identity-root audit passed 59/59 and is included in the functional phase. The
 final PR records completion effective on merge and closes GI#198 when required

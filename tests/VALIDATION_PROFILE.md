@@ -44,12 +44,16 @@ host adapter are unchanged (WASM SHA-256
 WASI SDK was unavailable, so no new WASM compilation is claimed.
 
 The canonical run exceeded the 120s budget, and bootstrap exceeded its 60s
-budget. This run does not isolate a cause; retain all tests and targets and keep
-GI#106's matched phase profile/remediation review as the owned next performance
-action. No tests or budgets were waived. Slice 8's candidate acceptance is
-complete locally; the additional persistent identity-root audit passed 59/59
-and is included in the functional phase. Formal scope credit and GI#198 closure
-await review and integration.
+budget. This run does not isolate a cause; retain all tests and targets and make
+no speedup or causal claim. Proposed disposition for merge: the GI#106 performance
+delivery owner runs a matched phase profile before the next compiler-heavy
+delivery is merged, or sooner if hosted CI repeats the breach, then reviews
+remediation with that evidence. The concern stays open under GI#106; acceptance
+of this bounded plan is presented with the final PR. No tests or budgets were
+waived. Slice 8's candidate acceptance is complete locally; the persistent
+identity-root audit passed 59/59 and is included in the functional phase. The
+final PR records completion effective on merge and closes GI#198 when required
+checks pass on its exact head.
 
 ## Slice 8 coordinated migration validation — 2026-10-09
 

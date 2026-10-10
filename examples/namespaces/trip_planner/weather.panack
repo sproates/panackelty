@@ -1,0 +1,20 @@
+pub record Forecast {
+  destination: Str,
+  outlook: Str,
+  rain_chance: Nat
+}
+
+pub pure forecast(): Forecast {
+  Forecast("Granada", "sunny", 10)
+}
+
+pub pure describe(value: Forecast): Str {
+  destination = value.destination
+  outlook = value.outlook
+  rain_chance = value.rain_chance
+  "${destination}: ${outlook}, ${rain_chance}% chance of rain"
+}
+
+main(): Void {
+  print("The weather module main must not run")
+}

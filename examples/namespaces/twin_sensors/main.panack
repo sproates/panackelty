@@ -1,0 +1,13 @@
+import project/weather as weather
+import project/navigation as navigation
+
+main(): Void {
+  forecast: weather.Reading = weather.latest()
+  position: navigation.Reading = navigation.latest()
+  temperature = forecast.value
+  temperature_unit = forecast.unit
+  distance = position.value
+  distance_unit = position.unit
+  print("Weather: ${temperature} ${temperature_unit}")
+  print("Navigation: ${distance} ${distance_unit}")
+}

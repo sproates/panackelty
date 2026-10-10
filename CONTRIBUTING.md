@@ -60,7 +60,9 @@ This section is the authoritative coding standard for hand-written `.panack`
 source. It applies to compiler, tools, libraries, tests and examples. The
 [specification](SPEC.md) defines legal syntax and behaviour; this standard defines
 how we present that syntax for readers. Examples below target the current `next`
-compiler using bytecode v9; namespace execution remains gated.
+compiler using bytecode v9. Namespace execution is supported for the checked
+subset described in the Modules section of `SPEC.md`; release promotion remains
+gated by the roadmap acceptance checkpoint.
 
 **Required** rules are review requirements for new code and deliberate readability
 batches. **Preferred** rules allow a clearer alternative with a brief explanation
@@ -187,11 +189,12 @@ improves discovery; language-required declaration ordering takes precedence.
 #### Imports and module boundaries
 
 Required: use logical `stdlib/...` imports for public standard-library modules
-and quoted relative imports for local source dependencies. Preserve import order
-when loader identity, diagnostics or fixtures depend on it; do not mechanically
-sort or deduplicate imports without validation. Ordinary executable imports
-currently share a program-wide namespace. Do not present planned package or
-namespace syntax as executable conventions.
+and quoted relative imports for local source dependencies. Namespace examples
+may use the supported `project/...` imports described in `SPEC.md`. Preserve
+import order when loader identity, diagnostics or fixtures depend on it; do not
+mechanically sort or deduplicate imports without validation. Namespace execution
+is limited to the documented checked subset; do not imply package behavior or
+general support beyond that contract.
 
 Preferred: import the modules actually needed instead of `stdlib/prelude`.
 Group standard-library imports and local imports separately, with stable ordering

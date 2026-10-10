@@ -195,23 +195,50 @@ pure runner_contains_file(names: [Path], filename: Str): Bool {
   found
 }
 
+runner_namespace_main(namespace_root: Path, name: Str): Option[Path] {
+  directory = runner_child(namespace_root, name)
+  match filesystem_list_directory(directory) {
+    Error(error) => None(),
+    Ok(names) => {
+      if runner_contains_file(names, "main.panack") {
+        Some(runner_child(directory, "main.panack"))
+      } else { None() }
+    }
+  }
+}
+
+runner_example_exists(source_root: Path, namespace_root: Path, name: Str): Bool {
+  match filesystem_list_directory(source_root) {
+    Error(error) => false,
+    Ok(sources) => {
+      runner_contains_file(sources, "${name}.panack") ||
+        match runner_namespace_main(namespace_root, name) {
+          Some(source) => true,
+          None() => false
+        }
+    }
+  }
+}
+
 runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
   source_root = runner_path("examples")
+  namespace_root = runner_child(source_root, "namespaces")
   output_root = runner_path("tests/functional/expected/examples")
-  match filesystem_list_directory(source_root) {
+  match filesystem_list_directory(output_root) {
     Error(error) => {
       code = error.code
-      [test_expect("example discovery", false, "source discovery failed: ${code}")]
+      [test_expect("example discovery", false, "output discovery failed: ${code}")]
     },
-    Ok(sources) => {
-      match filesystem_list_directory(output_root) {
+    Ok(outputs) => {
+      mut results: [TestResult] = []
+      mut count: Nat = 0
+      match filesystem_list_directory(source_root) {
         Error(error) => {
           code = error.code
-          [test_expect("example discovery", false, "output discovery failed: ${code}")]
+          results = results.append(test_expect("example discovery", false,
+            "source discovery failed: ${code}"))
         },
-        Ok(outputs) => {
-          mut results: [TestResult] = []
-          mut count: Nat = 0
+        Ok(sources) => {
           for source_name in sources {
             match runner_stem(runner_name(source_name), ".panack") {
               None() => {},
@@ -233,22 +260,52 @@ runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
               }
             }
           }
-          for output_name in outputs {
-            match runner_stem(runner_name(output_name), ".stdout") {
+        }
+      }
+      match filesystem_list_directory(namespace_root) {
+        Error(error) => {
+          code = error.code
+          results = results.append(test_expect("namespace example discovery", false,
+            "source discovery failed: ${code}"))
+        },
+        Ok(directories) => {
+          for directory_name in directories {
+            name = runner_name(directory_name)
+            match runner_namespace_main(namespace_root, name) {
               None() => {},
-              Some(name) => {
-                if (selected == "" || selected == name) &&
-                    !runner_contains_file(sources, "${name}.panack") {
-                  results = results.append(test_expect("example/${name}/fixture", false,
-                    "missing example source"))
+              Some(source) => {
+                if selected == "" || selected == name {
+                  count = count + 1
+                  expected_file = runner_child(output_root, "${name}.stdout")
+                  artifact = runner_child(workspace.root, "example-${name}.bc")
+                  artifact_text = result_value_or(path_value_to_text(artifact), "invalid-artifact")
+                  if runner_contains_file(outputs, "${name}.stdout") {
+                    results = results.concat(runner_program("example/${name}", source,
+                      expected_file, artifact, artifact_text))
+                  } else {
+                    results = results.append(test_expect("example/${name}/fixture", false,
+                      "missing expected stdout"))
+                  }
                 }
               }
             }
           }
-          expected_count: Nat = if selected == "" { 20 } else { 1 }
-          results.append(test_equal_nat("selected example count", count, expected_count))
         }
       }
+      for output_name in outputs {
+        match runner_stem(runner_name(output_name), ".stdout") {
+          None() => {},
+          Some(name) => {
+            if (selected == "" || selected == name) &&
+                !runner_example_exists(source_root, namespace_root, name) {
+              results = results.append(test_expect("example/${name}/fixture", false,
+                "missing example source"))
+            }
+          }
+        }
+      }
+      expected_count: Nat = if selected == "" { 23 } else { 1 }
+      results.append(test_equal_nat("selected example count", count, expected_count))
     }
   }
 }

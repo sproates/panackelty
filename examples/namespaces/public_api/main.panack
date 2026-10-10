@@ -1,0 +1,5 @@
+import project/api as travel_api
+
+main(): Void {
+  print(travel_api.trip_label())
+}

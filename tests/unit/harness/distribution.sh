@@ -49,8 +49,8 @@ tar -xzf "$archive" -C "$work/extracted"
 (cd "$work/extracted/panackelty" && find . -type f | sed 's|^./||' | sort) > "$work/files"
 {
     cat "$root/tests/unit/harness/installed-files.txt"
-    printf 'LICENSE\nREADME.md\nexamples/README.md\n'
-    for example in "$root"/examples/*.panack; do printf 'examples/%s\n' "${example##*/}"; done
+    printf 'LICENSE\nREADME.md\n'
+    find "$root/examples" -type f -print | sed "s|^$root/||"
 } | sort > "$work/expected"
 equal_files "$work/files" "$work/expected"
 # A candidate archive may differ from the documented published download version,
@@ -96,6 +96,9 @@ equal_files "$work/stdout" "$work/import.stdout"
 test ! -s "$work/stderr" || fail 'relocated import stderr'
 capture 0 30 "$command" run "$work/relocated/toolchain/examples/collections_and_bytes.panack"
 equal_files "$work/stdout" "$root/tests/functional/expected/examples/collections_and_bytes.stdout"
+capture 0 30 "$command" run "$work/relocated/toolchain/examples/namespaces/trip_planner/main.panack"
+equal_files "$work/stdout" "$root/tests/functional/expected/examples/trip_planner.stdout"
+test ! -s "$work/stderr" || fail 'relocated trip planner stderr'
 pass
 case_name=installed-files-and-logical-imports
 cd "$checkout"

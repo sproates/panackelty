@@ -1,0 +1,6 @@
+pub record Reading {
+  value: Nat,
+  unit: Str
+}
+
+pub pure latest(): Reading { Reading(42, "km") }

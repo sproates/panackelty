@@ -55,14 +55,17 @@ source-level function names. The source-map fixture also used a legacy
 quoted-file import. The source-map and runtime-provenance experiments now check
 the respective identity forms, and the source-map helper loads through
 `project/lib`; `make source-mapping-experiment` passes all 121 assertions and
-`make runtime-provenance-experiment` passes all 65 assertions locally. These are
-test-fixture updates, not production source-map or runtime provenance behavior
-changes.
+`make runtime-provenance-experiment` passes all 65 assertions locally. The
+source-coverage experiment now imports standard host APIs and its helper through
+explicit namespaces; `make source-coverage-experiment` passes all 68 assertions.
+These are test-fixture updates, not production source-map, runtime provenance,
+or coverage behavior changes.
 
-After the runtime-provenance identity correction, clean host-enabled canonical
-`make check` passed in 569s: unit 393s, functional 13s, bootstrap 135s, release
-smoke 0s and quick start 1s. The full-check and bootstrap timings still exceed
-the unchanged 120s and 60s budgets. The test and coverage suites passed without
+After the source-coverage import and identity corrections, clean host-enabled
+canonical `make check` passed in 574s: unit 395s, functional 13s, bootstrap
+138s, release smoke 1s and quick start 1s. The source-coverage experiment passes
+all 68 assertions. The full-check and bootstrap timings still exceed the
+unchanged 120s and 60s budgets. The test and coverage suites passed without
 omission.
 
 ## Slice 8 follow-up: closure audit and current browser checks — 2026-10-10

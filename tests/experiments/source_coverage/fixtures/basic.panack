@@ -1,4 +1,4 @@
-import "lib/helper.panack"
+import project/lib/helper::{identity, unused_import}
 
 pure choose(flag: Bool): Nat {
   if flag {

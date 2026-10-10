@@ -1,6 +1,8 @@
 # Bounded runtime provenance experiment (U0, #172 / #180)
 
 Run `make runtime-provenance-experiment` with the native toolchain and Node 24+.
+The observer reports emitted module-qualified identities for non-entry functions;
+source-map `locate` queries continue to use source-level function names.
 The target is also run by Linux/macOS compiler CI. `make check` includes the
 retention unit checks; the separate experiment passes 65 assertions over complete programs,
 checks derivations and source attribution, and prints five CPU samples per mode.

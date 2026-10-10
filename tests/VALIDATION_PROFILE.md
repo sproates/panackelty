@@ -49,13 +49,21 @@ focused-check and 60s bootstrap budgets remain unchanged and are exceeded by
 this observation. This clean run does not replace the matched 30.005s/55.515s
 fresh-run profile or isolate the source of its slowdown.
 
-The macOS compiler job also found stale assumptions in the source-map
-experiment: the observer sees emitted module-qualified function identities,
-while `locate` intentionally uses source-level function names, and the fixture
-still used a legacy quoted-file import. The experiment now asserts both forms
-and imports its helper through `project/lib`; `make source-mapping-experiment`
-passes all 121 assertions locally. This is a test-fixture migration, not a
-production source-map behavior change.
+The compiler package jobs also found stale experiment assumptions: observers see
+emitted module-qualified function identities, while `locate` intentionally uses
+source-level function names. The source-map fixture also used a legacy
+quoted-file import. The source-map and runtime-provenance experiments now check
+the respective identity forms, and the source-map helper loads through
+`project/lib`; `make source-mapping-experiment` passes all 121 assertions and
+`make runtime-provenance-experiment` passes all 65 assertions locally. These are
+test-fixture updates, not production source-map or runtime provenance behavior
+changes.
+
+After the runtime-provenance identity correction, clean host-enabled canonical
+`make check` passed in 569s: unit 393s, functional 13s, bootstrap 135s, release
+smoke 0s and quick start 1s. The full-check and bootstrap timings still exceed
+the unchanged 120s and 60s budgets. The test and coverage suites passed without
+omission.
 
 ## Slice 8 follow-up: closure audit and current browser checks — 2026-10-10
 

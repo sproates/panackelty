@@ -235,6 +235,18 @@ release; existing publication correctness defects retain their separate treatmen
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
+**GI#106 performance disposition update (2026-10-10):** the alpha.12 candidate
+now has one clean, same-revision two/four-worker comparison on macOS arm64
+(530.32s/379s); four workers reduce unit time from 354s to 202s. A warm canonical
+check after the local default change took 287s, effectively unchanged from the
+prior 286s observation. Thus the mitigation is supported for clean local runs,
+but the 120s full-check, 60s bootstrap and 15s focused targets remain unmet and
+the result is not established on reference CI. The GI#106 performance delivery
+owner's next bounded action is one comparable clean run on the reference
+environment with phase timings, before alpha.12 release readiness. If the targets
+still fail, present that measured result as an explicit release trade-off instead
+of extending this experiment without a new decision.
+
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.
 This local observation establishes neither a regression nor a cause;
@@ -364,10 +376,10 @@ version. It does not imply that the release must leave alpha.
 Owner decision, 2026-10-10: before starting P3, complete two namespace follow-ups:
 [RM#149: Namespace example set](#rm-149) and
 [RM#150: Namespace performance investigation](#rm-150). These follow P2 and
-precede P3; neither reopens P2, changes the original P1–P8 scope weights, nor
-adds a release gate. The two follow-ups have no dependency on each other. The
-revised sequence is P2 → RM#149/RM#150 → P3 → P4 → language/local-package
-release, then HTTP client work (P5).
+precede P3; neither reopens P2 or changes the original P1–P8 scope weights. RM#150
+is also the alpha.12 release prerequisite recorded below. The two follow-ups have
+no dependency on each other. The revised sequence is P2 → RM#149/RM#150 → P3 →
+P4 → language/local-package release, then HTTP client work (P5).
 
 The following milestone is **a working independently consumed HTTP client package**.
 A clean native application imports its public client API, requests HTTP and HTTPS
@@ -400,7 +412,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Slice 8 identity-only cutover and platform checks pass in the candidate; final delivery PR is ready for `next` integration | P1 | Large; delivery candidate prepared |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | In review in this delivery PR | Namespace-capable toolchain | Medium / 1 PR |
-| Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Owner-selected; planned | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
+| Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Candidate improvement implemented; focused and canonical checks pass locally, but the 15s/120s/60s budgets remain exceeded; final review pending | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -429,20 +441,43 @@ change. No website claims change in this core-only delivery.
 
 **RM#150: Namespace performance investigation** ·
 [GI#360: Attribute namespace migration performance costs](https://github.com/sproates/panackelty/issues/360).
-Before P3, use the Slice 8 retrospective and pinned validation profiles to
-reproduce and attribute the matched runner-smoke change, then rank evidence-based
-hypotheses and candidate mitigations. Separate compiler phases from subprocess
-and test orchestration; test possible repeated module discovery/loading,
+The Slice 8 retrospective and pinned validation profiles reproduce and attribute
+the matched runner-smoke change. Separate compiler phases from subprocess and
+test orchestration; test possible repeated module discovery/loading,
 identity-aware checking/emission cost and expanded import closure rather than
 assuming a cause. The recorded single-host 30.005s → 55.515s result is not an
 isolated compiler measurement or proof of namespace causation. Reuse GI#106's
 budget evidence and contribute findings to the broader
-[RM#134/GI#285 compiler investigation](#rm-134). Preserve tests and budgets;
-optimisation implementation is separately selected. This namespace-specific
-follow-up completes neither broader performance record.
+[RM#134/GI#285 compiler investigation](#rm-134). Preserve tests and budgets.
 
-These owner-selected follow-ups are outside the P1–P8 weighted programme
-baseline and are not release gates. Both must be complete before P3 starts.
+**User decision, 2026-10-10:** deliver and validate at least one evidence-backed
+compiler performance improvement before alpha.12 is released. This makes RM#150
+a release prerequisite; it does not imply that the 120s clean-check or 15s
+focused-check budgets have been met. The first measured candidate indexes parsed
+declarations by name for signature resolution. Its three-pair compiler-source
+check comparison shows a 3.5% median reduction on this host. Splitting
+registered coverage-session scenarios into four isolated probes preserves all
+41 assertions while
+reducing warm `make check-compiler` from 104s to 82s at two workers and from 96s
+to 77s at four workers. Host-enabled canonical `make check` passes in 286s
+(unit 115s, functional 11s, bootstrap 133s, release smoke 0s, quick start 1s).
+The 120s full, 60s bootstrap and 15s focused targets remain unmet; the aggregate
+unit phase is not a focused incremental sample. The seed namespace acceptance
+fixture was updated for the indexed `LoadedModule` API and passes both focused
+and canonical acceptance. This one local run confirms correctness, not stable
+timing attribution. See the [performance profile](tests/VALIDATION_PROFILE.md#namespace-declaration-lookup-index--2026-10-10).
+This namespace-specific work completes neither broader GI#106 nor RM#134.
+
+RM#150 remains outside the P1–P8 weighted programme baseline. It is a user-selected
+alpha.12 release gate and must complete before P3 starts.
+
+The bounded clean-run concurrency experiment then passed canonical `make check`
+in 530.32s at two workers and 379s at four workers on the same clean revision and
+macOS arm64 host; the unit phase moved from 354s to 202s while bootstrap remained
+135s. Local Make-driven validation now defaults to four workers. This is one
+ordered pair and remains host-specific evidence; CI's explicit worker settings
+are unchanged. The 120s full, 60s bootstrap and 15s focused targets remain open.
+See the [clean validation comparison](tests/VALIDATION_PROFILE.md#clean-validation-worker-count-comparison--2026-10-10).
 
 <a id="rm-109"></a>
 

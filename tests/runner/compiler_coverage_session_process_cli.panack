@@ -1,0 +1,79 @@
+import stdlib/result::{result_value_or}
+import stdlib/testing_commands::{ProcessOutput}
+import stdlib/testing_files::{test_workspace_create}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/bytes::{bytes_empty,text_encode_utf8,text_decode_utf8}
+import stdlib/path::{path_value_to_text}
+import stdlib/host::{host_exit}
+import project/tests/runner/compiler_coverage_session_helpers::{session_path,session_command,session_command_env,session_setup_child,session_require_success,session_read,session_write,session_contains,session_clean}
+main(): Void {
+  match test_workspace_create(session_path("/tmp")) {
+    Error(error) => { host_exit(1); }, Ok(workspace) => {
+      dir: Str = result_value_or(path_value_to_text(workspace.root), "")
+      child: Str = dir + "/child.panack"
+      child_bc: Str = dir + "/child.bc"
+      child_inv: Str = dir + "/child.inv"
+      session_require_success(session_setup_child(child, child_bc, child_inv))
+      mut results: [TestResult] = []
+      // A subprocess must claim a fresh ticket, even when its bytecode is reused.
+      process_source: Str = dir + "/process.panack"
+      process_bc: Str = dir + "/process.bc"
+      process_inv: Str = dir + "/process.inv"
+      session_write(process_source, text_encode_utf8("import stdlib/result::{result_value_or}\nimport stdlib/host::{host_command_arguments, host_process_run, host_stdout_text}\nimport stdlib/path::{path_value_from_text, path_value_current}\nimport stdlib/bytes::{bytes_empty}\nimport stdlib/time::{duration_seconds}\nmain(): Void { command = host_command_arguments(); args = if command[0] == \"/bin/sh\" { [\"-c\", \"exit 0\"] } else { [\"run\", command[1], \"true\"] }; match host_process_run(result_value_or(path_value_from_text(command[0]), path_value_current()), args, bytes_empty(), path_value_current(), [], duration_seconds(1), 1048576) { Ok(result) => { host_stdout_text(if result.exit_code == 0 { \"0\" } else { \"1\" }); }, Error(error) => { host_stdout_text(\"99\"); } } }\n"))
+      for setup in [["compile", process_source, "-o", process_bc], ["inventory", process_source, "-o", process_inv]] {
+        result: ProcessOutput = session_command(setup)
+        results = append(results, test_expect("process setup", result.exit_code == 0, text_decode_utf8(result.stderr)))
+      }
+      process_session: Str = dir + "/process-session"
+      process_run_result: ProcessOutput = session_command(["coverage-session", process_session, process_bc, process_inv, child_bc, child_inv, "--", "./panack", child_bc])
+      process_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", process_session])
+      results = append(results, test_expect("subprocess aggregate", process_run_result.stdout == text_encode_utf8("0\n") && process_report.exit_code == 0 && session_contains(text_decode_utf8(process_report.stdout), "executions=2"), text_decode_utf8(process_run_result.stderr) + text_decode_utf8(process_report.stderr)))
+      external_session: Str = dir + "/external-session"
+      external: ProcessOutput = session_command(["coverage-session", external_session, process_bc, process_inv, child_bc, child_inv, "--", "/bin/sh", child_bc])
+      external_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", child, child_inv, "--session", external_session])
+      results = append(results, test_expect("noncollecting process executes successfully", external.exit_code == 0 && external.stdout == text_encode_utf8("0\n") && external.stderr == bytes_empty(), "external stdout: " + text_decode_utf8(external.stdout) + " stderr: " + text_decode_utf8(external.stderr)))
+      results = append(results, test_expect("noncollecting process stays unavailable", external_report.exit_code == 1 && external_report.stdout == bytes_empty(), "report stdout: " + text_decode_utf8(external_report.stdout) + " stderr: " + text_decode_utf8(external_report.stderr)))
+      killed_source: Str = dir + "/killed.panack"
+      killed_bc: Str = dir + "/killed.bc"
+      killed_inv: Str = dir + "/killed.inv"
+      session_write(killed_source, text_encode_utf8("main(): Void { while true {} }\n"))
+      for setup in [["compile", killed_source, "-o", killed_bc], ["inventory", killed_source, "-o", killed_inv]] {
+        result: ProcessOutput = session_command(setup)
+        results = append(results, test_expect("killed child setup", result.exit_code == 0, text_decode_utf8(result.stderr)))
+      }
+      killed_session: Str = dir + "/killed-session"
+      killed: ProcessOutput = session_command(["coverage-session", killed_session, process_bc, process_inv, killed_bc, killed_inv, "--", "./panack", killed_bc])
+      killed_report: ProcessOutput = session_command(["coverage-aggregate", "--source", process_source, process_inv, "--source", killed_source, killed_inv, "--session", killed_session])
+      results = append(results, test_expect("claimed collector killed by timeout stays partial", killed.stdout == text_encode_utf8("99\n") &&
+        session_read(killed_session + "/claim-0.1") == text_encode_utf8("claimed\n") && killed_report.exit_code == 1 && killed_report.stdout == bytes_empty(), "killed collector accepted"))
+      trap_source: Str = dir + "/trap.panack"
+      trap_bc: Str = dir + "/trap.bc"
+      trap_inv: Str = dir + "/trap.inv"
+      session_write(trap_source, text_encode_utf8("main(): Void { print([1][2]); }\n"))
+      for setup in [["compile", trap_source, "-o", trap_bc], ["inventory", trap_source, "-o", trap_inv]] {
+        result: ProcessOutput = session_command(setup)
+        results = append(results, test_expect("trap setup", result.exit_code == 0, text_decode_utf8(result.stderr)))
+      }
+      trapped: ProcessOutput = session_command(["coverage-session", dir + "/trapped", trap_bc, trap_inv, "--"])
+      trap_report: ProcessOutput = session_command(["coverage-aggregate", "--source", trap_source, trap_inv, "--session", dir + "/trapped"])
+      results = append(results, test_expect("terminal trap preserves attempted prefix", trapped.exit_code == 1 && trap_report.exit_code == 0 &&
+        session_contains(text_decode_utf8(trap_report.stdout), "declaration/0\tfunction\tmain\tobserved\t1\t0\n"), text_decode_utf8(trapped.stderr)))
+      smoke: Str = "tests/functional/cases/runner_smoke/main.panack"
+      smoke_bc: Str = dir + "/smoke.bc"
+      smoke_inv: Str = dir + "/smoke.inv"
+      for setup in [["compile", smoke, "-o", smoke_bc], ["inventory", smoke, "-o", smoke_inv]] {
+        result: ProcessOutput = session_command_env(setup, ["PANACKELTY_BOOTSTRAP_ROOT=."])
+        results = append(results, test_expect("cache guard setup", result.exit_code == 0, text_decode_utf8(result.stderr)))
+      }
+      cached: ProcessOutput = session_command_env(["coverage-session", dir + "/cached", smoke_bc, smoke_inv, "--"],
+        ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACK_TEST_RUNNER_REPORT=" + dir + "/absent-transcript"])
+      cached_report: ProcessOutput = session_command_env(["coverage-aggregate", "--source", smoke, smoke_inv, "--session", dir + "/cached"],
+        ["PANACKELTY_BOOTSTRAP_ROOT=."])
+      results = append(results, test_expect("cached transcript cannot invent fresh execution", cached.exit_code == 1 &&
+        session_contains(text_decode_utf8(cached.stderr), "cached runner transcript cannot establish fresh coverage") &&
+        cached_report.exit_code == 1 && cached_report.stdout == bytes_empty(), "cache bypassed collection"))
+      session_clean(dir)
+      if test_report(results) > 0 { host_exit(1); }
+    }
+  }
+}

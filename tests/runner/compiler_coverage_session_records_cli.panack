@@ -1,0 +1,49 @@
+import stdlib/result::{result_value_or}
+import stdlib/testing_commands::{ProcessOutput}
+import stdlib/testing_files::{test_workspace_create}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/bytes::{bytes_empty,bytes_join,text_encode_utf8}
+import stdlib/filesystem::{filesystem_remove_file}
+import stdlib/path::{path_value_to_text}
+import stdlib/host::{host_exit}
+import project/tests/runner/compiler_coverage_session_helpers::{session_path,session_setup,session_require_success,session_command,session_read,session_write,session_clean}
+main(): Void {
+  match test_workspace_create(session_path("/tmp")) {
+    Error(error) => { host_exit(1); }, Ok(workspace) => {
+      dir: Str = result_value_or(path_value_to_text(workspace.root), "")
+      source: Str = dir + "/main.panack"
+      child: Str = dir + "/child.panack"
+      artifact: Str = dir + "/main.bc"
+      child_bc: Str = dir + "/child.bc"
+      inventory: Str = dir + "/main.inv"
+      child_inv: Str = dir + "/child.inv"
+      first: Str = dir + "/first"
+      second: Str = dir + "/second"
+      session_require_success(session_setup(source, child, artifact, child_bc, inventory, child_inv))
+      for session in [["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"],
+                      ["coverage-session", second, artifact, inventory, child_bc, child_inv, "--", child_bc, "false"]] {
+        setup: ProcessOutput = session_command(session)
+        if setup.exit_code != 0 { host_exit(1); }
+      }
+      args: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", second]
+      mut results: [TestResult] = []
+      for file in ["raw-0.1", "expect-0.1", "claim-0.1", "closed", "registry"] {
+        path: Str = first + "/" + file
+        saved: Bytes = session_read(path)
+        filesystem_remove_file(session_path(path))
+        rejected: ProcessOutput = session_command(args)
+        results = append(results, test_expect("missing " + file, rejected.exit_code == 1 && rejected.stdout == bytes_empty(), "missing record accepted"))
+        session_write(path, saved)
+      }
+      raw_path: Str = first + "/raw-0.1"
+      raw: Bytes = session_read(raw_path)
+      for invalid in [bytes_empty(), text_encode_utf8("PANACKEXEC1\n"), bytes_join(raw, text_encode_utf8("extra")), session_read(second + "/raw-0.1")] {
+        session_write(raw_path, invalid)
+        rejected: ProcessOutput = session_command(args)
+        results = append(results, test_expect("partial mixed or cached record", rejected.exit_code == 1 && rejected.stdout == bytes_empty(), "bad record accepted"))
+      }
+      session_clean(dir)
+      if test_report(results) > 0 { host_exit(1); }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+import stdlib/result::{result_value_or}
+import stdlib/testing_commands::{ProcessOutput}
+import stdlib/testing_files::{test_workspace_create}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/bytes::{bytes_empty,text_encode_utf8}
+import stdlib/filesystem::{filesystem_remove_file}
+import stdlib/path::{path_value_to_text}
+import stdlib/host::{host_exit}
+import project/tests/runner/compiler_coverage_session_helpers::{session_path,session_setup,session_require_success,session_command,session_read,session_write,session_clean}
+main(): Void {
+  match test_workspace_create(session_path("/tmp")) {
+    Error(error) => { host_exit(1); }, Ok(workspace) => {
+      dir: Str = result_value_or(path_value_to_text(workspace.root), "")
+      source: Str = dir + "/main.panack"
+      child: Str = dir + "/child.panack"
+      artifact: Str = dir + "/main.bc"
+      child_bc: Str = dir + "/child.bc"
+      inventory: Str = dir + "/main.inv"
+      child_inv: Str = dir + "/child.inv"
+      first: Str = dir + "/first"
+      second: Str = dir + "/second"
+      session_require_success(session_setup(source, child, artifact, child_bc, inventory, child_inv))
+      for session in [["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"],
+                      ["coverage-session", second, artifact, inventory, child_bc, child_inv, "--", child_bc, "false"]] {
+        setup: ProcessOutput = session_command(session)
+        if setup.exit_code != 0 { host_exit(1); }
+      }
+      args: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", second]
+      mut results: [TestResult] = []
+      raw_path: Str = first + "/raw-0.1"
+      raw: Bytes = session_read(raw_path)
+      expected: Bytes = session_read(first + "/expect-0.1")
+      claimed: Bytes = session_read(first + "/claim-0.1")
+      for file in ["raw-0.1", "expect-0.1", "claim-0.1"] { filesystem_remove_file(session_path(first + "/" + file)); }
+      lost: ProcessOutput = session_command(args)
+      results = append(results, test_expect("entire child cannot disappear", lost.exit_code == 1 && lost.stdout == bytes_empty(), "lost child accepted"))
+      session_write(raw_path, raw)
+      session_write(first + "/expect-0.1", expected)
+      session_write(first + "/claim-0.1", claimed)
+      session_write(first + "/raw-extra", raw)
+      surplus: ProcessOutput = session_command(args)
+      results = append(results, test_expect("surplus record rejected", surplus.exit_code == 1 && surplus.stdout == bytes_empty(), "surplus accepted"))
+      filesystem_remove_file(session_path(first + "/raw-extra"))
+      missing: Str = dir + "/unregistered"
+      unregistered: ProcessOutput = session_command(["coverage-session", missing, artifact, inventory, "--", child_bc, "true"])
+      unavailable: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--session", missing])
+      results = append(results, test_expect("unregistered child preserves output but blocks report", unregistered.stdout == text_encode_utf8("7\n") && unavailable.exit_code == 1 && unavailable.stdout == bytes_empty(), "missing identity accepted"))
+      session_clean(dir)
+      if test_report(results) > 0 { host_exit(1); }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory, inventory_arguments}
 import project/src/compiler/loader::{LoadedProject, load_project, load_project_for_source_map, load_project_for_inventory}
-import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, source_module_identity, collect_module_bindings}
+import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, source_module_identity, collect_module_bindings, loaded_module_declaration_index}
 import project/src/compiler/lexer::{lex_file}
 import project/src/compiler/parser::{parse_module_complete}
 import project/src/bytecode/codec::{serialize_bytecode}
@@ -27,7 +27,8 @@ pure chain_inventory_decisions(source: Str): Str {
       Ok(parsed) => {
         identity: ModuleIdentity = source_module_identity("chain", "", "")
         module: LoadedModule = LoadedModule(
-          "chain", parsed, parsed.program, collect_module_bindings(identity, parsed)
+          "chain", parsed, parsed.program, collect_module_bindings(identity, parsed),
+          loaded_module_declaration_index(parsed)
         )
         mut output: Str = ""
         for item in inventory_module(module) {
@@ -97,7 +98,7 @@ main(): Void {
       Error(error) => { results = results.append(test_expect("literal parse", false, "parse failed")); },
       Ok(parsed) => {
         identity: ModuleIdentity = source_module_identity("fixture", "", "")
-        module: LoadedModule = LoadedModule("fixture", parsed, parsed.program, collect_module_bindings(identity, parsed))
+        module: LoadedModule = LoadedModule("fixture", parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
         items: [InventoryItem] = inventory_module(module)
         results = results.append(test_equal_str("literal complete inventory", inventory_summary(items, source),
           "declaration/0|function|sample|pure sample(flag: Bool): Void { if flag {}; }\ndeclaration/0/statement/0|statement|expression|if flag {}\ndeclaration/0/statement/0/value|expression|attempt|if flag {}\ndeclaration/0/statement/0/value/decision|decision|if|flag\ndeclaration/0/statement/0/value/decision/true|outcome|true|flag\ndeclaration/0/statement/0/value/decision/false|outcome|false|flag\ndeclaration/0/statement/0/value/condition|expression|attempt|flag\n"))

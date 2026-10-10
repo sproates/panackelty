@@ -1,7 +1,7 @@
 #!/bin/sh
 # Independent probes share a bounded worker pool; report in requested order.
 set -eu
-jobs=${VALIDATION_JOBS:-2}
+jobs=${VALIDATION_JOBS:-4}
 case "$jobs" in ''|*[!0-9]*) echo 'VALIDATION_JOBS must be an integer from 1 to 32' >&2; exit 2 ;; esac
 if [ "$jobs" -lt 1 ] || [ "$jobs" -gt 32 ]; then
     echo 'VALIDATION_JOBS must be an integer from 1 to 32' >&2

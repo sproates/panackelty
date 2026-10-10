@@ -11,7 +11,7 @@ TIMED := sh tests/run_timed.sh
 PROFILE := sh tests/profile_command.sh
 PROBE := sh tests/run_probe.sh
 PROBES := sh tests/run_probes.sh
-export VALIDATION_JOBS ?= 2
+export VALIDATION_JOBS ?= 4
 
 .NOTPARALLEL: check-phases ci-compiler ci-runtime-phases ci-bootstrap
 
@@ -85,6 +85,9 @@ check-compiler-impl: $(STAGE2_COMPILER)
 		tests/runner/compiler_source_inventory_cli.panack \
 		tests/runner/compiler_coverage_cli.panack \
 		tests/runner/compiler_coverage_session_cli.panack \
+		tests/runner/compiler_coverage_session_records_cli.panack \
+		tests/runner/compiler_coverage_session_integrity_cli.panack \
+		tests/runner/compiler_coverage_session_process_cli.panack \
 		tests/runner/compiler_coverage_unit.panack \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \

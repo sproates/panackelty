@@ -28,6 +28,8 @@ jobs:
             runner: macos-14
     runs-on: ${{ matrix.runner }}
     env:
+      # Keep the profiling workload stable when local Make defaults change.
+      VALIDATION_JOBS: 2
       VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
       VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
     steps:

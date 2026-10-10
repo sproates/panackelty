@@ -64,3 +64,14 @@ The other programs focus on individual language features:
 - `lexer_foundation.panack` — records, enums, strings, and lexer-style scanning
 - `option_result.panack` — generic tagged unions and exhaustive matching
 - `strings.panack` — Unicode indexing and interpolation
+
+## Namespaces
+
+These examples use the currently checked namespace subset and are exercised
+from source and saved bytecode by the functional suite:
+
+| Program | Demonstrates |
+| --- | --- |
+| `namespaces/trip_planner.panack` | A multi-file itinerary that combines route, weather, and budget modules through aliases and selected imports; only the entry module starts the program |
+| `namespaces/twin_sensors.panack` | Two modules with distinct, same-named `Reading` record types and qualified type references |
+| `namespaces/public_api.panack` | A consumer using a public API facade that re-exports a declaration backed by a private helper |

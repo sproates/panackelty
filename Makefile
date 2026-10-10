@@ -390,7 +390,7 @@ package-archive: native
 	rm -rf "$(PACKAGE_STAGE)"
 	$(MAKE) install DESTDIR="$(PACKAGE_STAGE)" PREFIX="/$(PACKAGE_ROOT_NAME)"
 	install -d "$(PACKAGE_ROOT)/examples"
-	install -m 644 examples/README.md examples/*.panack "$(PACKAGE_ROOT)/examples/"
+	cp -R examples/. "$(PACKAGE_ROOT)/examples/"
 	install -m 644 README.md LICENSE "$(PACKAGE_ROOT)/"
 	COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -C "$(PACKAGE_STAGE)" -czf "$(PACKAGE_ARCHIVE)" "$(PACKAGE_ROOT_NAME)"
 

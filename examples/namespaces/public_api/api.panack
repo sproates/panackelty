@@ -1,0 +1,1 @@
+pub import project/public_api/details::{trip_label}

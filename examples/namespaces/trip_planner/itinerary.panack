@@ -1,0 +1,31 @@
+import project/trip_planner/routes as routes
+import project/trip_planner/weather as weather
+import project/trip_planner/budget::{describe as budget_description}
+
+pub pure destination(): Str { "Three days in Andalusia" }
+
+pub pure route_line(): Str {
+  first: routes.Leg = routes.first_leg()
+  second: routes.Leg = routes.second_leg()
+  first_text = routes.describe(first)
+  second_text = routes.describe(second)
+  "${first_text}; ${second_text}"
+}
+
+pub pure weather_line(): Str {
+  weather.describe(weather.forecast())
+}
+
+pub pure budget_line(): Str {
+  budget_description()
+}
+
+pub pure summary(): Str {
+  place = destination()
+  cost = budget_description()
+  "${place} — ${cost}"
+}
+
+main(): Void {
+  print("The itinerary module main must not run")
+}

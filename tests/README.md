@@ -7,7 +7,7 @@ contracts; `make check` requires neither Node, Playwright nor WASI.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
-selected success cases, twenty examples, and forty-one expected failures.
+selected success cases, twenty-three examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
 
@@ -90,7 +90,7 @@ execution. A missing or changed report fails. The session is removed on success
 or failure, and ambient report overrides are cleared at entry. Test results
 are never reused between check invocations. The nested fresh-run command has a
 180-second bound for cross-platform variance; it still requires the complete,
-byte-exact 355-case report. Standalone `make functional` and
+byte-exact 364-case report. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 

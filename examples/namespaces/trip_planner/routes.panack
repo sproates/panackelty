@@ -1,0 +1,24 @@
+pub record Leg {
+  from: Str,
+  to: Str,
+  miles: Nat
+}
+
+pub pure first_leg(): Leg {
+  Leg("Gibraltar", "Seville", 145)
+}
+
+pub pure second_leg(): Leg {
+  Leg("Seville", "Granada", 155)
+}
+
+pub pure describe(leg: Leg): Str {
+  origin = leg.from
+  destination = leg.to
+  distance = leg.miles
+  "${origin} to ${destination} (${distance} miles)"
+}
+
+main(): Void {
+  print("The routes module main must not run")
+}

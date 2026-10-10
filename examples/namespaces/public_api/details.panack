@@ -1,0 +1,7 @@
+pure make_label(city: Str, days: Nat): Str {
+  "${days} days in ${city}"
+}
+
+pub pure trip_label(): Str {
+  make_label("Granada", 3)
+}

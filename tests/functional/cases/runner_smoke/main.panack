@@ -32,7 +32,8 @@ main(): Void {
   examples = ["callables", "collections_and_bytes", "decimal", "euler001",
     "euler001_iterative", "euler002", "euler003", "euler004", "euler005",
     "fibonacci", "fizzbuzz", "generic_functions", "guards", "lexer_foundation",
-    "option_result", "palindrome", "strings", "vm_arithmetic", "vm_branch_call", "vm_loop"]
+    "option_result", "palindrome", "strings", "vm_arithmetic", "vm_branch_call",
+    "vm_loop", "public_api", "trip_planner", "twin_sensors"]
   for name in examples {
     expected_text = "${expected_text}PASS example/${name}/source\nPASS example/${name}/compile\nPASS example/${name}/bytecode\n"
   }
@@ -66,7 +67,7 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = text_encode_utf8("${expected_text}PASS selected failure count\ntests: 355, failures: 0\n")
+  expected = text_encode_utf8("${expected_text}PASS selected failure count\ntests: 364, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes_empty(), path_value_current(),
     ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"],

@@ -881,7 +881,7 @@ source expression to identify.
 ## Deliberately postponed
 
 - Mutable array elements and growable collections
-- Module visibility, selective imports, and package management
+- Package management
 - Explicit checked construction from untrusted data
 - Generic constraints, traits, and higher-rank polymorphism
 - A backwards-compatibility guarantee for bytecode versions

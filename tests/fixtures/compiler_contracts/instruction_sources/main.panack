@@ -1,4 +1,4 @@
-import "library.panack"
+import "library.panack" as library
 
 record Box { value: Nat }
 enum Choice { Left([Nat]), Right([Nat]) }
@@ -23,6 +23,6 @@ main(): Void {
   print(choose(Left([1, 2]), true))
   print(choose(Left([1, 2]), false))
   print(choose(Right([1, 2]), true))
-  print(pick[Nat]([9], 0))
-  print(pick[Str](["value"], 0))
+  print(library.pick[Nat]([9], 0))
+  print(library.pick[Str](["value"], 0))
 }

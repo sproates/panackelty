@@ -1,4 +1,4 @@
-import stdlib/prelude
+import stdlib/bytes::{bytes_push, bytes_length, text_encode_utf8, text_decode_utf8}
 
 pure name_before(left: Str, right: Str): Bool { left < right }
 

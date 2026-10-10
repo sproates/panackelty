@@ -28,10 +28,14 @@ function regular(file, limit = MAX) {
   return fs.readFileSync(file);
 }
 function sourcePath(name, entry, checkout) {
-  const root = name.startsWith('stdlib/') ? path.join(checkout, 'src/stdlib') : path.dirname(path.resolve(checkout, entry));
+  // Canonicalize the checkout first. macOS commonly exposes temporary paths
+  // through both /var and /private/var; comparing a child realpath against
+  // the uncanonicalized spelling incorrectly rejects every fixture source.
+  const checkoutRoot = fs.realpathSync(checkout);
+  const root = name.startsWith('stdlib/') ? path.join(checkoutRoot, 'src/stdlib') : path.dirname(path.resolve(checkoutRoot, entry));
   if (!name.startsWith('stdlib/') && !name.startsWith('project/')) fail('Unknown source prefix');
   const file = path.resolve(root, name.slice(name.indexOf('/') + 1));
-  const relative = path.relative(checkout, file).split(path.sep).join('/');
+  const relative = path.relative(checkoutRoot, file).split(path.sep).join('/');
   if (relative.startsWith('../') || path.isAbsolute(relative) || !relative.endsWith('.panack') || fs.realpathSync(file) !== file) fail('Escaping or linked source');
   return {file, relative};
 }
@@ -46,7 +50,7 @@ function readPlan(prefix, entry, checkout, compiler) {
   inv.magic('PANACKINV1\nlocal-replay-v9\n');
   if (!inv.blob().equals(compiler)) fail('Inventory compiler mismatch');
   const inventoryEntry = inv.text();
-  if (sourcePath(inventoryEntry,entry,checkout).file !== path.resolve(checkout,entry) || !inv.blob().equals(artifact)) fail('Inventory artifact or entry mismatch');
+  if (sourcePath(inventoryEntry,entry,checkout).file !== path.resolve(fs.realpathSync(checkout),entry) || !inv.blob().equals(artifact)) fail('Inventory artifact or entry mismatch');
   const inventorySources = new Map();
   for (let n = inv.count(256); n--; ) {
     const name = inv.text(), text = inv.text(), items = [];

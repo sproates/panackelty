@@ -1,4 +1,4 @@
-pure add(left: Nat, right: Nat): Nat {
+pub pure add(left: Nat, right: Nat): Nat {
   left +
     right
 }

@@ -1,23 +1,29 @@
-import stdlib/result
-import stdlib/testing
-import stdlib/testing_files
-import stdlib/testing_commands
+import stdlib/result::{result_value_or}
+import stdlib/testing::{TestOutcome.TestPassed, TestOutcome.TestFailed, TestResult, test_expect, test_equal_nat, test_report}
+import stdlib/testing_files::{TestWorkspace, test_workspace_create, test_workspace_remove_empty, test_discover_fixtures}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command, test_command_output}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_filename, path_value_to_text}
+import stdlib/filesystem::{filesystem_read_bytes, filesystem_list_directory, filesystem_metadata, filesystem_remove_file, filesystem_write_bytes}
+import stdlib/testing_commands::{testing_process_run}
+import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
+import stdlib/host::{host_command_arguments, host_exit, host_stdout_text}
 
 // Run from the repository root. Native harness tests cover failure propagation.
 pure runner_path(text: Str): Path {
-  result_value_or(path_from_text(text), path_current())
+  result_value_or(path_value_from_text(text), path_value_current())
 }
 
 pure runner_child(parent: Path, name: Str): Path {
-  result_value_or(path_append(parent, runner_path(name)), parent)
+  result_value_or(path_value_append(parent, runner_path(name)), parent)
 }
 
 pure runner_name(directory: Path): Str {
-  component = match path_filename(directory) {
+  component = match path_value_filename(directory) {
     Some(value) => value,
     None() => directory
   }
-  result_value_or(path_to_text(component), "invalid-name")
+  result_value_or(path_value_to_text(component), "invalid-name")
 }
 
 pure runner_selected(name: Str): Bool {
@@ -39,31 +45,31 @@ pure runner_selected(name: Str): Bool {
 runner_source(directory: Path): Result[Path,Str] {
   local = runner_child(directory, "main.panack")
   reference = runner_child(directory, "source.path")
-  local_exists = match fs_read(local, 1048576) { Ok(value) => true, Error(error) => false }
-  reference_exists = match fs_read(reference, 4096) { Ok(value) => true, Error(error) => false }
+  local_exists = match filesystem_read_bytes(local, 1048576) { Ok(value) => true, Error(error) => false }
+  reference_exists = match filesystem_read_bytes(reference, 4096) { Ok(value) => true, Error(error) => false }
   if local_exists == reference_exists {
     Error("expected exactly one of main.panack or source.path")
   } else {
     if local_exists { Ok(local) } else {
-      reference_text = result_value_or(path_to_text(reference), "")
+      reference_text = result_value_or(path_value_to_text(reference), "")
       // Resolve both paths physically; compare with a directory separator so
       // sibling prefixes and links outside the checkout cannot be accepted.
       script = "IFS= read -r target < \"$1\" || [ -n \"$target\" ] || exit 2; " +
         "[ -n \"$target\" ] || exit 2; root=$(realpath .) || exit 2; " +
         "resolved=$(realpath \"$target\") || exit 2; " +
         "case \"$resolved\" in \"$root\"/*) printf '%s\\n' \"$resolved\" ;; *) exit 3 ;; esac"
-      match process_run(runner_path("/bin/sh"), ["-c", script, "runner-source", reference_text],
-          bytes(), path_current(), [], duration_seconds(5), 4096) {
+      match testing_process_run(runner_path("/bin/sh"), ["-c", script, "runner-source", reference_text],
+          bytes_empty(), path_value_current(), [], duration_seconds(5), 4096) {
         Error(error) => Error("source.path resolution failed: ${error.code}"),
         Ok(output) => {
           if output.exit_code != 0 || output.signal != 0 {
             Error("source.path points outside the repository or cannot be resolved")
           } else {
-            value = utf8_decode(output.stdout)
+            value = text_decode_utf8(output.stdout)
             size = value.len()
             if size == 0 { Error("source.path resolution returned no path") }
             else {
-              match path_from_text(value.slice(0, size - 1)) {
+              match path_value_from_text(value.slice(0, size - 1)) {
                 Ok(path) => Ok(path),
                 Error(error) => Error("source.path resolution returned invalid path")
               }
@@ -80,22 +86,22 @@ pure runner_command(arguments: [Str], clear_stdlib_value: Bool): TestCommand {
 }
 
 pure runner_bootstrap_command(arguments: [Str], timeout: Nat): TestCommand {
-  TestCommand(runner_path("./panack"), arguments, bytes(), path_current(),
+  TestCommand(runner_path("./panack"), arguments, bytes_empty(), path_value_current(),
     ["PANACKELTY_BOOTSTRAP_ROOT=."], duration_seconds(timeout), 1048576)
 }
 
 pure runner_timed_command(arguments: [Str], clear_stdlib_value: Bool,
                           timeout: Nat): TestCommand {
-  // process_run can override inherited variables, but cannot remove them.
+  // testing_process_run can override inherited variables, but cannot remove them.
   // The stdlib fixture expects this variable to be absent, as in the Python harness.
   if clear_stdlib_value {
     TestCommand(runner_path("/bin/sh"),
       ["-c", "unset PANACKELTY_STDLIB_VALUE PANACKELTY_BOOTSTRAP_ROOT; exec \"$@\"", "runner-stdlib",
-        "./panack"].concat(arguments), bytes(), path_current(), [],
+        "./panack"].concat(arguments), bytes_empty(), path_value_current(), [],
       duration_seconds(timeout), 1048576)
   } else {
     TestCommand(runner_path("/usr/bin/env"),
-      ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack"].concat(arguments), bytes(), path_current(), [],
+      ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack"].concat(arguments), bytes_empty(), path_value_current(), [],
       duration_seconds(timeout), 1048576)
   }
 }
@@ -105,7 +111,7 @@ runner_case(directory: Path, workspace: TestWorkspace): [TestResult] {
   source_result = runner_source(directory)
   expected_file = runner_child(directory, "expected.stdout")
   artifact = runner_child(workspace.root, "${name}.bc")
-  expected_path = result_value_or(path_to_text(artifact), "invalid-artifact")
+  expected_path = result_value_or(path_value_to_text(artifact), "invalid-artifact")
   match source_result {
     Error(reason) => [test_expect("case/${name}/fixture", false, reason)],
     Ok(source) => runner_program("case/${name}", source, expected_file, artifact, expected_path)
@@ -114,8 +120,8 @@ runner_case(directory: Path, workspace: TestWorkspace): [TestResult] {
 
 runner_program(label: Str, source: Path, expected_file: Path,
                artifact: Path, expected_path: Str): [TestResult] {
-  source_path = result_value_or(path_to_text(source), "invalid-source")
-  match fs_read(expected_file, 1048576) {
+  source_path = result_value_or(path_value_to_text(source), "invalid-source")
+  match filesystem_read_bytes(expected_file, 1048576) {
     Error(error) => {
       code = error.code
       [test_expect("${label}/fixture", false, "fixture read failed: ${code}")]
@@ -132,14 +138,14 @@ runner_program(label: Str, source: Path, expected_file: Path,
       }
       source_result = test_run_command("${label}/source",
         source_command,
-        ProcessOutput(0, 0, expected, bytes()))
+        ProcessOutput(0, 0, expected, bytes_empty()))
       results = results.append(source_result)
 
       compile_command = if label == "case/compiler_skeleton" {
         // The bootstrap recipe has already built and verified this artifact.
         TestCommand(runner_path("/bin/sh"),
           ["-c", "if [ -n \"${PANACK_TEST_COMPILER:-}\" ]; then cp \"$PANACK_TEST_COMPILER\" \"$1\" && printf 'wrote %s\\n' \"$1\"; else exec ./panack compile \"$2\" -o \"$1\"; fi",
-            "runner-compiler", expected_path, source_path], bytes(), path_current(),
+            "runner-compiler", expected_path, source_path], bytes_empty(), path_value_current(),
           ["PANACKELTY_BOOTSTRAP_ROOT=."],
           duration_seconds(90), 1048576)
       } else if label == "case/compiler_lexer" {
@@ -148,17 +154,17 @@ runner_program(label: Str, source: Path, expected_file: Path,
         runner_command(["compile", source_path, "-o", expected_path], label == "case/stdlib")
       }
       compile_result = test_run_command("${label}/compile", compile_command,
-        ProcessOutput(0, 0, utf8_encode("wrote ${expected_path}\n"), bytes()))
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${expected_path}\n"), bytes_empty()))
       results = results.append(compile_result)
       match compile_result.outcome {
         TestPassed() => {
           results = results.append(test_run_command("${label}/bytecode",
             runner_command(["run", expected_path], label == "case/stdlib"),
-            ProcessOutput(0, 0, expected, bytes())))
+            ProcessOutput(0, 0, expected, bytes_empty())))
         },
         TestFailed(reason) => {}
       }
-      match fs_remove_file(artifact) {
+      match filesystem_remove_file(artifact) {
         Ok(value) => {},
         Error(error) => {
           code = error.code
@@ -192,13 +198,13 @@ pure runner_contains_file(names: [Path], filename: Str): Bool {
 runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
   source_root = runner_path("examples")
   output_root = runner_path("tests/functional/expected/examples")
-  match fs_list(source_root) {
+  match filesystem_list_directory(source_root) {
     Error(error) => {
       code = error.code
       [test_expect("example discovery", false, "source discovery failed: ${code}")]
     },
     Ok(sources) => {
-      match fs_list(output_root) {
+      match filesystem_list_directory(output_root) {
         Error(error) => {
           code = error.code
           [test_expect("example discovery", false, "output discovery failed: ${code}")]
@@ -215,7 +221,7 @@ runner_examples(workspace: TestWorkspace, selected: Str): [TestResult] {
                   source = runner_child(source_root, "${name}.panack")
                   expected_file = runner_child(output_root, "${name}.stdout")
                   artifact = runner_child(workspace.root, "example-${name}.bc")
-                  artifact_text = result_value_or(path_to_text(artifact), "invalid-artifact")
+                  artifact_text = result_value_or(path_value_to_text(artifact), "invalid-artifact")
                   if runner_contains_file(outputs, "${name}.stdout") {
                     results = results.concat(runner_program("example/${name}", source,
                       expected_file, artifact, artifact_text))
@@ -262,16 +268,16 @@ pure runner_normalize_diagnostic(value: Str, prefix: Str): Str {
 }
 
 runner_failure_prefix(directory: Path): Result[Str,Str] {
-  directory_text = result_value_or(path_to_text(directory), "")
-  match process_run(runner_path("/bin/sh"),
+  directory_text = result_value_or(path_value_to_text(directory), "")
+  match testing_process_run(runner_path("/bin/sh"),
       ["-c", "exec realpath \"$1\"", "runner-failure", directory_text],
-      bytes(), path_current(), [], duration_seconds(5), 4096) {
+      bytes_empty(), path_value_current(), [], duration_seconds(5), 4096) {
     Error(error) => Error("path resolution failed: ${error.code}"),
     Ok(output) => {
       if output.exit_code != 0 || output.signal != 0 {
         Error("path resolution failed")
       } else {
-        value = utf8_decode(output.stdout)
+        value = text_decode_utf8(output.stdout)
         size = value.len()
         if size == 0 { Error("path resolution returned no path") }
         else { Ok(value.slice(0, size - 1)) }
@@ -282,7 +288,7 @@ runner_failure_prefix(directory: Path): Result[Str,Str] {
 
 runner_failure_command(label: Str, command: TestCommand,
                        expected: Bytes, prefix: Str): TestResult {
-  match process_run(command.executable, command.arguments, command.stdin,
+  match testing_process_run(command.executable, command.arguments, command.stdin,
       command.working_directory, command.environment, command.timeout,
       command.output_limit) {
     Error(error) => {
@@ -290,11 +296,11 @@ runner_failure_command(label: Str, command: TestCommand,
       test_expect(label, false, "command failed: ${code}")
     },
     Ok(output) => {
-      normalized = utf8_encode(runner_normalize_diagnostic(
-        utf8_decode(output.stderr), prefix))
+      normalized = text_encode_utf8(runner_normalize_diagnostic(
+        text_decode_utf8(output.stderr), prefix))
       test_command_output(label,
         ProcessOutput(output.exit_code, output.signal, output.stdout, normalized),
-        ProcessOutput(1, 0, bytes(), expected))
+        ProcessOutput(1, 0, bytes_empty(), expected))
     }
   }
 }
@@ -305,13 +311,13 @@ runner_failure(directory: Path, workspace: TestWorkspace): [TestResult] {
   source = runner_child(directory, "main.panack")
   expected_file = runner_child(directory, "expected.stderr")
   artifact = runner_child(workspace.root, "failure-${name}.bc")
-  match fs_read(source, 1048576) {
+  match filesystem_read_bytes(source, 1048576) {
     Error(error) => {
       code = error.code
       [test_expect("${label}/fixture", false, "source read failed: ${code}")]
     },
     Ok(source_contents) => {
-      match fs_read(expected_file, 1048576) {
+      match filesystem_read_bytes(expected_file, 1048576) {
         Error(error) => {
           code = error.code
           [test_expect("${label}/fixture", false, "expected stderr read failed: ${code}")]
@@ -323,7 +329,7 @@ runner_failure(directory: Path, workspace: TestWorkspace): [TestResult] {
               // Use the same physical path for invocation and normalization.
               // A checkout may reach tests through a symlink.
               source_text = "${prefix}/main.panack"
-              artifact_text = result_value_or(path_to_text(artifact), "invalid-artifact")
+              artifact_text = result_value_or(path_value_to_text(artifact), "invalid-artifact")
               mut results: [TestResult] = []
               results = results.append(runner_failure_command("${label}/check",
                 runner_command(["check", source_text], false), expected, prefix))
@@ -333,17 +339,17 @@ runner_failure(directory: Path, workspace: TestWorkspace): [TestResult] {
               if name == "unknown_name" || name == "imported_unknown_name" ||
                   name == "unexpected_character" || name == "same_line_without_separator" ||
                   name == "inference_empty_array" || name == "inference_immutable" ||
-                  starts_with(name, "fact_mutation_") {
+                  name.starts_with_at("fact_mutation_", 0) {
                 results = results.append(runner_failure_command("${label}/run",
                   runner_command(["run", source_text], false), expected, prefix))
                 results = results.append(runner_failure_command("${label}/disasm",
                   runner_command(["disasm", source_text], false), expected, prefix))
               }
-              match fs_metadata(artifact) {
+              match filesystem_metadata(artifact) {
                 Ok(metadata) => {
                   results = results.append(test_expect("${label}/no artifact", false,
                     "failed compilation left bytecode"))
-                  match fs_remove_file(artifact) {
+                  match filesystem_remove_file(artifact) {
                     Ok(value) => {},
                     Error(error) => {
                       code = error.code
@@ -389,10 +395,10 @@ runner_failures(workspace: TestWorkspace, selected: Str): [TestResult] {
 }
 
 main(): Void {
-  arguments = command_args()
+  arguments = host_command_arguments()
   if len(arguments) > 0 && arguments[0] == "--self-test" {
     count = test_report([test_expect("deliberate mismatch", false, "expected failure")])
-    if count > 0 { process_exit(1) }
+    if count > 0 { host_exit(1) }
   } else {
     inject_cleanup_failure = len(arguments) >= 2 && arguments[0] == "--test-cleanup-failure"
     selected_case = if len(arguments) == 2 && arguments[0] == "--case" { arguments[1] }
@@ -411,7 +417,7 @@ main(): Void {
       Error(error) => {
         code = error.code
         print("workspace creation failed: ${code}")
-        process_exit(1)
+        host_exit(1)
       },
       Ok(workspace) => {
         mut results: [TestResult] = []
@@ -444,7 +450,7 @@ main(): Void {
         }
         sentinel = runner_child(workspace.root, "runner-cleanup-sentinel")
         if inject_cleanup_failure {
-          match fs_write(sentinel, utf8_encode("deliberate cleanup obstacle")) {
+          match filesystem_write_bytes(sentinel, text_encode_utf8("deliberate cleanup obstacle")) {
             Ok(value) => {},
             Error(error) => {
               code = error.code
@@ -462,7 +468,7 @@ main(): Void {
           }
         }
         if inject_cleanup_failure {
-          match fs_remove_file(sentinel) {
+          match filesystem_remove_file(sentinel) {
             Ok(value) => {},
             Error(error) => {
               code = error.code
@@ -480,7 +486,7 @@ main(): Void {
           }
         }
         failures = test_report(results)
-        if failures > 0 { process_exit(1) }
+        if failures > 0 { host_exit(1) }
       }
     }
   }

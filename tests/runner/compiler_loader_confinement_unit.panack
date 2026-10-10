@@ -1,95 +1,170 @@
-import project/src/compiler/loader
-import stdlib/result
-import stdlib/testing
-import stdlib/testing_files
-import stdlib/filesystem
-import stdlib/process
-
+import project/src/compiler/loader::{LoadedProject, load_project, load_project_diagnostics}
+import project/src/compiler/module_bodies::{BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyInvalid}
+import stdlib/result::{result_value_or}
+import stdlib/bytes::{bytes_empty, text_encode_utf8}
+import stdlib/filesystem::{filesystem_create_directory, filesystem_write_bytes, filesystem_remove_file, filesystem_remove_directory}
+import stdlib/host::{host_process_run, host_exit, host_stdout_text}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/process::{ProcessOutput}
+import stdlib/time::{duration_seconds}
 pure confinement_path(text: Str): Path {
-  result_value_or(path_from_text(text), path_current())
+  result_value_or(path_value_from_text(text), path_value_current())
 }
 
 pure confinement_child(root: Path, name: Str): Path {
-  result_value_or(path_append(root, confinement_path(name)), root)
+  result_value_or(path_value_append(root, confinement_path(name)), root)
 }
 
 pure confinement_text(path: Path): Str {
-  result_value_or(path_to_text(path), "")
+  result_value_or(path_value_to_text(path), "")
 }
 
 main(): Void {
   match test_workspace_create(confinement_path("/tmp")) {
-    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Error(error) => { host_stdout_text("workspace creation failed"); host_exit(1) },
     Ok(workspace) => {
       root_text: Str = confinement_text(workspace.root)
       project: Path = confinement_child(workspace.root, "project")
       entry: Path = confinement_child(project, "main.panack")
       link: Path = confinement_child(project, "link.panack")
       outside: Path = confinement_child(workspace.root, "outside.panack")
-      fs_create_directory(project)
-      fs_write(outside, utf8_encode("pub pure answer(): Nat { 42 }\n"))
-      fs_write(entry, utf8_encode("import \"link.panack\"\nmain(): Void {}\n"))
-      setup: ProcessOutput = match process_run(
+      filesystem_create_directory(project)
+      filesystem_write_bytes(outside, text_encode_utf8("pub pure answer(): Nat { 42 }\n"))
+      filesystem_write_bytes(entry, text_encode_utf8("import \"link.panack\"\nmain(): Void {}\n"))
+      setup: ProcessOutput = match host_process_run(
         confinement_path("/bin/ln"),
         ["-s", confinement_text(outside), confinement_text(link)],
-        bytes(),
+        bytes_empty(),
         workspace.root,
         [],
         duration_seconds(5),
         1024
       ) {
-        Error(error) => ProcessOutput(1, 0, bytes(), bytes()),
+        Error(error) => ProcessOutput(1, 0, bytes_empty(), bytes_empty()),
         Ok(output) => output
       }
       mut results: [TestResult] = []
-      results = append(results, test_expect("symlink fixture setup", setup.exit_code == 0 && setup.signal == 0, "ln failed"))
-      loaded: LoadedProject = load_project(confinement_text(entry))
-      results = append(results, test_expect(
+      results = results.append(test_expect("symlink fixture setup", setup.exit_code == 0 && setup.signal == 0, "ln failed"))
+      diagnostics = load_project_diagnostics(confinement_text(entry))
+      results = results.append(test_expect(
         "loader rejects import through symbolic link",
-        len(loaded.diagnostics) > 0 && starts_with(loaded.diagnostics[0].message, "module path traverses a symbolic link:"),
-        if len(loaded.diagnostics) > 0 { loaded.diagnostics[0].message } else { "import unexpectedly loaded" }
+        diagnostics.len() > 0 && starts_with_at(diagnostics[0].message, "module path traverses a symbolic link:", 0),
+        if diagnostics.len() > 0 { diagnostics[0].message } else { "import unexpectedly loaded" }
       ))
-      fs_remove_file(link)
-      fs_remove_file(entry)
+      filesystem_remove_file(link)
+      filesystem_remove_file(entry)
+      ordinary_entry: Path = confinement_child(project, "ordinary.panack")
+      filesystem_write_bytes(ordinary_entry, text_encode_utf8("main(): Void { while true {} }\n"))
+      ordinary_project: LoadedProject = load_project(confinement_text(ordinary_entry))
+      mut ordinary_main_checked: Bool = false
+      for body in ordinary_project.module_bodies {
+        if body.signature.binding.identity.name == "main" {
+          ordinary_main_checked = body.status == BodyIdentityChecked() && body.deferred.len() == 0
+        }
+      }
+      results = results.append(test_expect(
+        "ordinary entry retains checked identity body",
+        ordinary_project.diagnostics.len() == 0 && ordinary_main_checked,
+        "ordinary entry identity body is missing, deferred or invalid"
+      ))
+      filesystem_remove_file(ordinary_entry)
+      inferred_entry: Path = confinement_child(project, "inferred-collections.panack")
+      filesystem_write_bytes(
+        inferred_entry,
+        text_encode_utf8(
+          "main(): Void { counts = map().put(\"key\", 1); names = set().add(\"Ada\"); print(counts.get(\"key\")); print(names.has(\"Ada\")) }\n"
+        )
+      )
+      inferred_project: LoadedProject = load_project(confinement_text(inferred_entry))
+      inferred_ready: Bool = inferred_project.identity_ready
+      inferred_diagnostic_count: Nat = inferred_project.diagnostics.len()
+      mut inferred_main_checked: Bool = false
+      mut inferred_main_summary: Str = "missing main body"
+      mut inferred_unchecked: Str = ""
+      for body in inferred_project.module_bodies {
+        if body.signature.binding.identity.name == "main" {
+          inferred_main_checked = body.status == BodyIdentityChecked() && body.deferred.len() == 0
+          inferred_main_summary = match body.status {
+            BodyIdentityChecked() => "identity checked",
+            BodyDeferred() => "deferred spans=${body.deferred.len()}",
+            BodyInvalid() => "invalid body"
+          }
+        }
+        if body.status != BodyIdentityChecked() || body.deferred.len() > 0 {
+          inferred_unchecked = inferred_unchecked + body.signature.binding.identity.module.path + "/" + body.signature.binding.identity.name + " "
+        }
+      }
+      results = results.append(test_expect(
+        "ordinary inferred Map and Set entry is identity ready",
+        inferred_ready && inferred_diagnostic_count == 0 && inferred_main_checked,
+        "identity_ready=${inferred_ready}; diagnostics=${inferred_diagnostic_count}; ${inferred_main_summary}; unchecked=${inferred_unchecked}"
+      ))
+      filesystem_remove_file(inferred_entry)
+      path_entry: Path = confinement_child(project, "path-identities.panack")
+      filesystem_write_bytes(
+        path_entry,
+        text_encode_utf8(
+          "import stdlib/path::{path_string_join, path_string_suffix, path_string_parent, path_string_is_absolute, path_string_with_suffix, path_string_resolve}\nimport stdlib/environment::{environment_value, environment_has_value}\nimport stdlib/time::{duration_seconds}\nimport stdlib/host::{host_process_run}\nimport stdlib/filesystem::{filesystem_exists}\nmain(): Void { print(path_string_join(\"a\", \"b\")); print(path_string_suffix(\"file.panack\")); print(path_string_parent(\"a/b\")); print(path_string_is_absolute(\"/tmp\")); print(path_string_with_suffix(\"file\", \".panack\")); print(path_string_resolve(\".\")); print(environment_value(\"PATH\")); print(environment_has_value(\"PATH\")); print(duration_seconds(1)); print(filesystem_exists(\".\")); }\n"
+        )
+      )
+      path_project: LoadedProject = load_project(confinement_text(path_entry))
+      mut path_module_ready: Bool = true
+      for body in path_project.module_bodies {
+        if body.signature.binding.identity.module.path == "path.panack" ||
+          body.signature.binding.identity.module.path == "environment.panack" ||
+          body.signature.binding.identity.module.path == "time.panack" ||
+          body.signature.binding.identity.module.path == "host.panack" ||
+          body.signature.binding.identity.module.path == "filesystem.panack" {
+          path_module_ready = path_module_ready && body.status == BodyIdentityChecked() && body.deferred.len() == 0
+        }
+      }
+      results = results.append(test_expect(
+        "stdlib path and environment intrinsics are identity checked",
+        path_project.identity_ready && path_module_ready,
+        "identity_ready=${path_project.identity_ready}"
+      ))
+      filesystem_remove_file(path_entry)
       target: Path = confinement_child(project, "target.panack")
       alias: Path = confinement_child(project, "entry-link.panack")
-      fs_write(target, utf8_encode("main(): Void {}\n"))
-      alias_setup: ProcessOutput = match process_run(
+      filesystem_write_bytes(target, text_encode_utf8("main(): Void {}\n"))
+      alias_setup: ProcessOutput = match host_process_run(
         confinement_path("/bin/ln"),
         ["-s", confinement_text(target), confinement_text(alias)],
-        bytes(),
+        bytes_empty(),
         workspace.root,
         [],
         duration_seconds(5),
         1024
       ) {
-        Error(error) => ProcessOutput(1, 0, bytes(), bytes()),
+        Error(error) => ProcessOutput(1, 0, bytes_empty(), bytes_empty()),
         Ok(output) => output
       }
-      results = append(results, test_expect(
+      results = results.append(test_expect(
         "explicit entry source may be a symlink within its root",
         alias_setup.exit_code == 0 && alias_setup.signal == 0 &&
-          len(load_project(confinement_text(alias)).diagnostics) == 0,
+          load_project_diagnostics(confinement_text(alias)).len() == 0,
         "explicit entry symlink was rejected"
       ))
-      fs_remove_file(alias)
-      fs_remove_file(target)
+      filesystem_remove_file(alias)
+      filesystem_remove_file(target)
       escape_entry: Path = confinement_child(project, "escape.panack")
-      fs_write(escape_entry, utf8_encode("import \"../outside.panack\"\nmain(): Void {}\n"))
-      escaped: LoadedProject = load_project(confinement_text(escape_entry))
-      results = append(results, test_expect(
+      filesystem_write_bytes(escape_entry, text_encode_utf8("import \"../outside.panack\"\nmain(): Void {}\n"))
+      escaped = load_project_diagnostics(confinement_text(escape_entry))
+      results = results.append(test_expect(
         "loader rejects relative import outside entry root",
-        len(escaped.diagnostics) > 0 && starts_with(escaped.diagnostics[0].message, "module path escapes the entry directory"),
-        if len(escaped.diagnostics) > 0 { escaped.diagnostics[0].message } else { "outside import unexpectedly loaded" }
+        escaped.len() > 0 && starts_with_at(escaped[0].message, "module path escapes the entry directory", 0),
+        if escaped.len() > 0 { escaped[0].message } else { "outside import unexpectedly loaded" }
       ))
-      fs_remove_file(escape_entry)
-      fs_remove_file(outside)
-      fs_remove_directory(project)
+      filesystem_remove_file(escape_entry)
+      filesystem_remove_file(outside)
+      filesystem_remove_directory(project)
       match test_workspace_remove_empty(workspace) {
-        Error(error) => { results = append(results, test_expect("workspace cleanup", false, "temporary files remain")) },
+        Error(error) => { results = results.append(test_expect("workspace cleanup", false, "temporary files remain")) },
         Ok(removed) => {}
       }
-      if test_report(results) > 0 { process_exit(1) }
+      if test_report(results) > 0 { host_exit(1) }
     }
   }
 }

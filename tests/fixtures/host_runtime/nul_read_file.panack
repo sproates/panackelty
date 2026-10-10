@@ -1,1 +1,3 @@
-main(): Void { print(read_file(("invalid" + utf8_decode(byte_append(bytes(), 0)) + "path"))) }
+import stdlib/filesystem::{filesystem_read_text}
+import stdlib/bytes::{bytes_empty, bytes_push, text_decode_utf8}
+main(): Void { print(filesystem_read_text(("invalid" + text_decode_utf8(bytes_push(bytes_empty(), 0)) + "path"))) }

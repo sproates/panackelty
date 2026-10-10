@@ -1,9 +1,9 @@
-import "helper.panack"
+import "helper.panack" as helper
 
 type Positive = Nat where value > 0
 
 main(): Void {
-  answer: Nat = add(
+  answer: Nat = helper.add(
     20,
     22
   )

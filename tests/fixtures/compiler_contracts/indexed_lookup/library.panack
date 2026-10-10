@@ -1,7 +1,7 @@
-type PositiveCount = Nat where value > 0
-record LookupBox[T] { value: T }
-enum LookupChoice[T] { LookupValue(T), LookupEmpty }
-pure lookup_identity[T](value: T): T { value }
-pure lookup_number(choice: LookupChoice[Nat]): Nat {
+pub type PositiveCount = Nat where value > 0
+pub record LookupBox[T] { value: T }
+pub enum LookupChoice[T] { LookupValue(T), LookupEmpty }
+pub pure lookup_identity[T](value: T): T { value }
+pub pure lookup_number(choice: LookupChoice[Nat]): Nat {
   match choice { LookupValue(value) => value, LookupEmpty() => 0 }
 }

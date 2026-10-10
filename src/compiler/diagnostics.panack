@@ -1,4 +1,7 @@
-import project/src/compiler/types
+import stdlib/numeric::{nat_quotient}
+import stdlib/bytes::{bytes_length, bytes_at, text_encode_utf8}
+pub import project/src/compiler/types::{Diagnostic}
+import project/src/compiler/types::{SourcePos, diagnostic_text}
 
 // Render original source positions without changing the diagnostic contract.
 // Display widths account for tabs and escaped non-ASCII characters.
@@ -19,18 +22,18 @@ pure diagnostic_hex(value: Nat): Str {
   if value < 16 {
     digits[value]
   } else {
-    diagnostic_hex(quotient(value, 16)) + digits[value % 16]
+    diagnostic_hex(nat_quotient(value, 16)) + digits[value % 16]
   }
 }
 
-pure diagnostic_character(character: Str): Str {
-  encoded: Bytes = utf8_encode(character)
-  count: Nat = byte_len(encoded)
+pub pure diagnostic_character(character: Str): Str {
+  encoded: Bytes = text_encode_utf8(character)
+  count: Nat = bytes_length(encoded)
 
   if count == 0 {
     ""
   } else {
-    mut value: Nat = byte_get(encoded, 0)
+    mut value: Nat = bytes_at(encoded, 0)
     if count == 1 && value >= 32 && value < 127 {
       if character == "\\" {
         "\\\\"
@@ -50,7 +53,7 @@ pure diagnostic_character(character: Str): Str {
         value = value % leading_modulus
         mut index: Nat = 1
         while index < count {
-          value = value * 64 + byte_get(encoded, index) % 64
+          value = value * 64 + bytes_at(encoded, index) % 64
           index = index + 1
         }
       }
@@ -123,7 +126,7 @@ pure diagnostic_excerpt(diagnostic: Diagnostic, source: Str): Str {
   }
 }
 
-pure diagnostic_with_source(diagnostic: Diagnostic, sources: Map[Str, Str]): Str {
+pub pure diagnostic_with_source(diagnostic: Diagnostic, sources: Map[Str, Str]): Str {
   header: Str = diagnostic_text(diagnostic)
   file: Str = diagnostic.position.file
 

@@ -1,9 +1,9 @@
-import project/src/compiler/lexer
+pub import project/src/compiler/lexer::{lex, Token, Diagnostic, SourcePos, SourceSpan, TokenKind, TokenKind.Identifier, TokenKind.Number, TokenKind.DecimalNumber, TokenKind.StringLiteral, TokenKind.Punctuation}
 
 // Build located syntax and retain module metadata without enabling staged features.
 // Parsing errors refer to the original token stream, including import boundaries.
 
-enum Expr {
+pub enum Expr {
   // The sidecar retains exact explicit call-type spans for checked diagnostics.
   LocatedExpr(SourceSpan, Expr, [SourceSpan]),
   NatExpr(Nat),
@@ -26,7 +26,7 @@ enum Expr {
   MatchExpr(Expr, [MatchArm])
 }
 
-pure unlocated_expression(expression: Expr): Expr {
+pub pure unlocated_expression(expression: Expr): Expr {
   mut result: Expr = expression
 
   match expression {
@@ -54,18 +54,18 @@ pure unlocated_expression(expression: Expr): Expr {
   result
 }
 
-record MatchPattern {
+pub record MatchPattern {
   variant: Str,
   bindings: [Str],
   span: SourceSpan
 }
 
-record MatchArm {
+pub record MatchArm {
   pattern: MatchPattern,
   body: Expr
 }
 
-enum TopLevel {
+pub enum TopLevel {
   ImportDeclaration(Str),
   TypeDeclaration(Str, Str, Expr),
   RecordDeclaration(Str, [Str], [RecordField]),
@@ -74,28 +74,28 @@ enum TopLevel {
   FunctionDeclaration(Str, [FunctionParameter], Str, Bool, Bool, Block, [Str])
 }
 
-record RecordField {
+pub record RecordField {
   name: Str,
   type_name: Str
 }
 
-record EnumVariant {
+pub record EnumVariant {
   name: Str,
   payload: [Str]
 }
 
-record FunctionParameter {
+pub record FunctionParameter {
   name: Str,
   type_name: Str
 }
 
-record IndexedVariant {
+pub record IndexedVariant {
   enum_name: Str,
   parameters: [Str],
   payload: [Str]
 }
 
-record Program {
+pub record Program {
   declarations: [TopLevel],
   type_indices: Map[Str, Nat],
   record_indices: Map[Str, Nat],
@@ -107,7 +107,7 @@ record Program {
 // Preserve source order for diagnostics/emission; indexes only accelerate lookup.
 // Separate namespaces and last-write wins reproduce the previous lookup scans,
 // including malformed programs inspected directly before resolver rejection.
-pure indexed_program(declarations: [TopLevel]): Program {
+pub pure indexed_program(declarations: [TopLevel]): Program {
   mut types: Map[Str, Nat] = map()
   mut records: Map[Str, Nat] = map()
   mut enums: Map[Str, Nat] = map()
@@ -139,7 +139,7 @@ pure indexed_program(declarations: [TopLevel]): Program {
   Program(declarations, types, records, enums, functions, variants)
 }
 
-enum Statement {
+pub enum Statement {
   // Empty type text means an inferred explicit declaration (mut name = value).
   BindingStatement(Str, Str, Option[SourceSpan], Bool, Expr),
   // Plain = is resolved as declaration or assignment using the lexical scope.
@@ -149,12 +149,12 @@ enum Statement {
   ForStatement(Str, Expr, Block)
 }
 
-enum BlockValue {
+pub enum BlockValue {
   NoBlockValue,
   TailBlockValue(Expr)
 }
 
-record Block {
+pub record Block {
   statements: [Statement],
   value: BlockValue
 }
@@ -179,7 +179,7 @@ record ParsedMatchArmList {
   next: Nat
 }
 
-record ParsedTypeRef {
+pub record ParsedTypeRef {
   text: Str,
   span: SourceSpan,
   next: Nat
@@ -269,7 +269,7 @@ pure expression_type_argument_spans(expression: Expr): [SourceSpan] {
   }
 }
 
-pure expression_span(expression: Expr): Option[SourceSpan] {
+pub pure expression_span(expression: Expr): Option[SourceSpan] {
   match expression {
     LocatedExpr(span, value, located_type_argument_spans) => Some(span),
     NatExpr(value) => None(),
@@ -479,7 +479,7 @@ pure parse_type_ref_list(tokens: [Token], index: Nat): Result[ParsedTypeRefList,
   }
 }
 
-pure parse_reference_path(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnostic] {
+pub pure parse_reference_path(tokens: [Token], index: Nat): Result[ParsedTypeRef, Diagnostic] {
   if index >= len(tokens) || tokens[index].kind != Identifier() {
     Error(parse_error("expected reference name", token_position(tokens, index)))
   } else {
@@ -1100,7 +1100,7 @@ pure parse_primary(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnostic] 
   }
 }
 
-pure lowered_method_name(name: Str): Str {
+pub pure lowered_method_name(name: Str): Str {
   mut result: Str = name
 
   if name == "ends_with" {
@@ -1397,7 +1397,7 @@ pure parse_expression(tokens: [Token], index: Nat): Result[ParsedExpr, Diagnosti
   }
 }
 
-pure parse_complete(tokens: [Token]): Result[Expr, Diagnostic] {
+pub pure parse_complete(tokens: [Token]): Result[Expr, Diagnostic] {
   match parse_expression(tokens, 0) {
     Ok(parsed) => {
       if parsed.next == len(tokens) {
@@ -2007,26 +2007,26 @@ pure parse_function_declaration(tokens: [Token], index: Nat): Result[ParsedTopLe
 
 // Source syntax stays separate from checked declaration identities. This metadata
 // lets the project loader choose identity-aware checking before lowering.
-record ImportSelector {
+pub record ImportSelector {
   name: Str,
   alias: Str,
   span: SourceSpan
 }
 
-enum ImportBindingSyntax {
+pub enum ImportBindingSyntax {
   NoImportBinding,
   NamespaceImportBinding(Str, Bool),
   SelectiveImportBinding([ImportSelector])
 }
 
-record DeclarationSyntax {
+pub record DeclarationSyntax {
   span: SourceSpan,
   type_spans: [SourceSpan],
   is_public: Bool,
   binding: ImportBindingSyntax
 }
 
-record ParsedModule {
+pub record ParsedModule {
   program: Program,
   syntax: [DeclarationSyntax]
 }
@@ -2036,7 +2036,7 @@ record ParsedImportBinding {
   next: Nat
 }
 
-pure default_import_alias(path: Str): Str {
+pub pure default_import_alias(path: Str): Str {
   mut start: Nat = 0
   mut end: Nat = len(path)
   mut cursor: Nat = 0
@@ -2235,13 +2235,13 @@ pure parse_module_items(
   }
 }
 
-pure parse_module_complete(tokens: [Token]): Result[ParsedModule, Diagnostic] {
+pub pure parse_module_complete(tokens: [Token]): Result[ParsedModule, Diagnostic] {
   parse_module_items(tokens, [], [], 0)
 }
 
 // The standalone parser has no module graph, so callers that need namespace
 // identity must use project loading and its checked module pipeline.
-pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
+pub pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   mut aliases: Set[Str] = set()
 
   for syntax in module.syntax {
@@ -2296,7 +2296,7 @@ pure module_execution_diagnostics(module: ParsedModule): [Diagnostic] {
   diagnostics
 }
 
-pure parse_program_complete(tokens: [Token]): Result[Program, Diagnostic] {
+pub pure parse_program_complete(tokens: [Token]): Result[Program, Diagnostic] {
   match parse_module_complete(tokens) {
     Error(error) => Error(error),
     Ok(module) => {
@@ -2657,7 +2657,7 @@ pure render_program(program: Program): Str {
   output
 }
 
-pure parse_source(source: Str): Str {
+pub pure parse_source(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_complete(tokens) {
@@ -2669,7 +2669,7 @@ pure parse_source(source: Str): Str {
   }
 }
 
-pure parse_block_source(source: Str): Str {
+pub pure parse_block_source(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_block_complete(tokens) {
@@ -2681,7 +2681,7 @@ pure parse_block_source(source: Str): Str {
   }
 }
 
-pure parse_program_source(source: Str): Str {
+pub pure parse_program_source(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_program_complete(tokens) {
@@ -2693,7 +2693,7 @@ pure parse_program_source(source: Str): Str {
   }
 }
 
-pure parse_type_source(source: Str): Str {
+pub pure parse_type_source(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_type_complete(tokens) {
@@ -2706,7 +2706,7 @@ pure parse_type_source(source: Str): Str {
 }
 
 // Preserve token positions while hiding implementation function identities.
-pure core_tokens(tokens: [Token]): [Token] {
+pub pure core_tokens(tokens: [Token]): [Token] {
   mut result: [Token] = []
 
   for token in tokens {
@@ -2818,7 +2818,7 @@ pure lower_legacy_block(block: Block): Block {
   Block(statements, tail)
 }
 
-pure lower_legacy_program(program: Program): Program {
+pub pure lower_legacy_program(program: Program): Program {
   mut declarations: [TopLevel] = []
 
   for declaration in program.declarations {
@@ -2846,7 +2846,7 @@ pure lower_legacy_program(program: Program): Program {
   indexed_program(declarations)
 }
 
-pure reference_head(name: Str): Str {
+pub pure reference_head(name: Str): Str {
   mut end: Nat = 0
 
   while end < len(name) && name[end] != "." {
@@ -2855,7 +2855,7 @@ pure reference_head(name: Str): Str {
   slice(name, 0, end)
 }
 
-pure reference_tail(name: Str): Str {
+pub pure reference_tail(name: Str): Str {
   head: Str = reference_head(name)
 
   if len(head) < len(name) {
@@ -2865,7 +2865,7 @@ pure reference_tail(name: Str): Str {
   }
 }
 
-pure expression_reference_path(expression: Expr): Str {
+pub pure expression_reference_path(expression: Expr): Str {
   match expression {
     LocatedExpr(span, value, located_type_argument_spans) => expression_reference_path(value),
     NameExpr(name) => name,
@@ -2894,7 +2894,7 @@ pure expression_reference_path(expression: Expr): Str {
   }
 }
 
-pure type_has_qualification(name: Str): Bool {
+pub pure type_has_qualification(name: Str): Bool {
   mut found: Bool = false
   mut index: Nat = 0
 

@@ -6,6 +6,8 @@ it does not add Node to `make check`, instrument production execution, change
 bytecode, or produce a suite-wide coverage percentage. All temporary artifacts
 are removed by the runner. The JSON output contains exact fixture assertions,
 artifact/map/counter sizes and five timing samples per mode.
+The fixture imports its helper through `project/lib`; assertions pair emitted
+module-qualified identities with the corresponding source-level names.
 
 ## Decision
 

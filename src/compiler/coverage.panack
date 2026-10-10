@@ -1,41 +1,71 @@
-import project/src/compiler/source_inventory
+import stdlib/numeric::{nat_quotient}
+import stdlib/path::{path_string_parent, path_string_resolve}
+import stdlib/environment::{environment_value}
+import stdlib/bytes::{bytes_length, bytes_at, text_encode_utf8}
+pub import project/src/compiler/loader::{LoadedProject, LoadedModule, ModuleBindingGraph}
+import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
+import project/src/compiler/project_frontend::{prepare_project_program}
+pub import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleIdentity}
+import project/src/compiler/module_bindings::{source_module_identity}
+import project/src/compiler/module_emission::{module_emission_symbol}
+pub import project/src/compiler/parser::{TopLevel}
+import project/src/compiler/parser::{TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration}
+pub import project/src/compiler/types::{Diagnostic}
+pub import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory}
+import project/src/compiler/source_maps::{source_map_join, source_map_matches, source_map_read, source_map_escape, source_map_blob, source_snapshots, source_snapshots_unchanged}
+pub import project/src/compiler/emitter::{BytecodeProgram, FunctionCode, Instruction, Instruction.ConstInstruction, Instruction.LoadInstruction, Instruction.StoreInstruction, Instruction.PopInstruction, Instruction.UnaryInstruction, Instruction.BinaryInstruction, Instruction.MakeRangeInstruction, Instruction.MakeArrayInstruction, Instruction.IndexGetInstruction, Instruction.InterpolateInstruction, Instruction.IterInitInstruction, Instruction.IterNextInstruction, Instruction.MakeRecordInstruction, Instruction.FieldGetInstruction, Instruction.MakeVariantInstruction, Instruction.MatchVariantInstruction, Instruction.MatchFailInstruction, Instruction.CallInstruction, Instruction.CallValueInstruction, Instruction.AwaitCallInstruction, Instruction.AwaitValueInstruction, Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.PendingEndJumpInstruction, Instruction.ReturnInstruction, EmissionProbe, SourceMappedProgram, compile_program_with_sources}
+import project/src/bytecode/codec::{serialize_bytecode, encode_u32, sort_functions}
+
+pub pure coverage_mapped_project(
+  project: LoadedProject,
+  entry: Str,
+  project_root: Str,
+  stdlib_root: Str
+): Result[SourceMappedProgram, [Diagnostic]] {
+  identity: ModuleIdentity = source_module_identity(entry, project_root, stdlib_root)
+  match prepare_project_program(project, project_root, stdlib_root, identity) {
+    Error(diagnostics) => Error(diagnostics),
+    Ok(program) => Ok(compile_program_with_sources(program))
+  }
+}
 
 // Decode bounded execution records and join them to exact source inventory IDs.
 // A missing association stays unavailable rather than becoming inferred coverage.
 
-record CoverageCell {
+pub record CoverageCell {
   attempted: Nat,
   completed: Nat,
   fallthrough: Nat,
   branched: Nat
 }
 
-record CoverageFunction {
+pub record CoverageFunction {
   entries: Nat,
   cells: [CoverageCell]
 }
 
-record CoverageData {
+pub record CoverageData {
   valid: Bool,
   terminal: Nat,
   functions: [CoverageFunction]
 }
 
-pure coverage_number(data: Bytes, offset: Nat, width: Nat): Nat {
+pub pure coverage_number(data: Bytes, offset: Nat, width: Nat): Nat {
   mut value: Nat = 0
 
   for index in 0..width {
-    value = value * 256 + byte_get(data, offset + index)
+    value = value * 256 + bytes_at(data, offset + index)
   }
   value
 }
 
-pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
-  mut valid: Bool = offset + byte_len(expected) <= byte_len(data)
+pub pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
+  mut valid: Bool = offset + bytes_length(expected) <= bytes_length(data)
 
   if valid {
-    for index in 0..byte_len(expected) {
-      valid = valid && byte_get(data, offset + index) == byte_get(expected, index)
+    for index in 0..bytes_length(expected) {
+      valid = valid && bytes_at(data, offset + index) == bytes_at(expected, index)
     }
   }
 
@@ -44,7 +74,7 @@ pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
 
 // Layout is derived solely from locally compiled code; no foreign sizes or paths
 // are trusted. Exact artifact + inventory bytes bind observations to SC2 IDs.
-pure decode_coverage(
+pub pure decode_coverage(
   data: Bytes,
   artifact: Bytes,
   inventory: Bytes,
@@ -53,21 +83,21 @@ pure decode_coverage(
   decode_coverage_at(data, artifact, inventory, program, 0)
 }
 
-pure decode_coverage_at(
+pub pure decode_coverage_at(
   data: Bytes,
   artifact: Bytes,
   inventory: Bytes,
   program: BytecodeProgram,
   offset: Nat
 ): CoverageData {
-  prefix: Bytes = source_map_join([utf8_encode("PANACKCOV1\n"), source_map_blob(artifact),
+  prefix: Bytes = source_map_join([text_encode_utf8("PANACKCOV1\n"), source_map_blob(artifact),
     source_map_blob(inventory), encode_u32(len(program.functions))], 0, 4)
-  mut size: Nat = byte_len(prefix) + 6
+  mut size: Nat = bytes_length(prefix) + 6
 
   for function in sort_functions(program.functions) {
     size = size + 12 + len(function.instructions) * 32
   }
-  mut valid: Bool = size <= 16777216 && byte_len(data) == size + offset && coverage_prefix(
+  mut valid: Bool = size <= 16777216 && bytes_length(data) == size + offset && coverage_prefix(
     data,
     prefix,
     offset
@@ -75,7 +105,7 @@ pure decode_coverage_at(
   mut functions: [CoverageFunction] = []
   mut terminal: Nat = 0
   if valid {
-    mut cursor: Nat = offset + byte_len(prefix)
+    mut cursor: Nat = offset + bytes_length(prefix)
     for function in sort_functions(program.functions) {
       entries: Nat = coverage_number(data, cursor, 8)
       valid = valid && coverage_number(data, cursor + 8, 4) == len(function.instructions)
@@ -98,20 +128,20 @@ pure decode_coverage_at(
       }
       functions = append(functions, CoverageFunction(entries, cells))
     }
-    terminal = byte_get(data, cursor + 4)
-    valid = valid && coverage_prefix(data, utf8_encode("END\n"), cursor) &&
-      (terminal == 1 || terminal == 2 || terminal == 3) && byte_get(data, cursor + 5) == 0
+    terminal = bytes_at(data, cursor + 4)
+    valid = valid && coverage_prefix(data, text_encode_utf8("END\n"), cursor) &&
+      (terminal == 1 || terminal == 2 || terminal == 3) && bytes_at(data, cursor + 5) == 0
   }
   CoverageData(valid, terminal, functions)
 }
 
-record CoverageEdge {
+pub record CoverageEdge {
   conditional: Bool,
   target: Nat,
   falls: Bool
 }
 
-pure coverage_edge(instruction: Instruction, pc: Nat): CoverageEdge {
+pub pure coverage_edge(instruction: Instruction, pc: Nat): CoverageEdge {
   match instruction {
     ConstInstruction(a0) => CoverageEdge(false, pc + 1, true),
     LoadInstruction(a0) => CoverageEdge(false, pc + 1, true),
@@ -150,7 +180,7 @@ pure coverage_same_span(left: SourceSpan, right: SourceSpan): Bool {
 // Index completed incoming edges once per function. Both expression entry and
 // completion are queries against a target PC; rescanning a large function for
 // every source item makes compiler-sized reports unnecessarily quadratic.
-record CoverageIncoming {
+pub record CoverageIncoming {
   source: Nat,
   count: Nat
 }
@@ -173,7 +203,7 @@ pure coverage_add_incoming(
   }
 }
 
-pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat, [CoverageIncoming]] {
+pub pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat, [CoverageIncoming]] {
   mut index: Map[Nat, [CoverageIncoming]] = map()
 
   for pc in 0..len(code.instructions) {
@@ -189,7 +219,7 @@ pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat, [Co
   index
 }
 
-pure coverage_attempted_indexed(
+pub pure coverage_attempted_indexed(
   probe: EmissionProbe,
   entries: Nat,
   index: Map[Nat, [CoverageIncoming]]
@@ -209,7 +239,7 @@ pure coverage_attempted_indexed(
   count
 }
 
-pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat, [CoverageIncoming]]): Nat {
+pub pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat, [CoverageIncoming]]): Nat {
   mut count: Nat = 0
 
   if index.has(probe.end) {
@@ -224,7 +254,7 @@ pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat, [CoverageI
 
 // A loop inside a block expression may jump back to its first PC. Count entries
 // from outside the interval, not redispatches of that PC from inside the block.
-pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
+pub pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
   mut count: Nat = if probe.start == 0 {
     data.entries
   } else {
@@ -275,16 +305,6 @@ pure coverage_completed(probe: EmissionProbe, code: FunctionCode, data: Coverage
   count
 }
 
-pure coverage_function_name(declaration: TopLevel): Str {
-  match declaration {
-    FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) => name,
-    ImportDeclaration(path) => "",
-    TypeDeclaration(name, base, guard) => "",
-    RecordDeclaration(name, types, fields) => "",
-    EnumDeclaration(name, types, variants) => ""
-  }
-}
-
 pure coverage_item_kind(item: InventoryItem, items: [InventoryItem]): Str {
   if item.kind == "expression" || item.kind == "statement" {
     "expression"
@@ -314,19 +334,35 @@ pure coverage_text_join(chunks: [Str], start: Nat, end: Nat): Str {
     if end == start + 1 {
       chunks[start]
     } else {
-      middle: Nat = quotient(start + end, 2)
+      middle: Nat = nat_quotient(start + end, 2)
       coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
     }
   }
 }
 
-pure coverage_probe_key(kind: Str, span: SourceSpan): Str {
+pub pure coverage_probe_key(kind: Str, span: SourceSpan): Str {
   start: Nat = span.start.offset
   end: Nat = span.end.offset
   kind + "\t" + source_map_escape(span.start.file) + "\t${start}\t${end}"
 }
 
-pure render_coverage(
+pub pure coverage_source_function_name(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  module: ModuleIdentity,
+  declaration: TopLevel
+): Str {
+  match declaration {
+    FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) =>
+      module_emission_symbol(graph, entry, DeclarationIdentity(module, name)),
+    ImportDeclaration(path) => "",
+    TypeDeclaration(name, base, guard) => "",
+    RecordDeclaration(name, types, fields) => "",
+    EnumDeclaration(name, types, variants) => ""
+  }
+}
+
+pub pure render_coverage(
   project: LoadedProject,
   mapped: SourceMappedProgram,
   data: CoverageData,
@@ -344,6 +380,25 @@ pure render_coverage(
   mut code_indices: Map[Str, Nat] = map()
   for i in 0..len(codes) {
     code_indices = code_indices.put(codes[i].name, i)
+  }
+  graph: ModuleBindingGraph = loaded_binding_graph(
+    project.modules,
+    root,
+    stdlib
+  )
+  mut entry: ModuleIdentity = source_module_identity("", root, stdlib)
+  for module in project.modules {
+    for declaration in module.execution_program.declarations {
+      match declaration {
+        FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) => {
+          if name == "main" { entry = module.bindings.identity; } else {}
+        },
+        ImportDeclaration(path) => {},
+        TypeDeclaration(name, base, guard) => {},
+        RecordDeclaration(name, types, fields) => {},
+        EnumDeclaration(name, types, variants) => {}
+      }
+    }
   }
   mut probe_index: Map[Str, Map[Str, [EmissionProbe]]] = map()
   for mapping in mapped.probes {
@@ -379,7 +434,12 @@ pure render_coverage(
               declaration_index = declaration_index + 1
             }
             if declaration_index < len(module.execution_program.declarations) {
-              function_name = coverage_function_name(module.execution_program.declarations[declaration_index])
+              function_name = coverage_source_function_name(
+                graph,
+                entry,
+                module.bindings.identity,
+                module.execution_program.declarations[declaration_index]
+              )
             }
           }
           mut state: Str = if item.kind == "excluded" {
@@ -433,7 +493,19 @@ pure render_coverage(
               mut matches: Nat = 0
               if probe_index.has(code.name) {
                 probes: Map[Str, [EmissionProbe]] = probe_index.get(code.name)
-                key: Str = coverage_probe_key(kind, item.span)
+                mut probe_kind: Str = kind
+                if item.kind == "outcome" && len(kind) > 4 && slice(kind, 0, 4) == "arm:" {
+                  emitted_variant: Str = module_emission_symbol(
+                    graph,
+                    entry,
+                    DeclarationIdentity(module.bindings.identity, item.detail)
+                  )
+                  emitted_key: Str = coverage_probe_key("arm:" + emitted_variant, item.span)
+                  if probes.has(emitted_key) {
+                    probe_kind = "arm:" + emitted_variant
+                  } else {}
+                } else {}
+                key: Str = coverage_probe_key(probe_kind, item.span)
                 if probes.has(key) {
                   candidates: [EmissionProbe] = probes.get(key)
                   matches = len(candidates)
@@ -521,31 +593,35 @@ pure render_coverage(
   coverage_text_join(rows, 0, len(rows))
 }
 
-run_coverage_report(values: [Str]): Nat {
+pub run_coverage_report(values: [Str]): Nat {
   if len(values) != 6 || values[2] != "--inventory" || values[4] != "--coverage" {
     eprint("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
     1
   } else {
-    entry: Str = path_resolve(values[1])
-    root: Str = path_parent(entry)
-    stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
-    compiler_path: Str = environment_get("PANACKELTY_COMPILER_PATH")
+    entry: Str = path_string_resolve(values[1])
+    root: Str = path_string_parent(entry)
+    stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+    compiler_path: Str = environment_value("PANACKELTY_COMPILER_PATH")
     project: LoadedProject = load_project_for_inventory(entry)
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
         eprint("error: coverage compiler unavailable")
         1
       },
-      Ok(compiler) => {
-        mapped: SourceMappedProgram = compile_program_with_sources(project.program)
+      Ok(compiler) => match coverage_mapped_project(project, entry, root, stdlib) {
+        Error(errors) => {
+          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          1
+        },
+        Ok(mapped) => {
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         inner: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
         inventory: Bytes = source_map_join(
-          [utf8_encode("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+          [text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
           0,
           3
         )
-        if len(project.diagnostics) > 0 || byte_len(inner) == 0 || !source_map_matches(
+        if bytes_length(inner) == 0 || !source_map_matches(
           values[3],
           inventory
         ) ||
@@ -570,6 +646,7 @@ run_coverage_report(values: [Str]): Nat {
             }
           }
         }
+      }
       }
     }
   }

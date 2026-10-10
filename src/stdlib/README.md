@@ -2,10 +2,13 @@
 
 Every source program automatically receives the core types `Option[T]` and
 `Result[T,E]`, their constructors, and standard text/collection methods.
-Other APIs require explicit imports, or `import stdlib/prelude` for the combined
-surface. `stdlib/option` and `stdlib/result` contain value-or helpers only.
-Logical names are independent of checkout and installed layouts. Ordinary
-imports still combine declarations into one program-wide namespace.
+Other APIs use explicit imports. The compatibility facade `stdlib/prelude`
+re-exports the option/result helpers, bytes/text, path, environment, time,
+filesystem and process APIs listed below. Host operations, testing helpers and
+TCP APIs remain separate imports. `stdlib/option` and `stdlib/result` contain
+value-or helpers only. Logical names are independent of checkout and installed
+layouts. Staged namespace imports preserve module identity; legacy adapters
+retain their documented flat-program behavior during migration.
 
 | Module | Public API | Implementation |
 | --- | --- | --- |
@@ -19,7 +22,7 @@ imports still combine declarations into one program-wide namespace.
 | `time.panack` | `Duration`, `Instant`, checked construction, arithmetic, ratios, monotonic clock reads | Opaque VM values, clock ABI, and portable helpers |
 | `path.panack` | `Path`, `PathError`, checked construction and lexical operations; compatibility APIs: `path_parent`, `path_join`, `path_suffix`, `path_with_suffix`, `path_is_absolute`, `path_resolve`, `file_exists` | Lexical VM primitives plus explicit host queries |
 | `environment.panack` | `environment(name): Option[Str]` | Portable checked wrapper over the environment ABI |
-| `prelude.panack` | All of the above | Imports the complete library surface |
+| `prelude.panack` | Option/result helpers, bytes/text, paths, environment, time, filesystem, process | Explicit public compatibility re-exports; host, testing and TCP modules remain separate |
 
 The portable generic helpers are ordinary Panackelty source. The raw storage
 primitives and functional array methods retain their compiler-known signatures
@@ -72,7 +75,8 @@ filenames with a named pure comparator and filtering by suffix.
 
 ## Typed paths and time
 
-Import `stdlib/path` and `stdlib/time`, or use the complete prelude.
+Import `stdlib/path` and `stdlib/time`, or use the corresponding prelude
+re-exports.
 [The language specification](../../SPEC.md#paths-and-monotonic-time) lists every
 function and checked error. Constructors use `Result`; raw values have no public
 fields. `duration_seconds(5)` creates an exact duration,

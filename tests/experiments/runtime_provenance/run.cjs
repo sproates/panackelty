@@ -32,7 +32,9 @@ try {
   check(complete.value === 42 && complete.gap === 'none', 'actual function result');
   const byId = new Map(complete.events.map(e => [e.id,e]));
   const root = byId.get(complete.root), returned = byId.get(root.inputs[0].id), mul = byId.get(returned.inputs[0].id);
-  check(root.fn === 'main' && returned.fn === 'multiply' && returned.op === 20, 'actual return chain');
+  const multiplyIdentity = returned.fn;
+  check(root.fn === 'main' && multiplyIdentity.startsWith('$module') &&
+    multiplyIdentity.endsWith('_multiply') && returned.op === 20, 'actual return chain');
   check(mul.op === 5 && mul.code === 2 && mul.value === 42, 'multiply instruction produced 42');
   check(mul.inputs.map(e => byId.get(e.id).value).join(',') === '6,7', 'actual operand snapshots');
   const call = byId.get(mul.call.id);
@@ -41,7 +43,7 @@ try {
   const mapped = derivation.artifact+'.mapped.bc', map = mapped+'.pmap';
   run('./panack',['compile',derivation.file,'-o',mapped,'--source-map',map]);
   check(fs.readFileSync(mapped).equals(fs.readFileSync(derivation.artifact)), 'mapping preserves bytecode');
-  const location = run('./panack',['locate',mapped,'--source',derivation.file,'--source-map',map,'--function',mul.fn,'--instruction',String(mul.pc)]);
+  const location = run('./panack',['locate',mapped,'--source',derivation.file,'--source-map',map,'--function','multiply','--instruction',String(mul.pc)]);
   check(location.includes('expression: a * b\n'), 'actual arithmetic PC locates source expression');
   for (const mode of ['bulk','step','prefix','ring']) check(observe(derivation,mode).value===42, mode+' result parity');
   check(observe(derivation,'ring',1).events.length===1 && observe(derivation,'prefix',1).rootState==='discarded', 'one-slot boundary');
@@ -56,7 +58,7 @@ try {
   check(complete.events.some(e=>e.control.state==='missing'), 'absent branch context explicit');
   const repeated = compile('repeated', 'pure multiply(a: Nat, b: Nat): Nat { a * b }\nmain(): Nat { mut i: Nat = 0\n mut total: Nat = 0\n while i < 3 { total = total + multiply(6, 7)\n i = i + 1 }\n total }\n');
   const repeats = observe(repeated,'ring',256);
-  const products = repeats.events.filter(e=>e.fn==='multiply' && e.op===5);
+  const products = repeats.events.filter(e=>e.fn===multiplyIdentity && e.op===5);
   check(repeats.value===126 && products.length===3, 'loop result and actual repeated products');
   check(new Set(products.map(e=>e.id)).size===3 && new Set(products.map(e=>e.call.id)).size===3 && new Set(products.map(e=>e.pc)).size===1, 'same PC distinct occurrence and calls');
   check(new Set(products.map(e=>e.control.id)).size===3, 'separate chronological branch context each iteration');
@@ -66,7 +68,7 @@ try {
   const recursiveSource = n => `pure descend(n: Nat): Nat { if n > 0 { descend(n - 1) + 1 } else { 0 } }\nmain(): Nat { descend(${n}) }\n`;
   const recursion = observe(compile('recursion',recursiveSource(4)),'ring',256);
   check(recursion.value===4 && recursion.gap==='none', 'recursive result');
-  check(new Set(recursion.events.filter(e=>e.fn==='descend' && e.op===20).map(e=>e.call.id)).size===5, 'recursive activation identity');
+  check(new Set(recursion.events.filter(e=>e.fn.endsWith('_descend') && e.op===20).map(e=>e.call.id)).size===5, 'recursive activation identity');
   const locals = Array.from({length:130},(_,i)=>`x${i}: Nat = ${i}`).join('\n');
   const localCap = observe(compile('locals',`main(): Nat { ${locals}\n 42 }`));
   check(localCap.value===42 && localCap.gap==='metadata-cap', 'local metadata cap preserves execution');

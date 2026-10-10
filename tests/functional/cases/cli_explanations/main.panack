@@ -1,51 +1,58 @@
-import stdlib/result
-import stdlib/testing_files
-import stdlib/testing_commands
+import stdlib/result::{result_value_or}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_to_text}
+import stdlib/filesystem::{filesystem_write_bytes, filesystem_remove_file}
+import stdlib/testing_commands::{testing_process_run}
+import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
+import stdlib/environment::{environment_value, environment_has_value}
+import stdlib/host::{host_exit, host_stderr_text}
 
-pure explain_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
+pure explain_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
 pure explain_contains(text: Str, part: Str): Bool {
   mut found: Bool = false
-  for offset in 0..len(text) { if starts_with_at(text, part, offset) { found = true; } }
+  for offset in 0..len(text) { if text.starts_with_at(part, offset) { found = true; } }
   found
 }
 explain_write(path: Str, text: Str): Void {
-  match fs_write(explain_path(path), utf8_encode(text)) {
-    Ok(done) => {}, Error(error) => { eprint("fixture write failed"); process_exit(1); }
+  match filesystem_write_bytes(explain_path(path), text_encode_utf8(text)) {
+    Ok(done) => {}, Error(error) => { host_stderr_text("fixture write failed"); host_exit(1); }
   }
 }
 explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden: [Str], diagnostic: Str): TestResult {
   mut command: Str = "./panack"
   mut command_arguments: [Str] = arguments
-  if environment_has("PANACK_TEST_COMPILER") {
-    command = "./panack-vm"
-    command_arguments = ["run", environment_get("PANACK_TEST_COMPILER")]
+  if environment_has_value("PANACK_TEST_COMPILER") {
+    command = "/usr/bin/env"
+    command_arguments = ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack-vm", "run", environment_value("PANACK_TEST_COMPILER")]
     for argument in arguments { command_arguments = command_arguments.append(argument) }
   }
-  match process_run(explain_path(command), command_arguments, bytes(), path_current(), [], duration_seconds(15), 1048576) {
+  match testing_process_run(explain_path(command), command_arguments, bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
     Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => {
-      text: Str = utf8_decode(actual.stdout)
+      text: Str = text_decode_utf8(actual.stdout)
       mut valid: Bool = actual.exit_code == status && actual.signal == 0
       for part in required { if !explain_contains(text, part) { valid = false; } }
       for part in forbidden { if explain_contains(text, part) { valid = false; } }
-      valid = valid && if diagnostic == "" { actual.stderr == bytes() } else { explain_contains(utf8_decode(actual.stderr), diagnostic) }
-      test_expect(name, valid, text + "; " + utf8_decode(actual.stderr))
+      valid = valid && if diagnostic == "" { actual.stderr == bytes_empty() } else { explain_contains(text_decode_utf8(actual.stderr), diagnostic) }
+      test_expect(name, valid, text + "; " + text_decode_utf8(actual.stderr))
     }
   }
 }
 main(): Void {
   match test_workspace_create(explain_path("/tmp")) {
-    Error(error) => { eprint("workspace failed"); process_exit(1); },
+    Error(error) => { host_stderr_text("workspace failed"); host_exit(1); },
     Ok(workspace) => {
-      root: Str = result_value_or(path_to_text(workspace.root), "")
+      root: Str = result_value_or(path_value_to_text(workspace.root), "")
       source: Str = root + "/main.panack"
       library: Str = root + "/library.panack"
       other: Str = root + "/right.panack"
       artifact: Str = root + "/main.bc"
       mut results: [TestResult] = []
-      original: Str = "import \"library.panack\"\nmain(): Void { print(remaining[Str](\"x\", 5)); print(remaining[Nat](7, 4)); }\n"
+      original: Str = "import project/library as library\nmain(): Void { print(library.remaining[Str](\"x\", 5)); print(library.remaining[Nat](7, 4)); }\n"
       explain_write(source, original)
-      explain_write(library, "// λ🙂\npure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
+      explain_write(library, "// λ🙂\npub pure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
       results = append(results, explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
         ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
       results = append(results, explain_run("query does not execute main", ["explain", source, "--function", "main"], 0,
@@ -95,17 +102,17 @@ main(): Void {
           ["explain", source, "--other", "main"], ["explain", source, "--function", "main", "extra"]] {
         results = append(results, explain_run("invalid explain arguments", args, 1, [], ["program:"], "explain usage"))
       }
-      match process_run(explain_path("/usr/bin/env"), ["-u", "PANACKELTY_STDLIB_PATH", "./panack-vm", "run",
-          "bootstrap/compiler-v9.bc", "explain", source, "--function", "main"], bytes(), path_current(), [], duration_seconds(15), 1048576) {
+      match testing_process_run(explain_path("/usr/bin/env"), ["-u", "PANACKELTY_STDLIB_PATH", "./panack-vm", "run",
+          "bootstrap/compiler-v9.bc", "explain", source, "--function", "main"], bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
         Error(error) => { results = append(results, test_expect("missing embedded stdlib configuration", false, "command failed")); },
         Ok(actual) => { results = append(results, test_expect("missing embedded stdlib configuration",
-          actual.exit_code == 1 && actual.signal == 0 && explain_contains(utf8_decode(actual.stderr), "standard library root is not configured") &&
-          !explain_contains(utf8_decode(actual.stderr), "VM trap"), utf8_decode(actual.stderr))); }
+          actual.exit_code == 1 && actual.signal == 0 && explain_contains(text_decode_utf8(actual.stderr), "standard library root is not configured") &&
+          !explain_contains(text_decode_utf8(actual.stderr), "VM trap"), text_decode_utf8(actual.stderr))); }
       }
-      explain_write(library, "// λ🙂\npure inspect[T](item: T): Void { print(item); }\n")
-      explain_write(source, "import \"library.panack\"\nmain(): Void {}\n")
+      explain_write(library, "// λ🙂\npub pure inspect[T](item: T): Void { print(item); }\n")
+      explain_write(source, "import project/library as library\nmain(): Void {}\n")
       results = append(results, explain_run("imported generic effect rejection", ["explain", source, "--function", "inspect"], 1,
-        ["effect boundary: rejected", "source: project/library.panack:2:34-2:45", "expression: print(item)", "context: pure", "callee: print", "callee effect: ordinary", "pure function cannot call impure function print"], ["effect boundary: allowed"], "pure function cannot call impure function print"))
+        ["effect boundary: rejected", "source: project/library.panack:2:38-2:49", "expression: print(item)", "context: pure", "callee: print", "callee effect: ordinary", "pure function cannot call impure function print"], ["effect boundary: allowed"], "pure function cannot call impure function print"))
       explain_write(source, "pure silent(): Nat { 1 } main(): Void { print(silent()); }")
       results = append(results, explain_run("allowed effect boundaries", ["explain", source, "--function", "main"], 0,
         ["effect boundary: allowed", "callee: print", "ordinary function permits", "callee: silent", "pure call is permitted"], ["effect boundary: rejected"], ""))
@@ -131,18 +138,18 @@ main(): Void {
         ["program: rejected", "effect boundary: allowed", "callee: broken", "classification basis: function declaration", "callee effect: pure"], ["effect boundary: rejected"], "function broken returns Bool"))
       results = append(results, explain_run("invalid body explicitly unavailable", ["explain", source, "--function", "broken"], 1,
         ["effects: unavailable", "function body type checking"], ["effect boundary:"], "function broken returns Bool"))
-      explain_write(library, "// λ🙂\npure inspect[T](item: T): Void { print(item); }\n")
-      explain_write(source, "import \"library.panack\"\nmain(): Void { n: Bool = 1; m: Nat = true; }\n")
+      explain_write(library, "// λ🙂\npub pure inspect[T](item: T): Void { print(item); }\n")
+      explain_write(source, "import project/library as library\nmain(): Void { n: Bool = 1; m: Nat = true; }\n")
       results = append(results, explain_run("recover imported generic rejection", ["explain", source, "--function", "inspect"], 1,
-        ["program: rejected", "effect boundary: rejected", "source: project/library.panack:2:34-2:45", "expression: print(item)", "pure function cannot call impure function print"], ["effect boundary: allowed"], "cannot assign"))
+        ["program: rejected", "effect boundary: rejected", "source: project/library.panack:2:38-2:49", "expression: print(item)", "pure function cannot call impure function print"], ["effect boundary: allowed"], "binding n is Nat, expected Bool"))
       // The explanation's stderr must equal ordinary diagnostics byte for byte,
       // including order; recovered purity violations appear only in evidence.
-      match process_run(explain_path("./panack"), ["check", source], bytes(), path_current(), [], duration_seconds(15), 1048576) {
+      match testing_process_run(explain_path("./panack"), ["check", source], bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
         Error(error) => { results = append(results, test_expect("recovery diagnostic parity", false, "check failed")); },
         Ok(ordinary) => {
-          match process_run(explain_path("./panack"), ["explain", source, "--function", "inspect"], bytes(), path_current(), [], duration_seconds(15), 1048576) {
+          match testing_process_run(explain_path("./panack"), ["explain", source, "--function", "inspect"], bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
             Error(error) => { results = append(results, test_expect("recovery diagnostic parity", false, "explain failed")); },
-            Ok(explained) => { results = append(results, test_expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, utf8_decode(explained.stderr))); }
+            Ok(explained) => { results = append(results, test_expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, text_decode_utf8(explained.stderr))); }
           }
         }
       }
@@ -187,11 +194,11 @@ main(): Void {
         ["explain", source, "--function", "project/missing.panack:duplicate"], 1,
         [], [], "mismatched module identity selector"))
       for file in [source, library, artifact] {
-        match fs_remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("cleanup", false, error.code)); } }
+        match filesystem_remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("cleanup", false, error.code)); } }
       }
-      fs_remove_file(explain_path(other))
+      filesystem_remove_file(explain_path(other))
       match test_workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("workspace cleanup", false, error.code)); } }
-      if test_report(results) > 0 { process_exit(1); }
+      if test_report(results) > 0 { host_exit(1); }
     }
   }
 }

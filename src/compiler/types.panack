@@ -1,7 +1,7 @@
 // Source positions use Unicode code-point offsets and one-based line/column values.
 // Shared token and diagnostic records preserve those coordinates across passes.
 
-record SourcePos {
+pub record SourcePos {
   file: Str,
   offset: Nat,
   line: Nat,
@@ -9,12 +9,12 @@ record SourcePos {
 }
 
 // Half-open Unicode code-point range in one original source file.
-record SourceSpan {
+pub record SourceSpan {
   start: SourcePos,
   end: SourcePos
 }
 
-enum TokenKind {
+pub enum TokenKind {
   Identifier,
   Number,
   DecimalNumber,
@@ -22,7 +22,7 @@ enum TokenKind {
   Punctuation
 }
 
-record Token {
+pub record Token {
   kind: TokenKind,
   text: Str,
   start: Nat,
@@ -32,12 +32,12 @@ record Token {
   end_column: Nat
 }
 
-record Diagnostic {
+pub record Diagnostic {
   message: Str,
   position: SourcePos
 }
 
-pure diagnostic_text(diagnostic: Diagnostic): Str {
+pub pure diagnostic_text(diagnostic: Diagnostic): Str {
   position: SourcePos = diagnostic.position
 
   if len(position.file) > 0 {

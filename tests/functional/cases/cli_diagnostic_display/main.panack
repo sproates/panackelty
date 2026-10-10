@@ -1,26 +1,31 @@
-import stdlib/result
-import stdlib/testing
-import stdlib/testing_files
-import stdlib/testing_commands
-
+import stdlib/result::{result_value_or}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing_commands::{ProcessOutput, test_command_output}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
+import stdlib/filesystem::{filesystem_read_bytes, filesystem_write_bytes, filesystem_remove_file}
+import stdlib/testing_commands::{testing_process_run}
+import stdlib/bytes::{bytes_empty, text_encode_utf8}
+import stdlib/host::{host_exit}
 pure path(text: Str): Path {
-  result_value_or(path_from_text(text), path_current())
+  result_value_or(path_value_from_text(text), path_value_current())
 }
 
 pure child(root: Path, name: Str): Path {
-  result_value_or(path_append(root, path(name)), root)
+  result_value_or(path_value_append(root, path(name)), root)
 }
 
 check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResult {
-  match fs_write(source, utf8_encode(content)) {
+  match filesystem_write_bytes(source, text_encode_utf8(content)) {
     Error(error) => test_expect(name, false, "fixture write failed"),
     Ok(written) => {
-      source_text = result_value_or(path_to_text(source), "invalid-source")
-      match process_run(path("./panack"), ["check", source_text], bytes(), path_current(), [],
+      source_text = result_value_or(path_value_to_text(source), "invalid-source")
+      match testing_process_run(path("./panack"), ["check", source_text], bytes_empty(), path_value_current(), [],
           duration_seconds(10), 1048576) {
         Error(error) => test_expect(name, false, "process failed"),
         Ok(output) => test_command_output(name, output,
-          ProcessOutput(1, 0, bytes(), utf8_encode(expected)))
+          ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(expected)))
       }
     }
   }
@@ -28,24 +33,24 @@ check_diagnostic(name: Str, source: Path, content: Str, expected: Str): TestResu
 
 check_namespace_execution(source: Path, artifact: Path, content: Str, operation: Str): TestResult {
   name: Str = "namespace execution/" + operation
-  source_text: Str = result_value_or(path_to_text(source), "invalid-source")
-  artifact_text: Str = result_value_or(path_to_text(artifact), "invalid-artifact")
+  source_text: Str = result_value_or(path_value_to_text(source), "invalid-source")
+  artifact_text: Str = result_value_or(path_value_to_text(artifact), "invalid-artifact")
   arguments: [Str] = if operation == "check" {
     ["check", source_text]
   } else {
     if operation == "compile" { ["compile", source_text, "-o", artifact_text] } else { ["run", source_text] }
   }
   expected: Bytes = if operation == "compile" {
-    utf8_encode("wrote ${artifact_text}\n")
+    text_encode_utf8("wrote ${artifact_text}\n")
   } else {
-    if operation == "run" { utf8_encode("41\n") } else { utf8_encode("ok\n") }
+    if operation == "run" { text_encode_utf8("41\n") } else { text_encode_utf8("ok\n") }
   }
-  match fs_write(source, utf8_encode(content)) {
+  match filesystem_write_bytes(source, text_encode_utf8(content)) {
     Error(error) => test_expect(name, false, "fixture write failed"),
     Ok(written) => {
-      match process_run(path("./panack"), arguments, bytes(), path_current(), [], duration_seconds(10), 1048576) {
+      match testing_process_run(path("./panack"), arguments, bytes_empty(), path_value_current(), [], duration_seconds(10), 1048576) {
         Error(error) => test_expect(name, false, "process failed"),
-        Ok(output) => test_command_output(name, output, ProcessOutput(0, 0, expected, bytes()))
+        Ok(output) => test_command_output(name, output, ProcessOutput(0, 0, expected, bytes_empty()))
       }
     }
   }
@@ -53,10 +58,10 @@ check_namespace_execution(source: Path, artifact: Path, content: Str, operation:
 
 main(): Void {
   match test_workspace_create(path("/tmp")) {
-    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Error(error) => { print("workspace creation failed"); host_exit(1) },
     Ok(workspace) => {
       source = child(workspace.root, "main.panack")
-      source_text = result_value_or(path_to_text(source), "invalid-source")
+      source_text = result_value_or(path_value_to_text(source), "invalid-source")
       mut results: [TestResult] = []
       unicode_expected = "error: ${source_text}:2:13: unexpected character #\n" +
         "  2 |     print(\"\\u{3bb}\") #\n    |                      ^\n"
@@ -67,7 +72,7 @@ main(): Void {
       results = results.append(check_diagnostic("EOF closing brace", source,
         "main(): Void {", eof_expected))
       dependency: Path = child(workspace.root, "api.panack")
-      match fs_write(dependency, utf8_encode("pub pure get(): Nat { 41 }\n")) {
+      match filesystem_write_bytes(dependency, text_encode_utf8("pub pure get(): Nat { 41 }\n")) {
         Error(error) => { results = append(results, test_expect("namespace fixture", false, "write failed")) },
         Ok(written) => {}
       }
@@ -76,17 +81,17 @@ main(): Void {
       for operation in ["check", "compile", "run"] {
         results = append(results, check_namespace_execution(source, artifact, content, operation))
       }
-      artifact_text: Str = result_value_or(path_to_text(artifact), "invalid-artifact")
-      match process_run(path("./panack"), ["run", artifact_text], bytes(), path_current(), [], duration_seconds(10), 1048576) {
+      artifact_text: Str = result_value_or(path_value_to_text(artifact), "invalid-artifact")
+      match testing_process_run(path("./panack"), ["run", artifact_text], bytes_empty(), path_value_current(), [], duration_seconds(10), 1048576) {
         Error(error) => { results = append(results, test_expect("namespace saved bytecode", false, "process failed")) },
-        Ok(output) => { results = append(results, test_command_output("namespace saved bytecode", output, ProcessOutput(0, 0, utf8_encode("41\n"), bytes()))) }
+        Ok(output) => { results = append(results, test_command_output("namespace saved bytecode", output, ProcessOutput(0, 0, text_encode_utf8("41\n"), bytes_empty()))) }
       }
-      match fs_remove_file(artifact) { Ok(removed) => {}, Error(error) => { results = append(results, test_expect("artifact cleanup", false, error.code)) } }
-      match fs_remove_file(dependency) {
+      match filesystem_remove_file(artifact) { Ok(removed) => {}, Error(error) => { results = append(results, test_expect("artifact cleanup", false, error.code)) } }
+      match filesystem_remove_file(dependency) {
         Ok(removed) => {},
         Error(error) => { results = append(results, test_expect("dependency cleanup", false, "file removal failed")) }
       }
-      match fs_remove_file(source) {
+      match filesystem_remove_file(source) {
         Ok(removed) => {},
         Error(error) => { results = results.append(test_expect("source cleanup", false,
           "file removal failed")) }
@@ -97,7 +102,7 @@ main(): Void {
           "directory removal failed")) }
       }
       failures = test_report(results)
-      if failures > 0 { process_exit(1) }
+      if failures > 0 { host_exit(1) }
     }
   }
 }

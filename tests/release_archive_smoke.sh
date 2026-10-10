@@ -52,10 +52,10 @@ grep 'usage: panack ' help.stdout >/dev/null || fail "--help is missing usage"
 test ! -s help.stderr || fail "--help wrote unexpected stderr"
 
 cat >hello.panack <<'EOF'
-import stdlib/prelude
+import stdlib/host::{host_command_arguments}
 
 main(): Void {
-  arguments: [Str] = command_args()
+  arguments: [Str] = host_command_arguments()
   selected: Option[Str] = Some(arguments[0])
   print(len(arguments))
   match selected {

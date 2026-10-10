@@ -1,9 +1,10 @@
-import stdlib/option
-import stdlib/result
-import stdlib/bytes
-import stdlib/path
-import stdlib/environment
-
-import stdlib/time
-import stdlib/filesystem
-import stdlib/process
+// Compatibility facade for the original flat standard-library surface.
+// Keep the re-exports explicit so namespace callers see a stable public API.
+pub import stdlib/option::{option_value_or}
+pub import stdlib/result::{result_value_or}
+pub import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, bytes_at, text_encode_utf8, text_decode_utf8}
+pub import stdlib/path::{PathError, path_value_from_text, path_value_from_native, path_value_append, path_value_to_text, path_value_native_bytes, path_value_display, path_value_is_absolute, path_value_directory, path_value_filename, path_value_current, path_string_join, path_string_suffix, path_string_parent, path_string_is_absolute, path_string_with_suffix, path_string_resolve}
+pub import stdlib/environment::{environment, environment_value, environment_has_value}
+pub import stdlib/time::{DurationError, ClockError, duration_value_ticks, duration_value_nanoseconds, duration_value_from_seconds, instant_value_now, instant_value_add, instant_value_before, instant_value_difference, duration_seconds, duration_milliseconds, duration_add, duration_subtract, duration_scale, duration_before, duration_as_seconds, duration_divide, duration_ratio}
+pub import stdlib/filesystem::{HostError, FileKind, FileMetadata, filesystem_metadata, filesystem_read_bytes, filesystem_write_bytes, filesystem_list_directory, filesystem_remove_file, filesystem_remove_directory, filesystem_create_directory, filesystem_temp_directory, filesystem_temp_file, filesystem_read_text, filesystem_exists, filesystem_read_file_bytes, filesystem_write_file_bytes}
+pub import stdlib/process::{ProcessOutput}

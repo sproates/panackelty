@@ -1,9 +1,29 @@
-import project/src/compiler/purity
+import project/src/compiler/purity::{check_program_frontend}
+pub import project/src/compiler/parser::{Expr, Program}
+pub import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/parser::{
+  Expr.ArrayExpr, Expr.BinaryExpr, Expr.BlockExpr, Expr.BoolExpr,
+  Expr.CallExpr, Expr.DecimalExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.FunctionExpr,
+  Expr.IfExpr, Expr.IndexExpr, Expr.LocatedExpr, Expr.MatchExpr, Expr.NameExpr,
+  Expr.NatExpr, Expr.StringExpr, Expr.UnaryExpr,
+  Statement, Statement.AssignmentStatement, Statement.BindingStatement,
+  Statement.ExpressionStatement, Statement.ForStatement, Statement.WhileStatement,
+  Block, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue,
+  Diagnostic, EnumVariant, FunctionParameter, MatchArm, MatchPattern,
+  RecordField, TopLevel, TopLevel.EnumDeclaration,
+  TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration, TopLevel.RecordDeclaration,
+  TopLevel.TypeDeclaration,
+  expression_span, lex, parse_program_complete
+}
+import project/src/compiler/expression_contracts::{decode_string_literal, split_interpolated_string, InterpolatedString}
+import project/src/compiler/resolver::{render_resolver_diagnostics}
+import project/src/compiler/lexer::{prior_index}
+import project/src/compiler/checker::{RecordLookup, VariantLookup, record_type, variant_type}
 
 // Lower checked syntax to deterministic instructions. Temporary names and jump
 // offsets are local to each function; source attribution is explicitly optional.
 
-enum ConstantValue {
+pub enum ConstantValue {
   NatConstant(Nat),
   IntConstant(Bool, Nat),
   DecimalConstant(Str),
@@ -13,7 +33,7 @@ enum ConstantValue {
   VoidConstant
 }
 
-enum Instruction {
+pub enum Instruction {
   ConstInstruction(ConstantValue),
   LoadInstruction(Str),
   StoreInstruction(Str),
@@ -41,7 +61,7 @@ enum Instruction {
   ReturnInstruction
 }
 
-record FunctionCode {
+pub record FunctionCode {
   name: Str,
   parameters: [Str],
   is_pure: Bool,
@@ -49,11 +69,11 @@ record FunctionCode {
   instructions: [Instruction]
 }
 
-record BytecodeProgram {
+pub record BytecodeProgram {
   functions: [FunctionCode]
 }
 
-record EmittedCode {
+pub record EmittedCode {
   instructions: [Instruction],
   next_temporary: Nat,
   sources: [InstructionSource],
@@ -63,14 +83,14 @@ record EmittedCode {
 // Sparse, function-local instruction indices; an absent entry means unavailable.
 // Lowered entries associate compiler-generated machinery with its source construct,
 // rather than claiming a one-to-one source operation. This is an internal contract.
-record EmissionProbe {
+pub record EmissionProbe {
   kind: Str,
   span: SourceSpan,
   start: Nat,
   end: Nat
 }
 
-record FunctionProbes {
+pub record FunctionProbes {
   name: Str,
   entries: [EmissionProbe]
 }
@@ -93,18 +113,18 @@ pure add_emission_probe(
   }
 }
 
-record InstructionSource {
+pub record InstructionSource {
   index: Nat,
   span: SourceSpan,
   lowered: Bool
 }
 
-record FunctionSources {
+pub record FunctionSources {
   name: Str,
   entries: [InstructionSource]
 }
 
-record SourceMappedProgram {
+pub record SourceMappedProgram {
   bytecode: BytecodeProgram,
   sources: [FunctionSources],
   probes: [FunctionProbes]
@@ -279,7 +299,7 @@ pure render_constant(value: ConstantValue): Str {
   }
 }
 
-pure render_instruction(instruction: Instruction): Str {
+pub pure render_instruction(instruction: Instruction): Str {
   match instruction {
     ConstInstruction(value) => {
       value_text: Str = render_constant(value)
@@ -318,7 +338,7 @@ pure render_instruction(instruction: Instruction): Str {
   }
 }
 
-pure render_bytecode(program: BytecodeProgram): Str {
+pub pure render_bytecode(program: BytecodeProgram): Str {
   mut output: Str = ""
 
   for function in program.functions {
@@ -949,7 +969,7 @@ pure emit_match(
   EmittedCode(resolve_pending_jumps(instructions, end), temporary, sources, probes)
 }
 
-pure emit_expression(
+pub pure emit_expression(
   expression: Expr,
   program: Program,
   next_temporary: Nat,
@@ -1309,10 +1329,10 @@ pure used_core_functions(functions: [FunctionCode]): Set[Str] {
   while changed {
     changed = false
     for function in functions {
-      if !function.name.starts_with("$core_") || used.has(function.name) {
+      if !starts_with_at(function.name, "$core_", 0) || used.has(function.name) {
         for instruction in function.instructions {
           name: Str = core_call_name(instruction)
-          if name.starts_with("$core_") && !used.has(name) {
+          if starts_with_at(name, "$core_", 0) && !used.has(name) {
             used = used.add(name)
             changed = true
           }
@@ -1323,15 +1343,15 @@ pure used_core_functions(functions: [FunctionCode]): Set[Str] {
   used
 }
 
-pure compile_program(program: Program): BytecodeProgram {
+pub pure compile_program(program: Program): BytecodeProgram {
   compile_program_emission(program, false).bytecode
 }
 
-pure compile_program_with_sources(program: Program): SourceMappedProgram {
+pub pure compile_program_with_sources(program: Program): SourceMappedProgram {
   compile_program_emission(program, true)
 }
 
-pure compile_program_emission(program: Program, retain_sources: Bool): SourceMappedProgram {
+pub pure compile_program_emission(program: Program, retain_sources: Bool): SourceMappedProgram {
   mut sources: [FunctionSources] = []
   mut probes: [FunctionProbes] = []
   mut functions: [FunctionCode] = []
@@ -1359,26 +1379,26 @@ pure compile_program_emission(program: Program, retain_sources: Bool): SourceMap
   used: Set[Str] = used_core_functions(functions)
   mut selected: [FunctionCode] = []
   for function in functions {
-    if !function.name.starts_with("$core_") || used.has(function.name) {
+    if !starts_with_at(function.name, "$core_", 0) || used.has(function.name) {
       selected = selected.append(function)
     }
   }
   mut selected_sources: [FunctionSources] = []
   for source in sources {
-    if !source.name.starts_with("$core_") || used.has(source.name) {
+    if !starts_with_at(source.name, "$core_", 0) || used.has(source.name) {
       selected_sources = append(selected_sources, source)
     }
   }
   mut selected_probes: [FunctionProbes] = []
   for probe in probes {
-    if !probe.name.starts_with("$core_") || used.has(probe.name) {
+    if !starts_with_at(probe.name, "$core_", 0) || used.has(probe.name) {
       selected_probes = append(selected_probes, probe)
     }
   }
   SourceMappedProgram(BytecodeProgram(selected), selected_sources, selected_probes)
 }
 
-pure compile_source_disassembly(source: Str): Str {
+pub pure compile_source_disassembly(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_program_complete(tokens) {

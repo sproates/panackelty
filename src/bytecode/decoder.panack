@@ -1,4 +1,24 @@
-import project/src/bytecode/codec
+import stdlib/numeric::{nat_quotient}
+import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, bytes_at, text_encode_utf8, text_decode_utf8}
+import project/src/bytecode/codec::{encode_u8, serialize_bytecode}
+import project/src/compiler/emitter::{
+  BytecodeProgram, FunctionCode, Instruction,
+  Instruction.ConstInstruction, Instruction.LoadInstruction, Instruction.StoreInstruction,
+  Instruction.PopInstruction, Instruction.UnaryInstruction, Instruction.BinaryInstruction,
+  Instruction.MakeRangeInstruction, Instruction.MakeArrayInstruction, Instruction.IndexGetInstruction,
+  Instruction.InterpolateInstruction, Instruction.IterInitInstruction, Instruction.IterNextInstruction,
+  Instruction.MakeRecordInstruction, Instruction.FieldGetInstruction, Instruction.MakeVariantInstruction,
+  Instruction.MatchVariantInstruction, Instruction.MatchFailInstruction, Instruction.PendingEndJumpInstruction,
+  Instruction.CallInstruction,
+  Instruction.CallValueInstruction, Instruction.AwaitCallInstruction, Instruction.AwaitValueInstruction,
+  Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.ReturnInstruction,
+  ConstantValue, ConstantValue.NatConstant, ConstantValue.IntConstant,
+  ConstantValue.DecimalPartsConstant, ConstantValue.StringConstant,
+  ConstantValue.BoolConstant, ConstantValue.VoidConstant, render_bytecode
+}
+import project/src/compiler/resolver::{is_builtin}
+import project/src/compiler/purity::{is_impure_builtin}
+import project/src/compiler/checker::{builtin_arity}
 
 record ByteReader {
   data: Bytes,
@@ -67,12 +87,12 @@ pure invalid_reader(reader: ByteReader, message: Str): ByteReader {
 }
 
 pure reader_has(reader: ByteReader, count: Nat): Bool {
-  reader.valid && reader.offset + count <= byte_len(reader.data)
+  reader.valid && reader.offset + count <= bytes_length(reader.data)
 }
 
 pure read_u8(reader: ByteReader): ReadNat {
   if reader_has(reader, 1) {
-    value: Nat = byte_get(reader.data, reader.offset)
+    value: Nat = bytes_at(reader.data, reader.offset)
     ReadNat(ByteReader(reader.data, reader.offset + 1, true, ""), value)
   } else {
     ReadNat(invalid_reader(reader, "truncated data"), 0)
@@ -81,7 +101,7 @@ pure read_u8(reader: ByteReader): ReadNat {
 
 pure read_u16(reader: ByteReader): ReadNat {
   if reader_has(reader, 2) {
-    value: Nat = byte_get(reader.data, reader.offset) * 256 + byte_get(reader.data, reader.offset + 1)
+    value: Nat = bytes_at(reader.data, reader.offset) * 256 + bytes_at(reader.data, reader.offset + 1)
     ReadNat(ByteReader(reader.data, reader.offset + 2, true, ""), value)
   } else {
     ReadNat(invalid_reader(reader, "truncated data"), 0)
@@ -90,10 +110,10 @@ pure read_u16(reader: ByteReader): ReadNat {
 
 pure read_u32(reader: ByteReader): ReadNat {
   if reader_has(reader, 4) {
-    value: Nat = byte_get(reader.data, reader.offset) * 16777216 +
-      byte_get(reader.data, reader.offset + 1) * 65536 +
-      byte_get(reader.data, reader.offset + 2) * 256 +
-      byte_get(reader.data, reader.offset + 3)
+    value: Nat = bytes_at(reader.data, reader.offset) * 16777216 +
+      bytes_at(reader.data, reader.offset + 1) * 65536 +
+      bytes_at(reader.data, reader.offset + 2) * 256 +
+      bytes_at(reader.data, reader.offset + 3)
     ReadNat(ByteReader(reader.data, reader.offset + 4, true, ""), value)
   } else {
     ReadNat(invalid_reader(reader, "truncated data"), 0)
@@ -102,15 +122,15 @@ pure read_u32(reader: ByteReader): ReadNat {
 
 pure read_raw(reader: ByteReader, count: Nat): ReadBytes {
   if reader_has(reader, count) {
-    mut output: Bytes = bytes()
+    mut output: Bytes = bytes_empty()
     mut cursor: Nat = 0
     while cursor < count {
-      output = byte_append(output, byte_get(reader.data, reader.offset + cursor))
+      output = bytes_push(output, bytes_at(reader.data, reader.offset + cursor))
       cursor = cursor + 1
     }
     ReadBytes(ByteReader(reader.data, reader.offset + count, true, ""), output)
   } else {
-    ReadBytes(invalid_reader(reader, "truncated data"), bytes())
+    ReadBytes(invalid_reader(reader, "truncated data"), bytes_empty())
   }
 }
 
@@ -118,23 +138,23 @@ pure utf8_continuation(value: Nat): Bool {
   value >= 128 && value <= 191
 }
 
-pure valid_utf8(data: Bytes): Bool {
+pub pure valid_utf8(data: Bytes): Bool {
   mut valid: Bool = true
   mut cursor: Nat = 0
-  while cursor < byte_len(data) && valid {
-    first: Nat = byte_get(data, cursor)
+  while cursor < bytes_length(data) && valid {
+    first: Nat = bytes_at(data, cursor)
     if first <= 127 {
       cursor = cursor + 1
     } else {
       if first >= 194 && first <= 223 {
-        if cursor + 1 < byte_len(data) && utf8_continuation(byte_get(data, cursor + 1)) {
+        if cursor + 1 < bytes_length(data) && utf8_continuation(bytes_at(data, cursor + 1)) {
           cursor = cursor + 2
         } else { valid = false; }
       } else {
         if first >= 224 && first <= 239 {
-          if cursor + 2 < byte_len(data) {
-            second: Nat = byte_get(data, cursor + 1)
-            third: Nat = byte_get(data, cursor + 2)
+          if cursor + 2 < bytes_length(data) {
+            second: Nat = bytes_at(data, cursor + 1)
+            third: Nat = bytes_at(data, cursor + 2)
             second_valid: Bool = utf8_continuation(second) &&
               (first != 224 || second >= 160) && (first != 237 || second <= 159)
             if second_valid && utf8_continuation(third) { cursor = cursor + 3; }
@@ -142,10 +162,10 @@ pure valid_utf8(data: Bytes): Bool {
           } else { valid = false; }
         } else {
           if first >= 240 && first <= 244 {
-            if cursor + 3 < byte_len(data) {
-              second: Nat = byte_get(data, cursor + 1)
-              third: Nat = byte_get(data, cursor + 2)
-              fourth: Nat = byte_get(data, cursor + 3)
+            if cursor + 3 < bytes_length(data) {
+              second: Nat = bytes_at(data, cursor + 1)
+              third: Nat = bytes_at(data, cursor + 2)
+              fourth: Nat = bytes_at(data, cursor + 3)
               second_valid: Bool = utf8_continuation(second) &&
                 (first != 240 || second >= 144) && (first != 244 || second <= 143)
               if second_valid && utf8_continuation(third) && utf8_continuation(fourth) {
@@ -166,7 +186,7 @@ pure decode_utf8(reader: ByteReader, count: Nat, limit: Nat, label: Str): ReadTe
   } else {
     raw: ReadBytes = read_raw(reader, count)
     if raw.reader.valid && valid_utf8(raw.value) {
-      ReadText(raw.reader, utf8_decode(raw.value))
+      ReadText(raw.reader, text_decode_utf8(raw.value))
     } else {
       if raw.reader.valid {
         ReadText(invalid_reader(raw.reader, "invalid UTF-8 in ${label}"), "")
@@ -193,7 +213,7 @@ pure nat_digit_count(value: Nat): Nat {
     mut count: Nat = 0
     mut remaining: Nat = value
     while remaining > 0 {
-      remaining = quotient(remaining, 10)
+      remaining = nat_quotient(remaining, 10)
       count = count + 1
     }
     count
@@ -210,7 +230,7 @@ pure read_natural(reader: ByteReader): ReadNat {
       raw: ReadBytes = read_raw(size.reader, size.value)
       if !raw.reader.valid { ReadNat(raw.reader, 0) }
       else {
-        if size.value > 0 && byte_get(raw.value, 0) == 0 {
+        if size.value > 0 && bytes_at(raw.value, 0) == 0 {
           ReadNat(invalid_reader(raw.reader, "non-minimal integer"), 0)
         } else {
           mut value: Nat = 0
@@ -254,12 +274,12 @@ pure read_decimal(reader: ByteReader): ReadConstant {
   if sign.value > 1 { current = invalid_reader(current, "invalid decimal sign"); } else {}
   if exponent.value.magnitude > 4096 { current = invalid_reader(current, "decimal exponent exceeds limit"); } else {}
   if count.value == 0 || count.value > 4096 { current = invalid_reader(current, "decimal coefficient exceeds digit limit"); } else {}
-  raw: ReadBytes = read_raw(current, quotient(count.value + 1, 2))
+  raw: ReadBytes = read_raw(current, nat_quotient(count.value + 1, 2))
   mut digits: [Nat] = []
   mut cursor: Nat = 0
-  while cursor < byte_len(raw.value) && raw.reader.valid {
-    byte: Nat = byte_get(raw.value, cursor)
-    high: Nat = quotient(byte, 16)
+  while cursor < bytes_length(raw.value) && raw.reader.valid {
+    byte: Nat = bytes_at(raw.value, cursor)
+    high: Nat = nat_quotient(byte, 16)
     low: Nat = byte % 16
     if high > 9 { current = invalid_reader(raw.reader, "invalid decimal digit"); }
     else { digits = append(digits, high); }
@@ -598,13 +618,13 @@ pure verify_bytecode_program(program: BytecodeProgram): Str {
 }
 
 pure has_bytecode_magic(data: Bytes): Bool {
-  expected: Bytes = bytes_concat(utf8_encode("PANACKBC"), encode_u8(0))
-  if byte_len(data) < byte_len(expected) { false }
+  expected: Bytes = bytes_join(text_encode_utf8("PANACKBC"), encode_u8(0))
+  if bytes_length(data) < bytes_length(expected) { false }
   else {
     mut matches: Bool = true
     mut cursor: Nat = 0
-    while cursor < byte_len(expected) && matches {
-      if byte_get(data, cursor) != byte_get(expected, cursor) { matches = false; } else {}
+    while cursor < bytes_length(expected) && matches {
+      if bytes_at(data, cursor) != bytes_at(expected, cursor) { matches = false; } else {}
       cursor = cursor + 1
     }
     matches
@@ -612,7 +632,7 @@ pure has_bytecode_magic(data: Bytes): Bool {
 }
 
 pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
-  if byte_len(data) > 16777216 { BytecodeDecodeError("bytecode artifact exceeds size limit") }
+  if bytes_length(data) > 16777216 { BytecodeDecodeError("bytecode artifact exceeds size limit") }
   else { if !has_bytecode_magic(data) { BytecodeDecodeError("not a Panackelty bytecode file") }
   else {
     initial: ByteReader = ByteReader(data, 9, true, "")
@@ -645,7 +665,7 @@ pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
         previous_name = function.name
         cursor = cursor + 1
       }
-      if current.valid && current.offset != byte_len(data) { current = invalid_reader(current, "trailing data"); } else {}
+      if current.valid && current.offset != bytes_length(data) { current = invalid_reader(current, "trailing data"); } else {}
       if !current.valid { BytecodeDecodeError(current.message) }
       else {
         program: BytecodeProgram = BytecodeProgram(functions)
@@ -656,24 +676,24 @@ pure decode_bytecode(data: Bytes): BytecodeDecodeResult {
   } }
 }
 
-pure validate_bytecode(data: Bytes): Str {
+pub pure validate_bytecode(data: Bytes): Str {
   match decode_bytecode(data) {
     BytecodeDecoded(program) => "ok",
     BytecodeDecodeError(message) => message
   }
 }
 
-pure disassemble_bytecode(data: Bytes): Str {
+pub pure disassemble_bytecode(data: Bytes): Str {
   match decode_bytecode(data) {
     BytecodeDecoded(program) => render_bytecode(program),
     BytecodeDecodeError(message) => message
   }
 }
 
-pure round_trip_bytecode(data: Bytes): Bytes {
+pub pure round_trip_bytecode(data: Bytes): Bytes {
   match decode_bytecode(data) {
     BytecodeDecoded(program) => serialize_bytecode(program),
-    BytecodeDecodeError(message) => bytes()
+    BytecodeDecodeError(message) => bytes_empty()
   }
 }
 

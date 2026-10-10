@@ -1,11 +1,16 @@
-import stdlib/result
-import stdlib/environment
-import stdlib/testing_commands
-import stdlib/testing_files
-
-pure contract_path(text: Str): Path { result_value_or(path_from_text(text), path_current()) }
-pure contract_child(root: Path, text: Str): Path { result_value_or(path_append(root, contract_path(text)), root) }
-pure contract_text(path: Path): Str { result_value_or(path_to_text(path), "invalid-path") }
+import stdlib/result::{result_value_or}
+import stdlib/environment::{environment}
+import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
+import stdlib/filesystem::{filesystem_read_bytes, filesystem_metadata, filesystem_remove_file, filesystem_exists}
+import stdlib/host::{host_process_run, host_stderr_text, host_exit}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
+import stdlib/time::{duration_seconds}
+pure contract_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
+pure contract_child(root: Path, text: Str): Path { result_value_or(path_value_append(root, contract_path(text)), root) }
+pure contract_text(path: Path): Str { result_value_or(path_value_to_text(path), "invalid-path") }
 pure integration_contains(actual: Str, expected: Str): Bool {
   mut found = false
   for offset in 0..len(actual) {
@@ -14,31 +19,31 @@ pure integration_contains(actual: Str, expected: Str): Bool {
   found
 }
 pure integration_command(args: [Str]): TestCommand {
-  TestCommand(contract_path("./panack"), args, bytes(), path_current(), [], duration_seconds(90), 1048576)
+  TestCommand(contract_path("./panack"), args, bytes_empty(), path_value_current(), [], duration_seconds(90), 1048576)
 }
 integration_output(name: Str, args: [Str], expected: Str): TestResult {
   command = integration_command(args)
-  match process_run(command.executable, command.arguments, command.stdin, command.working_directory,
+  match host_process_run(command.executable, command.arguments, command.stdin, command.working_directory,
       command.environment, command.timeout, command.output_limit) {
     Error(error) => test_expect(name, false, "process command failed"),
     Ok(actual) => test_expect(name, actual.exit_code == 0 && actual.signal == 0 &&
-      actual.stdout == utf8_encode(expected) && actual.stderr == bytes(),
-      "arguments: " + args[0] + " / " + args[1] + "; stdout: " + utf8_decode(actual.stdout) +
-      "; stderr: " + utf8_decode(actual.stderr))
+      actual.stdout == text_encode_utf8(expected) && actual.stderr == bytes_empty(),
+      "arguments: " + args[0] + " / " + args[1] + "; stdout: " + text_decode_utf8(actual.stdout) +
+      "; stderr: " + text_decode_utf8(actual.stderr))
   }
 }
 integration_probe(name: Str, args: [Str], expected: Str): TestResult {
   command = TestCommand(contract_path("/bin/sh"),
-    ["tests/run_probe.sh"].concat(args), bytes(), path_current(), ["PANACKELTY_BOOTSTRAP_ROOT=."],
+    ["tests/run_probe.sh"].concat(args), bytes_empty(), path_value_current(), ["PANACKELTY_BOOTSTRAP_ROOT=."],
     duration_seconds(90), 1048576)
-  test_run_command(name, command, ProcessOutput(0, 0, utf8_encode(expected), bytes()))
+  test_run_command(name, command, ProcessOutput(0, 0, text_encode_utf8(expected), bytes_empty()))
 }
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {
-  match process_run(contract_path("./panack"), args, bytes(), path_current(), [], duration_seconds(90), 1048576) {
+  match host_process_run(contract_path("./panack"), args, bytes_empty(), path_value_current(), [], duration_seconds(90), 1048576) {
     Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => test_expect(name, actual.exit_code == status && actual.signal == 0 &&
-      actual.stdout == utf8_encode(output) && integration_contains(utf8_decode(actual.stderr), expected),
-      "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${utf8_decode(actual.stdout)}, stderr: ${utf8_decode(actual.stderr)}")
+      actual.stdout == text_encode_utf8(output) && integration_contains(text_decode_utf8(actual.stderr), expected),
+      "unexpected status/output or missing diagnostic ${expected}; exit ${actual.exit_code}, signal ${actual.signal}, stdout: ${text_decode_utf8(actual.stdout)}, stderr: ${text_decode_utf8(actual.stderr)}")
   }
 }
 integration_candidate_error(name: Str, args: [Str], expected: Str): TestResult {
@@ -46,18 +51,18 @@ integration_candidate_error(name: Str, args: [Str], expected: Str): TestResult {
     Some(value) => value,
     None() => "bootstrap/compiler-v9.bc"
   }
-  match process_run(contract_path("./panack-vm"), ["run", compiler].concat(args), bytes(),
-      path_current(), [], duration_seconds(90), 1048576) {
+  match host_process_run(contract_path("./panack-vm"), ["run", compiler].concat(args), bytes_empty(),
+      path_value_current(), [], duration_seconds(90), 1048576) {
     Error(error) => test_expect(name, false, "compiler process failed"),
     Ok(actual) => test_expect(name, actual.exit_code == 1 && actual.signal == 0 &&
-      actual.stdout == bytes() && integration_contains(utf8_decode(actual.stderr), expected),
+      actual.stdout == bytes_empty() && integration_contains(text_decode_utf8(actual.stderr), expected),
       "candidate compiler did not report ${expected}")
   }
 }
 integration_bytes(name: Str, left: Path, right: Path): TestResult {
-  match fs_read(left, 1048576) {
+  match filesystem_read_bytes(left, 1048576) {
     Error(error) => test_expect(name, false, "left artifact missing"),
-    Ok(a) => match fs_read(right, 1048576) {
+    Ok(a) => match filesystem_read_bytes(right, 1048576) {
       Error(error) => test_expect(name, false, "right artifact missing"),
       Ok(b) => test_expect(name, a == b, "artifact bytes differ")
     }
@@ -65,7 +70,7 @@ integration_bytes(name: Str, left: Path, right: Path): TestResult {
 }
 main(): Void {
   match test_workspace_create(contract_path("/tmp")) {
-    Error(error) => { eprint("compiler integration workspace failed"); process_exit(1) },
+    Error(error) => { host_stderr_text("compiler integration workspace failed"); host_exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
       driver_path = contract_child(workspace.root, "driver.bc")
@@ -125,14 +130,14 @@ main(): Void {
           [operation, "tests/fixtures/compiler_contracts/namespaces/signature_private.panack"], 1, "",
           "namespaces/signature_private.panack:2:29: signature Visible.value: public signature exposes inaccessible type Hidden from signature_private"))
         results = results.append(test_expect("signature failure writes no bytecode/" + operation,
-          !file_exists("tests/fixtures/compiler_contracts/namespaces/signature_private.bc"), "invalid signature emitted bytecode"))
+          !filesystem_exists("tests/fixtures/compiler_contracts/namespaces/signature_private.bc"), "invalid signature emitted bytecode"))
       }
       for operation in ["check", "run", "compile"] {
         results = results.append(integration_error("body nominal identity/" + operation,
           [operation, "tests/fixtures/compiler_contracts/namespaces/body_identity.panack"], 1, "",
           "namespaces/body_identity.panack:6:10: argument 1 to accept is body_identity.panack:Right, expected body_identity.panack:Left"))
         results = results.append(test_expect("body identity failure writes no bytecode/" + operation,
-          !file_exists("tests/fixtures/compiler_contracts/namespaces/body_identity.bc"), "invalid body emitted bytecode"))
+          !filesystem_exists("tests/fixtures/compiler_contracts/namespaces/body_identity.bc"), "invalid body emitted bytecode"))
       }
       for operation in ["check", "run", "compile"] {
         for diagnostic in ["expression_types.panack:2:9: while condition is Nat, expected Bool", "expression_types.panack:3:10: unknown interpolation local missing"] {
@@ -140,7 +145,7 @@ main(): Void {
             [operation, "tests/fixtures/compiler_contracts/namespaces/expression_types.panack"], 1, "", diagnostic))
         }
         results = results.append(test_expect("expression rejection writes no artifact/" + operation,
-          !file_exists("tests/fixtures/compiler_contracts/namespaces/expression_types.bc"), "invalid expression wrote bytecode"))
+          !filesystem_exists("tests/fixtures/compiler_contracts/namespaces/expression_types.bc"), "invalid expression wrote bytecode"))
       }
       for operation in ["check", "run", "compile"] {
         for diagnostic in ["aggregate_types.panack:3:29: argument 1 to Box is Str, expected Nat", "aggregate_types.panack:5:3: non-exhaustive match; missing Empty", "aggregate_types.panack:7:31: cannot infer type parameter T for identity; supply explicit type arguments"] {
@@ -155,7 +160,7 @@ main(): Void {
           [operation, "tests/fixtures/compiler_contracts/namespaces/aggregate_constraints.panack"], 1, "", "aggregate_constraints.panack:1:1: incompatible inference constraints"))
         for fixture in ["aggregate_types", "aggregate_constraints"] {
           results = results.append(test_expect("aggregate rejection writes no artifact/" + fixture + "/" + operation,
-            !file_exists("tests/fixtures/compiler_contracts/namespaces/" + fixture + ".bc"), "invalid aggregate wrote bytecode"))
+            !filesystem_exists("tests/fixtures/compiler_contracts/namespaces/" + fixture + ".bc"), "invalid aggregate wrote bytecode"))
         }
       }
       results = results.append(integration_output("three same-name modules keep identity",
@@ -175,13 +180,13 @@ main(): Void {
         results = results.append(integration_bytes("driver artifact ${source}", artifact_path, reference_path))
         results = results.append(integration_output("driver check artifact ${source}", ["run", driver, "check", artifact], "ok\n"))
         results = results.append(integration_output("driver run artifact ${source}", ["run", driver, artifact], "42\n"))
-        match process_run(contract_path("./panack"), ["run", driver, "disasm", source], bytes(),
-            path_current(), [], duration_seconds(90), 1048576) {
+        match host_process_run(contract_path("./panack"), ["run", driver, "disasm", source], bytes_empty(),
+            path_value_current(), [], duration_seconds(90), 1048576) {
           Error(error) => { results = results.append(test_expect("driver disassembly", false, "command failed")) },
           Ok(output) => {
-            text = utf8_decode(output.stdout)
+            text = text_decode_utf8(output.stdout)
             results = results.append(test_expect("driver disassembly shape ${source}",
-              output.exit_code == 0 && output.signal == 0 && output.stderr == bytes() &&
+              output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty() &&
               integration_contains(text, "FUNCTION|main|impure|") && integration_contains(text, "CALL|print|1"), "invalid disassembly"))
             if source == basic { results = results.append(integration_output("driver artifact disassembly ${source}", ["run", driver, "disasm", artifact], text)) }
           }
@@ -190,7 +195,7 @@ main(): Void {
       for operation in ["check", "run", "disasm"] {
         results = results.append(integration_error("Void argument/" + operation,
           ["run", driver, operation, "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack"],
-          0, "status 1\n", "Void is not a value"))
+          1, "", "Void is not a value"))
         results = results.append(integration_error("public Void argument/" + operation,
           [operation, "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack"],
           1, "", "Void is not a value"))
@@ -198,26 +203,26 @@ main(): Void {
       rejected_path = contract_child(workspace.root, "rejected.bc")
       results = results.append(integration_error("Void argument/compile",
         ["run", driver, "compile", "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack", "-o", contract_text(rejected_path)],
-        0, "status 1\n", "Void is not a value"))
+        1, "", "Void is not a value"))
       results = results.append(integration_error("public Void argument/compile",
         ["compile", "tests/fixtures/compiler_contracts/syntax/void_is_only_valid_as_a_return_type-3.panack", "-o", contract_text(rejected_path)],
         1, "", "Void is not a value"))
-      match fs_metadata(rejected_path) {
+      match filesystem_metadata(rejected_path) {
         Error(error) => { results = results.append(test_equal_str("Void argument/no artifact", error.code, "not_found")) },
         Ok(metadata) => {
           results = results.append(test_expect("Void argument/no artifact", false, "invalid program produced an artifact"))
-          fs_remove_file(rejected_path);
+          filesystem_remove_file(rejected_path);
         }
       }
       results = results.append(integration_error("driver missing module", ["run", driver, "check",
-        "tests/fixtures/compiler_contracts/driver/missing-main.panack"], 0, "status 1\n", "missing source module"))
+        "tests/fixtures/compiler_contracts/driver/missing-main.panack"], 1, "", "missing source module"))
       results = results.append(integration_error("driver import cycle", ["run", driver, "check",
-        "tests/fixtures/compiler_contracts/driver/first.panack"], 0, "status 1\n", "import cycle includes"))
+        "tests/fixtures/compiler_contracts/driver/first.panack"], 1, "", "import cycle includes"))
       results = results.append(integration_probe("loader source snapshot",
         ["tests/fixtures/compiler_contracts/snapshot_probe.panack", snapshot],
         "PASS snapshot file changed\nPASS loader retains original diagnostic source\ntests: 2, failures: 0\n"))
       for file in [driver_path, artifact_path, reference_path, snapshot_path] {
-        match fs_remove_file(file) {
+        match filesystem_remove_file(file) {
           Ok(done) => {},
           Error(error) => { results = results.append(test_expect("compiler file cleanup", false, "file removal failed")) }
         }
@@ -226,7 +231,7 @@ main(): Void {
         Ok(done) => {},
         Error(error) => { results = results.append(test_expect("compiler workspace cleanup", false, "workspace removal failed")) }
       }
-      if test_report(results) > 0 { process_exit(1) }
+      if test_report(results) > 0 { host_exit(1) }
     }
   }
 }

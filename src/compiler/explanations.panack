@@ -1,4 +1,12 @@
-import project/src/compiler/source_maps
+pub import project/src/compiler/loader::{LoadedProject}
+pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
+import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
+import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/module_bodies::{BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
+pub import project/src/compiler/checker::{SubtractionEvidence}
+import project/src/compiler/checker::{SubtractionDecision}
+pub import project/src/compiler/purity::{EffectEvidence}
 
 // Render retained proof and effect decisions using the original source snapshots.
 // Explanation output cannot manufacture evidence from a diagnostic string.
@@ -121,7 +129,17 @@ pure explanation_span_matches(span: Option[SourceSpan], source_path: Str): Bool 
   }
 }
 
-explanation_function_selector(
+pure explanation_has_project_error(project: LoadedProject): Bool {
+  mut found: Bool = false
+  for diagnostic in project.diagnostics {
+    if diagnostic.message != "namespace syntax is parsed but execution is not yet supported (language namespace migration pending)" {
+      found = true
+    }
+  }
+  found
+}
+
+pub explanation_function_selector(
   project: LoadedProject,
   selector: Str,
   entry_path: Str,
@@ -136,8 +154,8 @@ explanation_function_selector(
     stdlib_root
   )
   match selected {
-    Error(message) => if starts_with(message, "unknown function selector ") &&
-      len(project.diagnostics) > 0 {
+    Error(message) => if starts_with_at(message, "unknown function selector ", 0) &&
+      explanation_has_project_error(project) {
       identity: DeclarationIdentity = DeclarationIdentity(
         source_module_identity(entry_path, root, stdlib_root),
         selector
@@ -155,21 +173,13 @@ pure explanation_function_valid(
   selector: SourceMapFunctionSelector
 ): Bool {
   mut found: Option[Bool] = None()
-  if source_map_project_staged(project) {
-    for body in project.module_bodies {
-      if body.signature.binding.identity == selector.identity {
-        match body.status {
-          BodyIdentityChecked() => { found = Some(true) },
-          BodyDeferred() => { found = Some(false) },
-          BodyInvalid() => { found = Some(false) }
-        }
+  for body in project.module_bodies {
+    if body.signature.binding.identity == selector.identity {
+      match body.status {
+        BodyIdentityChecked() => { found = Some(true) },
+        BodyDeferred() => { found = Some(false) },
+        BodyInvalid() => { found = Some(false) }
       }
-    }
-  } else {
-    if project.function_types.has(selector.identity.name) {
-      found = Some(project.function_types.get(selector.identity.name))
-    } else {
-      found = Some(true)
     }
   }
   match found {
@@ -180,7 +190,7 @@ pure explanation_function_valid(
 
 pure render_subtraction_explanations(
   project: LoadedProject,
-  function_name: Str,
+  selector: SourceMapFunctionSelector,
   display_name: Str,
   source_path: Str,
   accepted: Bool,
@@ -197,7 +207,8 @@ pure render_subtraction_explanations(
   mut count: Nat = 0
 
   for entry in project.evidence {
-    if entry.function_name == function_name && explanation_span_matches(entry.span, source_path) {
+    if (entry.function_name == selector.identity.name || entry.function_name == selector.emitted_name) &&
+      explanation_span_matches(entry.span, source_path) {
       output = output + "\n\n" + render_subtraction_evidence(
         entry,
         project.sources,
@@ -220,10 +231,10 @@ pure effect_display_target(name: Str): Str {
   if name == "$unit" {
     "()"
   } else {
-    if starts_with(name, "$method_") {
+    if starts_with_at(name, "$method_", 0) {
       slice(name, 8, len(name))
     } else {
-      if starts_with(name, "$core_") {
+      if starts_with_at(name, "$core_", 0) {
         slice(name, 6, len(name))
       } else {
         name
@@ -281,17 +292,16 @@ pure render_effect_evidence(
   output
 }
 
-pure render_function_explanations(
+pub pure render_function_explanations(
   project: LoadedProject,
   selector: SourceMapFunctionSelector,
   accepted: Bool,
   root: Str,
   stdlib_root: Str
 ): Str {
-  name: Str = selector.identity.name
   mut output: Str = render_subtraction_explanations(
     project,
-    name,
+    selector,
     selector.display_name,
     selector.source_path,
     accepted,
@@ -308,7 +318,8 @@ pure render_function_explanations(
     } else {
       mut count: Nat = 0
       for entry in project.effects {
-        if entry.function_name == name && explanation_span_matches(entry.span, selector.source_path) {
+        if (entry.function_name == selector.identity.name || entry.function_name == selector.emitted_name) &&
+          explanation_span_matches(entry.span, selector.source_path) {
           output = output + "\n\n" + render_effect_evidence(
             entry,
             project.sources,

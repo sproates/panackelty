@@ -1,2 +1,2 @@
-import "lib/pick.panack"
+import project/lib/pick::{imported_pick}
 main(): Void { value: Nat = imported_pick([7], 2); }

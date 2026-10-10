@@ -1,10 +1,50 @@
-import project/src/compiler/module_bodies
+import project/src/compiler/module_bodies::{
+  BodyTarget, BodyTarget.BodyCore, BodyTarget.BodyDeclaration,
+  BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary,
+  BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty,
+  BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf,
+  BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral,
+  BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile,
+  BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid,
+  SignatureType, SourceSpan,
+  SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore,
+  SignatureTypeIdentity.SignatureHole, SignatureTypeIdentity.SignatureNominal,
+  SignatureTypeIdentity.SignatureParameter,
+  SignatureEffect.SignatureAsync, SignatureEffect.SignatureOrdinary, SignatureEffect.SignaturePure
+}
+pub import project/src/compiler/module_bodies::{
+  BoundBody, BoundFunctionBody,
+  DeclarationIdentity, Diagnostic, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr,
+  Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr,
+  Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr,
+  Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr,
+  LoadedModule, ModuleBindingGraph, ModuleIdentity, ModuleSignature
+}
+import project/src/compiler/parser::{
+  Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement,
+  Statement.ForStatement, Statement.WhileStatement,
+  Block, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, EnumVariant,
+  FunctionParameter, MatchArm, MatchPattern, RecordField,
+  TopLevel, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration,
+  TopLevel.ImportDeclaration, TopLevel.RecordDeclaration, TopLevel.TypeDeclaration,
+  indexed_program
+}
+pub import project/src/compiler/parser::{Program}
+import project/src/compiler/module_resolution::{
+  ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget,
+  ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall,
+  resolve_module_dot_call, resolve_module_path
+}
+import project/src/compiler/module_bindings::{ModulePackageIdentity.ToolchainModulePackage}
+import project/src/compiler/checker::{render_type}
+import project/src/compiler/lexer::{prior_index}
+import project/src/compiler/types::{SourcePos}
 
 // Convert only fully checked namespace bodies to the legacy instruction
 // frontend. Module and declaration identities become deterministic private
 // bytecode names; source names remain available to later diagnostic tooling.
 
-record ModuleEmissionResult {
+pub record ModuleEmissionResult {
   program: Program,
   diagnostics: [Diagnostic]
 }
@@ -25,15 +65,10 @@ pure module_emission_module_index(
 }
 
 pure module_emission_nat_text(value: Nat): Str {
-  digits: Str = "0123456789"
-  if value < 10 {
-    digits[value]
-  } else {
-    module_emission_nat_text(quotient(value, 10)) + digits[value % 10]
-  }
+  "${value}"
 }
 
-pure module_emission_symbol(
+pub pure module_emission_symbol(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   identity: DeclarationIdentity
@@ -495,7 +530,7 @@ pure module_emission_block(
   Block(statements, block_value)
 }
 
-pure module_emission_expression(
+pub pure module_emission_expression(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
   body: BoundBody
@@ -628,6 +663,7 @@ pure module_emission_function(
   }
 }
 
+
 pure module_emission_declaration_span(module: LoadedModule, name: Str): SourceSpan {
   mut span: SourceSpan = SourceSpan(
     SourcePos(module.source_path, 0, 1, 1),
@@ -650,7 +686,7 @@ pure module_emission_declaration_span(module: LoadedModule, name: Str): SourceSp
   span
 }
 
-pure module_emission_program(
+pub pure module_emission_program(
   graph: ModuleBindingGraph,
   modules: [LoadedModule],
   signatures: [ModuleSignature],
@@ -751,9 +787,16 @@ pure module_emission_program(
         }
         match converted {
           None() => match declaration {
-            FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {
+          FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {
+              mut detail: Str = ""
+              for checked_body in bodies {
+                if checked_body.signature.binding.identity == DeclarationIdentity(module.bindings.identity, name) && len(checked_body.deferred) > 0 {
+                  first: SourceSpan = checked_body.deferred[0]
+                  detail = " (" + module_emission_nat_text(len(checked_body.deferred)) + " deferred type check(s); first at " + first.start.file + ":" + module_emission_nat_text(first.start.line) + ":" + module_emission_nat_text(first.start.column) + ")"
+                } else {}
+              }
               diagnostics = append(diagnostics, Diagnostic(
-                "function is not completely checked for identity emission: " + name,
+                "function is not completely checked for identity emission: " + name + detail,
                 module_emission_declaration_span(module, name).start
               ))
             },

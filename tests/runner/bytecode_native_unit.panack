@@ -1,9 +1,12 @@
-import stdlib/result
-import stdlib/testing
-import stdlib/testing_files
-import stdlib/testing_commands
-import stdlib/time
-
+import stdlib/result::{result_value_or}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/process::{ProcessOutput}
+import stdlib/time::{duration_seconds}
+import stdlib/bytes::{bytes_empty, bytes_push}
+import stdlib/filesystem::{filesystem_read_text, filesystem_write_bytes, filesystem_remove_file}
+import stdlib/host::{host_process_run, host_exit}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_to_text, path_value_append}
 pure bytecode_native_nibble(character: Str): Nat {
   digits = "0123456789abcdef"
   mut result: Nat = 0
@@ -11,7 +14,7 @@ pure bytecode_native_nibble(character: Str): Nat {
   result
 }
 pure bytecode_native_hex(value: Str): Bytes {
-  mut output = bytes()
+  mut output = bytes_empty()
   mut high: Nat = 0
   mut half = false
   for index in 0..len(value) {
@@ -19,29 +22,29 @@ pure bytecode_native_hex(value: Str): Bytes {
     if !is_whitespace(character) {
       digit = bytecode_native_nibble(character)
       if !half { high = digit; half = true }
-      else { output = byte_append(output, high * 16 + digit); half = false }
+      else { output = bytes_push(output, high * 16 + digit); half = false }
     }
   }
   output
 }
-pure bytecode_native_path(value: Str): Path { result_value_or(path_from_text(value), path_current()) }
-pure bytecode_native_text(value: Path): Str { result_value_or(path_to_text(value), "invalid-path") }
+pure bytecode_native_path(value: Str): Path { result_value_or(path_value_from_text(value), path_value_current()) }
+pure bytecode_native_text(value: Path): Str { result_value_or(path_value_to_text(value), "invalid-path") }
 bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestResult {
-  data = bytecode_native_hex(read_file(file))
-  match fs_write(target, data) {
+  data = bytecode_native_hex(filesystem_read_text(file))
+  match filesystem_write_bytes(target, data) {
     Error(problem) => test_expect(name, false, "fixture write failed: ${problem.code}"),
     Ok(done) => {
-      outcome = process_run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
-        bytes(), path_current(), [], duration_seconds(30), 1048576)
+      outcome = host_process_run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
+        bytes_empty(), path_value_current(), [], duration_seconds(30), 1048576)
       mut valid = false
       match outcome {
         Error(problem) => {},
         Ok(command) => {
-          valid = command.exit_code == 1 && command.signal == 0 && command.stdout == bytes() &&
+          valid = command.exit_code == 1 && command.signal == 0 && command.stdout == bytes_empty() &&
             utf8_decode(command.stderr) == "error: ${expected}\n"
         }
       }
-      match fs_remove_file(target) {
+      match filesystem_remove_file(target) {
         Error(problem) => test_expect(name, false, "fixture cleanup failed: ${problem.code}"),
         Ok(removed) => test_expect(name, valid, "native verifier result differed from ${expected}")
       }
@@ -49,21 +52,21 @@ bytecode_native_case(name: Str, file: Str, expected: Str, target: Path): TestRes
   }
 }
 bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestResult {
-  data = bytecode_native_hex(read_file(file))
-  match fs_write(target, data) {
+  data = bytecode_native_hex(filesystem_read_text(file))
+  match filesystem_write_bytes(target, data) {
     Error(problem) => test_expect(name, false, "fixture write failed"),
     Ok(done) => {
-      outcome = process_run(bytecode_native_path("./panack"), ["disasm", bytecode_native_text(target)],
-        bytes(), path_current(), [], duration_seconds(30), 1048576)
+      outcome = host_process_run(bytecode_native_path("./panack"), ["disasm", bytecode_native_text(target)],
+        bytes_empty(), path_value_current(), [], duration_seconds(30), 1048576)
       mut valid = false
       match outcome {
         Error(problem) => {},
         Ok(command) => {
-          valid = command.exit_code == 0 && command.signal == 0 && command.stderr == bytes() &&
+          valid = command.exit_code == 0 && command.signal == 0 && command.stderr == bytes_empty() &&
             utf8_decode(command.stdout) == expected
         }
       }
-      match fs_remove_file(target) {
+      match filesystem_remove_file(target) {
         Error(problem) => test_expect(name, false, "fixture cleanup failed"),
         Ok(removed) => test_expect(name, valid, "native disassembly differs from reviewed listing")
       }
@@ -71,22 +74,22 @@ bytecode_native_disasm(name: Str, file: Str, expected: Str, target: Path): TestR
   }
 }
 bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
-  data = bytecode_native_hex(read_file(fixture))
-  match fs_write(target, data) {
+  data = bytecode_native_hex(filesystem_read_text(fixture))
+  match filesystem_write_bytes(target, data) {
     Error(problem) => test_expect("legacy tcp name", false, "fixture write failed"),
     Ok(done) => {
       mut valid = true
       for operation in ["check", "run", "disasm"] {
-        match process_run(bytecode_native_path("./panack"), [operation, bytecode_native_text(target)],
-          bytes(), path_current(), [], duration_seconds(30), 1048576) {
+        match host_process_run(bytecode_native_path("./panack"), [operation, bytecode_native_text(target)],
+          bytes_empty(), path_value_current(), [], duration_seconds(30), 1048576) {
           Error(problem) => { valid = false },
           Ok(command) => {
-            valid = valid && command.exit_code == 0 && command.signal == 0 && command.stderr == bytes()
+            valid = valid && command.exit_code == 0 && command.signal == 0 && command.stderr == bytes_empty()
             if operation == "run" { valid = valid && utf8_decode(command.stdout) == "7\n" }
           }
         }
       }
-      match fs_remove_file(target) {
+      match filesystem_remove_file(target) {
         Error(problem) => test_expect("legacy tcp name", false, "fixture cleanup failed"),
         Ok(removed) => test_expect("legacy tcp name", valid, "old user function changed meaning")
       }
@@ -95,10 +98,10 @@ bytecode_native_legacy_tcp(target: Path, fixture: Str): TestResult {
 }
 main(): Void {
   match test_workspace_create(bytecode_native_path("/tmp")) {
-    Error(problem) => { eprint("native bytecode workspace creation failed"); process_exit(1) },
+    Error(problem) => { eprint("native bytecode workspace creation failed"); host_exit(1) },
     Ok(workspace) => {
       mut results: [TestResult] = []
-      target = result_value_or(path_append(workspace.root, bytecode_native_path("input.bc")), workspace.root)
+      target = result_value_or(path_value_append(workspace.root, bytecode_native_path("input.bc")), workspace.root)
       results = results.append(bytecode_native_case("TCP server arity", "tests/fixtures/tcp/server-arity.hex", "call arity mismatch", target))
       results = results.append(bytecode_native_case("TCP server ordinary call", "tests/fixtures/tcp/server-ordinary.hex", "invalid async call effect", target))
       results = results.append(bytecode_native_case("TCP server pure await", "tests/fixtures/tcp/server-pure-await.hex", "pure function calls impure function", target))
@@ -173,25 +176,25 @@ main(): Void {
       results = results.append(bytecode_native_case("limit-integer-digits", "tests/fixtures/bytecode/contract_cases/limit-integer-digits.hex", "integer exceeds digit limit", target))
       results = results.append(bytecode_native_case("limit-name-bytes", "tests/fixtures/bytecode/contract_cases/limit-name-bytes.hex", "name exceeds limit", target))
       results = results.append(bytecode_native_case("limit-text-bytes", "tests/fixtures/bytecode/contract_cases/limit-text-bytes.hex", "text exceeds limit", target))
-      results = results.append(bytecode_native_disasm("all_scalar_constants_round_trip_canonically", "tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.hex", read_file("tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.disasm"), target))
-      results = results.append(bytecode_native_disasm("every_instruction_operand_round_trips", "tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.hex", read_file("tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.disasm"), target))
-      results = results.append(bytecode_native_disasm("load_and_reserialize_is_byte_identical", "tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.hex", read_file("tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.disasm"), target))
-      results = results.append(bytecode_native_disasm("serialization_uses_canonical_function_order", "tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.hex", read_file("tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.disasm"), target))
+      results = results.append(bytecode_native_disasm("all_scalar_constants_round_trip_canonically", "tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.hex", filesystem_read_text("tests/fixtures/bytecode/valid_contracts/all_scalar_constants_round_trip_canonically.disasm"), target))
+      results = results.append(bytecode_native_disasm("every_instruction_operand_round_trips", "tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.hex", filesystem_read_text("tests/fixtures/bytecode/valid_contracts/every_instruction_operand_round_trips.disasm"), target))
+      results = results.append(bytecode_native_disasm("load_and_reserialize_is_byte_identical", "tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.hex", filesystem_read_text("tests/fixtures/bytecode/valid_contracts/load_and_reserialize_is_byte_identical.disasm"), target))
+      results = results.append(bytecode_native_disasm("serialization_uses_canonical_function_order", "tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.hex", filesystem_read_text("tests/fixtures/bytecode/valid_contracts/serialization_uses_canonical_function_order.disasm"), target))
       results = results.append(bytecode_native_disasm("signed zero decimal",
         "tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.hex",
-        read_file("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.disasm"), target))
-      minimal = bytecode_native_hex(read_file("tests/fixtures/bytecode/minimal-v9.hex"))
-      match fs_write(target, minimal) {
+        filesystem_read_text("tests/fixtures/bytecode/valid_contracts/scalar_negative_zero.disasm"), target))
+      minimal = bytecode_native_hex(filesystem_read_text("tests/fixtures/bytecode/minimal-v9.hex"))
+      match filesystem_write_bytes(target, minimal) {
         Error(problem) => { results = results.append(test_expect("native minimal fixture", false, "write failed")) },
         Ok(done) => {
-          match process_run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
-              bytes(), path_current(), [], duration_seconds(30), 1048576) {
+          match host_process_run(bytecode_native_path("./panack"), ["check", bytecode_native_text(target)],
+              bytes_empty(), path_value_current(), [], duration_seconds(30), 1048576) {
             Error(problem) => { results = results.append(test_expect("native minimal fixture", false, "command failed")) },
             Ok(command) => { results = results.append(test_expect("native minimal fixture",
               command.exit_code == 0 && command.signal == 0 && command.stdout == utf8_encode("ok\n") &&
-              command.stderr == bytes(), "valid minimal vector was rejected")) }
+              command.stderr == bytes_empty(), "valid minimal vector was rejected")) }
           }
-          match fs_remove_file(target) {
+          match filesystem_remove_file(target) {
             Error(problem) => { results = results.append(test_expect("native minimal cleanup", false, "remove failed")) },
             Ok(removed) => {}
           }
@@ -201,7 +204,7 @@ main(): Void {
         Error(problem) => { results = results.append(test_expect("native bytecode workspace cleanup", false, "directory not empty")) },
         Ok(removed) => {}
       }
-      if test_report(results) > 0 { process_exit(1) }
+      if test_report(results) > 0 { host_exit(1) }
     }
   }
 }

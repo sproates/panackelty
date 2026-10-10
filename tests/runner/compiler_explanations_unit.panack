@@ -1,6 +1,10 @@
-import project/src/compiler/explanations
-import stdlib/testing
-
+import project/src/compiler/parser::{Program, indexed_program, parse_program_complete, Expr, Expr.BinaryExpr, Expr.NatExpr, Expr.CallExpr}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/checker::{CheckedProgram, CheckedExpression, check_program_evidence, check_program_types, check_expression_evidence}
+import project/src/compiler/purity::{CheckedEffects, EffectEvidence, check_program_effect_evidence, check_frontend_effects, check_selected_effect_evidence, check_effect_expression, check_program_purity, check_program_frontend}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_equal_nat, test_report}
+import stdlib/filesystem::{filesystem_read_text}
+import stdlib/host::{host_exit}
 pure explanation_program(source: Str): Program {
   match lex_file(source, "sample.panack") {
     Error(errors) => indexed_program([]),
@@ -92,7 +96,7 @@ main(): Void {
   }
   // Existing adversarial mutation corpus must preserve every diagnostic exactly.
   for fixture in ["fact_mutation_direct", "fact_mutation_arguments", "fact_mutation_operand", "fact_mutation_nested", "fact_mutation_while_condition", "fact_mutation_for_carried", "fact_mutation_while_carried"] {
-    source: Str = read_file("tests/functional/failures/" + fixture + "/main.panack")
+    source: Str = filesystem_read_text("tests/functional/failures/" + fixture + "/main.panack")
     program: Program = explanation_program(source)
     results = append(results, test_expect(fixture + " parity", check_program_evidence(program, true).diagnostics == check_program_types(program), "retention changed rejection"))
   }
@@ -198,5 +202,5 @@ main(): Void {
   }
   bare: CheckedEffects = check_effect_expression(CallExpr("print", [NatExpr(1)], []), indexed_program([]), map(), false, true, None())
   results = append(results, test_expect("unlocated effect is not guessed", len(bare.evidence) == 1 && bare.evidence[0].span == None(), "guessed location"))
-  if test_report(results) > 0 { process_exit(1); }
+  if test_report(results) > 0 { host_exit(1); }
 }

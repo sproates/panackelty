@@ -1,5 +1,56 @@
-import stdlib/host
-import stdlib/path
+pub import stdlib/host::{HostError}
 
-enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
-record FileMetadata { kind: FileKind, size: Nat }
+pub enum FileKind { RegularFile, Directory, SymbolicLink, OtherFile }
+pub record FileMetadata { kind: FileKind, size: Nat }
+
+pub filesystem_metadata(path: Path): Result[FileMetadata, HostError] {
+  fs_metadata(path)
+}
+
+pub filesystem_read_bytes(path: Path, limit: Nat): Result[Bytes, HostError] {
+  fs_read(path, limit)
+}
+
+pub filesystem_write_bytes(path: Path, data: Bytes): Result[Unit, HostError] {
+  fs_write(path, data)
+}
+
+pub filesystem_list_directory(path: Path): Result[[Path], HostError] {
+  fs_list(path)
+}
+
+pub filesystem_remove_file(path: Path): Result[Unit, HostError] {
+  fs_remove_file(path)
+}
+
+pub filesystem_remove_directory(path: Path): Result[Unit, HostError] {
+  fs_remove_directory(path)
+}
+
+pub filesystem_create_directory(path: Path): Result[Unit, HostError] {
+  fs_create_directory(path)
+}
+
+pub filesystem_temp_directory(parent: Path): Result[Path, HostError] {
+  fs_temp_directory(parent)
+}
+
+pub filesystem_temp_file(parent: Path): Result[Path, HostError] {
+  fs_temp_file(parent)
+}
+
+pub filesystem_read_text(path: Str): Str {
+  read_file(path)
+}
+
+pub filesystem_exists(path: Str): Bool {
+  file_exists(path)
+}
+
+pub filesystem_read_file_bytes(path: Str): Bytes {
+  read_bytes(path)
+}
+
+pub filesystem_write_file_bytes(path: Str, data: Bytes): Void {
+  write_bytes(path, data)
+}

@@ -1,37 +1,56 @@
 # Self-hosting roadmap
 
-## P2 Slice 8 handoff — 2026-10-08
+## P2 Slice 8 handoff — 2026-10-10
 
-Resume from the `next` checkpoint merge `6a13fafc0412c43a494a8d3c0b9ad22c6a36c2ba`.
-The bootstrap prerequisite on `fix/namespace-text-intrinsic-contracts` adds
-identity contracts for text-core lexer calls and refreshes the checked-in seed;
-merge that prerequisite before starting the next migration branch. The earlier
-exploratory source-only migration failed and was discarded. The checkpoint's
-project-level namespace, saved-v9, seed, native, browser and installed-package
-evidence remains recorded in the
-[validation profile](tests/VALIDATION_PROFILE.md#slice-8-namespace-project-checkpoint--2026-10-08).
+The coordinated compiler/tooling API migration, standard-library export
+migration, and namespace-capable seed refresh are implemented in the current
+candidate. The latest canonical `make check` passed all suites in 565s,
+including the maintained 59-root identity audit, 355 functional fixture
+assertions, runner smoke checks, release smoke, and quick start. The compiler
+integration suite passed 207 assertions; focused
+namespace body checks pass 624 assertions, and source-map, explanation, and
+coverage checks pass. Fresh compiler stages 2/3/4 agree at
+`54e0268ed3a2f939e22439925fb545857fc7ba0c6f67c2a7dd9cb948cd86a752`; the standard
+library artifact digest is
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Native
+staging is Python-free. Browser runtime tests passed 21/21 against the current
+core checkout. Playwright passed 24/24 across Chromium, Firefox and WebKit with
+the refreshed compiler/stdlib bundle and byte-identical prior WASM; the VM and
+browser host C inputs are unchanged. The exhaustive identity-only project check
+passed all 59 functional, compiler-contract, and top-level example roots. The
+detailed run record and timing disposition are in the
+[validation profile](tests/VALIDATION_PROFILE.md#slice-8-follow-up-closure-audit-and-current-browser-checks--2026-10-10).
 
-The cutover is not complete, and the prerequisite earns no Slice 8 completion
-credit. An audit found the self-hosted compiler still uses
-the legacy flat combined-loader path even though its import spellings are
-namespace paths. A first namespace-only compile exposed missing selective enum
-variant imports and public re-export routes. Continue by migrating the compiler
-and standard-library API boundaries explicitly, then migrate remaining runners,
-tests and examples; remove the flat execution path only after those compile under
-the namespace model. Rebuild the seed, prove fresh compiler/stdlib fixed points,
-and rerun native, browser-WASI and relocated installed acceptance. Keep GI#198
-open until those gates pass. Browser packaging and conformance remain separate
-integration evidence.
+The checked namespace project path goes through module identity, checked
+signatures/bodies/effects, and identity-aware emission. Compiler and tooling
+imports now select their dependencies; standard-library modules expose the
+documented APIs; test and example callers use those surfaces. Source and saved-v9
+execution, seed fixed points, and native, browser-WASI, and relocated installed
+acceptance pass. No public namespace release claim is made.
 
-PR #357's first Linux compiler-package run failed because the isolated native
-tool `PATH` omitted `ls`, which the bootstrap harness uses; this made the
-incremental-failure corpus and direct-driver probe time out. The allowlist now
-includes `ls`, and both `make check-no-interpreter CI_SUITE=compiler` and
-canonical `make check` pass locally. The hosted rerun remains required before
-merging that prerequisite.
+The loader retains checked module signatures, bodies, and effects for ordinary
+files as well as namespace projects. Project compilation always uses identity
+emission; the flat compatibility route has been removed. `LoadedProject.identity_ready`
+records complete identity checking, and incomplete closures fail closed. The
+previously deferred ordinary `map().put(...)` and `set().add(...)` case now
+passes through receiver-context inference, and `core_ends_with` passes identity
+checking with checked `nat()`/`dec()` conversion contracts. Coverage reports
+resolve emitted module and variant identities back to the source-facing
+inventory. The exhaustive audit passed all 59 functional, compiler-contract,
+and top-level example roots. Compiler, functional, canonical, browser, and
+installed-package acceptance pass. No test was waived and no identity check was
+bypassed.
+
+Keep GI#198 open. The compatibility audit, flat-route removal, seed fixed point,
+and native, browser, and installed acceptance now pass on this candidate. Keep
+Slice 8's 15% scope weight uncredited until the candidate is reviewed and
+integrated. Performance: the canonical check took 565s against the unchanged
+120s target and bootstrap took 133s against 60s; retain tests and budgets, with
+GI#106's owner to run a paired phase profile before deciding on remediation.
+Website impact: none; published feature claims remain gated.
 
 The sections below retain earlier milestone notes as historical evidence; use
-the handoff above and the linked validation profile for current Slice 8 status.
+this handoff and its linked validation profile for current Slice 8 status.
 
 The P2 aggregate/pattern/inference slice refreshes the v9 seed to
 `223d479b7d81348f086ccae9a4a6b2d0740c49d3c4a772ec4948645ff7a5b31d`
@@ -450,6 +469,25 @@ substitutes artifacts from the other. A single-worker setting runs them serially
 ## Core-library migration
 
 The compiler now uses the canonical implicit Option/Result definitions. To cross from the previous v9 seed, a temporary source copy explicitly imported the new core from compiler/types.panack. The old seed compiled that bridge; the bridge compiled the final sources with implicit loading. No staging imports or public compatibility aliases remain in the repository. The final v9 seed and digest are refreshed through the existing three-stage compiler and stdlib fixed-point proof. Bytecode stays v9.
+
+## Slice 8 compiler and standard-library APIs
+
+Compiler, bytecode, loader, tooling, test-runner and CLI consumers now use
+selected namespace imports and public exports. The initial standard-library
+export groups cover `stdlib/bytes`, `stdlib/option`, `stdlib/result`,
+`stdlib/environment`, `stdlib/testing`, `stdlib/testing_commands`,
+`stdlib/testing_files`, `stdlib/time`, `stdlib/host`, `stdlib/filesystem`,
+`stdlib/process`, `stdlib/tcp` and `stdlib/path`. The compatibility prelude and
+its consumers are migrated, and the refreshed seed accepts the coordinated
+source graph through compiler/stdlib fixed-point checks. Namespace fixtures
+exercise the documented APIs through source and saved-v9 execution.
+
+The remaining compatibility issue is ordinary generic bodies that are supported
+by the flat project route but not yet fully identity-checked by staged emission.
+An unconditional route-removal probe failed 11 focused driver/source-map checks;
+the guarded route was restored. Do not remove it until the staged checker and
+source-map/driver behavior cover these bodies, then rerun the full acceptance
+matrix. See the current Slice 8 handoff and validation profile.
 
 ## Source inventory compiler extension
 

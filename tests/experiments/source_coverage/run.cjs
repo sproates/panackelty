@@ -7,9 +7,18 @@ const {performance} = require('node:perf_hooks');
 const observer = path.resolve(process.argv[2]);
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'panack-coverage-'));
 const sources = path.join(work, 'sources');
-fs.cpSync(path.join(__dirname, 'fixtures'), sources, {recursive:true});
+fs.mkdirSync(sources, {recursive:true});
+fs.copyFileSync(path.join(__dirname, 'fixtures', 'basic.panack'), path.join(sources, 'basic.panack'));
+const projectLibrary = path.join(sources, 'lib');
+fs.mkdirSync(projectLibrary, {recursive:true});
+fs.copyFileSync(path.join(__dirname, 'fixtures', 'lib', 'helper.panack'), path.join(projectLibrary, 'helper.panack'));
 let serial = 0, checks = 0;
 function check(condition, message) { assert(condition, message); checks++; }
+function functionIdentity(names, sourceName) {
+  const matches = [...names].filter(name => name === sourceName || name.endsWith('_' + sourceName));
+  assert.equal(matches.length, 1, `one emitted identity for ${sourceName}`);
+  return matches[0];
+}
 function run(command, args, status = 0) {
   const result = spawnSync(command, args, {encoding:'utf8', timeout:90000, maxBuffer:32*1024*1024});
   assert.ifError(result.error);
@@ -134,14 +143,15 @@ try {
   check(counted.value === 16 && bulk.value === 16 && counted.gap === 'none', 'exact result and complete collection');
   const reach = sourceReach(map, counted);
   const ownFunctions = ['choose', 'unused', 'main', 'identity', 'unused_import'];
-  assert.deepEqual(ownFunctions.map(name => reach.functions.get(name)), [2,0,1,1,0]); checks++;
+  assert.deepEqual(ownFunctions.map(name => reach.functions.get(functionIdentity(reach.functions.keys(), name))), [2,0,1,1,0]); checks++;
   // Manual oracle for this tiny fixture's verified disassembly: both arms run
   // once, load/test/return twice; unused bodies remain all-zero.
   for (const [name, expected] of [
     ['identity',[1,1]], ['unused_import',[0,0]], ['choose',[2,2,1,1,1,2]],
     ['unused',[0,0]], ['main',[1,1,1,1,1,1,1,1,1,1,1,1,1]],
   ]) {
-    const actual = [...counted.pcs].filter(([key])=>key.startsWith(counted.names.get(name)+':')).map(([,c])=>c.hits);
+    const identity = functionIdentity(counted.names.keys(), name);
+    const actual = [...counted.pcs].filter(([key])=>key.startsWith(counted.names.get(identity)+':')).map(([,c])=>c.hits);
     assert.deepEqual(actual,expected); checks++;
   }
   const ownLines = [...reach.lines].filter(([key]) => key.startsWith('project/')).sort();
@@ -152,8 +162,9 @@ try {
     ['project/lib/helper.panack:2',true], ['project/lib/helper.panack:5',false],
   ].sort();
   assert.deepEqual(ownLines, expected); checks++;
-  const chooseIndex = map.functions.findIndex(fn => fn.name === 'choose');
-  const branches = [...counted.pcs].filter(([key,c]) => key.startsWith(counted.names.get('choose')+':') && c.yes+c.no);
+  const chooseIndex = map.functions.findIndex(fn => fn.name === 'choose' || fn.name.endsWith('_choose'));
+  const chooseIdentity = functionIdentity(counted.names.keys(), 'choose');
+  const branches = [...counted.pcs].filter(([key,c]) => key.startsWith(counted.names.get(chooseIdentity)+':') && c.yes+c.no);
   check(branches.length === 1 && branches[0][1].yes === 1 && branches[0][1].no === 1, 'both VM conditional outcomes once');
   check(map.functions.some(fn => fn.entries.some(e => e.lowered)), 'lowered entries explicit');
   check([...counted.pcs].some(([key]) => {
@@ -174,7 +185,7 @@ try {
   fs.unlinkSync(basic.sidecar);
   check(validate(basic) === null, 'missing map unavailable');
   fs.writeFileSync(basic.sidecar, original);
-  const helper = path.join(sources,'lib/helper.panack'), helperText = fs.readFileSync(helper);
+  const helper = path.join(projectLibrary,'helper.panack'), helperText = fs.readFileSync(helper);
   fs.appendFileSync(helper, '\n// changed unused source\n');
   check(validate(basic) === null, 'stale imported snapshot unavailable');
   fs.writeFileSync(helper, helperText);
@@ -198,18 +209,19 @@ try {
   const asyncCount = observe(asynchronous), asyncBulk = observe(asynchronous,'bulk');
   check(asyncCount.waits === 1 && asyncBulk.waits === 1 && asyncCount.gap === 'none', 'fake async suspension resumes with complete counts');
   const asyncMap = decodeLocal(validate(asynchronous));
-  check(sourceReach(asyncMap,asyncCount).functions.get('child') === 1, 'async child entry counted once across suspension');
-  assert.deepEqual([...asyncCount.pcs].filter(([key])=>key.startsWith(asyncCount.names.get('child')+':')).map(([,c])=>c.hits),[1,1,1]); checks++;
+  const childIdentity = functionIdentity(asyncCount.names.keys(), 'child');
+  check(sourceReach(asyncMap,asyncCount).functions.get(functionIdentity(asyncMap.functions.map(fn=>fn.name), 'child')) === 1, 'async child entry counted once across suspension');
+  assert.deepEqual([...asyncCount.pcs].filter(([key])=>key.startsWith(asyncCount.names.get(childIdentity)+':')).map(([,c])=>c.hits),[1,1,1]); checks++;
   run('./panack',['run',asynchronous.artifact]); checks++;
   const childPath = JSON.stringify(printed.artifact);
-  const nested = fixture('nested',`main(): Void { run_bytecode(read_bytes(${childPath})) }\n`);
+  const nested = fixture('nested',`import stdlib/filesystem::{filesystem_read_file_bytes}\nimport stdlib/host::{host_run_bytecode}\nmain(): Void { raw: Bytes = filesystem_read_file_bytes(${childPath})\n host_run_bytecode(raw, []) }\n`);
   const nestedCount = observe(nested), nestedBulk = observe(nested,'bulk');
   check(nestedCount.stdout === '42\n' && nestedBulk.stdout === '42\n' && run('./panack',['run',nested.artifact]).stdout === '42\n', 'nested execution semantics preserved');
   check(nestedCount.gap === 'nested-execution', 'missing child execution explicitly incomplete');
-  const indirect = fixture('indirect',`child(raw: Bytes): Void { run_bytecode(raw) }\nmain(): Void { f: Fn[Bytes,Void] = @child\n f.call(read_bytes(${childPath})) }\n`);
+  const indirect = fixture('indirect',`import stdlib/filesystem::{filesystem_read_file_bytes}\nimport stdlib/host::{host_run_bytecode}\nchild(raw: Bytes): Void { host_run_bytecode(raw, []) }\nmain(): Void { raw: Bytes = filesystem_read_file_bytes(${childPath})\n f: Fn[Bytes,Void] = @child\n f.call(raw) }\n`);
   check(observe(indirect).gap === 'nested-execution', 'indirect child also invalidates completeness');
   const compiledChild = path.join(work,'nested-output.bc');
-  const compiler = fixture('compiler',`main(): Void { run_bytecode_args(read_bytes(${JSON.stringify(path.resolve('bootstrap/compiler-v9.bc'))}), ["compile", ${JSON.stringify(printed.file)}, "-o", ${JSON.stringify(compiledChild)}]) }\n`);
+  const compiler = fixture('compiler',`import stdlib/filesystem::{filesystem_read_file_bytes}\nimport stdlib/host::{host_run_bytecode}\nmain(): Void { raw: Bytes = filesystem_read_file_bytes(${JSON.stringify(path.resolve('bootstrap/compiler-v9.bc'))})\n host_run_bytecode(raw, ["compile", ${JSON.stringify(printed.file)}, "-o", ${JSON.stringify(compiledChild)}]) }\n`);
   const compilerCount = observe(compiler);
   check(compilerCount.gap === 'nested-execution' && fs.readFileSync(compiledChild).equals(fs.readFileSync(printed.artifact)), 'nested compiler preserves artifact but is not measured');
   const lowering = fixture('lowering',`enum Choice { First, Second, Third }
@@ -226,15 +238,15 @@ main(): Nat {
   for i in 0..3 { total = total + match_choice(First()); }
   total
 }
-`.replace('enum Choice', 'import "lib/helper.panack"\nenum Choice'));
+`.replace('enum Choice', 'import project/lib/helper::{identity}\nenum Choice'));
   const lowerResult = observe(lowering), lowerMap = decodeLocal(validate(lowering));
   const lowerReach = sourceReach(lowerMap, lowerResult);
   check(lowerResult.value === 21 && observe(lowering,'bulk').value === 21, 'lowering result parity');
-  assert.deepEqual(['rhs','selected','skipped','match_choice','identity'].map(name=>lowerReach.functions.get(name)),[1,3,0,3,2]); checks++;
+  assert.deepEqual(['rhs','selected','skipped','match_choice','identity'].map(name=>lowerReach.functions.get(functionIdentity(lowerReach.functions.keys(),name))),[1,3,0,3,2]); checks++;
   check(lowerMap.functions.some(fn=>fn.entries.some(e=>e.lowered)), 'match and short-circuit retain explicit lowering');
   const recursive = fixture('recursive','pure down(n: Nat): Nat { if n > 0 { down(n - 1) + 1 } else { 0 } }\nmain(): Nat { down(4) }\n');
   const recursiveResult = observe(recursive);
-  check(recursiveResult.value === 4 && recursiveResult.functions.get(recursiveResult.names.get('down')) === 5, 'recursive activations count separately');
+  check(recursiveResult.value === 4 && recursiveResult.functions.get(recursiveResult.names.get(functionIdentity(recursiveResult.names.keys(),'down'))) === 5, 'recursive activations count separately');
   const malformed = path.join(work,'invalid.bc'); fs.writeFileSync(malformed,'invalid');
   const missingReport = path.join(work,'never-created.txt');
   run(observer,[malformed,missingReport,'count'],2);
@@ -253,7 +265,7 @@ main(): Nat {
       check(result.value === 1260000 && result.gap === 'none', mode+' benchmark equivalence');
       samples[mode].push(result.cpu);
       if (mode === 'count') {
-        check(sourceReach(loopMap,result).functions.get('multiply') === 30000, 'loop exact function entries');
+        check(sourceReach(loopMap,result).functions.get(functionIdentity(loopMap.functions.map(fn=>fn.name),'multiply')) === 30000, 'loop exact function entries');
         const branch = [...result.pcs.values()].filter(c => c.yes+c.no);
         check(branch.length === 1 && branch[0].yes === 30000 && branch[0].no === 1, 'exact loop decisions');
         check(result.bytes === observe(loop,'limit',1).bytes, 'counter memory independent of execution length');
@@ -269,7 +281,7 @@ main(): Nat {
   const extension = path.join(work,'extended.bc');
   fs.writeFileSync(extension,Buffer.concat([fs.readFileSync(basic.artifact),original]));
   run('./panack',['check',extension],1); checks++;
-  console.log(JSON.stringify({checks, ownLines, functions:ownFunctions.map(name=>[name,reach.functions.get(name)]),
+  console.log(JSON.stringify({checks, ownLines, functions:ownFunctions.map(name=>[name,reach.functions.get(functionIdentity(reach.functions.keys(),name))]),
     artifactBytes:fs.statSync(basic.artifact).size, sidecarBytes:original.length,
     counterBytes:counted.bytes, samples},null,2));
 } finally { fs.rmSync(work,{recursive:true,force:true}); }

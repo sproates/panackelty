@@ -1,6 +1,15 @@
-import project/src/compiler/source_inventory
-import stdlib/testing
-
+import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory, inventory_arguments}
+import project/src/compiler/loader::{LoadedProject, load_project, load_project_for_source_map, load_project_for_inventory}
+import project/src/compiler/module_bindings::{LoadedModule, ModuleIdentity, source_module_identity, collect_module_bindings}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/parser::{parse_module_complete}
+import project/src/bytecode/codec::{serialize_bytecode}
+import project/src/compiler/emitter::{compile_program}
+import stdlib/path::{path_string_resolve, path_string_parent}
+import stdlib/environment::{environment_value}
+import stdlib/bytes::{bytes_empty, bytes_length, text_encode_utf8}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
 pure inventory_summary(items: [InventoryItem], source: Str): Str {
   mut output: Str = ""
   for item in items {
@@ -44,7 +53,7 @@ main(): Void {
       "decision:if:a;outcome:true:a;outcome:false:a;decision:if:b;outcome:true:b;outcome:false:b;"))
   }
 
-  entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
+  entry: Str = path_string_resolve("tests/fixtures/compiler_contracts/source_inventory/main.panack")
   project: LoadedProject = load_project_for_source_map(entry)
   results = results.append(test_expect("inventory fixture checks", len(project.diagnostics) == 0, "fixture failed to check"))
   for module in project.modules {
@@ -96,7 +105,7 @@ main(): Void {
       }
     }
   }
-  extra_entry: Str = path_resolve("tests/fixtures/compiler_contracts/source_inventory/unloaded.panack")
+  extra_entry: Str = path_string_resolve("tests/fixtures/compiler_contracts/source_inventory/unloaded.panack")
   ordinary_extra: LoadedProject = load_project(extra_entry)
   results = results.append(test_expect("ordinary compilation still requires main", len(ordinary_extra.diagnostics) > 0, "ordinary checking accepted library"))
   extra: LoadedProject = load_project_for_inventory(extra_entry)
@@ -115,16 +124,16 @@ main(): Void {
   }
   results = results.append(test_equal_str("imports explicitly excluded", exclusions, "import;"))
   artifact: Bytes = serialize_bytecode(compile_program(project.program))
-  compiler: Bytes = utf8_encode("unit identity")
-  root: Str = path_parent(entry)
-  stdlib: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+  compiler: Bytes = text_encode_utf8("unit identity")
+  root: Str = path_string_parent(entry)
+  stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
   inventory: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
-  results = results.append(test_expect("deterministic inventory", byte_len(inventory) > 0 && inventory == serialize_source_inventory(project, artifact, compiler, entry, root, stdlib), "inventory differs"))
-  results = results.append(test_expect("compiler identity participates", inventory != serialize_source_inventory(project, artifact, utf8_encode("other compiler"), entry, root, stdlib), "compiler identity lost"))
-  results = results.append(test_expect("artifact identity participates", inventory != serialize_source_inventory(project, bytes(), compiler, entry, root, stdlib), "artifact identity lost"))
-  results = results.append(test_expect("missing compiler identity rejects", serialize_source_inventory(project, artifact, bytes(), entry, root, stdlib) == bytes(), "missing identity accepted"))
+  results = results.append(test_expect("deterministic inventory", bytes_length(inventory) > 0 && inventory == serialize_source_inventory(project, artifact, compiler, entry, root, stdlib), "inventory differs"))
+  results = results.append(test_expect("compiler identity participates", inventory != serialize_source_inventory(project, artifact, text_encode_utf8("other compiler"), entry, root, stdlib), "compiler identity lost"))
+  results = results.append(test_expect("artifact identity participates", inventory != serialize_source_inventory(project, bytes_empty(), compiler, entry, root, stdlib), "artifact identity lost"))
+  results = results.append(test_expect("missing compiler identity rejects", serialize_source_inventory(project, artifact, bytes_empty(), entry, root, stdlib) == bytes_empty(), "missing identity accepted"))
   for args in [["inventory"], ["inventory", "a.bc", "-o", "out"], ["inventory", "a", "-o", "out", "extra"], ["inventory", "a", "-o", "out", "-o", "other"], ["inventory", "a", "--unknown", "out"]] {
     results = results.append(test_expect("inventory argument rejection", !inventory_arguments(args, false).valid, "invalid arguments accepted"))
   }
-  if test_report(results) > 0 { process_exit(1); }
+  if test_report(results) > 0 { host_exit(1); }
 }

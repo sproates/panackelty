@@ -1,6 +1,6 @@
-import project/src/compiler/resolver
-import stdlib/testing
-
+import project/src/compiler/resolver::{LoadedSource,resolve_source,resolve_loaded_sources}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_equal_str, test_report}
 // Fixed resolver contracts, grouped by the former Python test methods.
 // Inputs and exact expected diagnostics are independent of the resolver output.
 
@@ -187,5 +187,5 @@ main(): Void {
   results = results.concat(resolver_unit_resolves_reachable_transitive_modules())
   results = results.concat(resolver_unit_resolves_top_level_callables_builtins_and_local_names())
   results = results.concat(resolver_unit_visits_a_diamond_dependency_only_once())
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

@@ -1,16 +1,14 @@
-import project/src/compiler/parser
-
 // Literal decoding and scalar arithmetic rules shared by the legacy and bound
 // frontends. Nominal type identity belongs to the module passes.
 
-record InterpolatedString {
+pub record InterpolatedString {
   parts: [Str],
   variables: [Str]
 }
 
 // The lexer has already found the string boundary. Unknown escapes retain their
 // escaped character, matching the existing literal contract.
-pure decoded_escape(escape: Str): Str {
+pub pure decoded_escape(escape: Str): Str {
   mut decoded: Str = escape
 
   if escape == "n" {
@@ -31,7 +29,7 @@ pure decoded_escape(escape: Str): Str {
   decoded
 }
 
-pure decode_string_literal(text: Str): Str {
+pub pure decode_string_literal(text: Str): Str {
   mut output: Str = ""
   mut cursor: Nat = 1
 
@@ -50,15 +48,15 @@ pure decode_string_literal(text: Str): Str {
   output
 }
 
-pure interpolation_name_start(character: Str): Bool {
+pub pure interpolation_name_start(character: Str): Bool {
   is_letter(character) || character == "_"
 }
 
-pure interpolation_name_part(character: Str): Bool {
+pub pure interpolation_name_part(character: Str): Bool {
   interpolation_name_start(character) || is_digit(character)
 }
 
-pure split_interpolated_string(text: Str): InterpolatedString {
+pub pure split_interpolated_string(text: Str): InterpolatedString {
   mut parts: [Str] = []
   mut variables: [Str] = []
   mut part_start: Nat = 0
@@ -91,11 +89,11 @@ pure split_interpolated_string(text: Str): InterpolatedString {
   }
 }
 
-pure scalar_numeric(name: Str): Bool {
+pub pure scalar_numeric(name: Str): Bool {
   name == "Nat" || name == "Int" || name == "Dec" || name == "Rat"
 }
 
-pure scalar_compatible_numeric(left: Str, right: Str): Bool {
+pub pure scalar_compatible_numeric(left: Str, right: Str): Bool {
   scalar_numeric(left) &&
     scalar_numeric(right) &&
     !((left == "Dec" ||
@@ -103,7 +101,7 @@ pure scalar_compatible_numeric(left: Str, right: Str): Bool {
     left != right)
 }
 
-pure scalar_arithmetic_result(operator: Str, left: Str, right: Str): Str {
+pub pure scalar_arithmetic_result(operator: Str, left: Str, right: Str): Str {
   if left == "Dec" {
     "Dec"
   } else {

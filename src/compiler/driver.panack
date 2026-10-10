@@ -1,6 +1,23 @@
-import project/src/compiler/explanations
-import project/src/compiler/coverage_session
-import project/src/compiler/module_emission
+import stdlib/bytes::{bytes_length}
+import stdlib/path::{path_string_suffix, path_string_parent, path_string_resolve, path_string_with_suffix}
+import stdlib/environment::{environment, environment_value}
+import stdlib/filesystem::{filesystem_write_file_bytes, filesystem_read_file_bytes}
+import stdlib/host::{host_run_bytecode, host_command_arguments, host_exit}
+import project/src/compiler/explanations::{explanation_function_selector, render_function_explanations}
+import project/src/compiler/coverage_session::{run_coverage_aggregate}
+import project/src/compiler/coverage::{run_coverage_report}
+import project/src/compiler/source_inventory::{run_inventory_command}
+import project/src/compiler/module_emission::{ModuleIdentity}
+import project/src/compiler/loader::{LoadedProject, load_project, load_project_explained, load_project_for_source_map}
+import project/src/compiler/parser::{Program}
+pub import project/src/compiler/types::{Diagnostic}
+import project/src/compiler/diagnostics::{diagnostic_with_source}
+import project/src/compiler/emitter::{BytecodeProgram, SourceMappedProgram, compile_program, compile_program_with_sources, render_bytecode}
+import project/src/bytecode/codec::{serialize_bytecode}
+import project/src/compiler/source_maps::{SourceMapFunctionSelector, source_map_escape, source_map_destination_available, source_map_matches, source_map_location, source_map_write, source_snapshots_unchanged, serialize_source_map, source_map_function_selector}
+import project/src/compiler/module_bindings::{source_module_identity}
+import project/src/compiler/project_frontend::{prepare_project_program}
+import project/src/bytecode/decoder::{validate_bytecode, disassemble_bytecode}
 
 // The command boundary owns host I/O and user-visible status. Pure compiler passes
 // receive prepared projects; failed checks must not publish bytecode.
@@ -11,7 +28,28 @@ record PreparedProject {
   message: Str
 }
 
-pure diagnostic_messages(diagnostics: [Diagnostic], sources: Map[Str, Str]): Str {
+driver_project_root(entry: Str): Str {
+  match environment("PANACKELTY_BOOTSTRAP_ROOT") {
+    Some(value) => path_string_resolve(value),
+    None() => path_string_parent(entry)
+  }
+}
+
+pure driver_entry_identity(
+  loaded: LoadedProject,
+  entry: Str,
+  fallback: ModuleIdentity
+): ModuleIdentity {
+  mut selected: ModuleIdentity = fallback
+  for module in loaded.modules {
+    if module.source_path == entry {
+      selected = module.bindings.identity
+    }
+  }
+  selected
+}
+
+pub pure diagnostic_messages(diagnostics: [Diagnostic], sources: Map[Str, Str]): Str {
   mut output: Str = ""
   mut first: Bool = true
 
@@ -32,10 +70,9 @@ pure namespace_gate_diagnostic(diagnostic: Diagnostic): Bool {
 }
 
 pure tooling_diagnostics(project: LoadedProject): [Diagnostic] {
-  staged: Bool = source_map_project_staged(project)
   mut diagnostics: [Diagnostic] = []
   for diagnostic in project.diagnostics {
-    if !staged || !namespace_gate_diagnostic(diagnostic) {
+    if !namespace_gate_diagnostic(diagnostic) {
       diagnostics = diagnostics.append(diagnostic)
     }
   }
@@ -47,48 +84,20 @@ prepare_project(path: Str): PreparedProject {
 }
 
 prepare_loaded_project(path: Str, loaded: LoadedProject): PreparedProject {
-  mut staged: Bool = false
-  mut diagnostics: [Diagnostic] = []
-  for module in loaded.modules {
-    staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
+  entry: Str = path_string_resolve(path)
+  root: Str = driver_project_root(entry)
+  stdlib_root: Str = match environment("PANACKELTY_STDLIB_PATH") {
+    Some(value) => path_string_resolve(value),
+    None() => ""
   }
-  if staged {
-    for diagnostic in loaded.diagnostics {
-      if !namespace_gate_diagnostic(diagnostic) {
-        diagnostics = append(diagnostics, diagnostic)
-      } else {}
-    }
-    if len(diagnostics) > 0 {
-      PreparedProject(false, loaded.program, diagnostic_messages(diagnostics, loaded.sources))
-    } else {
-      entry: Str = path_resolve(path)
-      root: Str = path_parent(entry)
-      stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
-        path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
-      } else {
-        ""
-      }
-      graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, root, stdlib_root)
-      identity: ModuleIdentity = source_module_identity(entry, root, stdlib_root)
-      emitted: ModuleEmissionResult = module_emission_program(
-        graph,
-        loaded.modules,
-        loaded.module_signatures,
-        loaded.module_bodies,
-        identity
-      )
-      if len(emitted.diagnostics) > 0 {
-        PreparedProject(false, loaded.program, diagnostic_messages(emitted.diagnostics, loaded.sources))
-      } else {
-        PreparedProject(true, emitted.program, "")
-      }
-    }
-  } else {
-    if len(loaded.diagnostics) == 0 {
-      PreparedProject(true, loaded.program, "")
-    } else {
-      PreparedProject(false, loaded.program, diagnostic_messages(loaded.diagnostics, loaded.sources))
-    }
+  identity: ModuleIdentity = driver_entry_identity(
+    loaded,
+    entry,
+    source_module_identity(entry, root, stdlib_root)
+  )
+  match prepare_project_program(loaded, root, stdlib_root, identity) {
+    Error(diagnostics) => PreparedProject(false, loaded.program, diagnostic_messages(diagnostics, loaded.sources)),
+    Ok(program) => PreparedProject(true, program, "")
   }
 }
 
@@ -131,12 +140,12 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
         destination: Str = if len(output) > 0 {
           output
         } else {
-          path_with_suffix(path, ".bc")
+          path_string_with_suffix(path, ".bc")
         }
-        if path_resolve(destination) == path_resolve(path) {
+        if path_string_resolve(destination) == path_string_resolve(path) {
           report_driver_error("bytecode output cannot overwrite the source file")
         } else {
-          write_bytes(destination, serialize_bytecode(bytecode))
+          filesystem_write_file_bytes(destination, serialize_bytecode(bytecode))
           print("wrote ${destination}")
           0
         }
@@ -145,7 +154,7 @@ run_source_command(command: Str, path: Str, output: Str, program_arguments: [Str
           print(without_final_newline(render_bytecode(bytecode)))
           0
         } else {
-          run_bytecode_args(serialize_bytecode(bytecode), program_arguments)
+          host_run_bytecode(serialize_bytecode(bytecode), program_arguments)
           0
         }
       }
@@ -157,16 +166,15 @@ run_explain_command(values: [Str]): Nat {
   if len(values) != 4 {
     report_driver_error("explain usage: explain SOURCE.panack --function NAME")
   } else {
-    if path_suffix(values[1]) != ".panack" || values[2] != "--function" || values[3] == "" {
+    if path_string_suffix(values[1]) != ".panack" || values[2] != "--function" || values[3] == "" {
       report_driver_error("explain usage: explain SOURCE.panack --function NAME")
     } else {
       loaded: LoadedProject = load_project_explained(values[1])
-      entry: Str = path_resolve(values[1])
-      root: Str = path_parent(entry)
-      stdlib_root: Str = if environment_has("PANACKELTY_STDLIB_PATH") {
-        path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
-      } else {
-        ""
+      entry: Str = path_string_resolve(values[1])
+      root: Str = driver_project_root(entry)
+      stdlib_root: Str = match environment("PANACKELTY_STDLIB_PATH") {
+        Some(value) => path_string_resolve(value),
+        None() => ""
       }
       selected: Result[SourceMapFunctionSelector, Str] = explanation_function_selector(
         loaded,
@@ -176,7 +184,7 @@ run_explain_command(values: [Str]): Nat {
         stdlib_root
       )
       match selected {
-        Error(message) => if starts_with(message, "unknown function selector ") {
+        Error(message) => if starts_with_at(message, "unknown function selector ", 0) {
           report_driver_error("explain: unknown function " + source_map_escape(values[3]))
         } else {
           report_driver_error("explain: " + message)
@@ -208,7 +216,7 @@ run_explain_command(values: [Str]): Nat {
 }
 
 run_artifact_command(command: Str, path: Str, program_arguments: [Str]): Nat {
-  data: Bytes = read_bytes(path)
+  data: Bytes = filesystem_read_file_bytes(path)
   validation: Str = validate_bytecode(data)
 
   if validation != "ok" {
@@ -222,7 +230,7 @@ run_artifact_command(command: Str, path: Str, program_arguments: [Str]): Nat {
         print(without_final_newline(disassemble_bytecode(data)))
         0
       } else {
-        run_bytecode_args(data, program_arguments)
+        host_run_bytecode(data, program_arguments)
         0
       }
     }
@@ -240,7 +248,7 @@ pure source_map_argument_present(arguments: [Str]): Bool {
   present
 }
 
-record SourceMapArguments {
+pub record SourceMapArguments {
   valid: Bool,
   source: Str,
   artifact: Str,
@@ -249,7 +257,7 @@ record SourceMapArguments {
   instruction: Nat
 }
 
-pure source_map_instruction(text: Str): Option[Nat] {
+pub pure source_map_instruction(text: Str): Option[Nat] {
   mut valid: Bool = len(text) > 0 && len(text) <= 10
 
   for index in 0..len(text) {
@@ -269,7 +277,7 @@ pure source_map_instruction(text: Str): Option[Nat] {
   }
 }
 
-pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments {
+pub pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments {
   mut source: Str = ""
   mut artifact: Str = ""
   mut sidecar: Str = ""
@@ -332,7 +340,7 @@ pure source_map_arguments(values: [Str], locating: Bool): SourceMapArguments {
     }
   }
   valid = valid && source != "" && artifact != "" && sidecar != "" &&
-    path_suffix(source) == ".panack" && path_suffix(artifact) == ".bc"
+    path_string_suffix(source) == ".panack" && path_string_suffix(artifact) == ".bc"
   mut pc: Nat = 0
   if locating {
     valid = valid && function_name != ""
@@ -354,9 +362,9 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
   if !args.valid {
     report_driver_error("source-map usage: compile SOURCE.panack -o ARTIFACT.bc --source-map MAP | locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC")
   } else {
-    entry: Str = path_resolve(args.source)
-    artifact_path: Str = path_resolve(args.artifact)
-    map_path: Str = path_resolve(args.sidecar)
+    entry: Str = path_string_resolve(args.source)
+    artifact_path: Str = path_string_resolve(args.artifact)
+    map_path: Str = path_string_resolve(args.sidecar)
     if !locating && (artifact_path == map_path ||
       !source_map_destination_available(artifact_path) ||
       !source_map_destination_available(map_path)) {
@@ -372,12 +380,12 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
           report_driver_error(prepared.message)
         }
       } else {
-        root: Str = path_parent(entry)
-        stdlib_root: Str = path_resolve(environment_get("PANACKELTY_STDLIB_PATH"))
+        root: Str = driver_project_root(entry)
+        stdlib_root: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
         mapped: SourceMappedProgram = compile_program_with_sources(prepared.program)
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         sidecar: Bytes = serialize_source_map(loaded, mapped, artifact, entry, root, stdlib_root)
-        valid: Bool = byte_len(sidecar) > 0 &&
+        valid: Bool = bytes_length(sidecar) > 0 &&
           validate_bytecode(artifact) == "ok" &&
           source_snapshots_unchanged(loaded)
         if locating {
@@ -389,7 +397,7 @@ run_source_map_command(values: [Str], locating: Bool): Nat {
             stdlib_root
           )
           match selected {
-            Error(message) => if starts_with(message, "unknown function selector ") {
+            Error(message) => if starts_with_at(message, "unknown function selector ", 0) {
               print("source-map: unavailable")
               0
             } else {
@@ -494,7 +502,7 @@ run_compiler_command(arguments: [Str]): Nat {
                 report_driver_error("missing input file")
               } else {
                 path: Str = values[file_index]
-                suffix: Str = path_suffix(path)
+                suffix: Str = path_string_suffix(path)
                 mut output: Str = ""
                 mut program_arguments: [Str] = []
                 mut argument_index: Nat = file_index + 1
@@ -533,10 +541,10 @@ run_compiler_command(arguments: [Str]): Nat {
   }
 }
 
-compiler_main(): Void {
-  status: Nat = run_compiler_command(command_args())
+pub compiler_main(): Void {
+  status: Nat = run_compiler_command(host_command_arguments())
 
   if status != 0 {
-    process_exit(status);
+    host_exit(status);
   } else {}
 }

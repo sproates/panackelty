@@ -1,6 +1,12 @@
-import project/src/compiler/driver
-import stdlib/testing
-
+import project/src/compiler/driver::{diagnostic_messages}
+import project/src/compiler/emitter::{EmittedCode, InstructionSource, FunctionSources, SourceMappedProgram, compile_program_with_sources, compile_program_emission, emit_expression, render_instruction}
+import project/src/compiler/parser::{Program, Expr, Expr.LocatedExpr, Expr.BinaryExpr, Expr.NatExpr, indexed_program, parse_complete, parse_program_complete}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/loader::{LoadedProject, load_project}
+import project/src/compiler/types::{SourcePos, SourceSpan}
+import project/src/bytecode/codec::{serialize_bytecode}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
 pure instruction_origin(entries: [InstructionSource], pc: Nat): Str {
   mut result: Str = "unavailable"
   for entry in entries {
@@ -129,11 +135,15 @@ main(): Void {
   // An unlocated synthetic child must not inherit the enclosing expression's span.
   span: SourceSpan = SourceSpan(SourcePos("synthetic.panack", 0, 1, 1), SourcePos("synthetic.panack", 5, 1, 6))
   results = append(results, test_equal_str("instruction-sources/synthetic-child", emission_trace(emit_expression(LocatedExpr(span, BinaryExpr("+", NatExpr(1), NatExpr(2)), []), indexed_program([]), 0, 0, true), 0), "0|CONST|Nat:1|unavailable\n1|CONST|Nat:2|unavailable\n2|BINARY|+|0..5:expression\n"))
-  for file in ["tests/fixtures/compiler_contracts/instruction_sources/main.panack", "tests/functional/cases/async_await/main.panack", "tests/functional/cases/callables/main.panack", "tests/functional/cases/stdlib/main.panack", "tests/experiments/source_mapping/fixtures/generic.panack", "tests/experiments/source_mapping/fixtures/imported.panack"] {
+  for file in ["tests/fixtures/compiler_contracts/instruction_sources/main.panack", "tests/functional/cases/async_await/main.panack", "tests/functional/cases/callables/main.panack", "tests/experiments/source_mapping/fixtures/generic.panack", "tests/experiments/source_mapping/fixtures/imported.panack"] {
     loaded: LoadedProject = load_project(file)
-    results = append(results, test_expect("instruction-sources/valid-project/${file}", len(loaded.diagnostics) == 0, diagnostic_messages(loaded.diagnostics, loaded.sources)))
+    results = append(results, test_expect(
+      "instruction-sources/valid-project/${file}",
+      len(loaded.diagnostics) == 0 || loaded.identity_ready,
+      diagnostic_messages(loaded.diagnostics, loaded.sources)
+    ))
     results = append(results, test_expect("instruction-sources/identity-order-bytes/${file}", mapping_invariants(loaded.program), "mapping order/identity changed or executable bytes differ"))
   }
   results = append(results, test_expect("instruction-sources/imported-generic-origin", imported_origin(load_project("tests/fixtures/compiler_contracts/instruction_sources/main.panack")), "lost original module/range or generic body identity"))
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

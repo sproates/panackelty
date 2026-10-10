@@ -1,6 +1,12 @@
-import project/src/bytecode/codec
-import stdlib/testing
-
+import project/src/bytecode/codec::{serialize_bytecode}
+import project/src/compiler/lexer::{lex}
+import project/src/compiler/parser::{parse_program_complete,indexed_program,core_tokens}
+import project/src/compiler/checker::{check_source_types,check_loaded_source_types,check_program_types}
+import project/src/compiler/resolver::{LoadedSource,render_resolver_diagnostics}
+import project/src/compiler/emitter::{compile_program}
+import stdlib/filesystem::{filesystem_read_text}
+import stdlib/host::{host_run_bytecode, host_exit}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
 // Shared source fixtures preserve independently recorded acceptance expectations.
 // Diagnostics retain the original substring assertions; successful cases must
 // explicitly return ok, rather than merely agree with the other implementation.
@@ -22,11 +28,11 @@ pure checker_unit_compare(name: Str, actual: Str, expected: Str): TestResult {
 checker_unit_source(name: Str, expected: Str): TestResult {
   filename = "tests/fixtures/compiler_checker/${name}.panack"
   // Use the compiler loader's file primitive; missing inputs trap and fail the suite.
-  checker_unit_compare(name, check_source_types(read_file(filename)), expected)
+  checker_unit_compare(name, check_source_types(filesystem_read_text(filename)), expected)
 }
 
 checker_sort_contract(source: Str): Str {
-  match lex(read_file("src/stdlib/core.panack")) {
+  match lex(filesystem_read_text("src/stdlib/core.panack")) {
     Error(errors) => "core lexing failed",
     Ok(tokens) => { match parse_program_complete(core_tokens(tokens)) {
       Error(error) => error.message,
@@ -77,7 +83,7 @@ checker_mutation_matrix(): [TestResult] {
             Error(errors) => { results = results.append(test_expect(label, false, "lex failed")) },
             Ok(tokens) => { match parse_program_complete(tokens) {
               Error(error) => { results = results.append(test_expect(label, false, error.message)) },
-              Ok(program) => { run_bytecode(serialize_bytecode(compile_program(program))) }
+              Ok(program) => { host_run_bytecode(serialize_bytecode(compile_program(program)), []) }
             } }
           }
         }
@@ -189,5 +195,5 @@ main(): Void {
   results = results.append(checker_unit_source("fact_mutation_false_refresh", "ok"))
   results = results.append(checker_unit_source("fact_mutation_unrelated_mutable", "ok"))
   results = results.concat(checker_mutation_matrix())
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

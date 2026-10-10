@@ -96,7 +96,7 @@ equal_files "$work/stdout" "$work/import.stdout"
 test ! -s "$work/stderr" || fail 'relocated import stderr'
 capture 0 30 "$command" run "$work/relocated/toolchain/examples/collections_and_bytes.panack"
 equal_files "$work/stdout" "$root/tests/functional/expected/examples/collections_and_bytes.stdout"
-capture 0 30 "$command" run "$work/relocated/toolchain/examples/namespaces/trip_planner.panack"
+capture 0 30 "$command" run "$work/relocated/toolchain/examples/namespaces/trip_planner/main.panack"
 equal_files "$work/stdout" "$root/tests/functional/expected/examples/trip_planner.stdout"
 test ! -s "$work/stderr" || fail 'relocated trip planner stderr'
 pass

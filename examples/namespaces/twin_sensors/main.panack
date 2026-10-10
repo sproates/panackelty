@@ -1,5 +1,5 @@
-import project/twin_sensors/weather as weather
-import project/twin_sensors/navigation as navigation
+import project/weather as weather
+import project/navigation as navigation
 
 main(): Void {
   forecast: weather.Reading = weather.latest()

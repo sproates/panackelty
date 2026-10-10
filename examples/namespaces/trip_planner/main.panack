@@ -1,4 +1,4 @@
-import project/trip_planner/itinerary as itinerary
+import project/itinerary as itinerary
 
 // The entry composes the route, weather, and budget modules into one plan.
 main(): Void {

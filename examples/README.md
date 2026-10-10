@@ -14,8 +14,9 @@ The same directory is included in release archives. From the extracted
 ./bin/panack run examples/fizzbuzz.panack
 ```
 
-Every `.panack` file here is exercised by both functional runners from source
-and compiled bytecode. Expected output is kept separately under
+Every runnable example entry is exercised by both functional runners from
+source and compiled bytecode. Namespace support modules are compiled and run
+through their example entry. Expected output is kept separately under
 `tests/functional/expected/examples` as test data rather than example code.
 
 ## VM walkthroughs
@@ -72,6 +73,10 @@ from source and saved bytecode by the functional suite:
 
 | Program | Demonstrates |
 | --- | --- |
-| `namespaces/trip_planner.panack` | A multi-file itinerary that combines route, weather, and budget modules through aliases and selected imports; only the entry module starts the program |
-| `namespaces/twin_sensors.panack` | Two modules with distinct, same-named `Reading` record types and qualified type references |
-| `namespaces/public_api.panack` | A consumer using a public API facade that re-exports a declaration backed by a private helper |
+| `namespaces/trip_planner/main.panack` | A multi-file itinerary that combines route, weather, and budget modules through aliases and selected imports; only the entry module starts the program |
+| `namespaces/twin_sensors/main.panack` | Two modules with distinct, same-named `Reading` record types and qualified type references |
+| `namespaces/public_api/main.panack` | A consumer using a public API facade that re-exports a declaration backed by a private helper |
+
+Each namespace example is self-contained in its directory. Run the trip planner
+from the repository root with `./panack run examples/namespaces/trip_planner/main.panack`;
+use the corresponding `main.panack` path for the other examples.

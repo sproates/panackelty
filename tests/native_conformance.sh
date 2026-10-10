@@ -5,7 +5,7 @@ set -eu
 mode=${1:-all}
 case "$mode" in all|source|bytecode) ;; *) echo 'unknown conformance mode' >&2; exit 2 ;; esac
 
-jobs=${VALIDATION_JOBS:-2}
+jobs=${VALIDATION_JOBS:-4}
 case "$jobs" in ''|*[!0-9]*) echo 'invalid conformance worker count' >&2; exit 2 ;; esac
 while [ "${jobs#0}" != "$jobs" ] && [ "$jobs" != 0 ]; do jobs=${jobs#0}; done
 [ "$jobs" -ge 1 ] && [ "$jobs" -le 32 ] || exit 2

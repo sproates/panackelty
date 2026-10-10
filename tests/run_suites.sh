@@ -5,7 +5,7 @@ set -eu
 make_command=$1
 left=$2
 right=$3
-jobs=${VALIDATION_JOBS:-2}
+jobs=${VALIDATION_JOBS:-4}
 case "$jobs" in ''|*[!0-9]*) echo 'VALIDATION_JOBS must be an integer from 1 to 32' >&2; exit 2 ;; esac
 while [ "${jobs#0}" != "$jobs" ] && [ "$jobs" != 0 ]; do jobs=${jobs#0}; done
 [ "$jobs" -ge 1 ] && [ "$jobs" -le 32 ] || exit 2

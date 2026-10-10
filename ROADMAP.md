@@ -235,6 +235,18 @@ release; existing publication correctness defects retain their separate treatmen
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
+**GI#106 performance disposition update (2026-10-10):** the alpha.12 candidate
+now has one clean, same-revision two/four-worker comparison on macOS arm64
+(530.32s/379s); four workers reduce unit time from 354s to 202s. A warm canonical
+check after the local default change took 287s, effectively unchanged from the
+prior 286s observation. Thus the mitigation is supported for clean local runs,
+but the 120s full-check, 60s bootstrap and 15s focused targets remain unmet and
+the result is not established on reference CI. The GI#106 performance delivery
+owner's next bounded action is one comparable clean run on the reference
+environment with phase timings, before alpha.12 release readiness. If the targets
+still fail, present that measured result as an explicit release trade-off instead
+of extending this experiment without a new decision.
+
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.
 This local observation establishes neither a regression nor a cause;
@@ -458,6 +470,14 @@ This namespace-specific work completes neither broader GI#106 nor RM#134.
 
 RM#150 remains outside the P1–P8 weighted programme baseline. It is a user-selected
 alpha.12 release gate and must complete before P3 starts.
+
+The bounded clean-run concurrency experiment then passed canonical `make check`
+in 530.32s at two workers and 379s at four workers on the same clean revision and
+macOS arm64 host; the unit phase moved from 354s to 202s while bootstrap remained
+135s. Local Make-driven validation now defaults to four workers. This is one
+ordered pair and remains host-specific evidence; CI's explicit worker settings
+are unchanged. The 120s full, 60s bootstrap and 15s focused targets remain open.
+See the [clean validation comparison](tests/VALIDATION_PROFILE.md#clean-validation-worker-count-comparison--2026-10-10).
 
 <a id="rm-109"></a>
 

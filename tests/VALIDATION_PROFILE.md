@@ -87,6 +87,27 @@ existing `make check-compiler`, `make check-bytecode` and `make check-vm` target
 are the supported component-focused routes; code changes still require the full
 canonical check for integration and release validation.
 
+## Clean validation worker-count comparison — 2026-10-10
+
+On the same macOS arm64 development host and the same clean source revision
+`4963fd9b5d9fa8cabe27db047295cbc486ab85e0`, one clean canonical `make check` at
+`VALIDATION_JOBS=2` passed in 530.32s. A subsequent `make clean` and canonical
+`make check` at `VALIDATION_JOBS=4` passed in 379s. The unit phase fell from 354s
+to 202s; functional stayed at 12s, bootstrap at 134–135s, release smoke at 1s
+and quick start at 0–1s. The four-worker run completed without failures. The
+two-worker clean run's enclosing baseline script later failed in its separate
+auxiliary changed-input fixture; this does not change the successful canonical
+check result and is not part of this timing comparison.
+
+Each worker setting was observed once, in a fixed order, so cache warming and
+host noise are not controlled. The result supports a local default of four
+workers as a measured mitigation on this host, not a cross-machine speed claim.
+CI sets `VALIDATION_JOBS` explicitly and is unaffected. All suites and assertions
+remain enabled. The full check (379s), bootstrap phase (135s) and focused compiler
+target (95.46s in the two-worker baseline run) still exceed their 120s, 60s and
+15s budgets. Keep those budgets and the RM#106 concern open; remeasure on the
+reference environment before treating the improvement as general or resolved.
+
 ## Slice 8 hosted-CI follow-up and matched runner profile — 2026-10-10
 
 At core PR #358's exact candidate head `10543db678f7d81f49eb31429a16ea9635909f72`,

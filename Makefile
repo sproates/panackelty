@@ -11,7 +11,7 @@ TIMED := sh tests/run_timed.sh
 PROFILE := sh tests/profile_command.sh
 PROBE := sh tests/run_probe.sh
 PROBES := sh tests/run_probes.sh
-export VALIDATION_JOBS ?= 2
+export VALIDATION_JOBS ?= 4
 
 .NOTPARALLEL: check-phases ci-compiler ci-runtime-phases ci-bootstrap
 

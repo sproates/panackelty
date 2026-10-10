@@ -60,7 +60,7 @@ The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.
 Compiler probes schedule integration and contract checks first to avoid a long
-final worker tail. Independent internal probes use two workers by default; set
+final worker tail. Make-driven validation uses four workers by default; set
 `VALIDATION_JOBS=1` for serial execution or choose a limit from 1 to 32. Setup
 and fixture mutation remain serial. The worker pool buffers stdout/stderr and prints
 results in the requested order, waits for every probe, and propagates failures.
@@ -134,11 +134,12 @@ the shared VM inode and bytes remain unchanged, so concurrent compiler commands
 cannot observe a relink.
 
 Canonical unit validation overlaps harness and compiler suites after native setup,
-then runs the runtime suite only if both succeed. The default two-worker budget
-assigns one worker to each; one worker retains serial execution and stops at the
-first failure. CI compiler validation uses the same pair with three workers: one
-for the harness and two for compiler probes. The macOS matrix retains five jobs to avoid a sixth job waiting for a runner.
-Native conformance also uses bounded workers (two by default). Each program
+then runs the runtime suite only if both succeed. The default four-worker budget
+assigns one worker to the harness and three to compiler probes; one worker retains
+serial execution and stops at the first failure. CI compiler validation sets three
+workers explicitly: one for the harness and two for compiler probes. The macOS
+matrix retains five jobs to avoid a sixth job waiting for a runner.
+Native conformance also uses bounded workers (four by default). Each program
 keeps its source/compile/bytecode assertions together in an isolated temporary
 directory; NUL-delimited arguments preserve paths containing spaces. Negative
 fixtures and CLI/archive checks still run after every program succeeds.
@@ -147,10 +148,10 @@ seed-refresh proof. They read the same immutable sources and seed but build
 separate stages; no generated compiler stage or proof result is shared between them.
 Both must succeed before quick-start or conformance gates proceed.
 Runtime validation overlaps the native corpus with host/bytecode probes using
-two workers after building shared native prerequisites. Only the native corpus
-captures the functional runner report; probe artifacts are separate. A one-worker
-setting retains serial execution. Failure controls use a FIFO rendezvous to
-prove both branches execute concurrently and propagate either failure.
+the configured worker limit after building shared native prerequisites. Only
+the native corpus captures the functional runner report; probe artifacts are
+separate. A one-worker setting retains serial execution. Failure controls use a
+FIFO rendezvous to prove both branches execute concurrently and propagate either failure.
 The stable required checks aggregate all applicable jobs, including failures
 and cancellation. A package artifact is usable only with successful package
 gates for its revision; upload alone does not certify the entire matrix.

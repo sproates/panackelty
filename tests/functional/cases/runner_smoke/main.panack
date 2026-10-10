@@ -70,7 +70,7 @@ main(): Void {
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], bytes_empty(), path_value_current(),
     ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"],
-    duration_seconds(120), 1048576)
+    duration_seconds(180), 1048576)
   result = match environment("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {
       match filesystem_read_bytes(runner_path(report_path), 1048576) {

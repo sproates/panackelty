@@ -24,11 +24,15 @@ the compiler-source/module-loading cost and review a bounded mitigation before
 accepting this Slice 8 performance disposition. No project timing target is
 lowered.
 
-The smoke command's outer timeout is now 120 seconds to accommodate the observed
-hosted-runner delay while still bounding a stuck child. The 355 assertions and
-expected report are unchanged; the 120s clean-check, 15s focused-check and 60s
-bootstrap targets are also unchanged. This timeout adjustment does not resolve
-the measured performance concern or establish that the full CI matrix passes.
+The smoke command's outer timeout was first raised to 120 seconds, but exact-head
+hosted conformance still failed the runner smoke on Linux and macOS source runs
+and both bytecode runs. The exposed job output reports only source/artifact
+execution failure; it does not expose the nested command's detailed result. The
+fresh full-run command is now bounded at 180 seconds to accommodate this hosted
+variance while still bounding a stuck child. All 355 assertions and the expected
+report are unchanged; the 120s clean-check, 15s focused-check and 60s bootstrap
+targets are also unchanged. This timeout adjustment does not resolve the measured
+performance concern or establish that the full CI matrix passes.
 
 After these corrections, host-enabled `make check` passed in 321s: unit 145s,
 functional 12s, bootstrap 138s, release smoke 0s and quick start 1s. The native
@@ -37,6 +41,13 @@ rerun used host networking; the sandboxed attempt stopped at that environmental
 contract before finishing. Existing build/probe artifacts were present, so
 321s is a successful local acceptance observation, not a matched comparison with
 the earlier 565s run. The 120s/15s/60s budgets remain unchanged.
+
+After the runner bound was raised to 180 seconds, a clean host-enabled canonical
+`make check` passed in 573s: unit 395s, functional 13s, bootstrap 137s, release
+smoke 1s and quick start 0s. All phases passed; the 120s full-check, 15s
+focused-check and 60s bootstrap budgets remain unchanged and are exceeded by
+this observation. This clean run does not replace the matched 30.005s/55.515s
+fresh-run profile or isolate the source of its slowdown.
 
 The macOS compiler job also found stale assumptions in the source-map
 experiment: the observer sees emitted module-qualified function identities,

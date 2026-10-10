@@ -88,7 +88,9 @@ exit status, signal, stdout and stderr. The later functional phase reuses this
 report and compares its exact bytes through both source and bytecode smoke
 execution. A missing or changed report fails. The session is removed on success
 or failure, and ambient report overrides are cleared at entry. Test results
-are never reused between check invocations. Standalone `make functional` and
+are never reused between check invocations. The nested fresh-run command has a
+120-second bound for cross-platform variance; it still requires the complete,
+byte-exact 355-case report. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 

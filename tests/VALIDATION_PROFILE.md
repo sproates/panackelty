@@ -6,6 +6,46 @@
 
 # Validation profiling baseline
 
+## Slice 8 hosted-CI follow-up and matched runner profile — 2026-10-10
+
+At core PR #358's exact candidate head `10543db678f7d81f49eb31429a16ea9635909f72`,
+GitHub Actions failed the fresh `runner_smoke` command at its 90-second bound on
+runtime, coverage, sanitizer-runner, and both platform package routes. This
+command executes all 355 fixture assertions and emits a byte-exact report. A
+matched local macOS arm64 run used the same clean smoke entry, native VM, root,
+prebuilt stage-2 compiler environment and no cached runner transcript. Base
+`c2cf35d` took 30.12s and 29.89s; Slice 8 at `2dad547` took 55.35s and 55.68s.
+The means are 30.005s and 55.515s (+85.0%). The command builds a fresh report
+inside each run; compiler stages and the native VM were built before timing.
+This measures the complete fresh-run workload on one host, not an isolated
+compiler operation or a cross-platform speed claim. The slowdown is material;
+GI#106 remains open. Next, the GI#106 performance delivery owner should isolate
+the compiler-source/module-loading cost and review a bounded mitigation before
+accepting this Slice 8 performance disposition. No project timing target is
+lowered.
+
+The smoke command's outer timeout is now 120 seconds to accommodate the observed
+hosted-runner delay while still bounding a stuck child. The 355 assertions and
+expected report are unchanged; the 120s clean-check, 15s focused-check and 60s
+bootstrap targets are also unchanged. This timeout adjustment does not resolve
+the measured performance concern or establish that the full CI matrix passes.
+
+After these corrections, host-enabled `make check` passed in 321s: unit 145s,
+functional 12s, bootstrap 138s, release smoke 0s and quick start 1s. The native
+TCP contract could not bind loopback under the default sandbox, so this complete
+rerun used host networking; the sandboxed attempt stopped at that environmental
+contract before finishing. Existing build/probe artifacts were present, so
+321s is a successful local acceptance observation, not a matched comparison with
+the earlier 565s run. The 120s/15s/60s budgets remain unchanged.
+
+The macOS compiler job also found stale assumptions in the source-map
+experiment: the observer sees emitted module-qualified function identities,
+while `locate` intentionally uses source-level function names, and the fixture
+still used a legacy quoted-file import. The experiment now asserts both forms
+and imports its helper through `project/lib`; `make source-mapping-experiment`
+passes all 121 assertions locally. This is a test-fixture migration, not a
+production source-map behavior change.
+
 ## Slice 8 follow-up: closure audit and current browser checks — 2026-10-10
 
 Migrated the remaining sampled valid fixtures from implicit quoted imports to

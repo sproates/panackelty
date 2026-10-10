@@ -98,7 +98,7 @@ import project/src/compiler/expression_contracts::{split_interpolated_string, In
 import project/src/compiler/checker::{type_shape, TypeShape}
 import project/src/compiler/module_signatures::{signature_effect, SignatureEffect, SignatureEffect.SignaturePure}
 import project/src/compiler/purity::{check_program_purity}
-import project/src/compiler/module_bindings::{LoadedModule, collect_module_bindings, ModuleIdentity, ModulePackageIdentity.ToolchainModulePackage, ModulePackageIdentity.StandaloneModulePackage}
+import project/src/compiler/module_bindings::{LoadedModule, collect_module_bindings, loaded_module_declaration_index, ModuleIdentity, ModulePackageIdentity.ToolchainModulePackage, ModulePackageIdentity.StandaloneModulePackage}
 import project/src/compiler/module_resolution::{binding_graph_module, ModuleBindings, ModuleBindingGraph, ModuleImportEdge}
 import project/src/compiler/module_signatures::{check_module_signatures}
 
@@ -118,7 +118,7 @@ pure body_check_result_at(source: Str, identity: ModuleIdentity): BodyAndEffects
       Error(error) => BodyAndEffects(CheckedModuleBodies([], [error]), CheckedModuleEffects([], [], map())),
       Ok(parsed) => {
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
-        module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, bindings)
+        module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed))
         graph: ModuleBindingGraph = ModuleBindingGraph([bindings], [])
         signatures = check_module_signatures(graph, [module], module)
         checked: CheckedModuleBodies = check_module_bodies(graph, [module], signatures.declarations, module)
@@ -153,7 +153,7 @@ pure namespace_loaded_module(source: Str, path: Str): Option[LoadedModule] {
       Ok(parsed) => {
         identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), path)
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
-        Some(LoadedModule(path, parsed, parsed.program, bindings))
+        Some(LoadedModule(path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
       }
     }
   }

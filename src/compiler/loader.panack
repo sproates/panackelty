@@ -10,7 +10,7 @@ import project/src/compiler/module_bodies::{
   CheckedModuleBodies, BodyCheckStatus.BodyIdentityChecked, check_module_bodies
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, module_binding_diagnostics, source_module_identity, module_programs, module_declaration_positions}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, module_programs, module_declaration_positions}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
@@ -355,7 +355,13 @@ load_project_module(
                       } else {
                         lower_legacy_program(parsed.program)
                       }
-                      module: LoadedModule = LoadedModule(path, parsed, program, bindings)
+                      module: LoadedModule = LoadedModule(
+                        path,
+                        parsed,
+                        program,
+                        bindings,
+                        loaded_module_declaration_index(parsed)
+                      )
                       staged: [Diagnostic] = module_execution_diagnostics(parsed)
                       binding_errors: [Diagnostic] = if len(staged) > 0 {
                         module_binding_diagnostics(bindings)

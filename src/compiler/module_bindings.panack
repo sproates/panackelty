@@ -53,7 +53,30 @@ pub record LoadedModule {
   source_path: Str,
   parsed: ParsedModule,
   execution_program: Program,
-  bindings: ModuleBindings
+  bindings: ModuleBindings,
+  declaration_index: Map[Str, TopLevel]
+}
+
+pub pure loaded_module_declaration_index(parsed: ParsedModule): Map[Str,TopLevel] {
+  mut declarations: Map[Str,TopLevel] = map()
+  for declaration in parsed.program.declarations {
+    match declaration {
+      ImportDeclaration(path) => {},
+      TypeDeclaration(name, base, guard) => {
+        declarations = declarations.put(name, declaration)
+      },
+      RecordDeclaration(name, parameters, fields) => {
+        declarations = declarations.put(name, declaration)
+      },
+      EnumDeclaration(name, parameters, variants) => {
+        declarations = declarations.put(name, declaration)
+      },
+      FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => {
+        declarations = declarations.put(name, declaration)
+      }
+    }
+  }
+  declarations
 }
 
 pure module_declaration_binding(

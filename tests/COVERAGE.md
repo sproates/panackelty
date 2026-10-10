@@ -794,11 +794,17 @@ and suite percentages remain SC4–SC5.
 
 ### SC4 registered execution aggregation
 
-`runner/compiler_coverage_session_cli.panack` checks exact multi-session branch
-and function totals, nested bytecode and native subprocesses, fresh execution of
-reused bytecode, exclusive admission, missing and wholly deleted children,
-truncated/surplus/mixed/stale records, duplicate sessions, killed claimed
-collectors, traps, unregistered code and the cached-transcript guard.
+The registered coverage-session CLI checks are split across four probes:
+`runner/compiler_coverage_session_cli.panack`,
+`runner/compiler_coverage_session_records_cli.panack`,
+`runner/compiler_coverage_session_integrity_cli.panack` and
+`runner/compiler_coverage_session_process_cli.panack`. Together they check exact
+multi-session branch and function totals, nested bytecode and native
+subprocesses, fresh execution of reused bytecode, exclusive admission, missing
+and wholly deleted children, truncated/surplus/mixed/stale records, duplicate
+sessions, killed claimed collectors, traps, unregistered code and the
+cached-transcript guard. They use isolated workspaces so the independent
+scenarios run through the bounded probe worker pool.
 `runner/compiler_coverage_unit.panack` also checks canonical execution IDs,
 aggregate overflow and indexed expression entry/completion rules.
 

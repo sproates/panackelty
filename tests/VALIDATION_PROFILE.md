@@ -6,6 +6,87 @@
 
 # Validation profiling baseline
 
+## Namespace declaration lookup index — 2026-10-10
+
+Phase timing on `check compiler.panack` attributed most of the 24.40s instrumented
+baseline to declaration-signature resolution (8.85s) and body/effect checking
+(10.45s); loading the project module closure took 3.58s. Review found that each
+nominal type lookup rescanned every declaration in its owning module. The
+candidate builds a per-module name-to-declaration map during loading and uses it
+for signature resolution. It preserves last-declaration selection, including
+malformed duplicate inputs, and does not change emitted user-program bytecode.
+
+For the comparison, both stage-2 compilers were built from the same checked-in
+seed and source tree on the same macOS arm64 host. The native VM and all inputs
+were held constant; timings alternated baseline and indexed binaries, without
+phase instrumentation:
+
+| Pair | Baseline `check compiler.panack` | Indexed candidate |
+| --- | ---: | ---: |
+| 1 | 25.16s | 23.16s |
+| 2 | 24.13s | 23.49s |
+| 3 | 24.30s | 23.45s |
+| Median | 24.30s | 23.45s (-3.5%) |
+| Mean | 24.53s | 23.37s (-4.8%) |
+
+Baseline stage-2 SHA-256: `54e0268ed3a2f939e22439925fb545857fc7ba0c6f67c2a7dd9cb948cd86a752`.
+Indexed stage-2 SHA-256: `9c5689c7ae348f6f109b0a21fbedcaf373a3ef0ebb00aba0929fc7a0353450bd`.
+Both compiled the Euler 001 example to byte-identical bytecode; both artifacts
+passed verification and produced identical output. The focused module-binding
+suite passed 628 assertions, source-inventory passed 23, and compiler contracts
+passed. A cold-cache `make check-compiler` passed but took 214s, exceeding the
+15s target by a wide margin. This full focused-suite observation is noisy and
+does not isolate a causal change; the comparison covers only checking the full
+compiler source. The prior latest clean canonical `make check` took 574s against
+the 120s target. The final host-enabled canonical `make check` passed in 286s
+(unit 115s, functional 11s, bootstrap 133s, release smoke 0s, quick start 1s).
+The 120s full and 60s bootstrap targets remain unmet. This local timing does not
+establish a stable speedup or timing cause.
+
+## Parallel coverage-session probes — 2026-10-10
+
+The focused compiler suite profiled `compiler_coverage_session_cli.panack` at
+53–54s warm. It contains independent scenario groups, each with its own fixture
+mutation state. Split those groups into four probe entrypoints with isolated
+temporary workspaces; the original 41 `test_expect` assertions remain represented
+as 15, 9, 3 and 14 assertions. The canonical and focused runners still execute
+all four groups. Compilation caching remains bytecode-only, so all test bodies
+and assertions run on every invocation.
+
+One warm run per setting was measured on the same macOS arm64 host, current
+candidate seed and native VM, with native prerequisites and probe caches prepared
+and no other builds running:
+
+| Probe worker limit | Before split | Four-probe split | Difference |
+| --- | ---: | ---: | ---: |
+| 2 (default) | 104s | 82s | -21.2% |
+| 4 | 96s | 77s | -19.8% |
+
+The split check passed all compiler probes and CLI workflows with zero failures.
+The four coverage-session probe runtimes at two workers were 10s, 29s, 9s and
+10s; at four workers they were 11s, 29s, 8s and 10s. Independent timing rows
+overlap, so do not sum them. The largest records-integrity scenario is still
+sequential because each malformed-record case mutates and restores the same
+session. A cold-cache focused check with the split passed in 158s; the 15s budget
+remains unmet by a wide margin. The two/four-worker samples are single warm
+observations, not a stable cross-host speed claim. The 120s clean-check target
+and 60s bootstrap target are unchanged. The final canonical check passed after
+correcting the seed namespace fixture to construct `LoadedModule` with its new
+declaration index. The focused `sh tests/namespace_seed.sh` and full check both
+pass; the fixture correction provides compatibility coverage for this API change.
+Unit is the aggregate canonical phase, not the focused incremental sample.
+
+Higher concurrency alone helped less: the original suite measured 104s at two
+workers and 96s at four. Moving its slowest probe to the front measured 97s and
+was reverted. The probe runner already reuses verified compiled bytecode and
+always reruns tests. Its conservative cache key includes every Panackelty source
+under `src`, `tests`, `examples` and the selected standard library; a source
+change can therefore rebuild unrelated probe artifacts. Narrowing this safely
+needs complete dependency tracking or explicit dependency manifests. The
+existing `make check-compiler`, `make check-bytecode` and `make check-vm` targets
+are the supported component-focused routes; code changes still require the full
+canonical check for integration and release validation.
+
 ## Slice 8 hosted-CI follow-up and matched runner profile — 2026-10-10
 
 At core PR #358's exact candidate head `10543db678f7d81f49eb31429a16ea9635909f72`,

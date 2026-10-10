@@ -64,17 +64,8 @@ pub pure signature_declaration(
 
   for module in modules {
     if module.bindings.identity == identity.module {
-      for declaration in module.parsed.program.declarations {
-        name: Str = match declaration {
-          ImportDeclaration(path) => "",
-          TypeDeclaration(name, base, guard) => name,
-          RecordDeclaration(name, parameters, fields) => name,
-          EnumDeclaration(name, parameters, variants) => name,
-          FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => name
-        }
-        if name == identity.name {
-          found = Some(declaration)
-        }
+      if module.declaration_index.has(identity.name) {
+        found = Some(module.declaration_index.get(identity.name))
       }
     }
   }

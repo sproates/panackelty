@@ -27,7 +27,7 @@
   "compiler": ["bootstrap-fixed-point", "check-hello-world", "disasm-hello-world"],
   "omitted": [
     {"paths": ["tests/runner/compiler_checker_unit.panack"], "reason": "Dynamically executes more distinct generated artifacts than SC4's 16-identity registry; needs separately registered batches."},
-    {"paths": ["tests/runner/compiler_integration_unit.panack", "tests/runner/host_runtime_unit.panack", "tests/runner/vm_unit.panack", "tests/runner/bytecode_native_unit.panack", "tests/runner/report_capture_unit.panack", "tests/runner/compiler_coverage_session_cli.panack"], "reason": "External processes, death/failure fixtures or independently created coverage sessions need dedicated measured manifests; not claimed by this baseline."},
+    {"paths": ["tests/runner/compiler_integration_unit.panack", "tests/runner/host_runtime_unit.panack", "tests/runner/vm_unit.panack", "tests/runner/bytecode_native_unit.panack", "tests/runner/report_capture_unit.panack", "tests/runner/compiler_coverage_session_cli.panack", "tests/runner/compiler_coverage_session_records_cli.panack", "tests/runner/compiler_coverage_session_integrity_cli.panack", "tests/runner/compiler_coverage_session_process_cli.panack"], "reason": "External processes, death/failure fixtures or independently created coverage sessions need dedicated measured manifests; not claimed by this baseline."},
     {"paths": ["other tests/functional cases", "tests/native_*", "tests/tcp.sh", "package/release/install checks", "browser/WASI suites"], "reason": "Outside this explicitly bounded initial source corpus. Native C coverage remains a separate report."},
     {"paths": ["tests/**", "generated source"], "reason": "Test code is executed and identified but is outside the production src/** denominator."}
   ],

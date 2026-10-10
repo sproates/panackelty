@@ -3,9 +3,9 @@
   "review": {
     "reason": "Propose exact else-if compiler floors after 31 complete contexts; both added helpers and all 68 protected items are covered, and compiler line/function/outcome ratios increase",
     "basis": "Owner-selected GI#312 feature; complete local source evidence, unchanged manifest and bytecode/stdlib floors, explicit reviewed-policy diff and normal PR checks",
-    "scopeChange": "Add two parser helpers and one compile-time ParsedConditional record; support else-if newline continuation. Existing 185 exclusions remain, with one additional record-declaration exclusion and shifted parser coordinates/IDs. Expand the existing optional_else and async_await contexts without enlarging the manifest."
+    "scopeChange": "Add two parser helpers and one compile-time ParsedConditional record; support else-if newline continuation. Existing 185 exclusions remain, with one additional record-declaration exclusion and shifted parser coordinates/IDs. Expand the existing optional_else and async_await contexts without enlarging the manifest. The coverage-session CLI cases are split across isolated test entrypoints for bounded parallel execution; production coverage inputs and eligibility are unchanged."
   },
-  "manifestHash": "55f5286840cd4eb627f941c61d4350f1bae2ff75b52415c6e12c62e6726566f4",
+  "manifestHash": "57afa66fb2f7b470f45b7cf50361a6973cc3c5cdf393cc5a0ab7b8640c63732a",
   "exclusionHash": "f7d20f4de1870886a15b79d898a7b5eed6a364267fd66d001038c05e38f6b3ed",
   "components": {
     "compiler": {

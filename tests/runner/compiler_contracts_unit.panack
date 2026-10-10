@@ -3,7 +3,7 @@ import project/src/compiler/resolver::{collect_symbol_diagnostics, append_progra
 import project/src/compiler/checker::{GuardedTypeLookup, RecordLookup, EnumLookup, FunctionLookup, VariantLookup, guarded_type, record_type, enum_type, function_type, variant_type}
 import project/src/compiler/purity::{check_source_frontend}
 import project/src/compiler/module_bodies::{BodyContext, body_compatibility}
-import project/src/compiler/module_bindings::{ModulePackageIdentity.StandaloneModulePackage, ModuleIdentity, DeclarationIdentity, ModuleBindings, LoadedModule}
+import project/src/compiler/module_bindings::{ModulePackageIdentity.StandaloneModulePackage, ModuleIdentity, DeclarationIdentity, ModuleBindings, LoadedModule, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph}
 import project/src/compiler/module_signatures::{SignatureType, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureHole, SignatureTypeIdentity.SignatureCallable, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync}
 import project/src/compiler/emitter::{compile_source_disassembly}
@@ -101,7 +101,7 @@ pure readable_compiler_contracts(): [TestResult] {
   program: Program = indexed_program([TypeDeclaration("Positive", "Nat", BoolExpr(true))])
   parsed: ParsedModule = ParsedModule(program, [])
   bindings: ModuleBindings = ModuleBindings(module_identity, [], [])
-  module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings)
+  module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings, loaded_module_declaration_index(parsed))
   context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [], map())
   natural: SignatureType = SignatureType(SignatureCore("Nat"), [])
   integer: SignatureType = SignatureType(SignatureCore("Int"), [])

@@ -63,8 +63,10 @@ documented in `../../docs/SOURCE_MAPS.md`.
 - `module_bindings.panack` builds per-module declaration/import inventories from
   `ParsedModule`, with visibility, declaration spans, tagged package/module/name
   identities, enum ownership and private/ambiguous export lookup. The loader
-  retains these before combination, separates physical source paths from relative
-  semantic identity, and passes declaration origins into resolver diagnostics.
+  retains these before combination and builds a name-to-declaration index for
+  signature resolution. This avoids rescanning each module's full AST for every
+  nominal type lookup. The loader separates physical source paths from relative
+  semantic identity and passes declaration origins into resolver diagnostics.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,

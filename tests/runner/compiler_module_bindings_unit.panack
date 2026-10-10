@@ -1,6 +1,6 @@
-import project/src/compiler/parser::{ParsedModule, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding, parse_module_complete, parse_program_complete, unlocated_expression, module_execution_diagnostics, indexed_program}
+import project/src/compiler/parser::{ParsedModule, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding, parse_module_complete, parse_program_complete, unlocated_expression, module_execution_diagnostics, indexed_program}
 import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan, diagnostic_text}
-import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity}
+import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity, loaded_module_declaration_index}
 import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignaturePure, SignatureType, SignatureTypeIdentity, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore, check_module_signatures, signature_effect, signature_type, signature_public_identity, substitute_signature_type}
 import project/src/compiler/module_bodies::{BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, CheckedModuleBodies, body_compatibility, check_module_bodies}
@@ -142,7 +142,7 @@ pure namespace_origin_tests(): [TestResult] {
         Error(error) => { results = append(results, test_expect("origin source parses", false, error.message)) },
         Ok(parsed) => {
           bindings: ModuleBindings = collect_module_bindings(ModuleIdentity(StandaloneModulePackage(), source.path), parsed)
-          modules = append(modules, LoadedModule(source.path, parsed, parsed.program, bindings))
+          modules = append(modules, LoadedModule(source.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
         }
       }
     }
@@ -759,7 +759,7 @@ pure signature_test_module(identity: ModuleIdentity, source: Str): LoadedModule 
     Ok(value) => value,
     Error(error) => ParsedModule(indexed_program([]), [])
   }
-  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
 }
 pure signature_test_error(source: Str): Str {
   module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
@@ -778,6 +778,22 @@ pure signature_test_type(graph: ModuleBindingGraph, modules: [LoadedModule], bin
 }
 pure namespace_signature_tests(): [TestResult] {
   mut results: [TestResult] = []
+  match namespace_parse("import project/api as api; record Item { old: Nat }; record Item { latest: Str }") {
+    Error(error) => { results = append(results, test_expect("loaded declaration index fixture parses", false, diagnostic_text(error))); },
+    Ok(parsed) => {
+      index: Map[Str,TopLevel] = loaded_module_declaration_index(parsed)
+      latest: TopLevel = index.get("Item")
+      latest_field: Str = match latest {
+        RecordDeclaration(name, parameters, fields) => fields[0].name,
+        ImportDeclaration(path) => "import",
+        TypeDeclaration(name, base, guard) => "type",
+        EnumDeclaration(name, parameters, variants) => "enum",
+        FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => "function"
+      }
+      results = append(results, test_expect("loaded declaration index keeps last declaration", index.has("Item") && latest_field == "latest", latest_field))
+      results = append(results, test_expect("loaded declaration index excludes imports", !index.has("api"), "import alias indexed as declaration"))
+    }
+  }
   left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item[T] { value: T }; pub async fetch(): Nat { 1 }")
   right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item[T] { value: T }")
   app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as private_alias; pub import project/left as public_alias; pub import project/right as other; pub pure wrap[T](value: private_alias.Item[PureFn[T,Nat]]): other.Item[T] { 0 }")
@@ -877,7 +893,7 @@ pure body_test_module(source: Str): CheckedModuleBodies {
     Error(error) => CheckedModuleBodies([], [error]),
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("body.panack")
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
       graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
       signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
       checked: CheckedModuleBodies = check_module_bodies(graph, [module], signatures.declarations, module)
@@ -904,7 +920,7 @@ pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
     Error(error) => CheckedModuleEffects([error], [], map()),
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("body.panack")
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
       graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
       checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
       checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [module], checked_signatures.declarations, module)

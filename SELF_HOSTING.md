@@ -21,6 +21,21 @@ passed all 59 functional, compiler-contract, and top-level example roots. The
 detailed run record and timing disposition are in the
 [validation profile](tests/VALIDATION_PROFILE.md#slice-8-follow-up-closure-audit-and-current-browser-checks--2026-10-10).
 
+The alpha.12 performance follow-up adds a per-module declaration-name index for
+signature lookup. Fresh compiler stages 2/3/4 now agree at
+`9c5689c7ae348f6f109b0a21fbedcaf373a3ef0ebb00aba0929fc7a0353450bd`, and the
+Euler 001 bytecode remains identical. The compiler-focused suite also splits
+registered coverage-session scenarios into four isolated probes for parallel
+execution, retaining all 41 assertions. Warm `make check-compiler` now passes in
+82s at two workers and 77s at four, still above its 15s target. After updating
+the seed namespace acceptance fixture for the new `LoadedModule` declaration
+index, host-enabled canonical `make check` passed in 286s (unit 115s, functional
+11s, bootstrap 133s, release smoke 0s, quick start 1s). The 120s full and 60s
+bootstrap budgets remain unmet; the 115s aggregate unit phase is not a sample of
+the 15s focused incremental target. This single local run confirms correctness,
+not timing causation or a stable speedup. See the
+[performance profile](tests/VALIDATION_PROFILE.md#parallel-coverage-session-probes--2026-10-10).
+
 The checked namespace project path goes through module identity, checked
 signatures/bodies/effects, and identity-aware emission. Compiler and tooling
 imports now select their dependencies; standard-library modules expose the

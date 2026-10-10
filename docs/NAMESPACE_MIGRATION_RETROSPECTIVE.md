@@ -122,10 +122,10 @@ compiler measurement or evidence of cross-platform causation. The latest clean
 host-enabled canonical `make check` passed all suites in 574 seconds, including
 355 fixture assertions and the 59-root audit, while exceeding the unchanged
 120-second full-check and 60-second bootstrap targets. GI#106 remains open for
-the performance follow-up; its recorded next step is to isolate compiler-source
-and module-loading cost and assess a bounded mitigation, before the next
-compiler-heavy delivery or sooner if hosted timing breaches recur. Neither the
-targets nor coverage were relaxed.
+later profiling and a bounded mitigation, with earlier review if hosted timing
+breaches recur. That work is a separate performance follow-up, not a
+prerequisite for completing this namespace migration. Neither the targets nor
+coverage were relaxed.
 
 ## Lessons for future compiler migrations
 

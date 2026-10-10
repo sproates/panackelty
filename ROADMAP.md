@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#149.**
+The initial allocation contains **105 identities**. **Next available: RM#151.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -321,6 +321,14 @@ for this release or the client milestone. This changes sequencing and partitions
 acceptance, without adding scope, changing programme weights or allocating a
 version. It does not imply that the release must leave alpha.
 
+Owner decision, 2026-10-10: before starting P3, complete two namespace follow-ups:
+[RM#149: Namespace example set](#rm-149) and
+[RM#150: Namespace performance investigation](#rm-150). These follow P2 and
+precede P3; neither reopens P2, changes the original P1–P8 scope weights, nor
+adds a release gate. The two follow-ups have no dependency on each other. The
+revised sequence is P2 → RM#149/RM#150 → P3 → P4 → language/local-package
+release, then HTTP client work (P5).
+
 The following milestone is **a working independently consumed HTTP client package**.
 A clean native application imports its public client API, requests HTTP and HTTPS
 resources by hostname, obtains typed status/headers/body and handles explicit
@@ -351,12 +359,49 @@ bootstrap, docs, independent review and explicit merge approval.
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | In progress — four foundations and slice 1 merged; slice 2 Done on this delivery's merge; remaining checklist below | P1 | Large; provisionally 7–13 remaining PRs on slice 2 merge; reassess after checklist slices 1–3 |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries | Large / 2–4 PRs |
+| Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Owner-selected; planned | Namespace-capable toolchain | Medium / 1 PR |
+| Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Owner-selected; planned | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
 | P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
 | P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Language/local-package gate P1–P4; client gate after P5; final all including P6/P7 | Medium / 1–2 PRs, provisional; reassess across three gates |
+
+<a id="rm-149"></a>
+
+**RM#149: Namespace example set** ·
+[GI#359: Demonstrate namespaces with a tested example set](https://github.com/sproates/panackelty/issues/359).
+Before P3, deliver several complementary programs under `examples/`, including
+at least one multi-file application and focused examples where they teach a
+namespace facet more clearly. Select features only from the supported contract
+(for example aliases, selective imports, qualified names, visibility,
+re-exports and same-named declarations). Explain each program and its run
+commands, and register the complete programs with the functional suite to check
+exact output. Examples must remain deterministic and must not imply package,
+HTTP or other future support. This bounded task coordinates with the broader
+[GI#310 example expansion](https://github.com/sproates/panackelty/issues/310)
+and does not complete it.
+
+<a id="rm-150"></a>
+
+**RM#150: Namespace performance investigation** ·
+[GI#360: Attribute namespace migration performance costs](https://github.com/sproates/panackelty/issues/360).
+Before P3, use the Slice 8 retrospective and pinned validation profiles to
+reproduce and attribute the matched runner-smoke change, then rank evidence-based
+hypotheses and candidate mitigations. Separate compiler phases from subprocess
+and test orchestration; test possible repeated module discovery/loading,
+identity-aware checking/emission cost and expanded import closure rather than
+assuming a cause. The recorded single-host 30.005s → 55.515s result is not an
+isolated compiler measurement or proof of namespace causation. Reuse GI#106's
+budget evidence and contribute findings to the broader
+[RM#134/GI#285 compiler investigation](#rm-134). Preserve all tests and existing
+budgets; implementation of optimisations is separately selected. This is a
+namespace-specific follow-up, not completion of either broader performance
+record.
+
+These two owner-selected follow-ups are outside the P1–P8 weighted programme
+baseline and are not release gates. Both must be complete before P3 starts.
 
 <a id="rm-109"></a>
 

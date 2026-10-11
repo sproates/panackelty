@@ -6,19 +6,48 @@ in `RELEASE_POLICY.md`.
 
 ## Unreleased
 
-- Check staged namespace declaration/signature identities and public access,
-  including generic/callable types and guard-helper dependencies. Namespace
-  execution remains gated; this internal preparation adds no executable syntax.
-- Retain identity-bound staged function bodies and check a bounded annotated-local,
-  direct-call, explicit-generic and return subset. Deferred inference, proofs,
-  effects and emission still block namespace execution.
-- Check staged ordinary expressions and control flow with lexical interpolation
-  identities. Distinguish invalid bodies from deferred obligations and checked
-  type subsets; namespace execution remains disabled.
+No unreleased changes.
 
-- Check staged record/enum construction, array evidence, fields, exhaustive
-  patterns and inferred generic calls by declaration identity. Retain whole-body
-  inference constraints without enabling namespace execution.
+## 0.1.0-alpha.12
+
+### Features and fixes
+
+- Add executable file-based namespaces with `project/` and `stdlib/` imports,
+  aliases, selected imports, qualified names, public declarations and re-exports.
+  Cross-module declaration identities remain distinct through checking and
+  emission. Source and saved-v9 bytecode run the selected entry module only.
+  Imports stay within the entry tree and active toolchain; packages, remote
+  dependencies and unsupported or deferred body checks are not included.
+- Add repeated `else if` arms with an optional final `else`. Conditions are
+  evaluated in order, and value/effect checks and source diagnostics apply to
+  every arm.
+- Add executable-source inventory and opt-in execution coverage commands for
+  inventory, collection, aggregation and reporting. The verified baseline covers
+  38 tracked compiler, bytecode and standard-library source files across its
+  explicit root set; it is not whole-suite coverage or a measure of assertion
+  quality.
+
+### Checking changes and migration
+
+- Migrate source imports to the explicit namespace model. Existing source that
+  depended on flattened cross-file names or transitive visibility may need
+  aliases, selected imports, qualified names or explicit public re-exports.
+  The compiler reports incomplete or unsupported namespace checks rather than
+  emitting unchecked programs.
+- Bytecode remains v9. Use the matching compiler, VM and standard library;
+  compatibility with bytecode from another release is not promised.
+
+### Development and website
+
+- Add three runnable namespace examples covering a multi-file trip planner,
+  same-named types in separate modules, and a public re-export facade. Each is
+  checked from source, compiled, and run from saved bytecode.
+- Index parsed declarations for signature lookup and split coverage-session
+  validation scenarios for parallel execution without reducing assertions. On
+  the measured development host, declaration indexing reduced median compiler-
+  source check time by 3.5%; four-worker warm `make check-compiler` fell from
+  96s to 77s. Clean, bootstrap and focused validation targets remain above their
+  established budgets.
 
 ## 0.1.0-alpha.11 — 2026-10-04
 

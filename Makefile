@@ -124,8 +124,8 @@ unit-impl:
 	@$(MAKE) --no-print-directory unit-runtime
 
 .PHONY: unit-harness unit-runtime unit-compiler
-unit-harness: native
-	@$(PROFILE) harness sh tests/harness.sh
+unit-harness: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) harness sh tests/harness.sh
 	@$(PROFILE) probe/report_capture_unit $(PROBE) tests/runner/report_capture_unit.panack
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 
@@ -427,8 +427,8 @@ clean:
 	rm -rf build
 
 .PHONY: harness
-harness: native
-	@$(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
+harness: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
 
 .PHONY: docs ci-check policy check-no-interpreter
 docs:
@@ -460,11 +460,11 @@ ci-runtime-phases: unit-runtime functional
 
 ci-bootstrap: bootstrap-check quick-start
 
-ci-conformance-source: native
-	@$(PROFILE) native-conformance/source sh tests/native_conformance.sh source
+ci-conformance-source: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/source sh tests/native_conformance.sh source
 
-ci-conformance-bytecode: native
-	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
+ci-conformance-bytecode: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 	@$(MAKE) --no-print-directory quick-start
 
 # Bounded source-coverage counters; no production instrumentation or report ABI.

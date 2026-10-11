@@ -51,25 +51,25 @@ neutrality. GI#106 retains the broader performance follow-up.
 
 ## P3 exported library checking — 2026-10-11
 
-On the macOS arm64 development host, the final `make check` passed on
-`feature/p3-library-manifest-check`, based on `next` at `1bae83f`. The checkout
-already had build outputs; this was not a clean-checkout sample. The complete
-run took **387s**: unit 208s, functional 12s, bootstrap 137s, release smoke 4s,
-and quick start 1s. The 120s full-check and 60s bootstrap budgets were exceeded;
-the 208s aggregate unit phase is not a comparable sample for the 15s focused-check
-target. Native, compiler, all 364 functional cases,
-fixed-point, package, release-smoke, and quick-start gates completed
-successfully. The final run includes the strengthened invalid-later-export case.
-Afterward, `make native-sanitize CC=clang SANITIZE_SUITE=oracle` passed with the
-new stage-two compiler wiring for the instrumented oracle target.
+On the macOS arm64 development host, canonical `make check` passed on
+`feature/p3-library-manifest-check`, based on `next` at `1bae83f`, with existing
+build outputs. The latest run took **297s** (functional 12s, bootstrap 133s,
+release smoke 4s, quick start 0s); the 120s full-check and 60s bootstrap budgets
+were exceeded. A preceding run took 387s (unit 208s, functional 12s, bootstrap
+137s, release smoke 4s, quick start 1s). The 297s run overlapped the standalone
+harness verification and reused warmed build outputs; the two timings are not a
+matched comparison and do not establish a cost change. The 208s aggregate unit
+phase is not a comparable sample for the 15s focused-check target. The final
+canonical run passed all 364 functional cases and the bootstrap/package gates.
 
-This single run is not a clean-checkout profile or a matched comparison with
-PR#374's 379s run, and it does not establish a performance change. The feature is
-used by explicit library checks; no representative application runtime or
-compilation benchmark was run. Keep the existing validation budgets. GI#106's
-next action is a matched clean base/candidate profile separating bootstrap cost,
+The corrected isolated routes also passed locally: `make unit-harness`,
+`make ci-conformance-source`, `make ci-conformance-bytecode`, and
+`make native-sanitize CC=clang SANITIZE_SUITE=oracle`. The checks use the
+source-built stage-two compiler for the new library CLI cases. This is not a
+clean-checkout performance sample. No representative application runtime or
+compile benchmark was run. Keep the existing validation budgets; GI#106's next
+action is a matched clean base/candidate profile separating bootstrap cost,
 with results reviewed before P3 package acceptance.
-
 ## Alpha.12 performance close-out — 2026-10-10
 
 The final clean canonical `make check` ran on the macOS arm64 development host

@@ -9,6 +9,7 @@ fi
 
 archive=$1
 release_version=$2
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 case "$archive" in
   /*) ;;
   *) archive=$(pwd)/$archive ;;
@@ -128,5 +129,44 @@ fi
 test ! -s malformed.stdout || fail "malformed bytecode wrote unexpected stdout"
 grep 'not a Panackelty bytecode file' malformed.stderr >/dev/null || \
   fail "malformed-bytecode diagnostic differs"
+
+namespace_source=$temporary/relocated/toolchain/examples/namespaces/trip_planner/main.panack
+printf 'wrote inventory trip.pinv\n' >inventory.expected
+run_clean inventory "$namespace_source" -o trip.pinv >inventory.stdout 2>inventory.stderr || \
+  fail "packaged source inventory failed"
+cmp inventory.expected inventory.stdout || fail "inventory output differs"
+test ! -s inventory.stderr || fail "inventory wrote unexpected stderr"
+run_clean inventory-check "$namespace_source" --inventory trip.pinv \
+  >inventory-check.stdout 2>inventory-check.stderr || fail "packaged inventory check failed"
+grep -Fx 'inventory: valid' inventory-check.stdout >/dev/null || \
+  fail "inventory check did not confirm validity"
+test ! -s inventory-check.stderr || fail "inventory check wrote unexpected stderr"
+
+run_clean compile "$namespace_source" -o trip.bc >coverage-compile.stdout \
+  2>coverage-compile.stderr || fail "packaged coverage fixture compile failed"
+test -s trip.bc || fail "packaged coverage fixture produced no bytecode"
+test ! -s coverage-compile.stderr || fail "coverage fixture compile wrote unexpected stderr"
+cat "$root/tests/functional/expected/examples/trip_planner.stdout" >coverage.expected
+run_clean coverage-run trip.bc trip.pinv trip.pcov >coverage.stdout 2>coverage.stderr || \
+  fail "packaged coverage collection failed"
+cmp coverage.expected coverage.stdout || fail "coverage collection changed program output"
+test -s trip.pcov || fail "coverage collection produced no record"
+test ! -s coverage.stderr || fail "coverage collection wrote unexpected stderr"
+run_clean coverage-report "$namespace_source" --inventory trip.pinv --coverage trip.pcov \
+  >coverage-report.stdout 2>coverage-report.stderr || fail "packaged coverage report failed"
+grep -F 'coverage: single-execution terminal=1' coverage-report.stdout >/dev/null || \
+  fail "coverage report is missing its terminal record"
+test ! -s coverage-report.stderr || fail "coverage report wrote unexpected stderr"
+
+run_clean coverage-session trip-session trip.bc trip.pinv -- \
+  >coverage-session.stdout 2>coverage-session.stderr || \
+  fail "packaged coverage session failed"
+cmp coverage.expected coverage-session.stdout || fail "coverage session changed program output"
+run_clean coverage-aggregate --source "$namespace_source" trip.pinv --session trip-session \
+  >coverage-aggregate.stdout 2>coverage-aggregate.stderr || \
+  fail "packaged coverage aggregation failed"
+grep -F 'aggregate sessions=1 executions=1' coverage-aggregate.stdout >/dev/null || \
+  fail "coverage aggregation is missing its session summary"
+test ! -s coverage-aggregate.stderr || fail "coverage aggregation wrote unexpected stderr"
 
 echo "release smoke: ok"

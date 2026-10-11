@@ -54,9 +54,9 @@ broader non-alpha milestone is complete.
 
 | Included outcome | Current state | Release acceptance |
 | --- | --- | --- |
-| Panackelty source coverage — [RM#46](#rm-46), [GI#131](https://github.com/sproates/panackelty/issues/131) | Integrated into `next`; bounded SC1–SC6 programme accepted and reports verified live. | Validate the promoted toolchain and packaged inventory/collection/report commands; retain explicit measured-corpus limits, source identities and regression policy. |
-| Namespaces — [RM#41](#rm-41), [GI#198](https://github.com/sproates/panackelty/issues/198) | Foundations and partial checking delivered; executable namespace support is unfinished. | Complete the agreed namespace delivery checklist, including identity-based checking/emission, imports/name isolation, source and saved-bytecode execution, diagnostics, bootstrap and documented limitations. |
-| Else-if chains — [RM#142](#rm-142), [GI#312](https://github.com/sproates/panackelty/issues/312) | Integrated into next through PR#316; compiler, bootstrap and examples tested. | Accept chained conditional syntax with correct evaluation, type/effect rules, source locations and tested source/bytecode behaviour; update the specification and examples. |
+| Panackelty source coverage — [RM#46](#rm-46), [GI#131](https://github.com/sproates/panackelty/issues/131) | SC1–SC6 are accepted on `next`; the bounded report is verified live. The alpha.12 candidate archive now passes local inventory, collection, session, aggregation and report smoke checks on macOS arm64. | Re-run package acceptance on the promoted Linux/macOS artifacts and verify public checksums. Preserve the measured-corpus limits, source identities and regression policy. |
+| Namespaces — [RM#41](#rm-41), [GI#198](https://github.com/sproates/panackelty/issues/198) | Executable checked-subset namespaces and coordinated migration completed on `next` in PR#358. | Verify the promoted native toolchain and package; retain the documented subset, identity-based checking/emission, import isolation, source and saved-bytecode execution, diagnostics and bootstrap limits. |
+| Else-if chains — [RM#142](#rm-142), [GI#312](https://github.com/sproates/panackelty/issues/312) | Implemented in PR#316; compiler, bootstrap and examples are tested on `next`. | Verify chained syntax, evaluation order, type/effect rules, source locations, source/bytecode behavior and documentation in the release candidate. |
 
 Release only after all three outcomes meet their acceptance gates, the
 `next`-to-`main` promotion passes required checks and receives explicit owner
@@ -65,11 +65,11 @@ describe delivered behaviour and limitations rather than planned features.
 The source coverage report remains distinct from native C coverage and does not
 claim whole-suite coverage or assertion quality.
 
-The website has its own reviewed publication: update release/download pins,
-feature text and coverage links, moving source coverage and executable namespaces
-from future work to delivered capabilities only after release verification.
-Document else-if syntax in the appropriate language examples. Provide a working
-preview before owner merge approval.
+The website has its own reviewed publication. After alpha.12 artifacts pass
+public availability and checksum verification, prepare a separate website PR for
+release/download pins, coverage links, namespace and source-coverage claims, and
+else-if examples. Retain the current published-version pins until that review and
+preview pass; do not publish links to the candidate release.
 
 Packages, HTTP, the post-namespace stdlib refactor, broad example expansion and
 the repository-wide readability/test programme are not additional gates for
@@ -210,11 +210,10 @@ public namespace subset passes source and saved-v9 execution. Project
 compilation always uses checked identity emission; the flat compatibility path
 has been removed. The previously deferred Map/Set receiver inference case
 passes identity checking. An exhaustive identity-only check passes all 59
-functional, compiler-contract, and top-level example roots. Candidate acceptance
-is complete locally; the 59-root audit now runs in the functional phase of every
-canonical `make check`. Review and integration remain before Slice 8 receives
-formal scope credit. See the current Slice 8 assessment and validation profile.
-Keep GI#198 open until integration and any required hosted checks pass.
+functional, compiler-contract, and top-level example roots. PR#358 merged this
+acceptance to `next`; the 59-root audit now runs in the functional phase of every
+canonical `make check`. Slice 8 receives its full scope credit on that merge. See
+the current Slice 8 assessment and validation profile.
 The matched clean canonical checks took
 202s on base `d5dd68a` and 204s on the candidate; a single pair does not establish
 causation. Both exceed the 120s budget. The slice 6 acceptance disposition is recorded in the
@@ -418,9 +417,9 @@ bootstrap, docs, independent review and explicit merge approval.
 | Stage | Task | State | Dependencies | Estimate |
 | --- | --- | --- | --- | --- |
 | P1 | [RM#109: Module and package design](#rm-109) · [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234) | Done | None | Medium / 1 design PR |
-| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Slice 8 identity-only cutover and platform checks pass in the candidate; final delivery PR is ready for `next` integration | P1 | Large; delivery candidate prepared |
-| Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | In review in this delivery PR | Namespace-capable toolchain | Medium / 1 PR |
-| Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Candidate improvement implemented; focused and canonical checks pass locally, but the 15s/120s/60s budgets remain exceeded; final review pending | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
+| P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
+| Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
+| Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
@@ -542,9 +541,9 @@ tasks or award completion merely for announcing a checkpoint. GI#166 typed servi
 replacement remain separate followups, not silently completed by raw HTTP.
 
 P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
-their earlier Idea/unscheduled and assessment-only status: P2 slices 1–7 are
-complete on `next`; Slice 8's full identity-only cutover and local acceptance
-pass in the candidate, with final completion taking effect on PR merge.
+their earlier Idea/unscheduled and assessment-only status: P2 slices 1–8 and the
+identity-only cutover are complete on `next` through merged PR#358. RM#149 and
+RM#150 are also complete on `next`; their alpha.12 evidence is recorded above.
 P3–P8 are Planned, not started. Their shared design is recorded in P1, with provisional
 implementation estimates above and detailed slices in the design. No public
 registry, separate compilation, web framework or new engine is required.
@@ -555,17 +554,17 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | Stage / task | Programme weight | Task completion | Earned contribution |
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
-| P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100% on merge; coordinated migration, identity-only route and compiler, canonical, native/browser, installed and 59-root acceptance pass in candidate | 20 pp on merge; pending formal acceptance |
+| P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | Approximately 30% on merge of final P2 delivery: P1 contributes 10 pp and P2 contributes 20 pp | **30 pp on merge; 10 pp formally accepted for completed P1; P2 remains open until merge** |
+| **Total** | **100%** | 30% formally accepted: P1 contributes 10 pp and completed P2 contributes 20 pp; P3–P8 remain planned | **30 pp; P1 and P2 accepted** |
 
-P1 earned its design-task credit through merged PR#240. P2 is in progress: its
-four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
+P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
+its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
 is complete through PR#298; slice 3 is complete on `next` through
 [PR#321](https://github.com/sproates/panackelty/pull/321) and
 [PR#326](https://github.com/sproates/panackelty/pull/326); and slice 4 is complete
@@ -580,22 +579,19 @@ compiler driver with one staged-root program that checks all seven gates togethe
 identity-aware emission, ordinary bodies, same-spelled aggregates and patterns,
 proof/effect behavior, confined source loading, saved-bytecode execution after
 source deletion, and shared core identity. PR#349 merged this integrated
-acceptance to `next` on 2026-10-08 and closes slice 6; it does not enable public
-namespace execution. Slice 7 owns diagnostics and tooling; slice 8 owns
-coordinated source/seed migration and browser/installed acceptance. GI#198
-remains open for P2.
+acceptance to `next` on 2026-10-08 and closes slice 6. PR#350–#355 completed
+slice 7; PR#358 completed slice 8, coordinated source/seed migration, and
+browser/installed acceptance. GI#198's implementation acceptance is complete;
+the alpha.12 promotion and package gates remain separately in RM#143.
 
-On merge of the final Slice 8 delivery PR, the unchanged scope-weighted
-assessment gives P2 100% completion: foundations 20%, slices 1–5 45%, slice 6
-14%, slice 7 6%, and slice 8 15%. The candidate has passed the required local
-acceptance; the table below records this result as taking effect on merge.
-With P2's 20% programme weight, the merged result contributes 20 percentage
+Merged PR#358 completes Slice 8. The unchanged scope-weighted assessment gives
+P2 100% completion: foundations 20%, slices 1–5 45%, slice 6 14%, slice 7 6%,
+and slice 8 15%. With P2's 20% programme weight, it contributes 20 percentage
 points; P1's accepted 10 points bring the overall programme contribution to 30
-points. Until merge, Slice 8's 15 pp and P2's completion remain unaccepted.
-Namespace execution remains gated from release promotion until the release
-checkpoint below.
-P3–P8 remain Planned, not started. Namespace execution remains unaccepted. Namespace/compiler
-integration and HTTPS client correctness carry the largest shares; local packages and server lifecycle
+points. Namespace execution is implemented for the checked subset; alpha.12
+promotion and package/release verification remain under RM#143.
+P3–P8 remain Planned, not started. Namespace/compiler integration and HTTPS
+client correctness carry the largest shares; local packages and server lifecycle
 follow, with smaller shares for design, reproducibility, migration and final
 cross-task acceptance. These coarse estimates include each task's own tests/docs;
 P8 covers the separate integration/release acceptance, without counting them twice.
@@ -606,12 +602,12 @@ implementation sizes remain uncertain. Follow the shared
 
 Track each task as Planned, In progress, In review, Verification pending or
 Accepted. On selection record owner, PR/revision, evidence, blockers and next action
-in its issue and update this register at delivery. The final Slice 8 candidate is
-in review; its acceptance evidence is complete locally and formal status changes
-on merge. A design or experiment does not complete a production task. Website impact: planning only; record supporting
-release/adoption followups before feature promotion, and verify live claims before
-closing such followups. P1 design acceptance is complete. On `next`, P2 slices
-1–7 are complete in the current candidate: PR#297 delivered slice 1; slice 2 is complete; PR#321 and
+in its issue and update this register at delivery. PR#358 completes the P2
+production task on `next`; release-specific acceptance remains under RM#143. A
+design or experiment does not complete a production task. Website impact: the
+site remains truthful for alpha.11; prepare the separate alpha.12 adoption after
+public artifact verification. P1 design acceptance is complete. On `next`, P2 slices
+1–8 are complete on `next`: PR#297 delivered slice 1; slice 2 is complete; PR#321 and
 PR#326 complete slice 3; PR#327 completes slice 4; PR#329 completes slice 5;
 and PR#349 completes slice 6. PR#351 adds match-pattern span retention and
 precise arm-diagnostic locations, PR#352 declaration-signature type spans, PR#353
@@ -620,8 +616,9 @@ delivery completes Slice 7 acceptance. Slice 8 migrates compiler/tooling imports
 refreshes the seed, and passes native, browser, installed-package, and maintained
 59-root identity-only acceptance. The legacy flat project route is removed;
 incomplete identity closures fail closed. The final delivery PR records this
-Done summary, effective on merge, and closes GI#198 after required checks pass on
-the exact PR head.
+Done summary in PR#358; its exact-head checks passed before merge. GI#198's
+implementation criteria are complete; alpha.12 promotion and release checks are
+tracked separately in RM#143.
 P3–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -3260,15 +3257,15 @@ partial completion estimated below and 10 pp formally accepted across the progra
 
 <a id="namespace-completion-assessment"></a>
 
-Current scope baseline, updated 2026-10-10 after compiler, canonical, browser,
-and maintained identity-only root acceptance: **100% on merge** for RM#41, using
-the unchanged 20/8/12/8/7/10/14/6/15 scope weights. Slices 1–7 are complete on
-`next`; Slice 8's coordinated migration, seed fixed points, identity-only project
-route, and native/browser/installed acceptance pass locally. Receiver-context
+Current scope baseline, updated 2026-10-11 after PR#358 merged: **100% delivered**
+for RM#41, using the unchanged 20/8/12/8/7/10/14/6/15 scope weights. Slices 1–8
+are complete on `next`; coordinated migration, seed fixed points, the identity-only
+project route, and native/browser/installed acceptance passed. Receiver-context
 inference covers unannotated `Map.put` and `Set.add`; the maintained audit passes
-all 59 functional, compiler-contract, and top-level example roots. The final
-Slice 8 PR records completion effective on merge. See the current handoff and
-validation profile.
+all 59 functional, compiler-contract, and top-level example roots. PR#358 records
+completion; alpha.12 promotion and artifact verification remain RM#143 gates. See
+the merged [PR#358](https://github.com/sproates/panackelty/pull/358) and validation
+profile.
 The integrated staged-root program exercises all seven slice-6 gates; PR#349
 records source and saved-bytecode execution, identity emission, aggregate and
 pattern identity, proof/effect behavior, confined loading, and shared core
@@ -3288,9 +3285,9 @@ until a documented scope/estimate revision explains its effect on the total.
 | Slice 4: Guard proofs | 7% | PR#327: identity-keyed path facts, conversions, arithmetic obligations and mutation invalidation | 100% | 7 pp |
 | Slice 5: Effects/await | 10% | Merged PR#329: identity-based pure/ordinary/async call and await checks, imported/generic/indirect paths, recovered valid-sibling evidence | 100% | 10 pp |
 | Slice 6: Identity emission/standalone loading | 14% | Seven gates integrated by merged PR#349, including staged-root source and saved-bytecode acceptance | 100% | 14 pp |
-| Slice 7: Diagnostics/explain/locate | 6% | Done on this delivery's merge: PR#351 retains match-pattern spans; PR#352 declaration-signature type spans; PR#353 body-local annotation spans; PR#354 explicit call type-argument spans. This acceptance adds exact under-arity locations for direct and receiver calls and revalidates qualified/ambiguous/wrong-identity selectors, exact mapped ranges, malformed maps and stale source closures in `explain`/`locate` | 100% | 6 pp |
-| Slice 8: Source/seed cutover and acceptance | 15% | Compiler/tooling API migration, standard-library exports, identity-only project route, seed fixed point, and native/browser/installed acceptance pass locally. Map/Set receiver inference and coverage identity mapping are checked. The maintained identity-only audit passes all 59 functional, compiler-contract, and top-level example roots. Final delivery PR ready; formal completion takes effect on merge. | 100% on merge | 15 pp on merge |
-| **Total** | **100%** | **Foundations and slices 1–8 complete on merge of the final Slice 8 delivery PR** | **100% on merge** | **20 pp on merge** |
+| Slice 7: Diagnostics/explain/locate | 6% | Completed through PR#351–#355: retained match-pattern, signature, body-local and call-argument spans; exact under-arity locations for direct and receiver calls; qualified/ambiguous/wrong-identity selectors, mapped ranges, malformed maps and stale source closures in `explain`/`locate` | 100% | 6 pp |
+| Slice 8: Source/seed cutover and acceptance | 15% | Completed by merged PR#358: compiler/tooling API migration, standard-library exports, identity-only project route, seed fixed point, native/browser/installed acceptance and 59-root identity-only audit | 100% | 15 pp |
+| **Total** | **100%** | **Foundations and slices 1–8 complete in merged PR#358** | **100%** | **20 pp** |
 
 Foundations carry 20% for graph, resolver, public contracts and lexical identity;
 aggregate/pattern/generic work is larger than ordinary expressions. Core, proofs
@@ -3300,21 +3297,21 @@ v9 fixed points are evidence within delivered slices, not partial credit toward
 later precise tooling or namespace-capable cutover. No scope is removed, and
 nothing is counted both as a foundation and a remaining slice.
 
-On merge, P2 contributes 20% × 100% = **20 pp**. Including P1's accepted
-10 pp, the programme contribution becomes **30 pp**. Formal whole-task
-acceptance remains **10 pp** until that merge. The parse-only migration
+P2 contributes 20% × 100% = **20 pp**. Including P1's accepted 10 pp, the
+programme contribution is **30 pp**. The parse-only migration
 diagnostic remains an internal standalone-parser boundary; project commands
-filter it and require successful identity checking and emission. The final Slice 8 PR
-will close GI#198 when required checks pass for its exact head and it merges.
+filter it and require successful identity checking and emission. PR#358 merged
+after its exact-head checks passed; the namespace implementation acceptance is
+complete on `next`.
 
-Keep the public namespace execution gate until the checked/effect/emission path
-and coordinated migration are accepted; zero deferred checks in a bounded subset
-does not establish readiness. Preserve source identity and spans from the start,
-rather than rebuilding them at slice 7. Before P3 manifests exist, bootstrap a
-root-level entry in an isolated snapshot of the compiler/bytecode closure; do not
-permit parent-path escape from a `src/compiler/` confinement root. Remove staging
-outputs after each build. Temporary bootstrap inputs need explicit removal
-criteria and must not become a second installed language mode.
+The public namespace execution gate was removed by the accepted identity-based
+cutover in PR#358. Deferred or unsupported body obligations still fail closed.
+Preserve source identity and spans from the start, rather than rebuilding them at
+slice 7. Before P3 manifests exist, bootstrap a root-level entry in an isolated
+snapshot of the compiler/bytecode closure; do not permit parent-path escape from
+a `src/compiler/` confinement root. Remove staging outputs after each build.
+Temporary bootstrap inputs need explicit removal criteria and must not become a
+second installed language mode.
 
 PR#331, merged to `next` on 2026-10-08, exercises
 same-spelled imported functions, records, enums and variants through source and

@@ -1,6 +1,31 @@
 # Self-hosting roadmap
 
-## P2 Slice 8 handoff — 2026-10-10
+## Current state — P2 complete on `next`
+
+PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.
+It completes Slice 8's coordinated compiler/tooling and standard-library API
+migration, identity-only project route, namespace-capable seed fixed points, and
+native, browser and installed acceptance. The maintained identity-only audit
+passes all 59 functional, compiler-contract and top-level example roots. P2 is
+100% complete and contributes 20 percentage points to the modules programme;
+with completed P1, 30 points are accepted. Alpha.12 promotion and package/release
+verification remain under RM#143. Performance budgets remain unmet under the
+accepted alpha.12 disposition recorded in ROADMAP.md and the validation profile.
+
+The last integrated `next` commit before release preparation,
+`aaf5e604d12e2044ba9de8515a1fd4777f25ecb5`, passed the hosted `Check` workflow
+and a clean local canonical `make check` in 375s. The current alpha.12 release-
+preparation worktree passes canonical `make check` in 373s (unit 198s, functional
+12s, bootstrap 132s, release smoke 3s and quick start 1s). Its relocated archive
+smoke exercises namespace execution and all six packaged source-coverage
+commands. The 120s full, 60s bootstrap and 15s focused targets remain unmet. See
+the [performance profile](tests/VALIDATION_PROFILE.md#alpha12-performance-close-out--2026-10-10).
+
+## Historical pre-merge Slice 8 handoff — 2026-10-10
+
+This dated candidate snapshot is retained as delivery evidence; its statements
+that GI#198 remains open and Slice 8 is uncredited were superseded by merged
+PR#358.
 
 The coordinated compiler/tooling API migration, standard-library export
 migration, and namespace-capable seed refresh are implemented in the current

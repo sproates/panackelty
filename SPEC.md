@@ -766,36 +766,33 @@ precedence rule.
 Empty logical segments, non-identifier logical segments, other suffixes,
 absolute imports and paths outside the entry root are rejected. Quoted imports
 that traverse a symlink are also rejected. Resolved files load once and retain
-their source identity; cycles and duplicate declarations are checked. In the
-staged namespace path, function, type and variant identities remain distinct
+their source identity; cycles and duplicate declarations are checked. In
+namespace projects, function, type and variant identities remain distinct
 across modules, and aliases, re-exports and public visibility are checked before
 emission. Checked programs receive deterministic private names; only the entry
 module's `main` launches. The bytecode format remains v9.
 
-Namespace execution is enabled for the checked body subset only. Bodies with
-deferred type or proof obligations fail closed. Source-map and explain/locate
-replay, coordinated compiler/standard-library API migration, refreshed seed
-fixed points, and native/browser/installed acceptance now pass. The legacy
-single-program route remains for ordinary bodies the identity emitter does not
-yet fully check; an unconditional staged-emission probe failed ordinary generic
-driver and source-map cases. Remove that compatibility route only after equivalent
-identity checking and tooling behavior pass. `parse_program_complete` remains a
-legacy single-program adapter and rejects staged syntax instead of applying the flattened name model. The raw
-frontend also retains qualified types, function references, variant patterns
-and dot calls; declaration signatures check tagged type/callable identity and
-public reachability, including private type and guard-helper leaks.
-Staged function bodies additionally retain declaration/local identities and check
-ordinary expressions/control flow, lexical interpolation, records/enums, arrays,
-field access, exhaustive variant patterns and direct generic calls. Constructor and
-empty-collection evidence is contextual; user-function inference uses only value
-arguments and preserves rigid caller parameters. Nominal identities remain distinct
-inside nested types and patterns. Shared unresolved evidence cannot acquire
-conflicting types at different uses, and inferred locals require complete types
-before later statements. General core/indirect calls, guarded arithmetic proofs
-and mixed Rat/integer joins remain partially deferred. Identity emission consumes
-only fully checked bodies; unsupported or deferred constructs cannot be emitted.
-Invalid, deferred and checked-subset bodies remain distinct.
-See [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
+Namespace execution is enabled for the documented checked body subset only.
+Bodies with deferred type or proof obligations fail closed. Source-map and
+explain/locate replay, coordinated compiler/standard-library API migration,
+refreshed seed fixed points, and native/browser/installed acceptance pass. Project
+compilation uses checked identity emission; incomplete closures fail closed, and
+the legacy flattened project route has been removed. `parse_program_complete`
+remains a single-program adapter and rejects staged syntax instead of applying a
+flattened name model. Declaration signatures check tagged type/callable identity
+and public reachability, including private type and guard-helper leaks. Function
+bodies retain declaration/local identities and check ordinary expressions and
+control flow, lexical interpolation, records/enums, arrays, field access,
+exhaustive variant patterns, generic calls, core/indirect contracts, guard proofs,
+effects and await. Constructor and empty-collection evidence is contextual;
+user-function inference uses value arguments and preserves rigid caller
+parameters. Nominal identities remain distinct inside nested types and patterns.
+Shared unresolved evidence cannot acquire conflicting types at different uses,
+and inferred locals require complete types before later statements. Mixed Rat/
+integer joins and other explicitly deferred obligations remain distinct from
+checked bodies. Identity emission consumes only fully checked bodies; unsupported
+or deferred constructs cannot be emitted. See the [accepted design and migrated
+implementation](docs/MODULE_PACKAGE_DESIGN.md).
 
 ## Compilation and the Panackelty VM
 

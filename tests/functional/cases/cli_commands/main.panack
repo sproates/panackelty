@@ -104,6 +104,10 @@ main(): Void {
       library_manifest = child(library_root, "panack.json")
       library_copy_root = child(workspace.root, "library-copy")
       library_copy_manifest = child(library_copy_root, "panack.json")
+      internal_root = child(workspace.root, "internal")
+      internal_source_root = child(internal_root, "src")
+      internal_api = child(internal_source_root, "math.panack")
+      internal_manifest = child(internal_root, "panack.json")
       relocated_root = child(workspace.root, "relocated")
       relocated_source_root = child(relocated_root, "src")
       relocated_entry = child(relocated_source_root, "main.panack")
@@ -118,6 +122,7 @@ main(): Void {
       library_escape_text = result_value_or(path_value_to_text(library_escape), "invalid-library-escape")
       library_escape_target_text = result_value_or(path_value_to_text(library_escape_target), "invalid-library-escape-target")
       library_copy_manifest_text = result_value_or(path_value_to_text(library_copy_manifest), "invalid-library-copy-manifest")
+      internal_manifest_text = result_value_or(path_value_to_text(internal_manifest), "invalid-internal-manifest")
       relocated_root_text = result_value_or(path_value_to_text(relocated_root), "invalid-relocated")
       relocated_manifest_text = result_value_or(path_value_to_text(relocated_manifest), "invalid-relocated-manifest")
       mut results: [TestResult] = []
@@ -166,6 +171,11 @@ main(): Void {
         ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
       filesystem_create_directory(library_root)
       filesystem_create_directory(library_source_root)
+      filesystem_create_directory(internal_root)
+      filesystem_create_directory(internal_source_root)
+      internal_manifest_contents = "{\"schema\":1,\"package\":\"example.math_support\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"math\":\"math.panack\"},\"dependencies\":{}}"
+      filesystem_write_bytes(internal_manifest, text_encode_utf8(internal_manifest_contents))
+      filesystem_write_bytes(internal_api, text_encode_utf8("pub pure answer(): Nat { 42 }\n"))
       library_manifest_text_value = "{\"schema\":1,\"package\":\"example.geometry\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"},\"dependencies\":{}}"
       filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
       filesystem_write_bytes(library_api, text_encode_utf8(
@@ -343,26 +353,27 @@ main(): Void {
       filesystem_create_directory(overlap_source_root_two)
       filesystem_write_bytes(overlap_manifest_two, text_encode_utf8(
         replace_first(overlap_manifest_contents, "example.embedded", "example.nested")))
-      dependency_overlap_manifest = replace_first(dependency_manifest_text,
-        "\"geometry\":{\"path\":\"../library\"}",
-        "\"geometry\":{\"path\":\"../library\"},\"nested\":{\"path\":\"../library/src/nested-library\"}")
-      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_overlap_manifest))
+      dependency_overlap_manifest = replace_first(library_manifest_text_value,
+        "\"dependencies\":{}",
+        "\"dependencies\":{\"nested\":{\"path\":\"src/nested-library\"}}")
+      filesystem_write_bytes(library_manifest, text_encode_utf8(dependency_overlap_manifest))
       match testing_process_run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           duration_seconds(10), 1048576) {
         Error(error) => {
-          results = results.append(test_expect("dependency source roots cannot overlap each other", false,
+          results = results.append(test_expect("nested dependency roots cannot overlap their parent", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results.append(test_expect("dependency source roots cannot overlap each other",
+          results = results.append(test_expect("nested dependency roots cannot overlap their parent",
             output.exit_code == 1 && output.signal == 0 &&
               contains(text_decode_utf8(output.stderr), "physical source root overlaps dependency geometry"),
-            "two dependencies sharing a physical source subtree were accepted"))
+            "a nested dependency source root overlapped its declaring package"))
         }
       }
       filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
       filesystem_remove_file(overlap_manifest_two)
       filesystem_remove_directory(overlap_source_root_two)
       filesystem_remove_directory(overlap_package_root_two)
@@ -386,24 +397,83 @@ main(): Void {
       }
       filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
       nested_dependency_manifest = replace_first(library_manifest_text_value,
-        "\"dependencies\":{}", "\"dependencies\":{\"internal\":{\"path\":\"../internal\"}}")
+        "\"dependencies\":{}", "\"dependencies\":{\"common\":{\"path\":\"../internal\"}}")
       filesystem_write_bytes(library_manifest, text_encode_utf8(nested_dependency_manifest))
+      filesystem_write_bytes(library_api, text_encode_utf8(
+        "import common/math as math\npub pure answer(): Nat { math.answer() }\n"))
+      nested_diamond_manifest = replace_first(dependency_manifest_text,
+        "\"geometry\":{\"path\":\"../library\"}",
+        "\"geometry\":{\"path\":\"../library\"},\"math_direct\":{\"path\":\"../internal\"}")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(nested_diamond_manifest))
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import project/value as value\nimport geometry/api as geometry\nimport math_direct/math as direct_math\nmain(): Void { print(value.answer()); print(geometry.answer()); print(direct_math.answer()); arguments: [Str] = command_args(); print(len(arguments)); }\n"))
       match testing_process_run(path("./panack-vm"),
           source_compiler_arguments(["check", "--project", package_manifest_text]),
           bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           duration_seconds(10), 1048576) {
         Error(error) => {
-          results = results.append(test_expect("nested local dependencies fail closed", false,
+          results = results.append(test_expect("nested diamond dependency checks", false,
             "compiler process failed"))
         },
         Ok(output) => {
-          results = results.append(test_expect("nested local dependencies fail closed",
-            output.exit_code == 1 && output.signal == 0 &&
-              contains(text_decode_utf8(output.stderr), "local dependency packages cannot declare dependencies yet"),
-            "an unsupported nested dependency graph was accepted"))
+          results = results.append(test_expect("nested diamond dependency checks",
+            output.exit_code == 0 && output.signal == 0 &&
+              text_decode_utf8(output.stdout) == "ok\n" && output.stderr == bytes_empty(),
+            "a valid nested dependency graph did not check"))
         }
       }
+      results = results.append(test_run_command("manifest application runs nested and direct paths to one library",
+        source_compiler_command(["run", "--project", package_manifest_text, "alpha"], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("42\n42\n42\n1\n"), bytes_empty())))
+      results = results.append(test_run_command("manifest application compiles nested and direct paths to one library",
+        source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
+      results = results.append(test_run_command("nested dependency diamond survives bytecode compilation",
+        command([bytecode_text]),
+        ProcessOutput(0, 0, text_encode_utf8("42\n42\n42\n0\n"), bytes_empty())))
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import common/math as math\nmain(): Void { print(math.answer()); }\n"))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("nested dependency alias stays private to its package", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("nested dependency alias stays private to its package",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr),
+                "dependency import is not declared or the module is not exported: common/math"),
+            "the application inherited its dependency's alias"))
+        }
+      }
+      cyclic_internal_manifest = replace_first(internal_manifest_contents,
+        "\"dependencies\":{}", "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
+      filesystem_write_bytes(internal_manifest, text_encode_utf8(cyclic_internal_manifest))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("nested package dependency cycle is rejected", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("nested package dependency cycle is rejected",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "package dependency cycle detected"),
+            "a cyclic package graph was accepted"))
+        }
+      }
+      filesystem_write_bytes(internal_manifest, text_encode_utf8(internal_manifest_contents))
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = command_args(); print(len(arguments)); }\n"))
       filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
+      filesystem_write_bytes(library_api, text_encode_utf8(
+        "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n"))
       race_compiler: Str = environment_value("PANACK_TEST_COMPILER")
       race_compiler_path: Str = if race_compiler == "" {
         "build/bootstrap/stage2/compiler.bc"
@@ -463,6 +533,9 @@ main(): Void {
       }
       filesystem_write_bytes(library_extra, text_encode_utf8(
         "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n"))
+      results = results.append(test_run_command("manifest application recompiles direct dependencies after nested checks",
+        source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
       move: ProcessOutput = match testing_process_run(path("/bin/mv"), [package_root_text, relocated_root_text],
           bytes_empty(), path_value_current(), [], duration_seconds(10), 1048576) {
         Error(error) => ProcessOutput(1, 0, bytes_empty(), bytes_empty()),
@@ -486,6 +559,10 @@ main(): Void {
       filesystem_remove_file(library_manifest)
       filesystem_remove_directory(library_source_root)
       filesystem_remove_directory(library_root)
+      filesystem_remove_file(internal_api)
+      filesystem_remove_file(internal_manifest)
+      filesystem_remove_directory(internal_source_root)
+      filesystem_remove_directory(internal_root)
       filesystem_remove_file(library_copy_manifest)
       filesystem_remove_directory(library_copy_root)
       filesystem_remove_file(second_app_entry)

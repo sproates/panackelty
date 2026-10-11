@@ -4,9 +4,10 @@ const fs = require('node:fs'), path = require('node:path'), os = require('node:o
 const {spawnSync} = require('node:child_process');
 const {regular,sha,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
 const checkout = path.resolve(__dirname,'..');
-function command(args, timeout = 180000) {
+function command(args, timeout = 180000, extraEnv = {}) {
   const result = spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
-    env:{...process.env,PANACK_TEST_RUNNER_REPORT:'',PANACK_COVERAGE_TICKET:''}});
+    env:{...process.env,PANACKELTY_STDLIB_PATH:path.join(checkout,'src/stdlib'),...extraEnv,
+      PANACK_TEST_RUNNER_REPORT:'',PANACK_COVERAGE_TICKET:''}});
   if (result.error || result.status !== 0 || result.signal) throw new Error(`${args.slice(0,3).join(' ')} failed: ${result.error?.message || result.stderr || result.stdout}`);
   return result.stdout;
 }
@@ -24,20 +25,21 @@ function baseline(output, allowDirty = false) {
   const vm = regular(path.join(checkout,'panack-vm'));
   const plans = new Map(), groups = [], sessions = [], seen = new Set();
   const tool = path.join(work,'export.bc');
-  command(['./panack','compile','tests/source_coverage/export.panack','-o',tool]);
+  command(['./panack','compile','tests/source_coverage/export.panack','-o',tool],180000,
+    {PANACKELTY_BOOTSTRAP_ROOT:checkout});
   function plan(entry) {
     if (!plans.has(entry)) {
       console.log(`Plan: ${entry}`);
       const prefix = path.join(work,`plan-${plans.size}`);
-      if (command(['./panack','run',tool,entry,prefix]) !== 'plan: wrote\n') throw Error('Unexpected export response');
+      if (command(['./panack','run',tool,entry,prefix],180000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error('Unexpected export response');
       plans.set(entry,readPlan(prefix,entry,checkout,compiler));
     }
     return plans.get(entry);
   }
-  function run(id,p,args,check) {
+  function run(id,p,args,check,extraEnv={}) {
     console.log(`Collect: ${id}`);
     const directory = path.join(work,`session-${sessions.length}`);
-    const stdout = command(['./panack','coverage-session',directory,p.prefix+'.bc',p.prefix+'.inv','--',...args]);
+    const stdout = command(['./panack','coverage-session',directory,p.prefix+'.bc',p.prefix+'.inv','--',...args],180000,extraEnv);
     fs.writeFileSync(path.join(work,`stdout-${sessions.length}.txt`),stdout);
     check(stdout);
     const session = readSession(directory,[p],seen);
@@ -65,12 +67,12 @@ function baseline(output, allowDirty = false) {
   for (const id of manifest.compiler) {
     if (id === 'bootstrap-fixed-point') {
       const artifact = path.join(work,'stage.bc');
-      run(id,cp,['compile','src/compiler/main.panack','-o',artifact],()=>{});
+      run(id,cp,['compile','src/compiler/main.panack','-o',artifact],()=>{},{PANACKELTY_BOOTSTRAP_ROOT:checkout});
       if (!regular(artifact).equals(compiler)) throw Error('Bootstrap fixed point changed');
     } else if (id === 'check-hello-world') {
-      run(id,cp,['check','tests/functional/cases/hello_world/main.panack'],stdout=>{if(stdout!=='ok\n') throw Error('Check result changed');});
+      run(id,cp,['check','tests/functional/cases/hello_world/main.panack'],stdout=>{if(stdout!=='ok\n') throw Error('Check result changed');},{PANACKELTY_BOOTSTRAP_ROOT:checkout});
     } else if (id === 'disasm-hello-world') {
-      run(id,cp,['disasm','tests/functional/cases/hello_world/main.panack'],stdout=>{if(!stdout.includes('print')) throw Error('Disassembly missing print');});
+      run(id,cp,['disasm','tests/functional/cases/hello_world/main.panack'],stdout=>{if(!stdout.includes('print')) throw Error('Disassembly missing print');},{PANACKELTY_BOOTSTRAP_ROOT:checkout});
     } else throw Error('Unknown compiler manifest entry');
   }
   if (sessions.length !== 1+manifest.units.length+manifest.functional.length+manifest.compiler.length) throw Error('Incomplete test manifest');

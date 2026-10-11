@@ -7,13 +7,17 @@
     "src/compiler/diagnostics.panack", "src/compiler/driver.panack", "src/compiler/emitter.panack",
     "src/compiler/explanations.panack", "src/compiler/expression_contracts.panack", "src/compiler/lexer.panack",
     "src/compiler/loader.panack", "src/compiler/main.panack", "src/compiler/module_bindings.panack",
-    "src/compiler/module_bodies.panack", "src/compiler/module_resolution.panack", "src/compiler/module_signatures.panack",
-    "src/compiler/parser.panack", "src/compiler/purity.panack", "src/compiler/resolver.panack",
+    "src/compiler/module_bodies.panack", "src/compiler/module_effects.panack", "src/compiler/module_emission.panack",
+    "src/compiler/module_resolution.panack", "src/compiler/module_signatures.panack",
+    "src/compiler/parser.panack", "src/compiler/purity.panack", "src/compiler/project_frontend.panack",
+    "src/compiler/resolver.panack",
     "src/compiler/source_inventory.panack", "src/compiler/source_maps.panack", "src/compiler/types.panack",
     "src/stdlib/bytes.panack", "src/stdlib/core.panack", "src/stdlib/environment.panack", "src/stdlib/filesystem.panack",
-    "src/stdlib/host.panack", "src/stdlib/option.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
+    "src/stdlib/host.panack", "src/stdlib/numeric.panack",
+    "src/stdlib/option.panack", "src/stdlib/path.panack", "src/stdlib/prelude.panack",
     "src/stdlib/process.panack", "src/stdlib/result.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
-    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/time.panack"
+    "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/text.panack",
+    "src/stdlib/time.panack"
   ],
   "units": [
     "compiler_lexer", "compiler_parser", "compiler_resolver", "compiler_purity", "compiler_contracts",

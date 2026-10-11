@@ -4,9 +4,10 @@ Design outcome for [RM#109: Module and package design](../ROADMAP.md#rm-109)
 and [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234),
 within [RM#108: Modules programme](../ROADMAP.md#rm-108).
 
-This document records the P1 design accepted in PR#240. It is a design contract,
-not executable feature evidence. All syntax, manifests, commands and HTTP APIs below
-are proposed future contracts, not runnable examples for the current toolchain.
+This document records the P1 design accepted in PR#240 and the follow-on programme
+decisions. Its tables remain design contracts rather than general feature evidence;
+the current P3 implementation slice is described below. Most syntax, package
+features and HTTP APIs remain proposed and are not available in the current release.
 [SPEC.md](../SPEC.md) remains the current language contract. Implementation,
 release and website adoption require their own selected deliveries. P1 closes
 only the design investigation. P2 is in progress with fail-closed raw qualified
@@ -19,15 +20,18 @@ Unknown inference/proofs remain explicitly deferred; effect checking, emission,
 tooling and coordinated migration remain pending. This intermediate slice does
 not enable namespaces or complete P2.
 P3 has started with the confined package-root read prerequisite merged in PR#372.
-The bounded strict manifest parser is being implemented as an isolated compiler
-module; driver integration, explicit root selection, physical confinement and
+The current implementation slice wires strict manifest parsing to explicit
+`check`, `compile` and `run --project panack.json` commands for dependency-free
+applications, with confined source reads and relocation-stable module identity.
+Dependency loading, library-only manifests, two-application acceptance and full
 package-loader acceptance remain open. P4–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
 ## Current implementation audit
 
-Audit baseline: core revision `b32267e` (2026-10-03). This is source inspection,
-not evidence that the proposed behavior passes tests.
+Audit baseline: core revision `b32267e` (2026-10-03). The table records the
+pre-P3 implementation audit; it is historical source inspection, not current
+acceptance evidence.
 
 | Boundary | Observed behavior and evidence | Consequence |
 | --- | --- | --- |

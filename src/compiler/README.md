@@ -67,12 +67,16 @@ documented in `../../docs/SOURCE_MAPS.md`.
   signature resolution. This avoids rescanning each module's full AST for every
   nominal type lookup. The loader separates physical source paths from relative
   semantic identity and passes declaration origins into resolver diagnostics.
-- `package_manifest.panack` is an isolated, pure parser for the proposed P3
+- `package_manifest.panack` is a pure parser for P3's strict schema-1
   `panack.json` schema. It bounds JSON input and nesting, rejects duplicate and
   unknown keys, validates package/version/toolchain fields and portable logical
-  paths, and returns a typed package record. The compiler driver and loader do
-  not consume it yet; explicit project-root selection and physical path
-  confinement remain later P3 work.
+  paths, and returns a typed package record. `package_project.panack` selects an
+  explicitly named application manifest, enforces the running toolchain version,
+  and resolves its source and entry roots. The driver supports `check`, `compile`,
+  and `run` with `--project panack.json`; the loader reads package sources beneath
+  the selected physical root and assigns relocation-stable package identities.
+  This first slice rejects declared dependencies and libraries without an entry;
+  dependency graph loading and two-application acceptance remain open P3 work.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,

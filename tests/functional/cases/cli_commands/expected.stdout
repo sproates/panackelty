@@ -1,8 +1,15 @@
 PASS bare source path
 PASS default compile output
 PASS bare bytecode path
+PASS explicit manifest package check
+PASS explicit manifest package source run
+PASS explicit manifest package compile
+PASS unsupported package dependency fails closed
+PASS manifest package relocation fixture
+PASS relocated manifest package source run
+PASS saved package bytecode runs after relocation
 PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 7, failures: 0
+tests: 14, failures: 0

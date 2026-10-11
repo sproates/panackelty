@@ -390,7 +390,7 @@ pub read_project_source(
   }
 }
 
-read_package_source(
+pub read_package_source(
   path: Str,
   package_root: Str,
   expected_root_identity: Option[FilesystemRootIdentity],

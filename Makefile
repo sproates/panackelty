@@ -78,6 +78,7 @@ check-compiler-impl: $(STAGE2_COMPILER)
 		tests/runner/compiler_parser_unit.panack \
 		tests/runner/compiler_module_bindings_unit.panack \
 		tests/runner/compiler_loader_confinement_unit.panack \
+		tests/runner/compiler_package_source_limits_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \
@@ -154,6 +155,7 @@ unit-compiler: native $(STAGE2_COMPILER)
 		tests/runner/compiler_resolver_unit.panack \
 		tests/runner/compiler_parser_unit.panack \
 		tests/runner/compiler_module_bindings_unit.panack \
+		tests/runner/compiler_package_source_limits_unit.panack \
 		tests/runner/compiler_source_spans_unit.panack \
 		tests/runner/compiler_instruction_sources_unit.panack \
 		tests/runner/compiler_source_maps_unit.panack \

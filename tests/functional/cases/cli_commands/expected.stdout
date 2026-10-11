@@ -34,6 +34,8 @@ PASS 256 dependency edges are accepted
 PASS 257 dependency edges are rejected
 PASS 32 package levels are accepted
 PASS 33 package levels are rejected
+PASS package source limit CLI fixture runs
+PASS oversized package source fails closed through CLI
 PASS manifest-only library compile requires an entry
 PASS manifest-only library run requires an entry
 PASS manifest-only library requires an export
@@ -46,4 +48,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 48, failures: 0
+tests: 50, failures: 0

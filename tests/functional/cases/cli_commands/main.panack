@@ -544,6 +544,31 @@ main(): Void {
       results = results.append(test_expect("33 package levels are rejected",
         contains(graph_output, "PASS 33 package levels rejected"),
         "the package depth limit accepted an oversized graph"))
+      source_limit_compiler: Str = environment_value("PANACK_TEST_COMPILER")
+      source_limit_compiler_path: Str = if source_limit_compiler == "" {
+        "build/bootstrap/stage2/compiler.bc"
+      } else { source_limit_compiler }
+      mut source_limit_output: Str = ""
+      match testing_process_run(path("/bin/sh"),
+          ["tests/functional/cases/cli_commands/package_source_limits.sh",
+            source_limit_compiler_path, toolchain_version, "src/stdlib"],
+          bytes_empty(), path_value_current(), [], duration_seconds(120), 4096) {
+        Error(error) => {
+          results = results.append(test_expect(
+            "package source limit CLI fixture runs", false,
+            "source limit CLI fixture could not run"))
+        },
+        Ok(output) => {
+          source_limit_output = text_decode_utf8(output.stdout)
+          results = results.append(test_expect(
+            "package source limit CLI fixture runs",
+            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty(),
+            "source byte boundary fixture did not complete successfully"))
+        }
+      }
+      results = results.append(test_expect("oversized package source fails closed through CLI",
+        contains(source_limit_output, "PASS oversized package source fails closed through CLI"),
+        "the package CLI accepted a source file larger than 1 MiB"))
       results = results.append(test_run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(

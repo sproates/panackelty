@@ -7,6 +7,7 @@ import stdlib/path::{path_value_from_text, path_value_current}
 import stdlib/time::{duration_seconds}
 import stdlib/host::{host_command_arguments, host_exit, host_stderr_text}
 import stdlib/filesystem::{filesystem_write_file_bytes, filesystem_write_bytes}
+import stdlib/bytes::{text_decode_utf8}
 
 // Callers select the exact executable and resource bounds; there is no shell
 // or PATH search unless the caller explicitly invokes a shell.
@@ -109,7 +110,14 @@ pub capture_test_report(name: Str, command: TestCommand, expected: ProcessOutput
     command.output_limit)
   result = test_command_result(name, actual, expected)
   match result.outcome {
-    TestFailed(reason) => result,
+    TestFailed(reason) => match actual {
+      Error(error) => result,
+      Ok(output) => if output.exit_code != expected.exit_code ||
+          output.signal != expected.signal || output.stdout != expected.stdout {
+        actual_stdout: Str = text_decode_utf8(output.stdout)
+        test_expect(name, false, "${reason}; actual stdout: ${actual_stdout}")
+      } else { result }
+    },
     TestPassed() => match destination {
       None() => result,
       Some(file) => match actual {

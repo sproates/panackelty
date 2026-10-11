@@ -17,6 +17,7 @@ PASS second manifest application shares the local library
 PASS package identity cannot come from multiple roots
 PASS declared package path must contain a manifest
 PASS nested local dependencies fail closed
+PASS package-root symlink replacement never mixes sources
 PASS manifest-only library compile requires an entry
 PASS manifest-only library run requires an entry
 PASS manifest-only library requires an export
@@ -28,4 +29,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 30, failures: 0
+tests: 31, failures: 0

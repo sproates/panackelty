@@ -26,10 +26,12 @@ source reads and relocation-stable module identity. PR#375 adds exported
 library checking. PR#376 adds direct local library dependencies, export-only
 package imports and two-app shared-library acceptance. The current confinement
 slice checks every package source read against the physical root captured from
-its manifest and rejects exported-source symlinks that escape that root. Nested
-dependency graphs, symlink-replacement race coverage at the package-loader
-boundary, broader physical source-root overlap checks and full package-loader
-acceptance remain open. P4–P8 remain planned.
+its manifest, rejects exported-source symlinks that escape that root, and checks
+the package loader while an application-root symlink is atomically replaced
+between two valid trees. Successful runs must use a coherent tree; changed root
+identity is rejected. Nested dependency graphs, broader physical source-root
+overlap checks and full package-loader acceptance remain open. P4–P8 remain
+planned.
 The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
@@ -521,7 +523,7 @@ source and bytecode results, bootstrap stages and packaged/relocated toolchains.
 | Types/generics | Qualified records/enums/guarded types, constructors/patterns, generic calls and re-export identity | Same-spelled distinct nominal types mismatch; nested generic arguments containing same-spelled distinct types and wrong generic arity retain useful qualified diagnostics |
 | Methods/effects | Explicitly selected callable supports receiver syntax; qualified pure/async calls and references preserve contracts | Namespace alias never becomes value receiver; missing unqualified method, pure-to-impure call and bare async call fail |
 | Graph identity | Diamond dependency shares one module/core; lexical and physical aliases load once | Module cycle, dependency cycle, two roots claiming same package, version conflict and fake core reject deterministically |
-| Root resolution | Two apps share local library; relocate sibling tree/install; run from unrelated working directory | Missing manifest/module, export miss, absolute/parent/NUL paths, symlink escape and source-root overlap cannot bypass confinement |
+| Root resolution | Two apps share local library; relocate sibling tree/install; run from unrelated working directory | Missing manifest/module, export miss, absolute/parent/NUL paths, symlink escape, atomic package-root replacement and source-root overlap cannot bypass confinement |
 | Manifest | Minimal library/application and deliberate multiple exports round-trip through parsed representation | Duplicate/unknown keys, malformed JSON, wrong schema/version/language, graph/depth/byte limits and incompatible toolchain fail before compilation |
 | Migration | Migrated fixtures/compiler/stdlib/examples pass under one namespace model; public CLI stays stable; new seed reaches fixed point | Old flat/transitive assumptions fail clearly rather than silently resolve; no nearest-manifest surprise or shipped dual semantics |
 | Tooling/bootstrap | Qualified explain/locate, precise spans, fresh fixed points and relocated deterministic executable bytes | Ambiguous selector, stale source map, wrong package identity and old runtime capability reject rather than misattribute |

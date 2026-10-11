@@ -93,11 +93,17 @@ implementation selection or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
+| Developer build and validation feedback — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). The controlled alpha.12 baseline missed the existing 120s clean/full and 15s warm/focused budgets (134.42s and 26.46s medians); later P3 full checks have taken substantially longer, so refresh the baseline on the alpha.13 starting revision. | Alpha.13 cannot release until matched, repeatable measurements meet both existing budgets: clean `make check` median ≤120s and warm focused `make check-compiler` median ≤15s. Use at least three runs per baseline/candidate on the same host and configuration. Retain all tests and coverage; incremental build/probe reuse may skip unrelated rebuild work, never test execution or cached test outcomes. A profiling-only investigation or an over-budget disposition does not satisfy this gate. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
 language/local-package checkpoint before HTTP, and client-before-server sequencing.
 Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
 scope does not complete reproducible dependencies or the whole GI#233 programme.
+
+Owner decision, 2026-10-12: reducing contributor build and validation waiting is
+required alpha.13 work, not optional follow-up. Keep the full clean check as a
+release gate while making the common focused feedback loop fast; do not meet the
+time budgets by dropping tests or weakening coverage.
 
 GI#180's owner-requested pause remains in effect: scheduling this release does
 not restart explanation implementation. Concrete U3/U4 slice contracts need

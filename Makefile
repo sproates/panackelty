@@ -91,7 +91,8 @@ check-compiler-impl: $(STAGE2_COMPILER)
 		tests/runner/compiler_coverage_unit.panack \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
-		tests/runner/compiler_lexer_unit.panack
+		tests/runner/compiler_lexer_unit.panack \
+		tests/runner/package_manifest_unit.panack
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations $(PROBE) tests/runner/main.panack --case cli_explanations
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
@@ -162,7 +163,8 @@ unit-compiler: native $(STAGE2_COMPILER)
 		tests/runner/compiler_coverage_unit.panack \
 		tests/runner/compiler_explanations_unit.panack \
 		tests/runner/compiler_source_maps_cli.panack \
-		tests/runner/compiler_lexer_unit.panack
+		tests/runner/compiler_lexer_unit.panack \
+		tests/runner/package_manifest_unit.panack
 
 functional: native
 	@$(TIMED) functional $(FUNCTIONAL_BUDGET_SECONDS) $(MAKE) --no-print-directory functional-impl

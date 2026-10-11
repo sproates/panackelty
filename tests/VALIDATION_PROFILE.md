@@ -6,6 +6,25 @@
 
 # Validation profiling baseline
 
+## P3 package manifest parser — 2026-10-11
+
+The canonical `make check` passed on the macOS arm64 development host with the
+working tree based on `e663b49` (PR #372 merged to `next`) plus the uncommitted
+manifest parser, test and documentation changes. The workspace already had
+bootstrap outputs; this was not a clean-checkout timing sample. `CFLAGS=-O2`.
+The full run took **372s**: unit 200s, functional 12s, bootstrap 130s, release
+smoke 4s and quick start under 1s. All tests and fixed-point checks passed. The
+120s full-check and 60s bootstrap warning budgets were exceeded; the aggregate
+unit phase is not the focused 15s workload.
+
+This is close to the 375s clean alpha.12 observation recorded above but is not a
+paired same-revision comparison and cannot establish causation. The parser is
+not imported by the normal compiler driver or loader; it adds only its focused
+unit probe to validation. No production compile/runtime timing effect is
+established. Retain the existing GI#106 validation-latency disposition for this
+isolated slice and review again when manifest loading enters the normal project
+path or comparable measurements materially change.
+
 ## Alpha.12 performance close-out — 2026-10-10
 
 The final clean canonical `make check` ran on the macOS arm64 development host

@@ -54,11 +54,14 @@ neutrality. GI#106 retains the broader performance follow-up.
 On the macOS arm64 development host, the final `make check` passed on
 `feature/p3-library-manifest-check`, based on `next` at `1bae83f`. The checkout
 already had build outputs; this was not a clean-checkout sample. The complete
-run took **386s**: unit 206s, functional 12s, bootstrap 139s, release smoke 4s,
-and quick start 0s. The 120s full-check and 60s bootstrap budgets were exceeded; the 206s
-aggregate unit phase is not a comparable sample for the 15s focused-check target. Native, compiler, all 364 functional cases,
+run took **387s**: unit 208s, functional 12s, bootstrap 137s, release smoke 4s,
+and quick start 1s. The 120s full-check and 60s bootstrap budgets were exceeded;
+the 208s aggregate unit phase is not a comparable sample for the 15s focused-check
+target. Native, compiler, all 364 functional cases,
 fixed-point, package, release-smoke, and quick-start gates completed
 successfully. The final run includes the strengthened invalid-later-export case.
+Afterward, `make native-sanitize CC=clang SANITIZE_SUITE=oracle` passed with the
+new stage-two compiler wiring for the instrumented oracle target.
 
 This single run is not a clean-checkout profile or a matched comparison with
 PR#374's 379s run, and it does not establish a performance change. The feature is

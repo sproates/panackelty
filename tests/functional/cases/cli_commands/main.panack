@@ -3,6 +3,7 @@ import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty
 import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
 import stdlib/testing::{TestResult, test_expect, test_report}
 import stdlib/time::{duration_seconds}
+import stdlib/environment::{environment_value}
 import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
 import stdlib/filesystem::{filesystem_read_bytes, filesystem_write_bytes, filesystem_create_directory, filesystem_remove_file, filesystem_remove_directory}
 import stdlib/testing_commands::{testing_process_run}
@@ -59,12 +60,19 @@ pure command(arguments: [Str]): TestCommand {
     duration_seconds(10), 1048576)
 }
 
-pure source_compiler_command(arguments: [Str], toolchain_version: Str): TestCommand {
-  mut invocation: [Str] = ["run", "build/bootstrap/stage2/compiler.bc"]
+source_compiler_arguments(arguments: [Str]): [Str] {
+  compiler: Str = environment_value("PANACK_TEST_COMPILER")
+  mut invocation: [Str] = ["run", if compiler == "" {
+    "build/bootstrap/stage2/compiler.bc"
+  } else { compiler }]
   for argument in arguments {
     invocation = invocation.append(argument)
   }
-  TestCommand(path("./panack-vm"), invocation, bytes_empty(), path_value_current(),
+  invocation
+}
+
+source_compiler_command(arguments: [Str], toolchain_version: Str): TestCommand {
+  TestCommand(path("./panack-vm"), source_compiler_arguments(arguments), bytes_empty(), path_value_current(),
     ["PANACKELTY_VERSION=${toolchain_version}"], duration_seconds(10), 1048576)
 }
 
@@ -184,7 +192,7 @@ main(): Void {
       filesystem_write_bytes(library_extra, text_encode_utf8(
         "import project/api as api\npub pure next_answer(): Nat { true }\n"))
       match testing_process_run(path("./panack-vm"),
-          ["run", "build/bootstrap/stage2/compiler.bc", "check", "--project", library_manifest_text],
+          source_compiler_arguments(["check", "--project", library_manifest_text]),
           bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
           duration_seconds(10), 1048576) {
         Error(error) => {

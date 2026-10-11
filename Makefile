@@ -295,8 +295,8 @@ native-instrumented-all:
 native-instrumented-vm: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-vm-contracts
 
-native-instrumented-oracle: $(BUILD_DIR)/vm/panack-vm native-module-build
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh without-runner
+native-instrumented-oracle: $(BUILD_DIR)/vm/panack-vm native-module-build $(STAGE2_COMPILER)
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh without-runner
 
 native-instrumented-runner: $(BUILD_DIR)/vm/panack-vm $(STAGE2_COMPILER)
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle-runner sh tests/native_oracle_contracts.sh runner

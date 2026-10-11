@@ -1,0 +1,82 @@
+import stdlib/result::{result_value_or}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
+import stdlib/testing_files::{TestWorkspace, test_workspace_create, test_workspace_remove_empty, HostError}
+import stdlib/time::{duration_seconds}
+import stdlib/bytes::{bytes_empty, text_encode_utf8}
+import stdlib/filesystem::{filesystem_write_bytes, filesystem_remove_file, filesystem_remove_directory}
+import stdlib/host::{host_process_run, host_exit}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_to_text}
+import stdlib/package_filesystem::{filesystem_read_beneath}
+
+pure package_path(value: Str): Path { result_value_or(path_value_from_text(value), path_value_current()) }
+pure package_text(value: Path): Str { result_value_or(path_value_to_text(value), "invalid path") }
+pure package_error[T](result: Result[T,HostError]): Str {
+  match result { Ok(value) => "ok", Error(problem) => problem.code }
+}
+
+main(): Void {
+  match test_workspace_create(package_path("/tmp")) {
+    Error(problem) => { eprint("package filesystem workspace failed: ${problem.code}"); host_exit(1) },
+    Ok(workspace) => {
+      root = workspace.root
+      root_text = package_text(root)
+      source = package_path("${root_text}/source")
+      mut results: [TestResult] = []
+      results = results.append(test_equal_str("source setup",
+        package_error(filesystem_write_bytes(source, text_encode_utf8("inside"))), "ok"))
+      match host_process_run(package_path("/bin/sh"),
+          ["-c", "mkdir sub; ln -s source inside-link; ln -s ../source sub/relative-link; ln -s ../../etc/passwd sub/escaped-relative-link; ln -s /etc/passwd escaped-link"],
+          bytes_empty(), root, [], duration_seconds(3), 100) {
+        Error(problem) => { results = results.append(test_expect("symlink setup", false, problem.code)) },
+        Ok(command) => { results = results.append(test_expect("symlink setup",
+          command.exit_code == 0 && command.signal == 0, "symlink creation failed")) }
+      }
+      match filesystem_read_beneath(root, package_path("inside-link"), 100) {
+        Error(problem) => { results = results.append(test_expect("in-root symlink read", false, problem.code)) },
+        Ok(first) => {
+          results = results.append(test_expect("in-root symlink read",
+            first.contents == text_encode_utf8("inside"), "wrong bytes"))
+          match filesystem_read_beneath(root, package_path("source"), 100) {
+            Error(problem) => { results = results.append(test_expect("stable root identity", false, problem.code)) },
+            Ok(second) => { results = results.append(test_expect("stable root identity",
+              first.identity.device == second.identity.device &&
+              first.identity.inode == second.identity.inode, "root identity changed")) }
+          }
+        }
+      }
+      results = results.append(test_equal_str("resolve relative symlink from parent",
+        package_error(filesystem_read_beneath(root, package_path("sub/relative-link"), 100)), "ok"))
+      results = results.append(test_equal_str("reject parent traversal",
+        package_error(filesystem_read_beneath(root, package_path("../etc/passwd"), 100)), "invalid_argument"))
+      results = results.append(test_equal_str("reject absolute path",
+        package_error(filesystem_read_beneath(root, package_path("/etc/passwd"), 100)), "invalid_argument"))
+      results = results.append(test_equal_str("reject escaping symlink",
+        package_error(filesystem_read_beneath(root, package_path("escaped-link"), 100)), "invalid_argument"))
+      results = results.append(test_equal_str("reject relative symlink escape",
+        package_error(filesystem_read_beneath(root, package_path("sub/escaped-relative-link"), 100)), "invalid_argument"))
+      results = results.append(test_equal_str("enforce byte limit",
+        package_error(filesystem_read_beneath(root, package_path("source"), 5)), "output_limit"))
+      results = results.append(test_equal_str("trailing slash requires a directory",
+        package_error(filesystem_read_beneath(root, package_path("source/"), 100)), "not_directory"))
+      results = results.append(test_equal_str("bound requested byte limit",
+        package_error(filesystem_read_beneath(root, package_path("source"), 16777217)), "out_of_range"))
+      results = results.append(test_equal_str("remove in-root symlink",
+        package_error(filesystem_remove_file(package_path("${root_text}/inside-link"))), "ok"))
+      results = results.append(test_equal_str("remove escaping symlink",
+        package_error(filesystem_remove_file(package_path("${root_text}/escaped-link"))), "ok"))
+      results = results.append(test_equal_str("remove nested escaping symlink",
+        package_error(filesystem_remove_file(package_path("${root_text}/sub/escaped-relative-link"))), "ok"))
+      results = results.append(test_equal_str("remove nested relative symlink",
+        package_error(filesystem_remove_file(package_path("${root_text}/sub/relative-link"))), "ok"))
+      results = results.append(test_equal_str("remove source",
+        package_error(filesystem_remove_file(source)), "ok"))
+      results = results.append(test_equal_str("remove subdirectory",
+        package_error(filesystem_remove_directory(package_path("${root_text}/sub"))), "ok"))
+      match test_workspace_remove_empty(workspace) {
+        Error(problem) => { results = results.append(test_expect("workspace cleanup", false, problem.code)) },
+        Ok(removed) => {}
+      }
+      if test_report(results) > 0 { host_exit(1) }
+    }
+  }
+}

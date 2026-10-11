@@ -28,6 +28,7 @@ or `VM trap`, never a host-language exception.
 | `process_exit` | `(Nat) -> Void` | Stop the complete invocation with the supplied process status. A host may reject statuses outside its supported range. |
 | `path_resolve` | `(Str) -> Str` | Resolve a path against the process working directory and normalize it. |
 | `file_exists` | `(Str) -> Bool` | Report whether the resolved path names a regular file. |
+| `fs_read_beneath` | `(Path, Path, Nat) -> Result[FilesystemRootRead,HostError]` | Read a regular file relative to an opened directory root and return that root's device/inode identity with its bytes. |
 | `run_bytecode` | `(Bytes) -> Void` | Decode, bound, and verify version-8 bytecode, then run it with the same argument and environment snapshots. |
 | `run_bytecode_args` | `(Bytes, [Str]) -> Void` | Decode, bound, and verify version-8 bytecode, then run it with the supplied argument snapshot and the current environment snapshot. |
 

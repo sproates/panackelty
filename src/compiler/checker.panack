@@ -973,8 +973,12 @@ pure builtin_return(name: Str): Str {
     if name == "async_fake_read" || name == "tcp_exchange" {
       "Result[Bytes,Str]"
     } else {
-      if name == "fs_read" {
-        "Result[Bytes,HostError]"
+      if name == "fs_read_beneath" || name == "fs_read" {
+        if name == "fs_read_beneath" {
+          "Result[FilesystemRootRead,HostError]"
+        } else {
+          "Result[Bytes,HostError]"
+        }
       } else {
         if name == "fs_write" {
           "Result[Unit,HostError]"
@@ -1158,8 +1162,8 @@ pub pure builtin_arity(name: Str): Nat {
         1
       }
     } else {
-      if name == "fs_read" {
-        2
+      if name == "fs_read_beneath" || name == "fs_read" {
+        if name == "fs_read_beneath" { 3 } else { 2 }
       } else {
         if name == "fs_write" {
           2
@@ -1335,14 +1339,14 @@ pure builtin_parameter(name: Str, index: Nat): Str {
         }
       }
     } else {
-      if name == "fs_read" {
-        if index == 0 {
-          "Path"
+      if name == "fs_read_beneath" || name == "fs_read" {
+        if name == "fs_read_beneath" {
+          if index == 2 { "Nat" } else { "Path" }
         } else {
-          if index == 1 {
-            "Nat"
+          if index == 0 {
+            "Path"
           } else {
-            "Any"
+            if index == 1 { "Nat" } else { "Any" }
           }
         }
       } else {

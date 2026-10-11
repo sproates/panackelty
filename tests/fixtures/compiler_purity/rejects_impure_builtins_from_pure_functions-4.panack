@@ -1,0 +1,2 @@
+pure bad(): Void { fs_read_beneath(path_current(), path_current(), 1); }
+main(): Void {}

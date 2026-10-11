@@ -910,6 +910,7 @@ allocate an error value.
 
 | Function | Result |
 | --- | --- |
+| `filesystem_read_beneath(root: Path, relative: Path, limit: Nat)` | `Result[FilesystemRootRead,HostError]`; from `stdlib/package_filesystem` |
 | `fs_read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
 | `fs_write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
 | `fs_metadata(path: Path)` | `Result[FileMetadata,HostError]` |
@@ -949,9 +950,19 @@ under the explicit parent, with permissions 0600 for files and 0700 for
 directories, subject to umask. The caller owns the returned path and must remove
 it explicitly. There is no automatic cleanup or lifetime tracking.
 
-Paths do not establish containment. Relative paths use the invocation's working
-directory; `..`, symlink traversal, and races remain POSIX host behavior. Recursive
-operations and secure descriptor-relative traversal remain separate follow-ups.
+Ordinary filesystem paths do not establish containment. Relative paths use the
+invocation's working directory; `..`, symlink traversal, and races remain POSIX
+host behavior. The package-loading helper `filesystem_read_beneath` opens the
+root directory and resolves the requested regular file relative to that held
+descriptor. Relative symlinks are followed only when their target stays under
+the root. Absolute symlinks and attempts to traverse above the root return
+`invalid_argument`; loops return `symlink_loop`. The relative path is limited to
+4096 bytes, a 256-level directory walk counting the opened root, and 40 symlink
+expansions. Each read is limited to 16 MiB and returns the physical root's
+`(device, inode)` identity with its bytes, allowing a loader to reject a root that
+changes between reads. Each operation confines one individual read; it does not
+snapshot files that may be edited concurrently. Recursive writes and general
+descriptor-relative operations remain separate follow-ups.
 
 ### Process execution
 

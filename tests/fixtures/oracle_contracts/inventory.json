@@ -4,7 +4,7 @@
     "integer": 1800,
     "decimal": 422,
     "rational": 96,
-    "builtins": 82
+    "builtins": 84
   },
   "artifact_sources": {
     "driver-basic": "tests/fixtures/compiler_contracts/driver/basic.panack",
@@ -14,8 +14,8 @@
     "euler001": "examples/euler001.panack"
   },
   "sha256": {
-    "builtin.names": "e838b5ea0b2a96a56dcf5afeeb782623dbdaf4a4e37c0219dc49785419ac0329",
-    "builtin.stdout": "9536a263b4cafb377d93da259ddafc41c213f743ae9393dbcd1d888337061bab",
+    "builtin.names": "4914e00dac8364d6f64fa8fa3a4b95ac2c78bd43eaf633cc4c9aeb9cf60610f2",
+    "builtin.stdout": "eacd6083d46eeee2e3f30b924bef1e8d4d92ea82a1d5da7572fdae2a3fb1d42c",
     "codec-disassembly.stdout": "466f9fe4a52c2f3243c9d23dab529bd56f9060c59b815be385c699466288bdb0",
     "decimal.stdin": "b164725e8adf0b672a62aa771ccbead5a76329942a1d98db97e91901242f4f44",
     "decimal.stdout": "923ba5819be9f1083803c448d044901ccc8ee4eee422fd4019cdff545e98b8af",
@@ -47,6 +47,12 @@
       "reason": "Migrate a relative-import compiler contract from implicit global imports to an explicit namespace",
       "generator": "Refreshed v9 seed after stage-2/3/4 compiler byte identity and stage-2/3/4 stdlib artifact/output fixed points",
       "review": "The previous captured bytecode runs to 42. The refreshed disassembly changes only the imported answer function identity and the corresponding main call target from answer to $module1_answer; main's remaining instructions are identical. The namespace-qualified source also runs to 42. The new bytes match the independently reviewed driver-basic artifact for the same one-function program shape."
+    },
+    "rooted-package-read": {
+      "date": "2026-10-11",
+      "reason": "Add the descriptor-relative filesystem service to the fixed native builtin registry contract",
+      "generator": "Explicit service name, arity and effect expectation reviewed against the VM registry",
+      "review": "The new fs_read_beneath service has arity three and is effectful; this update changes only its registry expectation and digest."
     }
   }
 }

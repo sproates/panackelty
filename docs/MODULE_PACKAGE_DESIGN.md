@@ -18,7 +18,8 @@ explicit generic substitution and returns against the same tagged signatures.
 Unknown inference/proofs remain explicitly deferred; effect checking, emission,
 tooling and coordinated migration remain pending. This intermediate slice does
 not enable namespaces or complete P2.
-P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
+P3 has started with a package-root safety prerequisite slice; package-loader
+acceptance remains open. P4–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
 ## Current implementation audit

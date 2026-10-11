@@ -120,6 +120,7 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
+	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 	@$(MAKE) --no-print-directory unit-runtime
 
@@ -451,6 +452,7 @@ check-no-interpreter:
 # fresh checkout; only runtime + functional share a session-local observation.
 .PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
 ci-compiler: policy native
+	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 
 ci-runtime:

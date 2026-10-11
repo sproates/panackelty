@@ -4906,7 +4906,8 @@ compiler and public VM launcher from the `cli_commands` functional program. All
 
 On the macOS arm64 development host, canonical `make check` passed on
 `feature/p3-nested-graph-safety-tests`, based on `next` at `21daa0c`, with the
-existing build tree. It took **402s**: unit 225s, functional 13s, bootstrap
+existing build tree. The validated tree is commit `3bbc2a9` (PR #382, in review).
+It took **402s**: unit 225s, functional 13s, bootstrap
 135s, release smoke 4s and quick start under 1s. The full-check and bootstrap
 budgets (120s and 60s) were exceeded; the functional phase remained within its
 75s budget. The aggregate unit phase is not a comparable sample for the focused

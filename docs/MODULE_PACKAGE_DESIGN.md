@@ -172,7 +172,7 @@ and indirect callable contracts retain all existing effect restrictions.
 Select a strict JSON manifest named `panack.json`, schema version 1. JSON avoids an
 additional configuration language; implement its bounded parser in the project
 language/toolchain, without an interpreter dependency or executing package code.
-P3 must specify byte limits and test malformed inputs before enabling loading.
+P3 sets explicit limits before enabling loading: manifests up to 65,536 bytes, each source module up to 1 MiB, and one loaded source closure up to 256 files and 8 MiB. The closure bounds include the automatically loaded toolchain core. The loader boundaries must be tested at their exact limits; the package CLI must also prove oversized source files fail closed before parsing.
 The concrete schema below is the P1 baseline, not today's CLI format:
 
 ```json

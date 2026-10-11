@@ -430,7 +430,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, PR#378 replacement-race acceptance, PR#379 source-root overlap rejection and PR#380 bounded nested graph resolution are merged; PR#382 is in review with nested conflict and exact graph-limit regressions; full package acceptance remains open | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, PR#378 replacement-race acceptance, PR#379 source-root overlap rejection and PR#380 bounded nested graph resolution and PR#382 nested conflict/graph-limit regressions are merged; the current slice checks source-count and byte boundaries in the loader and oversized-source rejection through the public CLI; full package acceptance remains open | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -568,8 +568,9 @@ tree, and changed or temporarily unavailable roots fail closed. PR#379 rejects
 physical source-root overlap across the application and direct dependencies.
 PR#380 adds bounded nested graph resolution with owner-scoped aliases,
 shared-package reuse and cycle rejection. P3 is not formally accepted
-as complete. PR#382 adds nested package version and physical-root conflicts plus
-acceptance/rejection checks at the exact graph limits. Broader
+as complete. PR#382 merged nested package version and physical-root conflicts plus
+acceptance/rejection checks at the exact graph limits. The current slice checks the 256-loaded-source, 1 MiB-per-source and 8 MiB-total
+boundaries directly in the loader, plus oversized-source rejection through the CLI. Broader
 package acceptance remains open. P4–P8 remain
 Planned. Their shared design is recorded in P1, with provisional implementation estimates above and detailed
 slices in the design.
@@ -584,13 +585,13 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
-| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% formally accepted; PR#372 rooted-read prerequisite, PR#374 application CLI/loading, PR#375 library checking, PR#376 direct dependency/two-app acceptance and PR#377–#380 confinement/nested-graph slices are merged; PR#382's nested conflict and graph-limit coverage is in review | 0 pp |
+| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% formally accepted; PR#372 rooted-read prerequisite, PR#374 application CLI/loading, PR#375 library checking, PR#376 direct dependency/two-app acceptance and PR#377–#380 confinement/nested-graph slices are merged; PR#382's nested conflict and graph-limit coverage is merged; exact loader source-count/byte-boundary checks and the CLI oversized-source diagnostic are in progress | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | 30% formally accepted: P1 contributes 10 pp and completed P2 contributes 20 pp; PR#382's P3 nested graph safety coverage is in review, not accepted | **30 pp; P1 and P2 accepted** |
+| **Total** | **100%** | 30% formally accepted: P1 contributes 10 pp and completed P2 contributes 20 pp; PR#382's P3 nested graph safety coverage is merged but remains an intermediate slice, not formal acceptance | **30 pp; P1 and P2 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -624,10 +625,10 @@ manifest-root CLI/loading for dependency-free applications, PR#375 merged
 exported-library checking, PR#376 merged direct local-library dependencies
 and two-app acceptance, PR#377/PR#378 added physical-root identity and race
 acceptance, PR#379 rejects physical source-root overlap, and PR#380 adds
-bounded nested dependency graph resolution. PR#382 adds nested version/physical-root
-conflict cases and exact graph-boundary acceptance and rejection; it is in review.
-Full package acceptance remains open. P4–P8 remain
-planned.
+bounded nested dependency graph resolution. PR#382 merged nested version/physical-root conflict cases and exact graph-boundary
+acceptance and rejection. The current slice adds loader checks at the 256-file source-count, 1 MiB per-source
+and 8 MiB source-closure boundaries, plus CLI oversized-source rejection. Full package acceptance
+remains open. P4–P8 remain planned.
 Namespace/compiler integration and HTTPS client correctness carry the largest
 shares; local packages and server lifecycle follow, with smaller shares for
 design, reproducibility, migration and final cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -3541,10 +3542,11 @@ compares direct application/dependency and distinct dependency source roots by
 physical directory ancestry, including symlink aliases, and rejects overlap
 before compilation. PR#380 resolves bounded nested dependency graphs, keeps
 aliases scoped to each declaring package, reuses repeated package identities
-and rejects cycles. PR#382 (in review) covers nested package version conflicts
-and duplicate physical roots, accepts the exact 64-package/256-edge/32-level
-bounds, and rejects one beyond each. Full package acceptance remains open, so
-this does not complete GI#199.
+and rejects cycles. PR#382 (merged) covers nested package version conflicts and duplicate physical
+roots, accepts the exact 64-package/256-edge/32-level bounds, and rejects one
+beyond each. The current loader tests cover the 256-file loaded source
+closure, 1 MiB per source and 8 MiB total source limits; the CLI case checks oversized-source rejection. Full package acceptance
+remains open, so these slices do not complete GI#199.
 Website impact for this test-only slice: none; it adds internal regression
 coverage and does not change shipped behavior or user-facing documentation.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical

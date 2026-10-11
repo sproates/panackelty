@@ -4923,3 +4923,35 @@ VM implementation changed, and no application runtime benchmark was run. Keep
 GI#106's 120s/15s/60s targets and existing accepted validation-time disposition;
 its next action remains a matched clean base/candidate profile before P3 package
 acceptance. Website impact: none; the package feature remains unreleased.
+
+## P3 package source-closure limits — 2026-10-11
+
+The loader unit now exercises each source-closure boundary at the exact limit
+and one beyond: 256 loaded files, 1 MiB per source, and 8 MiB total. A public
+CLI functional case separately confirms that a 1 MiB + 1 source is rejected
+before parsing. The loaded-file and byte totals include the automatically loaded
+toolchain core. The focused loader probe passed all seven assertions, and the
+focused `cli_commands` runner passed all four checks. After correcting the
+Makefile registration, `make unit-compiler` also exited 0 with the new loader
+unit included.
+
+The first end-to-end approach sent exact 8 MiB fixtures through the CLI. Its
+source and bytecode probes exceeded their 20-second functional timeout because
+the compiler had to parse those files. The test was split so the loader checks
+the large exact boundaries directly, while the CLI retains the public rejection
+check for a minimally oversized source. The resulting full functional suite
+passed all 364 cases in 14s, within its 75s budget.
+
+Canonical `bash scripts/validate_change.sh --run origin/next` completed on the
+macOS arm64 development checkout with existing build outputs. The retained
+phase timings were unit 226s, bootstrap 134s, functional 13s, release smoke 4s,
+quick start 1s and total 403s. The command exited 0. That full run preceded the
+Makefile correction that registered the new loader unit in `unit-compiler`; the
+corrected compiler-unit target was run separately afterward and passed. The
+120s full-check, 15s unit and 60s bootstrap budgets were exceeded; the 75s
+functional and 15s release/quick-start budgets were met. This is not a clean
+checkout or matched base/candidate sample. The prior nested-graph run took 402s,
+but the unmatched observations cannot establish that this slice changed total
+validation time. No compiler runtime behavior or website content changed. Keep
+GI#106's existing budgets and matched-profile follow-up; full P3 acceptance
+remains open.

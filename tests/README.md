@@ -295,6 +295,12 @@ The Panackelty functional runner currently executes cases sequentially.
 Its 38 groups cover valid input and exact malformed-input diagnostics.
 `runner/compiler_lexer_unit.panack`
 similarly covers the eight direct lexer contracts.
+`runner/package_manifest_unit.panack` covers the isolated P3 manifest parser:
+schema and identity validation, exact toolchain matching, logical export and
+dependency records, duplicate/unknown keys, SemVer and relative paths, malformed
+UTF-8/JSON, and input/depth limits. It validates parser behavior only; the
+compiler driver and package loader do not use manifests yet; the probe has 25
+fixed assertions.
 `runner/compiler_resolver_unit.panack` covers 26 exact source and module-graph
 expectations in 12 groups, including diagnostic paths and positions. All run in `make unit` and
 `make check-compiler`; each reports failures and exits nonzero on a mismatch.

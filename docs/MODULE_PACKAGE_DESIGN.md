@@ -18,8 +18,10 @@ explicit generic substitution and returns against the same tagged signatures.
 Unknown inference/proofs remain explicitly deferred; effect checking, emission,
 tooling and coordinated migration remain pending. This intermediate slice does
 not enable namespaces or complete P2.
-P3 has started with a package-root safety prerequisite slice; package-loader
-acceptance remains open. P4–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
+P3 has started with the confined package-root read prerequisite merged in PR#372.
+The bounded strict manifest parser is being implemented as an isolated compiler
+module; driver integration, explicit root selection, physical confinement and
+package-loader acceptance remain open. P4–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
 ## Current implementation audit

@@ -236,7 +236,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. Slice 5 passes canonical `make check` in 119s, 121s, 126s and 191s (unit 76–146s, functional 3–4s, bootstrap 17–19s) and `make check-compiler` in 51–52s; both targets remain exceeded. Slice 6's canonical check passed in 123s, then its generic identity execution-coverage follow-up passed in 195s (functional 4s, bootstrap 20s); the latter changed tests/docs only and does not establish causal attribution. The nested-payload follow-up passed in 200.88s. The 6a indirect-call fixture follow-up passed in 202s (functional 5s, bootstrap 19s) while rebuilding native test artifacts; it changed fixtures and docs, not compiler/VM code, and the single run does not establish causal cost. The clean host-access matched validation for 6b took 202.23s at base `d5dd68a` and 204.08s on the candidate (functional 4s/5s); the 1.85s difference is one pair and does not establish causation. Candidate `make check-compiler` took 84.89s against the 15s target. The integrated slice-6 coverage delivery passed canonical `make check` in 198s (functional 5s, bootstrap 18s) against the unchanged 120s target; the focused compiler-driver probe passed 37 assertions. This changes tests and documents only. The single run, within the existing noisy 195–204s slice-6 observations, does not establish a timing effect or cause. The exact pre-slice-5/base and slice-5/head comparison passed at 193s/193s full and 51s/52s focused; one pair cannot establish attribution or cost neutrality. [Slice 6 evidence and proposed dispositions](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08). [Slice 5 evidence, comparison and reuse assessment](tests/VALIDATION_PROFILE.md#namespace-checked-graph-effects-and-await--2026-10-07). [Prior delivery profile](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). P3 parser slice on 2026-10-11 passed canonical `make check` in 372s; PR#374's manifest-root integration passed in 379s (unit 204s, functional 12s, bootstrap 133s, release smoke 4s, quick start 1s). The exported-library-check slice passed canonical `make check` in 387s, then passed again in 297s after CI-path fixes (functional 12s, bootstrap 133s). Both runs reused build outputs and are unmatched; the 387s/297s/379s observations do not establish a cost change. See the [P3 validation profile](tests/VALIDATION_PROFILE.md#p3-exported-library-checking--2026-10-11). | Open performance concern; keep the 120s/15s/60s targets and all coverage. PR #363 delivered the measured declaration-index and validation-runner improvements; the owner accepted the remaining validation-time limitation for alpha.12. The parser-only slice retained the accepted alpha.12 trade-off because it did not enter normal loading. For GI#106, the next action is a matched clean base/candidate profile that separates bootstrap cost; review that evidence before P3 package acceptance. GI#106 owns this follow-up and retains the 120s/15s/60s targets. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. Slice 5 passes canonical `make check` in 119s, 121s, 126s and 191s (unit 76–146s, functional 3–4s, bootstrap 17–19s) and `make check-compiler` in 51–52s; both targets remain exceeded. Slice 6's canonical check passed in 123s, then its generic identity execution-coverage follow-up passed in 195s (functional 4s, bootstrap 20s); the latter changed tests/docs only and does not establish causal attribution. The nested-payload follow-up passed in 200.88s. The 6a indirect-call fixture follow-up passed in 202s (functional 5s, bootstrap 19s) while rebuilding native test artifacts; it changed fixtures and docs, not compiler/VM code, and the single run does not establish causal cost. The clean host-access matched validation for 6b took 202.23s at base `d5dd68a` and 204.08s on the candidate (functional 4s/5s); the 1.85s difference is one pair and does not establish causation. Candidate `make check-compiler` took 84.89s against the 15s target. The integrated slice-6 coverage delivery passed canonical `make check` in 198s (functional 5s, bootstrap 18s) against the unchanged 120s target; the focused compiler-driver probe passed 37 assertions. This changes tests and documents only. The single run, within the existing noisy 195–204s slice-6 observations, does not establish a timing effect or cause. The exact pre-slice-5/base and slice-5/head comparison passed at 193s/193s full and 51s/52s focused; one pair cannot establish attribution or cost neutrality. [Slice 6 evidence and proposed dispositions](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08). [Slice 5 evidence, comparison and reuse assessment](tests/VALIDATION_PROFILE.md#namespace-checked-graph-effects-and-await--2026-10-07). [Prior delivery profile](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). P3 parser slice on 2026-10-11 passed canonical `make check` in 372s; PR#374's manifest-root integration passed in 379s (unit 204s, functional 12s, bootstrap 133s, release smoke 4s, quick start 1s). The exported-library-check slice passed canonical `make check` in 387s, then passed again in 297s after CI-path fixes (functional 12s, bootstrap 133s). Both runs reused build outputs and are unmatched; the 387s/297s/379s observations do not establish a cost change. P3 relocated-package acceptance is a test-only slice: canonical `make check` passed on 2026-10-12 in 424s (unit 238s, bootstrap 142s, functional 13s, release smoke 4s, quick start <1s); the direct fixture took 0.6s. Compared with the preceding 403s reused-build run, this single unmatched sample cannot attribute a timing change; no compiler/runtime code changed. See the [P3 acceptance profile](tests/VALIDATION_PROFILE.md#p3-relocated-shared-package-acceptance--2026-10-12) and [prior P3 profiles](tests/VALIDATION_PROFILE.md#p3-exported-library-checking--2026-10-11). | Open performance concern; keep the 120s/15s/60s targets and all coverage. PR #363 delivered the measured declaration-index and validation-runner improvements; the owner accepted the remaining validation-time limitation for alpha.12. The parser-only slice retained the accepted alpha.12 trade-off because it did not enter normal loading. For GI#106, the next action is a matched clean base/candidate profile that separates bootstrap cost; review that evidence before P4 standard-library namespace acceptance. Alpha.13's mandatory build-time gate remains in RM#144. GI#106 owns this follow-up and retains the 120s/15s/60s targets. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -436,7 +436,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, PR#378 replacement-race acceptance, PR#379 source-root overlap rejection, PR#380 bounded nested graph resolution, PR#382 nested conflict/graph-limit regressions and PR#383 source-count/byte-boundary checks are merged; the current slice widens the package-root race fixture's source closure; full package acceptance remains open | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of the final acceptance delivery: PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 shared-library consumers, PR#377–#380 confinement and nested graphs, PR#382 graph conflicts/limits, PR#383 source bounds, PR#384 race-fixture reliability, and full sibling-tree relocation with two apps run from an unrelated working directory; P8 retains its separate clean-installed release gate | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -573,18 +573,19 @@ root symlink between two valid trees: a successful run must read one coherent
 tree, and changed or temporarily unavailable roots fail closed. PR#379 rejects
 physical source-root overlap across the application and direct dependencies.
 PR#380 adds bounded nested graph resolution with owner-scoped aliases,
-shared-package reuse and cycle rejection. P3 is not formally accepted
-as complete. PR#382 merged nested package version and physical-root conflicts plus
-acceptance/rejection checks at the exact graph limits. PR#383 checks the
-256-loaded-source, 1 MiB-per-source and 8 MiB-total boundaries directly in the
-loader, plus oversized-source rejection through the CLI. The current test-only
-slice widens the root-replacement race's source closure to make identity changes
-more observable. Broader
-package acceptance remains open. P4–P8 remain
-Planned. Their shared design is recorded in P1, with provisional implementation estimates above and detailed
-slices in the design.
+shared-package reuse and cycle rejection. PR#382 merged nested package version
+and physical-root conflicts plus acceptance/rejection at exact graph limits.
+PR#383 checks the 256-loaded-source, 1 MiB-per-source and 8 MiB-total boundaries
+in the loader, plus oversized-source rejection through the CLI. PR#384 makes the
+root-replacement race fixture reliable on Linux and macOS. The final acceptance
+delivery tests two applications sharing a multi-file library, moves the whole
+sibling workspace, then rechecks/runs both apps and executes pre-move bytecode
+from an unrelated working directory. This closes scoped P3 package acceptance
+effective on merge; P8 retains the separate clean-installed release gate. P4–P8
+remain planned. Their shared design and remaining HTTP/reproducibility slices are
+recorded in P1.
 No public registry, separate compilation, web framework or new engine is
-required. Website impact: none for this test-only slice; it does not change
+required. Website impact: none for this test-only acceptance; it does not change
 shipped behavior or user-facing package documentation.
 
 Provisional scope/effort baseline recorded on 2026-10-03 in
@@ -594,13 +595,13 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
-| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% formally accepted; PR#372 rooted-read prerequisite, PR#374 application CLI/loading, PR#375 library checking, PR#376 direct dependency/two-app acceptance and PR#377–#380 confinement/nested-graph slices are merged; PR#382's nested conflict and graph-limit coverage and PR#383's exact loader source-count/byte boundaries are merged; root-replacement race-fixture reliability is in progress | 0 pp |
+| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 100% on merge of final acceptance delivery; PR#372–#380, #382–#384 establish manifest, CLI, library, graph, confinement and race contracts; final acceptance moves the entire two-app/shared-library tree and verifies both consumers from an unrelated working directory through source and saved bytecode | 15 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | 30% formally accepted: P1 contributes 10 pp and completed P2 contributes 20 pp; PR#382's P3 nested graph safety coverage is merged but remains an intermediate slice, not formal acceptance | **30 pp; P1 and P2 accepted** |
+| **Total** | **100%** | 45% on merge of final P3 acceptance: P1 contributes 10 pp, P2 contributes 20 pp and P3 contributes 15 pp; P4–P8 remain planned | **45 pp; P1–P3 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -637,9 +638,13 @@ acceptance, PR#379 rejects physical source-root overlap, and PR#380 adds
 bounded nested dependency graph resolution. PR#382 merged nested version/physical-root conflict cases and exact graph-boundary
 acceptance and rejection. PR#383 adds loader checks at the 256-file source-count,
 1 MiB per-source and 8 MiB source-closure boundaries, plus CLI oversized-source
-rejection. The current test-only slice widens the package-root race fixture to
-load more modules while roots are replaced. Full package acceptance remains
-open. P4–P8 remain planned.
+rejection. PR#384 hardens the root-replacement race fixture and passes its exact
+Linux/macOS pipeline. The final P3 acceptance delivery checks, runs and compiles
+both applications from an unrelated working directory, moves their whole sibling
+workspace and shared library, then rechecks/runs both apps and executes bytecode
+compiled before the move. This closes the scoped local-package acceptance when
+this delivery merges; P8 still owns the later clean-installed release gate.
+P4–P8 remain planned.
 Namespace/compiler integration and HTTPS client correctness carry the largest
 shares; local packages and server lifecycle follow, with smaller shares for
 design, reproducibility, migration and final cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -672,10 +677,12 @@ P3's package-root read prerequisite merged in PR#372. PR#374 wired strict
 manifests to dependency-free application commands and confined loading; PR#375
 added exported-library checking; PR#376 added direct dependencies and two-app
 acceptance. Later P3 slices added manifest-root identity checks, escaped-export
-symlink rejection, loader-race acceptance and physical source-root overlap
-rejection. PR#380 adds bounded nested dependency graph support. The active
-test-only slice covers nested identity/version conflicts and exact graph limits;
-full package acceptance remains open. P4–P8 have not started.
+symlink rejection, loader-race acceptance, physical source-root overlap
+rejection, bounded nested graphs, exact graph/source limits and race-fixture
+reliability. The final P3 acceptance delivery moves and exercises the complete
+two-app/shared-library tree from an unrelated working directory; scoped package
+acceptance is Done on merge. P8's clean-installed release gate remains separate.
+P4–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -3539,30 +3546,28 @@ their separately selected implementation and migration deliveries.
 **RM#43: Reusable packages** · [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
 
 Work record: [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
-Current state: In progress as P3 in the [programme register](#rm-108); confined
-package-root reads merged in PR#372 and explicit manifest-root application
-`check`/`compile`/`run`, dependency-free package loading, relocation-stable
-identity and initial relocated-app acceptance merged in PR#374. PR#375 adds
-exported-library checking. PR#376 adds direct local-library dependency loading,
-export-only imports and two-app acceptance. The current delivery verifies
-manifest-root identity on package source reads, rejects exported symlinks that
-escape the package, and tests the loader during atomic replacement of an
-application-root symlink between two valid trees. Successful runs must use one
-coherent tree; a changed or temporarily unavailable root fails closed. PR#379
-compares direct application/dependency and distinct dependency source roots by
-physical directory ancestry, including symlink aliases, and rejects overlap
-before compilation. PR#380 resolves bounded nested dependency graphs, keeps
-aliases scoped to each declaring package, reuses repeated package identities
-and rejects cycles. PR#382 (merged) covers nested package version conflicts and duplicate physical
-roots, accepts the exact 64-package/256-edge/32-level bounds, and rejects one
-beyond each. PR#383 covers the 256-file loaded source closure, 1 MiB per source
-and 8 MiB total source limits; its CLI case checks oversized-source rejection.
-The active test-only slice widens root-replacement race coverage. Full package acceptance
-remains open, so these slices do not complete GI#199.
+Current state: Done on merge of the final P3 acceptance delivery; the completion
+summary takes effect when its exact-head checks pass and it merges.
+Confined package-root reads merged in PR#372; explicit manifest-root application
+`check`/`compile`/`run`, dependency-free package loading and relocation-stable
+identity merged in PR#374; exported-library checking in PR#375; direct local
+library dependencies and two-app acceptance in PR#376; physical-root identity,
+source-root overlap rejection, nested graph resolution, conflicts and exact graph
+limits in PR#377–#382; and source-count/byte boundaries in PR#383. PR#384 widens
+the root-replacement race fixture and waits for an in-flight replacer before
+cleanup. The final acceptance fixture gives two independent applications one
+shared multi-file library, checks/runs/compiles both from an unrelated working
+directory, moves their complete sibling workspace, then rechecks/runs both and
+executes bytecode compiled before the move. It demonstrates relocation without
+copying the library sources and
+closes the scoped local-package acceptance when this delivery merges. P8 retains
+the separate clean-installed release gate; this does not close the wider P1–P8
+modules programme.
 Website impact for this test-only slice: none; it adds internal regression
 coverage and does not change shipped behavior or user-facing documentation.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
-assessment-only scope below; production acceptance remains open.
+assessment-only scope below; P3 acceptance is completed by the final delivery
+above, while P8's clean-installed release gate remains separate.
 
 Define how related files form a reusable library with a deliberate public API,
 and how another application consumes it. Distinguish files, source modules,

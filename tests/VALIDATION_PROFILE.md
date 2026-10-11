@@ -4894,3 +4894,31 @@ remained below its 75s budget. The refreshed seed reached compiler stage-2/3/4
 identity and the seed-refresh gate reported already at the verified fixed point.
 Website impact: none; package support remains unreleased. Nested dependency
 graphs and full package-loader acceptance remain open P3 work.
+
+## P3 nested graph safety tests — 2026-10-11
+
+The test-only slice adds end-to-end package-check cases for version conflicts
+and duplicate physical roots reached through nested dependencies. It also accepts
+exactly 64 package manifests, 256 dependency edges and 32 package levels, while
+rejecting graphs one beyond each limit. The cases run through the source-built
+compiler and public VM launcher from the `cli_commands` functional program. All
+364 functional cases and the exact-output CLI fixture passed.
+
+On the macOS arm64 development host, canonical `make check` passed on
+`feature/p3-nested-graph-safety-tests`, based on `next` at `21daa0c`, with the
+existing build tree. It took **402s**: unit 225s, functional 13s, bootstrap
+135s, release smoke 4s and quick start under 1s. The full-check and bootstrap
+budgets (120s and 60s) were exceeded; the functional phase remained within its
+75s budget. The aggregate unit phase is not a comparable sample for the focused
+15s target. Seed stage-2/3/4 fixed points and native, compiler, package and
+release gates passed.
+
+The preceding P3 physical-overlap validation took 397s (unit 218s, functional
+12s, bootstrap 137s, release smoke 4s and quick start 1s). Both runs reused the
+build tree and are unmatched; the 5s difference does not establish causation.
+The added graph cases plausibly add functional test latency, but one 13s suite
+sample versus the prior 12s sample cannot quantify that effect. No compiler or
+VM implementation changed, and no application runtime benchmark was run. Keep
+GI#106's 120s/15s/60s targets and existing accepted validation-time disposition;
+its next action remains a matched clean base/candidate profile before P3 package
+acceptance. Website impact: none; the package feature remains unreleased.

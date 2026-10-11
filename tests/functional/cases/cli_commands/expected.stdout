@@ -25,6 +25,15 @@ PASS nested dependency diamond survives bytecode compilation
 PASS nested dependency alias stays private to its package
 PASS nested package dependency cycle is rejected
 PASS package-root symlink replacement never mixes sources
+PASS nested package graph boundary fixture runs
+PASS nested package version conflicts are rejected
+PASS nested package identity conflicts are rejected
+PASS 64 package manifests are accepted
+PASS 65 package manifests are rejected
+PASS 256 dependency edges are accepted
+PASS 257 dependency edges are rejected
+PASS 32 package levels are accepted
+PASS 33 package levels are rejected
 PASS manifest-only library compile requires an entry
 PASS manifest-only library run requires an entry
 PASS manifest-only library requires an export
@@ -37,4 +46,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 39, failures: 0
+tests: 48, failures: 0

@@ -16,14 +16,20 @@ PASS local dependency aliases must be declared
 PASS second manifest application shares the local library
 PASS package identity cannot come from multiple roots
 PASS package source roots cannot overlap the app root
-PASS dependency source roots cannot overlap each other
+PASS nested dependency roots cannot overlap their parent
 PASS declared package path must contain a manifest
-PASS nested local dependencies fail closed
+PASS nested diamond dependency checks
+PASS manifest application runs nested and direct paths to one library
+PASS manifest application compiles nested and direct paths to one library
+PASS nested dependency diamond survives bytecode compilation
+PASS nested dependency alias stays private to its package
+PASS nested package dependency cycle is rejected
 PASS package-root symlink replacement never mixes sources
 PASS manifest-only library compile requires an entry
 PASS manifest-only library run requires an entry
 PASS manifest-only library requires an export
 PASS manifest-only library rejects invalid export
+PASS manifest application recompiles direct dependencies after nested checks
 PASS manifest package relocation fixture
 PASS relocated manifest package source run
 PASS saved package bytecode runs after relocation
@@ -31,4 +37,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 33, failures: 0
+tests: 39, failures: 0

@@ -31,8 +31,11 @@ the package loader while an application-root symlink is atomically replaced
 between two valid trees. Successful runs must use a coherent tree; changed root
 identity is rejected. Direct application and dependency source roots are also
 checked for physical ancestry, including directory symlink aliases, so distinct
-packages cannot claim overlapping source trees. Nested dependency graphs and
-full package-loader acceptance remain open. P4–P8 remain planned.
+packages cannot claim overlapping source trees. The current nested-graph slice
+resolves each package's direct aliases in that package's own scope, deduplicates
+repeated physical packages, rejects cycles and identity/root conflicts, and
+bounds traversal to 64 package manifests, 256 dependency edges and 32 package
+levels. Full package-loader acceptance remains open. P4–P8 remain planned.
 The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
@@ -201,6 +204,13 @@ the same module, preserving its identity. `dependencies` maps a local import ali
 to `{"path": "../http"}` in P3; the path points to a directory containing a manifest
 and resolves relative to the declaring manifest. External local dependencies must
 therefore be declared explicitly, never reached by source import traversal.
+Nested local dependencies use the same rule: an alias is visible only while
+loading modules owned by the package whose manifest declares it. Repeated edges
+to the same physical package reuse one package identity. Reject dependency cycles,
+conflicting package identities/versions and physically overlapping source roots
+throughout the resolved graph. Bound a graph to 64 package manifests including
+the application, 256 dependency edges and 32 package levels including the
+application.
 
 Reject duplicate JSON keys, unknown keys/schema/language, non-string path values,
 empty identities, conflicting aliases, absolute paths, NULs, invalid UTF-8 and

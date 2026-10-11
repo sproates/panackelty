@@ -6,9 +6,10 @@ pub import project/src/compiler/package_manifest::{PackageManifestExport}
 import project/src/compiler/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
 import project/src/bytecode/decoder::{valid_utf8}
 
-// A direct dependency carries its public logical module map and physical root
-// identity. The package loader consumes these without searching the filesystem.
+// A dependency edge binds an owner-scoped alias to the target's public module map
+// and captured physical root. The loader consumes edges without filesystem search.
 pub record ManifestDependencyProject {
+  owner_root_identity: FilesystemRootIdentity,
   alias: Str,
   package_root: Str,
   source_root: Str,
@@ -30,6 +31,20 @@ pub record ManifestProject {
   root_identity: FilesystemRootIdentity
 }
 
+record ManifestPackageDeclaration {
+  project: ManifestProject,
+  dependencies: [PackageManifestDependency]
+}
+
+record PackageDependencyGraph {
+  packages: [ManifestPackageDeclaration],
+  edges: [ManifestDependencyProject]
+}
+
+package_dependency_graph_max_packages(): Nat { 64 }
+package_dependency_graph_max_edges(): Nat { 256 }
+package_dependency_graph_max_depth(): Nat { 32 }
+
 physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
   match path_value_from_text(left) {
     Error(error) => Error("invalid source root path"),
@@ -44,10 +59,15 @@ physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
 }
 
 pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
-  read_manifest_project_file(path, true)
+  match read_manifest_project_file(path, true) {
+    Error(message) => Error(message),
+    Ok(declaration) => manifest_project_with_dependencies(
+      declaration.project, declaration.dependencies
+    )
+  }
 }
 
-read_manifest_project_file(path: Str, resolve_dependencies: Bool): Result[ManifestProject, Str] {
+read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[ManifestPackageDeclaration, Str] {
   resolved: Str = path_string_resolve(path)
   package_root: Str = path_string_parent(resolved)
   if resolved != package_root + "/panack.json" {
@@ -60,13 +80,13 @@ read_manifest_project_file(path: Str, resolve_dependencies: Bool): Result[Manife
         Ok(relative) => match filesystem_read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
-            Error(if resolve_dependencies {
+            Error(if is_project_manifest {
               "cannot read project manifest (${code})"
             } else {
               "cannot read local dependency manifest (${code})"
             })
           },
-          Ok(read) => manifest_project_from_read(package_root, read, resolve_dependencies)
+          Ok(read) => manifest_project_from_read(package_root, read, is_project_manifest)
         }
       }
     }
@@ -76,8 +96,8 @@ read_manifest_project_file(path: Str, resolve_dependencies: Bool): Result[Manife
 manifest_project_from_read(
   package_root: Str,
   read: FilesystemRootRead,
-  resolve_dependencies: Bool
-): Result[ManifestProject, Str] {
+  is_project_manifest: Bool
+): Result[ManifestPackageDeclaration, Str] {
   if !valid_utf8(read.contents) {
     Error("project manifest is not valid UTF-8")
   } else {
@@ -91,19 +111,9 @@ manifest_project_from_read(
           detail: Str = error.message
           Error("invalid project manifest at byte ${offset}: ${detail}")
         },
-        Ok(manifest) => {
-          if !resolve_dependencies && len(manifest.dependencies) > 0 {
-            Error("local dependency packages cannot declare dependencies yet")
-          } else {
-            match manifest_project_from_manifest(package_root, read.identity, manifest) {
-              Error(message) => Error(message),
-              Ok(project) => if resolve_dependencies {
-                manifest_project_with_dependencies(project, manifest.dependencies)
-              } else {
-                Ok(project)
-              }
-            }
-          }
+        Ok(manifest) => match manifest_project_from_manifest(package_root, read.identity, manifest) {
+          Error(message) => Error(message),
+          Ok(project) => Ok(ManifestPackageDeclaration(project, manifest.dependencies))
         }
       }
     }
@@ -157,89 +167,139 @@ manifest_project_with_dependencies(
   project: ManifestProject,
   dependencies: [PackageManifestDependency]
 ): Result[ManifestProject, Str] {
-  mut resolved: [ManifestDependencyProject] = []
+  initial: PackageDependencyGraph = PackageDependencyGraph(
+    [ManifestPackageDeclaration(project, dependencies)], []
+  )
+  match resolve_package_dependency_graph(project, dependencies, [project.root_identity], initial) {
+    Error(message) => Error(message),
+    Ok(graph) => Ok(ManifestProject(
+      project.package_root,
+      project.source_root,
+      project.entry,
+      project.exports,
+      project.exported_modules,
+      project.package,
+      project.version,
+      graph.edges,
+      project.root_identity
+    ))
+  }
+}
+
+resolve_package_dependency_graph(
+  owner: ManifestProject,
+  declarations: [PackageManifestDependency],
+  ancestry: [FilesystemRootIdentity],
+  graph: PackageDependencyGraph
+): Result[PackageDependencyGraph, Str] {
+  mut current: PackageDependencyGraph = graph
   mut failure: Option[Str] = None()
-  for dependency in dependencies {
+  for dependency in declarations {
     match failure {
       Some(message) => {},
       None() => {
         alias: Str = dependency.alias
-        dependency_root: Str = path_string_resolve(path_string_join(project.package_root, dependency.path))
+        dependency_root: Str = path_string_resolve(path_string_join(owner.package_root, dependency.path))
         dependency_manifest: Str = path_string_join(dependency_root, "panack.json")
         match read_manifest_project_file(dependency_manifest, false) {
           Error(message) => { failure = Some("dependency ${alias}: ${message}") },
-          Ok(package) => match package.entry {
-            Some(entry) => { failure = Some("dependency ${alias} must be a library package") },
-            None() => {
-              if len(package.exported_modules) == 0 {
-                failure = Some("dependency ${alias} must export at least one module")
-              } else {
-                mut conflict: Option[Str] = if package.root_identity == project.root_identity {
-                  Some("dependency ${alias} resolves to the application package root")
-                } else { None() }
-                match conflict {
-                  Some(message) => {},
-                  None() => match physical_source_roots_overlap(project.source_root, package.source_root) {
-                    Error(message) => { conflict = Some("dependency ${alias}: ${message}") },
-                    Ok(overlaps) => {
-                      if overlaps {
-                        conflict = Some("dependency ${alias} physical source root overlaps the application source root")
-                      }
-                    }
+          Ok(declaration) => {
+            package: ManifestProject = declaration.project
+            match package.entry {
+              Some(entry) => { failure = Some("dependency ${alias} must be a library package") },
+              None() => {
+                if len(package.exported_modules) == 0 {
+                  failure = Some("dependency ${alias} must export at least one module")
+                } else {
+                  mut cycle: Bool = false
+                  for ancestor in ancestry {
+                    cycle = cycle || ancestor == package.root_identity
                   }
-                }
-                mut canonical: Option[ManifestDependencyProject] = None()
-                for previous in resolved {
-                  if previous.package == package.package {
-                    if previous.version != package.version {
-                      package_name: Str = package.package
-                      conflict = Some("package ${package_name} is declared with conflicting versions")
-                    } else if previous.root_identity != package.root_identity {
-                      package_name: Str = package.package
-                      package_version: Str = package.version
-                      conflict = Some("package ${package_name}@${package_version} resolves to multiple physical roots")
+                  if cycle {
+                    if package.root_identity == ancestry[0] {
+                      failure = Some("dependency ${alias} resolves to the application package root")
                     } else {
-                      canonical = Some(previous)
+                      failure = Some("dependency ${alias}: package dependency cycle detected")
                     }
-                  } else if previous.root_identity == package.root_identity {
-                    conflict = Some("one physical package root declares conflicting package identities")
+                  } else if len(current.edges) >= package_dependency_graph_max_edges() {
+                    failure = Some("package dependency graph exceeds 256 edges")
+                  } else if len(ancestry) >= package_dependency_graph_max_depth() {
+                    failure = Some("package dependency graph exceeds 32 package levels")
                   } else {
-                    match physical_source_roots_overlap(previous.source_root, package.source_root) {
-                      Error(message) => { conflict = Some("dependency ${alias}: ${message}") },
-                      Ok(overlaps) => {
-                        if overlaps {
-                          previous_alias: Str = previous.alias
-                          conflict = Some("dependency ${alias} physical source root overlaps dependency ${previous_alias}")
+                    mut conflict: Option[Str] = None()
+                    mut known: Option[ManifestPackageDeclaration] = None()
+                    for previous_declaration in current.packages {
+                      previous: ManifestProject = previous_declaration.project
+                      if previous.root_identity == package.root_identity {
+                        if previous.package != package.package || previous.version != package.version {
+                          conflict = Some("one physical package root declares conflicting package identities")
+                        } else if previous.source_root != package.source_root ||
+                            previous.exported_modules != package.exported_modules ||
+                            previous_declaration.dependencies != declaration.dependencies {
+                          conflict = Some("package manifest changed while resolving dependency graph")
+                        } else {
+                          known = Some(previous_declaration)
+                        }
+                      } else if previous.package == package.package {
+                        if previous.version != package.version {
+                          package_name: Str = package.package
+                          conflict = Some("package ${package_name} is declared with conflicting versions")
+                        } else {
+                          package_name: Str = package.package
+                          package_version: Str = package.version
+                          conflict = Some("package ${package_name}@${package_version} resolves to multiple physical roots")
+                        }
+                      } else {
+                        match physical_source_roots_overlap(previous.source_root, package.source_root) {
+                          Error(message) => { conflict = Some("dependency ${alias}: ${message}") },
+                          Ok(overlaps) => {
+                            if overlaps {
+                              if previous.root_identity == ancestry[0] {
+                                conflict = Some("dependency ${alias} physical source root overlaps the application source root")
+                              } else {
+                                previous_alias: Str = package_graph_first_alias(previous.root_identity, current.edges)
+                                conflict = Some("dependency ${alias} physical source root overlaps dependency ${previous_alias}")
+                              }
+                            }
+                          }
                         }
                       }
                     }
-                  }
-                }
-                match conflict {
-                  Some(message) => { failure = Some(message) },
-                  None() => {
-                    match canonical {
-                      Some(previous) => {
-                        resolved = resolved.append(ManifestDependencyProject(
-                          dependency.alias,
-                          previous.package_root,
-                          previous.source_root,
-                          previous.exported_modules,
-                          previous.package,
-                          previous.version,
-                          previous.root_identity
-                        ))
-                      },
+                    match conflict {
+                      Some(message) => { failure = Some(message) },
                       None() => {
-                        resolved = resolved.append(ManifestDependencyProject(
-                          dependency.alias,
+                        edge: ManifestDependencyProject = ManifestDependencyProject(
+                          owner.root_identity,
+                          alias,
                           package.package_root,
                           package.source_root,
                           package.exported_modules,
                           package.package,
                           package.version,
                           package.root_identity
-                        ))
+                        )
+                        current = PackageDependencyGraph(current.packages, current.edges.append(edge))
+                        match known {
+                          Some(previous) => {},
+                          None() => {
+                            if len(current.packages) >= package_dependency_graph_max_packages() {
+                              failure = Some("package dependency graph exceeds 64 packages")
+                            } else {
+                              current = PackageDependencyGraph(
+                                current.packages.append(declaration), current.edges
+                              )
+                              match resolve_package_dependency_graph(
+                                package,
+                                declaration.dependencies,
+                                ancestry.append(package.root_identity),
+                                current
+                              ) {
+                                Error(message) => { failure = Some("dependency ${alias}: ${message}") },
+                                Ok(expanded) => { current = expanded }
+                              }
+                            }
+                          }
+                        }
                       }
                     }
                   }
@@ -253,16 +313,21 @@ manifest_project_with_dependencies(
   }
   match failure {
     Some(message) => Error(message),
-    None() => Ok(ManifestProject(
-      project.package_root,
-      project.source_root,
-      project.entry,
-      project.exports,
-      project.exported_modules,
-      project.package,
-      project.version,
-      resolved,
-      project.root_identity
-    ))
+    None() => Ok(current)
   }
+}
+
+pure package_graph_first_alias(
+  root_identity: FilesystemRootIdentity,
+  edges: [ManifestDependencyProject]
+): Str {
+  mut alias: Str = "unknown"
+  mut found: Bool = false
+  for edge in edges {
+    if !found && edge.root_identity == root_identity {
+      alias = edge.alias
+      found = true
+    }
+  }
+  alias
 }

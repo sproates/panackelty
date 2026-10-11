@@ -154,12 +154,31 @@ pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_r
   }
 }
 
-pure package_dependency_import(imported: Str, dependencies: [ManifestDependencyProject]): Bool {
+pure package_dependency_import(
+  imported: Str,
+  owner_root_identity: FilesystemRootIdentity,
+  dependencies: [ManifestDependencyProject]
+): Bool {
   mut found: Bool = false
   for dependency in dependencies {
-    found = found || starts_with_at(imported, dependency.alias + "/", 0)
+    found = found || (dependency.owner_root_identity == owner_root_identity &&
+      starts_with_at(imported, dependency.alias + "/", 0))
   }
   found
+}
+
+pure package_owner_identity(
+  path: Str,
+  project_root_identity: FilesystemRootIdentity,
+  dependencies: [ManifestDependencyProject]
+): FilesystemRootIdentity {
+  mut identity: FilesystemRootIdentity = project_root_identity
+  for dependency in dependencies {
+    if loader_path_within(path, dependency.source_root) {
+      identity = dependency.root_identity
+    }
+  }
+  identity
 }
 
 pure package_owner_source_root(
@@ -233,12 +252,14 @@ pure package_source_contains(
 
 pure package_import_export_path(
   imported: Str,
+  owner_root_identity: FilesystemRootIdentity,
   dependencies: [ManifestDependencyProject]
 ): Option[Str] {
   mut found: Option[Str] = None()
   mut selected_count: Nat = 0
   for dependency in dependencies {
-    if starts_with_at(imported, dependency.alias + "/", 0) {
+    if dependency.owner_root_identity == owner_root_identity &&
+        starts_with_at(imported, dependency.alias + "/", 0) {
       logical: Str = logical_import_without_suffix(imported)
       module: Str = slice(logical, len(dependency.alias) + 1, len(logical))
       for exported in dependency.exported_modules {
@@ -257,6 +278,7 @@ pure resolve_package_import_path(
   parent: Str,
   project_root: Str,
   stdlib_root: Str,
+  owner_root_identity: FilesystemRootIdentity,
   dependencies: [ManifestDependencyProject]
 ): Result[Str, Str] {
   if starts_with_at(imported, "stdlib/", 0) || starts_with_at(imported, "project/", 0) {
@@ -265,8 +287,8 @@ pure resolve_package_import_path(
     } else {
       Ok(resolve_import_path(imported, parent, project_root, stdlib_root))
     }
-  } else if package_dependency_import(imported, dependencies) {
-    match package_import_export_path(imported, dependencies) {
+  } else if package_dependency_import(imported, owner_root_identity, dependencies) {
+    match package_import_export_path(imported, owner_root_identity, dependencies) {
       Some(path) => Ok(path),
       None() => Error("dependency import is not declared or the module is not exported: ${imported}")
     }
@@ -624,7 +646,14 @@ load_project_module(
                                     package_owner_source_root(path, project_root, dependencies)
                                   } else { project_root }
                                   match if package_confined {
-                                    resolve_package_import_path(imported, parent, import_root, stdlib_root, dependencies)
+                                    resolve_package_import_path(
+                                      imported,
+                                      parent,
+                                      import_root,
+                                      stdlib_root,
+                                      package_owner_identity(path, package_root_identity, dependencies),
+                                      dependencies
+                                    )
                                   } else {
                                     Ok(resolve_import_path(imported, parent, project_root, stdlib_root))
                                   } {
@@ -904,7 +933,7 @@ load_project_mode_with_configuration(
     staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
   }
   graph: ModuleBindingGraph = loaded_package_binding_graph(
-    loaded.modules, project_root, stdlib_root, package_confined, dependencies
+    loaded.modules, project_root, stdlib_root, package_confined, package_root_identity, dependencies
   )
   graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
   if staged {
@@ -1065,7 +1094,9 @@ pub pure loaded_binding_graph(
   project_root: Str,
   stdlib_root: Str
 ): ModuleBindingGraph {
-  loaded_package_binding_graph(modules, project_root, stdlib_root, false, [])
+  loaded_package_binding_graph(
+    modules, project_root, stdlib_root, false, FilesystemRootIdentity(0, 0), []
+  )
 }
 
 pub pure loaded_package_binding_graph(
@@ -1073,6 +1104,7 @@ pub pure loaded_package_binding_graph(
   project_root: Str,
   stdlib_root: Str,
   package_confined: Bool,
+  package_root_identity: FilesystemRootIdentity,
   dependencies: [ManifestDependencyProject]
 ): ModuleBindingGraph {
   mut bindings: [ModuleBindings] = []
@@ -1086,8 +1118,13 @@ pub pure loaded_package_binding_graph(
       owner_root: Str = if package_confined {
         package_owner_source_root(module.source_path, project_root, dependencies)
       } else { project_root }
+      owner_identity: FilesystemRootIdentity = package_owner_identity(
+        module.source_path, package_root_identity, dependencies
+      )
       path: Str = if package_confined {
-        match resolve_package_import_path(imported.path, parent, owner_root, stdlib_root, dependencies) {
+        match resolve_package_import_path(
+          imported.path, parent, owner_root, stdlib_root, owner_identity, dependencies
+        ) {
           Error(message) => "",
           Ok(resolved) => resolved
         }

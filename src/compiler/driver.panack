@@ -229,7 +229,7 @@ prepare_manifest_project(
     )
   )
   match prepare_project_program_with_dependencies(
-    loaded, root, stdlib_root, identity, true, project.dependencies
+    loaded, root, stdlib_root, identity, true, project.root_identity, project.dependencies
   ) {
     Error(diagnostics) => PreparedProject(false, loaded.program, diagnostic_messages(diagnostics, loaded.sources)),
     Ok(program) => PreparedProject(true, program, "")

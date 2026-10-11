@@ -343,6 +343,30 @@ main(): Void {
         }
       }
       filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
+      race_compiler: Str = environment_value("PANACK_TEST_COMPILER")
+      race_compiler_path: Str = if race_compiler == "" {
+        "build/bootstrap/stage2/compiler.bc"
+      } else { race_compiler }
+      match testing_process_run(path("/bin/sh"),
+          ["tests/functional/cases/cli_commands/package_root_race.sh",
+            race_compiler_path, toolchain_version, "src/stdlib"],
+          bytes_empty(), path_value_current(), [], duration_seconds(20), 4096) {
+        Error(error) => {
+          results = results.append(test_expect(
+            "package-root symlink replacement never mixes sources", false,
+            "race harness could not run"))
+        },
+        Ok(output) => {
+          race_output: Str = text_decode_utf8(output.stdout)
+          results = results.append(test_expect(
+            "package-root symlink replacement never mixes sources",
+            output.exit_code == 0 && output.signal == 0 &&
+              contains(race_output, "package root race passed (") &&
+              contains(race_output, " identity changes,") &&
+              output.stderr == bytes_empty(),
+            "loader mixed package roots, missed the replacement, or failed unexpectedly"))
+        }
+      }
       results = results.append(test_run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(

@@ -4845,3 +4845,25 @@ comparison per package source read; no runtime execution path changes. Website
 impact: none; P3 remains unreleased and no package capability is claimed.
 Nested dependency graphs, broader physical source-root overlap, and deterministic
 package-loader race acceptance remain open.
+
+## P3 package-loader root replacement acceptance — 2026-10-11
+
+This slice adds a functional race acceptance only; compiler and VM source are
+unchanged. The test atomically switches an application-root symlink between two
+valid package trees while making 40 fresh stage-2 `run --project` invocations.
+Every success must return the tree-specific result; every failure must be a
+package-root identity or confined-read/manifest-read error, and the run must
+observe at least one identity-change rejection. Ten consecutive local macOS runs
+passed, each with 2–9 coherent successes and 31–38 identity-change rejections;
+none returned a mixed result. This is stress evidence for one host, not a Linux
+measurement or a proof of every scheduler interleaving.
+
+The final profiled canonical `make check` passed all 364 functional cases in
+312s against the 120s full-check target. Unit took 135s against 15s, functional
+12s against 75s, bootstrap 135s against 60s, release smoke 4s, and quick start
+1s. A recent pre-change local run also had a 12s functional phase; these
+single-run observations do not isolate the race fixture's cost. No runtime
+performance change is expected; keep the established budgets unchanged. This
+run reused the local build tree and is not a clean-checkout comparison. Website
+impact: none; the user-facing package scope remains unreleased. Nested dependency
+graphs and broader physical source-root overlap remain open P3 acceptance.

@@ -552,11 +552,13 @@ modules without a `main` entry. PR#376 added direct local-library dependencies,
 export-only package imports and two-app shared-library acceptance. The current
 slice pins source reads to the physical package-root identity captured from its
 manifest and rejects an exported-source symlink that escapes the package root.
-Nested dependency graphs remain fail-closed. P3 is not formally accepted as
-complete; broader physical source-root overlap and package-loader symlink/race
-acceptance remain open. P4–P8 remain Planned. Their shared design is recorded in
-P1, with provisional implementation estimates above and detailed slices in the
-design.
+It also exercises the package loader during atomic replacement of an application
+root symlink between two valid trees: a successful run must read one coherent
+tree, and changed or temporarily unavailable roots fail closed. Nested
+dependency graphs remain fail-closed. P3 is not formally accepted as
+complete; broader physical source-root overlap remains open. P4–P8 remain
+Planned. Their shared design is recorded in P1, with provisional implementation estimates above and detailed
+slices in the design.
 No public registry, separate compilation, web framework or new engine is
 required. Website impact: none for the parser slice; no public
 package command, manifest behavior or package documentation is exposed yet.
@@ -3513,10 +3515,12 @@ package-root reads merged in PR#372 and explicit manifest-root application
 identity and initial relocated-app acceptance merged in PR#374. PR#375 adds
 exported-library checking. PR#376 adds direct local-library dependency loading,
 export-only imports and two-app acceptance. The current delivery verifies
-manifest-root identity on package source reads and rejects exported symlinks
-that escape the package. Nested dependency graphs, broader physical source-root
-overlap and package-loader symlink/race acceptance remain open, so this does not
-complete GI#199.
+manifest-root identity on package source reads, rejects exported symlinks that
+escape the package, and tests the loader during atomic replacement of an
+application-root symlink between two valid trees. Successful runs must use one
+coherent tree; a changed or temporarily unavailable root fails closed. Nested
+dependency graphs and broader physical source-root overlap remain open, so this
+does not complete GI#199.
 Website impact remains none until the work is released and documented for users.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
 assessment-only scope below; production acceptance remains open.

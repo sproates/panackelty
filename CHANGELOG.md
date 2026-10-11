@@ -23,7 +23,7 @@ No unreleased changes.
   every arm.
 - Add executable-source inventory and opt-in execution coverage commands for
   inventory, collection, aggregation and reporting. The verified baseline covers
-  38 tracked compiler, bytecode and standard-library source files across its
+  43 tracked compiler, bytecode and standard-library source files across its
   explicit root set; it is not whole-suite coverage or a measure of assertion
   quality.
 

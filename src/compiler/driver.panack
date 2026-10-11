@@ -20,7 +20,7 @@ import project/src/compiler/emitter::{BytecodeProgram, SourceMappedProgram, comp
 import project/src/bytecode/codec::{serialize_bytecode}
 import project/src/compiler/source_maps::{SourceMapFunctionSelector, source_map_escape, source_map_destination_available, source_map_matches, source_map_location, source_map_write, source_snapshots_unchanged, serialize_source_map, source_map_function_selector}
 import project/src/compiler/module_bindings::{source_module_identity, source_package_module_identity}
-import project/src/compiler/project_frontend::{prepare_project_program}
+import project/src/compiler/project_frontend::{prepare_project_program, prepare_project_program_with_dependencies}
 import project/src/bytecode/decoder::{validate_bytecode, disassemble_bytecode}
 
 // The command boundary owns host I/O and user-visible status. Pure compiler passes
@@ -228,7 +228,9 @@ prepare_manifest_project(
       project.version
     )
   )
-  match prepare_project_program(loaded, root, stdlib_root, identity) {
+  match prepare_project_program_with_dependencies(
+    loaded, root, stdlib_root, identity, true, project.dependencies
+  ) {
     Error(diagnostics) => PreparedProject(false, loaded.program, diagnostic_messages(diagnostics, loaded.sources)),
     Ok(program) => PreparedProject(true, program, "")
   }
@@ -254,7 +256,8 @@ run_manifest_source_command(
           project.source_root,
           project.package_root,
           project.package,
-          project.version
+          project.version,
+          project.dependencies
         )
         prepared: PreparedProject = prepare_manifest_project(project, entry, loaded)
         if !prepared.valid {
@@ -300,7 +303,8 @@ run_manifest_library_check(project: ManifestProject): Nat {
         project.source_root,
         project.package_root,
         project.package,
-        project.version
+        project.version,
+        project.dependencies
       )
       prepared: PreparedProject = prepare_manifest_project(project, exported, loaded)
       if !prepared.valid {

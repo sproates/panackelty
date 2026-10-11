@@ -4,8 +4,17 @@ PASS bare bytecode path
 PASS explicit manifest package check
 PASS explicit manifest package source run
 PASS explicit manifest package compile
-PASS unsupported package dependency fails closed
 PASS manifest-only library checks each exported module without main
+PASS manifest application checks declared local library
+PASS manifest application runs declared local library
+PASS manifest application compiles declared local library
+PASS manifest application bytecode retains local library
+PASS local dependency hides unexported modules
+PASS local dependency aliases must be declared
+PASS second manifest application shares the local library
+PASS package identity cannot come from multiple roots
+PASS declared package path must contain a manifest
+PASS nested local dependencies fail closed
 PASS manifest-only library compile requires an entry
 PASS manifest-only library run requires an entry
 PASS manifest-only library requires an export
@@ -17,4 +26,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 19, failures: 0
+tests: 28, failures: 0

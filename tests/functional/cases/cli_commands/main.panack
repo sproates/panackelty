@@ -96,9 +96,12 @@ main(): Void {
       package_manifest = child(package_root, "panack.json")
       library_root = child(workspace.root, "library")
       library_source_root = child(library_root, "src")
+      library_private = child(library_source_root, "implementation.panack")
       library_api = child(library_source_root, "api.panack")
       library_extra = child(library_source_root, "extra.panack")
       library_manifest = child(library_root, "panack.json")
+      library_copy_root = child(workspace.root, "library-copy")
+      library_copy_manifest = child(library_copy_root, "panack.json")
       relocated_root = child(workspace.root, "relocated")
       relocated_source_root = child(relocated_root, "src")
       relocated_entry = child(relocated_source_root, "main.panack")
@@ -110,6 +113,7 @@ main(): Void {
       package_value_text = result_value_or(path_value_to_text(package_value), "invalid-value")
       package_manifest_text = result_value_or(path_value_to_text(package_manifest), "invalid-manifest")
       library_manifest_text = result_value_or(path_value_to_text(library_manifest), "invalid-library-manifest")
+      library_copy_manifest_text = result_value_or(path_value_to_text(library_copy_manifest), "invalid-library-copy-manifest")
       relocated_root_text = result_value_or(path_value_to_text(relocated_root), "invalid-relocated")
       relocated_manifest_text = result_value_or(path_value_to_text(relocated_manifest), "invalid-relocated-manifest")
       mut results: [TestResult] = []
@@ -156,23 +160,150 @@ main(): Void {
       results = results.append(test_run_command("explicit manifest package compile",
         command(["compile", "--project", package_manifest_text, "-o", bytecode_text]),
         ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
-      dependencies_manifest = replace_first(manifest_text, "\"dependencies\":{}", "\"dependencies\":{\"missing\":{\"path\":\"../missing\"}}")
-      filesystem_write_bytes(package_manifest, text_encode_utf8(dependencies_manifest))
-      results = results.append(test_run_command("unsupported package dependency fails closed",
-        command(["check", "--project", package_manifest_text]),
-        ProcessOutput(1, 0, bytes_empty(), text_encode_utf8("error: project manifest dependencies are not supported yet\n"))))
-      filesystem_write_bytes(package_manifest, text_encode_utf8(manifest_text))
-
       filesystem_create_directory(library_root)
       filesystem_create_directory(library_source_root)
       library_manifest_text_value = "{\"schema\":1,\"package\":\"example.geometry\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"},\"dependencies\":{}}"
       filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
-      filesystem_write_bytes(library_api, text_encode_utf8("pub pure answer(): Nat { 42 }\n"))
+      filesystem_write_bytes(library_api, text_encode_utf8(
+        "import project/implementation as implementation\npub pure answer(): Nat { implementation.answer() }\n"))
+      filesystem_write_bytes(library_private, text_encode_utf8("pub pure answer(): Nat { 42 }\n"))
       filesystem_write_bytes(library_extra, text_encode_utf8(
         "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n"))
       results = results.append(test_run_command("manifest-only library checks each exported module without main",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
         ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+
+      dependency_manifest_text = replace_first(manifest_text, "\"dependencies\":{}",
+        "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = command_args(); print(len(arguments)); }\n"))
+      results = results.append(test_run_command("manifest application checks declared local library",
+        source_compiler_command(["check", "--project", package_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+      results = results.append(test_run_command("manifest application runs declared local library",
+        source_compiler_command(["run", "--project", package_manifest_text, "alpha"], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("42\n42\n1\n"), bytes_empty())))
+      results = results.append(test_run_command("manifest application compiles declared local library",
+        source_compiler_command(["compile", "--project", package_manifest_text, "-o", bytecode_text], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
+      results = results.append(test_run_command("manifest application bytecode retains local library",
+        command([bytecode_text]),
+        ProcessOutput(0, 0, text_encode_utf8("42\n42\n0\n"), bytes_empty())))
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import geometry/implementation as implementation\nmain(): Void { print(implementation.answer()); }\n"))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("local dependency hides unexported modules", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("local dependency hides unexported modules",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "dependency import is not declared or the module is not exported: geometry/implementation"),
+            "an unexported dependency module was importable"))
+        }
+      }
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import missing/api as api\nmain(): Void { print(api.answer()); }\n"))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("local dependency aliases must be declared", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("local dependency aliases must be declared",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "dependency import is not declared or the module is not exported: missing/api"),
+            "an undeclared dependency alias was importable"))
+        }
+      }
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import project/value as value\nimport geometry/api as geometry\nmain(): Void { print(value.answer()); print(geometry.answer()); arguments: [Str] = command_args(); print(len(arguments)); }\n"))
+
+      second_app_root = child(workspace.root, "second-app")
+      second_app_source_root = child(second_app_root, "src")
+      second_app_entry = child(second_app_source_root, "main.panack")
+      second_app_manifest = child(second_app_root, "panack.json")
+      second_app_manifest_text = result_value_or(path_value_to_text(second_app_manifest), "invalid-second-app-manifest")
+      filesystem_create_directory(second_app_root)
+      filesystem_create_directory(second_app_source_root)
+      mut second_app_manifest_contents = replace_first(dependency_manifest_text,
+        "example.application", "example.second_application")
+      second_app_manifest_contents = replace_first(second_app_manifest_contents,
+        "\"geometry\":{\"path\":\"../library\"}",
+        "\"geometry\":{\"path\":\"../library\"},\"geometry_copy\":{\"path\":\"../library\"}")
+      filesystem_write_bytes(second_app_manifest, text_encode_utf8(second_app_manifest_contents))
+      filesystem_write_bytes(second_app_entry, text_encode_utf8(
+        "import geometry_copy/api as geometry\nmain(): Void { print(geometry.answer()); }\n"))
+      results = results.append(test_run_command("second manifest application shares the local library",
+        source_compiler_command(["run", "--project", second_app_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("42\n"), bytes_empty())))
+      filesystem_create_directory(library_copy_root)
+      filesystem_write_bytes(library_copy_manifest, text_encode_utf8(library_manifest_text_value))
+      duplicate_root_manifest = replace_first(dependency_manifest_text,
+        "\"geometry\":{\"path\":\"../library\"}",
+        "\"geometry\":{\"path\":\"../library\"},\"geometry_alt\":{\"path\":\"../library-copy\"}")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(duplicate_root_manifest))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("package identity cannot come from multiple roots", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("package identity cannot come from multiple roots",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "resolves to multiple physical roots"),
+            "duplicate physical package identities were accepted"))
+        }
+      }
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      missing_dependency_manifest = replace_first(dependency_manifest_text, "../library", "../missing")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(missing_dependency_manifest))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("declared package path must contain a manifest", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("declared package path must contain a manifest",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "dependency geometry: cannot read local dependency manifest"),
+            "a missing dependency manifest was accepted"))
+        }
+      }
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      nested_dependency_manifest = replace_first(library_manifest_text_value,
+        "\"dependencies\":{}", "\"dependencies\":{\"internal\":{\"path\":\"../internal\"}}")
+      filesystem_write_bytes(library_manifest, text_encode_utf8(nested_dependency_manifest))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("nested local dependencies fail closed", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("nested local dependencies fail closed",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "local dependency packages cannot declare dependencies yet"),
+            "an unsupported nested dependency graph was accepted"))
+        }
+      }
+      filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
       results = results.append(test_run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(
@@ -215,21 +346,28 @@ main(): Void {
       }
       results = results.append(test_expect("manifest package relocation fixture", move.exit_code == 0 && move.signal == 0, "could not move package root"))
       results = results.append(test_run_command("relocated manifest package source run",
-        command(["run", "--project", relocated_manifest_text, "alpha"]),
-        ProcessOutput(0, 0, text_encode_utf8("42\n1\n"), bytes_empty())))
+        source_compiler_command(["run", "--project", relocated_manifest_text, "alpha"], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("42\n42\n1\n"), bytes_empty())))
       results = results.append(test_run_command("saved package bytecode runs after relocation",
         command(["run", bytecode_text]),
-        ProcessOutput(0, 0, text_encode_utf8("42\n0\n"), bytes_empty())))
+        ProcessOutput(0, 0, text_encode_utf8("42\n42\n0\n"), bytes_empty())))
       filesystem_remove_file(relocated_entry)
       filesystem_remove_file(relocated_value)
       filesystem_remove_file(relocated_manifest)
       filesystem_remove_directory(relocated_source_root)
       filesystem_remove_directory(relocated_root)
       filesystem_remove_file(library_api)
+      filesystem_remove_file(library_private)
       filesystem_remove_file(library_extra)
       filesystem_remove_file(library_manifest)
       filesystem_remove_directory(library_source_root)
       filesystem_remove_directory(library_root)
+      filesystem_remove_file(library_copy_manifest)
+      filesystem_remove_directory(library_copy_root)
+      filesystem_remove_file(second_app_entry)
+      filesystem_remove_file(second_app_manifest)
+      filesystem_remove_directory(second_app_source_root)
+      filesystem_remove_directory(second_app_root)
 
       match filesystem_write_bytes(arguments_source, text_encode_utf8(
           "main(): Void { arguments: [Str] = command_args(); " +

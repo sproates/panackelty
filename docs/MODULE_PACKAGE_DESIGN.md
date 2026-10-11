@@ -22,9 +22,12 @@ not enable namespaces or complete P2.
 P3 has started with the confined package-root read prerequisite merged in PR#372.
 PR#374 wires strict manifest parsing to explicit `check`, `compile` and `run
 --project panack.json` commands for dependency-free applications, with confined
-source reads and relocation-stable module identity. Exported library checking
-is the current implementation slice; dependency loading, two-application
-acceptance and full package-loader acceptance remain open. P4–P8 remain planned.
+source reads and relocation-stable module identity. PR#375 adds exported
+library checking. The current implementation slice adds direct local library
+dependencies, export-only package imports and two-app shared-library
+acceptance. Nested dependency graphs, symlink/race acceptance, physical-root
+overlap checks and full package-loader acceptance remain open. P4–P8 remain
+planned.
 The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 

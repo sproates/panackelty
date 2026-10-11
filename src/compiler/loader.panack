@@ -28,6 +28,8 @@ import project/src/compiler/checker::{CheckedProgram, check_program_evidence_mod
 pub import project/src/compiler/purity::{EffectEvidence}
 import project/src/compiler/purity::{CheckedEffects, check_frontend_effects}
 import project/src/compiler/resolver::{append_program_declarations, resolve_program_at}
+pub import project/src/compiler/package_project::{ManifestDependencyProject}
+import project/src/compiler/package_manifest::{PackageManifestExport}
 
 // Resolve and read the module closure once, preserving traversal order and original
 // source snapshots. Host I/O belongs here rather than in the pure frontend.
@@ -129,7 +131,7 @@ pure logical_import_valid(path: Str): Bool {
     if starts_with_at(without_suffix, "project/", 0) {
       slice(without_suffix, len("project/"), len(without_suffix))
     } else {
-      ""
+      without_suffix
     }
   }
   (suffix == "" || suffix == ".panack") && logical_import_segments_valid(relative)
@@ -148,6 +150,129 @@ pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_r
     } else {
       path_string_join(parent, imported)
     }
+  }
+}
+
+pure package_dependency_import(imported: Str, dependencies: [ManifestDependencyProject]): Bool {
+  mut found: Bool = false
+  for dependency in dependencies {
+    found = found || starts_with_at(imported, dependency.alias + "/", 0)
+  }
+  found
+}
+
+pure package_owner_source_root(
+  path: Str,
+  project_root: Str,
+  dependencies: [ManifestDependencyProject]
+): Str {
+  mut root: Str = project_root
+  for dependency in dependencies {
+    if loader_path_within(path, dependency.source_root) {
+      root = dependency.source_root
+    }
+  }
+  root
+}
+
+pure package_owner_root(
+  path: Str,
+  package_root: Str,
+  dependencies: [ManifestDependencyProject]
+): Str {
+  mut root: Str = package_root
+  for dependency in dependencies {
+    if loader_path_within(path, dependency.source_root) {
+      root = dependency.package_root
+    }
+  }
+  root
+}
+
+pure package_owner_name(
+  path: Str,
+  package_name: Str,
+  dependencies: [ManifestDependencyProject]
+): Str {
+  mut name: Str = package_name
+  for dependency in dependencies {
+    if loader_path_within(path, dependency.source_root) {
+      name = dependency.package
+    }
+  }
+  name
+}
+
+pure package_owner_version(
+  path: Str,
+  package_version: Str,
+  dependencies: [ManifestDependencyProject]
+): Str {
+  mut version: Str = package_version
+  for dependency in dependencies {
+    if loader_path_within(path, dependency.source_root) {
+      version = dependency.version
+    }
+  }
+  version
+}
+
+pure package_source_contains(
+  path: Str,
+  project_root: Str,
+  stdlib_root: Str,
+  dependencies: [ManifestDependencyProject]
+): Bool {
+  mut within: Bool = loader_path_within(path, project_root) || loader_path_within(path, stdlib_root)
+  for dependency in dependencies {
+    within = within || loader_path_within(path, dependency.source_root)
+  }
+  within
+}
+
+pure package_import_export_path(
+  imported: Str,
+  dependencies: [ManifestDependencyProject]
+): Option[Str] {
+  mut found: Option[Str] = None()
+  mut selected_count: Nat = 0
+  for dependency in dependencies {
+    if starts_with_at(imported, dependency.alias + "/", 0) {
+      logical: Str = logical_import_without_suffix(imported)
+      module: Str = slice(logical, len(dependency.alias) + 1, len(logical))
+      for exported in dependency.exported_modules {
+        if exported.module == module {
+          found = Some(path_string_join(dependency.source_root, exported.path))
+          selected_count = selected_count + 1
+        }
+      }
+    }
+  }
+  if selected_count == 1 { found } else { None() }
+}
+
+pure resolve_package_import_path(
+  imported: Str,
+  parent: Str,
+  project_root: Str,
+  stdlib_root: Str,
+  dependencies: [ManifestDependencyProject]
+): Result[Str, Str] {
+  if starts_with_at(imported, "stdlib/", 0) || starts_with_at(imported, "project/", 0) {
+    if starts_with_at(imported, "stdlib/", 0) && len(stdlib_root) == 0 {
+      Error("standard library root is not configured")
+    } else {
+      Ok(resolve_import_path(imported, parent, project_root, stdlib_root))
+    }
+  } else if package_dependency_import(imported, dependencies) {
+    match package_import_export_path(imported, dependencies) {
+      Some(path) => Ok(path),
+      None() => Error("dependency import is not declared or the module is not exported: ${imported}")
+    }
+  } else if path_string_suffix(imported) == ".panack" {
+    Ok(path_string_join(parent, imported))
+  } else {
+    Error("dependency import is not declared or the module is not exported: ${imported}")
   }
 }
 
@@ -298,19 +423,23 @@ load_project_module(
   package_root: Str,
   package_name: Str,
   package_version: Str,
-  package_confined: Bool
+  package_confined: Bool,
+  dependencies: [ManifestDependencyProject]
 ): ProjectLoadState {
   if state.visited.has(path) {
     state
   } else {
-    if !loader_path_within(path, project_root) && !loader_path_within(path, stdlib_root) {
+    if (package_confined && !package_source_contains(path, project_root, stdlib_root, dependencies)) ||
+        (!package_confined && !loader_path_within(path, project_root) && !loader_path_within(path, stdlib_root)) {
       diagnostics: [Diagnostic] = append(
         state.diagnostics,
         loader_diagnostic("module path escapes the entry directory and standard library roots: " + path)
       )
       ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
     } else {
-    trusted_root: Str = if loader_path_within(path, stdlib_root) { stdlib_root } else { project_root }
+    trusted_root: Str = if loader_path_within(path, stdlib_root) { stdlib_root } else {
+      if package_confined { package_owner_root(path, package_root, dependencies) } else { project_root }
+    }
     if !package_confined && loader_path_has_symlink(path, trusted_root, allow_leaf_symlink) {
       diagnostics: [Diagnostic] = append(
         state.diagnostics,
@@ -352,7 +481,7 @@ load_project_module(
           )
         } else {
           match if package_confined {
-            read_package_source(path, package_root, bounded, state.source_paths, state.sources)
+            read_package_source(path, trusted_root, bounded, state.source_paths, state.sources)
           } else {
             read_project_source(path, bounded, state.source_paths, state.sources)
           } {
@@ -396,10 +525,10 @@ load_project_module(
                       identity: ModuleIdentity = if package_confined && !loader_path_within(path, stdlib_root) {
                         source_package_module_identity(
                           path,
-                          project_root,
+                          package_owner_source_root(path, project_root, dependencies),
                           stdlib_root,
-                          package_name,
-                          package_version
+                          package_owner_name(path, package_name, dependencies),
+                          package_owner_version(path, package_version, dependencies)
                         )
                       } else {
                         source_module_identity(path, project_root, stdlib_root)
@@ -439,7 +568,8 @@ load_project_module(
                       for declaration in program.declarations {
                         match declaration {
                           ImportDeclaration(imported) => {
-                            if is_logical_import(imported) {
+                            if is_logical_import(imported) ||
+                                (package_confined && logical_import_valid(imported)) {
                               if !logical_import_valid(imported) {
                                 diagnostics: [Diagnostic] = append(
                                   current.diagnostics,
@@ -467,25 +597,40 @@ load_project_module(
                                   )
                                 } else {
                                   parent: Str = path_string_parent(path)
-                                  dependency: Str = resolve_import_path(
-                                    imported,
-                                    parent,
-                                    project_root,
-                                    stdlib_root
-                                  )
-                                  current = load_project_module(
-                                    dependency,
-                                    current,
-                                    next_stack,
-                                    project_root,
-                                    stdlib_root,
-                                    bounded,
-                                    false,
-                                    package_root,
-                                    package_name,
-                                    package_version,
-                                    package_confined
-                                  )
+                                  import_root: Str = if package_confined {
+                                    package_owner_source_root(path, project_root, dependencies)
+                                  } else { project_root }
+                                  match if package_confined {
+                                    resolve_package_import_path(imported, parent, import_root, stdlib_root, dependencies)
+                                  } else {
+                                    Ok(resolve_import_path(imported, parent, project_root, stdlib_root))
+                                  } {
+                                    Error(message) => {
+                                      current = ProjectLoadState(
+                                        current.modules,
+                                        current.visited,
+                                        append(current.diagnostics, loader_diagnostic(message)),
+                                        current.sources,
+                                        current.source_paths
+                                      )
+                                    },
+                                    Ok(dependency) => {
+                                      current = load_project_module(
+                                        dependency,
+                                        current,
+                                        next_stack,
+                                        project_root,
+                                        stdlib_root,
+                                        bounded,
+                                        false,
+                                        package_root,
+                                        package_name,
+                                        package_version,
+                                        package_confined,
+                                        dependencies
+                                      )
+                                    }
+                                  }
                                 }
                               }
                             } else {
@@ -516,12 +661,7 @@ load_project_module(
                                   )
                                 } else {
                                   parent: Str = path_string_parent(path)
-                                  dependency: Str = resolve_import_path(
-                                    imported,
-                                    parent,
-                                    project_root,
-                                    stdlib_root
-                                  )
+                                  dependency: Str = path_string_join(parent, imported)
                                   current = load_project_module(
                                     dependency,
                                     current,
@@ -533,7 +673,8 @@ load_project_module(
                                     package_root,
                                     package_name,
                                     package_version,
-                                    package_confined
+                                    package_confined,
+                                    dependencies
                                   )
                                 }
                               }
@@ -598,7 +739,7 @@ load_project_mode_with_main(
   require_main: Bool
 ): LoadedProject {
   load_project_mode_with_configuration(
-    entry, bounded, retain, require_main, "", "", "", "", false
+    entry, bounded, retain, require_main, "", "", "", "", false, []
   )
 }
 
@@ -607,7 +748,8 @@ pub load_project_package(
   source_root: Str,
   package_root: Str,
   package_name: Str,
-  package_version: Str
+  package_version: Str,
+  dependencies: [ManifestDependencyProject]
 ): LoadedProject {
   load_project_mode_with_configuration(
     entry,
@@ -618,7 +760,8 @@ pub load_project_package(
     package_root,
     package_name,
     package_version,
-    true
+    true,
+    dependencies
   )
 }
 
@@ -627,7 +770,8 @@ pub load_project_package_for_check(
   source_root: Str,
   package_root: Str,
   package_name: Str,
-  package_version: Str
+  package_version: Str,
+  dependencies: [ManifestDependencyProject]
 ): LoadedProject {
   load_project_mode_with_configuration(
     entry,
@@ -638,7 +782,8 @@ pub load_project_package_for_check(
     package_root,
     package_name,
     package_version,
-    true
+    true,
+    dependencies
   )
 }
 
@@ -651,7 +796,8 @@ load_project_mode_with_configuration(
   package_root: Str,
   package_name: Str,
   package_version: Str,
-  package_confined: Bool
+  package_confined: Bool,
+  dependencies: [ManifestDependencyProject]
 ): LoadedProject {
   resolved: Str = path_string_resolve(entry)
   project_root: Str = if package_confined {
@@ -691,7 +837,8 @@ load_project_mode_with_configuration(
       "",
       "",
       "",
-      false
+      false,
+      []
     )
   }
   loaded: ProjectLoadState = if len(core.diagnostics) == 0 {
@@ -706,7 +853,8 @@ load_project_mode_with_configuration(
       package_root,
       package_name,
       package_version,
-      package_confined
+      package_confined,
+      dependencies
     )
   } else {
     core
@@ -723,7 +871,9 @@ load_project_mode_with_configuration(
   for module in loaded.modules {
     staged = staged || len(module_execution_diagnostics(module.parsed)) > 0
   }
-  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  graph: ModuleBindingGraph = loaded_package_binding_graph(
+    loaded.modules, project_root, stdlib_root, package_confined, dependencies
+  )
   graph_errors: [Diagnostic] = module_graph_diagnostics(graph)
   if staged {
     diagnostics = concat(diagnostics, graph_errors)
@@ -883,6 +1033,16 @@ pub pure loaded_binding_graph(
   project_root: Str,
   stdlib_root: Str
 ): ModuleBindingGraph {
+  loaded_package_binding_graph(modules, project_root, stdlib_root, false, [])
+}
+
+pub pure loaded_package_binding_graph(
+  modules: [LoadedModule],
+  project_root: Str,
+  stdlib_root: Str,
+  package_confined: Bool,
+  dependencies: [ManifestDependencyProject]
+): ModuleBindingGraph {
   mut bindings: [ModuleBindings] = []
   mut edges: [ModuleImportEdge] = []
 
@@ -890,12 +1050,18 @@ pub pure loaded_binding_graph(
     bindings = append(bindings, module.bindings)
     mut index: Nat = 0
     for imported in module.bindings.imports {
-      path: Str = resolve_import_path(
-        imported.path,
-        path_string_parent(module.source_path),
-        project_root,
-        stdlib_root
-      )
+      parent: Str = path_string_parent(module.source_path)
+      owner_root: Str = if package_confined {
+        package_owner_source_root(module.source_path, project_root, dependencies)
+      } else { project_root }
+      path: Str = if package_confined {
+        match resolve_package_import_path(imported.path, parent, owner_root, stdlib_root, dependencies) {
+          Error(message) => "",
+          Ok(resolved) => resolved
+        }
+      } else {
+        resolve_import_path(imported.path, parent, project_root, stdlib_root)
+      }
       edges = append(
         edges,
         ModuleImportEdge(

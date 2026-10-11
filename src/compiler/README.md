@@ -76,8 +76,12 @@ documented in `../../docs/SOURCE_MAPS.md`.
   and `run` with `--project panack.json`; the loader reads package sources beneath
   the selected physical root and assigns relocation-stable package identities.
   Dependency-free libraries can also be checked across their exported modules;
-  compilation and execution require an application entry. Declared dependency
-  graph loading and two-application acceptance remain open P3 work.
+  compilation and execution require an application entry. Applications can
+  declare direct local library dependencies and import only their exported
+  logical modules; package-internal `project/` imports stay rooted in that
+  package. Two apps can share the same library root. Nested dependency graphs,
+  symlink/race acceptance and broader physical-root overlap checks remain open
+  P3 work.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,

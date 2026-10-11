@@ -4803,3 +4803,19 @@ The standard-library prelude/consumer migration, flat-path removal, compiler
 seed fixed point, and repeat native/browser/installed acceptance remain open.
 No runtime or compiler performance claim is made; website impact remains none
 while public namespace execution is gated.
+
+## P3 direct local-library dependency slice — 2026-10-11
+
+`make check` passed on the macOS arm64 development checkout in 363s. It included
+all 364 functional cases, bootstrap fixed-point/seed-refresh checks and release
+smoke. The functional phase took 13s against its 75s budget; bootstrap took 137s
+against 60s and emitted the expected budget warning; release smoke took 3s and
+quick start 1s. The full 120s check budget was exceeded. This reused existing
+build outputs and is not a clean-checkout or matched base/candidate comparison;
+the 297s observation recorded above is also unmatched. These timings establish
+no performance change. `make docs`, `git diff --check`, the stage-two compiler
+build and focused source/compile/bytecode CLI runner passed. Direct local
+dependencies now exercise two apps sharing one library, export-only imports,
+same-root aliases and conflicting-root rejection. Nested dependencies and the
+remaining physical-root/symlink race acceptance are still open. Website impact:
+none; no public package capability is being claimed before release acceptance.

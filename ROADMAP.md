@@ -420,7 +420,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads and PR#374 dependency-free application CLI/loading are merged; exported library checking is in progress; dependencies and two-app acceptance remain | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading and PR#375 exported-library checking are merged; direct local-library dependencies and two-app acceptance are in progress; nested dependency graphs and symlink/race acceptance remain | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -547,14 +547,15 @@ RM#150 are also complete on `next`; their alpha.12 evidence is recorded above.
 P3's confined package-root read prerequisite merged in PR#372. PR#374 integrated
 the strict `panack.json` parser with explicit dependency-free application
 `check`, `compile` and `run --project` commands, confined source loading and
-relocation-stable module identity. Its acceptance exercises a multi-file app
-before and after relocation, including saved bytecode; dependencies fail
-closed. Exported library checking is now in progress and is not formally
-accepted as complete P3. Dependency graph loading, symlink/race acceptance and
-two-application acceptance remain open. P4–P8 remain Planned. Their shared design is
-recorded in P1, with provisional implementation estimates above and detailed
-slices in the design. No public registry, separate compilation, web framework
-or new engine is required. Website impact: none for the parser slice; no public
+relocation-stable module identity. PR#375 added checking of exported library
+modules without a `main` entry. The current slice implements direct local
+library dependencies, export-only package imports and two-app shared-library
+acceptance; nested dependency graphs remain fail-closed. P3 is not formally
+accepted as complete. Symlink/race and broader physical-root overlap acceptance
+remain open. P4–P8 remain Planned. Their shared design is recorded in P1, with
+provisional implementation estimates above and detailed slices in the design.
+No public registry, separate compilation, web framework or new engine is
+required. Website impact: none for the parser slice; no public
 package command, manifest behavior or package documentation is exposed yet.
 
 Provisional scope/effort baseline recorded on 2026-10-03 in
@@ -564,7 +565,7 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
-| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% formally accepted; PR#372 rooted-read prerequisite and PR#374 dependency-free application CLI/loading are merged; package acceptance remains in progress | 0 pp |
+| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% formally accepted; PR#372 rooted-read prerequisite, PR#374 application CLI/loading and PR#375 exported-library checking are merged; dependency acceptance remains in progress | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
@@ -600,8 +601,9 @@ points; P1's accepted 10 points bring the overall programme contribution to 30
 points. Namespace execution is implemented for the checked subset; alpha.12
 promotion and package/release verification remain under RM#143.
 P3's package-root read prerequisite merged in PR#372. PR#374 merged explicit
-manifest-root CLI/loading for dependency-free applications. Exported library
-checking is now in progress; declared dependencies, two-application acceptance
+manifest-root CLI/loading for dependency-free applications and PR#375 merged
+exported-library checking. Direct local-library dependencies and two-app
+acceptance are in progress; nested dependency graphs, symlink/race acceptance
 and P4–P8 remain open/planned.
 Namespace/compiler integration and HTTPS client correctness carry the largest
 shares; local packages and server lifecycle follow, with smaller shares for
@@ -631,10 +633,11 @@ incomplete identity closures fail closed. The final delivery PR records this
 Done summary in PR#358; its exact-head checks passed before merge. GI#198's
 implementation criteria are complete; alpha.12 promotion and release checks are
 tracked separately in RM#143.
-P3's confined package-root read slice merged in PR#372. PR#374 wires strict
-manifests to explicit dependency-free application commands and confined loading;
-exported library checking is the current slice, while full P3 acceptance remains
-open. P4–P8 have not started.
+P3's package-root read prerequisite merged in PR#372. PR#374 wired strict
+manifests to dependency-free application commands and confined loading; PR#375
+added exported-library checking. Direct local-library dependencies and two-app
+acceptance are the current slice; nested dependencies and full P3 acceptance
+remain open. P4–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -3501,9 +3504,10 @@ Work record: [GI#199: Reusable packages](https://github.com/sproates/panackelty/
 Current state: In progress as P3 in the [programme register](#rm-108); confined
 package-root reads merged in PR#372 and explicit manifest-root application
 `check`/`compile`/`run`, dependency-free package loading, relocation-stable
-identity and initial relocated-app acceptance merged in PR#374. Exported
-library checking is in progress. Declared dependencies, symlink/race cases and
-two-application acceptance remain open, so this does not complete GI#199.
+identity and initial relocated-app acceptance merged in PR#374. PR#375 adds
+exported-library checking. Direct local-library dependency loading and two-app
+acceptance are in progress; nested dependency graphs and symlink/race cases
+remain open, so this does not complete GI#199.
 Website impact remains none until the work is released and documented for users.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
 assessment-only scope below; production acceptance remains open.

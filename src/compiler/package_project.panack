@@ -1,21 +1,40 @@
 import stdlib/environment::{environment_value}
+pub import stdlib/package_filesystem::{FilesystemRootIdentity}
 import stdlib/package_filesystem::{FilesystemRootRead, filesystem_read_beneath}
 import stdlib/path::{path_string_parent, path_string_resolve, path_string_join, path_value_from_text}
-import project/src/compiler/package_manifest::{PackageManifest, parse_package_manifest, package_manifest_byte_limit}
+pub import project/src/compiler/package_manifest::{PackageManifestExport}
+import project/src/compiler/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
 import project/src/bytecode/decoder::{valid_utf8}
 
-// Manifest validation selects application entries or exported library roots.
-// Local dependency graphs remain later P3 work.
+// A direct dependency carries its public logical module map and physical root
+// identity. The package loader consumes these without searching the filesystem.
+pub record ManifestDependencyProject {
+  alias: Str,
+  package_root: Str,
+  source_root: Str,
+  exported_modules: [PackageManifestExport],
+  package: Str,
+  version: Str,
+  root_identity: FilesystemRootIdentity
+}
+
 pub record ManifestProject {
   package_root: Str,
   source_root: Str,
   entry: Option[Str],
   exports: [Str],
+  exported_modules: [PackageManifestExport],
   package: Str,
-  version: Str
+  version: Str,
+  dependencies: [ManifestDependencyProject],
+  root_identity: FilesystemRootIdentity
 }
 
 pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
+  read_manifest_project_file(path, true)
+}
+
+read_manifest_project_file(path: Str, resolve_dependencies: Bool): Result[ManifestProject, Str] {
   resolved: Str = path_string_resolve(path)
   package_root: Str = path_string_parent(resolved)
   if resolved != package_root + "/panack.json" {
@@ -28,16 +47,24 @@ pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
         Ok(relative) => match filesystem_read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
-            Error("cannot read project manifest (${code})")
+            Error(if resolve_dependencies {
+              "cannot read project manifest (${code})"
+            } else {
+              "cannot read local dependency manifest (${code})"
+            })
           },
-          Ok(read) => manifest_project_from_read(package_root, read)
+          Ok(read) => manifest_project_from_read(package_root, read, resolve_dependencies)
         }
       }
     }
   }
 }
 
-manifest_project_from_read(package_root: Str, read: FilesystemRootRead): Result[ManifestProject, Str] {
+manifest_project_from_read(
+  package_root: Str,
+  read: FilesystemRootRead,
+  resolve_dependencies: Bool
+): Result[ManifestProject, Str] {
   if !valid_utf8(read.contents) {
     Error("project manifest is not valid UTF-8")
   } else {
@@ -51,7 +78,20 @@ manifest_project_from_read(package_root: Str, read: FilesystemRootRead): Result[
           detail: Str = error.message
           Error("invalid project manifest at byte ${offset}: ${detail}")
         },
-        Ok(manifest) => manifest_project_from_manifest(package_root, manifest)
+        Ok(manifest) => {
+          if !resolve_dependencies && len(manifest.dependencies) > 0 {
+            Error("local dependency packages cannot declare dependencies yet")
+          } else {
+            match manifest_project_from_manifest(package_root, read.identity, manifest) {
+              Error(message) => Error(message),
+              Ok(project) => if resolve_dependencies {
+                manifest_project_with_dependencies(project, manifest.dependencies)
+              } else {
+                Ok(project)
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -59,29 +99,136 @@ manifest_project_from_read(package_root: Str, read: FilesystemRootRead): Result[
 
 manifest_project_from_manifest(
   package_root: Str,
+  root_identity: FilesystemRootIdentity,
   manifest: PackageManifest
 ): Result[ManifestProject, Str] {
-  if len(manifest.dependencies) > 0 {
-    Error("project manifest dependencies are not supported yet")
-  } else {
-    match manifest.entry {
-      None() => if len(manifest.exports) == 0 {
-        Error("library manifest must export at least one module")
-      } else {
-        source: Str = manifest.source
-        source_root: Str = path_string_resolve(path_string_join(package_root, source))
-        mut exports: [Str] = []
-        for exported in manifest.exports {
-          exports = exports.append(path_string_resolve(path_string_join(source_root, exported.path)))
+  source_root: Str = path_string_resolve(path_string_join(package_root, manifest.source))
+  match manifest.entry {
+    None() => if len(manifest.exports) == 0 {
+      Error("library manifest must export at least one module")
+    } else {
+      mut exports: [Str] = []
+      for exported in manifest.exports {
+        exports = exports.append(path_string_resolve(path_string_join(source_root, exported.path)))
+      }
+      Ok(ManifestProject(
+        package_root,
+        source_root,
+        None(),
+        exports,
+        manifest.exports,
+        manifest.package,
+        manifest.version,
+        [],
+        root_identity
+      ))
+    },
+    Some(entry) => {
+      entry_path: Str = path_string_resolve(path_string_join(source_root, entry))
+      Ok(ManifestProject(
+        package_root,
+        source_root,
+        Some(entry_path),
+        [],
+        manifest.exports,
+        manifest.package,
+        manifest.version,
+        [],
+        root_identity
+      ))
+    }
+  }
+}
+
+manifest_project_with_dependencies(
+  project: ManifestProject,
+  dependencies: [PackageManifestDependency]
+): Result[ManifestProject, Str] {
+  mut resolved: [ManifestDependencyProject] = []
+  mut failure: Option[Str] = None()
+  for dependency in dependencies {
+    match failure {
+      Some(message) => {},
+      None() => {
+        alias: Str = dependency.alias
+        dependency_root: Str = path_string_resolve(path_string_join(project.package_root, dependency.path))
+        dependency_manifest: Str = path_string_join(dependency_root, "panack.json")
+        match read_manifest_project_file(dependency_manifest, false) {
+          Error(message) => { failure = Some("dependency ${alias}: ${message}") },
+          Ok(package) => match package.entry {
+            Some(entry) => { failure = Some("dependency ${alias} must be a library package") },
+            None() => {
+              if len(package.exported_modules) == 0 {
+                failure = Some("dependency ${alias} must export at least one module")
+              } else {
+                mut conflict: Option[Str] = if package.root_identity == project.root_identity {
+                  Some("dependency ${alias} resolves to the application package root")
+                } else { None() }
+                mut canonical: Option[ManifestDependencyProject] = None()
+                for previous in resolved {
+                  if previous.package == package.package {
+                    if previous.version != package.version {
+                      package_name: Str = package.package
+                      conflict = Some("package ${package_name} is declared with conflicting versions")
+                    } else if previous.root_identity != package.root_identity {
+                      package_name: Str = package.package
+                      package_version: Str = package.version
+                      conflict = Some("package ${package_name}@${package_version} resolves to multiple physical roots")
+                    } else {
+                      canonical = Some(previous)
+                    }
+                  } else if previous.root_identity == package.root_identity {
+                    conflict = Some("one physical package root declares conflicting package identities")
+                  }
+                }
+                match conflict {
+                  Some(message) => { failure = Some(message) },
+                  None() => {
+                    match canonical {
+                      Some(previous) => {
+                        resolved = resolved.append(ManifestDependencyProject(
+                          dependency.alias,
+                          previous.package_root,
+                          previous.source_root,
+                          previous.exported_modules,
+                          previous.package,
+                          previous.version,
+                          previous.root_identity
+                        ))
+                      },
+                      None() => {
+                        resolved = resolved.append(ManifestDependencyProject(
+                          dependency.alias,
+                          package.package_root,
+                          package.source_root,
+                          package.exported_modules,
+                          package.package,
+                          package.version,
+                          package.root_identity
+                        ))
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-        Ok(ManifestProject(package_root, source_root, None(), exports, manifest.package, manifest.version))
-      },
-      Some(entry) => {
-        source: Str = manifest.source
-        source_root: Str = path_string_resolve(path_string_join(package_root, source))
-        entry_path: Str = path_string_resolve(path_string_join(source_root, entry))
-        Ok(ManifestProject(package_root, source_root, Some(entry_path), [], manifest.package, manifest.version))
       }
     }
+  }
+  match failure {
+    Some(message) => Error(message),
+    None() => Ok(ManifestProject(
+      project.package_root,
+      project.source_root,
+      project.entry,
+      project.exports,
+      project.exported_modules,
+      project.package,
+      project.version,
+      resolved,
+      project.root_identity
+    ))
   }
 }

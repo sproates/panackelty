@@ -420,7 +420,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, PR#378 replacement-race acceptance and PR#379 application/dependency source-root overlap rejection are merged; bounded nested graph resolution is the current delivery; full package acceptance remains | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, PR#378 replacement-race acceptance, PR#379 source-root overlap rejection and PR#380 bounded nested graph resolution are merged; full package acceptance remains open | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -556,8 +556,8 @@ It also exercises the package loader during atomic replacement of an application
 root symlink between two valid trees: a successful run must read one coherent
 tree, and changed or temporarily unavailable roots fail closed. PR#379 rejects
 physical source-root overlap across the application and direct dependencies.
-The current delivery adds bounded nested graph resolution with owner-scoped
-aliases, shared-package reuse and cycle rejection. P3 is not formally accepted
+PR#380 adds bounded nested graph resolution with owner-scoped aliases,
+shared-package reuse and cycle rejection. P3 is not formally accepted
 as complete; broader package acceptance remains open. P4–P8 remain
 Planned. Their shared design is recorded in P1, with provisional implementation estimates above and detailed
 slices in the design.
@@ -611,9 +611,9 @@ P3's package-root read prerequisite merged in PR#372. PR#374 merged explicit
 manifest-root CLI/loading for dependency-free applications, PR#375 merged
 exported-library checking, PR#376 merged direct local-library dependencies
 and two-app acceptance, PR#377/PR#378 added physical-root identity and race
-acceptance, and PR#379 rejects physical source-root overlap. Bounded nested
-dependency graph resolution is the current delivery; full package acceptance
-remains open. P4–P8 remain
+acceptance, PR#379 rejects physical source-root overlap, and PR#380 adds
+bounded nested dependency graph resolution. Full package acceptance remains
+open. P4–P8 remain
 planned.
 Namespace/compiler integration and HTTPS client correctness carry the largest
 shares; local packages and server lifecycle follow, with smaller shares for
@@ -648,8 +648,8 @@ manifests to dependency-free application commands and confined loading; PR#375
 added exported-library checking; PR#376 added direct dependencies and two-app
 acceptance. Later P3 slices added manifest-root identity checks, escaped-export
 symlink rejection, loader-race acceptance and physical source-root overlap
-rejection. Bounded nested dependency graph support is the current slice; full
-package acceptance remains open. P4–P8 have not started.
+rejection. PR#380 adds bounded nested dependency graph support; full package
+acceptance remains open. P4–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -3525,9 +3525,9 @@ application-root symlink between two valid trees. Successful runs must use one
 coherent tree; a changed or temporarily unavailable root fails closed. PR#379
 compares direct application/dependency and distinct dependency source roots by
 physical directory ancestry, including symlink aliases, and rejects overlap
-before compilation. The current delivery resolves bounded nested dependency
-graphs, keeps aliases scoped to each declaring package, reuses repeated package
-identities and rejects cycles. Full package acceptance remains open, so this
+before compilation. PR#380 resolves bounded nested dependency graphs, keeps
+aliases scoped to each declaring package, reuses repeated package identities
+and rejects cycles. Full package acceptance remains open, so this
 does not complete GI#199.
 Website impact remains none until the work is released and documented for users.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical

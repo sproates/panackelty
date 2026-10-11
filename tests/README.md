@@ -39,14 +39,17 @@ isolated-environment proof:
 Run a level independently with `make unit`, `make functional`,
 `make native-check`, `make release-smoke`, or `make quick-start`. Run the full
 development validation with `make check`.
-Each command prints its wall-clock duration and budget; an over-budget run also
-prints a warning without hiding the underlying test result.
+Each command prints its wall-clock duration and configured timing reference; an
+over-reference run also prints a warning without hiding the underlying test
+result. The current warning values are historical while GI#106 reassesses the
+validation NFRs; a warning is not an acceptance decision.
 The unit phase times `unit-impl`, including the native harness and Panackelty probes, and propagates any failure.
 
 For incremental work, use `make check-compiler`, `make check-bytecode`, or
 `make check-vm`. Each runs the owning unit-test subtree plus representative
-public-CLI workflows, and each has a 15-second budget when the native toolchain
-is already built. `make unit` runs every internal test.
+public-CLI workflows. The configured 15-second timing warning is a historical
+comparison under GI#106 review, not a current acceptance gate. `make unit` runs
+every internal test.
 
 `tests/run_probe.sh` caches compiled probe bytecode under `build/probes` (or
 `BUILD_DIR/probes`). Its key covers the selected VM, compiler seed, helper,
@@ -691,7 +694,9 @@ local development content. The original checkout and its caches are not modified
 `environment.txt` records neutral host/OS/hardware, compiler and Make versions,
 fixed `-O2`, serial Make dispatch, two validation workers and seed/VM/stage-2 hashes.
 Inherited build/test overrides and budget overrides are cleared, retaining the
-repository targets of 120/15/75/60 seconds for full/focused/functional/bootstrap.
+historical 120/15/75/60-second values for full/focused/functional/bootstrap so
+older profiles remain reproducible. These values are not current acceptance
+targets; GI#106 is reassessing validation NFRs and test cadence.
 The native-tool allowlist retains available `sysctl`/`sw_vers` host metadata;
 platform commands absent from a restricted PATH report `unavailable`.
 Project caches are removed before each clean full check; OS page caches are
@@ -710,8 +715,10 @@ Summed probe compilation/execution seconds are aggregate observed worker time,
 not a wall-clock decomposition: concurrent and nested observations overlap.
 Within the standalone tiny probe, compile and execution labels are separate, but
 whole-second resolution can report zero. Neither probe timings nor aggregate unit
-timings are a substitute for the 15-second focused target. Apply 120 seconds only
-to clean full validation and 15 seconds to the measured focused compiler check.
+timings establish compliance with a validation NFR. The former 120-second clean
+and 15-second focused comparisons remain useful historical labels only; they do
+not define GI#106 completion or an active pass/fail gate. The owner will decide
+whether to adopt replacement requirements after the workflow assessment.
 
 `summary.tsv` reports every scenario's sample count/minimum/median/maximum.
 Individual logs, stderr, timing, workload `.status` and `.timer-status` files

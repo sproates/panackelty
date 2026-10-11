@@ -4819,3 +4819,29 @@ dependencies now exercise two apps sharing one library, export-only imports,
 same-root aliases and conflicting-root rejection. Nested dependencies and the
 remaining physical-root/symlink race acceptance are still open. Website impact:
 none; no public package capability is being claimed before release acceptance.
+
+## P3 physical package-root confinement — 2026-10-11
+
+Package source reads now compare the device/inode returned by the confined host
+read with the identity captured when the declaring manifest was opened. A
+focused loader probe supplies a deliberately mismatched identity and verifies
+that loading fails closed. The CLI fixture creates an exported source symlink to
+an outside file and verifies that `check --project` rejects it. The native VM
+contract suite races repeated replacement of an in-root symlink with an escaping
+symlink against `fs_read_beneath`; successful reads contained only the in-root
+bytes, and errors remained ordinary host results. The focused loader probe passed
+8 assertions, the CLI case passed all 30 fixture assertions plus all 4 runner
+assertions, native module contracts passed, and `make docs` passed.
+
+Canonical `make check` passed all 364 functional cases. It completed in 365s
+against the 120s full-check target; functional took 12s against 75s, bootstrap
+took 138s against 60s, release smoke 4s, and quick start 1s. Unit suites,
+bootstrap fixed points, seed refresh and release checks passed. This reused
+existing build outputs and is not a clean-checkout or matched base/candidate
+comparison; no timing change is attributed to the identity comparison or race
+coverage. GI#106 retains the matched clean base/candidate phase profile as its
+next action and validation owner. The implementation adds one root-identity
+comparison per package source read; no runtime execution path changes. Website
+impact: none; P3 remains unreleased and no package capability is claimed.
+Nested dependency graphs, broader physical source-root overlap, and deterministic
+package-loader race acceptance remain open.

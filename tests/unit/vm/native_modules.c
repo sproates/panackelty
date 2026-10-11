@@ -16,10 +16,12 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 void resumable_contracts(void);
@@ -384,6 +386,7 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
     assert(mkdtemp(base));
     char root[512], subdirectory[512], source[512], in_root_link[512];
     char escape_link[512], nested_link[512], nested_escape[512], outside[512], root_alias[512];
+    char race_link[512];
     assert(snprintf(root, sizeof(root), "%s/root", base) > 0);
     assert(snprintf(subdirectory, sizeof(subdirectory), "%s/root/sub", base) > 0);
     assert(snprintf(source, sizeof(source), "%s/root/sub/data", base) > 0);
@@ -393,6 +396,7 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
     assert(snprintf(nested_escape, sizeof(nested_escape), "%s/root/sub/escape", base) > 0);
     assert(snprintf(outside, sizeof(outside), "%s/outside", base) > 0);
     assert(snprintf(root_alias, sizeof(root_alias), "%s/alias", base) > 0);
+    assert(snprintf(race_link, sizeof(race_link), "%s/root/race", base) > 0);
     assert(mkdir(root, 0700) == 0 && mkdir(subdirectory, 0700) == 0);
     write_test_file(source, "inside");
     write_test_file(outside, "secret");
@@ -404,11 +408,11 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
 
     Value *inside = rooted_read(root, "inside");
     assert(inside && inside->kind == V_VARIANT && !strcmp(inside->as.named.name, "Ok"));
-    Value *read = inside->as.named.values[0];
-    assert(read && read->kind == V_RECORD &&
-           !strcmp(read->as.named.name, "FilesystemRootRead"));
-    Value *identity = read->as.named.values[0];
-    Value *contents = read->as.named.values[1];
+    Value *initial_read = inside->as.named.values[0];
+    assert(initial_read && initial_read->kind == V_RECORD &&
+           !strcmp(initial_read->as.named.name, "FilesystemRootRead"));
+    Value *identity = initial_read->as.named.values[0];
+    Value *contents = initial_read->as.named.values[1];
     assert(identity && identity->kind == V_RECORD &&
            !strcmp(identity->as.named.name, "FilesystemRootIdentity"));
     assert(contents && contents->kind == V_BYTES && contents->as.bytes.length == 6 &&
@@ -448,6 +452,48 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
     release(parent);
 
     release(identity);
+    assert(symlink("sub/data", race_link) == 0);
+    int race_started[2];
+    assert(pipe(race_started) == 0);
+    pid_t racer = fork();
+    assert(racer >= 0);
+    if (racer == 0) {
+        close(race_started[0]);
+        assert(write(race_started[1], "x", 1) == 1);
+        close(race_started[1]);
+        for (size_t i = 0; i < 20000; i++) {
+            if (unlink(race_link) || symlink("../outside", race_link)) {
+                _exit(2);
+            }
+            if (unlink(race_link) || symlink("sub/data", race_link)) {
+                _exit(2);
+            }
+            (void)sched_yield();
+        }
+        _exit(0);
+    }
+    close(race_started[1]);
+    char started;
+    assert(read(race_started[0], &started, 1) == 1 && started == 'x');
+    close(race_started[0]);
+    for (size_t i = 0; i < 500; i++) {
+        Value *raced = rooted_read(root, "race");
+        assert(raced && raced->kind == V_VARIANT);
+        if (!strcmp(raced->as.named.name, "Ok")) {
+            Value *raced_read = raced->as.named.values[0];
+            Value *raced_contents = raced_read->as.named.values[1];
+            assert(raced_contents && raced_contents->kind == V_BYTES &&
+                   raced_contents->as.bytes.length == 6 &&
+                   !memcmp(raced_contents->as.bytes.data, "inside", 6));
+        } else {
+            assert(!strcmp(raced->as.named.name, "Error"));
+        }
+        release(raced);
+    }
+    int racer_status = 0;
+    assert(waitpid(racer, &racer_status, 0) == racer);
+    assert(WIFEXITED(racer_status) && WEXITSTATUS(racer_status) == 0);
+    assert(unlink(race_link) == 0);
     assert(unlink(root_alias) == 0 && unlink(nested_escape) == 0 && unlink(nested_link) == 0);
     assert(unlink(escape_link) == 0 && unlink(in_root_link) == 0);
     assert(unlink(source) == 0 && unlink(outside) == 0);

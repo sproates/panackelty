@@ -99,6 +99,8 @@ main(): Void {
       library_private = child(library_source_root, "implementation.panack")
       library_api = child(library_source_root, "api.panack")
       library_extra = child(library_source_root, "extra.panack")
+      library_escape = child(library_source_root, "escaped.panack")
+      library_escape_target = child(workspace.root, "outside-package.panack")
       library_manifest = child(library_root, "panack.json")
       library_copy_root = child(workspace.root, "library-copy")
       library_copy_manifest = child(library_copy_root, "panack.json")
@@ -113,6 +115,8 @@ main(): Void {
       package_value_text = result_value_or(path_value_to_text(package_value), "invalid-value")
       package_manifest_text = result_value_or(path_value_to_text(package_manifest), "invalid-manifest")
       library_manifest_text = result_value_or(path_value_to_text(library_manifest), "invalid-library-manifest")
+      library_escape_text = result_value_or(path_value_to_text(library_escape), "invalid-library-escape")
+      library_escape_target_text = result_value_or(path_value_to_text(library_escape_target), "invalid-library-escape-target")
       library_copy_manifest_text = result_value_or(path_value_to_text(library_copy_manifest), "invalid-library-copy-manifest")
       relocated_root_text = result_value_or(path_value_to_text(relocated_root), "invalid-relocated")
       relocated_manifest_text = result_value_or(path_value_to_text(relocated_manifest), "invalid-relocated-manifest")
@@ -172,6 +176,41 @@ main(): Void {
       results = results.append(test_run_command("manifest-only library checks each exported module without main",
         source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
         ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+      filesystem_write_bytes(library_escape_target, text_encode_utf8("pub pure leaked(): Nat { 99 }\n"))
+      escape_link_setup = testing_process_run(path("/bin/ln"), ["-s", library_escape_target_text, library_escape_text],
+        bytes_empty(), path_value_current(), [], duration_seconds(10), 1024)
+      match escape_link_setup {
+        Error(error) => {
+          results = results.append(test_expect("package export escape symlink setup", false,
+            "symlink command failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("package export escape symlink setup",
+            output.exit_code == 0 && output.signal == 0, "symlink command failed"))
+        }
+      }
+      library_escape_manifest_text = replace_first(library_manifest_text_value,
+        "\"extra\":\"extra.panack\"",
+        "\"extra\":\"extra.panack\",\"escape\":\"escaped.panack\"")
+      filesystem_write_bytes(library_manifest, text_encode_utf8(library_escape_manifest_text))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", library_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("package exports reject symlink escapes", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("package exports reject symlink escapes",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "package source read failed (invalid_argument)"),
+            "a package export symlink escaped its physical package root"))
+        }
+      }
+      filesystem_remove_file(library_escape)
+      filesystem_remove_file(library_escape_target)
+      filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
 
       dependency_manifest_text = replace_first(manifest_text, "\"dependencies\":{}",
         "\"dependencies\":{\"geometry\":{\"path\":\"../library\"}}")

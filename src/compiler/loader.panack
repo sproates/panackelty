@@ -29,6 +29,7 @@ pub import project/src/compiler/purity::{EffectEvidence}
 import project/src/compiler/purity::{CheckedEffects, check_frontend_effects}
 import project/src/compiler/resolver::{append_program_declarations, resolve_program_at}
 pub import project/src/compiler/package_project::{ManifestDependencyProject}
+pub import project/src/compiler/package_project::{FilesystemRootIdentity}
 import project/src/compiler/package_manifest::{PackageManifestExport}
 
 // Resolve and read the module closure once, preserving traversal order and original
@@ -370,6 +371,7 @@ pub read_project_source(
 read_package_source(
   path: Str,
   package_root: Str,
+  expected_root_identity: Option[FilesystemRootIdentity],
   bounded: Bool,
   paths: [Str],
   sources: Map[Str, Str]
@@ -395,7 +397,12 @@ read_package_source(
               Error("package source read failed (${code})")
             },
             Ok(read) => {
-              if bounded && total + bytes_length(read.contents) > 8388608 {
+              if match expected_root_identity {
+                None() => false,
+                Some(expected) => read.identity != expected
+              } {
+                Error("package root identity changed while loading source")
+              } else if bounded && total + bytes_length(read.contents) > 8388608 {
                 Error("package source closure exceeds 8 MiB")
               } else {
                 if !valid_utf8(read.contents) {
@@ -421,6 +428,7 @@ load_project_module(
   bounded: Bool,
   allow_leaf_symlink: Bool,
   package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
   package_name: Str,
   package_version: Str,
   package_confined: Bool,
@@ -481,7 +489,22 @@ load_project_module(
           )
         } else {
           match if package_confined {
-            read_package_source(path, trusted_root, bounded, state.source_paths, state.sources)
+            read_package_source(
+              path,
+              trusted_root,
+              if loader_path_within(path, stdlib_root) { None() } else {
+                mut identity: Option[FilesystemRootIdentity] = Some(package_root_identity)
+                for dependency in dependencies {
+                  if loader_path_within(path, dependency.source_root) {
+                    identity = Some(dependency.root_identity)
+                  }
+                }
+                identity
+              },
+              bounded,
+              state.source_paths,
+              state.sources
+            )
           } else {
             read_project_source(path, bounded, state.source_paths, state.sources)
           } {
@@ -624,6 +647,7 @@ load_project_module(
                                         bounded,
                                         false,
                                         package_root,
+                                        package_root_identity,
                                         package_name,
                                         package_version,
                                         package_confined,
@@ -671,6 +695,7 @@ load_project_module(
                                     bounded,
                                     false,
                                     package_root,
+                                    package_root_identity,
                                     package_name,
                                     package_version,
                                     package_confined,
@@ -739,7 +764,7 @@ load_project_mode_with_main(
   require_main: Bool
 ): LoadedProject {
   load_project_mode_with_configuration(
-    entry, bounded, retain, require_main, "", "", "", "", false, []
+    entry, bounded, retain, require_main, "", "", FilesystemRootIdentity(0, 0), "", "", false, []
   )
 }
 
@@ -747,6 +772,7 @@ pub load_project_package(
   entry: Str,
   source_root: Str,
   package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
   package_name: Str,
   package_version: Str,
   dependencies: [ManifestDependencyProject]
@@ -758,6 +784,7 @@ pub load_project_package(
     true,
     source_root,
     package_root,
+    package_root_identity,
     package_name,
     package_version,
     true,
@@ -769,6 +796,7 @@ pub load_project_package_for_check(
   entry: Str,
   source_root: Str,
   package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
   package_name: Str,
   package_version: Str,
   dependencies: [ManifestDependencyProject]
@@ -780,6 +808,7 @@ pub load_project_package_for_check(
     false,
     source_root,
     package_root,
+    package_root_identity,
     package_name,
     package_version,
     true,
@@ -794,6 +823,7 @@ load_project_mode_with_configuration(
   require_main: Bool,
   configured_project_root: Str,
   package_root: Str,
+  package_root_identity: FilesystemRootIdentity,
   package_name: Str,
   package_version: Str,
   package_confined: Bool,
@@ -835,6 +865,7 @@ load_project_mode_with_configuration(
       bounded,
       false,
       "",
+      FilesystemRootIdentity(0, 0),
       "",
       "",
       false,
@@ -851,6 +882,7 @@ load_project_mode_with_configuration(
       bounded,
       true,
       package_root,
+      package_root_identity,
       package_name,
       package_version,
       package_confined,

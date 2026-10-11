@@ -4980,3 +4980,11 @@ This is local macOS evidence only; the first exact-head Linux CI result for the
 new fixture is required before treating the change as validated across hosts.
 No compiler/runtime implementation or website content changed. Full P3 package
 acceptance remains open.
+
+The first exact-head Linux run passed the runtime package and source-conformance
+jobs, but bytecode conformance reported only that `cli_commands` exited with
+status 1; the outer runner omitted the nested race process's output. The race
+probe's process budget is now 120 seconds, matching the adjacent package graph
+and source-limit probes, and failures report the subprocess exit, signal,
+stdout, and stderr. This does not establish the cause of the first failure; a
+passing exact-head Linux bytecode result is still required.

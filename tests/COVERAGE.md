@@ -867,3 +867,28 @@ policy validator passes against the complete evidence. PRs targeting `next` run
 policy tests; hosted full collection follows the existing marked-next-refresh or
 main-promotion route. These measurements retain the report's bounded-corpus and
 assertion-quality limits.
+
+## Alpha.12 namespace source inventory refresh — 2026-10-11
+
+The namespace migration added three compiler modules and the tracked `numeric`
+and `text` standard-library modules after the original 38-file source baseline.
+The refreshed manifest now includes all 43 tracked production `.panack` files.
+The completed local candidate collection covers all 31 manifest contexts and
+has zero unavailable items; the source compiler remains byte-identical to the
+checked-in compiler seed. The added compiler modules account for 737 executable
+start lines, 32 functions and 479 source outcomes; all are measured, with 491
+lines, 29 functions and 279 outcomes covered. The two added standard-library
+files are fully covered.
+
+The refreshed policy records the new exact denominators and measured component
+floors. Overall percentages change because the eligible source inventory and
+namespace-era source bodies have expanded; bytecode floors remain unchanged.
+No context or eligible source was removed, and the bounded-corpus and
+assertion-quality limitations above still apply.
+
+| Component | Executable start lines | Functions | Source outcomes |
+| --- | ---: | ---: | ---: |
+| Compiler | 9,959 / 12,365 (80.54%) | 495 / 537 (92.18%) | 6,763 / 8,797 (76.88%) |
+| Bytecode | 587 / 601 (97.67%) | 60 / 60 (100%) | 517 / 588 (87.93%) |
+| Standard library | 108 / 221 (48.87%) | 57 / 85 (67.06%) | 35 / 86 (40.70%) |
+| Total | 10,654 / 13,187 (80.79%) | 612 / 682 (89.74%) | 7,315 / 9,471 (77.24%) |

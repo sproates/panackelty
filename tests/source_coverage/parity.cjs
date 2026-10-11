@@ -12,12 +12,14 @@ const run=(args,env)=>{
   return execFileSync(executable,command,{cwd:checkout,env:childEnv,encoding:'utf8',timeout:180000,maxBuffer:16*1024*1024});
 };
 const entry='tests/source_coverage/golden.panack',prefix=path.join(work,'golden'),tool=path.join(work,'export.bc');
-run(['compile','tests/source_coverage/export.panack','-o',tool],{...process.env,PANACKELTY_BOOTSTRAP_ROOT:checkout});run(['run',tool,entry,prefix]);
+run(['compile','tests/source_coverage/export.panack','-o',tool],{...process.env,PANACKELTY_BOOTSTRAP_ROOT:checkout});
+run(['run',tool,entry,prefix],{...process.env,PANACKELTY_BOOTSTRAP_ROOT:checkout});
 const compilerIdentity=testCompiler||path.join(checkout,'bootstrap/compiler-v9.bc');
 const p=readPlan(prefix,entry,checkout,regular(compilerIdentity)),seen=new Set();
 for(const value of ['true','false']) {
   const directory=path.join(work,value);
-  assert.equal(run(['coverage-session',directory,prefix+'.bc',prefix+'.inv','--',value]),value==='true'?'2\n21\n':'3\n27\n');
+  assert.equal(run(['coverage-session',directory,prefix+'.bc',prefix+'.inv','--',value],
+    {PANACKELTY_BOOTSTRAP_ROOT:checkout}),value==='true'?'2\n21\n':'3\n27\n');
   const observed=observations(p,readSession(directory,[p],seen).totals[0]);
   const text=run(['coverage-aggregate','--source',entry,prefix+'.inv','--session',directory]);
   const rows=new Map(text.trimEnd().split('\n').filter(row=>row.includes('\t')).map(row=>{const columns=row.split('\t');return [columns[0]+'\t'+columns[1],columns];}));

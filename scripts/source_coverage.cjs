@@ -204,15 +204,15 @@ function union(groups, eligible) {
     for (const item of source.items) {
       const identity = JSON.stringify([item.kind,item.detail,item.span]);
       let merged = file.items.get(item.id);
-      if (!merged) { merged = {...item, identity, attempted: 0n, completed: 0n, observed: false, unavailable: false}; file.items.set(item.id,merged); }
+      if (!merged) { merged = {...item, identity, attempted: 0n, completed: 0n, observed: false}; file.items.set(item.id,merged); }
       if (merged.identity !== identity) fail('Mixed source item');
       merged.attempted += item.attempted; merged.completed += item.completed;
-      merged.observed ||= item.state === 'observed'; merged.unavailable ||= item.state === 'unavailable';
+      merged.observed ||= item.state === 'observed';
     }
   }
   if (eligible.some(p => !files.has(p))) fail('Missing eligible source file');
   return [...files.values()].sort((a,b) => a.path.localeCompare(b.path)).map(file => {
-    const items = [...file.items.values()].map(item => ({...item, state: item.kind === 'excluded' ? 'excluded' : item.attempted > 0n ? 'covered' : item.observed && !item.unavailable ? 'zero' : 'unavailable'}));
+    const items = [...file.items.values()].map(item => ({...item, state: item.kind === 'excluded' ? 'excluded' : item.attempted > 0n ? 'covered' : item.observed ? 'zero' : 'unavailable'}));
     const lines = new Map();
     for (const item of items.filter(i => ['expression','statement'].includes(i.kind))) {
       const line = item.span[1], prior = lines.get(line) || 'zero';

@@ -56,11 +56,14 @@ test('union deduplicates exact source items, sums actual hits and retains unexec
   const files=union([[a],[a]],['src/a.panack']);assert.equal(files[0].functions.length,1);assert.equal(files[0].branches[0].hits,'0');assert.equal(files[0].metrics.lines.percent,100);assert.equal(files[0].metrics.functions.percent,0);assert.equal(files[0].exclusions.length,1);assert.deepEqual(totals(files),files[0].metrics);
 });
 test('unknowns remain unavailable, never zero or fabricated percentages',()=>{
-  const a=source([item('e','expression','unavailable'),item('f','function','not-emitted')]);
+  const a=source([item('e','expression','unavailable'),item('f','function','unavailable')]);
   const files=union([[a]],['src/a.panack']);assert.equal(files[0].lines[1],'unavailable');assert.equal(files[0].metrics.functions.percent,null);assert.equal(files[0].metrics.functions.unavailable,1);
   const b=source([item('e','expression','observed',1n),item('f','function','observed',1n)]);
   assert.equal(union([[a],[b]],['src/a.panack'])[0].metrics.functions.percent,100);
-  b.items[1].attempted=0n;assert.equal(union([[a],[b]],['src/a.panack'])[0].metrics.functions.percent,0);
+  b.items[1].attempted=0n;
+  const mappedZero=union([[a],[b]],['src/a.panack'])[0];
+  assert.equal(mappedZero.metrics.functions.percent,0);
+  assert.equal(mappedZero.functions[0].state,'zero');
 });
 test('mixed snapshots, changed same-ID shape, disjoint IDs and missing files rejected',()=>{
   const a=source([item('e','expression','observed')]);

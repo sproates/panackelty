@@ -1,25 +1,25 @@
 {
   "schema": 1,
   "review": {
-    "reason": "Propose exact else-if compiler floors after 31 complete contexts; both added helpers and all 68 protected items are covered, and compiler line/function/outcome ratios increase",
-    "basis": "Owner-selected GI#312 feature; complete local source evidence, unchanged manifest and bytecode/stdlib floors, explicit reviewed-policy diff and normal PR checks",
-    "scopeChange": "Add two parser helpers and one compile-time ParsedConditional record; support else-if newline continuation. Existing 185 exclusions remain, with one additional record-declaration exclusion and shifted parser coordinates/IDs. Expand the existing optional_else and async_await contexts without enlarging the manifest. The coverage-session CLI cases are split across isolated test entrypoints for bounded parallel execution; production coverage inputs and eligibility are unchanged."
+    "reason": "Refresh the reviewed source baseline after the namespace migration: complete local evidence covers all 43 tracked production files across 31 contexts, has zero unavailable items, preserves all 68 protected source identities and outcomes, and retains the exact bytecode floors.",
+    "basis": "Complete local candidate collection from the alpha.12 next tree; expanded tracked-source inventory, exact identities, unchanged test contexts and bytecode floors, and passing policy/report tests.",
+    "scopeChange": "Add the three tracked compiler modules module_effects, module_emission and project_frontend plus the numeric and text standard-library modules to the prior 38-file eligible inventory. Separate the repository project root used for namespace identities from the entry directory used for inventory paths, resolve imported enum variants to their declaration identities when mapping emission probes, and union unavailable observations as zero only when an exact identity is mapped in another context. Keep all 31 contexts, all exclusions as measured, and all 68 protected source items. Remap decoder and time protected declaration IDs to the same named functions and branch suffixes after namespace-era declaration shifts; verify each resulting item is present and covered. Refresh compiler and standard-library floors for the expanded source inventory; bytecode floors are unchanged."
   },
-  "manifestHash": "57afa66fb2f7b470f45b7cf50361a6973cc3c5cdf393cc5a0ab7b8640c63732a",
-  "exclusionHash": "f7d20f4de1870886a15b79d898a7b5eed6a364267fd66d001038c05e38f6b3ed",
+  "manifestHash": "e8e14629583dffceeb229274b26adfe43e2a94420e72214e58c9cf567f504959",
+  "exclusionHash": "81f3c90704dafa9275041bddea6f84871e8c85845a73e11d0cc8683d5032a40c",
   "components": {
     "compiler": {
       "lines": {
-        "total": 10068,
-        "covered": 8367
+        "total": 12365,
+        "covered": 9959
       },
       "functions": {
-        "total": 437,
-        "covered": 405
+        "total": 537,
+        "covered": 495
       },
       "branches": {
-        "total": 6931,
-        "covered": 5533
+        "total": 8797,
+        "covered": 6763
       }
     },
     "bytecode": {
@@ -38,93 +38,93 @@
     },
     "stdlib": {
       "lines": {
-        "total": 133,
-        "covered": 72
+        "total": 221,
+        "covered": 108
       },
       "functions": {
-        "total": 33,
-        "covered": 23
+        "total": 85,
+        "covered": 57
       },
       "branches": {
-        "total": 64,
-        "covered": 33
+        "total": 86,
+        "covered": 35
       }
     }
   },
   "protected": [
     {
       "path": "src/bytecode/decoder.panack",
-      "hash": "5e491797f0266b894e1668cbecb20cf5a40e2c37f8e948210d81774329855373",
+      "hash": "cb8253eee34504a87e727dc88b409d83d2dfc6c2ac47b422f955f3cf7c9eea37",
       "kind": "functions",
       "ids": [
-        "declaration/19",
-        "declaration/20"
+        "declaration/25",
+        "declaration/26"
       ]
     },
     {
       "path": "src/bytecode/decoder.panack",
-      "hash": "5e491797f0266b894e1668cbecb20cf5a40e2c37f8e948210d81774329855373",
+      "hash": "cb8253eee34504a87e727dc88b409d83d2dfc6c2ac47b422f955f3cf7c9eea37",
       "kind": "branches",
       "ids": [
-        "declaration/19/tail/decision/evaluate-right",
-        "declaration/19/tail/decision/skip-right",
-        "declaration/20/statement/2/decision/body",
-        "declaration/20/statement/2/decision/exit",
-        "declaration/20/statement/2/condition/decision/evaluate-right",
-        "declaration/20/statement/2/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/decision/true",
-        "declaration/20/statement/2/body/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/condition/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/true/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/true/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/true/tail/condition/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/true/tail/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/condition/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/right/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/right/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/right/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/right/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/condition/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/right/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/right/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/right/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/right/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/decision/true",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/decision/false",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/skip-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/left/decision/evaluate-right",
-        "declaration/20/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/left/decision/skip-right"
+        "declaration/25/tail/decision/evaluate-right",
+        "declaration/25/tail/decision/skip-right",
+        "declaration/26/statement/2/decision/body",
+        "declaration/26/statement/2/decision/exit",
+        "declaration/26/statement/2/condition/decision/evaluate-right",
+        "declaration/26/statement/2/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/decision/true",
+        "declaration/26/statement/2/body/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/condition/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/true/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/true/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/true/tail/condition/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/true/tail/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/condition/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/right/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/left/right/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/right/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/statement/2/value/right/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/condition/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/right/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/left/right/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/right/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/statement/3/value/right/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/decision/true",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/decision/false",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/decision/skip-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/left/decision/evaluate-right",
+        "declaration/26/statement/2/body/tail/false/tail/false/tail/false/tail/true/tail/true/tail/condition/left/decision/skip-right"
       ]
     },
     {
       "path": "src/stdlib/option.panack",
-      "hash": "5ef60cee136554b453e75e655d6c8f7df6d36d675f28f518d4c2987db15352c7",
+      "hash": "a8dd6c785a6402d03440b2c475a5dee9ba434607f68504ad8bf6f08651c36c56",
       "kind": "functions",
       "ids": [
         "declaration/0"
@@ -132,7 +132,7 @@
     },
     {
       "path": "src/stdlib/option.panack",
-      "hash": "5ef60cee136554b453e75e655d6c8f7df6d36d675f28f518d4c2987db15352c7",
+      "hash": "a8dd6c785a6402d03440b2c475a5dee9ba434607f68504ad8bf6f08651c36c56",
       "kind": "branches",
       "ids": [
         "declaration/0/tail/arm/0",
@@ -141,7 +141,7 @@
     },
     {
       "path": "src/stdlib/result.panack",
-      "hash": "365d05ff73b1a842e5e0b509f8ffb7ab8037067d954c64ab97c076f4aab2ca16",
+      "hash": "02241cd1b829130a6f8ba3d820822fcde021e982983a05fd7426c80b79042bf5",
       "kind": "functions",
       "ids": [
         "declaration/0"
@@ -149,7 +149,7 @@
     },
     {
       "path": "src/stdlib/result.panack",
-      "hash": "365d05ff73b1a842e5e0b509f8ffb7ab8037067d954c64ab97c076f4aab2ca16",
+      "hash": "02241cd1b829130a6f8ba3d820822fcde021e982983a05fd7426c80b79042bf5",
       "kind": "branches",
       "ids": [
         "declaration/0/tail/arm/0",
@@ -158,22 +158,22 @@
     },
     {
       "path": "src/stdlib/time.panack",
-      "hash": "39d3ab2d0b10d70973710ad0fd5354a5314801437b32f7e5e74088227197f559",
+      "hash": "a49dd188bee9381e1c521df81b4762fc64caeedd83de366e2d53953e3b42dcd8",
       "kind": "functions",
       "ids": [
-        "declaration/10",
-        "declaration/11"
+        "declaration/16",
+        "declaration/17"
       ]
     },
     {
       "path": "src/stdlib/time.panack",
-      "hash": "39d3ab2d0b10d70973710ad0fd5354a5314801437b32f7e5e74088227197f559",
+      "hash": "a49dd188bee9381e1c521df81b4762fc64caeedd83de366e2d53953e3b42dcd8",
       "kind": "branches",
       "ids": [
-        "declaration/10/tail/decision/true",
-        "declaration/10/tail/decision/false",
-        "declaration/11/tail/decision/true",
-        "declaration/11/tail/decision/false"
+        "declaration/16/tail/decision/true",
+        "declaration/16/tail/decision/false",
+        "declaration/17/tail/decision/true",
+        "declaration/17/tail/decision/false"
       ]
     }
   ]

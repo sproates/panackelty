@@ -7,6 +7,7 @@ import project/src/compiler/coverage::{coverage_mapped_project, CoverageEdge, co
 import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/module_emission::{module_emission_symbol}
+import project/src/compiler/module_resolution::{resolve_module_path, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget}
 import project/src/compiler/emitter::{SourceMappedProgram}
 import project/src/compiler/source_inventory::{inventory_module, serialize_source_inventory}
 import project/src/compiler/source_maps::{source_map_blob, source_map_join, source_map_position, source_map_write, source_snapshots, source_snapshots_unchanged}
@@ -42,14 +43,18 @@ pure plan_returns(instruction: Instruction): Nat {
 main(): Void {
   args = host_command_arguments()
   entry = path_string_resolve(args[0])
-  directory = path_string_parent(entry)
+  source_root = path_string_parent(entry)
+  project_root = path_string_resolve(environment_value("PANACKELTY_BOOTSTRAP_ROOT"))
   stdlib = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
   compiler = filesystem_read_file_bytes(environment_value("PANACKELTY_COMPILER_PATH"))
   project = load_project_for_inventory(entry)
-  if len(project.diagnostics) > 0 { eprint("coverage plan: source diagnostics"); host_exit(1); }
-  match coverage_mapped_project(project, entry, directory, stdlib) {
-    Error(diagnostics) => { eprint("coverage plan: checked namespace failed"); host_exit(1); },
-    Ok(mapped) => coverage_plan(project, mapped, entry, directory, stdlib, compiler, args)
+  match coverage_mapped_project(project, entry, project_root, stdlib) {
+    Error(diagnostics) => {
+      for diagnostic in diagnostics { eprint(diagnostic.message); }
+      eprint("coverage plan: checked namespace failed")
+      host_exit(1)
+    },
+    Ok(mapped) => coverage_plan(project, mapped, entry, project_root, source_root, stdlib, compiler, args)
   }
 }
 
@@ -57,13 +62,14 @@ coverage_plan(
   project: LoadedProject,
   mapped: SourceMappedProgram,
   entry: Str,
-  directory: Str,
+  project_root: Str,
+  source_root: Str,
   stdlib: Str,
   compiler: Bytes,
   args: [Str]
 ): Void {
   artifact = serialize_bytecode(mapped.bytecode)
-  inner = serialize_source_inventory(project, artifact, compiler, entry, directory, stdlib)
+  inner = serialize_source_inventory(project, artifact, compiler, entry, source_root, stdlib)
   inventory = source_map_join([text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)], 0, 3)
   codes = sort_functions(mapped.bytecode.functions)
   mut indices: Map[Str,Nat] = map()
@@ -91,9 +97,9 @@ coverage_plan(
     }
     probes = probes.put(mapping.name, index)
   }
-  snapshots = source_snapshots(project, directory, stdlib)
-  graph = loaded_binding_graph(project.modules, directory, stdlib)
-  entry_identity = source_module_identity(entry, directory, stdlib)
+  snapshots = source_snapshots(project, source_root, stdlib)
+  graph = loaded_binding_graph(project.modules, project_root, stdlib)
+  entry_identity = source_module_identity(entry, project_root, stdlib)
   chunks = chunks.append(encode_u32(len(snapshots)))
   if !source_map_write(args[1] + ".plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: header output failure"); host_exit(1); }
   mut source_number: Nat = 0
@@ -125,8 +131,15 @@ coverage_plan(
               else { if decisions.has(parent) && item.id == parent + "/" + item.detail { decisions.get(parent) } else { "arm:" + item.detail } } }
             mut probe_kind: Str = kind
             if item.kind == "outcome" && len(kind) > 4 && slice(kind, 0, 4) == "arm:" {
+              variant: DeclarationIdentity = match resolve_module_path(graph, module.bindings.identity, item.detail) {
+                Error(message) => DeclarationIdentity(module.bindings.identity, item.detail),
+                Ok(target) => match target {
+                  DeclarationTarget(binding) => binding.identity,
+                  NamespaceTarget(identity) => DeclarationIdentity(module.bindings.identity, item.detail)
+                }
+              }
               emitted_variant: Str = module_emission_symbol(graph, entry_identity,
-                DeclarationIdentity(module.bindings.identity, item.detail))
+                variant)
               emitted_key: Str = coverage_probe_key("arm:" + emitted_variant, item.span)
               if probes.has(name) && probes.get(name).has(emitted_key) {
                 probe_kind = "arm:" + emitted_variant

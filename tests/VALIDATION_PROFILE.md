@@ -45,11 +45,31 @@ sample of 372s, but those observations are not matched and do not establish a
 cost reduction or regression. Unlike the isolated parser slice, this delivery adds
 manifest-root loading to the normal driver/loader path; no paired self-compile,
 warm-cache or runtime comparison was made. Keep the existing budgets and all
-coverage. Before merge, the owner must review and explicitly accept the current
-validation-time disposition for this compiler-heavy delivery under GI#106, or
-request a bounded matched profile if these measurements alone are insufficient.
-Do not describe this run as demonstrating performance neutrality.
+coverage. The owner accepted this validation-time disposition before PR#374
+merged as `1bae83f`; the checks passed, but that does not demonstrate performance
+neutrality. GI#106 retains the broader performance follow-up.
 
+## P3 exported library checking — 2026-10-11
+
+On the macOS arm64 development host, canonical `make check` passed on
+`feature/p3-library-manifest-check`, based on `next` at `1bae83f`, with existing
+build outputs. The latest run took **297s** (functional 12s, bootstrap 133s,
+release smoke 4s, quick start 0s); the 120s full-check and 60s bootstrap budgets
+were exceeded. A preceding run took 387s (unit 208s, functional 12s, bootstrap
+137s, release smoke 4s, quick start 1s). The 297s run overlapped the standalone
+harness verification and reused warmed build outputs; the two timings are not a
+matched comparison and do not establish a cost change. The 208s aggregate unit
+phase is not a comparable sample for the 15s focused-check target. The final
+canonical run passed all 364 functional cases and the bootstrap/package gates.
+
+The corrected isolated routes also passed locally: `make unit-harness`,
+`make ci-conformance-source`, `make ci-conformance-bytecode`, and
+`make native-sanitize CC=clang SANITIZE_SUITE=oracle`. The checks use the
+source-built stage-two compiler for the new library CLI cases. This is not a
+clean-checkout performance sample. No representative application runtime or
+compile benchmark was run. Keep the existing validation budgets; GI#106's next
+action is a matched clean base/candidate profile separating bootstrap cost,
+with results reviewed before P3 package acceptance.
 ## Alpha.12 performance close-out — 2026-10-10
 
 The final clean canonical `make check` ran on the macOS arm64 development host

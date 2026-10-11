@@ -622,6 +622,26 @@ pub load_project_package(
   )
 }
 
+pub load_project_package_for_check(
+  entry: Str,
+  source_root: Str,
+  package_root: Str,
+  package_name: Str,
+  package_version: Str
+): LoadedProject {
+  load_project_mode_with_configuration(
+    entry,
+    true,
+    false,
+    false,
+    source_root,
+    package_root,
+    package_name,
+    package_version,
+    true
+  )
+}
+
 load_project_mode_with_configuration(
   entry: Str,
   bounded: Bool,

@@ -120,12 +120,13 @@ unit: native native-module-build native-fault-build
 	@$(TIMED) unit $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory unit-impl
 
 unit-impl:
+	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 	@$(MAKE) --no-print-directory unit-runtime
 
 .PHONY: unit-harness unit-runtime unit-compiler
-unit-harness: native
-	@$(PROFILE) harness sh tests/harness.sh
+unit-harness: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) harness sh tests/harness.sh
 	@$(PROFILE) probe/report_capture_unit $(PROBE) tests/runner/report_capture_unit.panack
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 
@@ -295,8 +296,8 @@ native-instrumented-all:
 native-instrumented-vm: $(BUILD_DIR)/vm/panack-vm
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" UBSAN_OPTIONS=halt_on_error=1 $(MAKE) --no-print-directory native-vm-contracts
 
-native-instrumented-oracle: $(BUILD_DIR)/vm/panack-vm native-module-build
-	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh without-runner
+native-instrumented-oracle: $(BUILD_DIR)/vm/panack-vm native-module-build $(STAGE2_COMPILER)
+	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle sh tests/native_oracle_contracts.sh without-runner
 
 native-instrumented-runner: $(BUILD_DIR)/vm/panack-vm $(STAGE2_COMPILER)
 	@PANACK_NATIVE_BINARY="$(abspath $(BUILD_DIR)/vm/panack-vm)" SEED_COMPILER="$(SEED_COMPILER)" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" UBSAN_OPTIONS=halt_on_error=1 $(PROFILE) native-oracle-runner sh tests/native_oracle_contracts.sh runner
@@ -427,8 +428,8 @@ clean:
 	rm -rf build
 
 .PHONY: harness
-harness: native
-	@$(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
+harness: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(TIMED) harness $(INCREMENTAL_BUDGET_SECONDS) sh tests/harness.sh
 
 .PHONY: docs ci-check policy check-no-interpreter
 docs:
@@ -451,6 +452,7 @@ check-no-interpreter:
 # fresh checkout; only runtime + functional share a session-local observation.
 .PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
 ci-compiler: policy native
+	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
 
 ci-runtime:
@@ -460,11 +462,11 @@ ci-runtime-phases: unit-runtime functional
 
 ci-bootstrap: bootstrap-check quick-start
 
-ci-conformance-source: native
-	@$(PROFILE) native-conformance/source sh tests/native_conformance.sh source
+ci-conformance-source: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/source sh tests/native_conformance.sh source
 
-ci-conformance-bytecode: native
-	@$(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
+ci-conformance-bytecode: native $(STAGE2_COMPILER)
+	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
 	@$(MAKE) --no-print-directory quick-start
 
 # Bounded source-coverage counters; no production instrumentation or report ABI.

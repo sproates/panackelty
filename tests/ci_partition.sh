@@ -63,8 +63,14 @@ cat > "$work/unit/make" <<'UNIT_MAKE'
 #!/bin/sh
 set -eu
 group=$2
+if [ "$group" = build/bootstrap/stage2/compiler.bc ]; then
+    printf 'stage2\n' >> "$UNIT_CONTROL/bootstrap.calls"
+    : > "$UNIT_CONTROL/bootstrap.done"
+    exit 0
+fi
 printf '%s\n' "$group" >> "$UNIT_CALLS"
 : > "$UNIT_CONTROL/$group.started"
+test -f "$UNIT_CONTROL/bootstrap.done" || exit 9
 await_peer() {
     attempts=0
     while [ ! -f "$UNIT_CONTROL/$1.started" ]; do
@@ -97,7 +103,7 @@ chmod +x "$work/unit/make"
 export UNIT_CONTROL="$work/unit" UNIT_CALLS="$work/unit/calls"
 for workers in 1 2 3; do
     for fault in none unit-harness unit-compiler unit-runtime; do
-        rm -f "$work/unit/"*.done "$work/unit/"*.started
+        rm -f "$work/unit/"*.done "$work/unit/"*.started "$work/unit/bootstrap.calls"
         : > "$UNIT_CALLS"
         UNIT_WORKERS=$workers UNIT_FAIL=$fault
         export UNIT_WORKERS UNIT_FAIL
@@ -121,6 +127,7 @@ for workers in 1 2 3; do
         sort "$work/unit/expected" > "$work/unit/expected.sorted"
         sort "$UNIT_CALLS" > "$work/unit/actual.sorted"
         cmp "$work/unit/expected.sorted" "$work/unit/actual.sorted" || fail "unit coverage changed: $workers/$fault"
+        [ "$(cat "$work/unit/bootstrap.calls")" = stage2 ] || fail "stage 2 was not prepared exactly once: $workers/$fault"
     done
 done
 unset UNIT_CONTROL UNIT_CALLS UNIT_WORKERS UNIT_FAIL

@@ -3,6 +3,7 @@ import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty
 import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
 import stdlib/testing::{TestResult, test_expect, test_report}
 import stdlib/time::{duration_seconds}
+import stdlib/environment::{environment_value}
 import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
 import stdlib/filesystem::{filesystem_read_bytes, filesystem_write_bytes, filesystem_create_directory, filesystem_remove_file, filesystem_remove_directory}
 import stdlib/testing_commands::{testing_process_run}
@@ -59,6 +60,22 @@ pure command(arguments: [Str]): TestCommand {
     duration_seconds(10), 1048576)
 }
 
+source_compiler_arguments(arguments: [Str]): [Str] {
+  compiler: Str = environment_value("PANACK_TEST_COMPILER")
+  mut invocation: [Str] = ["run", if compiler == "" {
+    "build/bootstrap/stage2/compiler.bc"
+  } else { compiler }]
+  for argument in arguments {
+    invocation = invocation.append(argument)
+  }
+  invocation
+}
+
+source_compiler_command(arguments: [Str], toolchain_version: Str): TestCommand {
+  TestCommand(path("./panack-vm"), source_compiler_arguments(arguments), bytes_empty(), path_value_current(),
+    ["PANACKELTY_VERSION=${toolchain_version}"], duration_seconds(10), 1048576)
+}
+
 main(): Void {
   match test_workspace_create(path("/tmp")) {
     Error(error) => { print("workspace creation failed"); host_exit(1) },
@@ -77,6 +94,11 @@ main(): Void {
       package_entry = child(package_source_root, "main.panack")
       package_value = child(package_source_root, "value.panack")
       package_manifest = child(package_root, "panack.json")
+      library_root = child(workspace.root, "library")
+      library_source_root = child(library_root, "src")
+      library_api = child(library_source_root, "api.panack")
+      library_extra = child(library_source_root, "extra.panack")
+      library_manifest = child(library_root, "panack.json")
       relocated_root = child(workspace.root, "relocated")
       relocated_source_root = child(relocated_root, "src")
       relocated_entry = child(relocated_source_root, "main.panack")
@@ -87,6 +109,7 @@ main(): Void {
       package_entry_text = result_value_or(path_value_to_text(package_entry), "invalid-entry")
       package_value_text = result_value_or(path_value_to_text(package_value), "invalid-value")
       package_manifest_text = result_value_or(path_value_to_text(package_manifest), "invalid-manifest")
+      library_manifest_text = result_value_or(path_value_to_text(library_manifest), "invalid-library-manifest")
       relocated_root_text = result_value_or(path_value_to_text(relocated_root), "invalid-relocated")
       relocated_manifest_text = result_value_or(path_value_to_text(relocated_manifest), "invalid-relocated-manifest")
       mut results: [TestResult] = []
@@ -139,6 +162,52 @@ main(): Void {
         command(["check", "--project", package_manifest_text]),
         ProcessOutput(1, 0, bytes_empty(), text_encode_utf8("error: project manifest dependencies are not supported yet\n"))))
       filesystem_write_bytes(package_manifest, text_encode_utf8(manifest_text))
+
+      filesystem_create_directory(library_root)
+      filesystem_create_directory(library_source_root)
+      library_manifest_text_value = "{\"schema\":1,\"package\":\"example.geometry\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"},\"dependencies\":{}}"
+      filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
+      filesystem_write_bytes(library_api, text_encode_utf8("pub pure answer(): Nat { 42 }\n"))
+      filesystem_write_bytes(library_extra, text_encode_utf8(
+        "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n"))
+      results = results.append(test_run_command("manifest-only library checks each exported module without main",
+        source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
+        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+      results = results.append(test_run_command("manifest-only library compile requires an entry",
+        source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
+        ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(
+          "error: library manifests support check only; compile and run require an application entry\n"))))
+      results = results.append(test_run_command("manifest-only library run requires an entry",
+        source_compiler_command(["run", "--project", library_manifest_text], toolchain_version),
+        ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(
+          "error: library manifests support check only; compile and run require an application entry\n"))))
+      empty_library_manifest = replace_first(library_manifest_text_value,
+        "\"api\":\"api.panack\",\"api_alias\":\"api.panack\",\"extra\":\"extra.panack\"", "")
+      filesystem_write_bytes(library_manifest, text_encode_utf8(empty_library_manifest))
+      results = results.append(test_run_command("manifest-only library requires an export",
+        source_compiler_command(["check", "--project", library_manifest_text], toolchain_version),
+        ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(
+          "error: library manifest must export at least one module\n"))))
+      filesystem_write_bytes(library_manifest, text_encode_utf8(library_manifest_text_value))
+      filesystem_write_bytes(library_extra, text_encode_utf8(
+        "import project/api as api\npub pure next_answer(): Nat { true }\n"))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", library_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("manifest-only library rejects invalid export", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("manifest-only library rejects invalid export",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "expected Nat") && output.stdout == bytes_empty(),
+            "invalid exported source passed checking"))
+        }
+      }
+      filesystem_write_bytes(library_extra, text_encode_utf8(
+        "import project/api as api\npub pure next_answer(): Nat { api.answer() + 1 }\n"))
       move: ProcessOutput = match testing_process_run(path("/bin/mv"), [package_root_text, relocated_root_text],
           bytes_empty(), path_value_current(), [], duration_seconds(10), 1048576) {
         Error(error) => ProcessOutput(1, 0, bytes_empty(), bytes_empty()),
@@ -156,6 +225,11 @@ main(): Void {
       filesystem_remove_file(relocated_manifest)
       filesystem_remove_directory(relocated_source_root)
       filesystem_remove_directory(relocated_root)
+      filesystem_remove_file(library_api)
+      filesystem_remove_file(library_extra)
+      filesystem_remove_file(library_manifest)
+      filesystem_remove_directory(library_source_root)
+      filesystem_remove_directory(library_root)
 
       match filesystem_write_bytes(arguments_source, text_encode_utf8(
           "main(): Void { arguments: [Str] = command_args(); " +

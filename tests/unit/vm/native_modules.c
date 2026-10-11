@@ -1,6 +1,7 @@
 /* Direct contracts across the separately compiled VM modules.
  * Assertions stay enabled even when a release build supplies -DNDEBUG.
  */
+#include "platform.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif

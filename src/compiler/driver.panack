@@ -255,6 +255,7 @@ run_manifest_source_command(
           entry,
           project.source_root,
           project.package_root,
+          project.root_identity,
           project.package,
           project.version,
           project.dependencies
@@ -302,6 +303,7 @@ run_manifest_library_check(project: ManifestProject): Nat {
         exported,
         project.source_root,
         project.package_root,
+        project.root_identity,
         project.package,
         project.version,
         project.dependencies

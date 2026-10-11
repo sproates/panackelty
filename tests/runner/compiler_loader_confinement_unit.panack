@@ -1,4 +1,5 @@
-import project/src/compiler/loader::{LoadedProject, load_project, load_project_diagnostics}
+import project/src/compiler/loader::{LoadedProject, load_project, load_project_diagnostics, load_project_package}
+import project/src/compiler/package_project::{FilesystemRootIdentity}
 import project/src/compiler/module_bodies::{BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyInvalid}
 import stdlib/result::{result_value_or}
 import stdlib/bytes::{bytes_empty, text_encode_utf8}
@@ -70,6 +71,34 @@ main(): Void {
         "ordinary entry identity body is missing, deferred or invalid"
       ))
       filesystem_remove_file(ordinary_entry)
+      package_root: Path = confinement_child(workspace.root, "package-identity")
+      package_source_root: Path = confinement_child(package_root, "src")
+      package_entry: Path = confinement_child(package_source_root, "main.panack")
+      filesystem_create_directory(package_root)
+      filesystem_create_directory(package_source_root)
+      filesystem_write_bytes(package_entry, text_encode_utf8("main(): Void {}\n"))
+      identity_changed_project: LoadedProject = load_project_package(
+        confinement_text(package_entry),
+        confinement_text(package_source_root),
+        confinement_text(package_root),
+        FilesystemRootIdentity(0, 0),
+        "example.identity",
+        "1.0.0",
+        []
+      )
+      mut identity_changed_reported: Bool = false
+      for diagnostic in identity_changed_project.diagnostics {
+        identity_changed_reported = identity_changed_reported ||
+          starts_with_at(diagnostic.message, "package root identity changed while loading source", 0)
+      }
+      results = results.append(test_expect(
+        "package source reads verify the manifest root identity",
+        identity_changed_reported,
+        "source from a different physical package root was not rejected"
+      ))
+      filesystem_remove_file(package_entry)
+      filesystem_remove_directory(package_source_root)
+      filesystem_remove_directory(package_root)
       inferred_entry: Path = confinement_child(project, "inferred-collections.panack")
       filesystem_write_bytes(
         inferred_entry,

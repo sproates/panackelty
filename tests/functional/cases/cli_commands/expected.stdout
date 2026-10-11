@@ -5,6 +5,8 @@ PASS explicit manifest package check
 PASS explicit manifest package source run
 PASS explicit manifest package compile
 PASS manifest-only library checks each exported module without main
+PASS package export escape symlink setup
+PASS package exports reject symlink escapes
 PASS manifest application checks declared local library
 PASS manifest application runs declared local library
 PASS manifest application compiles declared local library
@@ -26,4 +28,4 @@ PASS program arguments
 PASS program stderr and exit
 PASS help command name
 PASS version
-tests: 28, failures: 0
+tests: 30, failures: 0

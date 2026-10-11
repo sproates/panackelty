@@ -45,10 +45,27 @@ sample of 372s, but those observations are not matched and do not establish a
 cost reduction or regression. Unlike the isolated parser slice, this delivery adds
 manifest-root loading to the normal driver/loader path; no paired self-compile,
 warm-cache or runtime comparison was made. Keep the existing budgets and all
-coverage. Before merge, the owner must review and explicitly accept the current
-validation-time disposition for this compiler-heavy delivery under GI#106, or
-request a bounded matched profile if these measurements alone are insufficient.
-Do not describe this run as demonstrating performance neutrality.
+coverage. The owner accepted this validation-time disposition before PR#374
+merged as `1bae83f`; the checks passed, but that does not demonstrate performance
+neutrality. GI#106 retains the broader performance follow-up.
+
+## P3 exported library checking — 2026-10-11
+
+On the macOS arm64 development host, the final `make check` passed on
+`feature/p3-library-manifest-check`, based on `next` at `1bae83f`. The checkout
+already had build outputs; this was not a clean-checkout sample. The complete
+run took **386s**: unit 206s, functional 12s, bootstrap 139s, release smoke 4s,
+and quick start 0s. The 120s full-check and 60s bootstrap budgets were exceeded; the 206s
+aggregate unit phase is not a comparable sample for the 15s focused-check target. Native, compiler, all 364 functional cases,
+fixed-point, package, release-smoke, and quick-start gates completed
+successfully. The final run includes the strengthened invalid-later-export case.
+
+This single run is not a clean-checkout profile or a matched comparison with
+PR#374's 379s run, and it does not establish a performance change. The feature is
+used by explicit library checks; no representative application runtime or
+compilation benchmark was run. Keep the existing validation budgets. GI#106's
+next action is a matched clean base/candidate profile separating bootstrap cost,
+with results reviewed before P3 package acceptance.
 
 ## Alpha.12 performance close-out — 2026-10-10
 

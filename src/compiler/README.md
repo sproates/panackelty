@@ -75,8 +75,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   and resolves its source and entry roots. The driver supports `check`, `compile`,
   and `run` with `--project panack.json`; the loader reads package sources beneath
   the selected physical root and assigns relocation-stable package identities.
-  This first slice rejects declared dependencies and libraries without an entry;
-  dependency graph loading and two-application acceptance remain open P3 work.
+  Dependency-free libraries can also be checked across their exported modules;
+  compilation and execution require an application entry. Declared dependency
+  graph loading and two-application acceptance remain open P3 work.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,

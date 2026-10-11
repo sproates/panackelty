@@ -1,15 +1,16 @@
 import stdlib/environment::{environment_value}
 import stdlib/package_filesystem::{FilesystemRootRead, filesystem_read_beneath}
-import stdlib/path::{path_string_parent, path_string_resolve, path_value_from_text}
+import stdlib/path::{path_string_parent, path_string_resolve, path_string_join, path_value_from_text}
 import project/src/compiler/package_manifest::{PackageManifest, parse_package_manifest, package_manifest_byte_limit}
 import project/src/bytecode/decoder::{valid_utf8}
 
-// The first driver slice accepts explicit, dependency-free application roots.
-// Dependency graphs and manifest-only library checks remain later P3 work.
+// Manifest validation selects application entries or exported library roots.
+// Local dependency graphs remain later P3 work.
 pub record ManifestProject {
   package_root: Str,
   source_root: Str,
-  entry: Str,
+  entry: Option[Str],
+  exports: [Str],
   package: Str,
   version: Str
 }
@@ -64,12 +65,22 @@ manifest_project_from_manifest(
     Error("project manifest dependencies are not supported yet")
   } else {
     match manifest.entry {
-      None() => Error("library manifests without an entry are not supported yet"),
+      None() => if len(manifest.exports) == 0 {
+        Error("library manifest must export at least one module")
+      } else {
+        source: Str = manifest.source
+        source_root: Str = path_string_resolve(path_string_join(package_root, source))
+        mut exports: [Str] = []
+        for exported in manifest.exports {
+          exports = exports.append(path_string_resolve(path_string_join(source_root, exported.path)))
+        }
+        Ok(ManifestProject(package_root, source_root, None(), exports, manifest.package, manifest.version))
+      },
       Some(entry) => {
         source: Str = manifest.source
-        source_root: Str = path_string_resolve(package_root + "/" + source)
-        entry_path: Str = path_string_resolve(source_root + "/" + entry)
-        Ok(ManifestProject(package_root, source_root, entry_path, manifest.package, manifest.version))
+        source_root: Str = path_string_resolve(path_string_join(package_root, source))
+        entry_path: Str = path_string_resolve(path_string_join(source_root, entry))
+        Ok(ManifestProject(package_root, source_root, Some(entry_path), [], manifest.package, manifest.version))
       }
     }
   }

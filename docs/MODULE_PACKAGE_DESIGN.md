@@ -20,11 +20,12 @@ Unknown inference/proofs remain explicitly deferred; effect checking, emission,
 tooling and coordinated migration remain pending. This intermediate slice does
 not enable namespaces or complete P2.
 P3 has started with the confined package-root read prerequisite merged in PR#372.
-The current implementation slice wires strict manifest parsing to explicit
-`check`, `compile` and `run --project panack.json` commands for dependency-free
-applications, with confined source reads and relocation-stable module identity.
-Dependency loading, library-only manifests, two-application acceptance and full
-package-loader acceptance remain open. P4–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
+PR#374 wires strict manifest parsing to explicit `check`, `compile` and `run
+--project panack.json` commands for dependency-free applications, with confined
+source reads and relocation-stable module identity. Exported library checking
+is the current implementation slice; dependency loading, two-application
+acceptance and full package-loader acceptance remain open. P4–P8 remain planned.
+The [programme register](../ROADMAP.md#rm-108)
 owns current implementation and acceptance status.
 
 ## Current implementation audit

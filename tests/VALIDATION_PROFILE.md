@@ -4924,7 +4924,7 @@ GI#106's 120s/15s/60s targets and existing accepted validation-time disposition;
 its next action remains a matched clean base/candidate profile before P3 package
 acceptance. Website impact: none; the package feature remains unreleased.
 
-## P3 package source-closure limits — 2026-10-11
+## P3 package source-closure limits (PR #383) — 2026-10-11
 
 The loader unit now exercises each source-closure boundary at the exact limit
 and one beyond: 256 loaded files, 1 MiB per source, and 8 MiB total. A public

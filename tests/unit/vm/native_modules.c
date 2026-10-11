@@ -462,10 +462,12 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
         assert(write(race_started[1], "x", 1) == 1);
         close(race_started[1]);
         for (size_t i = 0; i < 20000; i++) {
-            (void)unlink(race_link);
-            (void)symlink("../outside", race_link);
-            (void)unlink(race_link);
-            (void)symlink("sub/data", race_link);
+            if (unlink(race_link) || symlink("../outside", race_link)) {
+                _exit(2);
+            }
+            if (unlink(race_link) || symlink("sub/data", race_link)) {
+                _exit(2);
+            }
             (void)sched_yield();
         }
         _exit(0);

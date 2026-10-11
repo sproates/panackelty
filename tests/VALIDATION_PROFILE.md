@@ -4988,3 +4988,11 @@ probe's process budget is now 120 seconds, matching the adjacent package graph
 and source-limit probes, and failures report the subprocess exit, signal,
 stdout, and stderr. This does not establish the cause of the first failure; a
 passing exact-head Linux bytecode result is still required.
+
+The follow-up run passed Linux bytecode conformance, then Linux source
+conformance reported that the race had completed with 40 identity changes but
+cleanup failed while the background replacer was still finishing an atomic
+rename (`rm: ... Directory not empty`). Cleanup now clears the run marker and
+waits for the replacer to finish before deleting its temporary tree. Ten
+consecutive local macOS arm64 trials passed after this change; the next exact
+Linux run must verify cleanup and the acceptance assertion together.

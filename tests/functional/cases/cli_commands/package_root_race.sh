@@ -15,7 +15,7 @@ racer=
 cleanup() {
     rm -f "$running"
     if [ -n "$racer" ]; then
-        kill "$racer" 2>/dev/null || true
+        # Let an in-flight replacement finish before removing its directory.
         wait "$racer" 2>/dev/null || true
     fi
     rm -rf "$work"

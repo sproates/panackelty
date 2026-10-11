@@ -4,7 +4,7 @@ import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
 import stdlib/testing::{TestResult, test_expect, test_report}
 import stdlib/time::{duration_seconds}
 import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
-import stdlib/filesystem::{filesystem_read_bytes, filesystem_write_bytes, filesystem_remove_file}
+import stdlib/filesystem::{filesystem_read_bytes, filesystem_write_bytes, filesystem_create_directory, filesystem_remove_file, filesystem_remove_directory}
 import stdlib/testing_commands::{testing_process_run}
 import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
 import stdlib/host::{host_exit, host_stderr_text}
@@ -22,6 +22,36 @@ pure contains(value: Str, fragment: Str): Bool {
     if value.starts_with_at(fragment, index) { found = true }
   }
   found
+}
+
+pure replace_first(value: Str, needle: Str, replacement: Str): Str {
+  mut index: Nat = 0
+  mut found: Bool = false
+  while index + len(needle) <= len(value) && !found {
+    if slice(value, index, index + len(needle)) == needle { found = true }
+    else { index = index + 1 }
+  }
+  if found {
+    slice(value, 0, index) + replacement + slice(value, index + len(needle), len(value))
+  } else { value }
+}
+
+pure manifest_version_from_output(value: Str): Str {
+  mut end: Nat = 7
+  while end < len(value) && !value.starts_with_at(" ", end) {
+    end = end + 1
+  }
+  if end > 7 { slice(value, 7, end) } else { "" }
+}
+
+manifest_toolchain_version(): Str {
+  match testing_process_run(path("./panack"), ["--version"], bytes_empty(),
+      path_value_current(), [], duration_seconds(10), 1024) {
+    Error(error) => "",
+    Ok(output) => if output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty() {
+      manifest_version_from_output(text_decode_utf8(output.stdout))
+    } else { "" }
+  }
 }
 
 pure command(arguments: [Str]): TestCommand {
@@ -42,6 +72,23 @@ main(): Void {
       bytecode_text = result_value_or(path_value_to_text(bytecode), "invalid-bytecode")
       arguments_text = result_value_or(path_value_to_text(arguments_source), "invalid-arguments")
       failing_text = result_value_or(path_value_to_text(failing_source), "invalid-failure")
+      package_root = child(workspace.root, "package")
+      package_source_root = child(package_root, "src")
+      package_entry = child(package_source_root, "main.panack")
+      package_value = child(package_source_root, "value.panack")
+      package_manifest = child(package_root, "panack.json")
+      relocated_root = child(workspace.root, "relocated")
+      relocated_source_root = child(relocated_root, "src")
+      relocated_entry = child(relocated_source_root, "main.panack")
+      relocated_value = child(relocated_source_root, "value.panack")
+      relocated_manifest = child(relocated_root, "panack.json")
+      package_root_text = result_value_or(path_value_to_text(package_root), "invalid-package")
+      package_source_root_text = result_value_or(path_value_to_text(package_source_root), "invalid-source-root")
+      package_entry_text = result_value_or(path_value_to_text(package_entry), "invalid-entry")
+      package_value_text = result_value_or(path_value_to_text(package_value), "invalid-value")
+      package_manifest_text = result_value_or(path_value_to_text(package_manifest), "invalid-manifest")
+      relocated_root_text = result_value_or(path_value_to_text(relocated_root), "invalid-relocated")
+      relocated_manifest_text = result_value_or(path_value_to_text(relocated_manifest), "invalid-relocated-manifest")
       mut results: [TestResult] = []
 
       results = results.append(test_run_command("bare source path", command([original]),
@@ -68,6 +115,47 @@ main(): Void {
           }
         }
       }
+
+      filesystem_create_directory(package_root)
+      filesystem_create_directory(package_source_root)
+      toolchain_version = manifest_toolchain_version()
+      manifest_text = "{\"schema\":1,\"package\":\"example.application\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"entry\":\"main.panack\",\"exports\":{\"value\":\"value.panack\"},\"dependencies\":{}}"
+      filesystem_write_bytes(package_manifest, text_encode_utf8(manifest_text))
+      filesystem_write_bytes(package_entry, text_encode_utf8(
+        "import project/value as value\nmain(): Void { print(value.answer()); arguments: [Str] = command_args(); print(len(arguments)); }\n"))
+      filesystem_write_bytes(package_value, text_encode_utf8("pub pure answer(): Nat { 42 }\n"))
+      results = results.append(test_run_command("explicit manifest package check",
+        command(["check", "--project", package_manifest_text]),
+        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+      results = results.append(test_run_command("explicit manifest package source run",
+        command(["run", "--project", package_manifest_text, "alpha"]),
+        ProcessOutput(0, 0, text_encode_utf8("42\n1\n"), bytes_empty())))
+      results = results.append(test_run_command("explicit manifest package compile",
+        command(["compile", "--project", package_manifest_text, "-o", bytecode_text]),
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
+      dependencies_manifest = replace_first(manifest_text, "\"dependencies\":{}", "\"dependencies\":{\"missing\":{\"path\":\"../missing\"}}")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependencies_manifest))
+      results = results.append(test_run_command("unsupported package dependency fails closed",
+        command(["check", "--project", package_manifest_text]),
+        ProcessOutput(1, 0, bytes_empty(), text_encode_utf8("error: project manifest dependencies are not supported yet\n"))))
+      filesystem_write_bytes(package_manifest, text_encode_utf8(manifest_text))
+      move: ProcessOutput = match testing_process_run(path("/bin/mv"), [package_root_text, relocated_root_text],
+          bytes_empty(), path_value_current(), [], duration_seconds(10), 1048576) {
+        Error(error) => ProcessOutput(1, 0, bytes_empty(), bytes_empty()),
+        Ok(output) => output
+      }
+      results = results.append(test_expect("manifest package relocation fixture", move.exit_code == 0 && move.signal == 0, "could not move package root"))
+      results = results.append(test_run_command("relocated manifest package source run",
+        command(["run", "--project", relocated_manifest_text, "alpha"]),
+        ProcessOutput(0, 0, text_encode_utf8("42\n1\n"), bytes_empty())))
+      results = results.append(test_run_command("saved package bytecode runs after relocation",
+        command(["run", bytecode_text]),
+        ProcessOutput(0, 0, text_encode_utf8("42\n0\n"), bytes_empty())))
+      filesystem_remove_file(relocated_entry)
+      filesystem_remove_file(relocated_value)
+      filesystem_remove_file(relocated_manifest)
+      filesystem_remove_directory(relocated_source_root)
+      filesystem_remove_directory(relocated_root)
 
       match filesystem_write_bytes(arguments_source, text_encode_utf8(
           "main(): Void { arguments: [Str] = command_args(); " +

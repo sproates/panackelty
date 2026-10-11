@@ -25,6 +25,31 @@ established. Retain the existing GI#106 validation-latency disposition for this
 isolated slice and review again when manifest loading enters the normal project
 path or comparable measurements materially change.
 
+## P3 explicit manifest-root CLI and loading — 2026-10-11
+
+On `feature/p3-manifest-root-cli` based on `next` at `f131fc7`, canonical
+`make check` passed on the macOS arm64 development host in **379s**. The checkout
+already had build outputs, so this was not a clean-checkout sample. Reported
+phases were unit 204s, functional 12s, bootstrap 133s, release smoke 4s and
+quick start 1s. The 120s full-check, 15s unit and 60s bootstrap warning budgets
+were exceeded; functional stayed under its 75s budget. All compiler, native,
+functional, seed fixed-point, package and release gates passed. A first attempt
+stopped at the runner-smoke gate because the new `--project` help line had not
+yet been added to the compiler-skeleton expected output. An intermediate rerun
+also exposed that native-oracle VM launches do not inherit the launcher version
+variable; the fixture now reads the version through `panack --version`. The final
+run passed.
+
+The total is close to the 375s alpha.12 clean run and the earlier P3 parser
+sample of 372s, but those observations are not matched and do not establish a
+cost reduction or regression. Unlike the isolated parser slice, this delivery adds
+manifest-root loading to the normal driver/loader path; no paired self-compile,
+warm-cache or runtime comparison was made. Keep the existing budgets and all
+coverage. Before merge, the owner must review and explicitly accept the current
+validation-time disposition for this compiler-heavy delivery under GI#106, or
+request a bounded matched profile if these measurements alone are insufficient.
+Do not describe this run as demonstrating performance neutrality.
+
 ## Alpha.12 performance close-out — 2026-10-10
 
 The final clean canonical `make check` ran on the macOS arm64 development host

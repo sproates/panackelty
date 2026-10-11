@@ -1,5 +1,6 @@
 import stdlib/path::{path_value_from_text, path_string_join, path_string_suffix, path_string_parent, path_string_is_absolute, path_string_resolve}
 import stdlib/filesystem::{FileKind.SymbolicLink, filesystem_metadata, filesystem_read_bytes, filesystem_read_text, filesystem_exists}
+import stdlib/package_filesystem::{FilesystemRootRead, filesystem_read_beneath}
 import stdlib/bytes::{bytes_length, text_encode_utf8, text_decode_utf8}
 import stdlib/environment::{environment}
 import project/src/bytecode/decoder::{valid_utf8}
@@ -10,7 +11,7 @@ import project/src/compiler/module_bodies::{
   CheckedModuleBodies, BodyCheckStatus.BodyIdentityChecked, check_module_bodies
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
-import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, module_programs, module_declaration_positions}
+import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs, module_declaration_positions}
 import project/src/compiler/module_signatures::{CheckedModuleSignatures, check_module_signatures}
 import project/src/compiler/module_resolution::{ModuleImportEdge, module_graph_diagnostics}
 import project/src/compiler/module_emission::{ModuleEmissionResult, module_emission_program}
@@ -241,6 +242,51 @@ pub read_project_source(
   }
 }
 
+read_package_source(
+  path: Str,
+  package_root: Str,
+  bounded: Bool,
+  paths: [Str],
+  sources: Map[Str, Str]
+): Result[Str, Str] {
+  if !loader_path_within(path, package_root) {
+    Error("package source path escapes its physical root")
+  } else {
+    mut total: Nat = 0
+    for loaded in paths {
+      total = total + bytes_length(text_encode_utf8(sources.get(loaded)))
+    }
+    relative: Str = module_relative_path(path, package_root)
+    if len(paths) >= 256 || total > 8388608 {
+      Error("package source closure limit exceeded")
+    } else {
+      match path_value_from_text(package_root) {
+        Error(error) => Error("invalid package root path"),
+        Ok(root) => match path_value_from_text(relative) {
+          Error(error) => Error("invalid package-relative source path"),
+          Ok(source) => match filesystem_read_beneath(root, source, 1048576) {
+            Error(problem) => {
+              code: Str = problem.code
+              Error("package source read failed (${code})")
+            },
+            Ok(read) => {
+              if bounded && total + bytes_length(read.contents) > 8388608 {
+                Error("package source closure exceeds 8 MiB")
+              } else {
+                if !valid_utf8(read.contents) {
+                  Error("package source is not valid UTF-8")
+                } else {
+                  Ok(text_decode_utf8(read.contents))
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 load_project_module(
   path: Str,
   state: ProjectLoadState,
@@ -248,7 +294,11 @@ load_project_module(
   project_root: Str,
   stdlib_root: Str,
   bounded: Bool,
-  allow_leaf_symlink: Bool
+  allow_leaf_symlink: Bool,
+  package_root: Str,
+  package_name: Str,
+  package_version: Str,
+  package_confined: Bool
 ): ProjectLoadState {
   if state.visited.has(path) {
     state
@@ -261,7 +311,7 @@ load_project_module(
       ProjectLoadState(state.modules, state.visited.add(path), diagnostics, state.sources, state.source_paths)
     } else {
     trusted_root: Str = if loader_path_within(path, stdlib_root) { stdlib_root } else { project_root }
-    if loader_path_has_symlink(path, trusted_root, allow_leaf_symlink) {
+    if !package_confined && loader_path_has_symlink(path, trusted_root, allow_leaf_symlink) {
       diagnostics: [Diagnostic] = append(
         state.diagnostics,
         loader_diagnostic("module path traverses a symbolic link: " + path)
@@ -288,7 +338,7 @@ load_project_module(
           state.source_paths
         )
       } else {
-        if !filesystem_exists(path) {
+        if !package_confined && !filesystem_exists(path) {
           diagnostics: [Diagnostic] = append(
             state.diagnostics,
             loader_diagnostic("missing source module ${path}")
@@ -301,7 +351,11 @@ load_project_module(
             state.source_paths
           )
         } else {
-          match read_project_source(path, bounded, state.source_paths, state.sources) {
+          match if package_confined {
+            read_package_source(path, package_root, bounded, state.source_paths, state.sources)
+          } else {
+            read_project_source(path, bounded, state.source_paths, state.sources)
+          } {
             Error(message) => ProjectLoadState(
               state.modules,
               state.visited,
@@ -339,11 +393,17 @@ load_project_module(
                       )
                     },
                     Ok(parsed) => {
-                      identity: ModuleIdentity = source_module_identity(
-                        path,
-                        project_root,
-                        stdlib_root
-                      )
+                      identity: ModuleIdentity = if package_confined && !loader_path_within(path, stdlib_root) {
+                        source_package_module_identity(
+                          path,
+                          project_root,
+                          stdlib_root,
+                          package_name,
+                          package_version
+                        )
+                      } else {
+                        source_module_identity(path, project_root, stdlib_root)
+                      }
                       bindings: ModuleBindings = collect_module_bindings(identity, parsed)
                       // Retain original source bindings before the existing core-only
                       // callable internalization used by the execution frontend.
@@ -420,7 +480,11 @@ load_project_module(
                                     project_root,
                                     stdlib_root,
                                     bounded,
-                                    false
+                                    false,
+                                    package_root,
+                                    package_name,
+                                    package_version,
+                                    package_confined
                                   )
                                 }
                               }
@@ -465,7 +529,11 @@ load_project_module(
                                     project_root,
                                     stdlib_root,
                                     bounded,
-                                    false
+                                    false,
+                                    package_root,
+                                    package_name,
+                                    package_version,
+                                    package_confined
                                   )
                                 }
                               }
@@ -529,10 +597,50 @@ load_project_mode_with_main(
   retain: Bool,
   require_main: Bool
 ): LoadedProject {
+  load_project_mode_with_configuration(
+    entry, bounded, retain, require_main, "", "", "", "", false
+  )
+}
+
+pub load_project_package(
+  entry: Str,
+  source_root: Str,
+  package_root: Str,
+  package_name: Str,
+  package_version: Str
+): LoadedProject {
+  load_project_mode_with_configuration(
+    entry,
+    true,
+    false,
+    true,
+    source_root,
+    package_root,
+    package_name,
+    package_version,
+    true
+  )
+}
+
+load_project_mode_with_configuration(
+  entry: Str,
+  bounded: Bool,
+  retain: Bool,
+  require_main: Bool,
+  configured_project_root: Str,
+  package_root: Str,
+  package_name: Str,
+  package_version: Str,
+  package_confined: Bool
+): LoadedProject {
   resolved: Str = path_string_resolve(entry)
-  project_root: Str = match environment("PANACKELTY_BOOTSTRAP_ROOT") {
-    Some(value) => path_string_resolve(value),
-    None() => path_string_parent(resolved)
+  project_root: Str = if package_confined {
+    path_string_resolve(configured_project_root)
+  } else {
+    match environment("PANACKELTY_BOOTSTRAP_ROOT") {
+      Some(value) => path_string_resolve(value),
+      None() => path_string_parent(resolved)
+    }
   }
   stdlib_root: Str = match environment("PANACKELTY_STDLIB_PATH") {
     Some(value) => path_string_resolve(value),
@@ -559,11 +667,27 @@ load_project_mode_with_main(
       project_root,
       stdlib_root,
       bounded,
+      false,
+      "",
+      "",
+      "",
       false
     )
   }
   loaded: ProjectLoadState = if len(core.diagnostics) == 0 {
-    load_project_module(resolved, core, stack, project_root, stdlib_root, bounded, true)
+    load_project_module(
+      resolved,
+      core,
+      stack,
+      project_root,
+      stdlib_root,
+      bounded,
+      true,
+      package_root,
+      package_name,
+      package_version,
+      package_confined
+    )
   } else {
     core
   }
@@ -671,7 +795,17 @@ load_project_mode_with_main(
     effects_checked = len(checked.diagnostics) == 0 || (retain && checked.declarations_valid)
   } else {
     if retain && identity_ready {
-      entry_identity: ModuleIdentity = source_module_identity(resolved, project_root, stdlib_root)
+      entry_identity: ModuleIdentity = if package_confined {
+        source_package_module_identity(
+          resolved,
+          project_root,
+          stdlib_root,
+          package_name,
+          package_version
+        )
+      } else {
+        source_module_identity(resolved, project_root, stdlib_root)
+      }
       emitted: ModuleEmissionResult = module_emission_program(
         graph,
         loaded.modules,
@@ -709,6 +843,21 @@ load_project_mode_with_main(
 }
 
 // Build semantic edges only from the loader's normalized path decisions.
+pure loaded_identity_for_path(
+  path: Str,
+  modules: [LoadedModule],
+  project_root: Str,
+  stdlib_root: Str
+): ModuleIdentity {
+  mut identity: ModuleIdentity = source_module_identity(path, project_root, stdlib_root)
+  for module in modules {
+    if module.source_path == path {
+      identity = module.bindings.identity
+    }
+  }
+  identity
+}
+
 pub pure loaded_binding_graph(
   modules: [LoadedModule],
   project_root: Str,
@@ -732,7 +881,7 @@ pub pure loaded_binding_graph(
         ModuleImportEdge(
         module.bindings.identity,
         index,
-        source_module_identity(path, project_root, stdlib_root)
+        loaded_identity_for_path(path, modules, project_root, stdlib_root)
       )
       )
       index = index + 1

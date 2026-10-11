@@ -1,0 +1,76 @@
+import stdlib/environment::{environment_value}
+import stdlib/package_filesystem::{FilesystemRootRead, filesystem_read_beneath}
+import stdlib/path::{path_string_parent, path_string_resolve, path_value_from_text}
+import project/src/compiler/package_manifest::{PackageManifest, parse_package_manifest, package_manifest_byte_limit}
+import project/src/bytecode/decoder::{valid_utf8}
+
+// The first driver slice accepts explicit, dependency-free application roots.
+// Dependency graphs and manifest-only library checks remain later P3 work.
+pub record ManifestProject {
+  package_root: Str,
+  source_root: Str,
+  entry: Str,
+  package: Str,
+  version: Str
+}
+
+pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
+  resolved: Str = path_string_resolve(path)
+  package_root: Str = path_string_parent(resolved)
+  if resolved != package_root + "/panack.json" {
+    Error("project manifest must be named panack.json")
+  } else {
+    match path_value_from_text(package_root) {
+      Error(error) => Error("invalid package root path"),
+      Ok(root) => match path_value_from_text("panack.json") {
+        Error(error) => Error("invalid manifest path"),
+        Ok(relative) => match filesystem_read_beneath(root, relative, package_manifest_byte_limit()) {
+          Error(problem) => {
+            code: Str = problem.code
+            Error("cannot read project manifest (${code})")
+          },
+          Ok(read) => manifest_project_from_read(package_root, read)
+        }
+      }
+    }
+  }
+}
+
+manifest_project_from_read(package_root: Str, read: FilesystemRootRead): Result[ManifestProject, Str] {
+  if !valid_utf8(read.contents) {
+    Error("project manifest is not valid UTF-8")
+  } else {
+    toolchain: Str = environment_value("PANACKELTY_VERSION")
+    if toolchain == "" {
+      Error("running toolchain version is unavailable")
+    } else {
+      match parse_package_manifest(read.contents, toolchain) {
+        Error(error) => {
+          offset: Nat = error.offset
+          detail: Str = error.message
+          Error("invalid project manifest at byte ${offset}: ${detail}")
+        },
+        Ok(manifest) => manifest_project_from_manifest(package_root, manifest)
+      }
+    }
+  }
+}
+
+manifest_project_from_manifest(
+  package_root: Str,
+  manifest: PackageManifest
+): Result[ManifestProject, Str] {
+  if len(manifest.dependencies) > 0 {
+    Error("project manifest dependencies are not supported yet")
+  } else {
+    match manifest.entry {
+      None() => Error("library manifests without an entry are not supported yet"),
+      Some(entry) => {
+        source: Str = manifest.source
+        source_root: Str = path_string_resolve(package_root + "/" + source)
+        entry_path: Str = path_string_resolve(source_root + "/" + entry)
+        Ok(ManifestProject(package_root, source_root, entry_path, manifest.package, manifest.version))
+      }
+    }
+  }
+}

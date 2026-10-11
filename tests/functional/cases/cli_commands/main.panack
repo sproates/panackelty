@@ -481,21 +481,25 @@ main(): Void {
       match testing_process_run(path("/bin/sh"),
           ["tests/functional/cases/cli_commands/package_root_race.sh",
             race_compiler_path, toolchain_version, "src/stdlib"],
-          bytes_empty(), path_value_current(), [], duration_seconds(20), 4096) {
+          bytes_empty(), path_value_current(), [], duration_seconds(120), 4096) {
         Error(error) => {
+          race_error: Str = error.code
           results = results.append(test_expect(
             "package-root symlink replacement never mixes sources", false,
-            "race harness could not run"))
+            "race harness host error: ${race_error}"))
         },
         Ok(output) => {
           race_output: Str = text_decode_utf8(output.stdout)
+          race_error_output: Str = text_decode_utf8(output.stderr)
+          race_exit: Nat = output.exit_code
+          race_signal: Nat = output.signal
           results = results.append(test_expect(
             "package-root symlink replacement never mixes sources",
             output.exit_code == 0 && output.signal == 0 &&
               contains(race_output, "package root race passed (") &&
               contains(race_output, " identity changes,") &&
               output.stderr == bytes_empty(),
-            "loader mixed package roots, missed the replacement, or failed unexpectedly"))
+            "race process exit ${race_exit}, signal ${race_signal}; stdout: ${race_output}; stderr: ${race_error_output}"))
         }
       }
       graph_compiler: Str = environment_value("PANACK_TEST_COMPILER")

@@ -15,7 +15,7 @@ racer=
 cleanup() {
     rm -f "$running"
     if [ -n "$racer" ]; then
-        kill "$racer" 2>/dev/null || true
+        # Let an in-flight replacement finish before removing its directory.
         wait "$racer" 2>/dev/null || true
     fi
     rm -rf "$work"
@@ -24,6 +24,7 @@ trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 
 mkdir -p "$work/app-a/src" "$work/app-b/src"
+race_modules=64
 for root in "$work/app-a" "$work/app-b"; do
     cat > "$root/panack.json" <<MANIFEST
 {
@@ -47,8 +48,22 @@ cat > "$work/app-b/src/main.panack" <<'SOURCE'
 import project/value as value
 main(): Void { if value.answer() == 202 { print("app-b"); } else { print("MIXED"); } }
 SOURCE
-printf 'pub pure answer(): Nat { 101 }\n' > "$work/app-a/src/value.panack"
-printf 'pub pure answer(): Nat { 202 }\n' > "$work/app-b/src/value.panack"
+for root in "$work/app-a" "$work/app-b"; do
+    if [ "$root" = "$work/app-a" ]; then answer=101; else answer=202; fi
+    {
+        module=1
+        while [ "$module" -le "$race_modules" ]; do
+            printf 'import project/race_%s as race_%s\n' "$module" "$module"
+            module=$((module + 1))
+        done
+        printf 'pub pure answer(): Nat { %s }\n' "$answer"
+    } > "$root/src/value.panack"
+    module=1
+    while [ "$module" -le "$race_modules" ]; do
+        printf 'pub pure marker(): Nat { 1 }\n' > "$root/src/race_$module.panack"
+        module=$((module + 1))
+    done
+done
 
 platform=$(uname -s)
 replace_root() {

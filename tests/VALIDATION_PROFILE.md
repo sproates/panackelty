@@ -4955,3 +4955,44 @@ but the unmatched observations cannot establish that this slice changed total
 validation time. No compiler runtime behavior or website content changed. Keep
 GI#106's existing budgets and matched-profile follow-up; full P3 acceptance
 remains open.
+
+## P3 package-root race acceptance reliability — 2026-10-11
+
+The package-root replacement race assertion missed an identity change on the
+first Linux runtime-package attempt for both PR #382 and PR #383; each
+failed-jobs-only retry passed. The old fixture loaded only the entry and one
+value module per candidate tree, leaving a narrow interval in which a root
+replacement could be missed.
+
+The fixture now gives each candidate root 64 sibling source modules and imports
+them from `value.panack`. Each of its 40 CLI runs therefore loads a wider source
+closure while the app-root symlink is repeatedly replaced. It still requires a
+tree-specific successful result or a fail-closed root/read error; unexpected
+errors and mixed-tree output fail. The added modules keep the fixture well below
+the package's 256-file and 8 MiB limits and use small sources rather than large
+parse-boundary inputs.
+
+On the macOS arm64 development host, the direct race script passed 10 consecutive
+trials. Each observed 39–40 root-identity changes; one trial also had one
+fail-closed source-read error. No trial returned mixed-tree output. A direct run
+took 2.32s. The focused `cli_commands` runner passed all four checks in 14s.
+This is local macOS evidence only; the first exact-head Linux CI result for the
+new fixture is required before treating the change as validated across hosts.
+No compiler/runtime implementation or website content changed. Full P3 package
+acceptance remains open.
+
+The first exact-head Linux run passed the runtime package and source-conformance
+jobs, but bytecode conformance reported only that `cli_commands` exited with
+status 1; the outer runner omitted the nested race process's output. The race
+probe's process budget is now 120 seconds, matching the adjacent package graph
+and source-limit probes, and failures report the subprocess exit, signal,
+stdout, and stderr. This does not establish the cause of the first failure; a
+passing exact-head Linux bytecode result is still required.
+
+The follow-up run passed Linux bytecode conformance, then Linux source
+conformance reported that the race had completed with 40 identity changes but
+cleanup failed while the background replacer was still finishing an atomic
+rename (`rm: ... Directory not empty`). Cleanup now clears the run marker and
+waits for the replacer to finish before deleting its temporary tree. Ten
+consecutive local macOS arm64 trials passed after this change; the next exact
+Linux run must verify cleanup and the acceptance assertion together.

@@ -436,7 +436,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of the final acceptance delivery: PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 shared-library consumers, PR#377–#380 confinement and nested graphs, PR#382 graph conflicts/limits, PR#383 source bounds, PR#384 race-fixture reliability, and full sibling-tree relocation with two apps run from an unrelated working directory; P8 retains its separate clean-installed release gate | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of PR#386, the final acceptance delivery: PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 shared-library consumers, PR#377–#380 confinement and nested graphs, PR#382 graph conflicts/limits, PR#383 source bounds, PR#384 race-fixture reliability, and full sibling-tree relocation with two apps run from an unrelated working directory; P8 retains its separate clean-installed release gate | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -595,13 +595,13 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
-| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 100% on merge of final acceptance delivery; PR#372–#380, #382–#384 establish manifest, CLI, library, graph, confinement and race contracts; final acceptance moves the entire two-app/shared-library tree and verifies both consumers from an unrelated working directory through source and saved bytecode | 15 pp |
+| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 100% on merge of PR#386; PR#372–#380, #382–#384 establish manifest, CLI, library, graph, confinement and race contracts; final acceptance moves the entire two-app/shared-library tree and verifies both consumers from an unrelated working directory through source and saved bytecode | 15 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | 45% on merge of final P3 acceptance: P1 contributes 10 pp, P2 contributes 20 pp and P3 contributes 15 pp; P4–P8 remain planned | **45 pp; P1–P3 accepted** |
+| **Total** | **100%** | 45% on merge of PR#386 for final P3 acceptance: P1 contributes 10 pp, P2 contributes 20 pp and P3 contributes 15 pp; P4–P8 remain planned | **45 pp; P1–P3 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -639,7 +639,7 @@ bounded nested dependency graph resolution. PR#382 merged nested version/physica
 acceptance and rejection. PR#383 adds loader checks at the 256-file source-count,
 1 MiB per-source and 8 MiB source-closure boundaries, plus CLI oversized-source
 rejection. PR#384 hardens the root-replacement race fixture and passes its exact
-Linux/macOS pipeline. The final P3 acceptance delivery checks, runs and compiles
+Linux/macOS pipeline. PR#386 is the final P3 acceptance delivery; it checks, runs and compiles
 both applications from an unrelated working directory, moves their whole sibling
 workspace and shared library, then rechecks/runs both apps and executes bytecode
 compiled before the move. This closes the scoped local-package acceptance when
@@ -679,9 +679,10 @@ added exported-library checking; PR#376 added direct dependencies and two-app
 acceptance. Later P3 slices added manifest-root identity checks, escaped-export
 symlink rejection, loader-race acceptance, physical source-root overlap
 rejection, bounded nested graphs, exact graph/source limits and race-fixture
-reliability. The final P3 acceptance delivery moves and exercises the complete
-two-app/shared-library tree from an unrelated working directory; scoped package
-acceptance is Done on merge. P8's clean-installed release gate remains separate.
+reliability. PR#386 checks, runs and compiles both apps from outside the workspace, moves
+their full shared-library sibling tree, then repeats checks/source runs and
+executes bytecode compiled before the move. P3 acceptance is Done on merge of
+PR#386. P8's clean-installed release gate remains separate.
 P4–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
@@ -3546,7 +3547,7 @@ their separately selected implementation and migration deliveries.
 **RM#43: Reusable packages** · [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
 
 Work record: [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
-Current state: Done on merge of the final P3 acceptance delivery; the completion
+Current state: Done on merge of PR#386, the final P3 acceptance delivery; the completion
 summary takes effect when its exact-head checks pass and it merges.
 Confined package-root reads merged in PR#372; explicit manifest-root application
 `check`/`compile`/`run`, dependency-free package loading and relocation-stable
@@ -3560,7 +3561,7 @@ shared multi-file library, checks/runs/compiles both from an unrelated working
 directory, moves their complete sibling workspace, then rechecks/runs both and
 executes bytecode compiled before the move. It demonstrates relocation without
 copying the library sources and
-closes the scoped local-package acceptance when this delivery merges. P8 retains
+closes the scoped local-package acceptance when PR#386 merges. P8 retains
 the separate clean-installed release gate; this does not close the wider P1–P8
 modules programme.
 Website impact for this test-only slice: none; it adds internal regression

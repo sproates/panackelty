@@ -5006,7 +5006,7 @@ relocated-workspace case below is accepted.
 
 ## P3 relocated shared-package acceptance — 2026-10-12
 
-The new functional fixture creates two applications that consume one multi-file
+PR #386 adds a functional fixture with two applications that consume one multi-file
 library. It checks, runs and compiles both applications from a directory outside
 the package workspace, moves the entire sibling tree, then repeats checks and
 source runs and executes bytecode compiled before relocation. Both applications

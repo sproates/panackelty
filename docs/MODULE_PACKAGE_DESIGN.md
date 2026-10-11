@@ -13,7 +13,7 @@ selected deliveries. P1 design is complete. P2's checked namespace implementatio
 and coordinated migration merged in PR#358; alpha.12 promotion and release
 acceptance remain under RM#143.
 
-This final acceptance delivery, effective on merge, completes P3 local-package
+PR#386 is the final acceptance delivery, effective on merge, completing P3 local-package
 scope. PR#372 adds confined package-root reads. PR#374 wires strict manifests to
 explicit `check`, `compile` and `run --project` commands with relocation-stable
 module identity. PR#375 adds exported-library checking; PR#376 adds direct local

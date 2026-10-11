@@ -24,6 +24,7 @@ fs_create_directory
 fs_list
 fs_metadata
 fs_read
+fs_read_beneath
 fs_remove_directory
 fs_remove_file
 fs_temp_directory

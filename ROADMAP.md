@@ -420,7 +420,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Planned; not started | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; first package-root safety slice on `feature/local-package-root-safety`; P3 acceptance remains open | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -544,9 +544,11 @@ P2/P3/P4/P7 reuse RM#41/RM#43/RM#42/RM#44 respectively. This register supersedes
 their earlier Idea/unscheduled and assessment-only status: P2 slices 1–8 and the
 identity-only cutover are complete on `next` through merged PR#358. RM#149 and
 RM#150 are also complete on `next`; their alpha.12 evidence is recorded above.
-P3–P8 are Planned, not started. Their shared design is recorded in P1, with provisional
-implementation estimates above and detailed slices in the design. No public
-registry, separate compilation, web framework or new engine is required.
+P3 has started with a bounded package-root safety slice; no package manifest or
+loader acceptance is complete yet. P4–P8 remain Planned. Their shared design is
+recorded in P1, with provisional implementation estimates above and detailed
+slices in the design. No public registry, separate compilation, web framework
+or new engine is required.
 
 Provisional scope/effort baseline recorded on 2026-10-03 in
 [GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233):
@@ -555,13 +557,13 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | --- | ---: | ---: | ---: |
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
-| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% | 0 pp |
+| P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 0% formally accepted; first root-read slice is in progress | 0 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | 30% formally accepted: P1 contributes 10 pp and completed P2 contributes 20 pp; P3–P8 remain planned | **30 pp; P1 and P2 accepted** |
+| **Total** | **100%** | 30% formally accepted: P1 contributes 10 pp and completed P2 contributes 20 pp; P3 root-read slice is in progress but not accepted | **30 pp; P1 and P2 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -590,10 +592,10 @@ and slice 8 15%. With P2's 20% programme weight, it contributes 20 percentage
 points; P1's accepted 10 points bring the overall programme contribution to 30
 points. Namespace execution is implemented for the checked subset; alpha.12
 promotion and package/release verification remain under RM#143.
-P3–P8 remain Planned, not started. Namespace/compiler integration and HTTPS
-client correctness carry the largest shares; local packages and server lifecycle
-follow, with smaller shares for design, reproducibility, migration and final
-cross-task acceptance. These coarse estimates include each task's own tests/docs;
+P3 has begun with the package-root read prerequisite; P4–P8 remain Planned.
+Namespace/compiler integration and HTTPS client correctness carry the largest
+shares; local packages and server lifecycle follow, with smaller shares for
+design, reproducibility, migration and final cross-task acceptance. These coarse estimates include each task's own tests/docs;
 P8 covers the separate integration/release acceptance, without counting them twice.
 P1 records bounded protocol scope; transport/backend feasibility remains a P5
 prerequisite and may change its estimate. Keep this baseline stable until explicitly revised with its reason and effect on the total;
@@ -619,7 +621,7 @@ incomplete identity closures fail closed. The final delivery PR records this
 Done summary in PR#358; its exact-head checks passed before merge. GI#198's
 implementation criteria are complete; alpha.12 promotion and release checks are
 tracked separately in RM#143.
-P3–P8 have not started.
+P3's first package-root safety slice is underway; P4–P8 have not started.
 Website impact: no adoption update for this internal P2 slice; namespaces remain
 unavailable for execution and version-pinned examples remain accurate. The later
 namespace release checkpoint requires its own adoption follow-up.
@@ -3483,7 +3485,10 @@ their separately selected implementation and migration deliveries.
 **RM#43: Reusable packages** · [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
 
 Work record: [GI#199: Reusable packages](https://github.com/sproates/panackelty/issues/199).
-Current state: Planned as P3 in the [programme register](#rm-108).
+Current state: In progress as P3 in the [programme register](#rm-108); the first
+package-root safety slice is under implementation on
+`feature/local-package-root-safety`. This does not complete GI#199 or the package
+loader acceptance.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
 assessment-only scope below; production acceptance remains open.
 

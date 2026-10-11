@@ -1,6 +1,7 @@
 /* Direct contracts across the separately compiled VM modules.
  * Assertions stay enabled even when a release build supplies -DNDEBUG.
  */
+#include "platform.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -10,12 +11,16 @@
 #include "render.h"
 #include "utf8.h"
 #include "verify.h"
+#include "value.h"
 #include "vm.h"
 
 #include <assert.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 void resumable_contracts(void);
 void coverage_contracts(void);
@@ -317,7 +322,8 @@ static void host_builtins_reject_wrong_operand_types(void)
     struct HostCall {
         const char *name;
         size_t arity;
-    } calls[] = {{"fs_read", 2},
+    } calls[] = {{"fs_read_beneath", 3},
+                 {"fs_read", 2},
                  {"fs_write", 2},
                  {"fs_metadata", 1},
                  {"fs_list", 1},
@@ -333,13 +339,119 @@ static void host_builtins_reject_wrong_operand_types(void)
     Value *args[] = {wrong, wrong, wrong, wrong, wrong, wrong, wrong};
     for (size_t i = 0; i < sizeof(calls) / sizeof(*calls); i++) {
         const Builtin *entry = builtin(calls[i].name);
-        assert(entry && entry->arity == calls[i].arity);
+        assert(entry && entry->arity == calls[i].arity && !entry->pure);
         VM vm = {0};
         Value *result = builtin_call(&vm, calls[i].name, args);
         assert(!result && vm.error && strstr(vm.error, "VM trap:"));
         assert(wrong->refs == 1);
     }
     release(wrong);
+}
+
+static Value *rooted_read(const char *root, const char *relative)
+{
+    Value *arguments[] = {
+        value_data(V_PATH, (const uint8_t *)root, strlen(root)),
+        value_data(V_PATH, (const uint8_t *)relative, strlen(relative)),
+        value_size(1024),
+    };
+    assert(arguments[0] && arguments[1] && arguments[2]);
+    VM vm = {0};
+    Value *result = builtin_call(&vm, "fs_read_beneath", arguments);
+    assert(!vm.error);
+    for (size_t i = 0; i < 3; i++) {
+        release(arguments[i]);
+    }
+    return result;
+}
+
+static void write_test_file(const char *path, const char *contents)
+{
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    assert(fd >= 0);
+    size_t length = strlen(contents), written = 0;
+    while (written < length) {
+        ssize_t count = write(fd, contents + written, length - written);
+        assert(count > 0);
+        written += (size_t)count;
+    }
+    assert(close(fd) == 0);
+}
+
+static void filesystem_root_reads_stay_beneath_the_open_root(void)
+{
+    char base[] = "/tmp/panack-root-read-XXXXXX";
+    assert(mkdtemp(base));
+    char root[512], subdirectory[512], source[512], in_root_link[512];
+    char escape_link[512], nested_link[512], nested_escape[512], outside[512], root_alias[512];
+    assert(snprintf(root, sizeof(root), "%s/root", base) > 0);
+    assert(snprintf(subdirectory, sizeof(subdirectory), "%s/root/sub", base) > 0);
+    assert(snprintf(source, sizeof(source), "%s/root/sub/data", base) > 0);
+    assert(snprintf(in_root_link, sizeof(in_root_link), "%s/root/inside", base) > 0);
+    assert(snprintf(escape_link, sizeof(escape_link), "%s/root/escape", base) > 0);
+    assert(snprintf(nested_link, sizeof(nested_link), "%s/root/sub/relative", base) > 0);
+    assert(snprintf(nested_escape, sizeof(nested_escape), "%s/root/sub/escape", base) > 0);
+    assert(snprintf(outside, sizeof(outside), "%s/outside", base) > 0);
+    assert(snprintf(root_alias, sizeof(root_alias), "%s/alias", base) > 0);
+    assert(mkdir(root, 0700) == 0 && mkdir(subdirectory, 0700) == 0);
+    write_test_file(source, "inside");
+    write_test_file(outside, "secret");
+    assert(symlink("sub/data", in_root_link) == 0);
+    assert(symlink(outside, escape_link) == 0);
+    assert(symlink("../sub/data", nested_link) == 0);
+    assert(symlink("../../outside", nested_escape) == 0);
+    assert(symlink(root, root_alias) == 0);
+
+    Value *inside = rooted_read(root, "inside");
+    assert(inside && inside->kind == V_VARIANT && !strcmp(inside->as.named.name, "Ok"));
+    Value *read = inside->as.named.values[0];
+    assert(read && read->kind == V_RECORD &&
+           !strcmp(read->as.named.name, "FilesystemRootRead"));
+    Value *identity = read->as.named.values[0];
+    Value *contents = read->as.named.values[1];
+    assert(identity && identity->kind == V_RECORD &&
+           !strcmp(identity->as.named.name, "FilesystemRootIdentity"));
+    assert(contents && contents->kind == V_BYTES && contents->as.bytes.length == 6 &&
+           !memcmp(contents->as.bytes.data, "inside", 6));
+    retain(identity);
+    release(inside);
+
+    Value *alias_read = rooted_read(root_alias, "sub/data");
+    assert(alias_read && alias_read->kind == V_VARIANT &&
+           !strcmp(alias_read->as.named.name, "Ok"));
+    Value *alias_identity = alias_read->as.named.values[0]->as.named.values[0];
+    assert(value_equal(identity, alias_identity));
+    release(alias_read);
+
+    Value *escape = rooted_read(root, "escape");
+    assert(escape && escape->kind == V_VARIANT && !strcmp(escape->as.named.name, "Error"));
+    assert(!strcmp((char *)escape->as.named.values[0]->as.named.values[1]->as.bytes.data,
+                   "invalid_argument"));
+    release(escape);
+
+    Value *nested = rooted_read(root, "sub/relative");
+    assert(nested && nested->kind == V_VARIANT && !strcmp(nested->as.named.name, "Ok"));
+    assert(!memcmp(nested->as.named.values[0]->as.named.values[1]->as.bytes.data, "inside", 6));
+    release(nested);
+
+    Value *nested_escape_result = rooted_read(root, "sub/escape");
+    assert(nested_escape_result && nested_escape_result->kind == V_VARIANT &&
+           !strcmp(nested_escape_result->as.named.name, "Error"));
+    assert(!strcmp((char *)nested_escape_result->as.named.values[0]->as.named.values[1]->as.bytes.data,
+                   "invalid_argument"));
+    release(nested_escape_result);
+
+    Value *parent = rooted_read(root, "../outside");
+    assert(parent && parent->kind == V_VARIANT && !strcmp(parent->as.named.name, "Error"));
+    assert(!strcmp((char *)parent->as.named.values[0]->as.named.values[1]->as.bytes.data,
+                   "invalid_argument"));
+    release(parent);
+
+    release(identity);
+    assert(unlink(root_alias) == 0 && unlink(nested_escape) == 0 && unlink(nested_link) == 0);
+    assert(unlink(escape_link) == 0 && unlink(in_root_link) == 0);
+    assert(unlink(source) == 0 && unlink(outside) == 0);
+    assert(rmdir(subdirectory) == 0 && rmdir(root) == 0 && rmdir(base) == 0);
 }
 
 static void void_return_preserves_value_kind(void)
@@ -767,6 +879,7 @@ int main(int argc, char **argv)
     utf8_offsets_preserve_code_points();
     opaque_host_values_keep_distinct_kinds();
     host_builtins_reject_wrong_operand_types();
+    filesystem_root_reads_stay_beneath_the_open_root();
     void_return_preserves_value_kind();
     frames_release_arguments_on_return_and_trap();
     nested_calls_preserve_caller_ownership();

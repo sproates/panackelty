@@ -128,7 +128,7 @@ unit-harness: native
 	@$(PROFILE) probe/report_capture_unit $(PROBE) tests/runner/report_capture_unit.panack
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 
-unit-runtime: native native-module-build native-fault-build
+unit-runtime: native native-module-build native-fault-build $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes
 
 .PHONY: unit-runtime-native unit-runtime-probes
@@ -141,6 +141,7 @@ unit-runtime-probes:
 		tests/runner/host_runtime_unit.panack \
 		tests/runner/bytecode_unit.panack \
 		tests/runner/bytecode_native_unit.panack
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" $(PROFILE) probe/package_filesystem_unit $(PROBE) tests/runner/package_filesystem_unit.panack
 
 unit-compiler: native $(STAGE2_COMPILER)
 	@$(MAKE) --no-print-directory native-oracle-artifacts

@@ -573,6 +573,48 @@ main(): Void {
       results = results.append(test_expect("oversized package source fails closed through CLI",
         contains(source_limit_output, "PASS oversized package source fails closed through CLI"),
         "the package CLI accepted a source file larger than 1 MiB"))
+
+      relocation_compiler: Str = environment_value("PANACK_TEST_COMPILER")
+      relocation_compiler_path: Str = if relocation_compiler == "" {
+        "build/bootstrap/stage2/compiler.bc"
+      } else { relocation_compiler }
+      mut relocation_output: Str = ""
+      match testing_process_run(path("/bin/sh"),
+          ["tests/functional/cases/cli_commands/package_relocation.sh",
+            relocation_compiler_path, toolchain_version, "src/stdlib"],
+          bytes_empty(), path_value_current(), [], duration_seconds(120), 4096) {
+        Error(error) => {
+          results = results.append(test_expect(
+            "relocated shared package acceptance fixture runs", false,
+            "package relocation fixture could not run: ${error.code}"))
+        },
+        Ok(output) => {
+          relocation_output = text_decode_utf8(output.stdout)
+          results = results.append(test_expect(
+            "relocated shared package acceptance fixture runs",
+            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty(),
+            "package relocation fixture failed: ${text_decode_utf8(output.stderr)}"))
+        }
+      }
+      results = results.append(test_expect("relocated app one checks from unrelated cwd",
+        contains(relocation_output, "PASS app-one check after relocation from unrelated cwd"),
+        "app one did not check from outside the relocated workspace"))
+      results = results.append(test_expect("relocated app one runs source from unrelated cwd",
+        contains(relocation_output, "PASS app-one source run after relocation from unrelated cwd"),
+        "app one did not run source from outside the relocated workspace"))
+      results = results.append(test_expect("relocated app one bytecode runs from unrelated cwd",
+        contains(relocation_output, "PASS app-one saved bytecode after relocation from unrelated cwd"),
+        "app one bytecode did not run from outside the relocated workspace"))
+      results = results.append(test_expect("relocated app two checks from unrelated cwd",
+        contains(relocation_output, "PASS app-two check after relocation from unrelated cwd"),
+        "app two did not check from outside the relocated workspace"))
+      results = results.append(test_expect("relocated app two runs source from unrelated cwd",
+        contains(relocation_output, "PASS app-two source run after relocation from unrelated cwd"),
+        "app two did not run source from outside the relocated workspace"))
+      results = results.append(test_expect("relocated app two bytecode runs from unrelated cwd",
+        contains(relocation_output, "PASS app-two saved bytecode after relocation from unrelated cwd"),
+        "app two bytecode did not run from outside the relocated workspace"))
+
       results = results.append(test_run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(

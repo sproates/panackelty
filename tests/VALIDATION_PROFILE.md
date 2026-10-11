@@ -4996,3 +4996,33 @@ rename (`rm: ... Directory not empty`). Cleanup now clears the run marker and
 waits for the replacer to finish before deleting its temporary tree. Ten
 consecutive local macOS arm64 trials passed after this change; the next exact
 Linux run must verify cleanup and the acceptance assertion together.
+
+The final exact-head run for PR #384 (GitHub Actions run `38178717680`, head
+`70647bf`) passed the required Linux and macOS source/bytecode conformance,
+package, full-validation and sanitizer jobs. The failed-job-only source and
+bytecode results are no longer pending. This validates the race fixture and its
+cleanup on both CI platforms; full P3 acceptance remains open until the integrated
+relocated-workspace case below is accepted.
+
+## P3 relocated shared-package acceptance — 2026-10-12
+
+PR #386 adds a functional fixture with two applications that consume one multi-file
+library. It checks, runs and compiles both applications from a directory outside
+the package workspace, moves the entire sibling tree, then repeats checks and
+source runs and executes bytecode compiled before relocation. Both applications
+still use the one shared library after the move. This exercises relative manifest
+paths, package identity and saved-bytecode execution independently of the current
+working directory.
+
+The direct fixture passed all 12 check/run/compile/bytecode operations on the
+macOS arm64 development host in 0.6s. The focused `cli_commands` functional
+runner passed all four checks. The canonical `make check` passed on macOS arm64
+in 424s: unit 238s, bootstrap 142s, functional 13s, release smoke 4s and quick
+start under 1s. The 120s full, 15s focused-unit and 60s bootstrap budgets remain
+exceeded; the 75s functional and 15s release/quick-start budgets were met. This
+reused-build observation is 21s slower than the preceding 403s P3 run, but the
+single unmatched samples cannot attribute that difference. No compiler/runtime
+implementation changed; the direct fixture itself took 0.6s. Exact-head
+Linux/macOS CI for this final acceptance delivery is pending. Website impact:
+none; this is an internal acceptance test and makes no shipped behavior or
+website claim.

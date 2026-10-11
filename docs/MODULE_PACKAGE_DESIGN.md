@@ -5,40 +5,26 @@ and [GI#234: Module and package design](https://github.com/sproates/panackelty/i
 within [RM#108: Modules programme](../ROADMAP.md#rm-108).
 
 This document records the P1 design accepted in PR#240 and the follow-on programme
-decisions. Its tables remain design contracts rather than general feature evidence;
-the current P3 implementation slice is described below. Most syntax, package
-features and HTTP APIs remain proposed and are not available in the current release.
-[SPEC.md](../SPEC.md) remains the current language contract. Implementation,
-release and website adoption require their own selected deliveries. P1 closes
-only the design investigation. P2 is in progress with fail-closed raw qualified
-syntax, cross-module binding resolution and checked declaration/signature
-identities built on its merged module foundation. The checked-signature slice
-merged in PR#275 as `0bcf092`. The next proposed P2 delivery retains identity-bound
-function bodies in the loader and checks annotated locals, direct call contracts,
-explicit generic substitution and returns against the same tagged signatures.
-Unknown inference/proofs remain explicitly deferred; effect checking, emission,
-tooling and coordinated migration remain pending. This intermediate slice does
-not enable namespaces or complete P2.
-P3 has started with the confined package-root read prerequisite merged in PR#372.
-PR#374 wires strict manifest parsing to explicit `check`, `compile` and `run
---project panack.json` commands for dependency-free applications, with confined
-source reads and relocation-stable module identity. PR#375 adds exported
-library checking. PR#376 adds direct local library dependencies, export-only
-package imports and two-app shared-library acceptance. The current confinement
-slice checks every package source read against the physical root captured from
-its manifest, rejects exported-source symlinks that escape that root, and checks
-the package loader while an application-root symlink is atomically replaced
-between two valid trees. Successful runs must use a coherent tree; changed root
-identity is rejected. Direct application and dependency source roots are also
-checked for physical ancestry, including directory symlink aliases, so distinct
-packages cannot claim overlapping source trees. The current nested-graph slice
-resolves each package's direct aliases in that package's own scope, deduplicates
-repeated physical packages, rejects cycles and identity/root conflicts, and
-bounds traversal to 64 package manifests, 256 dependency edges and 32 package
-levels. Full package-loader acceptance remains open. P4–P8 remain planned.
-The [programme register](../ROADMAP.md#rm-108)
-owns current implementation and acceptance status.
+decisions. Its tables remain design contracts rather than general feature evidence.
+Most HTTP APIs and reproducible-package features remain proposed and are not
+available in the current release. [SPEC.md](../SPEC.md) remains the current
+language contract. Implementation, release and website adoption require their own
+selected deliveries. P1 design is complete. P2's checked namespace implementation
+and coordinated migration merged in PR#358; alpha.12 promotion and release
+acceptance remain under RM#143.
 
+PR#386 is the final acceptance delivery, effective on merge, completing P3 local-package
+scope. PR#372 adds confined package-root reads. PR#374 wires strict manifests to
+explicit `check`, `compile` and `run --project` commands with relocation-stable
+module identity. PR#375 adds exported-library checking; PR#376 adds direct local
+library dependencies and two-app acceptance; PR#377–#382 establish physical-root
+identity, overlap rejection, bounded graph resolution, conflict rejection and
+exact graph limits; PR#383 covers source-count and byte boundaries; PR#384 makes
+the root-replacement race acceptance reliable. The final integration fixture checks, runs and compiles two applications from an
+unrelated working directory, moves their complete sibling tree and shared
+multi-file library, then rechecks/runs both and executes bytecode compiled before
+the move. P4–P8
+remain planned.
 ## Current implementation audit
 
 Audit baseline: core revision `b32267e` (2026-10-03). The table records the
@@ -523,7 +509,9 @@ transport contract and installed release support must be tested together.
 
 ## Positive and negative acceptance plan
 
-These are required future tests, not tests added or claimed passing in this PR.
+This matrix records intended positive and negative evidence across P2–P7; it is
+not a claim that every row is complete. P3's scoped local-package acceptance is
+summarized above. HTTP, ownership and P7 reproducibility rows remain future work.
 Use focused frontend/host tests and complete programs through `panack`; compare
 source and bytecode results, bootstrap stages and packaged/relocated toolchains.
 

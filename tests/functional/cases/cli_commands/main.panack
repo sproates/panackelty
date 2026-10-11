@@ -498,6 +498,52 @@ main(): Void {
             "loader mixed package roots, missed the replacement, or failed unexpectedly"))
         }
       }
+      graph_compiler: Str = environment_value("PANACK_TEST_COMPILER")
+      graph_compiler_path: Str = if graph_compiler == "" {
+        "build/bootstrap/stage2/compiler.bc"
+      } else { graph_compiler }
+      mut graph_output: Str = ""
+      match testing_process_run(path("/bin/sh"),
+          ["tests/functional/cases/cli_commands/package_graph_limits.sh",
+            graph_compiler_path, toolchain_version, "src/stdlib"],
+          bytes_empty(), path_value_current(), [], duration_seconds(120), 4096) {
+        Error(error) => {
+          results = results.append(test_expect(
+            "nested package graph boundary fixture runs", false,
+            "graph boundary fixture could not run"))
+        },
+        Ok(output) => {
+          graph_output = text_decode_utf8(output.stdout)
+          results = results.append(test_expect(
+            "nested package graph boundary fixture runs",
+            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty(),
+            "graph boundary fixture did not complete successfully"))
+        }
+      }
+      results = results.append(test_expect("nested package version conflicts are rejected",
+        contains(graph_output, "PASS nested version conflict"),
+        "a nested package version conflict was accepted"))
+      results = results.append(test_expect("nested package identity conflicts are rejected",
+        contains(graph_output, "PASS nested package identity resolves to multiple roots"),
+        "one nested package identity resolved to multiple roots"))
+      results = results.append(test_expect("64 package manifests are accepted",
+        contains(graph_output, "PASS 64 package manifests accepted"),
+        "the documented package manifest limit rejected its boundary"))
+      results = results.append(test_expect("65 package manifests are rejected",
+        contains(graph_output, "PASS 65 package manifests rejected"),
+        "the package manifest limit accepted an oversized graph"))
+      results = results.append(test_expect("256 dependency edges are accepted",
+        contains(graph_output, "PASS 256 dependency edges accepted"),
+        "the documented dependency edge limit rejected its boundary"))
+      results = results.append(test_expect("257 dependency edges are rejected",
+        contains(graph_output, "PASS 257 dependency edges rejected"),
+        "the dependency edge limit accepted an oversized graph"))
+      results = results.append(test_expect("32 package levels are accepted",
+        contains(graph_output, "PASS 32 package levels accepted"),
+        "the documented package depth limit rejected its boundary"))
+      results = results.append(test_expect("33 package levels are rejected",
+        contains(graph_output, "PASS 33 package levels rejected"),
+        "the package depth limit accepted an oversized graph"))
       results = results.append(test_run_command("manifest-only library compile requires an entry",
         source_compiler_command(["compile", "--project", library_manifest_text, "-o", bytecode_text], toolchain_version),
         ProcessOutput(1, 0, bytes_empty(), text_encode_utf8(

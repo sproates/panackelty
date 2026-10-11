@@ -420,7 +420,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, and PR#378 replacement-race acceptance are merged; current slice rejects overlapping physical source roots across the application and distinct direct dependencies; nested graphs and full acceptance remain | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | In progress; PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 direct dependencies/two-app acceptance, PR#377 physical package-root checks, and PR#378 replacement-race acceptance are merged; PR#379 adds physical source-root overlap rejection across the application and distinct direct dependencies; nested graphs and full acceptance remain | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
@@ -3518,11 +3518,11 @@ export-only imports and two-app acceptance. The current delivery verifies
 manifest-root identity on package source reads, rejects exported symlinks that
 escape the package, and tests the loader during atomic replacement of an
 application-root symlink between two valid trees. Successful runs must use one
-coherent tree; a changed or temporarily unavailable root fails closed. The
-current slice compares direct application/dependency and distinct dependency
-source roots by physical directory ancestry, including symlink aliases, and
-rejects overlap before compilation. Nested dependency graphs and full package
-acceptance remain open, so this does not complete GI#199.
+coherent tree; a changed or temporarily unavailable root fails closed. PR#379
+compares direct application/dependency and distinct dependency source roots by
+physical directory ancestry, including symlink aliases, and rejects overlap
+before compilation. Nested dependency graphs and full package acceptance remain
+open, so this does not complete GI#199.
 Website impact remains none until the work is released and documented for users.
 The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
 assessment-only scope below; production acceptance remains open.

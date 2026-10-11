@@ -19,6 +19,9 @@ conditional and callback indexes. A Unicode prefix establishes code-point rather
 than UTF-8 offsets. Binding initialisers and earlier indexes retain their own
 range instead of borrowing a later tail expression. Source execution and saved
 bytecode produce the same trap, and mapped artifacts match ordinary compilation.
+Runtime trap identities are checked in their emitted module-qualified form;
+`locate` is queried with the corresponding source-level function name. The
+imported fixture uses the public `project/lib` namespace route.
 
 The test constructs malformed maps and coherent lies about instruction indices,
 source indices, paths, ranges, line/column coordinates, lowering flags and counts.

@@ -17,7 +17,10 @@ cleanup() {
     status=$?
     trap - 0
     if [ "$status" -ne 0 ]; then
-        echo "oracle contracts failed during $phase" >&2
+        echo "oracle contracts failed during $phase (exit $status)" >&2
+        case "$phase" in
+            running\ *) if [ -s "$temporary/output" ]; then cat "$temporary/output" >&2; fi ;;
+        esac
         if [ -s "$temporary/errors" ]; then cat "$temporary/errors" >&2; fi
     fi
     rm -rf "$temporary"
@@ -30,7 +33,14 @@ fail() { echo "oracle contracts: $*" >&2; exit 1; }
 
 compile() {
     phase="compiling $1"
-    sh tests/profile_command.sh "oracle/compile/$1" "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
+    case "$1" in
+        tests/functional/cases/compiler_skeleton/main.panack|tests/functional/cases/compiler_lexer/main.panack|tests/functional/cases/runner_smoke/main.panack)
+            env PANACKELTY_BOOTSTRAP_ROOT="$PWD" sh tests/profile_command.sh "oracle/compile/$1" "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
+            ;;
+        *)
+            sh tests/profile_command.sh "oracle/compile/$1" "$vm" run "$seed" compile "$1" -o "$temporary/program.bc" > "$temporary/compile" 2> "$temporary/errors"
+            ;;
+    esac
     test ! -s "$temporary/errors" || fail "compile stderr: $1"
     printf 'wrote %s\n' "$temporary/program.bc" > "$temporary/expected-compile"
     cmp "$temporary/expected-compile" "$temporary/compile"

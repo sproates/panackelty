@@ -7,7 +7,10 @@ const {performance}=require('node:perf_hooks');
 const observer=path.resolve(process.argv[2]);
 const work=fs.mkdtempSync(path.join(os.tmpdir(),'panack-source-map-'));
 const corpus=path.join(work,'sources');
+const project=path.join(corpus,'project');
 fs.cpSync(path.join(__dirname,'fixtures'),corpus,{recursive:true});
+fs.mkdirSync(path.join(project,'lib'),{recursive:true});
+fs.copyFileSync(path.join(__dirname,'fixtures','lib','pick.panack'),path.join(project,'lib','pick.panack'));
 let assertions=0, serial=0;
 function check(value,message){assert(value,message);assertions++;}
 function command(program,args,expected=0,env=process.env){
@@ -57,7 +60,7 @@ const measurements=[];
 try {
   const cases=[['callback','select','callback.panack',33,43,2,3,'[7][index]'],
     ['local','pick','local.panack',45,57,2],
-    ['imported','imported_pick','lib/pick.panack',54,66,2],
+    ['imported','imported_pick','lib/pick.panack',58,70,2],
     ['generic','pick_generic','generic.panack',134,146,3],
     ['nested','nested','nested.panack',63,84,2,4,'items[indices[index]]'],
     ['conditional','conditional','conditional.panack',52,93,2,8,'items[if index == 0 { 0 } else { index }]']];
@@ -69,8 +72,11 @@ try {
     check(error.includes('VM trap: index is out of bounds'),'public source execution trap retained');
     check(command('./panack',['run',built.artifact],1).stderr===error,'source and artifact failure agree');
     const point=trap(built.artifact);
-    check(point.function===fn && point.pc===pc,'actual function and instruction');
-    expectLocation(built,point,file,start,end,line,3,expression);
+    const runtimeFunction=`$module1_${fn}`;
+    check(point.function===runtimeFunction && point.pc===pc,
+      `actual function and instruction: ${point.function}/${point.pc}`);
+    const mappedPoint={...point,function:fn};
+    expectLocation(built,mappedPoint,file,start,end,line,3,expression);
     check(!built.map.includes(Buffer.from(process.cwd())) && !built.map.includes(Buffer.from(work)),'portable metadata identifiers');
     const repeated=compile(name);
     check(built.bytes.equals(repeated.bytes) && built.map.equals(repeated.map),'deterministic pair');
@@ -78,10 +84,10 @@ try {
     fs.writeFileSync(extension,Buffer.concat([built.bytes,built.map]));
     command('./panack',['check',extension],1);assertions++;
     measurements.push({name,bytecode_bytes:built.bytes.length,sidecar_bytes:built.map.length,compile_ms:built.milliseconds});
-    if(name==='local') baseline={...built,point};
+    if(name==='local') baseline={...built,point:mappedPoint};
   }
   const b=baseline, unavailable=(built=b,point=b.point)=>check(locate(built,point)==='source-map: unavailable\n','unavailable, never guessed');
-  const shape=layout(b.map), pick=shape.functions.find(f=>f.name.text==='pick'), entry=pick.entries[2];
+  const shape=layout(b.map), pick=shape.functions.find(f=>f.name.text==='$module1_pick'), entry=pick.entries[2];
   const damaged=path.join(work,'damaged.pmap');
   const reject=raw=>{fs.writeFileSync(damaged,raw);unavailable({...b,sidecar:damaged});};
   for(const raw of [Buffer.alloc(0),Buffer.from('{'),Buffer.from('null'),Buffer.from('[]'),Buffer.from([255]),
@@ -121,7 +127,7 @@ try {
   fs.unlinkSync(b.file);fs.renameSync(b.file+'.away',b.file);
   // Unloaded files no longer belong to the source closure; transitive loaded
   // dependencies are tested in the canonical self-hosted CLI suite.
-  const unrelated=path.join(corpus,'unrelated.panack');fs.writeFileSync(unrelated,'broken syntax');
+  const unrelated=path.join(project,'unrelated.panack');fs.writeFileSync(unrelated,'broken syntax');
   expectLocation(b,b.point,'local.panack',45,57,2,3,'items[index]');fs.unlinkSync(unrelated);
   const relocated=path.join(work,'relocated');fs.cpSync(corpus,relocated,{recursive:true});
   const moved=compile('local','map',relocated);
@@ -130,7 +136,7 @@ try {
   const nestedFile=path.join(corpus,'nested.panack'),nested=fs.readFileSync(nestedFile);
   fs.writeFileSync(nestedFile,nested.toString().replace('nested([7], [2], 0)','nested([7], [2], 2)'));
   const inner=compile('nested'),innerPoint=trap(inner.artifact);
-  check(innerPoint.pc===3 && locate(inner,innerPoint).includes('expression: indices[index]\n'),'inner trap retains smallest expression');
+  check(innerPoint.pc===3 && locate(inner,{...innerPoint,function:'nested'}).includes('expression: indices[index]\n'),'inner trap retains smallest expression');
   fs.writeFileSync(nestedFile,nested);
   fs.writeFileSync(b.file,original.toString().replace('pick([7], 2)','pick([7], 0)'));
   const good=compile('local');command('./panack',['run',good.artifact]);
@@ -139,11 +145,14 @@ try {
   fs.writeFileSync(b.file,original);
   for(const tail of ['value','items[index]']) {
     fs.writeFileSync(path.join(corpus,'earlier.panack'),`pure other(items: [Nat], index: Nat): Nat { value: Nat = items[index]; ${tail} }\nmain(): Void { value: Nat = other([7], 2); }\n`);
-    const earlier=compile('earlier');check(locate(earlier,trap(earlier.artifact)).includes('range: 57..69\n'),'binding trap uses own range, never later tail');
+    const earlier=compile('earlier');
+    const earlierPoint={...trap(earlier.artifact),function:'other'};
+    check(locate(earlier,earlierPoint).includes('range: 57..69\n'),'binding trap uses own range, never later tail');
   }
   fs.writeFileSync(b.file,original.toString().replace('pure pick','pure aaa(): Nat { 1 }\npure pick'));
   const shifted=compile('local'),point=trap(shifted.artifact);
-  check(point.function==='pick' && point.pc===2 && locate(shifted,point).includes('expression: items[index]\n'),'function identity survives table reorder');
+  const shiftedMapPoint={...point,function:'pick'};
+  check(point.function==='$module1_pick' && point.pc===2 && locate(shifted,shiftedMapPoint).includes('expression: items[index]\n'),'function identity survives table reorder');
   unavailable();fs.writeFileSync(b.file,original);
   // No automatic execution: a lookup of a trapping program succeeds above.
   // Reproducible core snapshot is required, including unused declarations.

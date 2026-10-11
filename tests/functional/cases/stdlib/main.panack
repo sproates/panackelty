@@ -1,4 +1,8 @@
-import stdlib/prelude
+import stdlib/bytes::{bytes_length, bytes_push, text_encode_utf8, text_decode_utf8}
+import stdlib/path::{path_string_suffix}
+import stdlib/environment::{environment}
+import stdlib/text::{text_reverse}
+import stdlib/prelude::{option_value_or, result_value_or}
 
 pure describe_option(value: Option[Str]): Str {
   match value {
@@ -15,11 +19,13 @@ pure describe_result(value: Result[Nat,Str]): Str {
 }
 
 main(): Void {
+  print(option_value_or(Some("ready"), "none"))
+  print(result_value_or[Nat,Str](Ok(42), 0))
   print(describe_option(Some("ready")))
   print(describe_result(Ok(42)))
   print("Panackelty".len())
   print("portable".slice(0, 4))
-  print("Aλ🙂".reverse())
+  print(text_reverse("Aλ🙂"))
   encoded: Bytes = text_encode_utf8("λ")
   print(bytes_length(encoded))
   print(text_decode_utf8(bytes_push(encoded, 33)))
@@ -27,6 +33,6 @@ main(): Void {
   mut names: Set[Str] = set()
   names = set_add(names, "stdlib")
   print(set_has(names, "stdlib"))
-  print(path_suffix("archive.tar"))
+  print(path_string_suffix("archive.tar"))
   print(describe_option(environment("PANACKELTY_STDLIB_VALUE")))
 }

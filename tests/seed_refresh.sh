@@ -51,7 +51,7 @@ if [ "${1:-}" = --native ]; then
     done
     if command -v sha256sum >/dev/null 2>&1; then utility=sha256sum; else utility=shasum; fi
     ln -s "$(command -v "$utility")" "$work/bin/$utility"
-    PATH="$work/bin" sh "$script" "$root/panack-vm" "$seed" "$manifest" src/compiler/main.panack tests/functional/cases/stdlib/main.panack
+    PATH="$work/bin" sh "$script" "$root/panack-vm" "$seed" "$manifest" compiler.panack tests/functional/cases/stdlib/main.panack
     test "$(hash "$seed")  compiler-v9.bc" = "$(cat "$manifest")"
     test ! -e "$seed.refresh-lock"
     echo 'seed refresh: native staging passed with a Python-free PATH'

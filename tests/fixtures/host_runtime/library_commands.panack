@@ -1,4 +1,5 @@
-import stdlib/testing_commands
+import stdlib/testing_commands::{ProcessOutput, HostError, test_command_output, test_command_result}
+import stdlib/testing::{test_report}
 main(): Void {
   expected = ProcessOutput(0, 0, utf8_encode("out"), utf8_encode("err"))
   print(test_report([

@@ -1,0 +1,653 @@
+import stdlib/numeric::{nat_quotient}
+import stdlib/path::{path_string_parent, path_string_resolve}
+import stdlib/environment::{environment_value}
+import stdlib/bytes::{bytes_length, bytes_at, text_encode_utf8}
+pub import project/src/compiler/loader::{LoadedProject, LoadedModule, ModuleBindingGraph}
+import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
+import project/src/compiler/project_frontend::{prepare_project_program}
+pub import project/src/compiler/module_bindings::{DeclarationIdentity, ModuleIdentity}
+import project/src/compiler/module_bindings::{source_module_identity}
+import project/src/compiler/module_emission::{module_emission_symbol}
+pub import project/src/compiler/parser::{TopLevel}
+import project/src/compiler/parser::{TopLevel.FunctionDeclaration, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration}
+pub import project/src/compiler/types::{Diagnostic}
+pub import project/src/compiler/types::{SourceSpan}
+import project/src/compiler/source_inventory::{InventoryItem, inventory_module, serialize_source_inventory}
+import project/src/compiler/source_maps::{source_map_join, source_map_matches, source_map_read, source_map_escape, source_map_blob, source_snapshots, source_snapshots_unchanged}
+pub import project/src/compiler/emitter::{BytecodeProgram, FunctionCode, Instruction, Instruction.ConstInstruction, Instruction.LoadInstruction, Instruction.StoreInstruction, Instruction.PopInstruction, Instruction.UnaryInstruction, Instruction.BinaryInstruction, Instruction.MakeRangeInstruction, Instruction.MakeArrayInstruction, Instruction.IndexGetInstruction, Instruction.InterpolateInstruction, Instruction.IterInitInstruction, Instruction.IterNextInstruction, Instruction.MakeRecordInstruction, Instruction.FieldGetInstruction, Instruction.MakeVariantInstruction, Instruction.MatchVariantInstruction, Instruction.MatchFailInstruction, Instruction.CallInstruction, Instruction.CallValueInstruction, Instruction.AwaitCallInstruction, Instruction.AwaitValueInstruction, Instruction.JumpFalseInstruction, Instruction.JumpInstruction, Instruction.PendingEndJumpInstruction, Instruction.ReturnInstruction, EmissionProbe, SourceMappedProgram, compile_program_with_sources}
+import project/src/bytecode/codec::{serialize_bytecode, encode_u32, sort_functions}
+
+pub pure coverage_mapped_project(
+  project: LoadedProject,
+  entry: Str,
+  project_root: Str,
+  stdlib_root: Str
+): Result[SourceMappedProgram, [Diagnostic]] {
+  identity: ModuleIdentity = source_module_identity(entry, project_root, stdlib_root)
+  match prepare_project_program(project, project_root, stdlib_root, identity) {
+    Error(diagnostics) => Error(diagnostics),
+    Ok(program) => Ok(compile_program_with_sources(program))
+  }
+}
+
+// Decode bounded execution records and join them to exact source inventory IDs.
+// A missing association stays unavailable rather than becoming inferred coverage.
+
+pub record CoverageCell {
+  attempted: Nat,
+  completed: Nat,
+  fallthrough: Nat,
+  branched: Nat
+}
+
+pub record CoverageFunction {
+  entries: Nat,
+  cells: [CoverageCell]
+}
+
+pub record CoverageData {
+  valid: Bool,
+  terminal: Nat,
+  functions: [CoverageFunction]
+}
+
+pub pure coverage_number(data: Bytes, offset: Nat, width: Nat): Nat {
+  mut value: Nat = 0
+
+  for index in 0..width {
+    value = value * 256 + bytes_at(data, offset + index)
+  }
+  value
+}
+
+pub pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
+  mut valid: Bool = offset + bytes_length(expected) <= bytes_length(data)
+
+  if valid {
+    for index in 0..bytes_length(expected) {
+      valid = valid && bytes_at(data, offset + index) == bytes_at(expected, index)
+    }
+  }
+
+  valid
+}
+
+// Layout is derived solely from locally compiled code; no foreign sizes or paths
+// are trusted. Exact artifact + inventory bytes bind observations to SC2 IDs.
+pub pure decode_coverage(
+  data: Bytes,
+  artifact: Bytes,
+  inventory: Bytes,
+  program: BytecodeProgram
+): CoverageData {
+  decode_coverage_at(data, artifact, inventory, program, 0)
+}
+
+pub pure decode_coverage_at(
+  data: Bytes,
+  artifact: Bytes,
+  inventory: Bytes,
+  program: BytecodeProgram,
+  offset: Nat
+): CoverageData {
+  prefix: Bytes = source_map_join([text_encode_utf8("PANACKCOV1\n"), source_map_blob(artifact),
+    source_map_blob(inventory), encode_u32(len(program.functions))], 0, 4)
+  mut size: Nat = bytes_length(prefix) + 6
+
+  for function in sort_functions(program.functions) {
+    size = size + 12 + len(function.instructions) * 32
+  }
+  mut valid: Bool = size <= 16777216 && bytes_length(data) == size + offset && coverage_prefix(
+    data,
+    prefix,
+    offset
+  )
+  mut functions: [CoverageFunction] = []
+  mut terminal: Nat = 0
+  if valid {
+    mut cursor: Nat = offset + bytes_length(prefix)
+    for function in sort_functions(program.functions) {
+      entries: Nat = coverage_number(data, cursor, 8)
+      valid = valid && coverage_number(data, cursor + 8, 4) == len(function.instructions)
+      cursor = cursor + 12
+      mut cells: [CoverageCell] = []
+      for instruction in function.instructions {
+        cell: CoverageCell = CoverageCell(
+          coverage_number(data, cursor, 8),
+          coverage_number(data, cursor + 8, 8),
+          coverage_number(data, cursor + 16, 8), coverage_number(data, cursor + 24, 8))
+        valid = valid && cell.completed <= cell.attempted
+        edge: CoverageEdge = coverage_edge(instruction, 0)
+        if edge.conditional {
+          valid = valid && cell.fallthrough + cell.branched == cell.completed
+        } else {
+          valid = valid && cell.fallthrough == 0 && cell.branched == 0
+        }
+        cells = append(cells, cell)
+        cursor = cursor + 32
+      }
+      functions = append(functions, CoverageFunction(entries, cells))
+    }
+    terminal = bytes_at(data, cursor + 4)
+    valid = valid && coverage_prefix(data, text_encode_utf8("END\n"), cursor) &&
+      (terminal == 1 || terminal == 2 || terminal == 3) && bytes_at(data, cursor + 5) == 0
+  }
+  CoverageData(valid, terminal, functions)
+}
+
+pub record CoverageEdge {
+  conditional: Bool,
+  target: Nat,
+  falls: Bool
+}
+
+pub pure coverage_edge(instruction: Instruction, pc: Nat): CoverageEdge {
+  match instruction {
+    ConstInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    LoadInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    StoreInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    PopInstruction() => CoverageEdge(false, pc + 1, true),
+    UnaryInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    BinaryInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    MakeRangeInstruction() => CoverageEdge(false, pc + 1, true),
+    MakeArrayInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    IndexGetInstruction() => CoverageEdge(false, pc + 1, true),
+    InterpolateInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    IterInitInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    IterNextInstruction(a0, a1, a2) => CoverageEdge(true, a2, true),
+    MakeRecordInstruction(a0, a1) => CoverageEdge(false, pc + 1, true),
+    FieldGetInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    MakeVariantInstruction(a0, a1, a2) => CoverageEdge(false, pc + 1, true),
+    MatchVariantInstruction(a0, a1) => CoverageEdge(true, a1, true),
+    MatchFailInstruction() => CoverageEdge(false, pc, false),
+    CallInstruction(a0, a1) => CoverageEdge(false, pc + 1, true),
+    CallValueInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    AwaitCallInstruction(a0, a1) => CoverageEdge(false, pc + 1, true),
+    AwaitValueInstruction(a0) => CoverageEdge(false, pc + 1, true),
+    JumpFalseInstruction(a0) => CoverageEdge(true, a0, true),
+    JumpInstruction(a0) => CoverageEdge(false, a0, false),
+    PendingEndJumpInstruction() => CoverageEdge(false, pc, false),
+    ReturnInstruction() => CoverageEdge(false, pc, false)
+  }
+}
+
+pure coverage_same_span(left: SourceSpan, right: SourceSpan): Bool {
+  left.start.file == right.start.file &&
+    left.start.offset == right.start.offset &&
+    left.end.offset == right.end.offset
+}
+
+// Index completed incoming edges once per function. Both expression entry and
+// completion are queries against a target PC; rescanning a large function for
+// every source item makes compiler-sized reports unnecessarily quadratic.
+pub record CoverageIncoming {
+  source: Nat,
+  count: Nat
+}
+
+pure coverage_add_incoming(
+  index: Map[Nat, [CoverageIncoming]],
+  target: Nat,
+  source: Nat,
+  count: Nat
+): Map[Nat, [CoverageIncoming]] {
+  if count == 0 {
+    index
+  } else {
+    prior: [CoverageIncoming] = if index.has(target) {
+      index.get(target)
+    } else {
+      []
+    }
+    index.put(target, append(prior, CoverageIncoming(source, count)))
+  }
+}
+
+pub pure coverage_incoming(code: FunctionCode, data: CoverageFunction): Map[Nat, [CoverageIncoming]] {
+  mut index: Map[Nat, [CoverageIncoming]] = map()
+
+  for pc in 0..len(code.instructions) {
+    edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
+    cell: CoverageCell = data.cells[pc]
+    if edge.conditional {
+      index = coverage_add_incoming(index, pc + 1, pc, cell.fallthrough)
+      index = coverage_add_incoming(index, edge.target, pc, cell.branched)
+    } else {
+      index = coverage_add_incoming(index, edge.target, pc, cell.completed)
+    }
+  }
+  index
+}
+
+pub pure coverage_attempted_indexed(
+  probe: EmissionProbe,
+  entries: Nat,
+  index: Map[Nat, [CoverageIncoming]]
+): Nat {
+  mut count: Nat = if probe.start == 0 {
+    entries
+  } else {
+    0
+  }
+  if index.has(probe.start) {
+    for edge in index.get(probe.start) {
+      if edge.source < probe.start || edge.source >= probe.end {
+        count = count + edge.count
+      }
+    }
+  }
+  count
+}
+
+pub pure coverage_completed_indexed(probe: EmissionProbe, index: Map[Nat, [CoverageIncoming]]): Nat {
+  mut count: Nat = 0
+
+  if index.has(probe.end) {
+    for edge in index.get(probe.end) {
+      if edge.source >= probe.start && edge.source < probe.end {
+        count = count + edge.count
+      }
+    }
+  }
+  count
+}
+
+// A loop inside a block expression may jump back to its first PC. Count entries
+// from outside the interval, not redispatches of that PC from inside the block.
+pub pure coverage_attempted(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
+  mut count: Nat = if probe.start == 0 {
+    data.entries
+  } else {
+    0
+  }
+  for pc in 0..len(code.instructions) {
+    if pc < probe.start || pc >= probe.end {
+      cell: CoverageCell = data.cells[pc]
+      edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
+      if edge.conditional {
+        if pc + 1 == probe.start {
+          count = count + cell.fallthrough
+        }
+        if edge.target == probe.start {
+          count = count + cell.branched
+        }
+      } else {
+        if edge.target == probe.start {
+          count = count + cell.completed
+        }
+      }
+    }
+  }
+  count
+}
+
+// Count successful edges leaving this expression's own interval. Looking only
+// at the destination PC would falsely complete an untaken sibling expression.
+pure coverage_completed(probe: EmissionProbe, code: FunctionCode, data: CoverageFunction): Nat {
+  mut count: Nat = 0
+
+  for pc in probe.start..probe.end {
+    cell: CoverageCell = data.cells[pc]
+    edge: CoverageEdge = coverage_edge(code.instructions[pc], pc)
+    if edge.conditional {
+      if pc + 1 == probe.end {
+        count = count + cell.fallthrough
+      }
+      if edge.target == probe.end {
+        count = count + cell.branched
+      }
+    } else {
+      if edge.target == probe.end {
+        count = count + cell.completed
+      }
+    }
+  }
+  count
+}
+
+pure coverage_item_kind(item: InventoryItem, items: [InventoryItem]): Str {
+  if item.kind == "expression" || item.kind == "statement" {
+    "expression"
+  } else {
+    if item.kind == "decision" {
+      if item.detail == "match" {
+        "expression"
+      } else {
+        item.detail
+      }
+    } else {
+      mut kind: Str = "arm:" + item.detail
+      for candidate in items {
+        if candidate.kind == "decision" && item.id == candidate.id + "/" + item.detail {
+          kind = candidate.detail
+        }
+      }
+      kind
+    }
+  }
+}
+
+pure coverage_text_join(chunks: [Str], start: Nat, end: Nat): Str {
+  if start == end {
+    ""
+  } else {
+    if end == start + 1 {
+      chunks[start]
+    } else {
+      middle: Nat = nat_quotient(start + end, 2)
+      coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
+    }
+  }
+}
+
+pub pure coverage_probe_key(kind: Str, span: SourceSpan): Str {
+  start: Nat = span.start.offset
+  end: Nat = span.end.offset
+  kind + "\t" + source_map_escape(span.start.file) + "\t${start}\t${end}"
+}
+
+pub pure coverage_source_function_name(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  module: ModuleIdentity,
+  declaration: TopLevel
+): Str {
+  match declaration {
+    FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) =>
+      module_emission_symbol(graph, entry, DeclarationIdentity(module, name)),
+    ImportDeclaration(path) => "",
+    TypeDeclaration(name, base, guard) => "",
+    RecordDeclaration(name, types, fields) => "",
+    EnumDeclaration(name, types, variants) => ""
+  }
+}
+
+pub pure render_coverage(
+  project: LoadedProject,
+  mapped: SourceMappedProgram,
+  data: CoverageData,
+  root: Str,
+  stdlib: Str
+): Str {
+  terminal: Nat = data.terminal
+  mut rows: [Str] = ["coverage: single-execution terminal=${terminal}\n"]
+  codes: [FunctionCode] = sort_functions(mapped.bytecode.functions)
+  mut incoming: [Map[Nat, [CoverageIncoming]]] = []
+
+  for i in 0..len(codes) {
+    incoming = append(incoming, coverage_incoming(codes[i], data.functions[i]))
+  }
+  mut code_indices: Map[Str, Nat] = map()
+  for i in 0..len(codes) {
+    code_indices = code_indices.put(codes[i].name, i)
+  }
+  graph: ModuleBindingGraph = loaded_binding_graph(
+    project.modules,
+    root,
+    stdlib
+  )
+  mut entry: ModuleIdentity = source_module_identity("", root, stdlib)
+  for module in project.modules {
+    for declaration in module.execution_program.declarations {
+      match declaration {
+        FunctionDeclaration(name, parameters, result, pure_effect, async_effect, body, types) => {
+          if name == "main" { entry = module.bindings.identity; } else {}
+        },
+        ImportDeclaration(path) => {},
+        TypeDeclaration(name, base, guard) => {},
+        RecordDeclaration(name, types, fields) => {},
+        EnumDeclaration(name, types, variants) => {}
+      }
+    }
+  }
+  mut probe_index: Map[Str, Map[Str, [EmissionProbe]]] = map()
+  for mapping in mapped.probes {
+    mut probes: Map[Str, [EmissionProbe]] = if probe_index.has(mapping.name) {
+      probe_index.get(mapping.name)
+    } else {
+      map()
+    }
+    for probe in mapping.entries {
+      key: Str = coverage_probe_key(probe.kind, probe.span)
+      prior: [EmissionProbe] = if probes.has(key) {
+        probes.get(key)
+      } else {
+        []
+      }
+      probes = probes.put(key, append(prior, probe))
+    }
+    probe_index = probe_index.put(mapping.name, probes)
+  }
+  for snapshot in source_snapshots(project, root, stdlib) {
+    for module in project.modules {
+      if module.source_path == snapshot.path {
+        items: [InventoryItem] = inventory_module(module)
+        mut function_name: Str = ""
+        mut declaration_index: Nat = 0
+        mut lines: Map[Nat, Bool] = map()
+        mut line_order: [Nat] = []
+        mut line_states: Map[Nat, Str] = map()
+        for item in items {
+          if item.kind == "function" || item.kind == "excluded" {
+            while declaration_index < len(module.parsed.program.declarations) &&
+              item.id != "declaration/${declaration_index}" {
+              declaration_index = declaration_index + 1
+            }
+            if declaration_index < len(module.execution_program.declarations) {
+              function_name = coverage_source_function_name(
+                graph,
+                entry,
+                module.bindings.identity,
+                module.execution_program.declarations[declaration_index]
+              )
+            }
+          }
+          mut state: Str = if item.kind == "excluded" {
+            "excluded"
+          } else {
+            "not-emitted"
+          }
+          mut attempted: Nat = 0
+          mut completed: Nat = 0
+          if code_indices.has(function_name) && item.kind != "excluded" {
+            function_index: Nat = code_indices.get(function_name)
+            code: FunctionCode = codes[function_index]
+            observed: CoverageFunction = data.functions[function_index]
+            if item.kind == "function" {
+              state = "observed"
+              attempted = observed.entries
+              for pc in 0..len(code.instructions) {
+                match code.instructions[pc] {
+                  ReturnInstruction() => {
+                    completed = completed + observed.cells[pc].completed
+                  },
+                  ConstInstruction(a0) => {},
+                  LoadInstruction(a0) => {},
+                  StoreInstruction(a0) => {},
+                  PopInstruction() => {},
+                  UnaryInstruction(a0) => {},
+                  BinaryInstruction(a0) => {},
+                  MakeRangeInstruction() => {},
+                  MakeArrayInstruction(a0) => {},
+                  IndexGetInstruction() => {},
+                  InterpolateInstruction(a0) => {},
+                  IterInitInstruction(a0) => {},
+                  IterNextInstruction(a0, a1, a2) => {},
+                  MakeRecordInstruction(a0, a1) => {},
+                  FieldGetInstruction(a0) => {},
+                  MakeVariantInstruction(a0, a1, a2) => {},
+                  MatchVariantInstruction(a0, a1) => {},
+                  MatchFailInstruction() => {},
+                  CallInstruction(a0, a1) => {},
+                  CallValueInstruction(a0) => {},
+                  AwaitCallInstruction(a0, a1) => {},
+                  AwaitValueInstruction(a0) => {},
+                  JumpFalseInstruction(a0) => {},
+                  JumpInstruction(a0) => {},
+                  PendingEndJumpInstruction() => {}
+                }
+              }
+            } else {
+              state = "unavailable"
+              kind: Str = coverage_item_kind(item, items)
+              mut matches: Nat = 0
+              if probe_index.has(code.name) {
+                probes: Map[Str, [EmissionProbe]] = probe_index.get(code.name)
+                mut probe_kind: Str = kind
+                if item.kind == "outcome" && len(kind) > 4 && slice(kind, 0, 4) == "arm:" {
+                  emitted_variant: Str = module_emission_symbol(
+                    graph,
+                    entry,
+                    DeclarationIdentity(module.bindings.identity, item.detail)
+                  )
+                  emitted_key: Str = coverage_probe_key("arm:" + emitted_variant, item.span)
+                  if probes.has(emitted_key) {
+                    probe_kind = "arm:" + emitted_variant
+                  } else {}
+                } else {}
+                key: Str = coverage_probe_key(probe_kind, item.span)
+                if probes.has(key) {
+                  candidates: [EmissionProbe] = probes.get(key)
+                  matches = len(candidates)
+                  if matches == 1 {
+                    probe: EmissionProbe = candidates[0]
+                    cell: CoverageCell = observed.cells[probe.start]
+                    attempted = if kind == "expression" {
+                      coverage_attempted_indexed(probe, observed.entries, incoming[function_index])
+                    } else {
+                      cell.attempted
+                    }
+                    completed = if kind == "expression" {
+                      coverage_completed_indexed(probe, incoming[function_index])
+                    } else {
+                      cell.completed
+                    }
+                    if item.kind == "outcome" {
+                      take_branch: Bool = item.detail == "false" || item.detail == "exit" ||
+                        (kind == "&&" &&
+                        item.detail == "skip-right") ||
+                        (kind == "||" &&
+                        item.detail == "evaluate-right")
+                      attempted = if take_branch {
+                        cell.branched
+                      } else {
+                        cell.fallthrough
+                      }
+                      completed = attempted
+                    }
+                  }
+                }
+              }
+              if matches == 1 {
+                state = "observed"
+              } else {
+                attempted = 0
+                completed = 0
+              }
+            }
+          }
+          file: Str = source_map_escape(snapshot.name)
+          rows = append(
+            rows,
+            file + "\t" + item.id + "\t" + item.kind + "\t" + item.detail + "\t${state}\t${attempted}\t${completed}\n"
+          )
+          if item.kind == "expression" || item.kind == "statement" {
+            line: Nat = item.span.start.line
+            reached: Bool = (state == "observed" &&
+              attempted > 0) ||
+              (lines.has(line) &&
+              lines.get(line))
+            prior_state: Str = if line_states.has(line) {
+              line_states.get(line)
+            } else {
+              state
+            }
+            line_states = line_states.put(line, if prior_state == state {
+                state
+              } else {
+                "unavailable"
+              })
+            if !lines.has(line) {
+              line_order = append(line_order, line)
+            }
+            lines = lines.put(line, reached)
+          }
+        }
+        for line in line_order {
+          rows = append(
+            rows,
+            source_map_escape(snapshot.name) + "\tline/${line}\tline\tanchor\t" + (if lines.get(line) {
+              "observed"
+            } else {
+              line_states.get(line)
+            }) + "\t" +
+            (if lines.get(line) {
+              "1"
+            } else {
+              "0"
+            }) + "\n")
+        }
+      }
+    }
+  }
+  coverage_text_join(rows, 0, len(rows))
+}
+
+pub run_coverage_report(values: [Str]): Nat {
+  if len(values) != 6 || values[2] != "--inventory" || values[4] != "--coverage" {
+    eprint("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
+    1
+  } else {
+    entry: Str = path_string_resolve(values[1])
+    root: Str = path_string_parent(entry)
+    stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+    compiler_path: Str = environment_value("PANACKELTY_COMPILER_PATH")
+    project: LoadedProject = load_project_for_inventory(entry)
+    match source_map_read(compiler_path, 16777216) {
+      Error(error) => {
+        eprint("error: coverage compiler unavailable")
+        1
+      },
+      Ok(compiler) => match coverage_mapped_project(project, entry, root, stdlib) {
+        Error(errors) => {
+          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          1
+        },
+        Ok(mapped) => {
+        artifact: Bytes = serialize_bytecode(mapped.bytecode)
+        inner: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
+        inventory: Bytes = source_map_join(
+          [text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+          0,
+          3
+        )
+        if bytes_length(inner) == 0 || !source_map_matches(
+          values[3],
+          inventory
+        ) ||
+          !source_snapshots_unchanged(project) || !source_map_matches(compiler_path, compiler) {
+          eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
+          1
+        } else {
+          match source_map_read(values[5], 16777216) {
+            Error(error) => {
+              eprint("error: coverage raw record unavailable")
+              1
+            },
+            Ok(raw) => {
+              data: CoverageData = decode_coverage(raw, artifact, inventory, mapped.bytecode)
+              if !data.valid {
+                eprint("error: coverage unavailable: malformed, incomplete, stale, overflowed or uncollected execution")
+                1
+              } else {
+                print(render_coverage(project, mapped, data, root, stdlib))
+                0
+              }
+            }
+          }
+        }
+      }
+      }
+    }
+  }
+}

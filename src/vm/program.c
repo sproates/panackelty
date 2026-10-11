@@ -36,6 +36,24 @@ void free_program(Program *p)
 
 Function *program_function(Program *p, const char *name)
 {
+    if (p->verified_function_order) {
+        /* Use the order already checked by verify; unverified objects retain
+         * linear lookup so malformed input is not assumed to be sorted. */
+        size_t low = 0, high = p->count;
+        while (low < high) {
+            size_t middle = low + (high - low) / 2;
+            int order = strcmp(name, p->functions[middle].name);
+            if (order == 0) {
+                return &p->functions[middle];
+            }
+            if (order < 0) {
+                high = middle;
+            } else {
+                low = middle + 1;
+            }
+        }
+        return NULL;
+    }
     for (size_t i = 0; p->functions && i < p->count; i++) {
         if (!strcmp(name, p->functions[i].name)) {
             return &p->functions[i];

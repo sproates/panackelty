@@ -26,7 +26,7 @@ for mode in echo empty request-limit response-limit handler-error busy nested; d
         handler-error) handler='Error("expected handler error")'; first=false; second=false ;;
     esac
     cat > "$work/main.panack" <<SOURCE
-import stdlib/tcp
+import stdlib/tcp::{TcpServerLimits}
 pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
 async reply(request: Bytes): Result[Bytes,Str] { $handler }
 async main(): Unit {
@@ -81,7 +81,7 @@ for mode in bare ordinary handler limits; do
         handler) handler='pure reply(request: Bytes): Result[Bytes,Str] { Ok(request) }'; diagnostic='AsyncFn' ;;
         limits) call='await tcp_serve("127.0.0.1", 9000, @reply, 42)'; diagnostic='TcpServerLimits' ;;
     esac
-    printf 'import stdlib/tcp\n%s\n%s { result = %s; () }\n' "$handler" "$main" "$call" > "$work/invalid.panack"
+    printf 'import stdlib/tcp::{TcpServerLimits}\n%s\n%s { result = %s; () }\n' "$handler" "$main" "$call" > "$work/invalid.panack"
     if ./panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
         echo "TCP server negative unexpectedly passed: $mode" >&2; exit 1
     fi

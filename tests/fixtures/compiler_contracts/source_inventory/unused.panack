@@ -1,0 +1,5 @@
+// Imported but never executed; the function is still eligible.
+type Positive = Nat where value > 0;
+record Box { value: Nat }
+enum Choice { Yes, No }
+pure never_called(): Nat { 9 }

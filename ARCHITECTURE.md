@@ -248,7 +248,8 @@ Nat-to-Int compatibility rules. Public function bodies can use private helpers.
 
 A missing type is not successful validation. Deferred spans record operations
 awaiting later contracts or proof checking: general core/indirect calls, guarded
-operations, Nat subtraction, mixed Rat/integer joins and async call/await results.
+operations, Nat subtraction and mixed Rat/integer joins. Async direct and indirect
+calls retain their inferred result types for effect checking.
 Empty arrays, Option/Result constructors and map/set creation carry tagged,
 expression-owned inference holes, distinct from rigid declaration parameters.
 Generic function calls gather all argument evidence before checking substituted
@@ -263,21 +264,25 @@ is part of the later diagnostics slice.
 Checked bodies distinguish invalid, deferred and checked-identity-subset status.
 An invalid body cannot appear checked merely because its return type is known;
 child obligations propagate through conditions and operators. Even checked-subset
-status certifies only these identity types, not purity,
-await legality or executable code. Checked signatures and the bound body tree are
-the input boundary for subsequent consumer migration; no identity is encoded as a
-synthetic name or fed through a flattened legacy checker. The raw full-module
-projection survives only as a test adapter for lower-level binding contracts.
+status certifies only identity types. `module_effects.panack` checks purity,
+ordinary/async calls and await legality against these exact signatures and body
+identities, including indirect callable effects and explanation recovery for
+separately valid functions. `module_emission.panack` lowers fully checked bodies,
+replacing standalone function, nominal type and variant identities with
+deterministic private names. The selected entry's `main` remains the launch point;
+imported `main` declarations are internalized. Toolchain core names stay
+reserved, and emitted ASTs use the existing version-9 bytecode format. The
+source driver compiles staged programs for check, run and compile; saved
+artifacts use the same verifier and VM. Source-map and explain/locate integration
+remains follow-up work.
 
-This is not checked namespace execution. Remaining body inference/proofs,
-effect evidence, emission and source/explanation tooling integration,
-more precise type/pattern use spans and coordinated source migration remain P2 work. `parse_program_complete` and the loader fail closed on staged
-syntax, including qualified uses with default imports or no explicit `pub`.
-Only the gated legacy execution tree lowers value methods and combines names;
-raw trees remain intact. The temporary boundary has no user-selectable mode and
-must disappear with downstream identity integration and bootstrap migration.
-The loader supplies normalized path-derived graph edges and reports staged graph
-and use diagnostics without emitting executable namespace programs.
+The loader builds one identity graph for every module in a staged project.
+Quoted imports are confined to the entry directory or bundled standard library,
+and symlink components in loaded module paths are rejected. Compiler bootstrap
+uses an explicit `PANACKELTY_BOOTSTRAP_ROOT` for the staged `src/` closure,
+separate from standalone project roots. `parse_program_complete` remains a
+legacy single-program adapter and rejects staged syntax rather than applying
+flat-name semantics.
 
 Parsed `Program` values retain declarations in source order and immutable
 per-kind name indexes constructed by `indexed_program`. Module combination
@@ -1321,6 +1326,18 @@ retains native validation and package gates. Its release workflow creates core
 releases without promoting them on the website. Coverage generation remains in
 core and publication remains in its separate coverage repository.
 
+## Source-coverage feasibility, 2026-10-05
+
+The [GI#131 experiment](tests/experiments/source_coverage/README.md) reuses the
+production source-map identity contract and observes the real VM dispatcher in
+a test-only build. Production VM/compiler behavior and executable v9 bytes are
+unchanged. Exact expression/function reach is feasible, but source lines and
+branches require a dedicated compiler inventory; existing source spans do not
+define an executable denominator. Future optional dispatcher counters must
+register nested and asynchronous execution identities. The external single-step
+driver deliberately marks nested execution incomplete. Prefer sidecar reuse to
+an unmotivated bytecode/seed migration; no production coverage format is added.
+
 ## U1 source-mapping feasibility decision, 2026-10-02
 
 The [bounded experiment](tests/experiments/source_mapping/README.md) attributes
@@ -1502,3 +1519,13 @@ an atomic `current` symlink rename (GNU/BSD platform-specific flags), and provid
 an owned command link without editing shell profiles. Offline harness cases
 exercise failure/recovery contracts; `tests/release_installer.sh` runs the README
 program through a real downloaded release on both supported CI targets.
+
+## SC2 executable-source inventory
+
+`src/compiler/source_inventory.panack` traverses retained original module syntax
+before lowering, with separate function, expression, statement, decision, outcome
+and explicit exclusion identities. The opt-in driver commands inventory explicit
+source roots and their closures without execution. Exact compiler/artifact/source
+envelopes are regenerated locally for validation; foreign metadata is never decoded.
+The dispatcher and bytecode format are unchanged. See
+[the inventory contract](docs/SOURCE_INVENTORY.md) for scope, anchors and limits.

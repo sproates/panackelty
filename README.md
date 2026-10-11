@@ -1,3 +1,4 @@
+<!-- validation:positioning-copy-begin -->
 # Panackelty
 
 **Exact arithmetic. Guarded types. Compiler explanations. Self hosted.**
@@ -54,6 +55,7 @@ is also the name of this project's command-line tool.
 - **One verified execution path.** Source compiles to versioned bytecode, which
   the Panackelty VM verifies before it runs.
 
+<!-- validation:positioning-copy-end -->
 ## Exact fractions and Unit
 
 ```panackelty
@@ -664,14 +666,15 @@ a pure comparator. Other library APIs remain explicit: import a module such as
 from a checkout and an installed toolchain. See the
 [standard-library guide](src/stdlib/README.md) and
 [collections example](examples/collections_and_bytes.panack).
-Language namespaces are under development. Current imports still combine names;
-`pub`, import aliases, selective imports and qualified namespace references are
-rejected pending the coordinated migration. Raw parsing and cross-module binding
-resolution, checked declaration/signature identities and bounded body identity
-checks, including ordinary expressions, aggregates, pattern matching and generic
-inference, are internal preparation,
-not an executable namespace mode. See [the current import contract](SPEC.md#modules) and
-[namespace progress](ROADMAP.md#rm-41).
+File-based namespaces are supported for the checked language subset described in
+the [module contract](SPEC.md#modules). Use `project/` imports for files under the
+entry source root and `stdlib/` for the active toolchain; aliases, selected
+imports, qualified names and explicit public re-exports define module boundaries.
+The compiler emits only fully checked bodies, keeps same-named declarations in
+different modules distinct, and launches only the entry module's `main`. Imports
+cannot escape the entry root. The published alpha.11 binaries do not support
+namespaces; the alpha.12 candidate and newer source builds do. See the
+[namespace examples](examples/namespaces/) and [namespace progress](ROADMAP.md#rm-41).
 
 The separately imported `stdlib/testing` module provides pure assertions and
 ordered result reporting for Panackelty test programs.
@@ -892,3 +895,11 @@ source and bytecode cases verify public behaviour on both supported platforms.
 Run development harness checks with `make harness`.
 They cover repository/CI policy, packaging, timing, corrupt seeds and fixture-runner
 failure propagation on both supported platforms.
+
+### Source coverage inventory
+
+`panack inventory SOURCE.panack -o FILE` records eligible source functions,
+expressions, statements and decisions without running the program. Add
+`--include OTHER.panack` for files outside the import closure. Validate with
+`panack inventory-check SOURCE.panack --inventory FILE` and the same roots.
+This is an inventory, not measured coverage; see [the contract](docs/SOURCE_INVENTORY.md).

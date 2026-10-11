@@ -1,0 +1,17 @@
+pub pure daily_budget(): Nat { 120 }
+
+pub pure nights(): Nat { 3 }
+
+pub pure estimated_total(): Nat {
+  daily_budget() * nights()
+}
+
+pub pure describe(): Str {
+  total = estimated_total()
+  day_count = nights()
+  "EUR ${total} for ${day_count} days"
+}
+
+main(): Void {
+  print("The budget module main must not run")
+}

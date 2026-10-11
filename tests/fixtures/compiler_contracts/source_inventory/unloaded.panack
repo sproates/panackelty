@@ -1,0 +1,2 @@
+// Explicit additional root; deliberately absent from the import graph.
+pure never_loaded(): Nat { 11 }

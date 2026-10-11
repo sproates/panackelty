@@ -1,2 +1,2 @@
-import project/shared/answer
-pure feature(): Nat { answer() }
+import project/shared/answer as answer_module
+pub pure feature(): Nat { answer_module.answer() }

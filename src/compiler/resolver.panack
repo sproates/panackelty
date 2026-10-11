@@ -1,23 +1,28 @@
-import "parser.panack"
+pub import project/src/compiler/parser::{indexed_program, parse_program_complete, lex, Expr, TopLevel, FunctionParameter, Program, Block, SourcePos, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/types::{diagnostic_text}
 
-record ResolverSymbols {
+// Resolve names in the executable frontend and preserve ordered module diagnostics.
+// Builtin names and local bindings remain distinct from declaration indexes.
+
+pub record ResolverSymbols {
   declarations: Set[Str],
   callables: Set[Str],
   variants: Set[Str],
   diagnostics: [Diagnostic]
 }
 
-record SourceUnit {
+pub record SourceUnit {
   path: Str,
   program: Program
 }
 
-record LoadedSource {
+pub record LoadedSource {
   path: Str,
   source: Str
 }
 
-record ModuleGraphState {
+pub record ModuleGraphState {
   programs: [Program],
   visiting: Set[Str],
   visited: Set[Str],
@@ -30,51 +35,78 @@ pure resolver_diagnostic(message: Str): Diagnostic {
 
 pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [Diagnostic] {
   mut result: [Diagnostic] = []
+
   for diagnostic in diagnostics {
-    selected: SourcePos = if len(diagnostic.position.file) == 0 { position } else { diagnostic.position }
+    selected: SourcePos = if len(diagnostic.position.file) == 0 {
+      position
+    } else {
+      diagnostic.position
+    }
     result = append(result, Diagnostic(diagnostic.message, selected))
   }
+
   result
 }
 
-pure is_builtin(name: Str): Bool {
+pub pure is_builtin(name: Str): Bool {
   name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
-  name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" || name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" || name == "host_decode_utf8" || name == "host_sleep" || name == "process_run" ||
-  name == "path_from_text" || name == "path_from_native" || name == "path_to_text" ||
-  name == "path_native_bytes" || name == "path_display" || name == "path_absolute" ||
-  name == "path_append" || name == "path_directory" || name == "path_filename" ||
-  name == "path_current" || name == "duration_nanoseconds" || name == "duration_ticks" ||
-  name == "duration_from_seconds" || name == "instant_now" || name == "instant_add" ||
-  name == "instant_difference" || name == "instant_before" ||
-  name == "$unit" || name == "nat" || name == "dec" || name == "quotient" ||
-  name == "print" || name == "read_line" || name == "read_file" ||
-  name == "write_file" || name == "len" || name == "append" ||
-  name == "concat" || name == "slice" || name == "starts_with" ||
-  name == "starts_with_at" || name == "reverse" || name == "is_digit" || name == "is_letter" ||
-  name == "is_whitespace" || name == "map" || name == "map_put" ||
-  name == "map_has" || name == "map_get" || name == "$method_put" ||
-  name == "$method_has" || name == "$method_get" || name == "set" ||
-  name == "set_add" || name == "set_has" || name == "$method_add" ||
-  name == "$method_call" || name == "$method_map" || name == "$method_reduce" || name == "bytes" ||
-  name == "byte_append" || name == "bytes_concat" || name == "byte_len" ||
-  name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" ||
-  name == "read_bytes" || name == "write_bytes" || name == "nat_from_str" ||
-  name == "command_args" || name == "environment_has" ||
-  name == "environment_get" || name == "eprint" || name == "process_exit" ||
-  name == "path_resolve" || name == "path_parent" || name == "path_join" ||
-  name == "path_suffix" || name == "path_with_suffix" ||
-  name == "path_is_absolute" || name == "file_exists" || name == "run_bytecode" ||
-  name == "run_bytecode_args"
+    name == "fs_read" ||
+    name == "fs_write" ||
+    name == "fs_metadata" ||
+    name == "fs_list" ||
+    name == "fs_create_directory" ||
+    name == "fs_remove_file" ||
+    name == "fs_remove_directory" ||
+    name == "fs_temp_file" ||
+    name == "fs_temp_directory" ||
+    name == "host_decode_utf8" ||
+    name == "host_sleep" ||
+    name == "process_run" ||
+    name == "path_from_text" || name == "path_from_native" || name == "path_to_text" ||
+    name == "path_native_bytes" || name == "path_display" || name == "path_absolute" ||
+    name == "path_append" || name == "path_directory" || name == "path_filename" ||
+    name == "path_current" || name == "duration_nanoseconds" || name == "duration_ticks" ||
+    name == "duration_from_seconds" || name == "instant_now" || name == "instant_add" ||
+    name == "instant_difference" || name == "instant_before" ||
+    name == "$unit" || name == "nat" || name == "dec" || name == "quotient" ||
+    name == "print" || name == "read_line" || name == "read_file" ||
+    name == "write_file" || name == "len" || name == "append" ||
+    name == "concat" || name == "slice" || name == "starts_with" ||
+    name == "starts_with_at" || name == "reverse" || name == "is_digit" || name == "is_letter" ||
+    name == "is_whitespace" || name == "map" || name == "map_put" ||
+    name == "map_has" || name == "map_get" || name == "$method_put" ||
+    name == "$method_has" || name == "$method_get" || name == "set" ||
+    name == "set_add" || name == "set_has" || name == "$method_add" ||
+    name == "$method_call" ||
+    name == "$method_map" ||
+    name == "$method_reduce" ||
+    name == "bytes" ||
+    name == "byte_append" || name == "bytes_concat" || name == "byte_len" ||
+    name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" ||
+    name == "read_bytes" || name == "write_bytes" || name == "nat_from_str" ||
+    name == "command_args" || name == "environment_has" ||
+    name == "environment_get" || name == "eprint" || name == "process_exit" ||
+    name == "path_resolve" || name == "path_parent" || name == "path_join" ||
+    name == "path_suffix" || name == "path_with_suffix" ||
+    name == "path_is_absolute" || name == "file_exists" || name == "run_bytecode" ||
+    name == "run_bytecode_args"
 }
 
 pure add_variant_symbol(symbols: ResolverSymbols, name: Str, position: SourcePos): ResolverSymbols {
   mut diagnostics: [Diagnostic] = symbols.diagnostics
+
   if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) {
-    diagnostics = append(diagnostics, Diagnostic("variant constructor ${name} conflicts with a built-in", position))
+    diagnostics = append(
+      diagnostics,
+      Diagnostic("variant constructor ${name} conflicts with a built-in", position)
+    )
   } else {
   }
   if set_has(symbols.variants, name) {
-    diagnostics = append(diagnostics, Diagnostic("variant constructor ${name} is declared by more than one enum", position))
+    diagnostics = append(
+      diagnostics,
+      Diagnostic("variant constructor ${name} is declared by more than one enum", position)
+    )
   } else {
   }
   ResolverSymbols(
@@ -92,6 +124,7 @@ pure collect_variants(program: Program, positions: [SourcePos]): ResolverSymbols
   diagnostics: [Diagnostic] = []
   mut symbols: ResolverSymbols = ResolverSymbols(declarations, callables, variants, diagnostics)
   mut index: Nat = 0
+
   for declaration in program.declarations {
     position: SourcePos = declaration_position(positions, index)
     match declaration {
@@ -110,17 +143,36 @@ pure collect_variants(program: Program, positions: [SourcePos]): ResolverSymbols
   symbols
 }
 
-pure add_top_level_symbol(symbols: ResolverSymbols, name: Str, callable: Bool, position: SourcePos): ResolverSymbols {
+pure add_top_level_symbol(
+  symbols: ResolverSymbols,
+  name: Str,
+  callable: Bool,
+  position: SourcePos
+): ResolverSymbols {
   mut diagnostics: [Diagnostic] = symbols.diagnostics
+
   if set_has(symbols.declarations, name) {
-    diagnostics = append(diagnostics, Diagnostic("top-level name ${name} is already declared", position))
+    diagnostics = append(
+      diagnostics,
+      Diagnostic("top-level name ${name} is already declared", position)
+    )
   } else {
   }
-  if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) || set_has(symbols.variants, name) {
-    diagnostics = append(diagnostics, Diagnostic("top-level name ${name} conflicts with a constructor or built-in", position))
+  if name == "Path" || name == "Duration" || name == "Instant" || is_builtin(name) || set_has(
+    symbols.variants,
+    name
+  ) {
+    diagnostics = append(
+      diagnostics,
+      Diagnostic("top-level name ${name} conflicts with a constructor or built-in", position)
+    )
   } else {
   }
-  next_callables: Set[Str] = if callable { set_add(symbols.callables, name) } else { symbols.callables }
+  next_callables: Set[Str] = if callable {
+    set_add(symbols.callables, name)
+  } else {
+    symbols.callables
+  }
   ResolverSymbols(
     set_add(symbols.declarations, name),
     next_callables,
@@ -132,6 +184,7 @@ pure add_top_level_symbol(symbols: ResolverSymbols, name: Str, callable: Bool, p
 pure collect_symbols_at(program: Program, positions: [SourcePos]): ResolverSymbols {
   mut symbols: ResolverSymbols = collect_variants(program, positions)
   mut index: Nat = 0
+
   for declaration in program.declarations {
     position: SourcePos = declaration_position(positions, index)
     match declaration {
@@ -158,14 +211,23 @@ pure collect_symbols(program: Program): ResolverSymbols {
   collect_symbols_at(program, [])
 }
 
+pub pure collect_symbol_diagnostics(program: Program): [Diagnostic] {
+  collect_symbols(program).diagnostics
+}
+
 // Synthetic AST callers have no declaration positions. Production loading
 // supplies positions in declaration order before any flattening occurs.
 pure declaration_position(positions: [SourcePos], index: Nat): SourcePos {
-  if index < len(positions) { positions[index] } else { SourcePos("", 0, 1, 1) }
+  if index < len(positions) {
+    positions[index]
+  } else {
+    SourcePos("", 0, 1, 1)
+  }
 }
 
-pure append_program_declarations(programs: [Program]): Program {
+pub pure append_program_declarations(programs: [Program]): Program {
   mut declarations: [TopLevel] = []
+
   for program in programs {
     for declaration in program.declarations {
       declarations = append(declarations, declaration)
@@ -174,12 +236,15 @@ pure append_program_declarations(programs: [Program]): Program {
   indexed_program(declarations)
 }
 
-pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): ModuleGraphState {
+pub pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): ModuleGraphState {
   if set_has(state.visited, path) {
     state
   } else {
     if set_has(state.visiting, path) {
-      diagnostics: [Diagnostic] = append(state.diagnostics, resolver_diagnostic("import cycle includes ${path}"))
+      diagnostics: [Diagnostic] = append(
+        state.diagnostics,
+        resolver_diagnostic("import cycle includes ${path}")
+      )
       ModuleGraphState(state.programs, state.visiting, state.visited, diagnostics)
     } else {
       mut found: Bool = false
@@ -195,11 +260,19 @@ pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): Modu
         }
       }
       if !found {
-        diagnostics: [Diagnostic] = append(state.diagnostics, resolver_diagnostic("module ${path} is not loaded"))
+        diagnostics: [Diagnostic] = append(
+          state.diagnostics,
+          resolver_diagnostic("module ${path} is not loaded")
+        )
         ModuleGraphState(state.programs, state.visiting, state.visited, diagnostics)
       } else {
         active: Set[Str] = set_add(state.visiting, path)
-        mut current: ModuleGraphState = ModuleGraphState(state.programs, active, state.visited, state.diagnostics)
+        mut current: ModuleGraphState = ModuleGraphState(
+          state.programs,
+          active,
+          state.visited,
+          state.diagnostics
+        )
         for declaration in selected.declarations {
           match declaration {
             ImportDeclaration(imported) => {
@@ -222,24 +295,34 @@ pure visit_module(units: [SourceUnit], path: Str, state: ModuleGraphState): Modu
   }
 }
 
-pure duplicate_module_diagnostics(units: [SourceUnit]): [Diagnostic] {
+pub pure duplicate_module_diagnostics(units: [SourceUnit]): [Diagnostic] {
   paths: Set[Str] = set()
   mut seen: Set[Str] = paths
   mut diagnostics: [Diagnostic] = []
+
   for unit in units {
     if set_has(seen, unit.path) {
       path: Str = unit.path
-      diagnostics = append(diagnostics, resolver_diagnostic("module ${path} is loaded more than once"))
+      diagnostics = append(
+        diagnostics,
+        resolver_diagnostic("module ${path} is loaded more than once")
+      )
     } else {
     }
     seen = set_add(seen, unit.path)
   }
+
   diagnostics
 }
 
 pure resolve_module_graph(units: [SourceUnit], entry: Str): [Diagnostic] {
   empty: Set[Str] = set()
-  initial: ModuleGraphState = ModuleGraphState([], empty, empty, duplicate_module_diagnostics(units))
+  initial: ModuleGraphState = ModuleGraphState(
+    [],
+    empty,
+    empty,
+    duplicate_module_diagnostics(units)
+  )
   graph: ModuleGraphState = visit_module(units, entry, initial)
   program: Program = append_program_declarations(graph.programs)
   concat(graph.diagnostics, resolve_program(program))
@@ -247,9 +330,13 @@ pure resolve_module_graph(units: [SourceUnit], entry: Str): [Diagnostic] {
 
 pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymbols): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
+
   match expression {
-    LocatedExpr(position, value) => {
-      diagnostics = resolver_diagnostics_at(resolve_expression(value, scope, symbols), position.start)
+    LocatedExpr(position, value, located_type_argument_spans) => {
+      diagnostics = resolver_diagnostics_at(
+        resolve_expression(value, scope, symbols),
+        position.start
+      )
     },
     NatExpr(value) => {},
     DecimalExpr(text) => {},
@@ -279,7 +366,10 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
       diagnostics = concat(diagnostics, resolve_expression(right, scope, symbols))
     },
     DotCallExpr(target, name, arguments, types) => {
-      diagnostics = append(diagnostics, resolver_diagnostic("unresolved dot call requires module binding resolution"))
+      diagnostics = append(
+        diagnostics,
+        resolver_diagnostic("unresolved dot call requires module binding resolution")
+      )
     },
     CallExpr(name, arguments, type_arguments) => {
       if !is_builtin(name) && !set_has(symbols.callables, name) {
@@ -316,7 +406,10 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
         mut arm_scope: Set[Str] = scope
         for binding in arm.pattern.bindings {
           if set_has(arm_scope, binding) {
-            diagnostics = append(diagnostics, resolver_diagnostic("pattern binding ${binding} shadows an existing binding"))
+            diagnostics = append(
+              diagnostics,
+              resolver_diagnostic("pattern binding ${binding} shadows an existing binding")
+            )
           } else {
           }
           arm_scope = set_add(arm_scope, binding)
@@ -325,18 +418,23 @@ pure resolve_expression(expression: Expr, scope: Set[Str], symbols: ResolverSymb
       }
     }
   }
+
   diagnostics
 }
 
 pure resolve_block(block: Block, parent_scope: Set[Str], symbols: ResolverSymbols): [Diagnostic] {
   mut diagnostics: [Diagnostic] = []
   mut scope: Set[Str] = parent_scope
+
   for statement in block.statements {
     match statement {
-      BindingStatement(name, type_name, mutable, value) => {
+      BindingStatement(name, type_name, annotation_span, mutable, value) => {
         diagnostics = concat(diagnostics, resolve_expression(value, scope, symbols))
         if set_has(scope, name) {
-          diagnostics = append(diagnostics, resolver_diagnostic("local ${name} shadows an existing binding"))
+          diagnostics = append(
+            diagnostics,
+            resolver_diagnostic("local ${name} shadows an existing binding")
+          )
         } else {
         }
         scope = set_add(scope, name)
@@ -356,7 +454,10 @@ pure resolve_block(block: Block, parent_scope: Set[Str], symbols: ResolverSymbol
         diagnostics = concat(diagnostics, resolve_expression(iterable, scope, symbols))
         mut body_scope: Set[Str] = scope
         if set_has(scope, name) {
-          diagnostics = append(diagnostics, resolver_diagnostic("loop variable ${name} shadows an existing binding"))
+          diagnostics = append(
+            diagnostics,
+            resolver_diagnostic("loop variable ${name} shadows an existing binding")
+          )
         } else {
         }
         body_scope = set_add(body_scope, name)
@@ -370,17 +471,26 @@ pure resolve_block(block: Block, parent_scope: Set[Str], symbols: ResolverSymbol
       diagnostics = concat(diagnostics, resolve_expression(value, scope, symbols))
     }
   }
+
   diagnostics
 }
 
-pure resolve_function(parameters: [FunctionParameter], body: Block, symbols: ResolverSymbols): [Diagnostic] {
+pure resolve_function(
+  parameters: [FunctionParameter],
+  body: Block,
+  symbols: ResolverSymbols
+): [Diagnostic] {
   scope: Set[Str] = set()
   mut function_scope: Set[Str] = scope
   mut diagnostics: [Diagnostic] = []
+
   for parameter in parameters {
     name: Str = parameter.name
     if set_has(function_scope, name) {
-      diagnostics = append(diagnostics, resolver_diagnostic("parameter ${name} is already declared"))
+      diagnostics = append(
+        diagnostics,
+        resolver_diagnostic("parameter ${name} is already declared")
+      )
     } else {
     }
     function_scope = set_add(function_scope, name)
@@ -388,9 +498,10 @@ pure resolve_function(parameters: [FunctionParameter], body: Block, symbols: Res
   concat(diagnostics, resolve_block(body, function_scope, symbols))
 }
 
-pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] {
+pub pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] {
   symbols: ResolverSymbols = collect_symbols_at(program, positions)
   mut diagnostics: [Diagnostic] = symbols.diagnostics
+
   for declaration in program.declarations {
     match declaration {
       ImportDeclaration(path) => {},
@@ -405,14 +516,15 @@ pure resolve_program_at(program: Program, positions: [SourcePos]): [Diagnostic] 
       }
     }
   }
+
   diagnostics
 }
 
-pure resolve_program(program: Program): [Diagnostic] {
+pub pure resolve_program(program: Program): [Diagnostic] {
   resolve_program_at(program, [])
 }
 
-pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
+pub pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
   if len(diagnostics) == 0 {
     "ok"
   } else {
@@ -428,9 +540,10 @@ pure render_resolver_diagnostics(diagnostics: [Diagnostic]): Str {
   }
 }
 
-pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
+pub pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
   mut units: [SourceUnit] = []
   mut diagnostics: [Diagnostic] = []
+
   for source in sources {
     match lex_file(source.source, source.path) {
       Ok(tokens) => {
@@ -438,7 +551,9 @@ pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
           Ok(program) => {
             units = append(units, SourceUnit(source.path, program))
           },
-          Error(error) => { diagnostics = append(diagnostics, error); }
+          Error(error) => {
+            diagnostics = append(diagnostics, error)
+          }
         }
       },
       Error(errors) => {
@@ -455,7 +570,7 @@ pure resolve_loaded_sources(sources: [LoadedSource], entry: Str): Str {
   }
 }
 
-pure resolve_source(source: Str): Str {
+pub pure resolve_source(source: Str): Str {
   match lex(source) {
     Ok(tokens) => {
       match parse_program_complete(tokens) {

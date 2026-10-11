@@ -2,6 +2,9 @@
 
 This directory contains the compiler being implemented in Panackelty:
 
+The [Readable Panackelty compiler batch](../../docs/READABLE_COMPILER.md) records
+the source-wide readability pass, behavioural protection and measurement limits.
+
 - `types.panack` defines file-aware source positions and half-open expression spans, tokens, diagnostics, and
   their public `file:line:column: message` header rendering.
 - `diagnostics.panack` adds numbered source excerpts and aligned carets from
@@ -30,16 +33,18 @@ documented in `../../docs/SOURCE_MAPS.md`.
   retained dot calls, field access, indexing,
   blocks, bindings, assignments, and
   optional local type annotations, including exhaustive value conditionals, optional
-  `else` for `Void` conditionals, and `while` and `for` statements. Pattern matching supports variant payload bindings plus
+  `else` for `Void` conditionals, repeated `else if` arms with an optional final
+  `else`, and `while` and `for` statements. Pattern matching supports variant payload bindings plus
   expression and block arms. Program-level parsing accepts quoted file-relative
   and extensionless logical import declarations and guarded type declarations,
   with complete nested generic and
   array type references. Generic record fields and enum variant payloads are
   parsed alongside pure and impure functions with scoped type parameters and
-  optional explicit type arguments at direct and receiver-first calls. The parser covers the complete
-  accepted executable grammar; raw module parsing also retains staged namespace
-  declaration/import forms and qualified types/references/patterns without enabling
-  their execution. Gated legacy parsing lowers dot calls to receiver-first calls.
+  optional explicit type arguments at direct and receiver-first calls. Project
+  loading executes namespace declaration/import forms and qualified types,
+  references and patterns through the identity-aware pipeline. The standalone
+  legacy parser remains available to focused frontend contracts. Dot calls
+  lower to receiver-first calls.
   `indexed_program` retains declaration order while
   building separate type/record/enum/function indexes and variant metadata.
   Construct programs through this factory, including synthetic test ASTs.
@@ -58,8 +63,10 @@ documented in `../../docs/SOURCE_MAPS.md`.
 - `module_bindings.panack` builds per-module declaration/import inventories from
   `ParsedModule`, with visibility, declaration spans, tagged package/module/name
   identities, enum ownership and private/ambiguous export lookup. The loader
-  retains these before combination, separates physical source paths from relative
-  semantic identity, and passes declaration origins into resolver diagnostics.
+  retains these before combination and builds a name-to-declaration index for
+  signature resolution. This avoids rescanning each module's full AST for every
+  nominal type lookup. The loader separates physical source paths from relative
+  semantic identity and passes declaration origins into resolver diagnostics.
 - `module_resolution.panack` resolves an explicit binding graph with namespace and
   selective imports, original-identity re-exports, enum selectors and qualified
   functions/types. It validates missing/private/conflicting imports and cycles,
@@ -71,11 +78,16 @@ documented in `../../docs/SOURCE_MAPS.md`.
   implicit guarded-type `value` also participates in import collision checks.
   Invalid lexical scopes return no misleading reference identities. Core reserved
   names remain for later checked resolution. Expression use spans are exact;
-  type and pattern diagnostics currently fall back to declaration/match spans.
+  Match-arm diagnostics point to the arm pattern. Declaration-signature type
+  references retain parser spans, so invalid record fields, enum payloads,
+  guarded-type bases, and function parameter/results point to their type tokens.
+  Body-local type annotations and explicit call type arguments retain parser
+  spans; invalid types, unsupported explicit arguments, and argument-count
+  errors point to the corresponding type token, including receiver calls.
   Receiver-first nonbuiltin helper uses retain their declaration identity too,
   so public guards cannot hide private helpers behind method spelling.
-  The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` and the loader retain the temporary
-  execution gate until compiler/stdlib/fixture migration and fresh conformance.
+  The guard resolver does not itself integrate checked body/effect/emission identities. `parse_program_complete` retains the legacy single-program boundary;
+  project commands use the complete checked identity pipeline.
 - `module_signatures.panack` resolves staged declaration signatures to tagged core,
   nominal, binder-position parameter and callable-effect identities. Original-ID
   public reachability validates nested fields/payloads/parameters/returns and
@@ -92,8 +104,8 @@ documented in `../../docs/SOURCE_MAPS.md`.
   Interpolation references retain ordered local IDs. Invalid, deferred and
   checked-subset statuses preserve numeric and callable compatibility without
   implying effects or execution readiness. Deferred spans distinguish
-  unresolved expression holes, guard proofs, general core/indirect operations and
-  async results from successful identity-type checks. Expression-owned holes never
+  unresolved expression holes, guard proofs and core operations
+  outside the checked call subset from successful identity-type checks. Expression-owned holes never
   become declaration identities or rigid type parameters. Bound nodes retain
   contextual constraints for one final whole-body solve, preserving shared local
   evidence across calls/statements and rejecting contradictory/recursive solutions.
@@ -103,9 +115,28 @@ documented in `../../docs/SOURCE_MAPS.md`.
   consumer boundary; the legacy checker/emitter and namespace execution gate
   remain until coordinated migration. The obsolete full-module raw walk is
   removed from production; its low-level contracts use a test-only adapter.
+- The staged body checker validates identity-bound contracts for indirect
+  callable invocation, `len`, array `first`/`ends_with`/`sort_by`, `map` and
+  `reduce`, array append/concat, and Map/Set receiver operations. Reserved core
+  aliases resolve to the original core declaration identity, so a same-named
+  application function cannot replace the method contract. Argument arity and
+  types and result types are checked for this subset. `module_effects.panack`
+  consumes the checked graph to validate pure, ordinary and async call/await
+  boundaries, including callable values and imported declarations, while
+  retaining local explanation evidence. Checked identities and effect legality
+  still do not certify emission or executable namespace readiness.
 - `expression_contracts.panack` shares exact scalar arithmetic result rules and
   string decoding/interpolation parsing between the bound checker and legacy
-  checker/emitter. Nominal comparison remains tagged and is not rendered to names.
+  checker/emitter. These contracts are a selectable public module API for the
+  staged namespace migration. Nominal comparison remains tagged and is not
+  rendered to names.
+- `checker.panack` exports the checked type shapes and shared expression/program
+  checking contracts consumed by the purity, signature, body and emission passes.
+- `module_signatures.panack` resolves declaration signatures through explicit
+  binding identities and exports the checked signature contracts for body and
+  emission passes.
+- `purity.panack` selectively imports checker, parser, resolver and lexer APIs,
+  then exports the frontend effect checks consumed by emission and loading.
 - `checker.panack` validates type references and generic arity, checks the full
   expression and statement AST, infers local bindings and generic constructors,
   checks generic function bodies with abstract parameters and resolves complete
@@ -135,20 +166,28 @@ documented in `../../docs/SOURCE_MAPS.md`.
   the same core-function pruning as the instruction table.
 - `loader.panack` is the effectful project boundary. It resolves quoted paths
   relative to their importer, `project/` paths from the entry directory, and
-  `stdlib/` paths from the active toolchain. It canonicalizes and recursively
-  reads each module once, detects invalid paths, cycles, and missing modules,
-  retains ordered source paths and snapshots for diagnostic rendering and source maps, and hands one combined
-  program to the pure frontend and emitter.
+  `stdlib/` paths from the active toolchain. It confines standalone imports to
+  the entry directory, rejects symlink traversal, and supports an explicit
+  `PANACKELTY_BOOTSTRAP_ROOT` for isolated compiler-stage builds. It loads each
+  module once, retains ordered source snapshots, and supplies the identity graph
+  to staged checking and emission.
+- `module_emission.panack` lowers fully identity-checked bodies and canonical
+  function/type/variant identities to deterministic private names. Entry `main`
+  remains the launch point; imported `main` functions are internalized. The
+  emitter preserves the existing version-9 bytecode format.
 - `source_maps.panack` owns canonical optional sidecars and exact local replay
-  validation, portable identifiers, bounded file comparison and location rendering.
+  validation, portable identifiers, identity-qualified function selection,
+  bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
   [source-map contract](../../docs/SOURCE_MAPS.md).
 - `explanations.panack` presents opt-in subtraction decisions and guard origins
   retained by the checker, using loaded source snapshots. See the
   [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
-- `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and `explain` for source
-  and version-9 bytecode, including default output paths and primary positioned
-  lexer, parser, name, and type diagnostics.
+- `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
+  `explain` for source and version-9 bytecode. Staged checked programs use
+  identity emission for check/run/compile, validated `locate` and identity-
+  qualified `explain` selection. Coordinated source/seed migration remains
+  slice 8.
 - `main.panack` is the executable self-hosted compiler entry point.
 
 The public frontend, backend, project loader, and driver live here and execute
@@ -159,8 +198,8 @@ documentation.
 Direct lexer, parser, resolver, type-checker, and purity contracts live in
 `tests/runner/compiler_{lexer,parser,resolver,checker,purity}_unit.panack`. These import the implementation
 modules and use `stdlib/testing`; `make unit` and `make check-compiler` run
-them on the native VM. The parser probe preserves all 192 expanded expectations
-for expressions, blocks, types and programs; the resolver checks 26 source and
+them on the native VM. The parser probe has 202 assertions, preserving all 192 original expanded
+expectations and covering chained conditionals; the resolver checks 26 source and
 module-graph assertions, including exact positioned diagnostics. The checker
 and purity probes keep all 31/10 source expectations and 3/1 module contracts.
 The fixed-expectation audit is in
@@ -187,7 +226,7 @@ services with identical signatures and effects. These calls lower through the
 existing named-call ABI; their record and enum definitions live in the stdlib.
 
 The remaining direct compiler contracts now run in
-`tests/runner/compiler_contracts_unit.panack` (201 assertions) and
+`tests/runner/compiler_contracts_unit.panack` (250 assertions) and
 `tests/runner/compiler_integration_unit.panack` (51 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
@@ -238,3 +277,10 @@ The explanation renderer consumes these decisions and loaded source spans, never
 reconstructing effects from diagnostic text. See
 [the explanation contract](../../docs/COMPILER_EXPLANATIONS.md) for local-versus-global
 status, declared callable effects and unsupported transitive/runtime questions.
+
+### Executable-source inventory
+
+`source_inventory.panack` walks retained original syntax and serializes versioned
+source eligibility independently of emitted instructions. `inventory` and
+`inventory-check` use explicit roots, exact compiler/artifact/source identities
+and local replay. See [the contract](../../docs/SOURCE_INVENTORY.md).

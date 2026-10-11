@@ -1,8 +1,8 @@
-import "helpers.panack"
+import "helpers.panack" as helpers
 
 main(): Void {
   name = "Ada"
-  message = label(name)
+  message = helpers.label(name)
   print(message)
   answer = 41
   print(answer + 1)
@@ -16,18 +16,18 @@ main(): Void {
   print(price + 1.5)
   groups = [[], [name]]
   print(groups[1][0])
-  selected = if true { Absent() } else { Present(name) }
-  match selected { Present(value) => print(value), Absent() => print("none") }
-  person = Person(name, true)
+  selected = if true { helpers.Maybe.Absent() } else { helpers.Maybe.Present(name) }
+  match selected { helpers.Maybe.Present(value) => print(value), helpers.Maybe.Absent() => print("none") }
+  person = helpers.Person(name, true)
   print(person.name)
   counts = map().put(name, 2)
   print(counts.get(name))
   names = set().add(name)
   print(names.has(name))
-  configured: Port = 8080
+  configured: helpers.Port = 8080
   copied = configured
   print(copied)
-  action = @increment
+  action = @helpers.increment
   print(action.call(answer))
   mut state = "waiting"
   if person.active { state = "ready" }

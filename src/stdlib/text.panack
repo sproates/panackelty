@@ -1,0 +1,5 @@
+// Named text operations keep string behavior available through explicit
+// namespace imports while the compiler source migrates to module identities.
+pub pure text_reverse(value: Str): Str {
+  value.reverse()
+}

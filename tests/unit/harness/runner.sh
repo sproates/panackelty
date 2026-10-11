@@ -4,10 +4,10 @@ runner=$work/runner.bc
 sh tests/run_probe.sh --compile tests/runner/main.panack "$runner"
 case_name=smoke-missing-and-mismatched-report
 printf 'wrong runner output\n' > "$work/report"
-capture 1 30 env PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack
+capture 1 30 env -u PANACKELTY_BOOTSTRAP_ROOT PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack
 contains "$work/stdout" 'FAIL Panackelty fixture runner: runner report differed'
 rm "$work/report"
-capture 1 30 env PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack
+capture 1 30 env -u PANACKELTY_BOOTSTRAP_ROOT PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack
 contains "$work/stdout" 'FAIL Panackelty fixture runner: runner report read failed'
 pass
 case_name=failure-commands
@@ -19,7 +19,7 @@ pass
 case_name=incremental-failure-corpus
 capture 0 45 ./panack run "$runner" --failures-only
 contains "$work/stdout" 'PASS failure/while_condition_type/no artifact'
-contains "$work/stdout" 'tests: 195, failures: 0'
+contains "$work/stdout" 'tests: 207, failures: 0'
 pass
 for fixture in cli_environment_files cli_commands cli_check_disasm stdlib; do
     case_name=runner-$fixture

@@ -1,5 +1,5 @@
 // Finite TCP server limits. See SPEC.md for bounds, framing and shutdown.
-record TcpServerLimits {
+pub record TcpServerLimits {
   clients: Nat,
   concurrency: Nat,
   request_limit: Nat,

@@ -49,8 +49,8 @@ tar -xzf "$archive" -C "$work/extracted"
 (cd "$work/extracted/panackelty" && find . -type f | sed 's|^./||' | sort) > "$work/files"
 {
     cat "$root/tests/unit/harness/installed-files.txt"
-    printf 'LICENSE\nREADME.md\nexamples/README.md\n'
-    for example in "$root"/examples/*.panack; do printf 'examples/%s\n' "${example##*/}"; done
+    printf 'LICENSE\nREADME.md\n'
+    find "$root/examples" -type f -print | sed "s|^$root/||"
 } | sort > "$work/expected"
 equal_files "$work/files" "$work/expected"
 # A candidate archive may differ from the documented published download version,
@@ -74,13 +74,13 @@ mv "$work/extracted/panackelty" "$work/relocated/toolchain"
 version=$(cat "$root/VERSION")
 printf 'panack %s (bytecode 9)\n' "$version" > "$work/version"
 cat > "$work/logical-import.panack" <<'PROGRAM'
-import stdlib/option
-import stdlib/time
-import stdlib/path
+import stdlib/option::{option_value_or}
+import stdlib/time::{duration_seconds, duration_value_ticks}
+import stdlib/path::{path_value_display, path_value_current}
 main(): Void {
-  match Some(42) { Some(value) => print(value), None() => print(0) }
-  print(duration_ticks(duration_seconds(1)))
-  print(path_display(path_current()))
+  print(option_value_or[Nat](Some(42), 0))
+  print(duration_value_ticks(duration_seconds(1)))
+  print(path_value_display(path_value_current()))
 }
 PROGRAM
 printf '42\n1000000000\n.\n' > "$work/import.stdout"
@@ -96,6 +96,9 @@ equal_files "$work/stdout" "$work/import.stdout"
 test ! -s "$work/stderr" || fail 'relocated import stderr'
 capture 0 30 "$command" run "$work/relocated/toolchain/examples/collections_and_bytes.panack"
 equal_files "$work/stdout" "$root/tests/functional/expected/examples/collections_and_bytes.stdout"
+capture 0 30 "$command" run "$work/relocated/toolchain/examples/namespaces/trip_planner/main.panack"
+equal_files "$work/stdout" "$root/tests/functional/expected/examples/trip_planner.stdout"
+test ! -s "$work/stderr" || fail 'relocated trip planner stderr'
 pass
 case_name=installed-files-and-logical-imports
 cd "$checkout"
@@ -124,9 +127,9 @@ for stage in stage1 stage2; do
     cp "$root/bootstrap/compiler-v9.bc" "$checkout/build/bootstrap/$stage/compiler.bc"
 done
 cd "$checkout"
-capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" ./panack run tests/runner/compiler_driver.panack
+capture 0 30 env PANACK_TEST_COMPILER="$checkout/build/bootstrap/stage2/compiler.bc" PANACK_TEST_NAMESPACE_EMISSION=1 ./panack run tests/runner/compiler_driver.panack
 contains "$work/stdout" 'PASS byte-identical compiler output'
-test "$(tail -n 1 "$work/stdout")" = 'tests: 8, failures: 0' || fail 'compiler driver summary'
+test "$(tail -n 1 "$work/stdout")" = 'tests: 37, failures: 0' || fail 'compiler driver summary'
 pass
 case_name=archive-rejects-invalid-metadata-and-links
 cd "$work"

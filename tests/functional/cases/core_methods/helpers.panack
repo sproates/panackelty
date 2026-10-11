@@ -1,3 +1,3 @@
-pure describe(value: Result[Nat,Str]): Str {
+pub pure describe(value: Result[Nat,Str]): Str {
   match value { Ok(n) => "ok ${n}", Error(message) => message }
 }

@@ -1,6 +1,25 @@
-import "../../src/compiler/loader.panack"
-import stdlib/testing
-
+import project/src/compiler/parser::{ParsedModule, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue, ImportBindingSyntax.NoImportBinding, ImportBindingSyntax.NamespaceImportBinding, ImportBindingSyntax.SelectiveImportBinding, parse_module_complete, parse_program_complete, unlocated_expression, module_execution_diagnostics, indexed_program}
+import project/src/compiler/types::{Diagnostic, SourcePos, SourceSpan, diagnostic_text}
+import project/src/compiler/module_bindings::{ModuleIdentity, DeclarationIdentity, ModuleDeclarationBinding, ModuleBindings, LoadedModule, ModulePackageIdentity, ModulePackageIdentity.StandaloneModulePackage, ModulePackageIdentity.ToolchainModulePackage, ModuleDeclarationKind.ModuleFunction, ModuleDeclarationKind.ModuleGuardedType, ModuleDeclarationKind.ModuleRecord, ModuleDeclarationKind.ModuleEnum, ModuleDeclarationKind.ModuleVariant, collect_module_bindings, module_binding_diagnostics, module_export, module_relative_path, module_programs, module_declaration_positions, source_module_identity, loaded_module_declaration_index}
+import project/src/compiler/module_resolution::{ModuleBindingGraph, ModuleGraphWalk, ModuleImportEdge, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, ResolvedModuleUses, binding_graph_module, combine_module_uses, resolve_qualified_type_uses, resolve_module_expression_uses, resolve_module_block_uses, resolve_module_dot_call, resolve_module_function, resolve_module_path, resolve_module_type, module_graph_diagnostics, module_import_shadow_diagnostics, walk_module_graph}
+import project/src/compiler/module_signatures::{CheckedModuleSignatures, SignatureEffect, SignatureEffect.SignatureAsync, SignatureEffect.SignaturePure, SignatureType, SignatureTypeIdentity, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureParameter, SignatureTypeIdentity.SignatureCallable, SignatureTypeIdentity.SignatureCore, check_module_signatures, signature_effect, signature_type, signature_public_identity, substitute_signature_type}
+import project/src/compiler/module_bodies::{BodyNode, BodyNode.BodyArray, BodyNode.BodyAssignment, BodyNode.BodyBinary, BodyNode.BodyBinding, BodyNode.BodyBlock, BodyNode.BodyCall, BodyNode.BodyEmpty, BodyNode.BodyField, BodyNode.BodyFor, BodyNode.BodyFunction, BodyNode.BodyIf, BodyNode.BodyIndex, BodyNode.BodyInterpolation, BodyNode.BodyLiteral, BodyNode.BodyLocalUse, BodyNode.BodyMatch, BodyNode.BodyUnary, BodyNode.BodyWhile, BodyTarget.BodyCore, BodyTarget.BodyDeclaration, BodyCheckStatus, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid, BodyLocalIdentity, BoundFunctionBody, CheckedModuleBodies, body_compatibility, check_module_bodies}
+import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
+import project/src/compiler/loader::{LoadedProject, load_project, loaded_binding_graph}
+import project/src/compiler/resolver::{LoadedSource, append_program_declarations, resolve_program_at, resolve_source, render_resolver_diagnostics}
+import project/src/compiler/purity::{check_source_frontend}
+import project/src/compiler/checker::{check_source_types}
+import project/src/compiler/lexer::{lex_file}
+import project/src/compiler/parser::{parse_complete}
+import project/src/compiler/module_emission::{ModuleEmissionResult, ModuleSignature, BoundBody, Expr, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, module_emission_expression, module_emission_program, module_emission_symbol}
+import project/src/compiler/emitter::{compile_source_disassembly, compile_program}
+import project/src/bytecode/codec::{compile_source_bytecode, serialize_bytecode}
+import project/src/compiler/driver::{diagnostic_messages}
+import project/src/compiler/parser::{default_import_alias}
+import stdlib/path::{path_string_parent, path_string_resolve, path_string_join}
+import stdlib/environment::{environment_value}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_equal_nat, test_report}
 pure namespace_parse(source: Str): Result[ParsedModule,Diagnostic] {
   match lex_file(source, "module.panack") {
     Ok(tokens) => parse_module_complete(tokens),
@@ -123,7 +142,7 @@ pure namespace_origin_tests(): [TestResult] {
         Error(error) => { results = append(results, test_expect("origin source parses", false, error.message)) },
         Ok(parsed) => {
           bindings: ModuleBindings = collect_module_bindings(ModuleIdentity(StandaloneModulePackage(), source.path), parsed)
-          modules = append(modules, LoadedModule(source.path, parsed, parsed.program, bindings))
+          modules = append(modules, LoadedModule(source.path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
         }
       }
     }
@@ -144,9 +163,13 @@ pure namespace_origin_tests(): [TestResult] {
 
 
 main(): Void {
-  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests())
+  mut results: [TestResult] = namespace_syntax_tests().concat(namespace_binding_tests()).concat(namespace_execution_boundary_tests()).concat(namespace_origin_tests()).concat(namespace_resolution_tests()).concat(namespace_qualified_syntax_tests()).concat(namespace_resolution_failure_tests()).concat(namespace_lexical_receiver_tests()).concat(namespace_signature_tests()).concat(namespace_body_tests()).concat(namespace_effect_tests()).concat(namespace_expression_tests()).concat(namespace_aggregate_tests()).concat(namespace_else_if_tests()).concat(module_emission_identity_tests()).concat(module_emission_program_tests()).concat(module_emission_effect_tests()).concat(module_emission_status_tests())
   loaded: LoadedProject = load_project("tests/fixtures/compiler_contracts/indexed_lookup/main.panack")
-  results = append(results, test_equal_nat("existing project still resolves", len(loaded.diagnostics), 0))
+  results = append(results, test_expect(
+    "existing project resolves with identity-checked bodies",
+    loaded.identity_ready,
+    "loaded project is not identity ready"
+  ))
   mut saw_main: Bool = false
   mut saw_core: Bool = false
   for module in loaded.modules {
@@ -159,7 +182,334 @@ main(): Void {
   }
   results = append(results, test_expect("loader retains entry module bindings", saw_main, "missing entry metadata"))
   results = append(results, test_expect("core origin precedes internalization", saw_core, "missing original core name"))
-  if test_report(results) > 0 { process_exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
+}
+
+pure module_emission_identity_tests(): [TestResult] {
+  entry: ModuleIdentity = namespace_identity("app")
+  left: ModuleIdentity = namespace_identity("left")
+  right: ModuleIdentity = namespace_identity("right")
+  graph: ModuleBindingGraph = ModuleBindingGraph([
+    ModuleBindings(left, [], []),
+    ModuleBindings(right, [], []),
+    ModuleBindings(entry, [], [])
+  ], [])
+  left_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "same"))
+  right_name: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "same"))
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str(
+    "module emission names left origin",
+    left_name,
+    "$module0_same"
+  ))
+  results = append(results, test_equal_str(
+    "module emission names right origin",
+    right_name,
+    "$module1_same"
+  ))
+  results = append(results, test_expect(
+    "module emission separates equal source names",
+    left_name != right_name,
+    "source declaration spellings collided: " + left_name
+  ))
+  results = append(results, test_equal_str(
+    "module emission reserves entry main",
+    module_emission_symbol(graph, entry, DeclarationIdentity(entry, "main")),
+    "main"
+  ))
+  results = append(results, test_expect(
+    "module emission renames imported main",
+    module_emission_symbol(graph, entry, DeclarationIdentity(left, "main")) != "main",
+    "imported main collides with the entry"
+  ))
+  results
+}
+
+module_emission_guard_call_name(expression: Expr): Str {
+  match unlocated_expression(expression) {
+    CallExpr(name, arguments, types) => name,
+    LocatedExpr(span, value, located_type_argument_spans) => "",
+    NatExpr(value) => "",
+    DecimalExpr(value) => "",
+    StringExpr(value) => "",
+    BoolExpr(value) => "",
+    NameExpr(name) => "",
+    FunctionExpr(name) => "",
+    ArrayExpr(items) => "",
+    UnaryExpr(operator, value) => "",
+    BinaryExpr(operator, left, right) => "",
+    DotCallExpr(target, name, arguments, types) => "",
+    FieldExpr(target, name) => "",
+    IndexExpr(target, index) => "",
+    IfExpr(condition, yes, no, has_else) => "",
+    BlockExpr(block) => "",
+    MatchExpr(subject, arms) => ""
+  }
+}
+
+module_emission_program_tests(): [TestResult] {
+  entry_path: Str = path_string_resolve("tests/fixtures/compiler_contracts/namespaces/emission/main.panack")
+  project_root: Str = path_string_parent(entry_path)
+  stdlib_root: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+  loaded: LoadedProject = load_project(entry_path)
+  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  identity: ModuleIdentity = source_module_identity(entry_path, project_root, stdlib_root)
+  emitted: ModuleEmissionResult = module_emission_program(graph, loaded.modules, loaded.module_signatures, loaded.module_bodies, identity)
+  mut results: [TestResult] = []
+  results = append(results, test_expect("identity emission accepts checked public fixture", len(emitted.diagnostics) == 0, if len(emitted.diagnostics) > 0 { emitted.diagnostics[0].message } else { "unexpected emission failure" }))
+  results = append(results, test_expect("identity emission retains only entry main", emitted.program.function_indices.has("main"), "entry main missing"))
+  left_identity: ModuleIdentity = source_module_identity(path_string_join(project_root, "left.panack"), project_root, stdlib_root)
+  right_identity: ModuleIdentity = source_module_identity(path_string_join(project_root, "right.panack"), project_root, stdlib_root)
+  left_make: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "make"))
+  right_make: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "make"))
+  left_main: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "main"))
+  right_main: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "main"))
+  left_item: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Item"))
+  right_item: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Item"))
+  left_envelope: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Envelope"))
+  right_envelope: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Envelope"))
+  left_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Outcome"))
+  right_outcome: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Outcome"))
+  left_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Finished"))
+  right_finished: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Finished"))
+  left_positive: Str = module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "positive"))
+  right_positive: Str = module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "positive"))
+  mut left_guard_call: Str = ""
+  mut right_guard_call: Str = ""
+  for declaration in emitted.program.declarations {
+    match declaration {
+      TypeDeclaration(name, base, guard) => {
+        if name == module_emission_symbol(graph, identity, DeclarationIdentity(left_identity, "Positive")) {
+          left_guard_call = module_emission_guard_call_name(guard)
+        } else if name == module_emission_symbol(graph, identity, DeclarationIdentity(right_identity, "Positive")) {
+          right_guard_call = module_emission_guard_call_name(guard)
+        } else {}
+      },
+      ImportDeclaration(path) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {},
+      FunctionDeclaration(name, parameters, return_type, pure_flag, async_flag, body, type_parameters) => {}
+    }
+  }
+  results = append(results, test_expect("identity emission binds left guarded type helper", left_guard_call == left_positive && left_guard_call != right_positive, left_guard_call))
+  results = append(results, test_expect("identity emission binds right guarded type helper", right_guard_call == right_positive && right_guard_call != left_positive, right_guard_call))
+  results = append(results, test_expect("identity emission includes left same-spelled function", emitted.program.function_indices.has(left_make), left_make + " missing"))
+  results = append(results, test_expect("identity emission includes right same-spelled function", emitted.program.function_indices.has(right_make), right_make + " missing"))
+  results = append(results, test_expect("identity emission internalizes imported mains", left_main != "main" && right_main != "main" && emitted.program.function_indices.has(left_main) && emitted.program.function_indices.has(right_main), "imported main was not internalized"))
+  results = append(results, test_expect("identity emission keeps same-spelled functions distinct", left_make != right_make, "make identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled records distinct", emitted.program.record_indices.has(left_item) && emitted.program.record_indices.has(right_item) && left_item != right_item, "Item identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled nested generic records distinct", emitted.program.record_indices.has(left_envelope) && emitted.program.record_indices.has(right_envelope) && left_envelope != right_envelope, "Envelope identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled enums distinct", emitted.program.enum_indices.has(left_outcome) && emitted.program.enum_indices.has(right_outcome) && left_outcome != right_outcome, "Outcome identities collided"))
+  results = append(results, test_expect("identity emission keeps same-spelled variants distinct", emitted.program.variants.has(left_finished) && emitted.program.variants.has(right_finished) && left_finished != right_finished, "Finished identities collided"))
+  left_target: ResolvedModuleTarget = match resolve_module_path(graph, identity, "left.make") {
+    Error(message) => NamespaceTarget(identity),
+    Ok(target) => target
+  }
+  left_binding: ModuleDeclarationBinding = match left_target {
+    DeclarationTarget(binding) => binding,
+    NamespaceTarget(module) => ModuleDeclarationBinding(DeclarationIdentity(module, "make"), ModuleFunction(), false, SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)))
+  }
+  call: BoundBody = BoundBody(
+    BodyCall(BodyDeclaration(left_binding), []),
+    SourceSpan(SourcePos("", 0, 1, 1), SourcePos("", 0, 1, 1)),
+    [],
+    Some(SignatureType(SignatureCore("Nat"), [])),
+    []
+  )
+  emitted_call: Expr = module_emission_expression(graph, identity, call)
+  results = append(results, test_expect("identity expression targets the left declaration", match unlocated_expression(emitted_call) {
+    CallExpr(name, arguments, types) => name == left_make,
+    LocatedExpr(span, expression, located_type_argument_spans) => false,
+    DotCallExpr(target, name, arguments, types) => false,
+    StringExpr(text) => false,
+    NatExpr(value) => false,
+    DecimalExpr(value) => false,
+    BoolExpr(value) => false,
+    NameExpr(name) => false,
+    FunctionExpr(name) => false,
+    ArrayExpr(items) => false,
+    UnaryExpr(operator, operand) => false,
+    BinaryExpr(operator, left, right) => false,
+    FieldExpr(target, name) => false,
+    IndexExpr(target, index) => false,
+    IfExpr(condition, yes, no, has_else) => false,
+    BlockExpr(block) => false,
+    MatchExpr(subject, arms) => false
+  }, "wrong target"))
+  if len(emitted.diagnostics) == 0 {
+    artifact: Bytes = serialize_bytecode(compile_program(emitted.program))
+    results = append(results, test_expect("identity emission produces verified bytecode", len(artifact) > 0, "empty artifact"))
+  } else {}
+  results
+}
+
+pure module_emission_await_call_name(expression: Expr): Str {
+  match unlocated_expression(expression) {
+    UnaryExpr(operator, operand) => if operator == "await" {
+      match unlocated_expression(operand) {
+        CallExpr(name, arguments, types) => name,
+        LocatedExpr(span, value, located_type_argument_spans) => "",
+        NatExpr(value) => "",
+        DecimalExpr(value) => "",
+        StringExpr(value) => "",
+        BoolExpr(value) => "",
+        NameExpr(name) => "",
+        FunctionExpr(name) => "",
+        ArrayExpr(items) => "",
+        UnaryExpr(nested, value) => "",
+        BinaryExpr(nested, left, right) => "",
+        DotCallExpr(target, name, arguments, types) => "",
+        FieldExpr(target, field) => "",
+        IndexExpr(target, index) => "",
+        IfExpr(condition, yes, no, has_else) => "",
+        BlockExpr(block) => "",
+        MatchExpr(subject, arms) => ""
+      }
+    } else {
+      ""
+    },
+    LocatedExpr(span, value, located_type_argument_spans) => "",
+    NatExpr(value) => "",
+    DecimalExpr(value) => "",
+    StringExpr(value) => "",
+    BoolExpr(value) => "",
+    NameExpr(name) => "",
+    FunctionExpr(name) => "",
+    ArrayExpr(items) => "",
+    BinaryExpr(operator, left, right) => "",
+    CallExpr(name, arguments, types) => "",
+    DotCallExpr(target, name, arguments, types) => "",
+    FieldExpr(target, field) => "",
+    IndexExpr(target, index) => "",
+    IfExpr(condition, yes, no, has_else) => "",
+    BlockExpr(block) => "",
+    MatchExpr(subject, arms) => ""
+  }
+}
+
+module_emission_effect_tests(): [TestResult] {
+  entry_path: Str = path_string_resolve("tests/fixtures/compiler_contracts/namespaces/emission/async_helpers.panack")
+  project_root: Str = path_string_parent(entry_path)
+  stdlib_root: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+  loaded: LoadedProject = load_project(entry_path)
+  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  entry: ModuleIdentity = source_module_identity(entry_path, project_root, stdlib_root)
+  left: ModuleIdentity = source_module_identity(path_string_join(project_root, "left.panack"), project_root, stdlib_root)
+  right: ModuleIdentity = source_module_identity(path_string_join(project_root, "right.panack"), project_root, stdlib_root)
+  left_function: Str = module_emission_symbol(graph, entry, DeclarationIdentity(entry, "left_value"))
+  right_function: Str = module_emission_symbol(graph, entry, DeclarationIdentity(entry, "right_value"))
+  left_fetch: Str = module_emission_symbol(graph, entry, DeclarationIdentity(left, "fetch"))
+  right_fetch: Str = module_emission_symbol(graph, entry, DeclarationIdentity(right, "fetch"))
+  emitted: ModuleEmissionResult = module_emission_program(graph, loaded.modules, loaded.module_signatures, loaded.module_bodies, entry)
+  mut left_is_async: Bool = false
+  mut right_is_async: Bool = false
+  mut left_await_target: Str = ""
+  mut right_await_target: Str = ""
+  for declaration in emitted.program.declarations {
+    match declaration {
+      FunctionDeclaration(name, parameters, result_type, is_pure, is_async, body, type_parameters) => {
+        if name == left_function {
+          left_is_async = is_async
+          match body.value {
+            TailBlockValue(value) => { left_await_target = module_emission_await_call_name(value) },
+            NoBlockValue() => {}
+          }
+        } else {
+          if name == right_function {
+            right_is_async = is_async
+            match body.value {
+              TailBlockValue(value) => { right_await_target = module_emission_await_call_name(value) },
+              NoBlockValue() => {}
+            }
+          } else {}
+        }
+      },
+      TypeDeclaration(name, base, guard) => {},
+      ImportDeclaration(path) => {},
+      RecordDeclaration(name, parameters, fields) => {},
+      EnumDeclaration(name, parameters, variants) => {}
+    }
+  }
+  [
+    test_equal_nat("proof/effect emission fixture diagnostics", len(emitted.diagnostics), 0),
+    test_expect("proof/effect emission retains async function identities", left_is_async && right_is_async, "async flags were dropped"),
+    test_expect("await emission targets the left imported async identity", left_await_target == left_fetch, left_await_target),
+    test_expect("await emission targets the right imported async identity", right_await_target == right_fetch && left_await_target != right_await_target, right_await_target)
+  ]
+}
+
+pure module_emission_bodies_with_status(
+  bodies: [BoundFunctionBody],
+  target: DeclarationIdentity,
+  status: BodyCheckStatus
+): [BoundFunctionBody] {
+  mut result: [BoundFunctionBody] = []
+  for body in bodies {
+    if body.signature.binding.identity == target {
+      result = append(result, BoundFunctionBody(
+        body.signature,
+        body.parameters,
+        body.body,
+        body.deferred,
+        status
+      ))
+    } else {
+      result = append(result, body)
+    }
+  }
+  result
+}
+
+pure module_emission_rejects_unchecked_function(
+  result: ModuleEmissionResult,
+  symbol: Str,
+  name: Str
+): Bool {
+  mut diagnostic_found: Bool = false
+  for diagnostic in result.diagnostics {
+    if diagnostic.message == "function is not completely checked for identity emission: " + name {
+      diagnostic_found = true
+    } else {}
+  }
+  diagnostic_found && !result.program.function_indices.has(symbol)
+}
+
+module_emission_status_tests(): [TestResult] {
+  entry_path: Str = path_string_resolve("tests/fixtures/compiler_contracts/namespaces/emission/main.panack")
+  project_root: Str = path_string_parent(entry_path)
+  stdlib_root: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+  loaded: LoadedProject = load_project(entry_path)
+  graph: ModuleBindingGraph = loaded_binding_graph(loaded.modules, project_root, stdlib_root)
+  entry: ModuleIdentity = source_module_identity(entry_path, project_root, stdlib_root)
+  left: ModuleIdentity = source_module_identity(path_string_join(project_root, "left.panack"), project_root, stdlib_root)
+  target: DeclarationIdentity = DeclarationIdentity(left, "indirect_value")
+  symbol: Str = module_emission_symbol(graph, entry, target)
+  deferred: ModuleEmissionResult = module_emission_program(
+    graph,
+    loaded.modules,
+    loaded.module_signatures,
+    module_emission_bodies_with_status(loaded.module_bodies, target, BodyDeferred()),
+    entry
+  )
+  invalid: ModuleEmissionResult = module_emission_program(
+    graph,
+    loaded.modules,
+    loaded.module_signatures,
+    module_emission_bodies_with_status(loaded.module_bodies, target, BodyInvalid()),
+    entry
+  )
+  [
+    test_expect(
+      "identity emission rejects deferred ordinary bodies",
+      module_emission_rejects_unchecked_function(deferred, symbol, "indirect_value"),
+      "deferred function was emitted or lacked its diagnostic"
+    ),
+    test_expect(
+      "identity emission rejects invalid ordinary bodies",
+      module_emission_rejects_unchecked_function(invalid, symbol, "indirect_value"),
+      "invalid function was emitted or lacked its diagnostic"
+    )
+  ]
 }
 
 pure namespace_identity(path: Str): ModuleIdentity {
@@ -301,7 +651,7 @@ pure namespace_qualified_syntax_tests(): [TestResult] {
 pure raw_namespace_dot_call(expression: Expr): Bool {
   match unlocated_expression(expression) {
     DotCallExpr(target, name, arguments, types) => unlocated_expression(target) == NameExpr("api") && name == "get" && len(arguments) == 1 && unlocated_expression(arguments[0]) == NatExpr(1),
-    LocatedExpr(span, value) => false, NatExpr(value) => false, DecimalExpr(text) => false,
+    LocatedExpr(span, value, located_type_argument_spans) => false, NatExpr(value) => false, DecimalExpr(text) => false,
     StringExpr(text) => false, BoolExpr(value) => false, NameExpr(name) => false,
     FunctionExpr(name) => false, ArrayExpr(items) => false, UnaryExpr(operator, operand) => false,
     BinaryExpr(operator, left, right) => false, CallExpr(name, arguments, types) => false,
@@ -409,12 +759,17 @@ pure signature_test_module(identity: ModuleIdentity, source: Str): LoadedModule 
     Ok(value) => value,
     Error(error) => ParsedModule(indexed_program([]), [])
   }
-  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+  LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
 }
 pure signature_test_error(source: Str): Str {
   module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
   result: CheckedModuleSignatures = check_module_signatures(ModuleBindingGraph([module.bindings], []), [module], module)
   if len(result.diagnostics) == 0 { "ok" } else { result.diagnostics[0].message }
+}
+pure signature_test_position(source: Str): SourcePos {
+  module: LoadedModule = signature_test_module(namespace_identity("signature.panack"), source)
+  result: CheckedModuleSignatures = check_module_signatures(ModuleBindingGraph([module.bindings], []), [module], module)
+  if len(result.diagnostics) == 0 { SourcePos("", 0, 0, 0) } else { result.diagnostics[0].position }
 }
 pure signature_test_type(graph: ModuleBindingGraph, modules: [LoadedModule], binder: DeclarationIdentity, parameters: [Str], spelling: Str, public_flag: Bool): SignatureType {
   match signature_type(graph, modules, binder, parameters, spelling, public_flag, true) {
@@ -423,6 +778,22 @@ pure signature_test_type(graph: ModuleBindingGraph, modules: [LoadedModule], bin
 }
 pure namespace_signature_tests(): [TestResult] {
   mut results: [TestResult] = []
+  match namespace_parse("import project/api as api; record Item { old: Nat }; record Item { latest: Str }") {
+    Error(error) => { results = append(results, test_expect("loaded declaration index fixture parses", false, diagnostic_text(error))); },
+    Ok(parsed) => {
+      index: Map[Str,TopLevel] = loaded_module_declaration_index(parsed)
+      latest: TopLevel = index.get("Item")
+      latest_field: Str = match latest {
+        RecordDeclaration(name, parameters, fields) => fields[0].name,
+        ImportDeclaration(path) => "import",
+        TypeDeclaration(name, base, guard) => "type",
+        EnumDeclaration(name, parameters, variants) => "enum",
+        FunctionDeclaration(name, parameters, result, pure_flag, async_flag, body, types) => "function"
+      }
+      results = append(results, test_expect("loaded declaration index keeps last declaration", index.has("Item") && latest_field == "latest", latest_field))
+      results = append(results, test_expect("loaded declaration index excludes imports", !index.has("api"), "import alias indexed as declaration"))
+    }
+  }
   left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item[T] { value: T }; pub async fetch(): Nat { 1 }")
   right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item[T] { value: T }")
   app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as private_alias; pub import project/left as public_alias; pub import project/right as other; pub pure wrap[T](value: private_alias.Item[PureFn[T,Nat]]): other.Item[T] { 0 }")
@@ -450,7 +821,7 @@ pure namespace_signature_tests(): [TestResult] {
   results = append(results, test_expect("missing substitution rejects safely", substitute_signature_type(parameter, binder, []) == Error("missing signature substitution"), "missing argument accepted"))
   for spelling in ["PureFn[Nat,Void]", "Fn[Nat,Void]", "AsyncFn[Nat,Nat]"] {
     resolved: SignatureType = signature_test_type(graph, modules, binder, [], spelling, true)
-    expected: SignatureEffect = signature_effect(starts_with(spelling, "Pure"), starts_with(spelling, "Async"))
+    expected: SignatureEffect = signature_effect(starts_with_at(spelling, "Pure", 0), starts_with_at(spelling, "Async", 0))
     results = append(results, test_expect("callable signature effect/" + spelling, resolved.identity == SignatureCallable(expected), "effect erased"))
   }
   results = append(results, test_equal_str("record private field leak", signature_test_error("record Hidden { value: Nat }; pub record Box { value: Hidden }"), "signature Box.value: public signature exposes inaccessible type Hidden from signature.panack"))
@@ -466,6 +837,16 @@ pure namespace_signature_tests(): [TestResult] {
   results = append(results, test_equal_str("duplicate parameter rejected", signature_test_error("pub record Pair[T,T] { value: T }"), "invalid or duplicate type parameter T"))
   results = append(results, test_equal_str("callable Void parameter rejected", signature_test_error("pub pure f(value: Fn[Void,Nat]): Nat { 0 }"), "signature f.value: Void is only valid as a function return type"))
   results = append(results, test_equal_str("async Void result rejected", signature_test_error("pub async f(): Void {}"), "signature f.return: Void is only valid as a function return type"))
+  field_position: SourcePos = signature_test_position("pub record Box { first: Nat, missing: Missing }")
+  results = append(results, test_expect("unknown field type points at the type token", field_position.file == "module.panack" && field_position.line == 1 && field_position.column == 39, "wrong diagnostic position"))
+  nested_position: SourcePos = signature_test_position("pub pure f(value: Nat): Option[[Missing]] { 0 }")
+  results = append(results, test_expect("nested return type points at the type reference", nested_position.file == "module.panack" && nested_position.line == 1 && nested_position.column == 25, "wrong diagnostic position"))
+  enum_position: SourcePos = signature_test_position("pub enum Choice { Known(Nat), Broken(Missing) }")
+  results = append(results, test_expect("enum payload type points at the type token", enum_position.file == "module.panack" && enum_position.line == 1 && enum_position.column == 38, "wrong diagnostic position"))
+  parameter_position: SourcePos = signature_test_position("pub pure f(value: Missing): Nat { 0 }")
+  results = append(results, test_expect("function parameter type points at the type token", parameter_position.file == "module.panack" && parameter_position.line == 1 && parameter_position.column == 19, "wrong diagnostic position"))
+  guarded_base_position: SourcePos = signature_test_position("pub type Positive = Missing where value > 0")
+  results = append(results, test_expect("guarded type base points at the type token", guarded_base_position.file == "module.panack" && guarded_base_position.line == 1 && guarded_base_position.column == 21, "wrong diagnostic position"))
   leaked: LoadedModule = signature_test_module(namespace_identity("leaked"), "import project/left as api; pub pure expose(): api.Item[Nat] { 0 }")
   leak_graph: ModuleBindingGraph = ModuleBindingGraph([left.bindings, leaked.bindings], [ModuleImportEdge(leaked.bindings.identity, 0, left.bindings.identity)])
   leak_result: CheckedModuleSignatures = check_module_signatures(leak_graph, [left, leaked], leaked)
@@ -512,7 +893,7 @@ pure body_test_module(source: Str): CheckedModuleBodies {
     Error(error) => CheckedModuleBodies([], [error]),
     Ok(parsed) => {
       identity: ModuleIdentity = namespace_identity("body.panack")
-      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed))
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
       graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
       signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
       checked: CheckedModuleBodies = check_module_bodies(graph, [module], signatures.declarations, module)
@@ -534,8 +915,192 @@ pure body_test_graph(modules: [LoadedModule], graph: ModuleBindingGraph, entry: 
   bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
   CheckedModuleBodies(bodies.functions, concat(diagnostics, bodies.diagnostics))
 }
+pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
+  match namespace_parse(source) {
+    Error(error) => CheckedModuleEffects([error], [], map()),
+    Ok(parsed) => {
+      identity: ModuleIdentity = namespace_identity("body.panack")
+      module: LoadedModule = LoadedModule(identity.path, parsed, parsed.program, collect_module_bindings(identity, parsed), loaded_module_declaration_index(parsed))
+      graph: ModuleBindingGraph = ModuleBindingGraph([module.bindings], [])
+      checked_signatures: CheckedModuleSignatures = check_module_signatures(graph, [module], module)
+      checked_bodies: CheckedModuleBodies = check_module_bodies(graph, [module], checked_signatures.declarations, module)
+      checked: CheckedModuleEffects = check_module_effects(graph, [module], checked_signatures.declarations, checked_bodies.functions, retain)
+      CheckedModuleEffects(concat(checked_signatures.diagnostics, concat(checked_bodies.diagnostics, checked.diagnostics)), checked.evidence, checked.function_types)
+    }
+  }
+}
+pure body_effect_error(source: Str): Str {
+  checked: CheckedModuleEffects = body_test_effects(source, false)
+  if len(checked.diagnostics) == 0 { "ok" } else { checked.diagnostics[0].message }
+}
+pure body_test_graph_effects(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule): CheckedModuleEffects {
+  mut signatures: [ModuleSignature] = []
+  mut diagnostics: [Diagnostic] = []
+  for module in modules {
+    checked: CheckedModuleSignatures = check_module_signatures(graph, modules, module)
+    signatures = concat(signatures, checked.declarations)
+    diagnostics = concat(diagnostics, checked.diagnostics)
+  }
+  bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
+  checked: CheckedModuleEffects = check_module_effects(graph, modules, signatures, bodies.functions, false)
+  CheckedModuleEffects(concat(diagnostics, concat(bodies.diagnostics, checked.diagnostics)), checked.evidence, checked.function_types)
+}
+pure namespace_effect_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str("identity effects allow pure direct call", body_effect_error("pub pure f(): Nat { later() }; pure later(): Nat { 1 }"), "ok"))
+  results = append(results, test_equal_str("identity effects reject ordinary call from pure", body_effect_error("pub pure f(): Nat { later() }; later(): Nat { 1 }"), "pure function cannot call impure function body.panack:later"))
+  results = append(results, test_equal_str("identity effects allow ordinary call from ordinary", body_effect_error("pub f(): Nat { later() }; later(): Nat { 1 }"), "ok"))
+  results = append(results, test_equal_str("identity effects reject blocking call from async", body_effect_error("pub async f(): Unit { print(1); () }"), "async function cannot call blocking function print"))
+  results = append(results, test_equal_str("identity effects accept ordinary printing", body_effect_error("pub f(): Void { print(1) }"), "ok"))
+  results = append(results, test_equal_str("identity effects require awaiting async direct calls", body_effect_error("pub async f(): Unit { later(); () }; async later(): Unit { () }"), "async call requires await inside an async function"))
+  results = append(results, test_equal_str("identity effects reject async call from pure", body_effect_error("pub pure f(): Nat { later() }; async later(): Nat { 1 }"), "async call requires await inside an async function"))
+  results = append(results, test_equal_str("identity effects accept awaited async direct calls", body_effect_error("pub async f(): Nat { await later() }; async later(): Nat { 1 }"), "ok"))
+  results = append(results, test_equal_str("identity effects require async context for await", body_effect_error("pub f(): Nat { await later() }; async later(): Nat { 1 }"), "await requires an async function"))
+  results = append(results, test_equal_str("identity effects reject awaiting ordinary calls", body_effect_error("pub async f(): Nat { await later() }; later(): Nat { 1 }"), "await requires an async call"))
+  results = append(results, test_equal_str("identity effects reject await of values", body_effect_error("pub async f(): Nat { await 1 }"), "await requires an async call"))
+  results = append(results, test_equal_str("identity effects reject discarded non-Unit await", body_effect_error("pub async f(): Unit { await later(); () }; async later(): Nat { 1 }"), "bind, match or return a non-Unit await result"))
+  results = append(results, test_equal_str("identity effects allow discarded Unit await", body_effect_error("pub async f(): Unit { await later(); () }; async later(): Unit { () }"), "ok"))
+  indirect: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Nat { await callback.call() }", false)
+  results = append(results, test_equal_str("identity effects accept awaited async indirect call", if len(indirect.diagnostics) == 0 { "ok" } else { indirect.diagnostics[0].message }, "ok"))
+  indirect_bare: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Unit { callback.call(); () }", false)
+  results = append(results, test_equal_str("identity effects reject bare async indirect call", if len(indirect_bare.diagnostics) == 0 { "ok" } else { indirect_bare.diagnostics[0].message }, "async call requires await inside an async function"))
+  imported: LoadedModule = signature_test_module(namespace_identity("effect_imported"), "pub async identity[T](value: T): T { value }; pub pure ordinary(): Nat { 1 }; pub ordinary_blocking(): Nat { 2 }")
+  app: LoadedModule = signature_test_module(namespace_identity("effect_app"), "import project/effect_imported as api; pub async f(): Nat { await api.identity[Nat](1) }; pub pure g(): Nat { api.ordinary() }; pub pure h(): Nat { api.ordinary_blocking() }")
+  graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, imported.bindings], [ModuleImportEdge(app.bindings.identity, 0, imported.bindings.identity)])
+  imported_effects: CheckedModuleEffects = body_test_graph_effects([app, imported], graph, app)
+  results = append(results, test_expect("identity effects follow imported generic and aliased declarations", len(imported_effects.diagnostics) == 1 && imported_effects.diagnostics[0].message == "pure function cannot call impure function effect_imported:ordinary_blocking", if len(imported_effects.diagnostics) > 0 { imported_effects.diagnostics[0].message } else { "imported callable effect lost canonical identity" }))
+  recovered: CheckedModuleEffects = body_test_effects("pub pure bad(): Nat { ordinary() }; pub pure good(): Nat { later() }; ordinary(): Nat { 1 }; pure later(): Nat { 2 }", true)
+  results = append(results, test_expect("identity effect explanation retains valid sibling evidence", len(recovered.diagnostics) == 1 && len(recovered.evidence) == 2 && recovered.evidence[0].function_name == "bad" && len(recovered.evidence[0].violations) == 1 && recovered.evidence[1].function_name == "good", "valid sibling effect evidence was not recovered"))
+  results
+}
 pure namespace_body_tests(): [TestResult] {
   mut results: [TestResult] = []
+  results = concat(results, network_core_body_tests())
+  ordinary_source: Str = "pure pick[T](items: [T], index: Nat): T { items[index] }; pure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }; main(): Void { print(pick[Nat]([7], 0)); print(choose(true)) }"
+  ordinary: LoadedModule = signature_test_module(namespace_identity("ordinary"), ordinary_source)
+  ordinary_graph: ModuleBindingGraph = ModuleBindingGraph([ordinary.bindings], [])
+  ordinary_signatures: CheckedModuleSignatures = check_module_signatures(ordinary_graph, [ordinary], ordinary)
+  ordinary_bodies: CheckedModuleBodies = check_module_bodies(ordinary_graph, [ordinary], ordinary_signatures.declarations, ordinary)
+  ordinary_emitted: ModuleEmissionResult = module_emission_program(
+    ordinary_graph,
+    [ordinary],
+    ordinary_signatures.declarations,
+    ordinary_bodies.functions,
+    ordinary.bindings.identity
+  )
+  results = append(results, test_equal_nat("ordinary legacy syntax does not opt into staged parser gate", len(module_execution_diagnostics(ordinary.parsed)), 0))
+  results = append(results, test_expect(
+    "ordinary generic indexing, branch and core call identities are complete",
+    len(ordinary_signatures.diagnostics) == 0 && len(ordinary_bodies.diagnostics) == 0 &&
+      len(ordinary_bodies.functions) == 3 && ordinary_bodies.functions[0].status == BodyIdentityChecked() &&
+      ordinary_bodies.functions[1].status == BodyIdentityChecked() && ordinary_bodies.functions[2].status == BodyIdentityChecked(),
+    if len(ordinary_bodies.diagnostics) > 0 { ordinary_bodies.diagnostics[0].message } else { "ordinary body remained deferred or invalid" }
+  ))
+  results = append(results, test_expect(
+    "ordinary generic project can be identity emitted when loader supplies checked bodies",
+    len(ordinary_emitted.diagnostics) == 0 && ordinary_emitted.program.function_indices.has("main"),
+    if len(ordinary_emitted.diagnostics) > 0 { ordinary_emitted.diagnostics[0].message } else { "ordinary entry was not emitted" }
+  ))
+  results = append(results, test_equal_str("print body contract", body_test_error("pub f(): Void { print(1) }"), "ok"))
+  results = append(results, test_equal_str("print wrong arity", body_test_error("pub f(): Void { print() }"), "print expects 1 arguments, got 0"))
+  checked_nat_from_str: CheckedModuleBodies = body_test_module("pub pure f(): Nat { nat_from_str(\"42\") }")
+  results = append(results, test_expect(
+    "nat_from_str has complete identity contract",
+    len(checked_nat_from_str.diagnostics) == 0 && len(checked_nat_from_str.functions) == 1 &&
+      checked_nat_from_str.functions[0].status == BodyIdentityChecked() &&
+      len(checked_nat_from_str.functions[0].deferred) == 0,
+    if len(checked_nat_from_str.diagnostics) > 0 { checked_nat_from_str.diagnostics[0].message } else { "nat_from_str remained deferred" }
+  ))
+  results = append(results, test_equal_str(
+    "nat_from_str checks argument type",
+    body_test_error("pub pure f(): Nat { nat_from_str(42) }"),
+    "argument 1 to nat_from_str is Nat, expected Str"
+  ))
+  results = append(results, test_equal_str(
+    "nat_from_str checks arity",
+    body_test_error("pub pure f(): Nat { nat_from_str(\"4\", \"2\") }"),
+    "nat_from_str expects 1 arguments, got 2"
+  ))
+  for source in [
+    "pub pure f(): Bool { is_digit(\"9\") }",
+    "pub pure f(): Bool { is_letter(\"a\") }",
+    "pub pure f(): Bool { is_whitespace(\" \") }",
+    "pub pure f(): Bool { starts_with_at(\"=>\", \"=\", 0) }",
+    "pub pure f(): Str { slice(\"text\", 1, 3) }",
+    "pub pure f(value: Str): Str { value.reverse() }",
+    "pub pure f(value: Str, prefix: Str): Bool { value.starts_with(prefix) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect(
+      "text intrinsic has complete identity contract/" + source,
+      len(checked.diagnostics) == 0 && len(checked.functions) == 1 &&
+        checked.functions[0].status == BodyIdentityChecked() &&
+        len(checked.functions[0].deferred) == 0,
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "text intrinsic remained deferred" }
+    ))
+  }
+  results = append(results, test_equal_str(
+    "starts_with_at checks argument types",
+    body_test_error("pub pure f(): Bool { starts_with_at(\"text\", 1, 0) }"),
+    "argument 2 to starts_with_at is Nat, expected Str"
+  ))
+  results = append(results, test_equal_str(
+    "character intrinsic checks arity",
+    body_test_error("pub pure f(): Bool { is_digit(\"1\", \"2\") }"),
+    "is_digit expects 1 arguments, got 2"
+  ))
+  results = append(results, test_equal_str(
+    "starts_with_at checks arity",
+    body_test_error("pub pure f(): Bool { starts_with_at(\"text\", \"t\") }"),
+    "starts_with_at expects 3 arguments, got 2"
+  ))
+  rational_conversions: CheckedModuleBodies = body_test_module(
+    "pub pure to_nat(): Nat { (3 / 1).nat() }; pub pure to_dec(): Dec { (3 / 1).dec() }"
+  )
+  results = append(results, test_expect(
+    "rational conversions have checked numeric contracts",
+    len(rational_conversions.diagnostics) == 0 && len(rational_conversions.functions) == 2 &&
+      rational_conversions.functions[0].status == BodyIdentityChecked() &&
+      rational_conversions.functions[1].status == BodyIdentityChecked() &&
+      rational_conversions.functions[0].body.type == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      rational_conversions.functions[1].body.type == Some(SignatureType(SignatureCore("Dec"), [])),
+    if len(rational_conversions.diagnostics) > 0 { rational_conversions.diagnostics[0].message } else { "conversion result type was not retained" }
+  ))
+  results = append(results, test_equal_str(
+    "rational conversion checks input type",
+    body_test_error("pub pure f(): Nat { \"bad\".nat() }"),
+    "argument 1 to nat is Str, expected Rat"
+  ))
+  results = append(results, test_equal_str(
+    "rational conversion checks arity",
+    body_test_error("pub pure f(): Nat { (3 / 1).nat(2) }"),
+    "nat expects 1 arguments, got 2"
+  ))
+  results = append(results, test_equal_str(
+    "starts_with checks argument types",
+    body_test_error("pub pure f(value: Str): Bool { value.starts_with(1) }"),
+    "argument 2 to starts_with is Nat, expected Str"
+  ))
+  results = append(results, test_equal_str(
+    "starts_with checks arity",
+    body_test_error("pub pure f(value: Str): Bool { value.starts_with() }"),
+    "starts_with expects 2 arguments, got 1"
+  ))
+  results = append(results, test_equal_str(
+    "reverse checks arity",
+    body_test_error("pub pure f(value: Str): Str { value.reverse(1) }"),
+    "reverse expects 1 arguments, got 2"
+  ))
+  results = append(results, test_equal_str(
+    "slice checks argument types",
+    body_test_error("pub pure f(): Str { slice(\"text\", \"start\", 3) }"),
+    "argument 2 to slice is Str, expected Nat"
+  ))
+  results = append(results, test_equal_str(
+    "slice checks arity",
+    body_test_error("pub pure f(): Str { slice(\"text\", 1) }"),
+    "slice expects 3 arguments, got 2"
+  ))
   for source in [
     "pub pure identity(value: Nat): Nat { value }",
     "pub pure widen(value: Nat): Int { value }",
@@ -556,7 +1121,172 @@ pure namespace_body_tests(): [TestResult] {
     results = append(results, test_expect("checked subset has explicit type evidence/" + source, len(checked.functions) > 0 && checked.functions[0].body.type != None() && len(checked.functions[0].deferred) == 0, "missing type evidence or unexpectedly deferred"))
   }
   results = append(results, test_equal_str("annotated local mismatch", body_test_error("pub pure f(): Nat { value: Nat = \"bad\"; value }"), "binding value is Str, expected Nat"))
+  annotated_type_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { value: MissingType = 1; value }"
+  )
+  results = append(results, test_expect(
+    "invalid body-local type points to its type token",
+    len(annotated_type_location.diagnostics) > 0 &&
+      annotated_type_location.diagnostics[0].position.file == "module.panack" &&
+      annotated_type_location.diagnostics[0].position.line == 1 &&
+      annotated_type_location.diagnostics[0].position.column == 28,
+    if len(annotated_type_location.diagnostics) > 0 {
+      diagnostic_text(annotated_type_location.diagnostics[0])
+    } else {
+      "invalid local type was accepted"
+    }
+  ))
   results = append(results, test_equal_str("direct argument mismatch", body_test_error("pub pure f(): Nat { next(\"bad\") }; pure next(value: Nat): Nat { value }"), "argument 1 to next is Str, expected Nat"))
+  indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: PureFn[Nat,Nat], value: Nat): Nat { callback.call(value) }")
+  results = append(results, test_expect("indirect call shares callable parameter and result contract", len(indirect.diagnostics) == 0 && len(indirect.functions) == 1 && indirect.functions[0].status == BodyIdentityChecked() && indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "callable signature was not checked"))
+  results = append(results, test_equal_str("indirect argument mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(\"bad\") }"), "argument 1 to call is Str, expected Nat"))
+  results = append(results, test_equal_str("indirect arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call() }"), "call expects 1 arguments, got 0"))
+  results = append(results, test_equal_str("indirect excess arity mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Nat { callback.call(1, 2) }"), "call expects 1 arguments, got 2"))
+  results = append(results, test_equal_str("non-callable receiver rejects", body_test_error("pub pure apply(value: Nat): Nat { value.call(1) }"), "call expects a callable, got Nat"))
+  results = append(results, test_equal_str("indirect result mismatch", body_test_error("pub pure apply(callback: PureFn[Nat,Nat]): Str { callback.call(1) }"), "return of apply is Nat, expected Str"))
+  async_indirect: CheckedModuleBodies = body_test_module("pub pure apply(callback: AsyncFn[Nat,Nat]): Nat { callback.call(1) }")
+  results = append(results, test_expect("async indirect call retains identity and result types", len(async_indirect.diagnostics) == 0 && len(async_indirect.functions) == 1 && async_indirect.functions[0].status == BodyIdentityChecked() && len(async_indirect.functions[0].deferred) == 0 && async_indirect.functions[0].body.children[0].type == Some(SignatureType(SignatureCore("Nat"), [])), "async indirect result was not inferred"))
+  core_method_library: LoadedModule = signature_test_module(
+    ModuleIdentity(ToolchainModulePackage(), "core.panack"),
+    "pub enum Option[T] { Some(T), None }; pub enum Result[T,E] { Ok(T), Error(E) }; " +
+      "pure core_first[T](values: [T]): Option[T] { None() }; " +
+      "pure core_ends_with(value: Str, suffix: Str): Bool { true }; " +
+      "pure core_sort_by[T](values: [T], less: PureFn[T,T,Bool]): [T] { values }"
+  )
+  core_app: LoadedModule = signature_test_module(
+    namespace_identity("core_methods"),
+    "pub pure core_first(value: Str): Option[Str] { None() }; " +
+      "pub pure first_value(): Option[Nat] { [1].first() }; " +
+      "pub pure suffix(): Bool { \"panackelty\".ends_with(\"ty\") }; " +
+      "pub pure ordered(): [Nat] { [2,1].sort_by(@less) }; " +
+      "pub pure length(): Nat { len([1,2]) }; " +
+      "pub pure map_operations(): Bool { values: Map[Str,Nat] = map(); values.put(\"key\",1); values.has(\"key\") }; " +
+      "pub pure map_value(): Nat { values: Map[Str,Nat] = map(); values.put(\"key\",1); values.get(\"key\") }; " +
+      "pub pure set_operations(): Bool { values: Set[Nat] = set(); values.add(1); values.has(1) }; " +
+      "pub pure append_value(): [Nat] { [1].append(2) }; " +
+      "pub pure concat_value(): [Nat] { [1].concat([2]) }; " +
+      "pub pure mapped(): [Nat] { [1,2].map(@twice) }; " +
+      "pub pure reduced(): Nat { [1,2].reduce(0,@sum) }; " +
+      "pub pure inferred_map(): Nat { counts = map().put(\"key\",1); counts.get(\"key\") }; " +
+      "pub pure inferred_set(): Bool { names = set().add(\"Ada\"); names.has(\"Ada\") }; " +
+      "pure twice(value: Nat): Nat { value + value }; " +
+      "pure sum(left: Nat, right: Nat): Nat { left + right }; " +
+      "pure less(left: Nat, right: Nat): Bool { left < right }"
+  )
+  core_method_graph: ModuleBindingGraph = ModuleBindingGraph([core_app.bindings, core_method_library.bindings], [ModuleImportEdge(core_app.bindings.identity, 0, core_method_library.bindings.identity)])
+  core_methods: CheckedModuleBodies = body_test_graph([core_app, core_method_library], core_method_graph, core_app)
+  results = append(results, test_expect("core methods use reserved original signatures", len(core_methods.diagnostics) == 0 && len(core_methods.functions) == 17 && core_methods.functions[0].status == BodyIdentityChecked() && core_methods.functions[1].body.children[0].type == Some(SignatureType(SignatureCore("Option"), [SignatureType(SignatureCore("Nat"), [])])) && core_methods.functions[2].body.children[0].type == Some(SignatureType(SignatureCore("Bool"), [])) && core_methods.functions[1].status == BodyIdentityChecked() && core_methods.functions[2].status == BodyIdentityChecked() && core_methods.functions[3].status == BodyIdentityChecked() && core_methods.functions[4].status == BodyIdentityChecked() && core_methods.functions[5].status == BodyIdentityChecked() && core_methods.functions[6].status == BodyIdentityChecked() && core_methods.functions[7].status == BodyIdentityChecked() && core_methods.functions[8].status == BodyIdentityChecked() && core_methods.functions[9].status == BodyIdentityChecked() && core_methods.functions[10].status == BodyIdentityChecked() && core_methods.functions[11].status == BodyIdentityChecked() && core_methods.functions[12].status == BodyIdentityChecked() && core_methods.functions[13].status == BodyIdentityChecked(), if len(core_methods.diagnostics) > 0 { core_methods.diagnostics[0].message } else { "core method identity/type evidence missing" }))
+  aliases: CheckedModuleBodies = body_test_module(
+    "pub pure append_alias(): [Nat] { append([1], 2) }; " +
+      "pub pure concat_alias(): [Nat] { concat([1], [2]) }; " +
+      "pub pure map_put_alias(): Map[Str,Nat] { map_put(map(), \"key\", 1) }; " +
+      "pub pure map_get_alias(): Nat { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); map_get(values, \"key\") }; " +
+      "pub pure map_has_alias(): Bool { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); map_has(values, \"key\") }; " +
+      "pub pure set_add_alias(): Set[Nat] { set_add(set(), 1) }; " +
+      "pub pure set_has_alias(): Bool { values: Set[Nat] = set(); set_add(values, 1); set_has(values, 1) }"
+  )
+  mut aliases_checked: Bool = len(aliases.diagnostics) == 0
+  for function in aliases.functions {
+    aliases_checked = aliases_checked && function.status == BodyIdentityChecked()
+  }
+  results = append(results, test_expect("direct core aliases share checked contracts", aliases_checked, if len(aliases.diagnostics) > 0 { aliases.diagnostics[0].message } else { "a direct core alias remained unchecked" }))
+  for source in [
+    "pub pure f(): Nat { len() }",
+    "pub pure f(): Nat { len(\"a\", \"b\") }",
+    "pub pure f(): [Nat] { append([1]) }",
+    "pub pure f(): [Nat] { append([1], 2, 3) }",
+    "pub pure f(): [Nat] { concat([1]) }",
+    "pub pure f(): [Nat] { concat([1], [2], [3]) }",
+    "pub pure f(): Map[Str,Nat] { map_put(map(), \"key\") }",
+    "pub pure f(): Nat { map_get(map(), \"key\", \"extra\") }",
+    "pub pure f(): Bool { map_has(map(), \"key\", \"extra\") }",
+    "pub pure f(): Set[Nat] { set_add(set()) }",
+    "pub pure f(): Bool { set_has(set(), 1, 2) }",
+    "pub pure f(): [Nat] { [1].append() }",
+    "pub pure f(): [Nat] { [1].append(2, 3) }",
+    "pub pure f(): [Nat] { [1].concat() }",
+    "pub pure f(): [Nat] { [1].concat([2], [3]) }",
+    "pub pure f(): [Nat] { [1].map() }",
+    "pub pure f(): [Nat] { [1].map(@twice, @twice) }; pure twice(value: Nat): Nat { value }",
+    "pub pure f(): Nat { [1].reduce(0) }",
+    "pub pure f(): Nat { [1].reduce(0, @sum, @sum) }; pure sum(left: Nat, right: Nat): Nat { left + right }",
+    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\") }",
+    "pub pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\", 1, 2) }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.get() }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.get(\"key\", \"extra\") }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.has() }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.has(\"key\", \"extra\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add() }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add(1, 2) }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values.has() }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values.has(1, 2) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("reserved core arity mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "invalid core arity was accepted" }))
+  }
+  for source in [
+    "pub pure f(): [Nat] { [1].map(@wrong_input) }; pure wrong_input(value: Str): Nat { 1 }",
+    "pub pure f(): Nat { [1].reduce(0, @wrong_result) }; pure wrong_result(left: Nat, right: Nat): Str { \"bad\" }",
+    "pub pure f(): [Nat] { [1].map(@void_result) }; pure void_result(value: Nat): Void {}",
+    "pub pure f(): [Nat] { [1].map(@ordinary) }; ordinary(value: Nat): Nat { value }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("core callback contract mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "invalid core callback contract was accepted" }))
+  }
+  wrong_sort_app: LoadedModule = signature_test_module(namespace_identity("wrong_sort"),
+    "pub pure f(): [Nat] { [1].sort_by(@wrong_sort) }; pure wrong_sort(left: Str, right: Str): Bool { true }")
+  wrong_sort_graph: ModuleBindingGraph = ModuleBindingGraph([wrong_sort_app.bindings, core_method_library.bindings], [ModuleImportEdge(wrong_sort_app.bindings.identity, 0, core_method_library.bindings.identity)])
+  wrong_sort_checked: CheckedModuleBodies = body_test_graph([wrong_sort_app, core_method_library], wrong_sort_graph, wrong_sort_app)
+  results = append(results, test_expect("sort_by rejects callback type mismatch",
+    len(wrong_sort_checked.diagnostics) > 0 && len(wrong_sort_checked.functions) > 0 && wrong_sort_checked.functions[0].status == BodyInvalid(),
+    if len(wrong_sort_checked.diagnostics) > 0 { wrong_sort_checked.diagnostics[0].message } else { "sort_by accepted a callback for the wrong element type" }))
+  for source in [
+    "pub pure f(): Str { len([1]) }",
+    "pub pure f(): Bool { [1].append(2) }",
+    "pub pure f(): [Str] { [1].concat([2]) }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.put(\"key\", 1) }",
+    "pub pure f(): Bool { values: Map[Str,Nat] = map(); values.get(\"key\") }",
+    "pub pure f(): Nat { values: Map[Str,Nat] = map(); values.has(\"key\") }",
+    "pub pure f(): Nat { values: Set[Nat] = set(); values.add(1) }",
+    "pub pure f(): Nat { values: Set[Nat] = set(); values.has(1) }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("reserved core result contract mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "core result was accepted against the declared return type" }))
+  }
+  for source in [
+    "pub pure f(): Nat { len(1) }",
+    "pub pure f(): [Nat] { [1].append(\"bad\") }",
+    "pub pure f(): [Nat] { [1].concat([\"bad\"]) }",
+    "pub pure f(): [Nat] { append([1], \"bad\") }",
+    "pub pure f(): [Nat] { concat([1], [\"bad\"]) }",
+    "pub pure f(): Option[Nat] { [1].first(\"bad\") }",
+    "pub pure f(): Bool { \"text\".ends_with(1) }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values.put(\"bad\", 1); values }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); values.put(1, \"bad\"); values }",
+    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); values.has(\"bad\") }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); map_put(values, \"bad\", 1) }",
+    "pub pure f(): Map[Nat,Nat] { values: Map[Nat,Nat] = map(); map_put(values, 1, \"bad\") }",
+    "pub pure f(): Nat { values: Map[Nat,Nat] = map(); map_get(values, \"bad\") }",
+    "pub pure f(): Bool { values: Map[Nat,Nat] = map(); map_has(values, \"bad\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); values.add(\"bad\"); values }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); values.has(\"bad\") }",
+    "pub pure f(): Set[Nat] { values: Set[Nat] = set(); set_add(values, \"bad\") }",
+    "pub pure f(): Bool { values: Set[Nat] = set(); set_has(values, \"bad\") }"
+  ] {
+    invalid_app: LoadedModule = signature_test_module(namespace_identity("invalid_core_argument"), source)
+    invalid_graph: ModuleBindingGraph = ModuleBindingGraph([invalid_app.bindings, core_method_library.bindings], [ModuleImportEdge(invalid_app.bindings.identity, 0, core_method_library.bindings.identity)])
+    checked: CheckedModuleBodies = body_test_graph([invalid_app, core_method_library], invalid_graph, invalid_app)
+    results = append(results, test_expect("core argument mismatch rejects/" + source,
+      len(checked.diagnostics) > 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyInvalid(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "invalid core argument was accepted" }))
+  }
+  results = append(results, test_equal_str("core method arity checked", body_test_graph([signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1].first(\"extra\") }") , core_method_library], ModuleBindingGraph([namespace_test_bindings("wrong_core_method", "pub pure f(): Option[Nat] { [1].first(\"extra\") }"), core_method_library.bindings], []), signature_test_module(namespace_identity("wrong_core_method"), "pub pure f(): Option[Nat] { [1].first(\"extra\") }")).diagnostics[0].message, "first expects 1 arguments, got 2"))
   results = append(results, test_equal_str("return mismatch", body_test_error("pub pure f(): Nat { \"bad\" }"), "return of f is Str, expected Nat"))
   results = append(results, test_equal_str("initializer cannot see new binding", body_test_error("pub pure f(): Nat { value = value; value }"), "unknown local value value"))
   results = append(results, test_equal_str("inferred binding remains immutable", body_test_error("pub pure f(): Nat { value = 1; value = 2; value }"), "cannot assign immutable binding value"))
@@ -566,17 +1296,160 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, test_equal_str("generic function reference rejected", body_test_error("pub pure f(): Fn[Nat,Nat] { @identity }; pure identity[T](value: T): T { value }"), "generic function references require a non-generic wrapper"))
   results = append(results, test_equal_str("explicit generic substitution checks type", body_test_error("pub pure f(): Nat { identity[Nat](\"bad\") }; pure identity[T](value: T): T { value }"), "argument 1 to identity is Str, expected Nat"))
   results = append(results, test_equal_str("explicit generic arity checked", body_test_error("pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value: T): T { value }"), "call identity has incorrect type argument count"))
+  explicit_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { identity[MissingType](1) }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "invalid direct-call type argument points to its type token",
+    len(explicit_type_argument_location.diagnostics) > 0 &&
+      explicit_type_argument_location.diagnostics[0].position.file == "module.panack" &&
+      explicit_type_argument_location.diagnostics[0].position.column == 30,
+    if len(explicit_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(explicit_type_argument_location.diagnostics[0])
+    } else {
+      "invalid explicit type argument was accepted"
+    }
+  ))
+  parenthesized_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f():Nat { (identity[MissingType](1)) }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "parenthesized call retains type-argument location",
+    len(parenthesized_type_argument_location.diagnostics) > 0 &&
+      parenthesized_type_argument_location.diagnostics[0].position.column == 30,
+    if len(parenthesized_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(parenthesized_type_argument_location.diagnostics[0])
+    } else {
+      "invalid parenthesized type argument was accepted"
+    }
+  ))
+  explicit_dot_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(value:Nat):Nat { value.identity[MissingType]() }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "invalid receiver-call type argument points to its type token",
+    len(explicit_dot_type_argument_location.diagnostics) > 0 &&
+      explicit_dot_type_argument_location.diagnostics[0].position.file == "module.panack" &&
+      explicit_dot_type_argument_location.diagnostics[0].position.column == 44,
+    if len(explicit_dot_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(explicit_dot_type_argument_location.diagnostics[0])
+    } else {
+      "invalid receiver-call type argument was accepted"
+    }
+  ))
+  explicit_type_argument_count_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { identity[Nat,Str](1) }; pure identity[T](value:T):T { value }"
+  )
+  results = append(results, test_expect(
+    "excess type argument count points to the extra type",
+    len(explicit_type_argument_count_location.diagnostics) > 0 &&
+      explicit_type_argument_count_location.diagnostics[0].position.column == 34,
+    if len(explicit_type_argument_count_location.diagnostics) > 0 {
+      diagnostic_text(explicit_type_argument_count_location.diagnostics[0])
+    } else {
+      "excess type argument was accepted"
+    }
+  ))
+  missing_explicit_type_argument_count_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Bool { combine[Nat](1, 2) }; pure combine[T,U](left:T,right:U): Bool { true }"
+  )
+  results = append(results, test_expect(
+    "missing type argument count points to final supplied type",
+    len(missing_explicit_type_argument_count_location.diagnostics) > 0 &&
+      missing_explicit_type_argument_count_location.diagnostics[0].position.column == 30 &&
+      missing_explicit_type_argument_count_location.diagnostics[0].message == "call combine has incorrect type argument count",
+    if len(missing_explicit_type_argument_count_location.diagnostics) > 0 {
+      diagnostic_text(missing_explicit_type_argument_count_location.diagnostics[0])
+    } else {
+      "missing explicit type argument was accepted"
+    }
+  ))
+  missing_dot_type_argument_count_location: CheckedModuleBodies = body_test_module(
+    "pub pure f(value: Nat): Bool { value.combine[Nat](2) }; pure combine[T,U](value:T,right:U): Bool { true }"
+  )
+  results = append(results, test_expect(
+    "receiver missing type argument count points to final supplied type",
+    len(missing_dot_type_argument_count_location.diagnostics) > 0 &&
+      missing_dot_type_argument_count_location.diagnostics[0].position.column == 46 &&
+      missing_dot_type_argument_count_location.diagnostics[0].message == "call combine has incorrect type argument count",
+    if len(missing_dot_type_argument_count_location.diagnostics) > 0 {
+      diagnostic_text(missing_dot_type_argument_count_location.diagnostics[0])
+    } else {
+      "missing receiver-call type argument was accepted"
+    }
+  ))
+  special_type_argument_location: CheckedModuleBodies = body_test_module(
+    "pub pure f():Nat { len[Nat]([1]) }"
+  )
+  results = append(results, test_expect(
+    "reserved core call type argument points to its type token",
+    len(special_type_argument_location.diagnostics) > 0 &&
+      special_type_argument_location.diagnostics[0].position.column == 24 &&
+      special_type_argument_location.diagnostics[0].message == "explicit type arguments require a generic function",
+    if len(special_type_argument_location.diagnostics) > 0 {
+      diagnostic_text(special_type_argument_location.diagnostics[0])
+    } else {
+      "core type argument was accepted"
+    }
+  ))
   for source in [
 
-    "pub pure f(): Nat { next() }; async next(): Nat { 1 }",
     "pub pure f(): Nat { [1].first() }",
-    "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }",
-    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 1 }"
+    "pub pure f(): Nat { [1].first() }; pure first(value: Str): Str { value }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = append(results, test_equal_nat("deferred body has no invented error/" + source, len(checked.diagnostics), 0))
     results = append(results, test_expect("unsupported proof/inference explicitly deferred/" + source, len(checked.functions) > 0 && len(checked.functions[0].deferred) > 0, "unsupported body marked complete"))
   }
+  guarded_branch: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { if value > 0 { positive: Positive = value; value - 1 } else { 0 } }"
+  )
+  results = append(results, test_expect(
+    "identity guard facts prove guarded conversion and Nat subtraction",
+    len(guarded_branch.diagnostics) == 0 && len(guarded_branch.functions) == 1 &&
+      guarded_branch.functions[0].status == BodyIdentityChecked(),
+    if len(guarded_branch.diagnostics) > 0 { guarded_branch.diagnostics[0].message } else { "branch guard did not discharge its proof obligations" }
+  ))
+  guarded_invariant: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"
+  )
+  results = append(results, test_expect(
+    "guarded type invariant proves Nat subtraction",
+    len(guarded_invariant.diagnostics) == 0 && len(guarded_invariant.functions) == 1 &&
+      guarded_invariant.functions[0].status == BodyIdentityChecked(),
+    if len(guarded_invariant.diagnostics) > 0 { guarded_invariant.diagnostics[0].message } else { "guarded invariant was not used for subtraction" }
+  ))
+  guarded_literal: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 0 }"
+  )
+  results = append(results, test_expect(
+    "known failing guarded conversion is rejected",
+    len(guarded_literal.diagnostics) > 0 && guarded_literal.functions[0].status == BodyInvalid(),
+    "known failing guard was accepted or deferred"
+  ))
+  guarded_literal_positive: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(): Positive { 1 }"
+  )
+  results = append(results, test_expect(
+    "known passing guarded conversion is checked",
+    len(guarded_literal_positive.diagnostics) == 0 &&
+      guarded_literal_positive.functions[0].status == BodyIdentityChecked(),
+    "known passing guard remained deferred or was rejected"
+  ))
+  guarded_mutation: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(value: Nat): Nat { mut current = value; if current > 0 { current = 0; positive: Positive = current; 0 } else { 0 } }"
+  )
+  results = append(results, test_expect(
+    "reassignment invalidates only the mutated local guard fact",
+    len(guarded_mutation.diagnostics) == 0,
+    "unexpected mutation diagnostic"
+  ))
+  results = append(results, test_expect(
+    "reassignment leaves the guard conversion pending",
+    len(guarded_mutation.functions) == 1 &&
+      guarded_mutation.functions[0].status == BodyDeferred(),
+    "stale mutable-local fact discharged a guard obligation"
+  ))
   left: LoadedModule = signature_test_module(namespace_identity("left"), "pub record Item { value: Nat }; pub pure take(value: Item): Item { value }; pub pure id[T](value: T): T { value }")
   right: LoadedModule = signature_test_module(namespace_identity("right"), "pub record Item { value: Nat }")
   app: LoadedModule = signature_test_module(namespace_identity("app"), "import project/left as first; import project/left as second; import project/right as other; pure okay(value: first.Item): second.Item { first.take(value) }; pure wrong(value: other.Item): first.Item { first.take(value) }; pure wrong_return(value: other.Item): first.Item { value }")
@@ -590,7 +1463,7 @@ pure namespace_body_tests(): [TestResult] {
   }
   if len(checked.functions) == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = append(results, test_expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = append(results, test_expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = append(results, test_equal_nat("nested lexical body binds", len(lexical.diagnostics), 0))
@@ -724,14 +1597,34 @@ pure namespace_expression_tests(): [TestResult] {
   }
   for source in [
     "pub pure f(): Nat { 2 - 1 }",
-    "pub pure f(value: Nat): Nat { if value > 0 { value - 1 } else { 0 } }",
     "pub pure f(): Bool { false && ((2 - 1) == 1) }",
     "pub pure f(): Nat { if (2 - 1) == 1 { 0 } else { 1 } }",
     "pub pure f(): Void { while (2 - 1) == 1 {} }",
-    "pub pure f(): Void { for item in 0..(2 - 1) {} }",
+    "pub pure f(): Void { for item in 0..(2 - 1) {} }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect(
+      "literal Nat subtraction is proved and propagates/" + source,
+      len(checked.diagnostics) == 0 && len(checked.functions) > 0 &&
+        checked.functions[0].status == BodyIdentityChecked() && len(checked.functions[0].deferred) == 0,
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "safe literal subtraction remained deferred" }
+    ))
+  }
+  for source in [
+    "pub pure f(): Nat { 0 - 1 }",
+    "pub pure f(value: Nat): Nat { value - 1 }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect(
+      "unproved Nat subtraction remains deferred/" + source,
+      len(checked.diagnostics) == 0 && len(checked.functions) > 0 &&
+        checked.functions[0].status == BodyDeferred() && len(checked.functions[0].deferred) > 0,
+      "unproved subtraction was certified or rejected"
+    ))
+  }
+  for source in [
     "pub pure f(a: Bool, rational: Rat): Rat { if a { rational } else { 1 } }",
-    "pub pure f(a: Bool, rational: Rat): Int { if a { 1 } else { rational } }",
-    "pub pure f(): Nat { await next() }; async next(): Nat { 1 }"
+    "pub pure f(a: Bool, rational: Rat): Int { if a { 1 } else { rational } }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = append(results, test_expect("pending identity obligation propagates/" + source, len(checked.diagnostics) == 0 && len(checked.functions) > 0 && checked.functions[0].status == BodyDeferred() && len(checked.functions[0].deferred) > 0, "pending proof/inference/effect appeared checked"))
@@ -876,16 +1769,29 @@ pure namespace_aggregate_tests(): [TestResult] {
     "pub pure f(): [Nat] { [2 - 1] }",
     "pub record Box[T] { value:T }; pub pure f(): Box[Nat] { Box(2 - 1) }",
     "pub pure f(): Nat { match Some(2 - 1) { Some(item) => item, None() => 0 } }",
-    "pub pure f(): Nat { identity(2 - 1) }; pure identity[T](value:T):T { value }",
-    "pub pure f(): Nat { match Some(1) { Some(item) => unknown_core(item), None() => 0 } }; pure unknown_core(value:Nat):Nat { value - 1 }",
-    "pub pure f(): Map[Nat,Nat] { map().put(1, 2) }",
-    "pub pure f(): Set[Nat] { set().add(1) }"
+    "pub pure f(): Nat { identity(2 - 1) }; pure identity[T](value:T):T { value }"
   ] {
     checked: CheckedModuleBodies = body_test_module(source)
-    // Callee proofs are checked in their own body, not certified transitively here.
+    results = append(results, test_expect(
+      "aggregate discharges literal subtraction/" + source,
+      len(checked.diagnostics) == 0 && len(checked.functions) > 0 &&
+        checked.functions[0].status == BodyIdentityChecked() && len(checked.functions[0].deferred) == 0,
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "safe aggregate subtraction remained deferred" }
+    ))
+  }
+  for source in [
+    "pub pure f(): Nat { match Some(1) { Some(item) => unknown_core(item), None() => 0 } }; pure unknown_core(value:Nat):Nat { value - 1 }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
     mut pending: Bool = false
     for function in checked.functions { pending = pending || function.status == BodyDeferred() }
     results = append(results, test_expect("aggregate retains later obligations/" + source, len(checked.diagnostics) == 0 && pending, "later proof/core check lost or rejected"))
+  }
+  for source in ["pub pure f(): Map[Nat,Nat] { map().put(1, 2) }", "pub pure f(): Set[Nat] { set().add(1) }"] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("core receiver contract checks/" + source,
+      len(checked.diagnostics) == 0 && checked.functions[0].status == BodyIdentityChecked(),
+      if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "core receiver contract remained deferred" }))
   }
   results = append(results, test_equal_str("inference failure explains missing evidence", body_test_error("pub pure f(): [Nat] { identity([]) }; pure identity[T](value:T):T { value }"), "cannot infer type parameter T for identity; supply explicit type arguments"))
   results = append(results, test_equal_str("constructor arity is concrete", body_test_error("pub record Box { value:Nat }; pub pure f():Box { Box() }"), "Box expects 1 arguments, got 0"))
@@ -916,6 +1822,63 @@ pure namespace_aggregate_tests(): [TestResult] {
   unknown_subject: CheckedModuleBodies = body_test_module("pub pure f():Nat { match [1].first() { Some(item)=>0, None()=>0 } }")
   results = append(results, test_expect("unknown subject with valid pattern contracts stays deferred", len(unknown_subject.diagnostics)==0 && unknown_subject.functions[0].status==BodyDeferred(), "unknown subject invented membership acceptance or rejection"))
   results = concat(results, namespace_aggregate_origin_tests())
+  results
+}
+
+pure network_core_body_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  tcp: LoadedModule = signature_test_module(
+    ModuleIdentity(ToolchainModulePackage(), "tcp.panack"),
+    "pub record TcpServerLimits { clients: Nat, concurrency: Nat, request_limit: Nat, response_limit: Nat, client_timeout_ms: Nat, admission_timeout_ms: Nat, drain_ms: Nat }"
+  )
+  source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async server(): Result[[Result[Unit,Str]],Str] { limits = TcpServerLimits(1,1,4096,4096,2000,10000,2000); await tcp_serve(\"127.0.0.1\",9000,@reply,limits) }; async exchange(): Result[Bytes,Str] { await tcp_exchange(\"127.0.0.1\",9000,bytes(),32,100) }; async fake(): Result[Bytes,Str] { await async_fake_read(true) }"
+  app: LoadedModule = signature_test_module(namespace_identity("network_app"), source)
+  graph: ModuleBindingGraph = ModuleBindingGraph(
+    [app.bindings, tcp.bindings],
+    [ModuleImportEdge(app.bindings.identity, 0, tcp.bindings.identity)]
+  )
+  checked: CheckedModuleBodies = body_test_graph([app, tcp], graph, app)
+  mut all_checked: Bool = len(checked.functions) == 4
+  for function in checked.functions {
+    all_checked = all_checked && function.status == BodyIdentityChecked() && len(function.deferred) == 0
+  }
+  results = append(results, test_expect(
+    "async TCP core calls have complete namespace body contracts",
+    len(checked.diagnostics) == 0 && all_checked,
+    if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "TCP call body remained deferred or failed identity checking" }
+  ))
+
+  arity_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply) }"
+  arity_app: LoadedModule = signature_test_module(namespace_identity("network_arity"), arity_source)
+  arity_graph: ModuleBindingGraph = ModuleBindingGraph(
+    [arity_app.bindings, tcp.bindings],
+    [ModuleImportEdge(arity_app.bindings.identity, 0, tcp.bindings.identity)]
+  )
+  arity_checked: CheckedModuleBodies = body_test_graph([arity_app, tcp], arity_graph, arity_app)
+  arity_invalid: Bool = len(arity_checked.functions) == 2 && arity_checked.functions[1].status == BodyInvalid()
+  results = append(results, test_expect(
+    "tcp_serve rejects wrong arity with invalid body status",
+    len(arity_checked.diagnostics) == 1 &&
+      arity_checked.diagnostics[0].message == "tcp_serve expects 4 arguments, got 3" &&
+      arity_invalid,
+    if len(arity_checked.diagnostics) > 0 { arity_checked.diagnostics[0].message } else { "wrong-arity tcp_serve was accepted" }
+  ))
+
+  type_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply,42) }"
+  type_app: LoadedModule = signature_test_module(namespace_identity("network_type"), type_source)
+  type_graph: ModuleBindingGraph = ModuleBindingGraph(
+    [type_app.bindings, tcp.bindings],
+    [ModuleImportEdge(type_app.bindings.identity, 0, tcp.bindings.identity)]
+  )
+  type_checked: CheckedModuleBodies = body_test_graph([type_app, tcp], type_graph, type_app)
+  type_invalid: Bool = len(type_checked.functions) == 2 && type_checked.functions[1].status == BodyInvalid()
+  results = append(results, test_expect(
+    "tcp_serve validates nominal server limits argument",
+    len(type_checked.diagnostics) == 1 &&
+      type_checked.diagnostics[0].message == "argument 4 to tcp_serve is Nat, expected tcp.panack:TcpServerLimits" &&
+      type_invalid,
+    if len(type_checked.diagnostics) > 0 { type_checked.diagnostics[0].message } else { "wrong tcp_serve limits type was accepted" }
+  ))
   results
 }
 
@@ -954,6 +1917,31 @@ pure namespace_aggregate_origin_tests(): [TestResult] {
     pair: BoundBody = refined.functions[0].body.children[0]
     results = append(results, test_expect("context reaches first constructor child", pair.children[0].type==Some(SignatureType(SignatureCore("Option"),[SignatureType(SignatureCore("Nat"),[])])), "first child not specialized"))
     results = append(results, test_expect("context reaches second constructor child", pair.children[1].type==Some(SignatureType(SignatureCore("Option"),[SignatureType(SignatureCore("Str"),[])])), "second child not specialized"))
+  }
+  results
+}
+
+
+pure namespace_else_if_tests(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pub pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { 3 } }",
+    "pub pure f(a:Bool,b:Bool,c:Bool):Void { if a { 1 } else if b { \"discard\" } else if c { true } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("namespace else-if accepts/" + source,
+      len(checked.diagnostics) == 0 && checked.functions[0].status == BodyIdentityChecked(),
+      "chain was invalid or deferred"))
+  }
+  for source in [
+    "pub pure f(a:Bool):Nat { if a { 1 } else if 7 { 2 } else { 3 } }",
+    "pub pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } }",
+    "pub pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { \"bad\" } else { 3 } }"
+  ] {
+    checked: CheckedModuleBodies = body_test_module(source)
+    results = append(results, test_expect("namespace else-if rejects/" + source,
+      len(checked.diagnostics) > 0 && checked.functions[0].status == BodyInvalid(),
+      "invalid chain appeared checked"))
   }
   results
 }

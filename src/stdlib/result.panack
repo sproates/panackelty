@@ -1,4 +1,4 @@
-pure result_value_or[T,E](value: Result[T,E], fallback: T): T {
+pub pure result_value_or[T,E](value: Result[T,E], fallback: T): T {
   match value {
     Ok(item) => item,
     Error(error) => fallback

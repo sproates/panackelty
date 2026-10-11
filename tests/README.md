@@ -7,7 +7,7 @@ contracts; `make check` requires neither Node, Playwright nor WASI.
 
 The suites combine Panackelty probes, native C tests, shell harness checks,
 and public CLI tests. The runner (`runner/main.panack`) checks twenty-five
-selected success cases, twenty examples, and forty-one expected failures.
+selected success cases, twenty-three examples, and forty-one expected failures.
 `make functional` also checks the self-hosted compiler driver and exercises
 `runner_smoke` from source and saved bytecode.
 
@@ -60,7 +60,7 @@ The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.
 Compiler probes schedule integration and contract checks first to avoid a long
-final worker tail. Independent internal probes use two workers by default; set
+final worker tail. Make-driven validation uses four workers by default; set
 `VALIDATION_JOBS=1` for serial execution or choose a limit from 1 to 32. Setup
 and fixture mutation remain serial. The worker pool buffers stdout/stderr and prints
 results in the requested order, waits for every probe, and propagates failures.
@@ -88,7 +88,9 @@ exit status, signal, stdout and stderr. The later functional phase reuses this
 report and compares its exact bytes through both source and bytecode smoke
 execution. A missing or changed report fails. The session is removed on success
 or failure, and ambient report overrides are cleared at entry. Test results
-are never reused between check invocations. Standalone `make functional` and
+are never reused between check invocations. The nested fresh-run command has a
+180-second bound for cross-platform variance; it still requires the complete,
+byte-exact 364-case report. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 
@@ -132,11 +134,12 @@ the shared VM inode and bytes remain unchanged, so concurrent compiler commands
 cannot observe a relink.
 
 Canonical unit validation overlaps harness and compiler suites after native setup,
-then runs the runtime suite only if both succeed. The default two-worker budget
-assigns one worker to each; one worker retains serial execution and stops at the
-first failure. CI compiler validation uses the same pair with three workers: one
-for the harness and two for compiler probes. The macOS matrix retains five jobs to avoid a sixth job waiting for a runner.
-Native conformance also uses bounded workers (two by default). Each program
+then runs the runtime suite only if both succeed. The default four-worker budget
+assigns one worker to the harness and three to compiler probes; one worker retains
+serial execution and stops at the first failure. CI compiler validation sets three
+workers explicitly: one for the harness and two for compiler probes. The macOS
+matrix retains five jobs to avoid a sixth job waiting for a runner.
+Native conformance also uses bounded workers (four by default). Each program
 keeps its source/compile/bytecode assertions together in an isolated temporary
 directory; NUL-delimited arguments preserve paths containing spaces. Negative
 fixtures and CLI/archive checks still run after every program succeeds.
@@ -145,10 +148,10 @@ seed-refresh proof. They read the same immutable sources and seed but build
 separate stages; no generated compiler stage or proof result is shared between them.
 Both must succeed before quick-start or conformance gates proceed.
 Runtime validation overlaps the native corpus with host/bytecode probes using
-two workers after building shared native prerequisites. Only the native corpus
-captures the functional runner report; probe artifacts are separate. A one-worker
-setting retains serial execution. Failure controls use a FIFO rendezvous to
-prove both branches execute concurrently and propagate either failure.
+the configured worker limit after building shared native prerequisites. Only
+the native corpus captures the functional runner report; probe artifacts are
+separate. A one-worker setting retains serial execution. Failure controls use a
+FIFO rendezvous to prove both branches execute concurrently and propagate either failure.
 The stable required checks aggregate all applicable jobs, including failures
 and cancellation. A package artifact is usable only with successful package
 gates for its revision; upload alone does not certify the entire matrix.
@@ -448,21 +451,28 @@ without building the compiler, and remains part of `make check` through policy.
 
 | Changes | Check workflow |
 | --- | --- |
+| `README.md` changes confined to the marked positioning-copy region before `## Exact fractions and Unit` | Document, local-link and whitespace checks; quick-start, examples, installation and packaged README content remain full-validation inputs |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Any other `README.md` change, or a mixture of positioning copy with any full-validation input | Full native validation and both platform packages |
 | Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
 All document inputs must be regular non-executable files on both sides.
-All other inputs retain full validation. The
-classifier compares the complete PR diff from its merge base. Renames expand
-into old-path deletion/new-path addition; symlinks, executable Markdown and
-unmerged local indexes cannot use the fast path. `scripts/ci_docs.sh` owns the
-explicit allowlist. New entries require an audit of build, package and test
-consumers, not just a Markdown extension. In particular `README.md` supplies the
-packaged quick start, `SPEC.md` defines executable behavior, and workflow files
-control execution; these retain full checks.
+README.md stays package-owned except when comparing the complete file outside
+the bounded positioning-copy markers leaves it identical. Before those markers
+exist on a historical base, the classifier uses the preamble through the fixed
+`## Exact fractions and Unit` boundary; malformed or moved boundaries fall back
+to full validation. The local selector checks both index and working-tree
+versions so an unsafe staged edit cannot be hidden by an unstaged reversal. All
+other inputs retain full validation. The classifier compares the complete PR
+diff from its merge base. Renames expand into old-path deletion/new-path
+addition; symlinks, executable Markdown and unmerged local indexes cannot use
+the fast path. `scripts/ci_docs.sh` owns the explicit document allowlist and
+positioning boundary. Other README content remains a packaged input, `SPEC.md`
+defines executable behavior, and workflow files control execution; those retain
+full checks.
 
 ### Component dependencies and retained coupling
 
@@ -551,6 +561,13 @@ Node 24+ in addition to the native toolchain. It is separate from interpreter-fr
 See [the experiment](experiments/source_mapping/README.md) for its exact scope,
 trust boundary and printed size/timing evidence.
 
+`make source-coverage-experiment` runs the bounded GI#131 feasibility harness
+with the same Node/native requirements and isolated compiler CI placement.
+It verifies exact instruction attempts, function entries, expression-start-line
+reach, identity failures and incomplete collection, then prints cost samples.
+See its [decision and denominator limits](experiments/source_coverage/README.md).
+This is neither a production collection command nor a suite coverage baseline.
+
 
 `compiler_source_spans_unit.panack` checks frontend expression spans with fixed
 Unicode code-point/line/column expectations and nested range traces. It runs with
@@ -570,6 +587,11 @@ test-only sidecar and compiler adapter are removed.
 both `make unit` and `make check-compiler`. They exercise the sidecar contract,
 bounds and the public CLI on complete programs, including execution, exact
 lookup output, stale closure, corrupt maps and alias-safe output failures.
+The CLI suite also compiles a staged two-module project with same-named
+declarations, requiring identity-qualified lookup and rejecting ambiguous bare
+names and mismatched module identities. It runs those CLI cases through the
+freshly prepared stage-2 compiler so they test this source tree's driver rather
+than an older checked-in seed.
 They need no Python or Node interpreter. The additional native observer suite
 constructs binary forgeries and checks actual runtime PCs; its decoder is only
 an adversarial test helper, never a production lookup implementation.
@@ -715,3 +737,10 @@ exercises dash when available.
 The native-tool allowlist resolves the executable from PATH because some shells
 report a `time` keyword rather than an executable from `command -v`.
 These regression tests do not substitute for real-toolchain baseline trials.
+
+### Source inventory contracts
+
+The compiler/unit routes include `runner/compiler_source_inventory_unit.panack`
+and `runner/compiler_source_inventory_cli.panack`: literal original-syntax
+expectations plus public command, identity, failure and bytecode-equivalence tests.
+See [source inventory](../docs/SOURCE_INVENTORY.md).

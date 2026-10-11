@@ -1,4 +1,4 @@
-import stdlib/time
+import stdlib/time::{ClockError}
 pure now(): Result[Instant,ClockError] {
   instant_now()
 }

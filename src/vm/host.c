@@ -145,6 +145,9 @@ static char *path_join_text(const char *left, const char *right)
 
 static const char *environment_value(VM *vm, const char *name)
 {
+    /* Session-aware harnesses must not substitute cached execution transcripts.
+     * This reserved marker reflects the VM context, including nested children. */
+    if (vm->coverage_run && !strcmp(name, "PANACK_COVERAGE_ACTIVE")) return "1";
     size_t n = strlen(name);
     for (size_t i = 0; i < vm->env_count; i++) {
         if (!strncmp(vm->environment[i], name, n) && vm->environment[i][n] == '=') {

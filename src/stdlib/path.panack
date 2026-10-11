@@ -1,5 +1,23 @@
 
-enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
+pub enum PathError { EmptyPath, PathContainsNul, PathNotUtf8, AbsolutePathAppend }
+
+// Public module spellings preserve the core Path contracts across module graphs.
+pub pure path_value_from_text(value: Str): Result[Path, PathError] { path_from_text(value) }
+pub pure path_value_from_native(value: Bytes): Result[Path, PathError] { path_from_native(value) }
+pub pure path_value_append(base: Path, child: Path): Result[Path, PathError] { path_append(base, child) }
+pub pure path_value_to_text(value: Path): Result[Str, PathError] { path_to_text(value) }
+pub pure path_value_native_bytes(value: Path): Bytes { path_native_bytes(value) }
+pub pure path_value_display(value: Path): Str { path_display(value) }
+pub pure path_value_is_absolute(value: Path): Bool { path_absolute(value) }
+pub pure path_value_directory(value: Path): Path { path_directory(value) }
+pub pure path_value_filename(value: Path): Option[Path] { path_filename(value) }
+pub pure path_value_current(): Path { path_current() }
+pub pure path_string_join(base: Str, child: Str): Str { path_join(base, child) }
+pub pure path_string_suffix(value: Str): Str { path_suffix(value) }
+pub pure path_string_parent(value: Str): Str { path_parent(value) }
+pub pure path_string_is_absolute(value: Str): Bool { path_is_absolute(value) }
+pub pure path_string_with_suffix(value: Str, suffix: Str): Str { path_with_suffix(value, suffix) }
+pub path_string_resolve(value: Str): Str { path_resolve(value) }
 
 // Opaque Path primitives preserve native POSIX bytes and do not access the host.
 // Existing Str-based path_* helpers remain for compiler bootstrap compatibility.

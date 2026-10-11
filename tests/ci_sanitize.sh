@@ -39,6 +39,8 @@ else
 fi
 printf '%s %s\n' "$operation" "$source" >> "$CI_SANITIZE_CALLS"
 case "${CI_SANITIZE_FAIL:-}" in
+    "report:$source")
+        if [ "$operation" = execute ]; then echo 'FAIL retained runner diagnostic'; exit 7; fi ;;
     "$operation:$source") exit 7 ;;
     "stderr:$source") echo unexpected >&2 ;;
 esac
@@ -94,6 +96,12 @@ for mode in without-runner runner; do
         [ "$result" != 0 ] || fail "accepted $mode $fault"
     done
 done
+CI_SANITIZE_FAIL=report:tests/functional/cases/runner_smoke/main.panack
+export CI_SANITIZE_FAIL
+run runner
+[ "$result" = 7 ] || fail 'lost runner failure status'
+grep -F 'FAIL retained runner diagnostic' "$work/output" >/dev/null || fail 'lost runner failure output'
+grep -F 'running tests/functional/cases/runner_smoke/main.panack (exit 7)' "$work/output" >/dev/null || fail 'lost runner failure context'
 unset CI_SANITIZE_FAIL
 for args in unknown 'runner extra'; do
     run $args

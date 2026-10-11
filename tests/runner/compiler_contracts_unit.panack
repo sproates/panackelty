@@ -1,6 +1,18 @@
-import "../../src/compiler/driver.panack"
-import stdlib/testing
-
+import project/src/compiler/parser::{Program, indexed_program, ParsedModule, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, Expr.BoolExpr, RecordField, EnumVariant, FunctionParameter, Block, BlockValue.NoBlockValue}
+import project/src/compiler/resolver::{collect_symbol_diagnostics, append_program_declarations}
+import project/src/compiler/checker::{GuardedTypeLookup, RecordLookup, EnumLookup, FunctionLookup, VariantLookup, guarded_type, record_type, enum_type, function_type, variant_type}
+import project/src/compiler/purity::{check_source_frontend}
+import project/src/compiler/module_bodies::{BodyContext, body_compatibility}
+import project/src/compiler/module_bindings::{ModulePackageIdentity.StandaloneModulePackage, ModuleIdentity, DeclarationIdentity, ModuleBindings, LoadedModule, loaded_module_declaration_index}
+import project/src/compiler/module_resolution::{ModuleBindingGraph}
+import project/src/compiler/module_signatures::{SignatureType, SignatureTypeIdentity.SignatureCore, SignatureTypeIdentity.SignatureNominal, SignatureTypeIdentity.SignatureHole, SignatureTypeIdentity.SignatureCallable, SignatureEffect.SignaturePure, SignatureEffect.SignatureOrdinary, SignatureEffect.SignatureAsync}
+import project/src/compiler/emitter::{compile_source_disassembly}
+import project/src/compiler/expression_contracts::{decode_string_literal}
+import project/src/compiler/diagnostics::{diagnostic_character, diagnostic_with_source}
+import project/src/compiler/types::{SourcePos, Diagnostic}
+import stdlib/filesystem::{filesystem_read_text}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
 pure contract_contains(actual: Str, expected: Str): Bool {
   mut found = false
   for offset in 0..len(actual) {
@@ -10,7 +22,7 @@ pure contract_contains(actual: Str, expected: Str): Bool {
 }
 
 contract_check(name: Str, expected: Str): TestResult {
-  actual = check_source_frontend(read_file("tests/fixtures/compiler_contracts/${name}.panack"))
+  actual = check_source_frontend(filesystem_read_text("tests/fixtures/compiler_contracts/${name}.panack"))
   if expected == "ok" { test_equal_str(name, actual, expected) } else {
     test_expect(name, actual != "ok" && (expected == "!ok" || contract_contains(actual, expected)),
       "expected ${expected}, got ${actual}")
@@ -46,7 +58,7 @@ pure indexed_lookup_contracts(): [TestResult] {
     test_expect("indexed function retains signature and effects", function.found && function.parameters == [FunctionParameter("arg", "Str")] && function.return_type == "Bool" && !function.is_pure && function.is_async && function.type_parameters == ["F"], "wrong function"),
     test_expect("indexed variant keeps last duplicate payload", variant.found && variant.enum_name == "Shared" && variant.parameters == ["T"] && variant.payload == ["Str"], "wrong variant"),
     test_expect("indexed variants retain earlier enum-only names", kept.found && kept.parameters == ["E"] && kept.payload == [], "lost earlier variant"),
-    test_expect("indexed duplicates still reach resolver", len(collect_symbols(program).diagnostics) > 0, "index hid duplicate declarations")
+    test_expect("indexed duplicates still reach resolver", len(collect_symbol_diagnostics(program)) > 0, "index hid duplicate declarations")
   ]
   for name in ["", "Missing", "shared", "Repeated"] {
     results = append(results, test_expect("indexed missing declaration/" + name,
@@ -66,8 +78,109 @@ pure indexed_lookup_contracts(): [TestResult] {
   results
 }
 
+// Boundary assertions for the compiler readability batch. Expected decisions
+// are stated directly, including deferral versus a known contradiction.
+pure readable_compiler_contracts(): [TestResult] {
+  mut results: [TestResult] = []
+  results = append(results, test_equal_str("literal escape decoding",
+    decode_string_literal("\"a\\n\\r\\t\\b\\f\\q\\\"\\\\z\""), "a\n\r\t\b\fq\"\\z"))
+  results = append(results, test_equal_str("literal without escapes",
+    decode_string_literal("\"plain\""), "plain"))
+  results = append(results, test_equal_str("empty literal",
+    decode_string_literal("\"\""), ""))
+  results = append(results, test_equal_str("two-byte diagnostic character",
+    diagnostic_character("é"), "\\u{e9}"))
+  results = append(results, test_equal_str("three-byte diagnostic character",
+    diagnostic_character("€"), "\\u{20ac}"))
+  results = append(results, test_equal_str("four-byte diagnostic character",
+    diagnostic_character("😀"), "\\u{1f600}"))
+
+  module_identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), "readability.panack")
+  owner: DeclarationIdentity = DeclarationIdentity(module_identity, "example")
+  guarded_identity: DeclarationIdentity = DeclarationIdentity(module_identity, "Positive")
+  program: Program = indexed_program([TypeDeclaration("Positive", "Nat", BoolExpr(true))])
+  parsed: ParsedModule = ParsedModule(program, [])
+  bindings: ModuleBindings = ModuleBindings(module_identity, [], [])
+  module: LoadedModule = LoadedModule("readability.panack", parsed, program, bindings, loaded_module_declaration_index(parsed))
+  context: BodyContext = BodyContext(ModuleBindingGraph([bindings], []), [module], [], owner, [], map())
+  natural: SignatureType = SignatureType(SignatureCore("Nat"), [])
+  integer: SignatureType = SignatureType(SignatureCore("Int"), [])
+  text: SignatureType = SignatureType(SignatureCore("Str"), [])
+  void_type: SignatureType = SignatureType(SignatureCore("Void"), [])
+  hole: SignatureType = SignatureType(SignatureHole(owner, [], 0), [])
+  positive: SignatureType = SignatureType(SignatureNominal(guarded_identity), [])
+  pure_callable: SignatureType = SignatureType(SignatureCallable(SignaturePure()), [natural])
+  ordinary_callable: SignatureType = SignatureType(SignatureCallable(SignatureOrdinary()), [natural])
+  async_callable: SignatureType = SignatureType(SignatureCallable(SignatureAsync()), [natural])
+
+  results = append(results, test_expect("identical types accepted",
+    body_compatibility(context, natural, natural) == Some(true), "wrong identity decision"))
+  results = append(results, test_expect("Nat widens to Int",
+    body_compatibility(context, natural, integer) == Some(true), "widening rejected"))
+  results = append(results, test_expect("Int does not narrow to Nat",
+    body_compatibility(context, integer, natural) == Some(false), "narrowing accepted"))
+  results = append(results, test_expect("hole never stores Void",
+    body_compatibility(context, hole, void_type) == Some(false) &&
+    body_compatibility(context, void_type, hole) == Some(false), "Void escaped its boundary"))
+  results = append(results, test_expect("hole keeps value constraints",
+    body_compatibility(context, hole, natural) == Some(true), "value hole rejected"))
+  results = append(results, test_expect("guard conversion remains deferred",
+    body_compatibility(context, natural, positive) == None() &&
+    body_compatibility(context, positive, natural) == None(), "guard proof fabricated"))
+  results = append(results, test_expect("pure callable widens to ordinary",
+    body_compatibility(context, pure_callable, ordinary_callable) == Some(true), "effect widening rejected"))
+  results = append(results, test_expect("ordinary and async do not become pure",
+    body_compatibility(context, ordinary_callable, pure_callable) == Some(false) &&
+    body_compatibility(context, async_callable, ordinary_callable) == Some(false), "effect coercion accepted"))
+  results = append(results, test_expect("callable slots remain exact",
+    body_compatibility(context, pure_callable,
+      SignatureType(SignatureCallable(SignatureOrdinary()), [integer])) == Some(false), "slot coercion accepted"))
+  results = append(results, test_expect("generic arity remains exact",
+    body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
+      SignatureType(SignatureCore("Array"), [])) == Some(false), "arity mismatch accepted"))
+  results = append(results, test_expect("nested generic arguments widen",
+    body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
+      SignatureType(SignatureCore("Array"), [integer])) == Some(true), "nested widening rejected"))
+  results = append(results, test_expect("known contradiction dominates deferral in either order",
+    body_compatibility(context, SignatureType(SignatureCore("Pair"), [natural, natural]),
+      SignatureType(SignatureCore("Pair"), [positive, text])) == Some(false) &&
+    body_compatibility(context, SignatureType(SignatureCore("Pair"), [natural, natural]),
+      SignatureType(SignatureCore("Pair"), [text, positive])) == Some(false), "contradiction hidden"))
+  results = append(results, test_expect("deferred generic argument remains deferred",
+    body_compatibility(context, SignatureType(SignatureCore("Array"), [natural]),
+      SignatureType(SignatureCore("Array"), [positive])) == None(), "deferred proof resolved"))
+  results
+}
+
+pure else_if_contracts(): [TestResult] {
+  mut results: [TestResult] = []
+  for source in [
+    "pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { 3 } }",
+    "pure f(a:Bool,b:Bool):Void { if a { 1 } else if b { \"discard\" } }",
+    "pure f(n:Nat):Nat { if n >= 3 { n - 3 } else if n >= 2 { n - 2 } else { n } }",
+    "async f(a:Bool,b:Bool):Nat { if a { await number() } else if b { await number() } else { await number() } }"
+  ] {
+    results = append(results, test_equal_str("else-if accepts/" + source,
+      check_source_frontend(source + " async number():Nat { 1 } main():Void {}"), "ok"))
+  }
+  for case in [
+    ["pure f(a:Bool):Nat { if a { 1 } else if 7 { 2 } else { 3 } }", "if condition must be Bool"],
+    ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } else { \"bad\" } }", "branches have incompatible types"],
+    ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else if b { 2 } }", "returns Void, expected Nat"],
+    ["pure f(a:Bool,b:Bool):Void { value = if a { 1 } else if b { 2 }; }", "Void"],
+    ["pure f(a:Bool,b:Bool):Void { if a {} else if b { print(2) } }", "pure function cannot call impure function print"],
+    ["pure f(a:Bool,b:Bool):Void { if a {} else if b { await number() } }", "await"],
+    ["pure f(a:Bool,b:Bool):Nat { if a { 1 } else { if b { 2 } } }", "branches have incompatible types"]
+  ] {
+    actual: Str = check_source_frontend(case[0] + " async number():Nat { 1 } main():Void {}")
+    results = append(results, test_expect("else-if rejects/" + case[0],
+      actual != "ok" && contract_contains(actual, case[1]), "wrong rejection: " + actual))
+  }
+  results
+}
+
 main(): Void {
-  mut results: [TestResult] = indexed_lookup_contracts()
+  mut results: [TestResult] = concat(indexed_lookup_contracts(), readable_compiler_contracts()).concat(else_if_contracts())
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-1", "operator +"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-2", "len expects"))
   results = results.append(contract_check("generic_functions/bodies_are_checked_even_when_unused-3", "returns Nat, expected T"))
@@ -245,29 +358,29 @@ main(): Void {
   results = results.append(contract_check("syntax/void_is_only_valid_as_a_return_type-2", "Void"))
   results = results.append(contract_check("syntax/void_is_only_valid_as_a_return_type-3", "Void"))
   results = results.append(contract_check("syntax/void_is_only_valid_as_a_return_type-4", "Void"))
-  results = results.append(test_equal_str("emitter/emits_exact_decimals_and_escaped_strings-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_exact_decimals_and_escaped_strings-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_exact_decimals_and_escaped_strings-1.disasm")))
-  results = results.append(test_equal_str("emitter/emits_function_references_indirect_calls_map_and_reduce-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_function_references_indirect_calls_map_and_reduce-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_function_references_indirect_calls_map_and_reduce-1.disasm")))
-  results = results.append(test_equal_str("emitter/emits_if_without_else_with_balanced_void_paths-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_if_without_else_with_balanced_void_paths-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_if_without_else_with_balanced_void_paths-1.disasm")))
-  results = results.append(test_equal_str("emitter/emits_loops_arrays_indexing_and_short_circuiting-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_loops_arrays_indexing_and_short_circuiting-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_loops_arrays_indexing_and_short_circuiting-1.disasm")))
-  results = results.append(test_equal_str("emitter/emits_method_calls_as_receiver_first_calls-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_method_calls_as_receiver_first_calls-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_method_calls_as_receiver_first_calls-1.disasm")))
-  results = results.append(test_equal_str("emitter/emits_records_variants_matches_and_interpolation-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_records_variants_matches_and_interpolation-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_records_variants_matches_and_interpolation-1.disasm")))
-  results = results.append(test_equal_str("emitter/emits_scalars_calls_and_control_flow-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emits_scalars_calls_and_control_flow-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emits_scalars_calls_and_control_flow-1.disasm")))
-  results = results.append(test_equal_str("emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1.disasm")))
-  results = results.append(test_equal_str("emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2.panack")), read_file("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2.disasm")))
-  results = results.append(test_equal_str("emitter/emission_erases_type_arguments_and_preserves_one_body-1", compile_source_disassembly(read_file("tests/fixtures/compiler_contracts/emitter/emission_erases_type_arguments_and_preserves_one_body-1.panack")), read_file("tests/fixtures/compiler_contracts/emitter/emission_erases_type_arguments_and_preserves_one_body-1.disasm")))
-  results = results.append(test_equal_str("diagnostics/ascii_line_and_multidigit_gutter-1", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 12, 3)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/ascii_line_and_multidigit_gutter-1.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/ascii_line_and_multidigit_gutter-1.expected")))
-  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-2", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 2, 2)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-2.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-2.expected")))
-  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-3", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 4)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-3.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-3.expected")))
-  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-4", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 2, 1)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-4.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-4.expected")))
-  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-5", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 1)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-5.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-5.expected")))
-  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-6", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 4)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-6.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-6.expected")))
-  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-7", diagnostic_with_source(Diagnostic("bad input", SourcePos("", 0, 1, 1)), map().put("", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-7.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-7.expected")))
-  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-8", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 1)), map()) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-8.expected")))
-  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-9", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 0, 1)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-9.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-9.expected")))
-  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-10", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 0)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-10.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-10.expected")))
-  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-11", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 2, 1)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-11.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-11.expected")))
-  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-12", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 5)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-12.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-12.expected")))
-  results = results.append(test_equal_str("diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-13", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 8)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-13.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-13.expected")))
-  results = results.append(test_equal_str("diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-14", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 4)), map().put("example.panack", read_file("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-14.source"))) + "\n", read_file("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-14.expected")))
-  if test_report(results) > 0 { process_exit(1) }
+  results = results.append(test_equal_str("emitter/emits_exact_decimals_and_escaped_strings-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_exact_decimals_and_escaped_strings-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_exact_decimals_and_escaped_strings-1.disasm")))
+  results = results.append(test_equal_str("emitter/emits_function_references_indirect_calls_map_and_reduce-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_function_references_indirect_calls_map_and_reduce-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_function_references_indirect_calls_map_and_reduce-1.disasm")))
+  results = results.append(test_equal_str("emitter/emits_if_without_else_with_balanced_void_paths-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_if_without_else_with_balanced_void_paths-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_if_without_else_with_balanced_void_paths-1.disasm")))
+  results = results.append(test_equal_str("emitter/emits_loops_arrays_indexing_and_short_circuiting-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_loops_arrays_indexing_and_short_circuiting-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_loops_arrays_indexing_and_short_circuiting-1.disasm")))
+  results = results.append(test_equal_str("emitter/emits_method_calls_as_receiver_first_calls-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_method_calls_as_receiver_first_calls-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_method_calls_as_receiver_first_calls-1.disasm")))
+  results = results.append(test_equal_str("emitter/emits_records_variants_matches_and_interpolation-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_records_variants_matches_and_interpolation-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_records_variants_matches_and_interpolation-1.disasm")))
+  results = results.append(test_equal_str("emitter/emits_scalars_calls_and_control_flow-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_scalars_calls_and_control_flow-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emits_scalars_calls_and_control_flow-1.disasm")))
+  results = results.append(test_equal_str("emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-1.disasm")))
+  results = results.append(test_equal_str("emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/inferred_bindings_emit_the_same_code_as_explicit_bindings-2.disasm")))
+  results = results.append(test_equal_str("emitter/emission_erases_type_arguments_and_preserves_one_body-1", compile_source_disassembly(filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emission_erases_type_arguments_and_preserves_one_body-1.panack")), filesystem_read_text("tests/fixtures/compiler_contracts/emitter/emission_erases_type_arguments_and_preserves_one_body-1.disasm")))
+  results = results.append(test_equal_str("diagnostics/ascii_line_and_multidigit_gutter-1", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 12, 3)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/ascii_line_and_multidigit_gutter-1.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/ascii_line_and_multidigit_gutter-1.expected")))
+  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-2", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 2, 2)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-2.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-2.expected")))
+  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-3", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 4)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-3.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-3.expected")))
+  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-4", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 2, 1)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-4.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-4.expected")))
+  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-5", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 1)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-5.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-5.expected")))
+  results = results.append(test_equal_str("diagnostics/crlf_and_eof_positions-6", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 4)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-6.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/crlf_and_eof_positions-6.expected")))
+  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-7", diagnostic_with_source(Diagnostic("bad input", SourcePos("", 0, 1, 1)), map().put("", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-7.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-7.expected")))
+  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-8", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 1)), map()) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-8.expected")))
+  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-9", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 0, 1)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-9.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-9.expected")))
+  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-10", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 0)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-10.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-10.expected")))
+  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-11", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 2, 1)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-11.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-11.expected")))
+  results = results.append(test_equal_str("diagnostics/missing_sources_and_invalid_positions_preserve_header-12", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 5)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-12.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/missing_sources_and_invalid_positions_preserve_header-12.expected")))
+  results = results.append(test_equal_str("diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-13", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 8)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-13.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-13.expected")))
+  results = results.append(test_equal_str("diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-14", diagnostic_with_source(Diagnostic("bad input", SourcePos("example.panack", 0, 1, 4)), map().put("example.panack", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-14.source"))) + "\n", filesystem_read_text("tests/fixtures/compiler_contracts/diagnostics/tabs_unicode_and_controls_have_deterministic_display_columns-14.expected")))
+  if test_report(results) > 0 { host_exit(1) }
 }

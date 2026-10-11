@@ -1,1 +1,3 @@
-main(): Void { write_file(("invalid" + utf8_decode(byte_append(bytes(), 0)) + "path"), "data") }
+import stdlib/filesystem::{filesystem_write_file_bytes}
+import stdlib/bytes::{bytes_empty, bytes_push, text_decode_utf8, text_encode_utf8}
+main(): Void { filesystem_write_file_bytes(("invalid" + text_decode_utf8(bytes_push(bytes_empty(), 0)) + "path"), text_encode_utf8("data")) }

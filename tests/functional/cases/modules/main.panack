@@ -1,5 +1,5 @@
-import "answer.panack"
+import "answer.panack" as answer_module
 
 main(): Void {
-  print(answer())
+  print(answer_module.answer())
 }

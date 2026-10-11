@@ -6,6 +6,748 @@
 
 # Validation profiling baseline
 
+## Alpha.12 performance close-out — 2026-10-10
+
+The final clean canonical `make check` ran on the macOS arm64 development host
+against `next` commit `ecc2a35347f3c061016d9e19c44a6d7451b8780c` (the merge of
+PR #363). The host was macOS 26.5 (build 25F71), Apple clang 21.0.0, arm64; the
+checkout had no build directory. With `CFLAGS=-O2` and `VALIDATION_JOBS=4`,
+`make clean` followed by the profiled canonical `make check` passed in **375s**:
+unit 200s, functional 12s, bootstrap 133s, release smoke 1s and quick start 1s.
+The 120s clean-check budget was exceeded by 255s; the 60s bootstrap budget was
+exceeded by 73s. The aggregate unit phase is not the focused 15s incremental
+workload. All suites and assertions were retained. This is one host run; OS
+cache state and unrelated host load were not controlled.
+
+The regular Check workflow also passed for the same exact commit on Linux x86-64
+and macOS arm64 in run [38069721806](https://github.com/sproates/panackelty/actions/runs/38069721806).
+It partitions validation into independent jobs, so its job times are not a
+single canonical `make check` observation. A separate clean-checkout focused
+profile ran on both hosted reference images in
+[run 38071763613](https://github.com/sproates/panackelty/actions/runs/38071763613),
+using two workers, ordinary native prerequisites and initial then cached
+`check-compiler`, `check-bytecode` and `check-vm` commands:
+
+| Hosted reference | Compiler initial / cached | Bytecode initial / cached | VM initial / cached |
+| --- | ---: | ---: | ---: |
+| Linux x86-64, Ubuntu 22.04 image `20261004.315.1` | 459s / 127s | 26s / 6s | 148s / 145s |
+| macOS arm64, macOS 14 image `20260831.0302.1` | 377s / 110s | 22s / 5s | 117s / 114s |
+
+Each focused command has a 15s warning budget. Cached bytecode meets it; cached
+compiler and VM checks exceed it substantially on both runners. The Linux and
+macOS observations differ from the earlier profile of the same revision, so
+retain the run artifacts and treat these as noisy single-run samples, not a
+stable speed comparison. They identify no new measured hotspot that justifies
+another pre-release optimization.
+
+### Findings and disposition
+
+Ranked by evidence from this bounded investigation:
+
+1. **Repeated declaration-signature lookup:** confirmed by phase instrumentation
+   and source inspection; a per-module declaration index reduced the median
+   `check compiler.panack` time by 3.5% across three paired samples. The measured
+   workload and emitted bytecode comparison are recorded below.
+2. **Independent coverage-session scenarios:** confirmed as a costly focused
+   test workload. Splitting it into four isolated probes retained all 41
+   assertions and reduced one warm `make check-compiler` sample by about 20% at
+   both two and four workers.
+3. **Validation worker count:** one same-revision clean pair on macOS arm64
+   measured 530.32s at two workers and 379s at four, largely from the unit
+   phase. Today's clean run was 375s at four workers. This supports keeping the
+   local default at four; the small run count and order do not establish cause or
+   a cross-host gain.
+4. **Shared module-loading cache or narrower import closure:** not selected.
+   Existing probe caching already reuses verified compiled programs, while the
+   measured loader share and process model do not establish that a shared cache
+   is a safe or worthwhile fix. The matched runner-smoke increase from 30.005s
+   to 55.515s is an end-to-end, single-host observation; it does not prove that
+   namespace changes caused the increase. No comparable evidence established
+   that wider import closure caused it. More accurate incremental dependency
+   tracking remains a separate, larger design problem.
+
+**Owner decision, 2026-10-10:** accept the known developer-validation latency as
+a disclosed alpha.12 limitation after the evidence-backed improvements in
+PR #363. Keep the 120s clean-check, 15s focused-check and 60s bootstrap budgets
+unchanged, preserve all tests and coverage, and do not add another performance
+optimization as an alpha.12 prerequisite. This accepts the validation-time
+trade-off only; alpha.12 remains subject to its three feature gates, promotion,
+package/release validation and explicit release approval. Keep the broader
+GI#106 concern open and revisit it before the next compiler-heavy delivery or
+when comparable evidence shows a material change.
+
+## Namespace declaration lookup index — 2026-10-10
+
+Phase timing on `check compiler.panack` attributed most of the 24.40s instrumented
+baseline to declaration-signature resolution (8.85s) and body/effect checking
+(10.45s); loading the project module closure took 3.58s. Review found that each
+nominal type lookup rescanned every declaration in its owning module. The
+candidate builds a per-module name-to-declaration map during loading and uses it
+for signature resolution. It preserves last-declaration selection, including
+malformed duplicate inputs, and does not change emitted user-program bytecode.
+
+For the comparison, both stage-2 compilers were built from the same checked-in
+seed and source tree on the same macOS arm64 host. The native VM and all inputs
+were held constant; timings alternated baseline and indexed binaries, without
+phase instrumentation:
+
+| Pair | Baseline `check compiler.panack` | Indexed candidate |
+| --- | ---: | ---: |
+| 1 | 25.16s | 23.16s |
+| 2 | 24.13s | 23.49s |
+| 3 | 24.30s | 23.45s |
+| Median | 24.30s | 23.45s (-3.5%) |
+| Mean | 24.53s | 23.37s (-4.8%) |
+
+Baseline stage-2 SHA-256: `54e0268ed3a2f939e22439925fb545857fc7ba0c6f67c2a7dd9cb948cd86a752`.
+Indexed stage-2 SHA-256: `9c5689c7ae348f6f109b0a21fbedcaf373a3ef0ebb00aba0929fc7a0353450bd`.
+Both compiled the Euler 001 example to byte-identical bytecode; both artifacts
+passed verification and produced identical output. The focused module-binding
+suite passed 628 assertions, source-inventory passed 23, and compiler contracts
+passed. A cold-cache `make check-compiler` passed but took 214s, exceeding the
+15s target by a wide margin. This full focused-suite observation is noisy and
+does not isolate a causal change; the comparison covers only checking the full
+compiler source. The prior latest clean canonical `make check` took 574s against
+the 120s target. The final host-enabled canonical `make check` passed in 286s
+(unit 115s, functional 11s, bootstrap 133s, release smoke 0s, quick start 1s).
+The 120s full and 60s bootstrap targets remain unmet. This local timing does not
+establish a stable speedup or timing cause.
+
+## Parallel coverage-session probes — 2026-10-10
+
+The focused compiler suite profiled `compiler_coverage_session_cli.panack` at
+53–54s warm. It contains independent scenario groups, each with its own fixture
+mutation state. Split those groups into four probe entrypoints with isolated
+temporary workspaces; the original 41 `test_expect` assertions remain represented
+as 15, 9, 3 and 14 assertions. The canonical and focused runners still execute
+all four groups. Compilation caching remains bytecode-only, so all test bodies
+and assertions run on every invocation.
+
+One warm run per setting was measured on the same macOS arm64 host, current
+candidate seed and native VM, with native prerequisites and probe caches prepared
+and no other builds running:
+
+| Probe worker limit | Before split | Four-probe split | Difference |
+| --- | ---: | ---: | ---: |
+| 2 (default) | 104s | 82s | -21.2% |
+| 4 | 96s | 77s | -19.8% |
+
+The split check passed all compiler probes and CLI workflows with zero failures.
+The four coverage-session probe runtimes at two workers were 10s, 29s, 9s and
+10s; at four workers they were 11s, 29s, 8s and 10s. Independent timing rows
+overlap, so do not sum them. The largest records-integrity scenario is still
+sequential because each malformed-record case mutates and restores the same
+session. A cold-cache focused check with the split passed in 158s; the 15s budget
+remains unmet by a wide margin. The two/four-worker samples are single warm
+observations, not a stable cross-host speed claim. The 120s clean-check target
+and 60s bootstrap target are unchanged. The final canonical check passed after
+correcting the seed namespace fixture to construct `LoadedModule` with its new
+declaration index. The focused `sh tests/namespace_seed.sh` and full check both
+pass; the fixture correction provides compatibility coverage for this API change.
+Unit is the aggregate canonical phase, not the focused incremental sample.
+
+Higher concurrency alone helped less: the original suite measured 104s at two
+workers and 96s at four. Moving its slowest probe to the front measured 97s and
+was reverted. The probe runner already reuses verified compiled bytecode and
+always reruns tests. Its conservative cache key includes every Panackelty source
+under `src`, `tests`, `examples` and the selected standard library; a source
+change can therefore rebuild unrelated probe artifacts. Narrowing this safely
+needs complete dependency tracking or explicit dependency manifests. The
+existing `make check-compiler`, `make check-bytecode` and `make check-vm` targets
+are the supported component-focused routes; code changes still require the full
+canonical check for integration and release validation.
+
+## Clean validation worker-count comparison — 2026-10-10
+
+On the same macOS arm64 development host and the same clean source revision
+`4963fd9b5d9fa8cabe27db047295cbc486ab85e0`, one clean canonical `make check` at
+`VALIDATION_JOBS=2` passed in 530.32s. A subsequent `make clean` and canonical
+`make check` at `VALIDATION_JOBS=4` passed in 379s. The unit phase fell from 354s
+to 202s; functional stayed at 12s, bootstrap at 134–135s, release smoke at 1s
+and quick start at 0–1s. The four-worker run completed without failures. The
+two-worker clean run's enclosing baseline script later failed in its separate
+auxiliary changed-input fixture; this does not change the successful canonical
+check result and is not part of this timing comparison.
+
+Each worker setting was observed once, in a fixed order, so cache warming and
+host noise are not controlled. The result supports a local default of four
+workers as a measured mitigation on this host, not a cross-machine speed claim.
+CI sets `VALIDATION_JOBS` explicitly and is unaffected. All suites and assertions
+remain enabled. The full check (379s), bootstrap phase (135s) and focused compiler
+target (95.46s in the two-worker baseline run) still exceed their 120s, 60s and
+15s budgets. Keep those budgets and the RM#106 concern open; remeasure on the
+reference environment before treating the improvement as general or resolved.
+
+## Slice 8 hosted-CI follow-up and matched runner profile — 2026-10-10
+
+At core PR #358's exact candidate head `10543db678f7d81f49eb31429a16ea9635909f72`,
+GitHub Actions failed the fresh `runner_smoke` command at its 90-second bound on
+runtime, coverage, sanitizer-runner, and both platform package routes. This
+command executes all 355 fixture assertions and emits a byte-exact report. A
+matched local macOS arm64 run used the same clean smoke entry, native VM, root,
+prebuilt stage-2 compiler environment and no cached runner transcript. Base
+`c2cf35d` took 30.12s and 29.89s; Slice 8 at `2dad547` took 55.35s and 55.68s.
+The means are 30.005s and 55.515s (+85.0%). The command builds a fresh report
+inside each run; compiler stages and the native VM were built before timing.
+This measures the complete fresh-run workload on one host, not an isolated
+compiler operation or a cross-platform speed claim. The slowdown is material;
+GI#106 remains open. Next, the GI#106 performance delivery owner should isolate
+the compiler-source/module-loading cost and review a bounded mitigation before
+accepting this Slice 8 performance disposition. No project timing target is
+lowered.
+
+The smoke command's outer timeout was first raised to 120 seconds, but exact-head
+hosted conformance still failed the runner smoke on Linux and macOS source runs
+and both bytecode runs. The exposed job output reports only source/artifact
+execution failure; it does not expose the nested command's detailed result. The
+fresh full-run command is now bounded at 180 seconds to accommodate this hosted
+variance while still bounding a stuck child. All 355 assertions and the expected
+report are unchanged; the 120s clean-check, 15s focused-check and 60s bootstrap
+targets are also unchanged. This timeout adjustment does not resolve the measured
+performance concern or establish that the full CI matrix passes.
+
+After these corrections, host-enabled `make check` passed in 321s: unit 145s,
+functional 12s, bootstrap 138s, release smoke 0s and quick start 1s. The native
+TCP contract could not bind loopback under the default sandbox, so this complete
+rerun used host networking; the sandboxed attempt stopped at that environmental
+contract before finishing. Existing build/probe artifacts were present, so
+321s is a successful local acceptance observation, not a matched comparison with
+the earlier 565s run. The 120s/15s/60s budgets remain unchanged.
+
+After the runner bound was raised to 180 seconds, a clean host-enabled canonical
+`make check` passed in 573s: unit 395s, functional 13s, bootstrap 137s, release
+smoke 1s and quick start 0s. All phases passed; the 120s full-check, 15s
+focused-check and 60s bootstrap budgets remain unchanged and are exceeded by
+this observation. This clean run does not replace the matched 30.005s/55.515s
+fresh-run profile or isolate the source of its slowdown.
+
+The compiler package jobs also found stale experiment assumptions: observers see
+emitted module-qualified function identities, while `locate` intentionally uses
+source-level function names. The source-map fixture also used a legacy
+quoted-file import. The source-map and runtime-provenance experiments now check
+the respective identity forms, and the source-map helper loads through
+`project/lib`; `make source-mapping-experiment` passes all 121 assertions and
+`make runtime-provenance-experiment` passes all 65 assertions locally. The
+source-coverage experiment now imports standard host APIs and its helper through
+explicit namespaces; `make source-coverage-experiment` passes all 68 assertions.
+These are test-fixture updates, not production source-map, runtime provenance,
+or coverage behavior changes.
+
+After the source-coverage import and identity corrections, clean host-enabled
+canonical `make check` passed in 574s: unit 395s, functional 13s, bootstrap
+138s, release smoke 1s and quick start 1s. The source-coverage experiment passes
+all 68 assertions. The full-check and bootstrap timings still exceed the
+unchanged 120s and 60s budgets. The test and coverage suites passed without
+omission.
+
+## Slice 8 follow-up: closure audit and current browser checks — 2026-10-10
+
+Migrated the remaining sampled valid fixtures from implicit quoted imports to
+explicit namespace aliases: local inference, indexed lookup, generic instruction
+sources, the relative driver, and the project-rooted import fixture. Public
+declarations are explicit where another module consumes them. The relative
+driver oracle was updated only after running the old captured bytecode and the
+new qualified source to the same output (`42`) and reviewing the disassembly;
+only the imported function identity and its `main` call target changed. The
+artifact rationale and inventory digest are recorded in
+[`tests/fixtures/oracle_contracts/README.md`](fixtures/oracle_contracts/README.md).
+
+After removing project compilation's flat compatibility route, an exhaustive
+identity-only check of 59 roots passed: all functional cases, compiler-contract
+fixtures, and top-level examples. This replaces the earlier 39-root probe in
+which `vm_numeric_boundaries` remained deferred. No broader arithmetic proof
+rule was added; that fixture now passes the identity-only route with its existing
+contracts intact. Focused source-map, explanation, and coverage checks passed
+after their selectors and retained evidence were aligned with emitted module
+identity. The check is now maintained as `tests/identity_root_audit.sh` and runs
+in `functional-impl`, so every canonical `make check` repeats the scoped audit.
+
+`make regenerate-seed` passed the stage-2/3/4 fixed point at compiler digest
+`54e0268ed3a2f939e22439925fb545857fc7ba0c6f67c2a7dd9cb948cd86a752`; the
+standard-library artifact digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Canonical
+`make check` passed all suites in 565s, including 355 functional fixture
+assertions and the maintained 59-root identity audit, release smoke, and quick
+start. The functional phase took 12s; bootstrap took 133s.
+Native staging was Python-free, and installed-package smoke passed. Browser
+`npm test` passed 21/21 against the current core source. Playwright passed 24/24
+across Chromium, Firefox and WebKit with the current compiler/standard-library
+bundle; the prior WASM artifact was reused because its VM C sources and browser
+host adapter are unchanged (WASM SHA-256
+`a1d255de55b1ba6e14e5e0da59598754449b44735eb3b5c1483c94ca48b0b830`). The local
+WASI SDK was unavailable, so no new WASM compilation is claimed.
+
+The canonical run exceeded the 120s budget, and bootstrap exceeded its 60s
+budget. This run does not isolate a cause; retain all tests and targets and make
+no speedup or causal claim. Proposed disposition for merge: the GI#106 performance
+delivery owner runs a matched phase profile before the next compiler-heavy
+delivery is merged, or sooner if hosted CI repeats the breach, then reviews
+remediation with that evidence. The concern stays open under GI#106; acceptance
+of this bounded plan is presented with the final PR. The final exact-head hosted
+matrix subsequently passed on core PR #358 at
+`c8725b8ab16e7928afc7beb7c1217815959cc7ed`, including Linux/macOS package,
+conformance, validation, source-coverage policy and warm-profile checks. Browser
+PR #9 passed its exact-head workflow at
+`d4989f4d3288f7559400a9f056a465dc9fc5d740`, pinned to that core revision. This
+supersedes the earlier pending-CI statements above; it does not resolve the
+measured performance concern or authorize merging. No tests or budgets were
+waived. Slice 8's candidate acceptance is complete locally; the persistent
+identity-root audit passed 59/59 and is included in the functional phase. The
+final PR records completion effective on merge and closes GI#198 when required
+checks pass on its exact head.
+
+## Slice 8 coordinated migration validation — 2026-10-09
+
+The current candidate migrates compiler/tooling APIs and standard-library export
+surfaces to selected namespace imports, refreshes the namespace-capable seed,
+and passes native, browser-WASI, and relocated installed-package acceptance.
+The canonical `make check` passed all suites in 528s. The focused namespace body
+suite passed 616 assertions. Fresh compiler stages 2/3/4 match at
+`ebbb7c85c00d5fc3e9b9feb1ea8d85650707338d97fea5632bf2af0320e87436`; the standard
+library artifact digest is
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Browser
+`npm test` passed 21/21; the Chromium/Firefox/WebKit Playwright matrix passed
+24/24. Native staging passed without Python.
+
+A separate removal probe temporarily routed all projects through staged identity
+emission. `make check-compiler` failed 11 driver/source-map assertions on ordinary
+projects using quoted legacy imports; the loader had skipped signature/body
+identity preparation for those modules. Three added focused regressions now
+show that the generic array-indexing, conditional-branch and core-call bodies
+from that failure set pass identity checking and emission when the module graph,
+signatures and bodies are supplied. The guarded legacy project route was
+restored. The remaining work is to prepare checked metadata for legacy-loaded
+modules, use identity emission only for fully checked closures, and preserve the
+fallback for genuinely deferred cases until that inventory is migrated. Then
+rerun native, browser, and installed acceptance. No checks were waived.
+
+### Follow-up: explicit-import fixtures and cutover probe — 2026-10-09
+
+Migrated the source-map CLI fixture's generic library and transitive dependency
+to explicit namespace imports, and its imported generic/lowered-function map
+selectors now assert module identity and exact spans. The `modules`,
+`semicolonless`, relative-import, and loader-confinement fixtures now use
+explicit aliases/exports or selected standard-library APIs. `make functional`
+passed 355 checks and both runner-smoke executions in 58s; the focused compiler
+integration probe passed 133 assertions, loader-confinement passed 4, and the
+source-map CLI probe passed 54. The guarded `make check-compiler` passed all
+probes with 0 failures in 96s when given a 300s budget.
+
+A fresh forced-identity trial passes the self-hosted driver (8 assertions) and
+source-map CLI (54 assertions), closing the earlier 11 driver/source-map
+failures for those migrated fixtures. The full forced-identity compiler suite
+still fails 4 coverage-session assertions: generated infinite-loop and trap
+fixtures cannot produce accepted inventories/reports. All other probe groups
+passed. The production guard is restored; inventory/session identity parity is
+the remaining code-level cutover gate. Keep the legacy route until that forced
+suite passes, then repeat fresh seed fixed-point and native/browser/installed
+acceptance. `git diff --check` passed. No tests or budgets were waived.
+
+### Update: identity-ready routing and canonical acceptance — 2026-10-09
+
+The loader now retains module signatures, checked bodies and effect evidence for
+ordinary files as well as namespace projects. `LoadedProject.identity_ready`
+marks complete closures; source, inventory, source-map and explanation commands
+select identity emission for those closures and retain the flat compatibility
+route only for incomplete legacy closures. Explicit namespace projects still
+fail closed. This resolves the four generated loop/trap inventory failures
+recorded above.
+
+The readiness-based compiler suite passed in 202s, and the full functional
+matrix passed in 57s. Canonical `make check` passed in 303s: unit 137s,
+functional 5s, bootstrap 134s, release smoke 0s, quick-start 1s. Fresh compiler
+fixed points and Python-free native staging passed. Compiler stage digest:
+`44ac16e15636c4218f7c3725bfdb329145fd59a0018a358a16b32b813cf043c9`; standard
+library digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. The
+remaining cutover work is to audit and migrate closures that still require
+fallback, remove that path, and repeat browser/WASI acceptance. `make docs` and
+`git diff --check` passed. No tests or budgets were waived.
+
+The 528s canonical run exceeded the 120s full-check target; bootstrap took 139s
+against its 60s target, while functional tests took 6s in that integrated run. A
+separate post-restore `make functional` passed in 55s with loopback access. The 356s unit aggregate
+is not the 15s focused incremental target. One host-level run does not attribute
+the timing to this migration. Keep all tests and targets. GI#106 remains with its
+existing validation owner; next action is a same-host phase profile of clean base
+and candidate runs, then a bounded remediation proposal if the measurements
+identify avoidable repeated work. Review that proposal before changing tests or
+budgets. Website impact: none; public namespace execution remains gated.
+
+### Follow-up: legacy-module identity preparation tests — 2026-10-09
+
+Added three focused assertions showing that ordinary generic indexing,
+conditional branches, and a core call can be identity-checked and emitted when
+the loader supplies module identities, signatures, and checked bodies. The
+focused module-binding/body suite passed 616 assertions. Canonical `make check`
+then passed all suites in 554s: unit 385s, functional 6s, bootstrap 134s,
+release smoke 1s, and quick-start 1s. The bootstrap fixed point and native
+Python-free seed refresh passed. No test failed.
+
+The 554s run exceeds the 120s full-check target, and bootstrap exceeds its 60s
+target. The unit aggregate is not a focused incremental sample for the 15s
+target. Compared with the preceding 528s run, this single follow-up does not
+establish causation or isolate the three new assertions' cost. Keep all tests
+and targets. GI#106's next action remains a matched phase profile of clean base
+and candidate runs, followed by a bounded remediation proposal if it identifies
+avoidable repeated work. The guarded legacy route remains until quoted-import
+modules receive checked metadata and existing driver/source-map behavior passes
+through identity emission. Website impact: none.
+
+### Update: core text identity calls and refreshed seed — 2026-10-09
+
+Added checked identity support for text `reverse` and `starts_with`, with
+positive receiver-call and wrong-arity/type coverage. Migrated the corresponding
+core-methods fixture to an explicit helper alias and public export. The
+source-map CLI fixture, module and semicolonless callers, relative import case,
+and loader-confinement checks also now exercise explicit identities or selected
+stdlib APIs. The focused module-binding/body suite passes 621 assertions; the
+source-map CLI suite passes 54; loader-confinement passes 5.
+
+The checked-in v9 seed was stale for these compiler changes and has been
+regenerated. Stage 2/3/4 match at
+`96b0f2f2d262cf86e98f05386a875b0a2cee4b4deddbe189342f3d885d873aea`; the
+standard-library artifact digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. The
+readiness-based compiler suite passed 207 assertions in 195s. Canonical `make
+check` passed in 314s: unit 145s, functional 5s (355 fixture assertions plus
+runner smoke), bootstrap 136s, release smoke 1s, and quick start 1s. Seed
+refresh was already at the verified fixed point and passed native staging with
+a Python-free `PATH`.
+
+At this checkpoint the ordinary `map().put(...)` and `set().add(...)` fixture
+still appeared to require fallback. The follow-up below resolves that case;
+this paragraph records the earlier finding.
+
+### Follow-up: identity inference, coverage identities, and repeated acceptance — 2026-10-09
+
+Receiver-context constraints now infer unannotated Map key/value and Set item
+types for `.put(...)` and `.add(...)`. Checked `nat()` and `dec()` contracts
+complete the loaded `core_ends_with` body. Loader tests confirm this ordinary
+source closure is identity-ready. Coverage reporting now chooses identity-
+qualified function names when those appear in emitted bytecode, falls back to
+legacy names only when present, and maps qualified enum-arm probes back to
+source inventory labels. Focused module-binding/body, loader-confinement,
+coverage-unit, and coverage-CLI suites pass 624, 6, 37, and 39 assertions.
+
+The readiness-based `make check-compiler` passed all 207 assertions in 232s.
+Canonical `make check` passed all phases in 305s: unit 140s, functional 6s,
+bootstrap 134s, release smoke 1s, and quick start 1s. Compiler Stage 2/3/4
+fixed points match at
+`9a3604071fd5fadcbcf6a6210eabc4171ffe2f834ef7b07cd06cdcbc2dbb4db2`; the
+standard-library artifact digest remains
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Native
+staging remains Python-free. The compiler bundle was rebuilt into the browser
+runtime; browser `npm test` passed 21/21 and Playwright passed 24/24 across
+Chromium, Firefox, and WebKit. Installed-package acceptance passed in canonical
+check.
+
+The canonical run exceeded its unchanged 120s target; unit and bootstrap also
+exceeded their focused targets. This remains a single-host observation and does
+not identify a cause; retain all tests and budgets. The compatibility route is
+still present because the full fallback-closure inventory is not complete.
+Audit those remaining cases, remove the route only after all valid closures have
+identity evidence, then repeat browser/WASI and installed acceptance. No tests
+or budgets were waived.
+
+
+## P2 Slice 7 acceptance hardening — 2026-10-08
+
+The final Slice 7 audit added exact-position regressions for too few explicit
+type arguments on direct and receiver calls. Existing tests cover excess counts,
+invalid explicit types, parenthesized calls, reserved core calls, pattern and
+declaration spans, source-map identity selection, and stale or malformed maps.
+The compiler and VM implementation are unchanged by this acceptance-hardening
+delivery.
+
+The focused module-binding suite passed all 597 assertions; the source-map CLI
+suite passed all 54 checks. `make docs` passed. Host-access `make check` passed
+all suites in 225s against the unchanged 120s target (functional 6s, bootstrap
+20s). The preceding explicit-call-span delivery passed in 217s. These are
+separate single runs, not a controlled comparison; no cost-neutrality or causal
+claim is made from this test/docs-only change.
+
+Keep all tests and the 120s/15s budgets. GI#106 remains open under the existing
+validation maintainer; its next bounded compiler-delivery comparison/remediation
+review and trigger remain unchanged. This acceptance follow-up selects no
+optimization. The 225s miss is disclosed for the user's explicit merge decision.
+Website impact: none; namespace execution remains gated and published claims do
+not change.
+
+## Namespace checked-graph effects and await — 2026-10-07
+
+Base: `next` after slice 4. The checker now resolves pure, ordinary and async
+call/await boundaries from checked declaration and callable identities. Coverage
+includes imported aliases, generic and indirect calls, async result typing,
+non-Unit await use, and recovered evidence from a valid sibling. The staged
+namespace execution gate remains; no bytecode, VM or runtime behavior changed.
+The module-binding suite passes 556 assertions.
+
+Canonical `make check` passed all suites in four host-level loopback runs:
+126s (unit 81s, functional 4s, bootstrap 18s, plus native/package setup), 191s
+(unit 146s, functional 3s, bootstrap 19s), 121s (unit 76s, functional 3s,
+bootstrap 18s), and 119s on the final documentation tree (unit 76s, functional 4s,
+bootstrap 17s). The observed range is 119–191s; three of the four runs exceeded
+the 120s target. `make check-compiler` passed in 51s/52s on repeat and 51s on the
+final implementation tree, against the 15s focused target.
+This spread is not a controlled before/after comparison and does not establish that
+this slice caused the increase. No required test, assertion or time budget was
+removed or weakened.
+
+Proposed disposition: keep the current targets and coverage; accept this bounded
+checker slice with the observed budget misses recorded and no claim of a speedup
+or causal regression. The validation maintainer, tracked under RM#106 / GI#106,
+compared the exact base and head focused/full workloads on the same host before
+slice 6. The paired evidence and bounded reuse assessment follow. The timing targets
+remain open; no runtime performance claim is made.
+
+### Exact base/head validation comparison and bounded reuse assessment — 2026-10-08
+
+Compared base `ca2fa3b` (immediately before slice 5) with implementation head
+`8fa9f0d` (slice 5), in clean detached checkouts on the same macOS arm64 host.
+Each revision had one clean canonical run (`make clean`, then `make -j1 check`)
+with native loopback access, followed by one warm focused run (`make -j1
+check-compiler`). Base ran before head; no competing build ran. OS cache state and
+other host activity were uncontrolled. All four checks passed.
+
+| Workload | Base | Slice 5 head | Target |
+| --- | ---: | ---: | ---: |
+| Clean canonical `make check` | 193s | 193s | 120s |
+| Warm focused `make check-compiler` | 51s | 52s | 15s |
+
+The full check is equal at the timer's one-second resolution; the focused result
+differs by one second. A single pair cannot distinguish a small code effect from
+run-to-run noise, and these results do not establish causation or cost neutrality.
+The base itself also exceeds both budgets, and no difference is resolved by this
+pair. Retain the established budgets and all coverage.
+
+The bounded loader/core reuse assessment found that `tests/run_probe.sh` already
+reuses only verified compiled probe artifacts, keyed by the VM, seed, source and
+source-tree digests; it reruns each probe and never caches test results. Public
+runner commands use separate process invocations, so in-memory loader reuse cannot
+cross calls. The earlier six-command phase sample puts loader-minus-startup at
+about 18ms per command, with uncontrolled host/cache noise. A shared cache or
+long-lived compiler service would add invalidation and diagnostic/failure-isolation
+state for a small and unproven share of the full-check cost. No reuse optimization
+is selected. Preserve the existing cache and failure contracts, and repeat a
+matched comparison if a later change materially affects loading or checking.
+
+The measurement itself required two clean full checks (193s each) and two focused
+checks (51–52s). The existing baseline tooling already records these workloads;
+wrapping the same executions in another script would reduce manual polling but
+not the elapsed validation time, so no new measurement script is warranted.
+
+### Namespace identity emission and loading — 2026-10-08
+
+The staged source-built compiler now emits the bounded, checked namespace subset
+using module identities, preserves the selected entry `main`, and confines module
+loading to the entry and standard-library roots while rejecting symlink traversal.
+The canonical full `make check` passed all gates in 123s against the unchanged
+120s target. This run provides no distinct unit-phase timing, and a single run
+does not establish that this slice caused the three-second overrun. The focused
+module-binding probe passed 575 assertions, loader-confinement probe passed 3,
+and the stage-2 compiler-driver probe passed 12; `make docs` also passed. The
+bootstrap fixed point and seed-refresh path passed within the full check. Proposed
+delivery disposition for owner acceptance: retain the full/focused budgets and
+coverage, accept this bounded correctness delivery with the observed full-check
+miss recorded under the existing GI#106/RM#123 ownership, and make no speedup or
+causal-regression claim. The user accepted this disposition with merge approval
+for PR#331, which merged to
+`next` on 2026-10-08. Broader body, diagnostic/tooling, browser, installed and
+coordinated seed/source acceptance remain open for later P2 work.
+
+### Namespace guard-helper identity follow-up — 2026-10-08
+
+The identity emitter now rewrites guarded-type predicate calls and namespace
+calls through their resolved declaration identities, including nested expressions,
+conditionals, blocks and match arms. The module-binding probe passes 577
+assertions, including two modules with the same guarded-type and helper spellings;
+the stage-2 compiler driver passes all 12 checks against the rebuilt compiler.
+The canonical `make check` passed in 197s on its first run and in 123s on the
+final host-loopback run, against the unchanged 120s target; bootstrap took 19s
+and 18s respectively, and both included stage-2/stage-3 fixed-point and
+seed-refresh checks. The final run also passed the native TCP contracts. An
+intervening sandboxed retry failed because the native tests could not bind their
+loopback sockets; rerunning with host loopback access resolved that environmental
+failure. These successful timings vary by 74s, and neither is a paired
+base/head comparison. They do not attribute the budget misses to this change.
+No tests, budgets or coverage were reduced.
+
+Proposed disposition for merge approval: retain the 120s/15s targets and all
+coverage; accept this bounded identity-correctness follow-up while keeping the
+observed validation miss open under the existing GI#106/RM#123 ownership. Make no
+speedup or causal-regression claim. The validation maintainer's next action is a
+matched base/head full and focused comparison before performance acceptance;
+review the concern at the next compiler-heavy slice or when comparable evidence
+changes. This PR is an intermediate P2 slice-6 delivery; broader acceptance
+remains open.
+
+### Namespace generic identity execution coverage — 2026-10-08
+
+The entry fixture now imports two modules that both export `Item[T]`, `make`,
+and `identity[T]`. Its complete program constructs and reads both generic record
+identities and invokes both generic functions. `make check` passed, including the
+source and saved-v9-bytecode runs with exact output; the namespace body probe
+passed 577 assertions. The full check took 195s against the unchanged 120s
+budget; the functional phase took 4s and bootstrap took 20s. This delivery changes
+only namespace test fixtures and informational coverage/roadmap records, not
+compiler or VM implementation. The new measurement does not establish that the
+fixture caused the budget miss. The matched base/head comparison below records
+the requested evidence.
+
+Proposed disposition for merge under existing GI#106/RM#123 ownership: retain
+all coverage and the 120s/15s targets, make no causal-regression or speedup claim,
+and keep performance acceptance open. The validation maintainer's next action
+is a matched base/head full and focused comparison before the next compiler-heavy
+slice; review the concern at that slice or when comparable evidence changes. The
+owner accepted this disclosed disposition by merging PR#334 under the standing
+exact-head green-pipeline authorization. This remains an intermediate slice-6
+delivery, not P2 completion.
+
+### Matched validation for namespace generic identity coverage — 2026-10-08
+
+Compared the exact parent of #334 (`9cad9175d5ec91c61b43a87b5612ea1041541368`)
+with #334's merged head (`96c7fb52968c6f8c29b0143fb9a6d24b39707bde`) in clean,
+detached checkouts on the same macOS arm64 host. The base ran first, followed by
+the head; no other validation build ran concurrently. Each revision had one clean
+canonical `make -j1 check` after `make clean`, then one warm `make -j1
+check-compiler`. Native loopback access was available. All four commands passed.
+
+| Workload | Pre-#334 base | #334 head | Target |
+|---|---:|---:|---:|
+| Clean canonical `make check` | 200s (199.78s wall) | 200s (200.32s wall) | 120s |
+| Warm focused `make check-compiler` | 54s (54.03s wall) | 55s (54.83s wall) | 15s |
+
+The full-check measurements are equal at the project's one-second timer
+resolution; the focused head is one second slower. Both revisions exceed both
+budgets. This single pair does not establish that #334 caused or avoided the
+overruns, nor does it establish performance neutrality. Host activity and OS
+cache state were not controlled. Retain the existing budgets and all coverage;
+make no speedup or causal-regression claim. GI#106/RM#123 performance acceptance
+remains open for later compiler-heavy work or comparable evidence. This remains
+an intermediate P2 slice-6 delivery, not P2 completion.
+
+### Nested generic payload emission follow-up — 2026-10-08
+
+The two imported fixture modules now each define `Item[T]`, `Envelope[T]`
+containing that item, and `Outcome[T]` with a `Finished(Envelope[T])` payload.
+The entry constructs each module's nested records and outcomes, calls both
+same-spelled generic identities, matches both same-spelled variants, and reads
+the payload fields. The staged compiler's source and saved-v9-bytecode runs
+both produce exact output `41`, `42`, `41`, `42`. This expands checked-subset
+execution evidence; it changes no compiler or VM implementation and does not
+enable public namespace execution.
+
+The clean canonical `make -j1 check` passed in 200.88s wall (200s at the
+project timer's resolution), with bootstrap in 19s, against the unchanged 120s
+budget. After that build, warm `make -j1 check-compiler` passed in 54.90s wall
+(55s reported), against the 15s target. Its first run immediately after `make
+clean` took 85s while rebuilding the native toolchain and is not comparable to
+the warm focused target. These single observations are near the previous
+#334-head measurements of 200.32s and 54.83s; they do not establish the fixture's
+causal cost. The target-matched routed validation then passed on the warm tree in
+124s, four seconds over the 120s budget. Its earlier sandboxed attempt failed at
+`unit-runtime`; rerunning with host loopback access passed. Both timing budgets
+remain exceeded. Retain all tests and budgets; make no performance-neutrality
+claim. The validation maintainer owns the open GI#106/RM#123 follow-up; next,
+repeat the comparison after the next compiler-heavy change, with review before
+that merge or sooner if hosted CI repeats the budget breach.
+
+### Namespace indirect callable identity follow-up — PR#342 — 2026-10-08
+
+The staged namespace fixture now passes same-spelled imported function references
+from two modules as `PureFn` values and invokes them indirectly. Source and saved
+v9-bytecode runs both produce exact output `41`, `42`, `43`, `44`, `41`, `42`.
+This delivery changes test fixtures, the stage-2 driver expectations and
+informational coverage/roadmap records; it changes no compiler or VM implementation.
+
+The canonical `make check` passed in 202s against the 120s target; the functional
+phase took 5s and bootstrap took 19s. Native test artifacts were rebuilt during
+this run, so it is not a matched comparison with the #337 run (200.88s). The
+one-second difference does not establish causal cost. Keep all tests and existing
+120s/15s targets; make no performance-neutrality claim. The next matched
+comparison remains due after a compiler-heavy change under GI#106/RM#123; this
+test-only delivery does not trigger it.
+
+## Namespace guard proofs — 2026-10-07
+
+Base: `next` after slice 3, macOS arm64. The slice adds checker-only,
+identity-keyed bounds facts for branch conditions, guarded conversions,
+`Nat` subtraction and local mutation invalidation. It does not change the VM,
+runtime semantics or bytecode format; previously accepted programs retain their
+existing emitted behavior. Canonical `make check` passed all suites, including
+543 compiler module-binding assertions and native loopback contracts. One run
+took 125s and the final run took 118s against the 120s full-check target. The
+final run reported 75s for the aggregate unit phase; that is not the distinct
+15s focused incremental check. The targeted module-binding probe passed all 543
+assertions in 0.40s with the native toolchain already built. No comparable
+before/after sample was taken, so these figures do not establish a checker
+regression.
+
+Proposed merge disposition: retain the existing 120s full / 15s focused targets
+and leave checker-performance attribution open; both the final full check and
+focused incremental target must pass in their applicable environments. Responsible role:
+validation maintainer, tracked under RM#106 / GI#106. Next action: before the next
+checker-heavy slice, compare base and head focused compiler-unit and canonical
+validation timings on the same host. Review trigger: before merging that slice,
+or sooner if CI repeats the breach. No runtime performance claim is made. The
+PR handover presents this proposed trade-off for owner acceptance.
+
+## Source-coverage feasibility — 2026-10-05
+
+Base: `7599b30` on `next`, Linux x86-64, `cc -O2`, Node 24.19.0. The test-only
+`make source-coverage-experiment` passes **68 explicit checks** in **7.28s wall**
+(6.54s user, 0.77s system), including building its observer with native libraries
+already built. The ordinary VM, compiler, bootstrap seed and bytecode format are
+unchanged. The new target runs separately in Linux/macOS compiler CI jobs and
+is not added to the canonical native `make check` workload.
+
+| Observation | Five samples | Median |
+| --- | --- | --- |
+| Ordinary small-fixture compilation, wall ms | 111.777, 166.996, 119.366, 119.141, 186.299 | 119.366 |
+| Mapped compilation, wall ms | 135.752, 164.089, 151.381, 161.724, 149.022 | 151.381 |
+| Bulk loop execution, CPU seconds | 0.044578, 0.042063, 0.045198, 0.039585, 0.045444 | 0.044578 |
+| Counted single-step loop, CPU seconds | 0.055882, 0.058227, 0.049971, 0.050097, 0.062538 | 0.055882 |
+
+Samples were taken without other local validation running. Runtime order
+alternates each round; compile pairs are ordinary then mapped. The mapped
+compile median is approximately 27% higher and the counted execution median
+approximately 25% higher for these fixtures. Neither is a production regression:
+the map already exists, and only the experimental observer counts. Five small
+shared-host samples do not establish general overhead bounds. The future
+in-dispatch collector must measure its own enabled/disabled costs.
+
+The basic fixture artifact is **217 bytes**, its complete-source sidecar is
+**3,481 bytes**, and the observer's extra counter/index tables use **688 bytes**.
+These are measured sizes, not process RSS. Fixed allocation is also asserted
+unchanged between a two-step prefix and the complete 30,000-iteration loop.
+Execution CPU samples exclude report output and artifact decoding; the full
+target wall time includes them. The nested compiler preserves exact output
+bytes but is explicitly not counted. See the
+[experiment decision and limits](experiments/source_coverage/README.md).
+
+The local environment lacked an external `time`. A scratch-only executable
+adapter using Bash's real `time -p` accounting passed the existing timing and
+failure-propagation contracts without changing repository tests. A generated
+root VM lost its executable mode during the initial build attempt; restoring
+that generated binary's mode allowed validation to proceed. A later two-worker
+canonical attempt reached the existing runner-smoke failure at **416s** (unit
+384s); the bounded runner has a 90s subprocess deadline. The supported
+`VALIDATION_JOBS=1 make check` retry **passed in 343s**, including unit (227s),
+functional, bootstrap fixed points, seed refresh, release smoke and quick start.
+This used the already built native toolchain and probe cache from the earlier
+attempt, so it is not a clean reference-environment benchmark. Hosted checks
+remain required before integration. No timeout, assertion or coverage gate was
+relaxed.
+
+Disposition: retain the existing **120s full / 15s focused** targets and open
+GI#106 performance work; accept the isolated feasibility-target cost if final
+correctness checks pass. The validation maintainer retains the existing
+loader/core reuse assessment next action. This slice changes no production
+compiler or runtime path and makes no claim to resolve those budget breaches.
+Environment setup should preflight external timing and generated executable
+availability; a validation-policy bypass would not address that setup friction.
+
 ## U3 local effect explanations — 2026-10-03
 
 Baseline `46bccfa` and the candidate seed compiled the exact baseline compiler
@@ -1754,6 +2496,19 @@ profiles, while a separate targeted workflow records focused warm checks.
 See [the profiling report](VALIDATION_PROFILE.md) for evidence and the
 next measured investigations. This instrumentation does not claim a speed fix.
 
+**README positioning routing — 2026-10-08.** The README refresh merged from
+`main` in PR #339 changed only introductory positioning and feature copy, but
+the path-only package rule selected full validation: the clean check took 199s
+against the 120s target. The root README now marks its positioning-copy section
+before the first executable example. Change selection compares the entire
+remaining README byte-for-byte; only a change confined to that marked section
+uses document, local-link and whitespace checks. The local selector checks the
+base, index and worktree snapshots, and historical unmarked bases use the fixed
+first-example heading as a migration boundary. Quick-start, examples, release
+instructions, packaged content, unmatched or duplicate markers, and mixed
+changes stay on full validation. The canonical checks and hosted
+package/platform gates are unchanged for those routes.
+
 The persistent-array append optimisation reduces the measured local cached VM
 median from 26.219s to 25.598s and the test-source-edit median from 36.338s to
 32.993s. A clean full check passes in 107s. The focused 15-second target remains
@@ -3328,3 +4083,659 @@ identity and diagnostic/failure isolation. Review that selection and recheck thi
 before the next affected compiler delivery. The earlier loader-phase experiment
 does not attribute or explain this increase. This is a disclosed trade-off for
 merge approval, not a waived target or authorization to implement optimization.
+
+## SC2 executable-source inventory, 2026-10-05
+
+The opt-in inventory traverses original module syntax and captures exact compiler,
+source and generated bytecode identity; it adds no VM counters or execution hooks.
+The seed grows from 459,830 to 472,413 bytes (12,583 bytes, about 2.74%). Its final
+fixed-point SHA-256 is `f4f210551ca1e6d1ed960d5e1fe668de9235e04c75e63a89de60625c4368bb2b`.
+The standard-library artifact remains byte-identical at SHA-256
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+
+A five-pair Linux workspace probe uses the same VM/current standard library and
+`tests/fixtures/compiler_contracts/source_inventory/main.panack`, compiling with
+the seed from base `15a5a75cb242e258136500bbb8ba33a315496e70`, then the candidate,
+then creating an inventory. No competing validation build ran during this final
+probe. No warm-up was excluded; order was baseline then candidate, so cache/order
+bias and unrelated host noise remain possible. Every pair produces the same
+522-byte application artifact. The single-root inventory is 502,422 bytes, mostly
+the exact compiler snapshot; this is an opt-in metadata/storage cost.
+
+| Workload | Five wall samples (seconds) | Median |
+| --- | --- | ---: |
+| Prior ordinary compilation | 0.1389, 0.1058, 0.1086, 0.1135, 0.1003 | 0.1086s |
+| New ordinary compilation | 0.1134, 0.1199, 0.1196, 0.1244, 0.1241 | 0.1199s |
+| New inventory generation | 0.1746, 0.1779, 0.1796, 0.1727, 0.2402 | 0.1779s |
+
+The observed ordinary-compile median is 11.3ms (10.4%) higher, with four of five
+candidate pairs slower. This is a possible compilation cost, not cost neutrality;
+the small sample and uncontrolled cache/order effects cannot establish its size
+on larger workloads. No runtime/RSS/full-compiler-workload conclusion follows.
+Disposition: accept this disclosed small absolute compile cost, opt-in metadata
+cost and seed growth for the source inventory. Preserve the validation/performance
+concern under GI#106; no target, timeout or assertion is relaxed.
+
+All 22 literal inventory unit checks and 24 public-command checks pass on the
+final source/seed. The final unit probe build took 18s, execution 1s; CLI build
+1s, execution 8s. Earlier CLI execution took 94s before removing redundant hosted
+decoding of the already VM-verified running compiler. Exact compiler-byte capture
+and all malformed/stale/forged inventory comparisons remain. Final review also
+replaced a one-byte-short outer-size estimate with the actual marker length;
+the filesystem cap already rejected over-limit writes, and compiler accounting
+now matches it exactly. The established seed-refresh fixed-point and stdlib
+checks pass on this revision.
+
+An exploratory single-worker canonical check passed in 677s (unit 526s,
+functional 31s, bootstrap 86s, release smoke/quick start 1s each). A subsequent
+local canonical run failed in `runner_smoke` after 476s; an isolated reproduction
+confirmed its existing 90-second child-process timeout. The failure is disclosed,
+not reclassified as a passing canonical run. Earlier checks overlapped development;
+these observations are not a controlled full-check performance comparison.
+The delivery PR records final hosted Linux/macOS, sanitizer, bootstrap and package
+results as the merge gate. The local timeout remains a validation limitation;
+the 120s full-check, 15s focused and 60s bootstrap targets remain unchanged.
+
+## SC3 / GI#131 single-execution source coverage — 2026-10-05
+
+The runtime collector and compiler source probes implement SC3, retaining
+bytecode v9 and the SC2 inventory envelope. Validation includes 18 literal raw
+reader/source-state assertions, 39 production CLI assertions, native dispatcher contracts
+(including pending print/typed read and equal-destination branches), and the
+native allocation-failure sweep (1,962 injected failures including coverage).
+The fresh compiler fixed point is 490,571 bytes, SHA-256
+`c43f1c02341005fa8935861834ccc6b24c6a42ccd36d534a8ed9aa4e650d2cc8`;
+the standard-library fixed point remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+
+A controlled 500,000-iteration Nat loop compared the `761f7cf` parent native VM,
+coverage-disabled candidate and coverage-enabled candidate on the same bytecode.
+After two warm-up rounds, ten samples per configuration rotated execution order:
+parent median 185.5 ms (167.4–231.2), disabled 188.2 ms (174.3–301.8), enabled
+206.0 ms (187.5–255.5). Disabled median difference is +1.4%; enabled is +9.5%
+versus disabled. Scheduling variability prevents a precise regression claim.
+The fork/wait4 peak-RSS reading was 7,108 KiB for all three; the inherited harness
+floor masks small differences, so it is not evidence of zero allocation cost.
+The deterministic collector allocation is 32 bytes per instruction plus 8 bytes plus `sizeof(size_t)` per
+function and a header; frames add 24 bytes on this 64-bit build.
+Counters are capped at 262,144 cells and the entire raw record at 16 MiB.
+
+A separate alternating-order ten-sample compiler comparison used the same native
+VM and fixture source with the parent versus refreshed seed. Median compile time
+was 106.5 ms versus 116.5 ms (+9.4%, +10.0 ms). Ordinary fixture bytecode was
+identical. The seed grows 3.84%. This small-fixture cost is disclosed and accepted
+for the source-probe contract; it is not a compiler throughput improvement or a
+resolution of GI#106. The dispatcher avoids child-gap name checks when coverage
+is disabled. Measurements precede that final disabled-path guard, so do not
+claim a quantified benefit from the guard.
+
+Collection remains explicitly single-execution: nested contexts mark a gap;
+killed/native process-exit records lack a completed footer; the reporter refuses
+them. No suite denominator, baseline, universal target or source percentage is
+published. SC4 and SC5 own complete aggregation and publication respectively.
+
+Exploratory full checks during implementation were rejected by the probe-input
+change guard and an intentionally failing loop-entry fixture before its seed
+refresh. Those superseded runs are not final acceptance evidence. The added
+loop fixture fails against the prior reporter and is required to pass with
+control-flow entry counting; missing source probes retain unavailable line state.
+
+
+## SC4 / GI#131 registered coverage sessions — 2026-10-05
+
+SC4 / RM#139 contributes 20 programme percentage points on integration (55% →
+75%, unchanged SC-1 weights). It adds native execution-tree admission and strict
+aggregation, not a measured suite baseline. SC5 remains responsible for baseline
+scope and publication.
+
+The collector writes fresh expected/claimed execution tickets, session-bound raw
+records, parent child counts and a locked cross-process budget. Exact artifact
+registries and local compiler/source/inventory replay prevent mixed identities;
+missing/killed/cancelled/nonparticipating collectors block a complete report.
+Registered task and server contexts own their counters; async completion remains
+inside its original execution. The fixture runner refuses cached transcripts
+when session collection is active. See `docs/SOURCE_COVERAGE.md` for supported
+native scope, ownership and bounded failure states.
+
+Focused acceptance includes 37 raw-reader/indexed-source/aggregation checks and
+39 unchanged SC3 CLI checks. The SC4 session CLI adds 40 checks for exact totals,
+subprocesses, complete child deletion, stale/replayed/malformed records, traps,
+killed claimed collectors and transcript reuse. Native tests cover task ancestry,
+cancellation, exclusive claims and separate server handler counts under slot
+reuse; the allocation corpus checks 1,987 injected failures. Final frozen-run
+results and hosted acceptance are recorded in the delivery PR.
+
+The fresh compiler stages agree at SHA-256
+`253f3d9d6c956aca9729c29515b534ac89840a30e061a66859778ac459a96868`.
+The seed is 504,999 bytes, +2.94% against SC3's 490,571 bytes. The standard-library
+artifact remains
+`614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`.
+Bytecode v9 and the SC3 raw format are unchanged. The browser-runtime dependency
+bundle includes both coverage modules and headers; native sessions are unavailable
+on WASI.
+
+A compiler-sized report exposed repeated sorting and instruction/probe scans in
+the SC3 renderer. The SC4 renderer indexes function metadata, source probes and
+incoming control-flow edges once, and joins output as a balanced tree. Literal
+entry/completion/branch fixtures remain unchanged. An earlier large-report run
+was stopped without accepting a result; small-fixture output after the first
+indexing step was byte-for-byte identical. The reproducible larger acceptance
+command is `make source-coverage-session-smoke`; it collects the real compiler
+as a nested VM and checks one `compiler_main` / `run_compiler_command` entry and
+zero hits for the unused aggregation command.
+
+Controlled loop comparison: same 500,000-iteration Nat-loop bytecode, native C
+`-O2`, 10 measured process launches after 2 warmups per mode, rotating parent,
+disabled candidate and enabled session order. Parent is SC3 commit
+`761347062d0ee732ec45fe7b1bd8c0f2eea98ad9`; all three produce identical stdout,
+exit status and stderr.
+
+| Mode | Median | Observed range |
+|---|---:|---:|
+| Parent native VM | 178.82 ms | 155.20–383.58 ms |
+| Candidate, collection disabled | 187.52 ms | 166.81–291.44 ms |
+| Candidate, fresh session directory and record | 206.95 ms | 195.51–267.14 ms |
+
+The enabled median is +10.36% versus disabled; disabled is +4.87% versus parent.
+The wide overlap and outliers limit causal interpretation; these are bounded
+observations, not a precise performance guarantee. No collector, registry or
+session-file allocation occurs on the disabled path. Enabled costs include
+per-execution counters, immutable identity blobs, ticket files and record writes;
+the full tree is capped at 4,096 executions / 256 MiB of record data. No RSS
+reduction or zero memory overhead is claimed. GI#106 remains open and no existing
+validation timeout, assertion or budget is weakened.
+
+Final focused runs passed all **116** checks (37 + 39 + 40), native contracts and
+1,987 allocation-failure cases. The real nested-compiler acceptance target passed
+in **193.977s wall / 192.704s user / 1.115s system** in this workspace while other
+focused validation was running. That is a larger opt-in fixture, not a new fast
+unit gate or an isolated performance comparison; compiler-sized reporting still
+has material cost. The earlier unindexed large-report experiment was interrupted
+without an accepted result. No comparative speedup percentage is inferred.
+
+### SC4 integration investigation
+
+The first full local single-worker `make check` failed at the nested
+`runner_smoke` oracle after 633 seconds. The oracle cleanup printed stderr but
+deleted stdout, where the Panackelty test runner reports its failure reason.
+That original reason cannot be recovered from the retained log. The harness now
+prints execution stdout and the exit status before cleanup; an injected exit-7
+runner report verifies both survive. Successful oracle output is unchanged.
+
+With that diagnostic fix, the complete local check passed in 446 seconds; the
+nested runner took 84 seconds against its unchanged 90-second deadline. A further
+isolated repeat passed in 85 seconds. Deadline sensitivity is a plausible cause,
+not a confirmed classification of the original failure. No timeout or assertion
+was relaxed and the original run is not counted as a pass.
+
+The initial hosted macOS compiler job also rejected the new nonparticipating
+process fixture. Its combined assertion hid whether execution or aggregation
+failed, and it assumed `/bin/true`. The fixture now explicitly runs `/bin/sh -c
+'exit 0'` and checks successful execution separately from unavailable coverage.
+This increases session CLI assertions from 40 to 41 (117 focused coverage checks
+in total). Final cross-platform CI is required for the corrected fixture.
+
+### SC4 smoke-test timing follow-up
+
+A normal two-worker runtime run passed with the nested runner at 82s. A temporary
+diagnostic runner timed 342 subprocess operations totalling 84.071s while all
+343 assertions passed. The largest operation rebuilt the compiler in 19.334s;
+the source/bytecode explanation fixtures used 7.008s and 6.589s. This establishes
+healthy work near the 90s aggregate deadline, not a reproduced classification of
+the original discarded failure. The outer suite deadline also equals the allowed
+deadline of its single compiler-source fixture. Tracing through ptrace was
+unavailable in the local execution environment; the diagnostic copy changed no
+tracked test source or production timeout.
+
+Runtime function lookup scanned every name even after verification proved the
+function table canonically sorted. Verified programs now use binary search;
+unverified objects keep linear lookup. Verification clears the flag before
+checking and only enables it on success, including when a previously verified
+object is checked again. The flag is in-memory metadata, not a bytecode change.
+Native tests cover every position, missing keys before/between/after entries,
+and failed re-verification of an unsorted table followed by linear lookup.
+
+A controlled full compiler build took 20.507s on the preceding VM and 16.707s on
+the candidate, with byte-identical generated artifacts. The unchanged complete
+runner passed in 68s with the candidate, compared with 82/84/85s before it. These
+are local observations rather than a platform-wide performance guarantee. Native
+contracts and all 1,987 allocation-failure cases pass. The existing 90s timeout,
+all 343 runner assertions, and the bytecode/compiler seed remain unchanged.
+The improvement addresses observed runtime cost and narrow timeout margin;
+it does not claim to recover the original lost diagnostic or close GI#106.
+
+## P2 slice 6b ordinary-body emission — 2026-10-08
+
+The cross-module emission fixture now gives each same-spelled imported
+`indirect_value` a checked body with a mutable accumulator, array collection,
+`for` loop, arithmetic, equality branch and returned tail value. Source execution
+and saved bytecode continue to produce exactly `43` and `44`. Compiler unit tests
+also verify identity emission rejects both deferred and invalid function bodies.
+The namespace path already lowered these constructs through the checked-body
+adapter; this delivery adds acceptance coverage and changes no compiler or VM
+implementation. It does not enable public namespace execution or complete slice 6.
+
+### Matched validation and performance assessment
+
+Both clean canonical checks ran on the same macOS 26.5 arm64 workstation, after
+`make clean`, with host access and no competing build. The base is merged `next`
+revision `d5dd68ab3f1fcea76be9499f049eeb2a72ac0d91`; the candidate adds only
+fixture, unit-test and documentation coverage.
+
+| Revision | Command | Result | Functional phase |
+| --- | --- | ---: | ---: |
+| Base `d5dd68a` | `/usr/bin/time -p make check` | 202.23s real; `make check` reported 202s | 4s |
+| 6b candidate | `/usr/bin/time -p make check` | 204.08s real; `make check` reported 205s | 5s |
+
+The observed difference is +1.85s (about 0.9%) in one clean run per revision.
+OS caches and unrelated machine activity were not controlled; this pair does not
+establish causation or a stable regression. Both full runs pass, and both exceed
+the unchanged 120s target. The candidate focused `make check-compiler` passes in
+84.89s against 15s; there is no matched base focused run here, so this is not a
+comparative result. The implementation change is test-only, so no compiler or VM
+runtime impact is expected. No latency improvement or cost neutrality is claimed.
+
+A sandboxed baseline attempt failed in `unit-runtime`; the same isolated target
+passed with host access, and the clean base and candidate `make check` runs above
+both passed with host access. The sandboxed attempt is excluded from the comparison.
+
+Keep all coverage and the 120s/15s targets. GI#106 retains ownership of the
+standing validation-budget concern; revisit it if a later gate changes compiler
+implementation. This bounded evidence-only delivery selects no optimization and
+makes no performance claim about compiler execution, memory or runtime behavior.
+Website impact: none; executable namespace syntax remains gated, so no published
+feature claim changes.
+
+## P2 slice 6d proof and effect emission — 2026-10-08
+
+The same-spelled imported `positive` predicates remain attached to their
+originating guarded types, while local inline proofs permit checked conversion
+and arithmetic. Source and saved-v9 execution assert exact results for both
+modules. Existing namespace body tests cover pure/effect boundaries, invalid
+and deferred emission, and mutation invalidation. The async fixture awaits
+identically named imported `fetch` functions through async wrappers, asserts
+their distinct values in an async entry point, and passes source and saved-v9
+execution. The identity-bound emitter tests also inspect both retained async
+flags and their qualified awaited targets.
+
+This exposed a narrow checked-body gap: the internal `()` expression was not
+bound as a value, which kept async `main(): Unit` incomplete for identity
+emission. The body checker now recognizes that internal zero-argument call as
+`Unit`; it preserves the existing fail-closed rules for all other incomplete
+bodies. Bytecode v9, the bootstrap seed and the public namespace execution gate
+are unchanged. Source loading, source-map/explain/locate migration, seed
+cutover and native/browser namespace acceptance remain open.
+
+The local focused `make -j1 check-compiler` passed all 207 tests in 85s against
+the unchanged 15s budget. The full host-access `make -j1 check` completed in
+128s against its unchanged 120s budget. An earlier focused run on this working
+slice before the Unit fix took 86s; the prior 6c full-check observation was
+135s. These are separate single runs, not a controlled matched base/candidate
+pair, so they do not establish causation or regression. The known validation
+budget concern remains assigned to GI#106; the next action is its existing
+owned compiler-delivery comparison/remediation review. No timeout, assertion or
+budget was weakened, and no compiler/runtime speedup or cost-neutrality claim is
+made. Website impact: none; executable namespace syntax remains gated, so no
+published feature claim changes.
+
+## P2 slice 6c aggregate and pattern emission — 2026-10-08
+
+The cross-module fixture constructs same-spelled generic `Item` and `Envelope`
+records in both imported modules, nests each inside a same-spelled
+`Outcome.Finished` payload, reads the nested fields and matches each variant.
+The module-emission unit test now asserts that both `Item` and `Envelope` record
+symbols, both `Outcome` enum symbols, and both `Finished` variant symbols remain
+distinct. `compiler_driver` asserts exact source and saved-v9 output
+(`41`, `42`, `43`, `44`, `41`, `42`). This closes bounded 6c acceptance
+evidence without changing compiler or VM source; proof/effect emission and later
+loading gates remain open. The focused `make -j1 check-compiler` passed 207 tests
+with zero failures in 87s against the 15s budget. The full host-access
+`make -j1 check` passed in 135s against the 120s budget. These are single-run
+observations, not a matched comparison; this delivery changes tests and progress
+documentation only, so they do not attribute the overruns to 6c. The preceding
+6b matched pair remains the latest comparative compiler-performance evidence.
+
+## P2 slice 6e standalone source loading — 2026-10-08
+
+`compiler_driver.panack` now exercises the staged compiler's command-line loading
+path. The existing two-module identity fixture has distinct `main` functions in
+both imported modules; its exact source output confirms only the entry module's
+`main` launches. New CLI checks reject a quoted `..` import during check and
+compile, reject a symlink import during run, and verify rejected compilation
+does not publish bytecode. Existing loader tests continue to cover root-relative
+and toolchain resolution. The loader and staged CLI integration were already
+implemented, so this delivery adds end-to-end acceptance evidence without
+changing compiler or VM source.
+
+The checked-in bootstrap seed still rejects namespace syntax. The tests use the
+source-built stage-2 compiler, so this gate does not publish namespace support or
+remove the migration gate; seed/source cutover and full platform acceptance
+remain in slice 8. Saved-bytecode loading and core/bootstrap acceptance remain
+the later 6f and 6g gates.
+
+The focused compiler suite passed all 207 tests in 86s against its unchanged
+15s budget. Host-access `make -j1 check` completed with no reported test
+failures in 132s against the unchanged 120s budget. The preceding 6d observations
+were 85s and 128s respectively; these are separate single runs, not a controlled
+matched comparison. This delivery adds a few CLI subprocess checks but changes
+no compiler or VM implementation, so the timings do not establish that the tests
+caused the observed difference. Retain the existing GI#106 validation-budget
+follow-up and all coverage; no timeouts, assertions or budgets were changed.
+Website impact: none; the checked-in seed's namespace gate and published feature
+claims are unchanged.
+
+## P2 slice 6f standalone saved-bytecode loading — 2026-10-08
+
+`compiler_driver.panack` now builds a temporary two-module source project whose
+imported modules define same-named `answer` and `main` functions. The staged
+compiler compiles the selected entry to a saved artifact; the test removes the
+entry and both imported source files, verifies they are absent, then asks the
+compiler to validate and execute only the artifact. Validation succeeds and
+execution prints exactly `11` and `22`; the imported `main` functions' sentinel
+outputs (`991` and `992`) do not appear. This demonstrates that the v9 artifact
+preserves the imported identities and selected entry behavior without source
+files at run time, so no bytecode format change is needed for this gate.
+
+The checked-in bootstrap seed still rejects namespace syntax. This acceptance
+test runs with the staged source-built compiler; it does not enable public
+namespace execution or complete the core/bootstrap staging, source-map,
+explain/locate, coordinated cutover or platform acceptance gates. Slice 6g and
+slices 7–8 remain open. Website impact: none; the public execution gate and
+published feature claims are unchanged.
+
+The direct namespace driver run passed all 26 assertions with zero failures.
+`make -j1 check-compiler` passed all 207 tests in 86s against the unchanged 15s
+budget. Host-access `make -j1 check` passed with no test failures in 133s against
+the unchanged 120s budget. `make docs` and `git diff --check` passed. These are
+single-run observations rather than a matched performance comparison. This is
+test and progress-record work only: compiler, VM, serialized format and bytecode
+version remain unchanged. Retain the GI#106 validation-budget follow-up; this
+evidence makes no performance claim and does not relax any target or test.
+
+## P2 slice 6g core loading and bootstrap staging — 2026-10-08
+
+`compiler_driver.panack` now exercises the explicit
+`PANACKELTY_BOOTSTRAP_ROOT` with a temporary root-level entry importing a
+compiler submodule. Both modules use the automatically loaded core `Option`
+type; source execution and saved-v9 execution print exactly `61`, while the
+imported module's sentinel `main` remains uncalled. The test also rejects a
+quoted import above the configured root and a symlink into an outside file,
+and confirms the rejected compile leaves no artifact. Its cleanup removes the
+entry, compiler module, symlink, output artifacts and temporary directories;
+the test workspace's empty-directory removal is the final cleanup assertion.
+This tests the existing staged loading path without changing compiler or VM
+implementation.
+
+The stage-2 compiler used here was itself produced by the repository bootstrap.
+The canonical bootstrap/seed-refresh checks remain part of `make check`; they
+continue to compare compiler fixed points and clean their refresh lock. The
+checked-in namespace-incompatible seed, public namespace execution gate and
+slice-8 fixed-point/platform obligations remain unchanged. Source-map,
+explain/locate and coordinated seed migration remain later work. Website impact:
+none.
+
+The direct namespace compiler-driver run passed all 34 assertions with zero
+failures. `make -j1 check-compiler` passed all 207 tests in 86s against the
+unchanged 15s budget. Host-access `make -j1 check` passed with no test failures
+in 132s against the unchanged 120s budget; the real seed-refresh fixed-point
+checks passed and left no refresh lock. `make docs` and `git diff --check` passed.
+These are single-run observations, not a matched performance comparison. GI#106
+retains the validation-budget follow-up; no budget, timeout or assertion has
+been relaxed.
+
+## P2 slice 6 integrated acceptance coverage — 2026-10-08
+
+The slice-6 audit found strong focused evidence for all seven gates, but no one
+supported staged-root path exercised the full checked subset through both source
+and saved-bytecode loading. `compiler_driver.panack` now assembles that path in a
+temporary root: callable and ordinary-body emission, same-spelled generic
+aggregates and patterns, guard proofs, async calls/await, and implicit core
+`Option` identity across imported modules. It checks and runs the source, compiles
+it, removes every source file, then checks and runs the saved v9 artifact. Pure
+assertions verify each value; imported `main` sentinels ensure only the selected
+entry runs. Existing parent-root and symlink rejection/no-artifact checks remain.
+
+The focused compiler-driver probe passed all 37 assertions. Canonical `make
+check` passed all suites, including the integrated source/bytecode path and seed
+fixed points, in 198s against the unchanged 120s target (functional 5s,
+bootstrap 18s). `make docs` and whitespace/local-link validation passed. The first
+standalone `make functional` attempt stopped in its TCP setup at the existing
+loopback bind assertion; the full canonical run subsequently passed its
+functional phase. The 198s result is within the previously observed noisy
+195–204s slice-6 range and is not a controlled timing comparison; this delivery
+changes tests and documents only, so it establishes no causal timing effect.
+Retain all coverage and budgets under GI#106. The public namespace execution
+gate, checked-in seed, and slice-7/8 acceptance remain unchanged. Website impact:
+none.
+
+
+## Namespace-capable stage-1 seed for Slice 8 — 2026-10-08
+
+The checked-in v9 seed from `e9bca79` rejects the namespace-emission acceptance
+fixture with the existing migration-pending diagnostic. Building stage 2 from
+the current compiler sources using that seed succeeds on the same program, with
+exact output `41, 42, 43, 44, 41, 42, 44, 45, 51, 52`. This establishes that
+the current compiler source contains the required namespace path while the
+checked-in seed had not yet been refreshed to it.
+
+`make regenerate-seed` passed. The stage-2, stage-3 and stage-4 compiler SHA-256
+values were all
+`028efbbb55abaf91d191e0b3b51e10354e15b34e3d8af090a0b7554b7c01e5ae`; the
+standard-library conformance artifact digest was
+`8b78b9722d18fb973a5d9da88d1a5df4c65f2703a7745d7160157445f9791af4`. The
+refreshed checked-in seed then passed the explicit `project/left` and
+`project/right` imports, source check/run, compilation, bytecode verification and
+execution after every source file was removed. The new
+`tests/namespace_seed.sh` makes that direct stage-1 acceptance part of
+`make bootstrap-check`.
+
+## Slice 8 text-intrinsic bootstrap prerequisite — 2026-10-08
+
+The staged identity checker previously deferred text-core calls used by the
+lexer. It now checks arity and argument types for `is_digit`, `is_letter`,
+`is_whitespace`, `starts_with_at` and `slice`, with focused positive and failure
+coverage in `tests/runner/compiler_module_bindings_unit.panack` (607 assertions,
+0 failures). The refreshed checked-in v9 seed is
+`fd542e146ef06363deb54ea0cd9a1b60886080c44f9e12cdcdb40d73b1684bde`; the
+standard-library fixed-point digest remains
+`8b78b9722d18fb973a5d9da88d1a5df4c65f2703a7745d7160157445f9791af4`.
+`make bootstrap-check` passed with compiler stages 2/3 and standard-library
+stages 1/2/3 agreeing, seed refresh idempotent, and namespace source/saved-v9
+acceptance passing. The initial canonical check passed in 209s before the
+checked-in seed refresh (functional 6s, bootstrap 21s). After the refresh, the
+final-tree `make check` passed in 205s (functional 4s, bootstrap 20s,
+release-smoke 0s, quick-start 1s), above the unchanged 120s target. These local
+observations do not establish regression or cause. Keep the existing GI#106/RM#123
+performance disposition and next action unchanged.
+
+The first Linux compiler-package run for PR #357 exposed that the isolated native
+tool `PATH` omitted `ls`, which `tests/unit/harness/bootstrap.sh` requires. Its
+setup failed and caused timeout and follow-on failures in the incremental corpus
+and direct-driver probe. `tests/without_interpreter.sh` now includes `ls` in its
+allowlist. The exact local route `make check-no-interpreter CI_SUITE=compiler`
+passed, including both previously failing probes. Canonical `make check` also
+passed in 146s against the unchanged 120s budget; this one-off local timing does
+not establish a compiler performance regression, and the change has no compiler
+or runtime impact. The hosted PR rerun remains the merge gate.
+
+This is a compiler bootstrap prerequisite only. It does not migrate compiler or
+standard-library source imports, remove the legacy flat loader, or earn Slice 8
+completion credit. There is no runtime/VM behavior or website impact.
+
+## Slice 8 compiler leaf namespace migration — 2026-10-09
+
+`src/compiler/types.panack` now explicitly exports its source-position, token,
+and diagnostic API. `src/compiler/lexer.panack` selectively imports those
+declarations and token variants, then publicly re-exports the types required by
+its `lex` and `lex_file` signatures. `src/compiler/parser.panack` imports that
+public surface, exports the AST and consumed parser contracts, and re-exports
+the lexer types used by its API. `src/compiler/resolver.panack` selectively
+imports and re-exports parser dependencies. `module_bindings.panack` and
+`module_resolution.panack` expose the identity and graph APIs used by later
+compiler stages. `expression_contracts.panack` is an independently selectable
+public leaf for string/interpolation and scalar contracts. `checker.panack`
+selectively imports its parser, resolver and lexer dependencies and exposes the
+type shapes and cross-stage checking contracts consumed by later compiler
+passes. `module_signatures.panack` selectively imports binding, parser, graph
+and checker contracts, then exposes the signature API consumed by body and
+emission passes. `purity.panack` selectively imports parser, checker, resolver
+and lexer APIs and exports the frontend effect checks consumed by emission and
+loading. `tests/namespace_seed.sh` copies the migrated leaves plus module body, effect
+and emitter stages into an isolated project; the checked-in seed checks, runs
+and compiles a selective module-graph caller that exercises the public leaf, checker, signature purity, body, effect and bytecode-emitter APIs, then verifies and runs the
+saved-v9 artifact after removing all fourteen source modules. The fixture
+compiles its parsed program through the public emitter API and asserts the
+entry function emits exactly `CONST 42; RETURN`. The fixture also builds a
+two-module graph in memory and checks `encode_u8` plus its imported caller
+through the current source `module_signatures` and `module_bodies` APIs; both
+must have `BodyIdentityChecked` status with no deferred spans. It then passes
+that graph through `module_emission_program` and `compile_program`, asserting the
+entry call targets the imported `encode_u8` identity (`$module1_encode_u8`) in
+the exact emitted instruction sequence. The checked-in
+seed executes that fixture successfully. The same fixture checks exact failures
+for byte construction arity and both argument positions to byte append,
+concatenation and index access, plus length access, UTF-8 conversion and
+quotient types/arity. This guards
+the current source checker's byte-core contract matrix while the imported-module
+seed handoff remains unresolved. The same source-checker fixture verifies all ten Path core-call output contracts, including nominal `PathError` result identity, and exact wrong-type and arity diagnostics. The fixture also selectively imports all seven
+documented `stdlib/bytes` wrappers; the generic `option_value_or` and
+`result_value_or` helpers; `environment`; all assertion types, variants and
+functions in `stdlib/testing`; and the duration helpers and error types in
+`stdlib/time`. It checks byte/text round-trip, generic results, controlled host
+environment reads, exact assertion reports, duration arithmetic and zero-divisor
+errors through source and saved-v9 execution. It also selectively imports the
+documented `testing_commands` and `testing_files` APIs, and checks public host,
+filesystem, process, TCP and path data types, plus command output/result
+comparisons. Fixture-workspace function signatures resolve through the seed;
+calling the full filesystem lifecycle from this larger compiler harness still
+defers its `main` identity check, so runtime lifecycle coverage remains in the
+dedicated `testing_fixtures` acceptance. `sh tests/namespace_seed.sh` passed.
+
+This does not establish that the older checker embedded in the seed can compile
+that same byte-core function as an imported source module. A separate minimal
+project loaded by the seed fails with `function is not completely checked for
+identity emission: encode_u8`, although compiling the function standalone
+passes. The legacy standard-library conformance entry still imports the broad
+`stdlib/prelude`; the newly public `stdlib/bytes` module now collides with the
+prelude's implicit module binding under the saved seed. Scratch attempts to alias
+or selectively re-export that module instead defer the legacy entry's identity
+checks, so migrate the prelude and its consumers together after the seed checker
+handoff. The stage-2 build remains blocked on this seed-to-source-checker gap;
+the fixture proves the updated body checker handles the imported graph, not
+that the current seed can build the complete compiler source.
+The current migration also makes `bytecode/codec` imports explicit, exports the
+serializer entry points needed by the decoder and bytecode contract tests, and
+gives `bytecode/decoder`
+direct selected imports for emitter instructions, resolver builtin identity,
+purity and checker arity contracts. Its stable validation, disassembly,
+round-trip, and UTF-8 functions are now explicit public APIs; the compiler
+loader, driver, and bytecode contract runner select only the operations they
+use. The runner also selects its assertion APIs. This removes its former
+reliance on transitive imports from the codec and testing module. A direct checked-in-v9 compile of
+`src/compiler/main.panack` resolves those names but still defers codec/decoder
+bodies that use byte and quotient core operations. `make check-bytecode` reaches
+the compiler acceptance after its native module contracts pass when run with host
+permissions; its bytecode runner resolves every selected module API, then the
+seed stops source acceptance on the same codec/decoder and runner identity
+deferrals. The loopback listener succeeds with host permissions.
+The runner and test-fixture layer also replaces broad `stdlib/testing` imports
+with selected assertion/type APIs, and the main runner, standard-library unit
+probe, host-runtime unit probe, compiler-driver probe and loader-confinement
+probe now resolve their selected testing, result, time, environment, command,
+fixture and loader APIs. Those
+probes reach only the documented seed identity-emission deferrals; the broad
+`stdlib/testing` import in `tests/source_coverage/scope.panack` is retained
+because that file deliberately roots whole-library coverage declarations.
+The CLI, host-type and testing-library functional fixtures now also select the
+public result, path, time, assertion, command and workspace APIs. Focused
+compiles resolve those names; the host-type fixture reaches only its seed
+identity checks. Prelude-based compatibility examples remain a separate
+cutover item because the checked-in seed rejects the implicit `bytes` binding.
+
+Final `make docs`
+and `git diff --check` passed. Canonical `make check` reached the unit phase and
+stopped while building stage 2 on the same deferred identity errors; unit took
+34s and the check stopped at 60s. Compiler assertions and later validation
+phases therefore did not run. A legacy quoted-file import of the same module
+also produces the deferred-identity error, ruling out that import form as a
+bootstrap workaround. A second scratch-only check marked codec encoders public;
+the old seed still deferred byte-core functions, then correctly rejected public
+codec signatures that exposed private `ConstantValue`, `Instruction` and
+`BytecodeProgram` types. This rules out export visibility as a safe shortcut.
+
+This is the first compiler-source API chain increment, not coordinated compiler
+migration acceptance. Body/effect/emission/loader/tooling and
+stdlib modules still
+use the flat combined-loader assumptions; the legacy path remains. No runtime,
+VM or website behavior changes.
+
+## Slice 8 namespace project checkpoint — 2026-10-08
+
+Core commit `7ea353f9c312c348e94190e63ba9ac958aa56cd7` provides a useful
+standalone-project checkpoint: namespace source and source-free saved-v9 behavior
+are exercised, the v9 seed is
+`cab3c28a0d32d286f2fd62cca722073e2669103531c6f3dc5eda486c6f31737f`, and fresh
+stage-2/3/4 compiler outputs and stage-1/2/3 standard-library outputs match.
+`tests/namespace_seed.sh` checks source check/run/compile and saved-v9 check/run
+after removing every source file.
+
+This is not the coordinated Slice 8 cutover. Although active compiler,
+bytecode-source, standard-library, runner, native-oracle, coverage and example
+imports use logical `project/` or `stdlib/` paths, the compiler's own source still
+passes through the legacy flat combined-loader path. A namespace-only source
+compile exposed missing explicit bindings, enum-variant imports and public
+re-export routes. The attempted migration was discarded; it did not change the
+checkpoint commit. Do not count this as compiler/stdlib migration or flat-path
+removal.
+
+Core validation passed: `make unit-harness`, `make unit-compiler`,
+loopback-enabled `make unit-runtime`, `make functional` (355 fixture assertions),
+`make bootstrap-check`, `make release-smoke` (relocated installed archive), and
+`make source-mapping-experiment` (121 assertions, including explicit-entry
+symlink source replay). The loader-confinement unit also confirms that an
+explicit entry may be a symlink within its root while imported symlinks remain
+rejected.
+On the final candidate, canonical `make check CHECK_BUDGET_SECONDS=240
+INCREMENTAL_BUDGET_SECONDS=60` passed all phases in 137s, and `make native-check`
+passed the full native source/bytecode and diagnostic conformance matrix. The
+aggregate unit phase took 85s against its temporary 60s reporting budget and
+emitted a timing warning; repository defaults remain 120s and 15s, and no
+defaults were changed. Loopback access is required by native VM TCP contracts. The
+`tests/native_oracle_contracts.sh` root setup was corrected for migrated
+compiler-lexer and runner-smoke fixtures after this integrated check exposed
+their stale per-fixture project roots.
+
+Browser acceptance used WASI SDK 34.0 on macOS. `npm test` passed all 21 tests,
+including byte-identical native/WASI compilation of a namespaced project and
+execution of its bytecode after source removal. `npm run test:browser` passed all
+24 Chromium, Firefox and WebKit tests. The browser host adapter implements only
+`fs_metadata` over the WASI-preopened virtual filesystem; other host capabilities
+remain unavailable. The local browser package command uses GNU tar options and
+could not run with macOS BSD tar; the Browser PR's Ubuntu CI packages the tested
+artifact.
+
+Standalone project and installed compiler commands execute namespace imports in
+the tested project path. The compiler's own source has not yet been proven to
+compile through namespace semantics alone, and the legacy flat loader remains.
+Slice 8 still requires explicit export/import migration, flat-path removal, final
+fresh seed fixed points, and repeat native/browser/installed acceptance. Core and
+Browser PR integration remains separate from Slice 8 completion. Website impact:
+the browser runtime's support for project namespace loading is an implementation
+compatibility fix; no new published language feature claim is made.
+
+## P2 slice 8 compiler/tooling API migration — 2026-10-09
+
+The source API boundary now extends through the bytecode codec and decoder,
+project loader, source maps, explanations, source inventory, coverage/session,
+and compiler driver. A seed compile of `src/compiler/main.panack` resolves the
+selected APIs but stops during identity emission for function bodies across
+that graph. `make check` reached the same stage-2 compiler-build gate after the
+policy and routing checks; the unit and functional suites did not run. The
+focused `sh tests/namespace_seed.sh` fixture passed its isolated namespace and
+saved-v9 checks. That fixture is not full compiler acceptance, and no
+identity-emission failure has been waived or worked around.
+
+The standard-library prelude/consumer migration, flat-path removal, compiler
+seed fixed point, and repeat native/browser/installed acceptance remain open.
+No runtime or compiler performance claim is made; website impact remains none
+while public namespace execution is gated.

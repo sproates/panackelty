@@ -1,13 +1,19 @@
-import stdlib/result
-import stdlib/testing_files
-import stdlib/testing_commands
-
+import stdlib/result::{result_value_or}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
+import stdlib/filesystem::{filesystem_write_bytes, filesystem_remove_file}
+import stdlib/testing_commands::{testing_process_run}
+import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
+import stdlib/host::{host_exit}
 pure path(value: Str): Path {
-  result_value_or(path_from_text(value), path_current())
+  result_value_or(path_value_from_text(value), path_value_current())
 }
 
 pure child(root: Path, name: Str): Path {
-  result_value_or(path_append(root, path(name)), root)
+  result_value_or(path_value_append(root, path(name)), root)
 }
 
 pure contains(value: Str, fragment: Str): Bool {
@@ -19,67 +25,67 @@ pure contains(value: Str, fragment: Str): Bool {
 }
 
 pure command(arguments: [Str]): TestCommand {
-  TestCommand(path("./panack"), arguments, bytes(), path_current(), [],
+  TestCommand(path("./panack"), arguments, bytes_empty(), path_value_current(), [],
     duration_seconds(10), 1048576)
 }
 
 main(): Void {
   match test_workspace_create(path("/tmp")) {
-    Error(error) => { print("workspace creation failed"); process_exit(1) },
+    Error(error) => { print("workspace creation failed"); host_exit(1) },
     Ok(workspace) => {
       source = "tests/functional/cases/hello_world/main.panack"
       bytecode = child(workspace.root, "hello.bc")
       malformed = child(workspace.root, "malformed.bc")
       legacy = child(workspace.root, "legacy.nu")
-      bytecode_text = result_value_or(path_to_text(bytecode), "invalid-bytecode")
-      malformed_text = result_value_or(path_to_text(malformed), "invalid-malformed")
-      legacy_text = result_value_or(path_to_text(legacy), "invalid-legacy")
+      bytecode_text = result_value_or(path_value_to_text(bytecode), "invalid-bytecode")
+      malformed_text = result_value_or(path_value_to_text(malformed), "invalid-malformed")
+      legacy_text = result_value_or(path_value_to_text(legacy), "invalid-legacy")
       mut results: [TestResult] = []
       results = results.append(test_run_command("check source", command(["check", source]),
-        ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
       results = results.append(test_run_command("compile source",
         command(["compile", source, "-o", bytecode_text]),
-        ProcessOutput(0, 0, utf8_encode("wrote ${bytecode_text}\n"), bytes())))
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
       results = results.append(test_run_command("check bytecode",
         command(["check", bytecode_text]),
-        ProcessOutput(0, 0, utf8_encode("ok\n"), bytes())))
+        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
 
-      match process_run(path("./panack"), ["disasm", source], bytes(), path_current(), [],
+      match testing_process_run(path("./panack"), ["disasm", source], bytes_empty(), path_value_current(), [],
           duration_seconds(10), 1048576) {
         Error(error) => {
           results = results.append(test_expect("source disassembly", false,
             "process failed"))
         },
         Ok(output) => {
-          text = utf8_decode(output.stdout)
+          text = text_decode_utf8(output.stdout)
           results = results.append(test_expect("source disassembly",
-            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes() &&
+            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty() &&
               contains(text, "FUNCTION|main|impure|") && contains(text, "CALL|print|1"),
             "unexpected disassembly"))
           results = results.append(test_run_command("matching bytecode disassembly",
             command(["disasm", bytecode_text]),
-            ProcessOutput(0, 0, output.stdout, bytes())))
+            ProcessOutput(0, 0, output.stdout, bytes_empty())))
         }
       }
 
-      match fs_write(malformed, utf8_encode("not panack bytecode")) {
+      match filesystem_write_bytes(malformed, text_encode_utf8("not panack bytecode")) {
         Ok(value) => {
           results = results.append(test_run_command("malformed bytecode",
             command(["disasm", malformed_text]),
-            ProcessOutput(1, 0, bytes(),
-              utf8_encode("error: not a Panackelty bytecode file\n"))))
+            ProcessOutput(1, 0, bytes_empty(),
+              text_encode_utf8("error: not a Panackelty bytecode file\n"))))
         },
         Error(error) => {
           results = results.append(test_expect("malformed bytecode", false,
             "fixture write failed"))
         }
       }
-      match fs_write(legacy, utf8_encode("main(): Void {}")) {
+      match filesystem_write_bytes(legacy, text_encode_utf8("main(): Void {}")) {
         Ok(value) => {
           results = results.append(test_run_command("legacy source extension",
             command(["run", legacy_text]),
-            ProcessOutput(1, 0, bytes(),
-              utf8_encode("error: expected a .panack source or .bc bytecode file\n"))))
+            ProcessOutput(1, 0, bytes_empty(),
+              text_encode_utf8("error: expected a .panack source or .bc bytecode file\n"))))
         },
         Error(error) => {
           results = results.append(test_expect("legacy source extension", false,
@@ -88,7 +94,7 @@ main(): Void {
       }
 
       for file in [bytecode, malformed, legacy] {
-        match fs_remove_file(file) {
+        match filesystem_remove_file(file) {
           Ok(value) => {},
           Error(error) => {
             code = error.code
@@ -106,7 +112,7 @@ main(): Void {
         }
       }
       failures = test_report(results)
-      if failures > 0 { process_exit(1) }
+      if failures > 0 { host_exit(1) }
     }
   }
 }

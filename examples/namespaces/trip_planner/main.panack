@@ -1,0 +1,10 @@
+import project/itinerary as itinerary
+
+// The entry composes the route, weather, and budget modules into one plan.
+main(): Void {
+  print(itinerary.destination())
+  print(itinerary.route_line())
+  print(itinerary.weather_line())
+  print(itinerary.budget_line())
+  print(itinerary.summary())
+}

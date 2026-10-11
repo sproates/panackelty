@@ -38,8 +38,13 @@ fi
 
 PANACKELTY_STDLIB_PATH=$stdlib
 export PANACKELTY_STDLIB_PATH
+PANACKELTY_COMPILER_PATH=$compiler
+export PANACKELTY_COMPILER_PATH
 
 case "${1-}" in
+  coverage-run|coverage-session)
+    exec "$vm" "$@"
+    ;;
   run|check)
     command=$1
     artifact=${2-}

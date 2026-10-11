@@ -17,6 +17,16 @@ The independent seed-refresh transaction below always builds fresh stages.
 stage-1/stage-2/stage-3 standard-library artifacts. It also tests a complete seed
 refresh in a temporary directory with an allowlisted `PATH`.
 
+The bootstrap check also runs the checked-in seed directly against the current
+namespace-emission fixture, including explicit `project/` imports, source and
+saved-v9 execution after source removal. This guards the seed capability needed
+to migrate the self-hosted compiler sources; it does not by itself complete the
+coordinated source/stdlib cutover or platform acceptance.
+
+Compiler imports use repository-root `project/src/...` identities during seed
+refresh, regular stage builds and compiler probes. Standard-library imports use
+`stdlib/...` independently of the project's entry directory.
+
 ## Refreshing the seed
 
 From the repository root, run:

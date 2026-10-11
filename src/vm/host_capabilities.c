@@ -169,7 +169,7 @@ static Value *hc_process(VM *vm, Value **a)
     size_t inherited = 0;
     inherited = vm->env_count;
     char **argv = calloc(a[1]->as.sequence.count + 2, sizeof(char *));
-    char **env = calloc(inherited + a[4]->as.sequence.count + 1, sizeof(char *));
+    char **env = calloc(inherited + a[4]->as.sequence.count + 2, sizeof(char *));
     if (!argv || !env) {
         free(argv);
         free(env);
@@ -199,6 +199,24 @@ static Value *hc_process(VM *vm, Value **a)
     for (size_t i = 0; i < a[4]->as.sequence.count && allocated; i++) {
         env[count] = strdup((char *)a[4]->as.sequence.items[i]->as.bytes.data);
         allocated = env[count++] != NULL;
+    }
+    if (vm->coverage_run && allocated) {
+        char *ticket = vm_coverage_process_ticket(vm->coverage_run);
+        if (ticket) {
+            const char *key = "PANACK_COVERAGE_TICKET=";
+            for (size_t i = 0; i < count;) {
+                if (!strncmp(env[i], key, strlen(key))) {
+                    free(env[i]);
+                    memmove(env + i, env + i + 1, (count - i) * sizeof(*env));
+                    count--;
+                } else i++;
+            }
+            size_t size = strlen(key) + strlen(ticket) + 1;
+            env[count] = malloc(size);
+            if (env[count]) snprintf(env[count++], size, "%s%s", key, ticket);
+            else vm_coverage_gap(vm->coverage);
+            free(ticket);
+        } else vm_coverage_gap(vm->coverage);
     }
     if (!allocated) {
         hc_free_strings(argv);

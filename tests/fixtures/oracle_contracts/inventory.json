@@ -19,15 +19,15 @@
     "codec-disassembly.stdout": "466f9fe4a52c2f3243c9d23dab529bd56f9060c59b815be385c699466288bdb0",
     "decimal.stdin": "b164725e8adf0b672a62aa771ccbead5a76329942a1d98db97e91901242f4f44",
     "decimal.stdout": "923ba5819be9f1083803c448d044901ccc8ee4eee422fd4019cdff545e98b8af",
-    "driver-basic.hex": "4ef1c4c29b22991b59e0b8dfca84289a53c32226fe78ba290b03511dc5d0dc93",
-    "driver-logical.hex": "43a9ed8e63f85116e4b6608834326db8bd3cea35585192d942d209c9816a83f5",
-    "driver-relative.hex": "4ef1c4c29b22991b59e0b8dfca84289a53c32226fe78ba290b03511dc5d0dc93",
-    "euler001.hex": "173ccc8935621a72a9a6e9bc70a51f7307f1a0ea2c6c88e05881f8a4abcda1ad",
+    "driver-basic.hex": "be3bd568af38c4ba143452d79825e117e91fc27973671b42a2117b15a32cadea",
+    "driver-logical.hex": "392b30cc113f414c41801e1b2f8783a25be60d9c7dd99a62424f976236f87b3f",
+    "driver-relative.hex": "be3bd568af38c4ba143452d79825e117e91fc27973671b42a2117b15a32cadea",
+    "euler001.hex": "c71f6445c03e375776714ce138ecfdbc18bc9f3ba502441e1d1ddbab75a0d9e3",
     "integer.stdin": "eea20683cf0740b780d617d4276f056ea7d9e7a12163a90a23d6b6d1514e316f",
     "integer.stdout": "b76ed4198632a6466e759d15b4ba7968cb2395f81400e28e1ec0aead6c5b76cd",
     "rational.panack": "90083187fd0e85d3d5310517390ca796b8695206ec15ab7a75fde85349dd60d6",
     "rational.stdout": "0090c4a2f10d38441e3801b3a4aadd236f2475ae3921eb1092259161d052ae3a",
-    "stdlib.hex": "0c6209489002ea24f681384083fadeb696ee2ffad2d9da3a40865813defd3a57"
+    "stdlib.hex": "8151d60517cf8ab18d1fe628860c103917933cb0385ba13e9bb40dce4a6fd991"
   },
   "artifact_updates": {
     "stdlib": {
@@ -35,6 +35,18 @@
       "reason": "Remove superseded source wrappers in the core-method migration",
       "generator": "Native seed output checked against a constrained transformation of the previous independently derived disassembly",
       "review": "Exactly 12 removed array/text function blocks; main changes only CALL text_length/text_slice/text_reverse to len/slice/reverse. Every other function block is byte-for-byte identical in disassembly. Existing stdout is unchanged."
+    },
+    "slice-8-namespaces": {
+      "date": "2026-10-09",
+      "reason": "Coordinated public-module import/export migration changes internal module-qualified function identities and the explicitly exported stdlib surface",
+      "generator": "Refreshed v9 seed after stage-2/3/4 compiler byte identity and stage-2/3/4 stdlib artifact/output fixed points",
+      "review": "The logical-import disassembly changes only the two imported project functions and their call targets to module-qualified identities; main and its body are unchanged. The stdlib disassembly reflects explicit API imports/re-exports and module-qualified private program functions. Public call behavior was checked and run against unchanged expected stdout; native and compiler-stage exact-artifact contracts remain enabled."
+    },
+    "slice-8-relative-import": {
+      "date": "2026-10-09",
+      "reason": "Migrate a relative-import compiler contract from implicit global imports to an explicit namespace",
+      "generator": "Refreshed v9 seed after stage-2/3/4 compiler byte identity and stage-2/3/4 stdlib artifact/output fixed points",
+      "review": "The previous captured bytecode runs to 42. The refreshed disassembly changes only the imported answer function identity and the corresponding main call target from answer to $module1_answer; main's remaining instructions are identical. The namespace-qualified source also runs to 42. The new bytes match the independently reviewed driver-basic artifact for the same one-function program shape."
     }
   }
 }

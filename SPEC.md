@@ -346,6 +346,34 @@ pure label(ready: Bool): Str {
 }
 ```
 
+Any number of `else if` arms may follow the first arm, with an optional final
+`else` block. Conditions must be `Bool`; they are evaluated in written order until
+one is true. Only that arm executes, and subsequent conditions and bodies are
+skipped. A final `else` executes only when every condition is false.
+
+```panackelty
+pure classify(value: Nat): Str {
+  if value == 0 {
+    "zero"
+  } else if value == 1 {
+    "one"
+  } else if value == 2 {
+    "two"
+  } else {
+    "many"
+  }
+}
+```
+
+A chain with a final `else` follows the existing compatible branch-value rules.
+Without a final `else`, the whole chain has type `Void`: selected arm tail values
+are evaluated and discarded, so different arm result types are permitted. If no
+condition matches, no body executes. A partial chain cannot initialize a binding,
+become an argument, or provide a non-`Void` function result. Existing nested
+`else { if ... }` syntax remains valid; an explicitly written else block retains
+its ordinary block-value rules. Newlines/comments may separate `else` and `if`.
+Each arm requires braces; the final `else` binds to its enclosing chain.
+
 The `else` branch may be omitted when the conditional is used for control flow.
 An `if` without `else` has type `Void`, and any tail value produced by its body
 is discarded. It therefore cannot initialize a binding, become an argument, or
@@ -508,11 +536,14 @@ and trap before any filesystem operation rather than being truncated.
 
 ## Standard library
 
-The canonical library is an explicit module graph imported as
-`stdlib/prelude`; no module is imported implicitly. It defines
-`Option[T]` with `None`/`Some` and `Result[T,E]` with `Ok`/`Error`. Portable
-source wrappers provide the `bytes_*` and checked
-`environment(name): Option[Str]` APIs listed in `src/stdlib/README.md`.
+The standard library is an explicit module graph. Core `Option[T]` and
+`Result[T,E]` types, their constructors, and built-in text/collection methods
+are available in every source program. The compatibility module
+`stdlib/prelude` explicitly re-exports the option/result helpers, byte/text,
+path, environment, time, filesystem and process APIs listed in
+`src/stdlib/README.md`; host, testing and TCP APIs remain separate modules.
+Portable source wrappers provide the `bytes_*` and checked
+`environment(name): Option[Str]` APIs.
 
 Persistent array, map, and set operations and the `path_*` operations retain
 their compiler-known polymorphic signatures. They are part of the standard
@@ -732,34 +763,36 @@ active toolchain. These namespaces are reserved, so a project file cannot
 shadow a standard-library module and resolution does not use a search-path
 precedence rule.
 
-Empty segments, `.` or `..`, non-identifier segments, other suffixes, and
-absolute file imports are rejected. Resolved paths are canonical module
-identities: importing the same file through extensionless and suffixed logical
-spellings still loads it once. All imports are checked for cycles and duplicate
-declarations. The current module system combines declarations into one program
-namespace; visibility, selective imports, third-party packages, and configurable
-project roots are still pending. The frontend retains per-module declaration and
-import metadata as an implementation foundation, but `pub`, `import ... as ...`
-and `import ...::{...}` fail with an explicit namespace-migration diagnostic.
-They cannot execute with today's combined-name semantics. The raw frontend also
-parses qualified types, named function references and variant patterns, and retains
-dot calls until binding; qualified uses through a default namespace alias fail
-closed too. Staged declaration signatures check tagged type/callable identity
-and public reachability, including private type and guard-helper leaks. These
-diagnostics do not enable executable
-namespace calls/types, public visibility or re-exports.
-Staged function bodies additionally retain declaration/local identities and check
-ordinary expressions/control flow, lexical interpolation, records/enums, arrays,
-field access, exhaustive variant patterns and direct generic calls. Constructor and
-empty-collection evidence is contextual; user-function inference uses only value
-arguments and preserves rigid caller parameters. Nominal identities remain distinct
-inside nested types and patterns. Shared unresolved evidence cannot acquire
-conflicting types at different uses, and inferred locals require complete types
-before later statements. General core/indirect calls, guarded arithmetic proofs,
-mixed Rat/integer joins, effects and emission remain pending. Discarded incomplete
-values retain explicit deferred status. Invalid, deferred and checked-subset bodies
-remain distinct; these checks do not enable a new execution mode.
-See [the accepted design and staged migration](docs/MODULE_PACKAGE_DESIGN.md).
+Empty logical segments, non-identifier logical segments, other suffixes,
+absolute imports and paths outside the entry root are rejected. Quoted imports
+that traverse a symlink are also rejected. Resolved files load once and retain
+their source identity; cycles and duplicate declarations are checked. In
+namespace projects, function, type and variant identities remain distinct
+across modules, and aliases, re-exports and public visibility are checked before
+emission. Checked programs receive deterministic private names; only the entry
+module's `main` launches. The bytecode format remains v9.
+
+Namespace execution is enabled for the documented checked body subset only.
+Bodies with deferred type or proof obligations fail closed. Source-map and
+explain/locate replay, coordinated compiler/standard-library API migration,
+refreshed seed fixed points, and native/browser/installed acceptance pass. Project
+compilation uses checked identity emission; incomplete closures fail closed, and
+the legacy flattened project route has been removed. `parse_program_complete`
+remains a single-program adapter and rejects staged syntax instead of applying a
+flattened name model. Declaration signatures check tagged type/callable identity
+and public reachability, including private type and guard-helper leaks. Function
+bodies retain declaration/local identities and check ordinary expressions and
+control flow, lexical interpolation, records/enums, arrays, field access,
+exhaustive variant patterns, generic calls, core/indirect contracts, guard proofs,
+effects and await. Constructor and empty-collection evidence is contextual;
+user-function inference uses value arguments and preserves rigid caller
+parameters. Nominal identities remain distinct inside nested types and patterns.
+Shared unresolved evidence cannot acquire conflicting types at different uses,
+and inferred locals require complete types before later statements. Mixed Rat/
+integer joins and other explicitly deferred obligations remain distinct from
+checked bodies. Identity emission consumes only fully checked bodies; unsupported
+or deferred constructs cannot be emitted. See the [accepted design and migrated
+implementation](docs/MODULE_PACKAGE_DESIGN.md).
 
 ## Compilation and the Panackelty VM
 
@@ -845,7 +878,7 @@ source expression to identify.
 ## Deliberately postponed
 
 - Mutable array elements and growable collections
-- Module visibility, selective imports, and package management
+- Package management
 - Explicit checked construction from untrusted data
 - Generic constraints, traits, and higher-rank polymorphism
 - A backwards-compatibility guarantee for bytecode versions

@@ -6,6 +6,14 @@ source; it does not execute the program, emit bytecode, write files, or consume 
 source-map sidecar. The command is implemented in unreleased core; existing
 published/browser versions do not acquire it automatically.
 
+For staged multi-module projects, qualify a query with the portable module
+identity, for example `--function project/library.panack:lookup`. A bare name
+continues to work when it selects one loaded function. When multiple modules
+define that name, the query reports ambiguity; a module path that does not own
+the requested function is rejected. Explain and locate use the same selector
+rules, so retained evidence cannot silently come from a same-named function in
+another module.
+
 For example:
 
 ```panack

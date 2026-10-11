@@ -1,4 +1,4 @@
-import stdlib/testing
+import stdlib/testing::{TestResult, test_expect, test_report}
 main(): Void {
   empty: [TestResult] = []
   print(test_report(empty))

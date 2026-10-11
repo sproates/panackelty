@@ -1,0 +1,4 @@
+// The registered compiler is a separate nested execution, with its own counters.
+main(): Void {
+  run_bytecode_args(read_bytes(command_args()[0]), ["check", command_args()[1]])
+}

@@ -1,12 +1,15 @@
-import stdlib/result
-import stdlib/testing_files
-
+import stdlib/result::{result_value_or}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty, test_discover_fixtures, HostError}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_filename, path_value_display}
+import stdlib/filesystem::{filesystem_create_directory, filesystem_write_bytes, filesystem_remove_file, filesystem_remove_directory}
+import stdlib/bytes::{text_encode_utf8}
+import stdlib/host::{host_stdout_text}
 pure path(text: Str): Path {
-  result_value_or(path_from_text(text), path_current())
+  result_value_or(path_value_from_text(text), path_value_current())
 }
 
 pure child(parent: Path, name: Str): Path {
-  result_value_or(path_append(parent, path(name)), parent)
+  result_value_or(path_value_append(parent, path(name)), parent)
 }
 
 pure outcome(result: Result[Unit,HostError]): Str {
@@ -21,18 +24,18 @@ main(): Void {
       first = child(root, "a")
       last = child(root, "z")
       file = child(root, "readme")
-      print(outcome(fs_create_directory(last)))
-      print(outcome(fs_create_directory(first)))
-      print(outcome(fs_write(file, utf8_encode("fixture data"))))
+      print(outcome(filesystem_create_directory(last)))
+      print(outcome(filesystem_create_directory(first)))
+      print(outcome(filesystem_write_bytes(file, text_encode_utf8("fixture data"))))
       match test_discover_fixtures(root) {
         Error(error) => { code = error.code; print("discover: ${code}") },
         Ok(fixtures) => {
           for fixture in fixtures {
-            name = match path_filename(fixture) {
+            name = match path_value_filename(fixture) {
               Some(value) => value,
               None() => fixture
             }
-            print(path_display(name))
+            print(path_value_display(name))
           }
           count = len(fixtures)
           print("found ${count}")
@@ -42,9 +45,9 @@ main(): Void {
         Error(error) => { code = error.code; print("nonempty: ${code}") },
         Ok(value) => { print("unexpected empty") }
       }
-      print(outcome(fs_remove_file(file)))
-      print(outcome(fs_remove_directory(first)))
-      print(outcome(fs_remove_directory(last)))
+      print(outcome(filesystem_remove_file(file)))
+      print(outcome(filesystem_remove_directory(first)))
+      print(outcome(filesystem_remove_directory(last)))
       print(outcome(test_workspace_remove_empty(workspace)))
     }
   }

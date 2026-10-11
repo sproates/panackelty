@@ -1,2 +1,2 @@
-import "app/feature.panack"
-main(): Void { print(feature()) }
+import "app/feature.panack" as feature_module
+main(): Void { print(feature_module.feature()) }

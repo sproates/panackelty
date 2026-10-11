@@ -5,6 +5,16 @@ async read(fail: Bool): Result[Bytes,Str] { await async_fake_read(fail) }
 async nested(depth: Nat): Result[Bytes,Str] {
   if depth > 0 { await nested(depth - 1) } else { await read(false) }
 }
+async select(value: Nat): Result[Bytes, Str] {
+  if value == 0 {
+    await read(false)
+  } else if value == 1 {
+    await read(true)
+  } else {
+    await read(false)
+  }
+}
+
 async main(): Unit {
   reader: AsyncFn[Bool,Result[Bytes,Str]] = @read
   match await reader.call(false) {
@@ -18,6 +28,12 @@ async main(): Unit {
   match await nested(128) {
     Ok(data) => expect(byte_len(data) == 10),
     Error(problem) => expect(false)
+  }
+  for value in [0, 1, 2] {
+    match await select(value) {
+      Ok(data) => expect(value != 1 && utf8_decode(data) == "fake bytes"),
+      Error(problem) => expect(value == 1 && problem == "fake I/O error")
+    }
   }
   ()
 }

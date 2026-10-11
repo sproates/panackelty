@@ -1,6 +1,6 @@
-import stdlib/option
+import stdlib/option as option_module
 import "stdlib/option.panack"
-import "nested/feature.panack"
+import "nested/feature.panack" as nested_feature
 main(): Void {
-  match feature() { Some(value) => print(value), None() => print(0) }
+  match nested_feature.feature() { Some(value) => print(value), None() => print(0) }
 }

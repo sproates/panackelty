@@ -22,6 +22,16 @@ Function names and zero-based instruction indices come from `panack disasm`.
 Generic calls identify their shared erased body, without claiming specialised
 runtime type arguments.
 
+For an identity-emitted multi-module project, use the portable module identity
+followed by `:` and the declaration name, such as
+`project/library.panack:lookup`. An unqualified function name is accepted only
+when it identifies exactly one loaded function. Ambiguous names and module
+identities that do not own that function fail with a selector diagnostic;
+they never choose whichever duplicate happened to be emitted last. When the
+project compiles through the identity path, `locate` reproduces that same
+identity-emitted artifact and retains the original expression span through
+lowering before returning a location.
+
 A successful lookup prints `source-map: expression` or `source-map: lowered`,
 followed by function, instruction, portable file identifier, half-open range,
 one-based start/end line and column, and the captured expression. Offsets and

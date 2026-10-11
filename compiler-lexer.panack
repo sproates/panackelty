@@ -1,0 +1,8 @@
+import project/src/compiler/lexer::{lex, render}
+
+// Root-level entry keeps the bootstrap compiler's executable identity while
+// exercising the lexer as an explicitly imported compiler module.
+main(): Void {
+  print(render(lex("// skipped\nitem_1 42 2.5 \"text\" => +")))
+  print(render(lex("valid\n#")))
+}

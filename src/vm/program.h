@@ -38,6 +38,8 @@ typedef struct {
 typedef struct {
     size_t count;
     Function *functions;
+    /* Verification proves immutable function names are in canonical order. */
+    bool verified_function_order;
 } Program;
 
 /* Wire values are fixed by bytecode/FORMAT.md. */

@@ -1,5 +1,97 @@
 # Self-hosting roadmap
 
+## Current state — P2 complete on `next`
+
+PR#358 merged on 2026-10-10 as `bfb34a44107d345eb9f4784e5b8ca02e64c7124d`.
+It completes Slice 8's coordinated compiler/tooling and standard-library API
+migration, identity-only project route, namespace-capable seed fixed points, and
+native, browser and installed acceptance. The maintained identity-only audit
+passes all 59 functional, compiler-contract and top-level example roots. P2 is
+100% complete and contributes 20 percentage points to the modules programme;
+with completed P1, 30 points are accepted. Alpha.12 promotion and package/release
+verification remain under RM#143. Performance budgets remain unmet under the
+accepted alpha.12 disposition recorded in ROADMAP.md and the validation profile.
+
+The last integrated `next` commit before release preparation,
+`aaf5e604d12e2044ba9de8515a1fd4777f25ecb5`, passed the hosted `Check` workflow
+and a clean local canonical `make check` in 375s. The current alpha.12 release-
+preparation worktree passes canonical `make check` in 373s (unit 198s, functional
+12s, bootstrap 132s, release smoke 3s and quick start 1s). Its relocated archive
+smoke exercises namespace execution and all six packaged source-coverage
+commands. The 120s full, 60s bootstrap and 15s focused targets remain unmet. See
+the [performance profile](tests/VALIDATION_PROFILE.md#alpha12-performance-close-out--2026-10-10).
+
+## Historical pre-merge Slice 8 handoff — 2026-10-10
+
+This dated candidate snapshot is retained as delivery evidence; its statements
+that GI#198 remains open and Slice 8 is uncredited were superseded by merged
+PR#358.
+
+The coordinated compiler/tooling API migration, standard-library export
+migration, and namespace-capable seed refresh are implemented in the current
+candidate. The latest canonical `make check` passed all suites in 565s,
+including the maintained 59-root identity audit, 355 functional fixture
+assertions, runner smoke checks, release smoke, and quick start. The compiler
+integration suite passed 207 assertions; focused
+namespace body checks pass 624 assertions, and source-map, explanation, and
+coverage checks pass. Fresh compiler stages 2/3/4 agree at
+`54e0268ed3a2f939e22439925fb545857fc7ba0c6f67c2a7dd9cb948cd86a752`; the standard
+library artifact digest is
+`1ee9d9751c7e48cd2a165c0f4aae235bb324ec0d9bcbffe63c8c6eff7aa5e218`. Native
+staging is Python-free. Browser runtime tests passed 21/21 against the current
+core checkout. Playwright passed 24/24 across Chromium, Firefox and WebKit with
+the refreshed compiler/stdlib bundle and byte-identical prior WASM; the VM and
+browser host C inputs are unchanged. The exhaustive identity-only project check
+passed all 59 functional, compiler-contract, and top-level example roots. The
+detailed run record and timing disposition are in the
+[validation profile](tests/VALIDATION_PROFILE.md#slice-8-follow-up-closure-audit-and-current-browser-checks--2026-10-10).
+
+The alpha.12 performance follow-up adds a per-module declaration-name index for
+signature lookup. Fresh compiler stages 2/3/4 now agree at
+`9c5689c7ae348f6f109b0a21fbedcaf373a3ef0ebb00aba0929fc7a0353450bd`, and the
+Euler 001 bytecode remains identical. The compiler-focused suite also splits
+registered coverage-session scenarios into four isolated probes for parallel
+execution, retaining all 41 assertions. Warm `make check-compiler` now passes in
+82s at two workers and 77s at four, still above its 15s target. After updating
+the seed namespace acceptance fixture for the new `LoadedModule` declaration
+index, host-enabled canonical `make check` passed in 286s (unit 115s, functional
+11s, bootstrap 133s, release smoke 0s, quick start 1s). The 120s full and 60s
+bootstrap budgets remain unmet; the 115s aggregate unit phase is not a sample of
+the 15s focused incremental target. This single local run confirms correctness,
+not timing causation or a stable speedup. See the
+[performance profile](tests/VALIDATION_PROFILE.md#parallel-coverage-session-probes--2026-10-10).
+
+The checked namespace project path goes through module identity, checked
+signatures/bodies/effects, and identity-aware emission. Compiler and tooling
+imports now select their dependencies; standard-library modules expose the
+documented APIs; test and example callers use those surfaces. Source and saved-v9
+execution, seed fixed points, and native, browser-WASI, and relocated installed
+acceptance pass. No public namespace release claim is made.
+
+The loader retains checked module signatures, bodies, and effects for ordinary
+files as well as namespace projects. Project compilation always uses identity
+emission; the flat compatibility route has been removed. `LoadedProject.identity_ready`
+records complete identity checking, and incomplete closures fail closed. The
+previously deferred ordinary `map().put(...)` and `set().add(...)` case now
+passes through receiver-context inference, and `core_ends_with` passes identity
+checking with checked `nat()`/`dec()` conversion contracts. Coverage reports
+resolve emitted module and variant identities back to the source-facing
+inventory. The exhaustive audit passed all 59 functional, compiler-contract,
+and top-level example roots. Compiler, functional, canonical, browser, and
+installed-package acceptance pass. No test was waived and no identity check was
+bypassed.
+
+Keep GI#198 open. The compatibility audit, flat-route removal, seed fixed point,
+and native, browser, and installed acceptance now pass on this candidate. Keep
+Slice 8's 15% scope weight uncredited until the candidate is reviewed and
+integrated. Performance: the canonical check took 565s against the unchanged
+120s target and bootstrap took 133s against 60s; retain tests and budgets, with
+GI#106's owner to run a paired phase profile before deciding on remediation.
+Website impact: none; published feature claims remain gated.
+
+The sections below retain earlier milestone notes as historical evidence; use
+this handoff and its linked validation profile for current Slice 8 status.
+
 The P2 aggregate/pattern/inference slice refreshes the v9 seed to
 `223d479b7d81348f086ccae9a4a6b2d0740c49d3c4a772ec4948645ff7a5b31d`
 (459,830 bytes). Fresh compiler stages 2/3/4 agree; the standard-library artifact
@@ -7,8 +99,11 @@ remains `614534e2382ce7999f22652442900c3433824bb6fc72259d63c28049f46465b6`
 with unchanged output. Constructor/field/pattern and generic-call checking now
 retains nominal, parameter and expression-hole identities. Whole-body constraints
 prevent one unresolved local acquiring incompatible types at separate uses.
-General core/indirect calls, guard proofs, effects, emission and coordinated source
-migration remain pending, and namespace execution stays gated. See the
+General core/indirect calls, guard proofs and coordinated source migration remain
+pending. A source-built stage-2 compiler now exercises bounded identity emission,
+root-confined standalone imports and source/saved-bytecode execution. The checked-in
+v9 seed remains unchanged until coordinated cutover; fresh fixed-point and release
+acceptance remain required. See the
 [aggregate validation evidence](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05).
 
 The preceding P2 ordinary-expression/control-flow slice refreshed the v9 seed to
@@ -414,3 +509,30 @@ substitutes artifacts from the other. A single-worker setting runs them serially
 ## Core-library migration
 
 The compiler now uses the canonical implicit Option/Result definitions. To cross from the previous v9 seed, a temporary source copy explicitly imported the new core from compiler/types.panack. The old seed compiled that bridge; the bridge compiled the final sources with implicit loading. No staging imports or public compatibility aliases remain in the repository. The final v9 seed and digest are refreshed through the existing three-stage compiler and stdlib fixed-point proof. Bytecode stays v9.
+
+## Slice 8 compiler and standard-library APIs
+
+Compiler, bytecode, loader, tooling, test-runner and CLI consumers now use
+selected namespace imports and public exports. The initial standard-library
+export groups cover `stdlib/bytes`, `stdlib/option`, `stdlib/result`,
+`stdlib/environment`, `stdlib/testing`, `stdlib/testing_commands`,
+`stdlib/testing_files`, `stdlib/time`, `stdlib/host`, `stdlib/filesystem`,
+`stdlib/process`, `stdlib/tcp` and `stdlib/path`. The compatibility prelude and
+its consumers are migrated, and the refreshed seed accepts the coordinated
+source graph through compiler/stdlib fixed-point checks. Namespace fixtures
+exercise the documented APIs through source and saved-v9 execution.
+
+The remaining compatibility issue is ordinary generic bodies that are supported
+by the flat project route but not yet fully identity-checked by staged emission.
+An unconditional route-removal probe failed 11 focused driver/source-map checks;
+the guarded route was restored. Do not remove it until the staged checker and
+source-map/driver behavior cover these bodies, then rerun the full acceptance
+matrix. See the current Slice 8 handoff and validation profile.
+
+## Source inventory compiler extension
+
+SC2 adds opt-in source inventory commands and original-syntax traversal. The seed
+is refreshed through the existing staged fixed-point procedure to expose the
+commands through `panack`; generated application bytecode and bootstrap semantics
+remain unchanged. No instrumentation is added to the seed or VM. See
+[the inventory contract](docs/SOURCE_INVENTORY.md).

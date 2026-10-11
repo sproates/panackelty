@@ -1,11 +1,17 @@
-import stdlib/result
-import stdlib/testing
-import stdlib/testing_files
-import stdlib/testing_commands
-import stdlib/time
-
-pure host_path(value: Str): Path { result_value_or(path_from_text(value), path_current()) }
-pure host_text(value: Path): Str { result_value_or(path_to_text(value), "invalid path") }
+import stdlib/result::{result_value_or}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_equal_nat, test_report}
+import stdlib/testing_files::{TestWorkspace, test_workspace_create, test_workspace_remove_empty, test_discover_fixtures, HostError}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
+import stdlib/time::{duration_seconds, duration_milliseconds}
+import stdlib/filesystem::{FileKind.SymbolicLink}
+import stdlib/bytes::{bytes_empty, bytes_push, bytes_join}
+import stdlib/environment::{environment_has_value, environment_value}
+import stdlib/filesystem::{filesystem_read_text, filesystem_read_file_bytes, filesystem_read_bytes, filesystem_write_bytes, filesystem_write_file_bytes, filesystem_remove_file, filesystem_remove_directory, filesystem_metadata, filesystem_list_directory, filesystem_temp_file, filesystem_exists}
+import stdlib/host::{host_process_run, host_sleep_value, host_exit, host_run_bytecode, host_decode_utf8_value}
+import stdlib/path::{path_value_from_text, path_value_from_native, path_value_current, path_value_to_text, path_value_append, path_value_native_bytes, path_value_directory, path_value_filename, path_string_join, path_string_suffix, path_string_resolve}
+import stdlib/time::{duration_value_nanoseconds, duration_value_ticks, instant_value_now, instant_value_difference}
+pure host_path(value: Str): Path { result_value_or(path_value_from_text(value), path_value_current()) }
+pure host_text(value: Path): Str { result_value_or(path_value_to_text(value), "invalid path") }
 pure host_error[T](result: Result[T,HostError]): Str {
   match result { Ok(value) => "ok", Error(problem) => problem.code }
 }
@@ -18,7 +24,7 @@ pure host_contains(actual: Str, expected: Str): Bool {
 }
 pure host_repeat(input: Bytes, count: Nat): Bytes {
   mut result = input
-  for unused in 0..count { result = bytes_concat(result, result) }
+  for unused in 0..count { result = bytes_join(result, result) }
   result
 }
 pure host_digit(character: Str): Nat {
@@ -28,7 +34,7 @@ pure host_digit(character: Str): Nat {
   result
 }
 pure host_hex(value: Str): Bytes {
-  mut output = bytes()
+  mut output = bytes_empty()
   mut high: Nat = 0
   mut half = false
   for index in 0..len(value) {
@@ -36,7 +42,7 @@ pure host_hex(value: Str): Bytes {
     if !is_whitespace(character) {
       digit = host_digit(character)
       if !half { high = digit; half = true }
-      else { output = byte_append(output, high * 16 + digit); half = false }
+      else { output = bytes_push(output, high * 16 + digit); half = false }
     }
   }
   output
@@ -45,15 +51,15 @@ pure host_hex(value: Str): Bytes {
 host_impure(name: Str, workspace: TestWorkspace): TestResult {
   root = host_text(workspace.root)
   target = host_path("${root}/pure.bc")
-  data = host_hex(read_file("tests/fixtures/host_runtime/pure_${name}.hex"))
-  match fs_write(target, data) {
+  data = host_hex(filesystem_read_text("tests/fixtures/host_runtime/pure_${name}.hex"))
+  match filesystem_write_bytes(target, data) {
     Error(problem) => test_expect("pure ${name}", false, problem.code),
     Ok(written) => {
       result = test_run_command("pure ${name}", TestCommand(host_path("./panack"),
-        ["check", host_text(target)], bytes(), path_current(), [],
+        ["check", host_text(target)], bytes_empty(), path_value_current(), [],
         duration_seconds(10), 1048576),
-        ProcessOutput(1, 0, bytes(), utf8_encode("error: pure function calls impure function\n")))
-      match fs_remove_file(target) {
+        ProcessOutput(1, 0, bytes_empty(), utf8_encode("error: pure function calls impure function\n")))
+      match filesystem_remove_file(target) {
         Error(problem) => test_expect("pure ${name}", false, "bytecode cleanup failed"),
         Ok(removed) => result
       }
@@ -65,16 +71,16 @@ host_fixture(name: Str, filename: Str, args: [Str], environment: [Str],
              expected: ProcessOutput): TestResult {
   test_run_command(name, TestCommand(host_path("./panack"),
     ["run", "tests/fixtures/host_runtime/${filename}.panack"].concat(args),
-    bytes(), path_current(), environment, duration_seconds(20), 1048576), expected)
+    bytes_empty(), path_value_current(), environment, duration_seconds(20), 1048576), expected)
 }
 
 host_fixture_error(name: Str, filename: Str, expected: Str): TestResult {
-  match process_run(host_path("./panack"),
-      ["run", "tests/fixtures/host_runtime/${filename}.panack"], bytes(),
-      path_current(), [], duration_seconds(20), 1048576) {
+  match host_process_run(host_path("./panack"),
+      ["run", "tests/fixtures/host_runtime/${filename}.panack"], bytes_empty(),
+      path_value_current(), [], duration_seconds(20), 1048576) {
     Error(problem) => test_expect(name, false, problem.code),
     Ok(command) => test_expect(name,
-      command.exit_code == 1 && command.signal == 0 && command.stdout == bytes() &&
+      command.exit_code == 1 && command.signal == 0 && command.stdout == bytes_empty() &&
       host_contains(utf8_decode(command.stderr), expected), "unexpected trap or exit")
   }
 }
@@ -88,26 +94,31 @@ host_nested(workspace: TestWorkspace, source: Str, args: Bool): [TestResult] {
   artifact_file = host_text(artifact)
   results = results.append(test_run_command("compile nested ${source}",
     TestCommand(host_path("./panack"), ["compile", source_file, "-o", artifact_file],
-      bytes(), path_current(), [], duration_seconds(20), 1048576),
-    ProcessOutput(0, 0, utf8_encode("wrote ${artifact_file}\n"), bytes())))
+      bytes_empty(), path_value_current(), [], duration_seconds(20), 1048576),
+    ProcessOutput(0, 0, utf8_encode("wrote ${artifact_file}\n"), bytes_empty())))
   script = if args {
-    "main(): Void { run_bytecode_args(read_bytes(\"${artifact_file}\"), [\"child\"]) }"
+    "import stdlib/filesystem::{filesystem_read_file_bytes}; " +
+      "import stdlib/host::{host_run_bytecode}; " +
+      "main(): Void { host_run_bytecode(filesystem_read_file_bytes(\"${artifact_file}\"), [\"child\"]) }"
   } else {
-    "main(): Void { print(path_suffix(\"${artifact_file}\")); " +
-      "print(file_exists(path_resolve(\"${artifact_file}\"))); " +
-      "run_bytecode(read_bytes(\"${artifact_file}\")); }"
+    "import stdlib/path::{path_string_suffix, path_string_resolve}; " +
+      "import stdlib/filesystem::{filesystem_exists, filesystem_read_file_bytes}; " +
+      "import stdlib/host::{host_run_bytecode}; " +
+      "main(): Void { print(path_string_suffix(\"${artifact_file}\")); " +
+      "print(filesystem_exists(path_string_resolve(\"${artifact_file}\"))); " +
+      "host_run_bytecode(filesystem_read_file_bytes(\"${artifact_file}\"), []); }"
   }
   results = results.append(test_equal_str("write nested ${source}",
-    host_error(fs_write(program, utf8_encode(script))), "ok"))
+    host_error(filesystem_write_bytes(program, utf8_encode(script))), "ok"))
   expected = if args { "1\nchild\n" } else { ".bc\ntrue\nnested\n" }
   results = results.append(test_run_command("execute nested ${source}",
-    TestCommand(host_path("./panack"), ["run", host_text(program)], bytes(),
-      path_current(), [], duration_seconds(20), 1048576),
-    ProcessOutput(0, 0, utf8_encode(expected), bytes())))
+    TestCommand(host_path("./panack"), ["run", host_text(program)], bytes_empty(),
+      path_value_current(), [], duration_seconds(20), 1048576),
+    ProcessOutput(0, 0, utf8_encode(expected), bytes_empty())))
   results = results.append(test_equal_str("remove nested wrapper ${source}",
-    host_error(fs_remove_file(program)), "ok"))
+    host_error(filesystem_remove_file(program)), "ok"))
   results = results.append(test_equal_str("remove nested bytecode ${source}",
-    host_error(fs_remove_file(artifact)), "ok"))
+    host_error(filesystem_remove_file(artifact)), "ok"))
   results
 }
 
@@ -116,14 +127,14 @@ host_direct(workspace: TestWorkspace): [TestResult] {
   root = workspace.root
   root_text = host_text(root)
   sh = host_path("/bin/sh")
-  empty = bytes()
+  empty = bytes_empty()
   results = results.append(test_expect("character classes stay ASCII",
     is_letter("A") && !is_letter("λ") && is_digit("7") && !is_digit("٧") &&
       is_whitespace("\t"), "unexpected character classification"))
 
-  zeros = host_repeat(byte_append(empty, 0), 17)
-  payload = host_repeat(byte_append(empty, 120), 17)
-  large = process_run(sh, ["-c", "dd if=/dev/zero bs=1024 count=128 2>/dev/null; " +
+  zeros = host_repeat(bytes_push(empty, 0), 17)
+  payload = host_repeat(bytes_push(empty, 120), 17)
+  large = host_process_run(sh, ["-c", "dd if=/dev/zero bs=1024 count=128 2>/dev/null; " +
     "dd if=/dev/zero bs=1024 count=128 >&2 2>/dev/null; cat"], payload,
     root, [], duration_seconds(3), 1000000)
   match large {
@@ -131,120 +142,120 @@ host_direct(workspace: TestWorkspace): [TestResult] {
     Ok(command) => {
       results = results.append(test_expect("large duplex streams",
         command.exit_code == 0 && command.signal == 0 &&
-        command.stdout == bytes_concat(zeros, payload) && command.stderr == zeros,
+        command.stdout == bytes_join(zeros, payload) && command.stderr == zeros,
         "binary streams or process status differed"))
     }
   }
-  match process_run(sh, ["-c", "exit 0"], payload, root, [], duration_seconds(3), 100) {
+  match host_process_run(sh, ["-c", "exit 0"], payload, root, [], duration_seconds(3), 100) {
     Error(problem) => { results = results.append(test_expect("early stdin close", false, problem.code)) },
     Ok(command) => { results = results.append(test_expect("early stdin close",
       command.exit_code == 0 && command.signal == 0, "child did not exit cleanly")) }
   }
   // /tmp may be a symlink: compare the actual directory, not shell pwd spelling.
-  match process_run(sh, ["-c", "test . -ef \"$1\" || exit 8; " +
+  match host_process_run(sh, ["-c", "test . -ef \"$1\" || exit 8; " +
       "printf '%s\\n' \"$PANACK_HOST_TEST\"; printf '\\377' >&2; exit 9",
       "host-cwd-check", root_text],
       empty, root, ["PANACK_HOST_TEST=value"], duration_seconds(3), 1000) {
     Error(problem) => { results = results.append(test_expect("environment cwd and binary stderr", false, problem.code)) },
     Ok(command) => {
-      mut invalid = byte_append(empty, 255)
+      mut invalid = bytes_push(empty, 255)
       results = results.append(test_expect("environment cwd and binary stderr",
         command.exit_code == 9 && command.signal == 0 &&
         command.stdout == utf8_encode("value\n") && command.stderr == invalid,
         "process output differed"))
       results = results.append(test_equal_str("invalid UTF-8 process output",
-        host_error(host_decode_utf8(command.stderr)), "invalid_utf8"))
+        host_error(host_decode_utf8_value(command.stderr)), "invalid_utf8"))
     }
   }
-  match process_run(sh, ["-c", "kill -TERM $$"], empty, root, [], duration_seconds(3), 100) {
+  match host_process_run(sh, ["-c", "kill -TERM $$"], empty, root, [], duration_seconds(3), 100) {
     Error(problem) => { results = results.append(test_expect("child signal", false, problem.code)) },
     Ok(command) => { results = results.append(test_equal_nat("child signal", command.signal, 15)) }
   }
   results = results.append(test_expect("no child environment leakage",
-    !environment_has("PANACK_HOST_TEST"), "process environment escaped child"))
+    !environment_has_value("PANACK_HOST_TEST"), "process environment escaped child"))
   results = results.append(test_equal_str("duplicate environment is rejected",
-    host_error(process_run(sh, ["-c", "true"], empty, root,
+    host_error(host_process_run(sh, ["-c", "true"], empty, root,
       ["A=1", "A=2"], duration_seconds(1), 10)), "invalid_environment"))
   results = results.append(test_equal_str("missing cwd fails launch",
-    host_error(process_run(sh, ["-c", "true"], empty, host_path("${root_text}/missing"),
+    host_error(host_process_run(sh, ["-c", "true"], empty, host_path("${root_text}/missing"),
       [], duration_seconds(1), 10)), "launch_failed"))
 
-  start = instant_now()
+  start = instant_value_now()
   results = results.append(test_equal_str("bounded timeout",
-    host_error(process_run(sh, ["-c", "sleep 10 & wait"], empty, root, [],
+    host_error(host_process_run(sh, ["-c", "sleep 10 & wait"], empty, root, [],
       duration_milliseconds(20), 10)), "timeout"))
   match start {
     Error(problem) => { results = results.append(test_expect("bounded timeout elapsed", false, "clock unavailable")) },
     Ok(before) => {
-      match instant_now() {
+      match instant_value_now() {
         Error(problem) => { results = results.append(test_expect("bounded timeout elapsed", false, "clock unavailable")) },
         Ok(after) => {
           results = results.append(test_expect("bounded timeout elapsed",
-            duration_ticks(instant_difference(after, before)) < 2000000000,
+            duration_value_ticks(instant_value_difference(after, before)) < 2000000000,
             "timeout took two seconds or more"))
         }
       }
     }
   }
   results = results.append(test_equal_str("output bound",
-    host_error(process_run(sh, ["-c", "printf x"], empty, root, [],
+    host_error(host_process_run(sh, ["-c", "printf x"], empty, root, [],
       duration_seconds(1), 0)), "output_limit"))
   results = results.append(test_equal_str("negative timeout",
-    host_error(process_run(sh, ["-c", "true"], empty, root, [],
-      duration_nanoseconds(-1), 10)), "negative_duration"))
+    host_error(host_process_run(sh, ["-c", "true"], empty, root, [],
+      duration_value_nanoseconds(-1), 10)), "negative_duration"))
   results = results.append(test_equal_str("out of range timeout",
-    host_error(process_run(sh, ["-c", "true"], empty, root, [],
+    host_error(host_process_run(sh, ["-c", "true"], empty, root, [],
       duration_seconds(31536001), 10)), "out_of_range"))
   results = results.append(test_equal_str("zero timeout",
-    host_error(process_run(sh, ["-c", "touch should-not-exist"], empty, root, [],
-      duration_nanoseconds(0), 10)), "timeout"))
+    host_error(host_process_run(sh, ["-c", "touch should-not-exist"], empty, root, [],
+      duration_value_nanoseconds(0), 10)), "timeout"))
   results = results.append(test_equal_str("zero timeout starts no child",
-    host_error(fs_metadata(host_path("${root_text}/should-not-exist"))), "not_found"))
-  before_sleep = instant_now()
+    host_error(filesystem_metadata(host_path("${root_text}/should-not-exist"))), "not_found"))
+  before_sleep = instant_value_now()
   results = results.append(test_equal_str("sleep accepts one millisecond",
-    host_error(host_sleep(duration_milliseconds(1))), "ok"))
-  after_sleep = instant_now()
+    host_error(host_sleep_value(duration_milliseconds(1))), "ok"))
+  after_sleep = instant_value_now()
   match before_sleep {
     Error(problem) => { results = results.append(test_expect("sleep elapsed", false, "clock unavailable")) },
     Ok(started) => match after_sleep {
       Error(problem) => { results = results.append(test_expect("sleep elapsed", false, "clock unavailable")) },
       Ok(ended) => { results = results.append(test_expect("sleep elapsed",
-        duration_ticks(instant_difference(ended, started)) >= 1000000,
+        duration_value_ticks(instant_value_difference(ended, started)) >= 1000000,
         "returned before requested duration")) }
     }
   }
   results = results.append(test_equal_str("negative sleep",
-    host_error(host_sleep(duration_nanoseconds(-1))), "negative_duration"))
+    host_error(host_sleep_value(duration_value_nanoseconds(-1))), "negative_duration"))
   results = results.append(test_equal_str("too long sleep",
-    host_error(host_sleep(duration_seconds(31536001))), "out_of_range"))
+    host_error(host_sleep_value(duration_seconds(31536001))), "out_of_range"))
 
   file = host_path("${root_text}/file")
   link = host_path("${root_text}/link")
   fifo = host_path("${root_text}/fifo")
-  results = results.append(test_equal_str("write file", host_error(fs_write(file, utf8_encode("ab"))), "ok"))
-  results = results.append(test_equal_str("file size limit", host_error(fs_read(file, 1)), "output_limit"))
-  results = results.append(test_equal_str("directory is not regular file", host_error(fs_read(root, 0)), "not_regular_file"))
-  match process_run(sh, ["-c", "ln -s \"$1\" \"$2\"; mkfifo \"$3\"", "file-setup",
+  results = results.append(test_equal_str("write file", host_error(filesystem_write_bytes(file, utf8_encode("ab"))), "ok"))
+  results = results.append(test_equal_str("file size limit", host_error(filesystem_read_bytes(file, 1)), "output_limit"))
+  results = results.append(test_equal_str("directory is not regular file", host_error(filesystem_read_bytes(root, 0)), "not_regular_file"))
+  match host_process_run(sh, ["-c", "ln -s \"$1\" \"$2\"; mkfifo \"$3\"", "file-setup",
       host_text(file), host_text(link), host_text(fifo)], empty, root, [], duration_seconds(5), 100) {
     Error(problem) => { results = results.append(test_expect("symlink and fifo setup", false, problem.code)) },
     Ok(command) => { results = results.append(test_expect("symlink and fifo setup",
       command.exit_code == 0 && command.signal == 0 && command.stderr == empty,
       "symlink or fifo creation failed")) }
   }
-  match fs_metadata(link) {
+  match filesystem_metadata(link) {
     Error(problem) => { results = results.append(test_expect("symlink metadata", false, problem.code)) },
     Ok(info) => { results = results.append(test_expect("symlink metadata",
       info.kind == SymbolicLink(), "final link was followed")) }
   }
-  results = results.append(test_expect("symlink reads target", result_value_or(fs_read(link, 2), empty) == utf8_encode("ab"), "link read failed"))
-  results = results.append(test_equal_str("fifo is not regular file", host_error(fs_read(fifo, 0)), "not_regular_file"))
-  results = results.append(test_equal_str("remove symlink", host_error(fs_remove_file(link)), "ok"))
-  results = results.append(test_expect("target remains after removing link", result_value_or(fs_read(file, 2), empty) == utf8_encode("ab"), "target lost"))
+  results = results.append(test_expect("symlink reads target", result_value_or(filesystem_read_bytes(link, 2), empty) == utf8_encode("ab"), "link read failed"))
+  results = results.append(test_equal_str("fifo is not regular file", host_error(filesystem_read_bytes(fifo, 0)), "not_regular_file"))
+  results = results.append(test_equal_str("remove symlink", host_error(filesystem_remove_file(link)), "ok"))
+  results = results.append(test_expect("target remains after removing link", result_value_or(filesystem_read_bytes(file, 2), empty) == utf8_encode("ab"), "target lost"))
 
-  match fs_temp_file(root) {
+  match filesystem_temp_file(root) {
     Error(problem) => { results = results.append(test_expect("first private temporary", false, problem.code)) },
     Ok(first) => {
-      match fs_temp_file(root) {
+      match filesystem_temp_file(root) {
         Error(problem) => { results = results.append(test_expect("second private temporary", false, problem.code)) },
         Ok(second) => {
           results = results.append(test_expect("unique temporary files", first != second, "names collided"))
@@ -252,38 +263,38 @@ host_direct(workspace: TestWorkspace): [TestResult] {
           results = results.append(test_run_command("private temporary mode", TestCommand(sh,
             ["-c", script, "mode", host_text(first)], empty, root, [], duration_seconds(5), 100),
             ProcessOutput(0, 0, utf8_encode("600\n"), empty)))
-          results = results.append(test_equal_str("remove second temporary", host_error(fs_remove_file(second)), "ok"))
+          results = results.append(test_equal_str("remove second temporary", host_error(filesystem_remove_file(second)), "ok"))
         }
       }
-      results = results.append(test_equal_str("remove first temporary", host_error(fs_remove_file(first)), "ok"))
+      results = results.append(test_equal_str("remove first temporary", host_error(filesystem_remove_file(first)), "ok"))
     }
   }
-  raw_name = byte_append(utf8_encode("${root_text}/"), 255)
-  match path_from_native(raw_name) {
+  raw_name = bytes_push(utf8_encode("${root_text}/"), 255)
+  match path_value_from_native(raw_name) {
     Error(problem) => { results = results.append(test_expect("non UTF-8 path setup", false, "path rejected")) },
     Ok(raw) => {
-      match fs_write(raw, utf8_encode("raw")) {
+      match filesystem_write_bytes(raw, utf8_encode("raw")) {
         Error(problem) => { results = results.append(test_expect("non UTF-8 filesystem name", true, "host filesystem rejected raw name")) },
         Ok(written) => {
           mut found = false
-          match fs_list(root) {
+          match filesystem_list_directory(root) {
             Error(problem) => { results = results.append(test_expect("non UTF-8 directory listing", false, problem.code)) },
             Ok(names) => {
               for entry in names {
-                if path_native_bytes(entry) == byte_append(empty, 255) { found = true }
+                if path_value_native_bytes(entry) == bytes_push(empty, 255) { found = true }
               }
               results = results.append(test_expect("non UTF-8 directory listing", found, "raw name absent"))
             }
           }
-          results = results.append(test_expect("non UTF-8 file data", result_value_or(fs_read(raw, 3), empty) == utf8_encode("raw"), "raw file unreadable"))
-          results = results.append(test_equal_str("remove non UTF-8 name", host_error(fs_remove_file(raw)), "ok"))
+          results = results.append(test_expect("non UTF-8 file data", result_value_or(filesystem_read_bytes(raw, 3), empty) == utf8_encode("raw"), "raw file unreadable"))
+          results = results.append(test_equal_str("remove non UTF-8 name", host_error(filesystem_remove_file(raw)), "ok"))
         }
       }
     }
   }
   for item in [fifo, file] {
     name = host_text(item)
-    results = results.append(test_equal_str("cleanup ${name}", host_error(fs_remove_file(item)), "ok"))
+    results = results.append(test_equal_str("cleanup ${name}", host_error(filesystem_remove_file(item)), "ok"))
   }
   results
 }
@@ -297,46 +308,46 @@ host_paths(): [TestResult] {
     current_name = names[index]
     input = host_path(current_name)
     results = results.append(test_expect("directory ${current_name}",
-      path_native_bytes(path_directory(input)) == utf8_encode(directories[index]), "parent path changed"))
-    actual = match path_filename(input) { None() => "none", Some(value) => host_text(value) }
+      path_value_native_bytes(path_value_directory(input)) == utf8_encode(directories[index]), "parent path changed"))
+    actual = match path_value_filename(input) { None() => "none", Some(value) => host_text(value) }
     results = results.append(test_equal_str("filename ${current_name}", actual, filenames[index]))
   }
-  results = results.append(test_equal_str("lexical path join", path_join("project/src", "../tests"), "project/tests"))
+  results = results.append(test_equal_str("lexical path join", path_string_join("project/src", "../tests"), "project/tests"))
   results
 }
 
 main(): Void {
   match test_workspace_create(host_path("/tmp")) {
-    Error(problem) => { eprint("host test workspace failed: ${problem.code}"); process_exit(1) },
+    Error(problem) => { eprint("host test workspace failed: ${problem.code}"); host_exit(1) },
     Ok(workspace) => {
       mut results = host_direct(workspace).concat(host_paths())
       results = results.append(host_fixture("testing report order and empty case", "library_reports", [], [],
-        ProcessOutput(0, 0, utf8_encode("tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n"), bytes())))
+        ProcessOutput(0, 0, utf8_encode("tests: 0, failures: 0\n0\nFAIL first: reason\nPASS second\ntests: 2, failures: 1\n1\n"), bytes_empty())))
       results = results.append(host_fixture("testing command comparison", "library_commands", [], [],
-        ProcessOutput(0, 0, utf8_encode("PASS match\nFAIL exit: expected exit 0, got 2\nFAIL signal: expected signal 0, got 9\nFAIL stdout: stdout differed\nFAIL stderr: stderr differed\nFAIL host: command failed: timeout\ntests: 6, failures: 5\n5\n"), bytes())))
+        ProcessOutput(0, 0, utf8_encode("PASS match\nFAIL exit: expected exit 0, got 2\nFAIL signal: expected signal 0, got 9\nFAIL stdout: stdout differed\nFAIL stderr: stderr differed\nFAIL host: command failed: timeout\ntests: 6, failures: 5\n5\n"), bytes_empty())))
       results = results.append(host_fixture("stdlib environment option", "environment_option", [], ["PRESENT=configured"],
-        ProcessOutput(0, 0, utf8_encode("configured\nnone\n"), bytes())))
+        ProcessOutput(0, 0, utf8_encode("configured\nnone\n"), bytes_empty())))
       results = results.append(host_fixture("command argument snapshot", "arguments", ["alpha", "beta"], [],
-        ProcessOutput(0, 0, utf8_encode("2\nalpha\n"), bytes())))
+        ProcessOutput(0, 0, utf8_encode("2\nalpha\n"), bytes_empty())))
       results = results.append(host_fixture("environment snapshot", "environment_snapshot", [], ["PANACK_PRESENT=configured"],
-        ProcessOutput(0, 0, utf8_encode("true\nconfigured\nfalse\n"), bytes())))
-      missing = process_run(host_path("/bin/sh"), ["-c", "unset PANACK_MISSING; exec ./panack \"$@\"",
-        "host-missing", "run", "tests/fixtures/host_runtime/environment_missing.panack"], bytes(),
-        path_current(), [], duration_seconds(20), 1048576)
+        ProcessOutput(0, 0, utf8_encode("true\nconfigured\nfalse\n"), bytes_empty())))
+      missing = host_process_run(host_path("/bin/sh"), ["-c", "unset PANACK_MISSING; exec ./panack \"$@\"",
+        "host-missing", "run", "tests/fixtures/host_runtime/environment_missing.panack"], bytes_empty(),
+        path_value_current(), [], duration_seconds(20), 1048576)
       match missing {
         Error(problem) => { results = results.append(test_expect("missing environment traps", false, problem.code)) },
         Ok(command) => { results = results.append(test_expect("missing environment traps",
-          command.exit_code == 1 && command.signal == 0 && command.stdout == bytes() &&
+          command.exit_code == 1 && command.signal == 0 && command.stdout == bytes_empty() &&
           host_contains(utf8_decode(command.stderr), "environment variable was not found"),
           "missing variable did not trap")) }
       }
       results = results.append(host_fixture("stderr and exit status", "process_exit", [], [],
-        ProcessOutput(7, 0, bytes(), utf8_encode("failure\n"))))
+        ProcessOutput(7, 0, bytes_empty(), utf8_encode("failure\n"))))
       results = results.append(host_fixture("native arguments, environment and status", "native_boundary",
         ["argument"], ["PANACK_NATIVE_TEST=snapshot"],
         ProcessOutput(7, 0, utf8_encode("argument\nsnapshot\n"), utf8_encode("native stderr\n"))))
       results = results.append(host_fixture("lexical path join source", "path_join", [], [],
-        ProcessOutput(0, 0, utf8_encode("project/tests\n/project/tests\n"), bytes())))
+        ProcessOutput(0, 0, utf8_encode("project/tests\n/project/tests\n"), bytes_empty())))
       results = results.concat(host_nested(workspace, "nested", false))
       results = results.concat(host_nested(workspace, "nested_arguments", true))
       for service in ["read_file", "read_bytes", "write_file", "write_bytes"] {
@@ -351,20 +362,20 @@ main(): Void {
       results = results.append(test_run_command("ignored inherited SIGPIPE",
         TestCommand(host_path("/bin/sh"),
           ["-c", "trap '' PIPE; exec ./panack run tests/functional/cases/host_process/main.panack"],
-          bytes(), path_current(), [], duration_seconds(20), 1048576),
-        ProcessOutput(0, 0, read_bytes("tests/functional/cases/host_process/expected.stdout"), bytes())))
+          bytes_empty(), path_value_current(), [], duration_seconds(20), 1048576),
+        ProcessOutput(0, 0, filesystem_read_file_bytes("tests/functional/cases/host_process/expected.stdout"), bytes_empty())))
       workspace_name = host_text(workspace.root)
       missing_root = host_path("${workspace_name}/missing")
       results = results.append(test_equal_str("missing fixture root", host_error(test_discover_fixtures(missing_root)), "not_found"))
       regular = host_path("${workspace_name}/regular")
-      results = results.append(test_equal_str("fixture file setup", host_error(fs_write(regular, utf8_encode("data"))), "ok"))
+      results = results.append(test_equal_str("fixture file setup", host_error(filesystem_write_bytes(regular, utf8_encode("data"))), "ok"))
       results = results.append(test_equal_str("regular file fixture root", host_error(test_discover_fixtures(regular)), "not_directory"))
-      results = results.append(test_equal_str("fixture file cleanup", host_error(fs_remove_file(regular)), "ok"))
+      results = results.append(test_equal_str("fixture file cleanup", host_error(filesystem_remove_file(regular)), "ok"))
       match test_workspace_remove_empty(workspace) {
         Error(problem) => { results = results.append(test_expect("host workspace cleanup", false, problem.code)) },
         Ok(removed) => {}
       }
-      if test_report(results) > 0 { process_exit(1) }
+      if test_report(results) > 0 { host_exit(1) }
     }
   }
 }

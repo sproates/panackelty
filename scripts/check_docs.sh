@@ -64,6 +64,11 @@ while IFS= read -r -d '' document; do
             [[ "$document" == */* ]] || resolved=$target
         fi
         if ! resolved=$(normalize "$resolved"); then
+            # GitHub resolves README.md's ../../releases shortcut against the
+            # repository URL; it intentionally points outside the checkout.
+            if [[ "$document" == README.md && "$target" == ../../releases ]]; then
+                continue
+            fi
             if [[ "$selected" == 1 ]]; then
                 printf 'docs: link escapes repository: %s -> %s\n' "$document" "$target" >&2
                 failed=1

@@ -1,10 +1,18 @@
-import "../../src/compiler/lexer.panack"
-import stdlib/testing
-
+import project/src/compiler/lexer::{scan_string, StringScan, render, lex}
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
+import stdlib/host::{host_exit}
 // Direct lexer unit contracts. Keep these independent of the public compiler CLI:
 // malformed expressions can still have a valid token stream.
 main(): Void {
   mut results: [TestResult] = []
+  results = results.append(test_expect("escaped quote stays inside the string",
+    scan_string("\"a\\\"b\"tail", 0) == StringScan(6, true), "wrong string boundary"))
+  results = results.append(test_expect("escaped backslash allows the closing quote",
+    scan_string("\"a\\\\\"tail", 0) == StringScan(5, true), "wrong escape state"))
+  results = results.append(test_expect("dangling escape is unterminated",
+    scan_string("\"a\\", 0) == StringScan(3, false), "dangling escape accepted"))
+  results = results.append(test_expect("empty string closes at its second quote",
+    scan_string("\"\"tail", 0) == StringScan(2, true), "wrong empty string boundary"))
   results = results.append(test_equal_str("classes, comments and escapes",
     render(lex("// ignored\n_name42 17 3.14 \"a\\\\b\"")),
     "identifier:_name42\nnumber:17\ndecimal:3.14\nstring:\"a\\\\b\"\n"))
@@ -46,5 +54,8 @@ main(): Void {
     render(lex("first\nsecond\nthird +\nfour\nitems[\n0\n]\nif ready {\ncall()\n}\nelse {\nother()\n}\nlast")),
     "identifier:first\npunctuation:;\nidentifier:second\npunctuation:;\nidentifier:third\npunctuation:+\nidentifier:four\npunctuation:;\nidentifier:items\npunctuation:[\nnumber:0\npunctuation:]\npunctuation:;\nidentifier:if\nidentifier:ready\npunctuation:{\nidentifier:call\npunctuation:(\npunctuation:)\npunctuation:}\nidentifier:else\npunctuation:{\nidentifier:other\npunctuation:(\npunctuation:)\npunctuation:}\npunctuation:;\nidentifier:last\n"))
 
-  if test_report(results) > 0 { process_exit(1) }
+  results = results.append(test_equal_str("else continues onto an if line",
+    render(lex("else\n// next arm\nif ready {}")),
+    "identifier:else\nidentifier:if\nidentifier:ready\npunctuation:{\npunctuation:}\n"))
+  if test_report(results) > 0 { host_exit(1) }
 }

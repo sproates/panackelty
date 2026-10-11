@@ -1,7 +1,7 @@
 // Development toolchain only. Start this server, then run tcp_exchange.panack.
 // Accept one request on 127.0.0.1:9000, echo it and close. Admission stops after
 // 10 seconds; an admitted client gets at most 2 seconds to finish.
-import stdlib/tcp
+import stdlib/tcp::{TcpServerLimits}
 
 async reply(request: Bytes): Result[Bytes,Str] {
   Ok(request)

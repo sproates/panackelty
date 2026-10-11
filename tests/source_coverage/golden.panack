@@ -1,0 +1,11 @@
+enum Choice { First(), Second() }
+pure unused(): Nat { 99 }
+pure choose(value: Bool): Nat { if value { 7 } else { 9 } }
+pure arms(value: Choice): Nat { match value { First() => 2, Second() => 3 } }
+main(): Void {
+  value = command_args()[0] == "true"
+  mut total: Nat = 0
+  for i in 0..3 { total = total + choose(value); }
+  if value && (total > 0 || false) { print(arms(First())); } else { print(arms(Second())); }
+  print(total)
+}

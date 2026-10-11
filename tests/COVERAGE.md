@@ -38,13 +38,19 @@ line coverage. Update it whenever a language promise or its tests change.
 The [testing guide](README.md) describes suite ownership and validation commands.
 Planning a test does not change a coverage status.
 
-Measured source coverage currently exists only for the native C VM, at the
-[public report](https://sproates.github.io/panackelty-coverage/). The `.panack` compiler,
-bytecode tooling and standard library have tests but no measured source-line
-or branch baseline. The groomed [source-coverage candidate](../ROADMAP.md#measure-panackelty-source-coverage--candidate-pending-assessment)
-starts with trustworthy mapping and measurement feasibility; implementation is
-unscheduled. Do not interpret this behavior matrix,
-test counts or C percentages as a `.panack` coverage percentage.
+Measured coverage is published separately for the [native C VM](https://sproates.github.io/panackelty-coverage/)
+from `main` and the [production `.panack` source](https://sproates.github.io/panackelty-coverage/source/html/index.html)
+from `next`. The first verified source baseline covers all 38 tracked production
+compiler, bytecode and standard-library files across 30 fresh executions: lines
+86.22%, functions 89.85%, source outcomes 79.57%, no unavailable measurements.
+The [baseline contract](../docs/SOURCE_COVERAGE_BASELINE.md) defines the exact
+initial corpus, exclusions, identities and completeness rules. Lines are unique
+eligible expression/statement start lines; branches are original-source outcomes,
+not native or VM instruction branches. The corpus does not include every canonical
+test or browser/WASI execution. SC5 is accepted; bounded gap closure and regression
+policy remain SC6 under [RM#46 / GI#131](../ROADMAP.md#rm-46).
+Execution coverage does not establish assertion quality. Do not interpret this
+behavior matrix, test counts or C percentages as a `.panack` coverage percentage.
 
 The matrix is undergoing evidence reconciliation: older rows contain historical
 test names and runtime descriptions. Check the current probes and migrated
@@ -78,6 +84,9 @@ Status meanings:
 | Keyword-free functions, colon return types, local declarations, and block tails | `fixtures/compiler_contracts/syntax`; all functional programs | **Covered** for accepted syntax, rejection of legacy `fn`, `->`, and `let` forms, and trailing-semicolon value discard. |
 | Newline statement termination and explicit semicolons | Bootstrap syntax tests; self-hosted lexer/parser tests; `semicolonless` functional case; `same_line_without_separator` failure | **Covered** for bindings, assignments, calls, imports, guarded types, blank lines, comments, block tails, multiline operators/parentheses/brackets, same-line separators, and source/bytecode execution. |
 | Receiver-first method calls and callable values | Bootstrap syntax tests; self-hosted parser/resolver/checker/purity/emitter differential tests; callables and collections functional cases; public failures | **Covered** for explicit `@name` references, `PureFn`/`Fn` effects, indirect invocation, array `map`/`reduce`, lowering, chaining, typed Map/Set methods, record-field distinction, collision-free lookup, receiver/callback diagnostics, and source/bytecode execution. |
+| Staged namespace body call contracts | `runner/compiler_module_bindings_unit.panack` (`namespace_body_tests`, `namespace_aggregate_tests`) | **Slice 3 covered on merge** — identity-bound indirect calls, `len`, core array methods and operations, Map/Set receivers, and text lexer intrinsics (`is_digit`, `is_letter`, `is_whitespace`, `starts_with_at`, `slice`) have positive and wrong-arity/type evidence, alongside callback input/result/effect, reserved-identity, and namespace-versus-value resolution coverage. Async indirect calls remain explicitly deferred. These later P2 slices are complete on `next`; see the accepted identity-emission, root-confinement and source/bytecode evidence below. |
+| Compiler source API namespace migration | `namespace_seed.sh`; `make check`; `identity_root_audit.sh`; browser runtime suites | **Accepted by merged PR#358** — compiler/tooling modules use explicit selected imports and documented exports, the namespace-capable seed passes fixed-point checks, and project commands require identity checking and emission with no flat compatibility route. The functional phase audits all 59 functional, compiler-contract and top-level example roots through the public `panack check` command. Canonical `make check`, browser npm tests (21/21), and the Chromium/Firefox/WebKit matrix (24/24) pass. alpha.12 promotion and package verification remain under RM#143. |
+| Standard-library API export migration | `namespace_seed.sh`; `make check` | **Accepted by merged PR#358** — documented bytes, option/result, environment, testing, testing-command, testing-file, time, host, filesystem, process, TCP and path exports selectively import through the checked-in seed. The fixture verifies byte/text and generic helpers, environment reads, exact assertion reports, duration checks, command comparisons and public host-data shapes through source and saved-v9 execution. Standard-library export groups and compiler/test consumers use the documented APIs; the identity-only compiler path rejects incomplete closures. |
 | Non-first-class `Void` and implicit fallthrough | `fixtures/compiler_contracts/syntax`; all functional entry points | **Covered** for empty returns, required non-`Void` results, and invalid value positions. |
 
 ## Guarded types, effects, and bindings
@@ -98,7 +107,7 @@ Status meanings:
 | --- | --- | --- |
 | Concatenation and scalar interpolation | `runner/vm_unit.panack`; strings functional example | **Partial** — add `Bool` and guarded-scalar interpolation and malformed interpolation tests. |
 | Unicode code-point indexing, length, and reversal | `test_str_unicode_indexing_and_length`, `test_string_methods_reverse_unicode_code_points`, bounds-trap test, strings and two-pointer palindrome functional examples | **Covered** for multibyte code points, receiver-first reversal, algorithmic indexing, and out-of-bounds access. |
-| Conditional expressions and optional `else` | Bootstrap and self-hosted parser/checker/emitter tests; `optional_else` success case; `if_without_else_value` public failure | **Covered** for exhaustive value branches, omitted `else` in `Void` position, discarded body values, balanced bytecode paths, and rejection as a non-`Void` result. |
+| Conditional expressions, else-if chains and optional `else` | Bootstrap and self-hosted parser/checker/emitter tests; `optional_else` success case; `if_without_else_value` public failure | **Covered** for exhaustive/chained value branches, repeated partial chains, ordered/skipped conditions and bodies, mixed discarded arm values, source spans, async arms, namespace checking, balanced bytecode paths and rejection as a non-`Void` result. |
 | Half-open natural ranges and `for` | accumulator unit test; iterative Euler, FizzBuzz, and numeric-palindrome functional examples; `functional/failures/for_iterable_type` | **Partial** — invalid iterable rejection reaches the public CLI; add empty ranges and invalid bound-type rejection. |
 | `while` checking and facts | factorial-style unit test and `functional/failures/while_condition_type` | **Partial** — non-`Bool` rejection reaches the public CLI; add additional fact shapes. |
 | Homogeneous arrays, inference, iteration, length, and indexing | `test_arrays_iteration_indexing_and_len`; array bounds test; collections functional case | **Partial** — invalid index type coverage remains; local-inference tests cover heterogeneous literals and empty inferred arrays. |
@@ -138,10 +147,10 @@ Status meanings:
 | Testing library assertions and reporting | `runner/host_runtime_unit.panack`; `functional/cases/testing_library` | **Partial** — empty, mixed, and failed assertions cover structured results, caller order, summary, and returned failure count in direct native probes and public source/bytecode CLI tests. Expand malformed-report presentation cases as needed. |
 | Testing fixture discovery and isolation | `runner/host_runtime_unit.panack`; `functional/cases/testing_fixtures` | **Partial** — missing-root errors, sorted directory filtering, explicitly owned temporary creation, nonempty cleanup failure, and successful explicit cleanup run through native direct checks and public source/bytecode CLI. Add metadata-race and non-UTF-8 fixture conformance cases. |
 | Testing command assertions | `runner/host_runtime_unit.panack`; `functional/cases/testing_commands` | **Covered** for exit/signal and byte-stream comparison failures, host-error conversion, successful nonzero exit, expected launch and output-limit failures, and unexpected completion through direct native and public source/bytecode CLI tests. Expand timeout and invalid-UTF-8 cases with the wider host conformance backlog. |
-| Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — twenty-seven selected success fixtures and twenty example programs run source, compile, and bytecode with byte-exact streams/status; forty-seven failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; six also check run/disasm. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
+| Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — twenty-seven selected success fixtures and twenty-three example programs run source, compile, and bytecode with byte-exact streams/status; forty-seven failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; six also check run/disasm. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
 | Native C11 seed VM | `runner/vm_unit.panack`; `native_oracle_contracts.sh`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
 | Verified self-hosted seed refresh | `seed_refresh.sh`; `make bootstrap-check` | **Covered** for recorded input digest verification before execution, fresh verified compiler stages 2–4, compiler/library byte identity, exact conformance output, failure preservation, locks/signals/concurrent edits, publication and idempotence. A real refresh uses a restricted `PATH`; failure injection uses a shell fake VM. |
-| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
+| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The alpha.12 candidate extends that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
 | Public bug reporting | `.github/ISSUE_TEMPLATE/bug_report.yml`; `unit/harness/layout.sh`; `CONTRIBUTING.md` | **Covered** by a required GitHub issue form for version, platform, minimal source, command, expected behavior, actual output, and saved-bytecode behavior; blank issues are disabled and security reports are redirected to the private channel. |
 | Public project website | [website repository](https://github.com/sproates/panackelty-website) | Independently validated and published; no core website test dependency. |
 | Short-circuit `&&` and `||` | `runner/vm_unit.panack` | **Covered** for avoiding an unsafe right-hand expression. |
@@ -152,9 +161,11 @@ Status meanings:
 | --- | --- | --- |
 | `panack` command identity and `.panack` source extension | `functional/cases/cli_commands`; `functional/cases/cli_check_disasm`; all discovered functional programs | **Covered** for help output, canonical source discovery, and rejection of the former `.nu` extension. |
 | Release identity | `functional/cases/cli_commands`; `unit/harness/layout.sh`; installed-distribution test; `native_conformance.sh` | **Covered** for one canonical semantic prerelease version, source-checkout and installed `panack --version` output, bytecode-format identity, and absence of a duplicated release literal in the launcher. |
-| Relative import resolution | `fixtures/compiler_contracts/imports`; modules functional case | **Covered** for a successful relative import. |
+| Relative import resolution | `fixtures/compiler_contracts/imports`; modules functional case | **Covered** for a successful quoted relative path through an explicit namespace alias, plus source and bytecode execution. |
 | Logical import resolution | `fixtures/compiler_contracts/imports`; self-hosted driver tests; option/result and standard-library functional programs; installed-distribution test | **Covered** for canonical extensionless `stdlib/` and `project/` imports, quoted and suffixed compatibility, entry-root behavior from nested modules, load-once canonicalization, reserved standard-library ownership, invalid paths and suffixes, source/bytecode execution, and installed resource discovery. |
-| Namespace resolution (P2 intermediate) | `runner/compiler_module_bindings_unit.panack`; namespace fixtures through `runner/compiler_integration_unit.panack`; `functional/cases/cli_diagnostic_display` | **Covered** for raw dot calls, qualified types/references/patterns and nested type leaves; namespace/selective imports and re-exports retaining original function/nominal/variant IDs; private access and transitive invisibility; import/local/type-parameter collisions; shared diamond traversal, missing/duplicate/cyclic graphs; source spans and fail-closed parser/checker/purity/emitter/codec/public CLI paths, including unmarked qualified uses and absent bytecode output. Existing declaration-origin tests remain. **Covered** staged declaration/signature identities: original-ID public reachability, nested generic/array/callable privacy, binder-position substitution, core aliases, callable effects and guard helper access including receiver methods and enum re-exports. Public CLI privacy failures remain positioned and write no bytecode. **Covered** identity-bound body structure, lexical binder ownership/assignment reuse, annotations and known Void rejection, direct/qualified/helper argument and return compatibility, same-spelled nominal distinction, explicit generic binder substitution, callable effect identity, reserved method/direct-call distinction, retained constructor/core-alias identities and explicit pending core/proof checks. Public CLI nominal-body failures retain source ownership and write no bytecode. **Covered** ordinary scalar operators, Bool conditions and branches, typed iterable/index paths, lexical interpolation (ordered/repeated references, escapes and invalid scopes), known Void failures and invalid/deferred/checked-subset status. Nat subtraction and mixed Rat/integer joins retain explicit obligations; nested child obligations are not erased by known result types. `functional/cases/expression_contracts` checks exact results, loops, interpolation and short-circuit traps through source and bytecode; public CLI fixtures check positioned failures and the unchanged execution gate. **Covered** identity-based record/variant construction, nested arrays and branch evidence, nominal field lookup, payload types/immutability, exhaustive/duplicate variant identities, argument-only generic inference, rigid caller parameters and explicit type arguments. Shared expression holes retain contextual constraints across calls and statements; conflicting/recursive evidence rejects, inferred locals cannot borrow later evidence, and unresolved retained children remain deferred. `functional/cases/aggregate_inference` checks legacy source/saved-bytecode behavior, while namespace CLI fixtures preserve positioned errors and absent artifacts. **Pending** general core/indirect-call contracts, guard proofs, effect/emission/tooling migration, coordinated source migration and native/browser namespace execution. Whole-body constraint errors use the enclosing original function span. Type/pattern use locations currently fall back to the declaration/match span. |
+| Namespace resolution (P2 intermediate) | `runner/compiler_module_bindings_unit.panack`; namespace fixtures through `runner/compiler_integration_unit.panack`; `functional/cases/cli_diagnostic_display` | **Covered** for raw dot calls, qualified types/references/patterns and nested type leaves; namespace/selective imports and re-exports retaining original function/nominal/variant IDs; private access and transitive invisibility; import/local/type-parameter collisions; shared diamond traversal, missing/duplicate/cyclic graphs; source spans and fail-closed parser/checker/purity/emitter/codec/public CLI paths, including unmarked qualified uses and absent bytecode output. Existing declaration-origin tests remain. **Covered** staged declaration/signature identities: original-ID public reachability, nested generic/array/callable privacy, binder-position substitution, core aliases, callable effects and guard helper access including receiver methods and enum re-exports. Public CLI privacy failures remain positioned and write no bytecode. **Covered** identity-bound body structure, lexical binder ownership/assignment reuse, annotations and known Void rejection, direct/qualified/helper argument and return compatibility, same-spelled nominal distinction, explicit generic binder substitution, callable effect identity, reserved method/direct-call distinction, retained constructor/core-alias identities and explicit pending proof checks. Public CLI nominal-body failures retain source ownership and write no bytecode. **Covered** ordinary scalar operators, Bool conditions and branches, typed iterable/index paths, lexical interpolation (ordered/repeated references, escapes and invalid scopes), known Void failures and invalid/deferred/checked-subset status. Guarded conversions and local-identity bounds prove positive cases, reject known failures and invalidate only reassigned locals; unavailable proofs and unguarded Nat subtraction remain deferred through nested conditions and loops. Mixed Rat/integer joins retain explicit obligations; nested child obligations are not erased by known result types. `functional/cases/expression_contracts` checks exact results, loops, interpolation and short-circuit traps through source and bytecode; public CLI fixtures check positioned failures and the unchanged execution gate. **Covered** identity-based record/variant construction, nested arrays and branch evidence, nominal field lookup, payload types/immutability, exhaustive/duplicate variant identities, argument-only generic inference, rigid caller parameters and explicit type arguments. Shared expression holes retain contextual constraints across calls and statements; conflicting/recursive evidence rejects, inferred locals cannot borrow later evidence, and unresolved retained children remain deferred. **Covered** core and indirect-call contract matrix for arity, arguments, results, callback inputs/results/effects, reserved identities, and namespace/value resolution; async indirect calls remain explicitly deferred. `functional/cases/aggregate_inference` checks legacy source/saved-bytecode behavior, while namespace CLI fixtures preserve positioned errors and absent artifacts. **Covered** staged 6d proof/effect checks for guarded conversions and arithmetic, reassignment invalidation, pure helper identities and async qualified calls/await; source and saved-bytecode entry runs assert distinct values from same-spelled imports. The compiler leaf namespace fixture also checks imported byte-codec body identity, all ten `Path` core-call output contracts (including nominal `PathError` results) and exact Path type/arity diagnostics, plus exact invalid arity/type diagnostics for byte construction, both argument positions for append/concat/index access, length access, UTF-8 conversion and quotient contracts. It selectively imports the documented byte, option/result, environment, testing and time APIs, verifying byte/text round trip, generic results, a controlled host environment read, exact assertion reports, duration arithmetic and checked division errors through source and saved-v9 execution. **Covered for staged CLI source loading (6e)**: multi-file execution invokes only the entry module main; `..` imports and symlink traversal are rejected, and failed compilation leaves no bytecode. **Covered for staged saved-bytecode loading (6f)**: a two-module artifact with same-named callable declarations is compiled, all source files are removed, then the artifact validates and runs with exact output and only the selected entry main. The existing bytecode v9 format is sufficient; the checked-in bootstrap seed still preserves the migration gate. **Covered for staged core/bootstrap loading (6g)**: a root-level staged entry and compiler submodule share the automatically loaded core `Option`; source and saved-v9 execution select only the entry. Parent-root and symlink imports reject without writing an artifact, and the temporary source root cleans up empty. **Accepted in merged PR#358**: source-map/explain/locate replay, coordinated cutover, seed fixed points, native/browser/installed acceptance, and the maintained 59-root identity audit. Whole-body constraint errors use the enclosing function span; some type/pattern use locations may fall back to declaration/match spans. |
+| Namespace example set (RM#149) | `examples/namespaces/trip_planner/main.panack`; `examples/namespaces/twin_sensors/main.panack`; `examples/namespaces/public_api/main.panack`; `runner/main.panack`; `unit/harness/distribution.sh` | Three self-contained example directories pass exact-output source, compile, and saved-bytecode checks. They demonstrate a multi-file trip planner with aliases, selected imports, records and entry-only `main`; two modules with distinct same-named qualified record types; and a consumer of a public re-export facade with a private implementation helper. The relocated release archive also contains every support module and executes the trip planner with exact output. |
+| Staged namespace identity emission and root confinement | `runner/compiler_module_bindings_unit.panack`; `runner/compiler_loader_confinement_unit.panack`; `runner/compiler_driver.panack` | **Covered for the checked subset**: same-spelled imported functions, nested generic records, enums and nested payloads lower to distinct v9 identities; same-spelled guarded-type predicates resolve to their originating helpers; imported callable values with the same name are passed as `PureFn` and invoked indirectly, returning distinct expected results in source and saved-bytecode runs. The aggregate/pattern fixture constructs same-named `Item`, `Envelope` and `Outcome` declarations, reads nested fields, and matches same-named variants; exact values are asserted for source and saved-bytecode execution. Their bodies also exercise local bindings, mutable assignments, arithmetic, array iteration, branches and returned values. **6d proof/effect emission is covered for this staged subset**: inline guard proofs enable conversions/arithmetic, imported predicate identities remain distinct, reassignment invalidates proof facts, and async imported functions preserve qualified targets and async/await behavior through source and saved-v9 execution. The internal Unit expression now binds as a checked value so async `main` can be emitted. **6f standalone saved-bytecode loading is covered**: the staged compiler emits a two-module artifact, the test deletes entry and imported sources, and the artifact still validates and executes with distinct imported identities and only the entry module main. The existing v9 format suffices. Deferred and invalid checked bodies are rejected by emission. Stage-2 source CLI tests reject `..` escapes and symlink traversal and ensure a rejected compile writes no artifact. Stage-2 compiler source builds use an explicit isolated bootstrap root; `tests/namespace_seed.sh` now checks the refreshed stage-1 seed against explicit `project/` imports, exact source output, and saved-v9 execution after source removal. **Covered for 6g core/bootstrap staging and integrated slice-6 acceptance**: the root-level entry uses the explicit bootstrap root to load compiler submodules and shares the implicit core `Option` identity across modules. `compiler_driver.panack` now exercises callable and ordinary-body emission, same-spelled generic aggregates and patterns, guard proofs, async calls/await, source checking and execution, compilation, source deletion, then saved-bytecode checking and execution in that same staged program. Assertions check exact values and fail if an imported module `main` runs. Existing staged `..` and symlink rejection cases still assert no artifact publication; temporary inputs and outputs are removed. **Accepted in merged PR#358**: source-map/explain/locate replay, coordinated cutover, seed fixed points, native/browser/installed acceptance and the maintained 59-root identity audit. |
 | Cycle detection | `fixtures/compiler_contracts/imports`; `functional/failures/import_cycle` | **Covered** for a two-module cycle through internal and public CLI paths. |
 | Import validation, load-once behavior, and duplicate declarations | compiler import tests; self-hosted driver tests; `functional/failures/missing_import`, `invalid_import_suffix`, `invalid_logical_import`, and `invalid_logical_segment` | **Partial** — missing files, invalid suffixes, logical traversal and segment validation, canonical logical load-once behavior, and cycles reach focused or public CLI paths; add duplicate imported names and absolute-path functional cases. |
 | Source executes only through bytecode and VM | Functional harness runs every program from source and compiled bytecode | **Covered** at the public CLI boundary. |
@@ -602,6 +613,15 @@ control-flow and emitted-bytecode tests remain intact. The native trap assertion
 ranges by re-parsing. Public source mapping is covered below; automatic runtime
 diagnostics remain separate.
 
+The identity-bound body checker additionally asserts exact type-token locations
+for invalid explicit type arguments, parenthesized direct calls, receiver calls,
+reserved core calls and both excess and missing type-argument counts. Direct and
+receiver under-arity cases point to the last supplied type. The source-map CLI
+matrix exercises exact imported-expression ranges, lowered ranges, qualified
+selection, ambiguous and wrong-module rejection, forged/malformed maps, and
+stale entry/import/transitive source closures. `cli_explanations` repeats the
+qualified, ambiguous and wrong-identity selector cases through `explain`.
+
 The seed refresh also updates 15 existing functional failure transcripts. Their
 rejection status and diagnostic messages are unchanged; expectations now include
 newly available excerpts or point to the offending compound expression rather
@@ -640,6 +660,9 @@ and plain/mapped byte identity, execution, corrupt maps, missing pairs, comment
 changes in local/imported/transitive-unused sources and invalid UTF-8. It checks
 fresh-output requirements, direct/directory/hard-link/symlink aliases, preservation
 of source and artifact bytes, partial writes and strict argument rejection.
+It also checks staged identity emission with same-named module functions,
+qualified source locations, ambiguous bare-name rejection and wrong-module
+rejection using the freshly built stage-2 compiler.
 Both suites run under `make unit` and `make check-compiler`, preserving all earlier
 span/emitter/control-flow tests. Native-PC and coherent binary-forgery checks use
 the separate observer suite above. Hostile concurrent output-directory mutation,
@@ -743,3 +766,129 @@ real-toolchain observations and their limitations are recorded in
 
 The [website repository](https://github.com/sproates/panackelty-website) owns capabilities-page layout, navigation and
 published-release source/bytecode example acceptance.
+
+## SC2 source inventory acceptance
+
+`runner/compiler_source_inventory_unit.panack` supplies literal syntax-inventory
+oracles for functions, statements, expressions and source decision outcomes.
+`runner/compiler_source_inventory_cli.panack` checks the public producer/validator,
+explicit unloaded roots, source and compiler identity, corruption/truncation,
+output protection and bytecode equivalence. Both are part of `make check` and
+`make check-compiler`. This establishes the denominator contract, not runtime hits
+or a measured `.panack` coverage percentage. See
+[the inventory contract](../docs/SOURCE_INVENTORY.md).
+
+## SC3 runtime collection acceptance
+
+`runner/compiler_coverage_unit.panack` validates literal raw records, stale
+identities, truncation, flags, terminal status and counter relationships.
+`runner/compiler_coverage_cli.panack` checks production commands against literal
+source counts for branches, loop exits, match arms, line anchors, unused/empty
+functions, recursion, generics, lowering and trapping calls, plus semantic
+equivalence and exclusive output. Both run in compiler and full validation.
+Native `coverage.c` contracts exercise suspension, typed reads, sticky terminal
+states, zero budgets, overflow, bounds and equal-destination branch outcomes.
+Allocation fault sweeps include collector creation and covered execution.
+See [the runtime contract](../docs/SOURCE_COVERAGE.md). Complete child collection
+and suite percentages remain SC4–SC5.
+
+### SC4 registered execution aggregation
+
+The registered coverage-session CLI checks are split across four probes:
+`runner/compiler_coverage_session_cli.panack`,
+`runner/compiler_coverage_session_records_cli.panack`,
+`runner/compiler_coverage_session_integrity_cli.panack` and
+`runner/compiler_coverage_session_process_cli.panack`. Together they check exact
+multi-session branch and function totals, nested bytecode and native
+subprocesses, fresh execution of reused bytecode, exclusive admission, missing
+and wholly deleted children, truncated/surplus/mixed/stale records, duplicate
+sessions, killed claimed collectors, traps, unregistered code and the
+cached-transcript guard. They use isolated workspaces so the independent
+scenarios run through the bounded probe worker pool.
+`runner/compiler_coverage_unit.panack` also checks canonical execution IDs,
+aggregate overflow and indexed expression entry/completion rules.
+
+Native `coverage_session.c` contracts check task completion/cancellation,
+subprocess claim exclusivity and isolated server-handler counters under slot
+reuse. The allocation-failure corpus sweeps registry creation, nested collection
+and inherited process tickets. `make source-coverage-session-smoke` is the larger
+opt-in real-compiler acceptance fixture: it registers and runs the compiler in a
+nested VM and asserts exactly one compiler entry plus an unused command at zero.
+
+See [the session contract](../docs/SOURCE_COVERAGE.md). Complete execution data is
+not a claim that every source association is available, or that a test suite has
+been measured. SC5 still owns baseline scope and publication.
+
+
+## Else-if delivery evidence — 2026-10-06
+
+The chain feature adds 31 focused assertions: nine parser, one lexer, three
+source-span, eleven type/effect/guard, five staged-namespace and two inventory
+contracts. Current suite totals are 202 parser, 13 lexer, 36 spans, 250 compiler
+contracts, 470 namespace and 24 inventory assertions. Exact CLI fixtures reject
+non-Bool conditions, incompatible arm results, missing bodies and partial-chain
+value use, with positioned transcripts and no generated artifact. The negative
+runner has 59 fixtures and 207 assertions; full functional execution has 364.
+Source and saved-bytecode cases verify repeated exhaustive/partial chains,
+ordered/skipped conditions and bodies, mixed discarded tail types, nested chains,
+async arms and balanced continuation after no match. Namespace execution stays
+gated; its direct body-checker assertions do not claim executable namespaces.
+
+Compiler and stdlib fresh fixed points pass. Canonical `make check` passes in
+322 seconds, including a 247-second unit phase; the unchanged 120-second full
+and 15-second unit targets remain exceeded. These local timings overlapped source
+collection and are not a controlled before/after comparison. Seven unchanged
+example compilations in seven alternating-order rounds reproduce identical
+bytes across all 49 pairs, with median batch times 0.766 seconds before and
+0.776 after (+1.3%) and broad overlapping ranges. This bounded shared-host sample
+does not establish universal performance acceptance. Seed size changes from
+505,229 to 506,859 bytes (+0.32%); bytecode v9 and the stdlib artifact are unchanged.
+
+The complete local source collection validates all 31 manifest contexts, all
+38 eligible files, zero unavailable items and the compiler fixed point. Proposed
+compiler floors change as follows; all three covered ratios increase:
+
+| Metric | Previous floor | Proposed measured floor |
+| --- | --- | --- |
+| Executable start lines | 8,332 / 10,038 (83.00%) | 8,367 / 10,068 (83.10%) |
+| Functions | 403 / 435 (92.64%) | 405 / 437 (92.68%) |
+| Source outcomes | 5,511 / 6,915 (79.70%) | 5,533 / 6,931 (79.83%) |
+
+Both new parser helpers execute. Parser outcome coverage increases 970/1,108 to
+986/1,122; lexer outcomes increase 210/213 to 212/215. Existing checker, namespace
+body checker and purity outcome coverage gains two, one and one respectively;
+all other function/outcome counts remain unchanged. The manifest, bytecode/stdlib
+floors and all 68 protected source items are preserved. The 185 existing
+exclusions remain, and the new compile-time `ParsedConditional` record adds one
+record-declaration exclusion. Parser declaration IDs and coordinates also shift.
+The proposed exclusion digest and exact floors explicitly account for these
+changes; no runtime exclusion or corpus reduction is introduced. The normal
+policy validator passes against the complete evidence. PRs targeting `next` run
+policy tests; hosted full collection follows the existing marked-next-refresh or
+main-promotion route. These measurements retain the report's bounded-corpus and
+assertion-quality limits.
+
+## Alpha.12 namespace source inventory refresh — 2026-10-11
+
+The namespace migration added three compiler modules and the tracked `numeric`
+and `text` standard-library modules after the original 38-file source baseline.
+The refreshed manifest now includes all 43 tracked production `.panack` files.
+The completed local candidate collection covers all 31 manifest contexts and
+has zero unavailable items; the source compiler remains byte-identical to the
+checked-in compiler seed. The added compiler modules account for 737 executable
+start lines, 32 functions and 479 source outcomes; all are measured, with 491
+lines, 29 functions and 279 outcomes covered. The two added standard-library
+files are fully covered.
+
+The refreshed policy records the new exact denominators and measured component
+floors. Overall percentages change because the eligible source inventory and
+namespace-era source bodies have expanded; bytecode floors remain unchanged.
+No context or eligible source was removed, and the bounded-corpus and
+assertion-quality limitations above still apply.
+
+| Component | Executable start lines | Functions | Source outcomes |
+| --- | ---: | ---: | ---: |
+| Compiler | 9,959 / 12,365 (80.54%) | 495 / 537 (92.18%) | 6,763 / 8,797 (76.88%) |
+| Bytecode | 587 / 601 (97.67%) | 60 / 60 (100%) | 517 / 588 (87.93%) |
+| Standard library | 108 / 221 (48.87%) | 57 / 85 (67.06%) | 35 / 86 (40.70%) |
+| Total | 10,654 / 13,187 (80.79%) | 612 / 682 (89.74%) | 7,315 / 9,471 (77.24%) |

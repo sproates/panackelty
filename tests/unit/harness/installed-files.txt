@@ -12,6 +12,7 @@ share/panackelty/stdlib/core.panack
 share/panackelty/stdlib/environment.panack
 share/panackelty/stdlib/filesystem.panack
 share/panackelty/stdlib/host.panack
+share/panackelty/stdlib/numeric.panack
 share/panackelty/stdlib/option.panack
 share/panackelty/stdlib/path.panack
 share/panackelty/stdlib/prelude.panack
@@ -21,4 +22,5 @@ share/panackelty/stdlib/tcp.panack
 share/panackelty/stdlib/testing.panack
 share/panackelty/stdlib/testing_commands.panack
 share/panackelty/stdlib/testing_files.panack
+share/panackelty/stdlib/text.panack
 share/panackelty/stdlib/time.panack

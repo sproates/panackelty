@@ -192,13 +192,17 @@ section. When measurements are unavailable or incomparable, state the limitation
 and the review decision; absence of measurement is not evidence of no regression.
 Correctness, exact semantics, safety and required coverage remain unchanged.
 
-Apply established budgets only to their defined workloads and environments.
-The existing native targets are a clean `make check` within 120 seconds on the
-reference host and a focused incremental check within 15 seconds with the native
-toolchain already built. An aggregate unit phase is not that focused workload.
-Runtime/resource thresholds require representative baselines, repetitions and
-noise calibration first; do not invent a universal percentage threshold or reset
-a baseline to conceal a regression.
+The former native timing figures—a 120-second clean `make check`, 15-second
+focused incremental check, 75-second functional phase and 60-second bootstrap
+comparison—are historical
+observations, not active acceptance budgets. On 2026-10-12 the owner directed
+GI#106 to reevaluate the build and validation requirements. Record workload,
+environment, repetitions and variability; offer replacement NFRs for the user's
+decision rather than setting numerical completion criteria within the task.
+GI#106 remains open until the user explicitly says they are happy with the
+result. Runtime/resource thresholds likewise require representative baselines,
+repetitions and noise calibration; do not invent universal percentage thresholds
+or reset a baseline to conceal a regression.
 
 A known budget breach or material deterioration requires a reviewable proposed
 disposition before requesting merge approval. Materiality follows the applicable contract,

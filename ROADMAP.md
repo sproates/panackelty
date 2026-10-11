@@ -93,17 +93,22 @@ implementation selection or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
-| Developer build and validation feedback — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). The controlled alpha.12 baseline missed the existing 120s clean/full and 15s warm/focused budgets (134.42s and 26.46s medians); later P3 full checks have taken substantially longer, so refresh the baseline on the alpha.13 starting revision. | Alpha.13 cannot release until matched, repeatable measurements meet both existing budgets: clean `make check` median ≤120s and warm focused `make check-compiler` median ≤15s. Use at least three runs per baseline/candidate on the same host and configuration. Retain all tests and coverage; incremental build/probe reuse may skip unrelated rebuild work, never test execution or cached test outcomes. A profiling-only investigation or an over-budget disposition does not satisfy this gate. |
+| Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
 language/local-package checkpoint before HTTP, and client-before-server sequencing.
 Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
 scope does not complete reproducible dependencies or the whole GI#233 programme.
 
-Owner decision, 2026-10-12: reducing contributor build and validation waiting is
-required alpha.13 work, not optional follow-up. Keep the full clean check as a
-release gate while making the common focused feedback loop fast; do not meet the
-time budgets by dropping tests or weakening coverage.
+For GI#106, inspect which builds and tests run during local red/green work,
+focused and full checks, pull requests, post-merge pushes and releases; what each
+protects; how changes cross compiler, standard-library, bytecode, VM/runtime,
+package and CI boundaries; and how much elapsed time is execution, queueing or
+other waiting. Use the evidence to offer replacement NFRs, test selection and
+cadence, and possible build improvements for the user's decision. Do not set
+numeric targets or a test-frequency policy in advance. Preserve regression-risk
+coverage and execute selected tests; never reuse test outcomes as cache entries.
+GI#106 is complete only when the user says they are happy with the result.
 
 GI#180's owner-requested pause remains in effect: scheduling this release does
 not restart explanation implementation. Concrete U3/U4 slice contracts need
@@ -236,7 +241,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Controlled macOS arm64 baseline: clean full 133.98/134.42/136.10s against 120s; warm focused compiler 27.77/26.40/26.46s against 15s. Both targets remain missed. The ordinary-expression delivery passed in 146s. The aggregate slice passes clean canonical validation in 152s (unit 105s), still above the unchanged targets, and grows the seed 6.91%; its fresh fixed points pass. Paired self-compilation is consistently slower, with a +3.96% wall median (possible roughly 4% regression); tiny compilation is +3.77%. Slice 5 passes canonical `make check` in 119s, 121s, 126s and 191s (unit 76–146s, functional 3–4s, bootstrap 17–19s) and `make check-compiler` in 51–52s; both targets remain exceeded. Slice 6's canonical check passed in 123s, then its generic identity execution-coverage follow-up passed in 195s (functional 4s, bootstrap 20s); the latter changed tests/docs only and does not establish causal attribution. The nested-payload follow-up passed in 200.88s. The 6a indirect-call fixture follow-up passed in 202s (functional 5s, bootstrap 19s) while rebuilding native test artifacts; it changed fixtures and docs, not compiler/VM code, and the single run does not establish causal cost. The clean host-access matched validation for 6b took 202.23s at base `d5dd68a` and 204.08s on the candidate (functional 4s/5s); the 1.85s difference is one pair and does not establish causation. Candidate `make check-compiler` took 84.89s against the 15s target. The integrated slice-6 coverage delivery passed canonical `make check` in 198s (functional 5s, bootstrap 18s) against the unchanged 120s target; the focused compiler-driver probe passed 37 assertions. This changes tests and documents only. The single run, within the existing noisy 195–204s slice-6 observations, does not establish a timing effect or cause. The exact pre-slice-5/base and slice-5/head comparison passed at 193s/193s full and 51s/52s focused; one pair cannot establish attribution or cost neutrality. [Slice 6 evidence and proposed dispositions](tests/VALIDATION_PROFILE.md#namespace-identity-emission-and-loading--2026-10-08). [Slice 5 evidence, comparison and reuse assessment](tests/VALIDATION_PROFILE.md#namespace-checked-graph-effects-and-await--2026-10-07). [Prior delivery profile](tests/VALIDATION_PROFILE.md#namespace-aggregates-patterns-and-inference--2026-10-05). [Controlled baseline](tests/VALIDATION_PROFILE.md#reproducible-build-baseline). P3 parser slice on 2026-10-11 passed canonical `make check` in 372s; PR#374's manifest-root integration passed in 379s (unit 204s, functional 12s, bootstrap 133s, release smoke 4s, quick start 1s). The exported-library-check slice passed canonical `make check` in 387s, then passed again in 297s after CI-path fixes (functional 12s, bootstrap 133s). Both runs reused build outputs and are unmatched; the 387s/297s/379s observations do not establish a cost change. P3 relocated-package acceptance is a test-only slice: canonical `make check` passed on 2026-10-12 in 424s (unit 238s, bootstrap 142s, functional 13s, release smoke 4s, quick start <1s); the direct fixture took 0.6s. Compared with the preceding 403s reused-build run, this single unmatched sample cannot attribute a timing change; no compiler/runtime code changed. See the [P3 acceptance profile](tests/VALIDATION_PROFILE.md#p3-relocated-shared-package-acceptance--2026-10-12) and [prior P3 profiles](tests/VALIDATION_PROFILE.md#p3-exported-library-checking--2026-10-11). | Open performance concern; keep the 120s/15s/60s targets and all coverage. PR #363 delivered the measured declaration-index and validation-runner improvements; the owner accepted the remaining validation-time limitation for alpha.12. The parser-only slice retained the accepted alpha.12 trade-off because it did not enter normal loading. For GI#106, the next action is a matched clean base/candidate profile that separates bootstrap cost; review that evidence before P4 standard-library namespace acceptance. Alpha.13's mandatory build-time gate remains in RM#144. GI#106 owns this follow-up and retains the 120s/15s/60s targets. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Historical evidence includes the controlled macOS arm64 baseline (clean median 134.42s; warm focused compiler median 26.46s against the then-used 120s/15s comparisons) and later noisy observations in the linked profiles. These are measurements, not current targets. | Owner direction 2026-10-12: audit the whole workflow, test selection/cadence, risk boundaries and waiting time; offer NFRs and improvements for the user's decision. The initial local/CI workflow inventory is recorded in the [validation profile](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory); next map assertions to possible regressions and component boundaries. GI#106 remains open until the user explicitly says they are happy. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -269,6 +274,15 @@ aggregate unit phase is not the focused 15s workload. Compared with the prior
 that the added fixture caused a regression. The compiler/runtime source is
 unchanged, and no application runtime benchmark was run. See the
 [P3 graph safety test profile](tests/VALIDATION_PROFILE.md#p3-nested-graph-safety-tests--2026-10-11).
+
+**Owner direction, 2026-10-12:** the former 120s clean-check, 15s focused-check,
+75s functional and 60s bootstrap figures are historical comparisons, not current
+acceptance gates. Reassess the full developer build/test workflow, what runs and when, how
+tests map to possible regressions across component boundaries, and how much time
+is active execution versus queueing or other waiting. Offer replacement NFRs and
+improvements for the user's decision. The only acceptance criterion for GI#106
+is that the user says they are happy with the result; the issue remains open
+until then.
 
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.
@@ -2459,10 +2473,11 @@ requires separate evidence and scope; this investigation does not promise 120s.
 
 The bounded overlap candidate passed in 346s (unit 224s), saving 16s / 4.4%
 against merged async in one clean sample, with all 1,390 PASS observations
-retained. The 120s full-check and 15s unit targets remain unmet; bootstrap also
-warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
+retained. At the time, the 120s full-check and 15s unit comparisons were unmet;
+bootstrap also warned at 61s against 60s. PR #105 merged at `dd7306b` with explicit approval on
 2026-09-30 (Europe/Gibraltar), after all 21 hosted Check jobs passed; issue #104
-is closed. The timing budgets remain open goals, not completed by this merge.
+is closed. The timing figures remain in the historical record; current NFR status
+is governed by the 2026-10-12 owner direction under GI#106 below.
 
 ### Incremental and modular builds
 
@@ -2488,13 +2503,25 @@ exact isolated candidate archive, environment/seed/VM identities and repeated
 clean/full, unchanged warm/focused and unrelated/direct/transitive edit observations.
 All 18 observations pass, with correct outputs and explicit compile/execution counts;
 the [measured evidence and reviewed disposition](tests/VALIDATION_PROFILE.md#reproducible-build-baseline)
-retain full/focused budget misses. No post-merge acceptance is needed for this
+retain observations against the then-used full/focused comparisons. No post-merge acceptance is needed for this
 measurement slice; the broader GI#106 remains open. Website impact: none, because
 this changes contributor measurement tooling, not public language/release claims.
 Dependency-aware probe reuse and separate-compilation design remain unscheduled;
 establishing the baseline authorises neither optimisation nor a compiler redesign.
 Completing the earlier slice does not close the broader issue. The existing broad
 invalidation concern follows.
+
+**Owner-directed scope and acceptance refresh (2026-10-12):** first inspect the
+complete local-to-CI workflow, its run frequency, repeated work, queue and
+review/reporting waits, test-to-behavior evidence, and the compiler/stdlib/
+bytecode/VM/runtime/package boundaries that determine what could regress. Assess
+whether test selection or cadence should change while preserving regression-risk
+coverage and running every selected test's assertions. Reevaluate the old
+120s/15s/75s/60s figures as historical data. Replacement NFRs and build/test changes
+are proposals for the user's decision, not acceptance criteria the task may set
+for itself. Only the user's explicit statement that they are happy completes
+GI#106. Dependency-aware reuse and separate compilation remain options to assess,
+not preselected solutions.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.
@@ -2520,12 +2547,14 @@ Later cache/design slices, separately selected:
    guarded types, purity/async effects, compatibility, deterministic bytecode and
    bootstrap. Recommend a bounded future prototype, or a reason not to proceed.
 
-Acceptance: reproducible before/after evidence, sound invalidation tests,
-unchanged validation coverage/budgets, canonical `make check` and relevant hosted
-gates for implementation changes, and a reviewed design with explicit open
-decisions. Stop at an evidence-backed recommendation if caching has negligible
-benefit or disproportionate cost. No linker, namespace/export syntax, package
-manager, stable module ABI or two-minute cold-check promise is included.
+Evidence to support the user's decision: a workflow and test/change-impact map,
+comparable observations for selected improvements, relevant correctness and
+safety evidence, and NFR recommendations. Numeric targets and test cadence are
+not set by this task. Any implementation still uses applicable canonical and
+hosted validation, and each selected test runs its assertions; test-result
+caching is not part of the plan. These deliverables do not replace the user's
+explicit statement that they are happy. No linker, namespace/export syntax,
+package manager or stable module ABI is preselected.
 
 Later cache/design estimate: medium, **2–3 PRs** including tests and documentation:
 one or two for dependency evidence and safe reuse (depending on whether compiler
@@ -4504,14 +4533,18 @@ prerequisite; do not mix feature changes into readability refactors.
       retain exact arithmetic, purity and runtime trap conformance throughout.
 
 Manual release initiation retains the full validation gates. Keep its metadata
-controls in the existing harness; retain timing warnings and the non-blocking
-performance backlog without weakening release tests.
-## Keep validation within development budgets — non-blocking backlog
+controls in the existing harness and its historical timing output for profile
+comparability. GI#106 reassesses the active build/validation requirements; do not
+weaken release tests as a shortcut.
+## Historical validation timing record — NFRs under GI#106 reassessment
 
 Roadmap item: [RM#28: Incremental and modular builds](#rm-28).
 
-Retain timing warnings and strong coverage. This work no longer blocks source
-coverage, test hardening or readability work; the REPL has no scheduled slot.
+The observations below preserve the timing comparisons used when they were
+recorded. Owner direction on 2026-10-12 supersedes their former 120s/15s/75s/60s
+acceptance language: these figures are historical evidence, not active NFRs or
+gates. Current assessment and completion are recorded under [RM#28 / GI#106](#rm-28);
+only the user's explicit statement that they are happy completes that work.
 
 | Measurement | Latest recorded evidence | Outstanding issue |
 | --- | --- | --- |
@@ -4533,22 +4566,10 @@ coverage, test hardening or readability work; the REPL has no scheduled slot.
 | Bounded local overlap (#104; same Linux workspace) | 346s / unit 224s; all checks passed; 16s (4.4%) faster in one sample | Full/unit budgets still exceeded; bootstrap warned at 61s / 60s |
 | Focused local VM check | Cached median 25.598s; test-edit median 32.993s | Both above the 15s focused target |
 
-- [ ] Revisit compiler/nested-runner and collection costs when the developer
-      feedback delay justifies it; use current measurements before changing code
-- [ ] Retain the local full-check warning observed during preview work (208s
-      against 120s on 2026-10-01), also observed during later documentation
-      validation (Linux workspace, clean check 153s on 2026-10-03); this remains
-      a non-blocking validation-cost item
-- [ ] Keep runner queue/completion tails distinct from actual execution time
-- [ ] Demonstrate the 120s clean and 15s focused budgets on named reference
-      environments; never remove tests, widen budgets or hide failing samples
-- [ ] Preserve per-phase timing, standalone target behavior, sanitizer evidence,
-      exact-artifact release checks and isolated bootstrap proofs
-
-The docs-only route, shared validated probes, bounded workers, CI partitioning
-and LLVM setup improvements are delivered. Earlier “budget reached” statements
-were true of their recorded snapshots, not completion of today's open targets.
-Historical observations and the detailed optimisation sequence are retained in
+Earlier “budget reached” statements describe their dated snapshots only. The
+docs-only route, shared validated probes, bounded workers, CI partitioning and
+LLVM setup improvements remain delivered work. Historical observations and the
+detailed optimisation sequence are retained in
 [the profiling report](tests/VALIDATION_PROFILE.md#archived-roadmap-performance-history--2026-09-28).
 
 ## Expand automation and host capabilities — foundation delivered; extensions unscheduled

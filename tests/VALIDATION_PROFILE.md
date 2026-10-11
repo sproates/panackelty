@@ -6,6 +6,85 @@
 
 # Validation profiling baseline
 
+<a id="gi106-workflow-inventory"></a>
+
+## GI#106 workflow inventory — 2026-10-12
+
+Owner direction: reassess the whole build and validation workflow and its NFRs.
+The former 120-second clean-check, 15-second focused-check, 75-second functional
+and 60-second bootstrap figures are historical comparisons, not active gates.
+No replacement numeric target or test-frequency policy is set here. GI#106 is
+complete only when the user explicitly says they are happy with the result.
+
+### Local paths
+
+| Path | When it runs and what it covers | Reuse and limits |
+| --- | --- | --- |
+| Focused reproduction / red-green | Run the smallest relevant harness or Panackelty probe while developing a change. `make check-compiler`, `make check-bytecode` and `make check-vm` are broader component-focused collections, each with related unit and public-CLI cases. | `tests/run_probe.sh` may reuse compiled bytecode when its input fingerprint is unchanged; it still executes the probe and assertions every time. The three `check-*` targets are not single-test commands. |
+| `make unit` | Runs harness, compiler and runtime/native/probe suites. `tests/run_suites.sh` and `tests/run_probes.sh` bound concurrency; the local default is four workers. | Compilation/build artifacts can be reused. Suite and probe results are always recomputed. |
+| `make functional` | Exercises local TCP fixtures, compiler-driver behavior, source execution and saved-bytecode execution. | This is an end-to-end layer and is distinct from unit assertions; local TCP availability is an environment prerequisite. |
+| `make bootstrap-check` | Regenerates compiler stages from the tracked seed and checks fixed points and seed freshness. | Protects the self-hosted compiler/stdlib/toolchain boundary; it is a separate, substantial phase of `make check`. |
+| `make quick-start` | Builds and verifies the package archive/checksum and fresh install, first program, upgrade and uninstall path. | Covers contributor/consumer packaging paths that compiler unit tests do not. |
+| `make docs` | Runs informational-document validation without the full code suite. | The CI classifier also has a docs-only route; code changes do not receive that route. |
+| `make check` | Serial top-level order: policy, unit, functional, bootstrap-check, quick-start. Unit internals use bounded workers. | Canonical broad local validation. A focused cached probe is not a substitute for the phases it omits. |
+
+### Hosted workflows and triggers
+
+| Workflow | Trigger and scope | Observed repetition |
+| --- | --- | --- |
+| Check | Every pull request update, and every push to `main` or `next`. `changes` chooses docs-only or full validation. Full route has ten package/suite jobs (two OS × compiler, runtime, bootstrap, source conformance, bytecode conformance), seven Ubuntu full/sanitizer/coverage jobs, and source-policy tests. Source-coverage baseline is conditional. | A PR run is cancelled when a newer run for that PR supersedes it. A merge then creates a separate push run on `main`/`next`; push runs use distinct groups and are not cancelled. |
+| Validation profile | Manual dispatch or PRs that change the profiling workflow and selected measurement scripts. Runs compiler, bytecode and VM focused checks in initial and cached states on Linux and macOS. | Not added to routine code PRs. Four latest observed runs were three profiling-related PR runs and one manual run. |
+| Release | Manual dispatch with confirmed version/commit or `v*` tag. Runs complete `make check`, then builds release packages on Linux and macOS and the browser-runtime bundle. | Infrequent release gate; latest observed manual run took 25m33s end to end. |
+| Website recovery | Manual workflow. Website and browser integration checks are owned by their separate repositories; core Check does not wait for those workflows. | Not part of every core PR or push. |
+
+The full Check route is not a single test suite run once. The per-OS package
+matrix and the additional Ubuntu compiler/runtime/bootstrap lanes serve different
+platform, isolated-command, sanitizer and coverage purposes, but their source
+and target names show structural overlap. No assertion-by-assertion overlap map
+exists yet, so this inventory does not treat the matrix as seven or ten complete
+repetitions of every test. The present route classifier distinguishes
+docs-only from code changes; it does not yet route code changes by compiler,
+stdlib, bytecode, VM/runtime or package impact.
+
+### Recent timing and failure sample
+
+The latest twelve Check runs for branch `next`, through its current head
+`ca04222`, were created on 2026-10-11 between 15:51 and 22:41 UTC. Ten selected the full route and two
+selected docs-only validation. Full-route end-to-end durations ranged from
+7m46s to 8m53s, with a median of 8m33s; the two docs-only runs took 23s and 31s.
+Three of the ten full runs failed. The observed failure details were a
+20-second native-module contract timeout in the macOS runtime lane
+([run 38181425075](https://github.com/sproates/panackelty/actions/runs/38181425075)),
+runner/CLI fixture failures in a second macOS runtime lane
+([run 38169886896](https://github.com/sproates/panackelty/actions/runs/38169886896)),
+and a CLI bytecode harness failure in a Linux compiler lane
+([run 38165872429](https://github.com/sproates/panackelty/actions/runs/38165872429)).
+These results are not classified as flakes or attributed to runner contention;
+the failed commands need the change-impact/reliability review before proposing
+any validation reduction.
+
+In successful full run [38179461414](https://github.com/sproates/panackelty/actions/runs/38179461414),
+the workflow completed in 8m47s. The `changes` job started two seconds after
+creation and took 18s. The first full matrix jobs started about 21s after
+creation on Linux and 26–28s after creation on macOS. The macOS compiler
+package lane completed at 8m35s; the final package gate completed at 8m47s.
+GitHub's run/job timestamps do not provide a separate queue-duration field, so
+this elapsed sample includes dependency gating, scheduling, setup, validation
+and aggregation; it is not a pure execution-time or queue-time measurement.
+
+| Evidence | Environment and result | Comparability |
+| --- | --- | --- |
+| Canonical `make check`, P3 relocated-package acceptance (2026-10-12) | macOS arm64, reused build tree: 424s total; unit 238s, bootstrap 142s, functional 13s, release smoke 4s, quick start under 1s. | Current `next` source, but not a cold checkout. Unit and bootstrap dominate this observation. |
+| Controlled clean/full and warm/focused profile (2026-10-04) | macOS arm64: clean median 134.42s; warm `check-compiler` median 26.46s. | Controlled and repeated, but predates the current P3 code and workflow; historical comparison only. |
+| Hosted focused profile (2026-10-10) | Cached `check-compiler`: Linux 127s, macOS 110s; cached `check-vm`: Linux 145s, macOS 114s. | Separate alpha.12 profile, not a current `next` baseline or full-check time. |
+| Release workflow (2026-10-11) | Manual run completed in 25m33s. | One release run; its full check, two package builds and browser bundle run in a different, less frequent path. |
+
+This starting inventory confirms repeated full validation at PR and post-merge
+checkpoints and exposes potential overlap inside the full CI matrix. It does not
+yet measure contributor active/wait time, local cold-check performance on this
+revision, review/reporting overhead, or test-to-regression coverage. Those are
+separate evidence needs for the change-impact map and later option review.
+
 ## P3 package manifest parser — 2026-10-11
 
 The canonical `make check` passed on the macOS arm64 development host with the
@@ -21,9 +100,10 @@ This is close to the 375s clean alpha.12 observation recorded above but is not a
 paired same-revision comparison and cannot establish causation. The parser is
 not imported by the normal compiler driver or loader; it adds only its focused
 unit probe to validation. No production compile/runtime timing effect is
-established. Retain the existing GI#106 validation-latency disposition for this
-isolated slice and review again when manifest loading enters the normal project
-path or comparable measurements materially change.
+established. The dated disposition for this isolated slice preceded manifest
+loading on the normal driver path and the owner's 2026-10-12 direction. The later
+P3 acceptance evidence and current GI#106 workflow inventory are recorded
+separately.
 
 ## P3 explicit manifest-root CLI and loading — 2026-10-11
 
@@ -44,10 +124,11 @@ The total is close to the 375s alpha.12 clean run and the earlier P3 parser
 sample of 372s, but those observations are not matched and do not establish a
 cost reduction or regression. Unlike the isolated parser slice, this delivery adds
 manifest-root loading to the normal driver/loader path; no paired self-compile,
-warm-cache or runtime comparison was made. Keep the existing budgets and all
-coverage. The owner accepted this validation-time disposition before PR#374
-merged as `1bae83f`; the checks passed, but that does not demonstrate performance
-neutrality. GI#106 retains the broader performance follow-up.
+warm-cache or runtime comparison was made. That dated decision retained the
+then-current budgets and all coverage. The owner accepted this validation-time
+disposition before PR#374 merged as `1bae83f`; the checks passed, but that does
+not demonstrate performance neutrality. The later owner direction in the GI#106
+inventory above supersedes those budgets as active NFRs.
 
 ## P3 exported library checking — 2026-10-11
 
@@ -67,9 +148,11 @@ The corrected isolated routes also passed locally: `make unit-harness`,
 `make native-sanitize CC=clang SANITIZE_SUITE=oracle`. The checks use the
 source-built stage-two compiler for the new library CLI cases. This is not a
 clean-checkout performance sample. No representative application runtime or
-compile benchmark was run. Keep the existing validation budgets; GI#106's next
-action is a matched clean base/candidate profile separating bootstrap cost,
-with results reviewed before P3 package acceptance.
+compile benchmark was run. At the time, GI#106's next action was a matched clean
+base/candidate profile before P3 package acceptance. P3 package acceptance was
+subsequently completed; see its profile below and the current GI#106 inventory
+above for the active scope and remaining evidence needs.
+
 ## Alpha.12 performance close-out — 2026-10-10
 
 The final clean canonical `make check` ran on the macOS arm64 development host

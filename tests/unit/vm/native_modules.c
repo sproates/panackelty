@@ -325,6 +325,7 @@ static void host_builtins_reject_wrong_operand_types(void)
         const char *name;
         size_t arity;
     } calls[] = {{"fs_read_beneath", 3},
+                 {"fs_directories_overlap", 2},
                  {"fs_read", 2},
                  {"fs_write", 2},
                  {"fs_metadata", 1},
@@ -498,6 +499,62 @@ static void filesystem_root_reads_stay_beneath_the_open_root(void)
     assert(unlink(escape_link) == 0 && unlink(in_root_link) == 0);
     assert(unlink(source) == 0 && unlink(outside) == 0);
     assert(rmdir(subdirectory) == 0 && rmdir(root) == 0 && rmdir(base) == 0);
+}
+
+static Value *directories_overlap(const char *left, const char *right)
+{
+    Value *arguments[] = {
+        value_data(V_PATH, (const uint8_t *)left, strlen(left)),
+        value_data(V_PATH, (const uint8_t *)right, strlen(right)),
+    };
+    assert(arguments[0] && arguments[1]);
+    VM vm = {0};
+    Value *result = builtin_call(&vm, "fs_directories_overlap", arguments);
+    assert(!vm.error);
+    release(arguments[0]);
+    release(arguments[1]);
+    return result;
+}
+
+static void filesystem_directory_overlap_uses_physical_ancestry(void)
+{
+    char base[] = "/tmp/panack-dir-overlap-XXXXXX";
+    assert(mkdtemp(base));
+    char root[512], child[512], sibling[512], alias[512], missing[512];
+    assert(snprintf(root, sizeof(root), "%s/root", base) > 0);
+    assert(snprintf(child, sizeof(child), "%s/root/source", base) > 0);
+    assert(snprintf(sibling, sizeof(sibling), "%s/sibling", base) > 0);
+    assert(snprintf(alias, sizeof(alias), "%s/root-alias", base) > 0);
+    assert(snprintf(missing, sizeof(missing), "%s/missing", base) > 0);
+    assert(mkdir(root, 0700) == 0 && mkdir(child, 0700) == 0 && mkdir(sibling, 0700) == 0);
+    assert(symlink(root, alias) == 0);
+
+    Value *overlap = directories_overlap(root, child);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(child, root);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(root, alias);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(child, sibling);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Ok"));
+    assert(overlap->as.named.values[0]->kind == V_BOOL && !overlap->as.named.values[0]->as.boolean);
+    release(overlap);
+
+    overlap = directories_overlap(root, missing);
+    assert(overlap && overlap->kind == V_VARIANT && !strcmp(overlap->as.named.name, "Error"));
+    release(overlap);
+
+    assert(unlink(alias) == 0);
+    assert(rmdir(sibling) == 0 && rmdir(child) == 0 && rmdir(root) == 0 && rmdir(base) == 0);
 }
 
 static void void_return_preserves_value_kind(void)
@@ -926,6 +983,7 @@ int main(int argc, char **argv)
     opaque_host_values_keep_distinct_kinds();
     host_builtins_reject_wrong_operand_types();
     filesystem_root_reads_stay_beneath_the_open_root();
+    filesystem_directory_overlap_uses_physical_ancestry();
     void_return_preserves_value_kind();
     frames_release_arguments_on_return_and_trap();
     nested_calls_preserve_caller_ownership();

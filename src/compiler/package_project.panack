@@ -1,6 +1,6 @@
 import stdlib/environment::{environment_value}
 pub import stdlib/package_filesystem::{FilesystemRootIdentity}
-import stdlib/package_filesystem::{FilesystemRootRead, filesystem_read_beneath}
+import stdlib/package_filesystem::{FilesystemRootRead, filesystem_directories_overlap, filesystem_read_beneath}
 import stdlib/path::{path_string_parent, path_string_resolve, path_string_join, path_value_from_text}
 pub import project/src/compiler/package_manifest::{PackageManifestExport}
 import project/src/compiler/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
@@ -28,6 +28,19 @@ pub record ManifestProject {
   version: Str,
   dependencies: [ManifestDependencyProject],
   root_identity: FilesystemRootIdentity
+}
+
+physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
+  match path_value_from_text(left) {
+    Error(error) => Error("invalid source root path"),
+    Ok(left_path) => match path_value_from_text(right) {
+      Error(error) => Error("invalid source root path"),
+      Ok(right_path) => match filesystem_directories_overlap(left_path, right_path) {
+        Error(error) => Error("cannot inspect source root directories"),
+        Ok(overlaps) => Ok(overlaps)
+      }
+    }
+  }
 }
 
 pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
@@ -164,6 +177,17 @@ manifest_project_with_dependencies(
                 mut conflict: Option[Str] = if package.root_identity == project.root_identity {
                   Some("dependency ${alias} resolves to the application package root")
                 } else { None() }
+                match conflict {
+                  Some(message) => {},
+                  None() => match physical_source_roots_overlap(project.source_root, package.source_root) {
+                    Error(message) => { conflict = Some("dependency ${alias}: ${message}") },
+                    Ok(overlaps) => {
+                      if overlaps {
+                        conflict = Some("dependency ${alias} physical source root overlaps the application source root")
+                      }
+                    }
+                  }
+                }
                 mut canonical: Option[ManifestDependencyProject] = None()
                 for previous in resolved {
                   if previous.package == package.package {
@@ -179,6 +203,16 @@ manifest_project_with_dependencies(
                     }
                   } else if previous.root_identity == package.root_identity {
                     conflict = Some("one physical package root declares conflicting package identities")
+                  } else {
+                    match physical_source_roots_overlap(previous.source_root, package.source_root) {
+                      Error(message) => { conflict = Some("dependency ${alias}: ${message}") },
+                      Ok(overlaps) => {
+                        if overlaps {
+                          previous_alias: Str = previous.alias
+                          conflict = Some("dependency ${alias} physical source root overlaps dependency ${previous_alias}")
+                        }
+                      }
+                    }
                   }
                 }
                 match conflict {

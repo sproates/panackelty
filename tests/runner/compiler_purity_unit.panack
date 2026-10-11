@@ -1,4 +1,4 @@
-import project/src/compiler/purity::{check_source_frontend,check_loaded_source_frontend}
+import project/src/compiler/purity::{check_source_frontend,check_loaded_source_frontend,is_impure_builtin}
 import project/src/compiler/parser::{parse_program_source,parse_source}
 import project/src/compiler/resolver::{LoadedSource}
 import stdlib/filesystem::{filesystem_read_text}
@@ -52,6 +52,8 @@ main(): Void {
   results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-2", "pure function cannot call impure function read_file"))
   results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-3", "pure function cannot call impure function read_line"))
   results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-4", "pure function cannot call impure function fs_read_beneath"))
+  results = results.append(test_expect("directory ancestry query is classified as impure",
+    is_impure_builtin("fs_directories_overlap"), "physical directory inspection must remain impure"))
   results = results.append(purity_unit_compare("async direct and indirect", check_source_frontend("async child(): Nat { 42 } async main(): Unit { f: AsyncFn[Nat] = @child; n = await f.call(); m = await child(); () }"), "ok"))
   results = results.append(purity_unit_compare("async pure helper", check_source_frontend("pure child(): Nat { 42 } async main(): Unit { n = child(); () }"), "ok"))
   results = results.append(purity_unit_compare("async generic helper", check_source_frontend("async identity[T](n: T): T { n } async main(): Unit { n = await identity(42); () }"), "ok"))

@@ -384,6 +384,88 @@ rooted_read_done:
     return result;
 }
 
+/* Walk parent descriptors rather than comparing path spellings: symlinked
+ * paths and multiple names for one directory still describe the same tree. */
+static int hc_directory_contains(int ancestor, int descendant, bool *contains)
+{
+    struct stat ancestor_info;
+    if (fstat(ancestor, &ancestor_info)) {
+        return errno;
+    }
+    int current = dup(descendant);
+    if (current < 0) {
+        return errno;
+    }
+    for (size_t depth = 0; depth <= HC_ROOTED_DEPTH_MAX; depth++) {
+        struct stat current_info;
+        if (fstat(current, &current_info)) {
+            int e = errno;
+            close(current);
+            return e;
+        }
+        if (current_info.st_dev == ancestor_info.st_dev &&
+            current_info.st_ino == ancestor_info.st_ino) {
+            close(current);
+            *contains = true;
+            return 0;
+        }
+        int parent = openat(current, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (parent < 0) {
+            int e = errno;
+            close(current);
+            return e;
+        }
+        struct stat parent_info;
+        if (fstat(parent, &parent_info)) {
+            int e = errno;
+            close(parent);
+            close(current);
+            return e;
+        }
+        if (current_info.st_dev == parent_info.st_dev &&
+            current_info.st_ino == parent_info.st_ino) {
+            close(parent);
+            close(current);
+            *contains = false;
+            return 0;
+        }
+        close(current);
+        current = parent;
+    }
+    close(current);
+    return EOVERFLOW;
+}
+
+static Value *hc_directories_overlap(VM *vm, Value **a)
+{
+    REQUIRE(hc_string(a[0], V_PATH) && hc_string(a[1], V_PATH),
+            "VM trap: directory overlap requires Path, Path");
+    int left = open((char *)a[0]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (left < 0) {
+        return hc_error("fs_directories_overlap", NULL, errno);
+    }
+    int right = open((char *)a[1]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (right < 0) {
+        int e = errno;
+        close(left);
+        return hc_error("fs_directories_overlap", NULL, e);
+    }
+    bool overlaps = false, contains = false;
+    int e = hc_directory_contains(left, right, &contains);
+    overlaps = contains;
+    if (!e && !overlaps) {
+        e = hc_directory_contains(right, left, &contains);
+        overlaps = contains;
+    }
+    close(right);
+    close(left);
+    if (e == EOVERFLOW) {
+        return hc_error("fs_directories_overlap", "out_of_range", 0);
+    }
+    return e ? hc_error("fs_directories_overlap", NULL, e)
+             : host_variant("Ok", value_bool(overlaps));
+}
+
 static int hc_path_compare(const void *left, const void *right)
 {
     Value *a = *(Value *const *)left, *b = *(Value *const *)right;
@@ -730,6 +812,9 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
 {
     if (!strcmp(name, "fs_read_beneath")) {
         return hc_read_beneath(vm, a);
+    }
+    if (!strcmp(name, "fs_directories_overlap")) {
+        return hc_directories_overlap(vm, a);
     }
     if (!strcmp(name, "process_run")) {
         return hc_process(vm, a);

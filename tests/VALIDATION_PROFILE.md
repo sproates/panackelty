@@ -4867,3 +4867,30 @@ performance change is expected; keep the established budgets unchanged. This
 run reused the local build tree and is not a clean-checkout comparison. Website
 impact: none; the user-facing package scope remains unreleased. Nested dependency
 graphs and broader physical source-root overlap remain open P3 acceptance.
+
+## P3 physical source-root overlap rejection — 2026-10-11
+
+The source loader now checks physical directory ancestry for the application
+source root and every direct dependency, and between distinct direct dependency
+roots. The check opens directory descriptors and follows parent descriptors, so
+it detects nested paths and symlink aliases without relying on path-string
+prefixes. Overlap inspection errors fail closed. Native contracts cover both
+ancestry directions, physical aliases, disjoint siblings, missing directories,
+and invalid operand types. Functional package manifests prove rejection when a
+dependency source root sits below the application root and when two distinct
+dependencies share a nested physical source subtree. The compiler purity unit
+also asserts that this filesystem query remains impure.
+
+On the macOS arm64 development host, `make check-vm` passed in 124s, including
+the native module/oracle contracts and focused CLI cases. `make unit-compiler`
+passed. The final canonical `make check` passed all 364 functional cases and the
+full bootstrap, seed-refresh, release-smoke, and quick-start gates in 397s on the
+reused build tree. Unit took 218s, functional 12s, bootstrap 137s, release smoke
+4s, and quick start 1s. An earlier pass on the same tree took 318s, including
+139s for unit; this wide variation is not a matched comparison and does not
+establish a cost change. The existing 120s full-check, 15s unit, and 60s
+bootstrap budgets remain unchanged and were exceeded; the functional phase
+remained below its 75s budget. The refreshed seed reached compiler stage-2/3/4
+identity and the seed-refresh gate reported already at the verified fixed point.
+Website impact: none; package support remains unreleased. Nested dependency
+graphs and full package-loader acceptance remain open P3 work.

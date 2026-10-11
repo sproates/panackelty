@@ -4,6 +4,10 @@ pub import stdlib/host::{HostError}
 pub record FilesystemRootIdentity { device: Nat, inode: Nat }
 pub record FilesystemRootRead { identity: FilesystemRootIdentity, contents: Bytes }
 
+pub filesystem_directories_overlap(left: Path, right: Path): Result[Bool, HostError] {
+  fs_directories_overlap(left, right)
+}
+
 pub filesystem_read_beneath(
   root: Path,
   relative: Path,

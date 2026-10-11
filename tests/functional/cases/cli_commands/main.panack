@@ -305,6 +305,67 @@ main(): Void {
             "duplicate physical package identities were accepted"))
         }
       }
+      overlap_package_root = child(package_source_root, "embedded-library")
+      overlap_source_root = child(overlap_package_root, "src")
+      overlap_manifest = child(overlap_package_root, "panack.json")
+      filesystem_create_directory(overlap_package_root)
+      filesystem_create_directory(overlap_source_root)
+      overlap_manifest_contents = "{\"schema\":1,\"package\":\"example.embedded\",\"version\":\"1.0.0\",\"language\":\"modules-v1\",\"toolchain\":\"${toolchain_version}\",\"source\":\"src\",\"exports\":{\"api\":\"api.panack\"},\"dependencies\":{}}"
+      filesystem_write_bytes(overlap_manifest, text_encode_utf8(overlap_manifest_contents))
+      app_root_overlap_manifest = replace_first(dependency_manifest_text,
+        "\"geometry\":{\"path\":\"../library\"}",
+        "\"geometry\":{\"path\":\"src/embedded-library\"}")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(app_root_overlap_manifest))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("package source roots cannot overlap the app root", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("package source roots cannot overlap the app root",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "physical source root overlaps the application source root"),
+            "a dependency source root nested in the application source root was accepted"))
+        }
+      }
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      filesystem_remove_file(overlap_manifest)
+      filesystem_remove_directory(overlap_source_root)
+      filesystem_remove_directory(overlap_package_root)
+
+      overlap_package_root_two = child(library_source_root, "nested-library")
+      overlap_source_root_two = child(overlap_package_root_two, "src")
+      overlap_manifest_two = child(overlap_package_root_two, "panack.json")
+      filesystem_create_directory(overlap_package_root_two)
+      filesystem_create_directory(overlap_source_root_two)
+      filesystem_write_bytes(overlap_manifest_two, text_encode_utf8(
+        replace_first(overlap_manifest_contents, "example.embedded", "example.nested")))
+      dependency_overlap_manifest = replace_first(dependency_manifest_text,
+        "\"geometry\":{\"path\":\"../library\"}",
+        "\"geometry\":{\"path\":\"../library\"},\"nested\":{\"path\":\"../library/src/nested-library\"}")
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_overlap_manifest))
+      match testing_process_run(path("./panack-vm"),
+          source_compiler_arguments(["check", "--project", package_manifest_text]),
+          bytes_empty(), path_value_current(), ["PANACKELTY_VERSION=${toolchain_version}"],
+          duration_seconds(10), 1048576) {
+        Error(error) => {
+          results = results.append(test_expect("dependency source roots cannot overlap each other", false,
+            "compiler process failed"))
+        },
+        Ok(output) => {
+          results = results.append(test_expect("dependency source roots cannot overlap each other",
+            output.exit_code == 1 && output.signal == 0 &&
+              contains(text_decode_utf8(output.stderr), "physical source root overlaps dependency geometry"),
+            "two dependencies sharing a physical source subtree were accepted"))
+        }
+      }
+      filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
+      filesystem_remove_file(overlap_manifest_two)
+      filesystem_remove_directory(overlap_source_root_two)
+      filesystem_remove_directory(overlap_package_root_two)
       filesystem_write_bytes(package_manifest, text_encode_utf8(dependency_manifest_text))
       missing_dependency_manifest = replace_first(dependency_manifest_text, "../library", "../missing")
       filesystem_write_bytes(package_manifest, text_encode_utf8(missing_dependency_manifest))

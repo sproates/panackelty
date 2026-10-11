@@ -16,6 +16,9 @@ pure capture_command(script: Str): TestCommand {
 pure capture_passed(result: TestResult): Bool {
   match result.outcome { TestPassed() => true, TestFailed(reason) => false }
 }
+pure capture_failure_reason(result: TestResult): Str {
+  match result.outcome { TestPassed() => "", TestFailed(reason) => reason }
+}
 capture_missing(file: Path): Bool {
   match filesystem_metadata(file) { Error(error) => error.code == "not_found", Ok(value) => false }
 }
@@ -29,8 +32,19 @@ main(): Void {
       for script in ["printf 'wrong\\n'", "printf 'good\\n'; exit 7",
           "printf 'good\\n'; printf error >&2", "kill -TERM $$"] {
         result = capture_test_report("runner", capture_command(script), expected, Some(file))
+        reason: Str = capture_failure_reason(result)
         results = results.append(test_expect("capture rejects ${script}",
           !capture_passed(result) && capture_missing(file), "failed observation was published"))
+        if script == "printf 'wrong\\n'" {
+          results = results.append(test_expect("capture explains stdout mismatch",
+            reason.starts_with_at("stdout differed; actual stdout: wrong", 0),
+            "unexpected failure detail: ${reason}"))
+        }
+        if script == "printf 'good\\n'; exit 7" {
+          results = results.append(test_expect("capture explains nonzero report command",
+            reason.starts_with_at("expected exit 0, got 7; actual stdout: good", 0),
+            "unexpected failure detail: ${reason}"))
+        }
       }
       missing = TestCommand(capture_path("/not-a-test-executable"), [], bytes_empty(),
         path_value_current(), [], duration_seconds(5), 4096)

@@ -1126,7 +1126,7 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "instant_add" || name == "instant_difference" || name == "instant_before" ||
       name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
       name == "process_run" || name == "host_sleep" || name == "host_decode_utf8" ||
-      name == "fs_metadata" || name == "fs_read_beneath" || name == "fs_read" || name == "fs_write" ||
+      name == "fs_metadata" || name == "fs_read_beneath" || name == "fs_directories_overlap" || name == "fs_read" || name == "fs_write" ||
       name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
       name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
       name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" ||
@@ -1729,9 +1729,14 @@ pure body_check_host_filesystem_core_call(
             inputs = [duration]
             result = body_intrinsic_result(unit, host_error)
           } else {
-            if name == "host_decode_utf8" {
-              inputs = [bytes]
-              result = body_intrinsic_result(body_intrinsic_type(context, "Str"), host_error)
+            if name == "fs_directories_overlap" || name == "host_decode_utf8" {
+              if name == "fs_directories_overlap" {
+                inputs = [path, path]
+                result = body_intrinsic_result(body_intrinsic_type(context, "Bool"), host_error)
+              } else {
+                inputs = [bytes]
+                result = body_intrinsic_result(body_intrinsic_type(context, "Str"), host_error)
+              }
             } else {
               if name == "fs_metadata" {
                 inputs = [path]
@@ -1826,7 +1831,7 @@ pure body_check_special_core_call(
   } else {
   if name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
     name == "process_run" || name == "host_sleep" || name == "host_decode_utf8" ||
-    name == "fs_metadata" || name == "fs_read_beneath" || name == "fs_read" || name == "fs_write" ||
+    name == "fs_metadata" || name == "fs_read_beneath" || name == "fs_directories_overlap" || name == "fs_read" || name == "fs_write" ||
     name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
     name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
     name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" {

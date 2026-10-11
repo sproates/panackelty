@@ -21,7 +21,7 @@ retain their documented flat-program behavior during migration.
 | `bytes.panack` | `bytes_empty`, `bytes_push`, `bytes_join`, `bytes_length`, `bytes_at`, `text_encode_utf8`, `text_decode_utf8` | Portable wrappers over immutable byte-buffer primitives |
 | `time.panack` | `Duration`, `Instant`, checked construction, arithmetic, ratios, monotonic clock reads | Opaque VM values, clock ABI, and portable helpers |
 | `path.panack` | `Path`, `PathError`, checked construction and lexical operations; compatibility APIs: `path_parent`, `path_join`, `path_suffix`, `path_with_suffix`, `path_is_absolute`, `path_resolve`, `file_exists` | Lexical VM primitives plus explicit host queries |
-| `package_filesystem.panack` | `FilesystemRootIdentity`, `FilesystemRootRead`, `filesystem_read_beneath` | Confined, descriptor-relative reads for compiler package loading; returns physical root identity |
+| `package_filesystem.panack` | `FilesystemRootIdentity`, `FilesystemRootRead`, `filesystem_read_beneath`, `filesystem_directories_overlap` | Confined, descriptor-relative package reads with physical root identity and directory-ancestry checks |
 | `environment.panack` | `environment(name): Option[Str]` | Portable checked wrapper over the environment ABI |
 | `prelude.panack` | Option/result helpers, bytes/text, paths, environment, time, filesystem, process | Explicit public compatibility re-exports; host, testing and TCP modules remain separate |
 

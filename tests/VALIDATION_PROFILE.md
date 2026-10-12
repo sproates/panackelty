@@ -48,8 +48,8 @@ stdlib, bytecode, VM/runtime or package impact.
 
 ### Recent timing and failure sample
 
-The latest twelve Check runs for branch `next`, through its current head
-`ca04222`, were created on 2026-10-11 between 15:51 and 22:41 UTC. Ten selected the full route and two
+The twelve-run Check sample for branch `next`, through head `ca04222` before PR
+#388 merged, was created on 2026-10-11 between 15:51 and 22:41 UTC. Ten selected the full route and two
 selected docs-only validation. Full-route end-to-end durations ranged from
 7m46s to 8m53s, with a median of 8m33s; the two docs-only runs took 23s and 31s.
 Three of the ten full runs failed. The observed failure details were a
@@ -74,18 +74,57 @@ and aggregation; it is not a pure execution-time or queue-time measurement.
 
 | Evidence | Environment and result | Comparability |
 | --- | --- | --- |
+| Controlled clean/full rerun (2026-10-12) | macOS arm64, `VALIDATION_JOBS=2`: `make check` took 602.64s, 608.81s and 613.35s (median 608.81s); all three passed. Unit phase median 426s; bootstrap median 138s. | Current product source at `e033be2`; project build outputs were removed between runs. OS page cache was uncontrolled. This is a clean build baseline, not a fresh machine or cold OS cache. |
+| Warm focused and worker comparison (2026-10-12) | `check-compiler` passed three times at two workers (128.09s, 114.44s, 113.60s; median 114.44s) and three times at four workers (110s, 105s, 105s; median 105s). | Same local host and existing artifacts. Four workers improved this focused median by about 8%; it remains a broad component target, not a single-test loop. |
+| Single probe and edit matrix (2026-10-12) | A fresh-cache lexer probe ran 13 assertions in 0.30s. The baseline edit matrix passed all 12 samples: unchanged 0.05s median (0 compiles, 1 run); unrelated 0.13s (1 compile, 1 run); direct dependency 0.12s (1 compile, 1 run); transitive dependency 0.12s (1 compile, 1 run). | The fixture is intentionally tiny; its timings do not predict suite-wide savings. The unchanged compiled artifact is reusable, but any source edit in the broad fingerprint invalidates it. |
 | Canonical `make check`, P3 relocated-package acceptance (2026-10-12) | macOS arm64, reused build tree: 424s total; unit 238s, bootstrap 142s, functional 13s, release smoke 4s, quick start under 1s. | Current `next` source, but not a cold checkout. Unit and bootstrap dominate this observation. |
 | Controlled clean/full and warm/focused profile (2026-10-04) | macOS arm64: clean median 134.42s; warm `check-compiler` median 26.46s. | Controlled and repeated, but predates the current P3 code and workflow; historical comparison only. |
 | Hosted focused profile (2026-10-10) | Cached `check-compiler`: Linux 127s, macOS 110s; cached `check-vm`: Linux 145s, macOS 114s. | Separate alpha.12 profile, not a current `next` baseline or full-check time. |
 | Release workflow (2026-10-11) | Manual run completed in 25m33s. | One release run; its full check, two package builds and browser bundle run in a different, less frequent path. |
 
-This starting inventory confirms repeated full validation at PR and post-merge
-checkpoints and exposes potential overlap inside the full CI matrix. It does not
-measure contributor active/wait time, local cold-check performance on this
-revision, repeated discovery/tool context, or review/reporting overhead. The
-initial change-impact map below connects representative regression risks to
-assertions and CI lanes; it is not a complete assertion-by-assertion trace or
-evidence that any suite can safely be omitted.
+The 2026-10-12 clean profile measured 420–427s in the unit phase and 138–140s
+in bootstrap; the functional phase took 13–14s. Within unit, native contracts
+accounted for 98–99s, including 93–94s in the native oracle; runner smoke took
+71–73s, the harness 57s, compiler integration 55–56s and compiler module
+bindings 31s. These profile entries are inclusive/nested and must not be added
+together. Bootstrap's seed-refresh staging took 78–81s and stage 3 took
+27–28s. The main clean-check cost is therefore concentrated in unit/native
+contracts and bootstrap, not the functional TCP fixture.
+
+The first combined `all` baseline invocation did not produce its `COMPLETE`
+marker: after its three clean and three warm observations passed, its generated
+probe fixture used an obsolete path/import layout. The harness fixture was
+updated to the current compiler-contract namespace layout and its regression
+check passed. A separate corrected `probes` invocation then passed all 12 edit
+observations against the same product commit/tree, but with a corrected harness
+snapshot. Treat the full and probe measurements as comparable observations, not
+as one complete artifact from an identical source archive. A later canonical
+`VALIDATION_JOBS=2 make check` on the existing workspace build tree passed in
+332s; it is not comparable to the clean median above.
+
+At the current `next` head `e033be2`, PR #388's docs-only Check passed in 29s and
+the post-merge push Check passed in 31s; neither run was active when inspected.
+This confirms the docs route's cost only, not the full validation route. CI
+still runs on both the PR revision and the resulting push to `next`.
+
+The practical red/green path is now explicit: one directly selected probe can
+run in a fraction of a second on a warm cache, while the current default
+four-worker `check-compiler` collection takes about 105s and the clean full
+check about 609s at two workers. Keep all PR and post-merge validation for now:
+the change-impact map is representative rather than assertion-complete, and
+three recent hosted failures still need root-cause classification. Four workers
+help modestly; they do not remove the serial compiler, harness or bootstrap
+costs. The tiny edit matrix alone does not justify dependency-aware reuse or
+separate compilation.
+
+The inventory and local measurements confirm repeated full validation at PR
+and post-merge checkpoints, expose structural overlap in the CI matrix, and
+locate the largest local costs. They still do not measure contributor active
+versus idle wait, a fresh machine or cold OS cache, repeated discovery/tool
+context, or review/reporting overhead. The initial change-impact map below
+connects representative regression risks to assertions and CI lanes; it is not
+a complete assertion-by-assertion trace or evidence that any suite can safely
+be omitted.
 
 <a id="gi106-change-impact-map"></a>
 

@@ -51,6 +51,20 @@ public-CLI workflows. The configured 15-second timing warning is a historical
 comparison under GI#106 review, not a current acceptance gate. `make unit` runs
 every internal test.
 
+For a single Panackelty probe during a red/green loop, build the native VM once
+and run the probe file directly from the repository root:
+
+```sh
+make native
+sh tests/run_probe.sh tests/runner/compiler_lexer_unit.panack
+```
+
+This compiles the selected probe when its cache entry is missing or stale, then
+executes all assertions in that file on every invocation. It does not run the
+other probes, public-CLI cases, native contracts, functional suite or bootstrap;
+use the relevant `check-*` target and ultimately `make check` for broader
+validation.
+
 `tests/run_probe.sh` caches compiled probe bytecode under `build/probes` (or
 `BUILD_DIR/probes`). Its key covers the selected VM, compiler seed, helper,
 source paths and contents, and all Panackelty sources under `src`, `tests`,
@@ -97,8 +111,9 @@ byte-exact 364-case report. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 
-CI runs a validation matrix per pull-request revision and again after a merge
-to `main`. It does not repeat focused developer targets before the full suite.
+CI runs a validation matrix per pull-request revision and again after a push to
+`main` or `next`. It does not repeat focused developer targets before the full
+suite.
 Superseded PR runs are cancelled. Both packaging platforms run five clean
 `make check-no-interpreter CI_SUITE=…` partitions with an allowlisted command
 environment. The default command without `CI_SUITE` still performs the complete

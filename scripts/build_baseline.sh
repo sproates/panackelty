@@ -151,18 +151,18 @@ fi
     printf 'vm_sha256=%s\n' "$(hash panack-vm | awk '{print $1}')"
     if [ -f build/bootstrap/stage2/compiler.bc ]; then printf 'stage2_compiler_sha256=%s\n' "$(hash build/bootstrap/stage2/compiler.bc | awk '{print $1}')"; fi
 } >> "$out/environment.txt"
-fixture=tests/build-baseline-fixture
+fixture=tests/fixtures/compiler_contracts/build_baseline_fixture
 mkdir "$fixture"
 cat > "$fixture/main.panack" <<'PANACK'
-import "direct.panack"
-main(): Void { print(answer()); }
+import project/tests/fixtures/compiler_contracts/build_baseline_fixture/direct as direct
+main(): Void { print(direct.answer()); }
 PANACK
 cat > "$fixture/direct.panack" <<'PANACK'
-import "transitive.panack"
-pure answer(): Nat { base() + 2 }
+import project/tests/fixtures/compiler_contracts/build_baseline_fixture/transitive as transitive
+pub pure answer(): Nat { transitive.base() + 2 }
 PANACK
 cat > "$fixture/transitive.panack" <<'PANACK'
-pure base(): Nat { 40 }
+pub pure base(): Nat { 40 }
 PANACK
 printf '// Unrelated baseline input.\n' > examples/build-baseline-unrelated.panack
 cp "$fixture/direct.panack" "$work/direct"

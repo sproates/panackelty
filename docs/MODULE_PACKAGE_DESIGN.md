@@ -23,8 +23,9 @@ exact graph limits; PR#383 covers source-count and byte boundaries; PR#384 makes
 the root-replacement race acceptance reliable. The final integration fixture checks, runs and compiles two applications from an
 unrelated working directory, moves their complete sibling tree and shared
 multi-file library, then rechecks/runs both and executes bytecode compiled before
-the move. P4–P8
-remain planned.
+the move. PR#404 completes P4's standard-library API namespace migration on
+`next`; P5–P8 remain planned, with the separate clean-installed release
+acceptance retained in P8.
 ## Current implementation audit
 
 Audit baseline: core revision `b32267e` (2026-10-03). The table records the

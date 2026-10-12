@@ -18,6 +18,51 @@ current acceptance limits. No replacement NFRs or test-cadence changes are
 proposed as decisions here. The issue is complete only when the user says they
 are happy.
 
+### Owner choices and bounded pilots — 2026-10-12
+
+After reviewing the initial options, the owner selected two pieces of work:
+pilot dependency-aware compiled-probe reuse while executing every assertion on
+every invocation, and prepare a separate-compilation design without beginning a
+compiler rewrite. The full validation gates and all assertions remain in place.
+These choices do not reinstate the historical timing figures as acceptance
+targets or define GI#106 as complete.
+
+The dependency-aware pilot replaces the probe cache's repository-wide Panackelty
+source fingerprint with the entry source's static import closure, including the
+implicit `core.panack` module. It includes compiler seed, VM, probe runner and
+scanner inputs in the key. `stdlib/`, `project/`, quoted relative imports and
+transitive imports are recognized. An unresolved or unfamiliar import falls
+back to the previous broad source fingerprint. The cache stores compiled
+bytecode only; normal probe invocations still execute the probe and its
+assertions.
+
+| Evidence | Result | Limit |
+| --- | --- | --- |
+| Focused cache harness | All 11 harness cases passed. Coverage includes execution on cache hits, direct and transitive dependency edits, unrelated-source reuse, stdlib/project/relative imports, public project imports, conservative fallback, corruption, missing seed and edits during compilation. | Synthetic VM harness; it validates cache decisions and runner behavior, not compiler semantics. |
+| Real compiler-lexer probe | All 13 assertions passed on two consecutive normal invocations using the same cache. | One small probe; this does not measure suite-level savings. |
+| Matched compiler-contract compile-only edit sample | After each unrelated `src/compiler/*.panack` edit, the broad-key baseline recompiled in 18.39s, 18.48s and 18.32s. The dependency-aware version reused its warm artifact in 0.05s, 0.04s and 0.05s. The probe's closure contained 21 source files out of 576 in the repository. | Compile-only invocations: the benchmark itself did not run assertions. The separate lexer run and harness establish execution behavior. This artificial unrelated-edit case is not a representative code fix, clean check or suite-wide estimate. |
+
+This identifies a bounded win when a selected probe's dependencies have not
+changed: about 18.3 seconds for this measured compiler-contract compile. A
+change inside its closure correctly invalidates it, so a typical compiler bug
+fix that changes an imported implementation still pays the required rebuild.
+Clean full validation still builds from its required state; this pilot does not
+shorten that path by itself. The host-enabled `make check` passed in 421s on a
+reused build tree: unit 241s, functional 13s, bootstrap 137s, release smoke 4s
+and quick start under 1s. It printed warnings against the former 120s full-check,
+15s unit, 75s functional and 60s bootstrap figures; these remain historical
+comparisons. This was not a controlled clean before/after timing experiment and
+does not establish a full-check speedup.
+
+The owner's standard-library direction is also recorded for the follow-on API
+slice: short names inside domain modules (for example, `path.from_text` and
+`bytes.join`), mostly flat existing module groupings, migration followed by
+removal of the old `path_string_*` and Str-based trapping filesystem surface,
+and a curated `prelude` that re-exports module namespaces. The mapping and
+migration boundary are in the [stdlib namespace plan](../docs/STDLIB_API_NAMESPACE_PLAN.md);
+no stdlib source API has changed in this pilot. The design-only candidate is in
+the [separate-compilation sketch](../docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
+
 ### Findings
 
 | Workload | Evidence | What it tells us |
@@ -70,13 +115,13 @@ also removes or overlaps work safely.
 
 | Option | What it could improve | Cost or risk | Current view |
 | --- | --- | --- | --- |
-| Measure a representative developer change and agree the workloads that matter | Separates time to reproduce, get a failing test, reach a passing focused result, run a clean check and wait for required hosted checks. It can distinguish active work from waiting. | Needs a short, honest timing record across a representative change. A PR timestamp or one CI run is not a substitute. | Best next step before choosing a performance change or replacement NFR. |
+| Measure a representative developer change and agree the workloads that matter | Separates time to reproduce, get a failing test, reach a passing focused result, run a clean check and wait for required hosted checks. It can distinguish active work from waiting. | Needs a short, honest timing record across a representative change. A PR timestamp or one CI run is not a substitute. | Still needed to judge the selected pilot and shape replacement NFRs; the artificial cache edit does not replace it. Use the P4 stdlib migration as the next real change sample. |
 | Improve focused local selection | Helps a developer run the smallest relevant test, then the owning component collection. Existing `check-compiler`, `check-bytecode`, `check-vm` and direct-probe paths provide a base. | Component targets are still sizeable, and a focused pass cannot replace integration or acceptance checks. The test-to-regression map needs more detail for safe automatic selection. | Low-risk developer-workflow option. Keep full PR and post-merge gates. |
-| Reuse compiled probes by actual dependencies | Could avoid recompiling probes after unrelated source edits while still running every assertion each time. | Cache keys must include imported dependency closure, compiler/seed/VM identity, library and flags. Unknown dependencies must invalidate safely. The tiny edit matrix does not show whole-suite savings; clean runs still need to build. | Plausible pilot if measurements show compilation is a material part of the chosen red/green workload. |
+| Reuse compiled probes by actual dependencies | The local pilot reused a 21-file compiler-contract probe after unrelated edits and still executes assertions on every normal invocation. | Changes in the imported closure still rebuild; clean full checks still compile. A single artificial edit case does not establish suite-wide or representative red/green savings. | Selected and implemented locally; host-enabled `make check` passes. The full-check run does not show a clean-build speedup. Hosted PR evidence and the real P4 red/green sample remain outstanding; the user decides whether to keep the pilot. |
 | Select local tests or hosted lanes by change impact | Could run the relevant compiler, library, bytecode, VM or package checks earlier and reduce repeated work. | Missing a dependency edge could hide a regression. The current selector reports components but does not route code changes to component-specific suites. Unknown and shared changes need the conservative full route. | Investigate after assertion-level coverage and ownership are mapped. Do not remove a full gate yet. |
 | Remove exact repeated hosted work | Could reduce runner-minutes where the same target, such as `quick-start`, runs in separate clean jobs. | Runner-minutes are not the same as PR wall time. Job consolidation can change artifact provenance, platform context and failure isolation; those effects need checking before merging jobs. | Candidate for a bounded CI-work pilot if runner cost is the chosen problem. Preserve distinct platform and instrumentation evidence. |
 | Change ordering or increase parallelism | Could shorten time to first failure or reduce a critical-path tail if independent work can run together. | More concurrency can contend for CPU and make timeouts more likely. The hosted four-worker compiler pilot failed on both Ubuntu lanes; ordering alone will not reduce total work. | Keep the current hosted worker limit. Profile a specific bottleneck before changing scheduling. |
-| Add separate compilation for Panackelty modules | Could make module builds independently reusable and reduce repeated frontend work across larger projects. | This is a compiler architecture change. It needs a design for interfaces, generics, linking, identity, invalidation and compatibility, plus substantial correctness validation. It will not make clean full validation disappear. | Long-term design option, not the next performance experiment. |
+| Add separate compilation for Panackelty modules | Could make module builds independently reusable and reduce repeated frontend work across larger projects. | This is a compiler architecture change. It needs a design for interfaces, generics, linking, identity, invalidation and compatibility, plus substantial correctness validation. It will not make clean full validation disappear. | Selected as design work only; see the separate-compilation sketch. No compiler rewrite is underway. |
 | Reduce PR or post-merge validation frequency | Could cut hosted execution and queue demand. | Current same-tree post-merge failures show that the second checkpoint has detected failures missed by green PR checks. Assertion-level equivalence is incomplete. | Not recommended with current evidence. |
 
 ### Possible shape of replacement NFRs
@@ -103,19 +148,15 @@ Keep the current test assertions, PR checks and post-merge checks. Keep hosted
 compiler validation at three workers. Do not start several optimisations in
 parallel.
 
-First record one representative bug-fix workflow: time to reproduce, time to a
-failing test, time to a passing focused result, any broader checks run, and the
-active and waiting portions. Record the cache state and machine. Separately
-record the elapsed hosted PR path and runner work, since reducing runner-minutes
-may not shorten the contributor's feedback time.
-
-Then choose one pilot against the observed bottleneck. If repeated local
-compilation dominates, test dependency-aware probe reuse. If hosted runner work
-dominates, investigate exact repeated targets. If wall-clock time dominates,
-profile the critical path before trying scheduling changes. Compare the same
-workload before and after, preserve all regression assertions, and bring any
-replacement NFRs to the user for a decision. This report does not set a numeric
-completion target for GI#106.
+The initial recommendation to measure a representative bug-fix workflow before
+choosing a pilot was superseded by the owner's direction to pursue candidates 2
+and 3 and to use standard-library changes as an additional boundary example.
+The selected probe-cache and separate-compilation work is now recorded above.
+Next, finish the current full check, prepare a concrete representative
+red/green timing sample, and compare any follow-on changes against that sample.
+Keep runner time separate from contributor wall time. Bring replacement NFRs to
+the user only after the workloads and cache states are measurable; this report
+does not set a numeric completion target for GI#106.
 
 <a id="gi106-workflow-inventory"></a>
 

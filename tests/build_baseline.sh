@@ -32,7 +32,8 @@ require_failure_sample() {
 mkdir -p "$work/source/scripts" "$work/source/tests/fixtures/compiler_contracts" "$work/source/src/stdlib" "$work/source/examples" "$work/source/bootstrap" "$work/bin"
 touch "$work/source/tests/fixtures/compiler_contracts/.keep"
 cp scripts/build_baseline.sh "$work/source/scripts/"
-cp tests/run_probe.sh tests/profile_command.sh tests/without_interpreter.sh "$work/source/tests/"
+cp tests/run_probe.sh tests/probe_dependencies.awk tests/profile_command.sh \
+    tests/without_interpreter.sh "$work/source/tests/"
 touch "$work/source/examples/.keep" "$work/source/src/stdlib/.keep"
 printf 'seed\n' > "$work/source/bootstrap/compiler-v9.bc"
 printf 'tracked\n' > "$work/source/deleted.txt"

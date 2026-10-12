@@ -41,24 +41,46 @@ assertions.
 The first P4 stdlib module-API migration was not measured as the real developer
 change proposed for GI#106. The owner has directed us to restore the pre-PR #401
 product/API state and repeat the migration with evidence captured from the
-start. Preserve these API decisions: short names in mostly flat domain modules;
-a curated `prelude` facade; removal of the old public `path_string_*` and
-Str-based trapping filesystem wrappers after caller migration; retain the
-`bytes()` constructor and expose `stdlib/bytes` through `prelude.byte_buffer`.
+start. Preserve these API decisions: short names in mostly flat domain modules
+(including `path.from_text`, `numeric.divide` and `time.divide`); a curated
+`prelude` facade that exposes those domain modules; removal of the old public
+`path_string_*` and Str-based trapping filesystem wrappers after caller
+migration; retain the `bytes()` constructor and expose `stdlib/bytes` through
+`prelude.byte_buffer`.
 
 The replay uses this protocol, without treating any historical time as a
-pass/fail target:
+pass/fail target. Its baseline was measured on the restored pre-migration tree:
 
-1. At the restored pre-migration revision, record the exact commit, macOS/CPU,
-   toolchain and cache state. Run `make clean` followed by
-   `VALIDATION_JOBS=2 make check`, with no competing builds. Two workers match
-   the existing clean-check evidence in this report.
+| Baseline fact | Observation |
+| --- | --- |
+| Revision | `0cd2aba051c01473bbbd933ae7f4ff454dd99196` (restored pre-PR #401 API) |
+| Host | macOS 26.5 (25F71), MacBook Pro with Apple M5 Pro, 48 GB; Darwin arm64 |
+| Toolchain | Apple clang 21.0.0; GNU Make 3.81 |
+| Start and cache | 2026-10-12 19:56 CEST; `make clean` completed before the run, no competing build, 2 validation workers |
+| Command and result | `VALIDATION_JOBS=2 make check`; exit 0, all suites passed |
+| Unit | 417s (15s budget; warning only) |
+| Functional | 13s (75s budget) |
+| Bootstrap | 140s (60s budget; warning only) |
+| Release smoke / quick-start | 4s / under 1s |
+| Full check | 602s (120s budget; warning only) |
+| Timing limits | Source-policy timing was not emitted as its own phase; phase values are rounded to whole seconds and are not expected to sum to the full-check wall time. |
+
+The captured local log is `/private/tmp/gi106-stdlib-replay/baseline-check.log`.
+This is one clean local sample on one host, not a general benchmark or hosted
+CI measurement. All phases passed; budget warnings do not change the exit status.
+
+1. Use the recorded restored-baseline revision, host, toolchain, cache state and
+   clean-check result above. Two workers match the existing clean-check evidence
+   in this report.
 2. Add one focused acceptance probe for the chosen public surface
-   (`prelude.path`, `prelude.byte_buffer`, coexistence with `bytes()`, and
-   same-name functions in `prelude.numeric` and `prelude.time`). Run it directly
-   before implementation and capture its expected compile failure, elapsed
-   time, diagnostic and empty probe-cache result. Keep the probe source
-   unchanged while implementing the migration.
+   (`prelude.path.from_text`, `prelude.byte_buffer.join`, coexistence with
+   `bytes()`, and `prelude.numeric.divide` beside `prelude.time.divide`). Run
+   it directly before implementation and capture its expected compile failure,
+   elapsed time, diagnostic and empty probe-cache result. Keep the probe source
+   unchanged while implementing the migration. Also keep a companion probe for
+   the old `path_string_*` and Str-based trapping filesystem imports: it should
+   compile against the baseline, then be rejected with no bytecode after the
+   migration.
 3. Run the same probe after implementation using the same isolated cache. Record
    its result count, first successful compile-and-run time, cache artifacts and
    repeated warm-run times. Every run must execute its assertions; only

@@ -300,7 +300,9 @@ dependency invalidated the bytecode cache. This confirms a focused stdlib edit
 reruns the affected probe, but it is a synthetic fault cycle, not timing from
 the merged migration or a broader-check result. The owner has directed a
 measured replay of the stdlib API migration from the restored pre-PR #401
-baseline. The [replay protocol](tests/VALIDATION_PROFILE.md#owner-approved-p4-replay-measurement-protocol)
+baseline. That clean baseline now passed `VALIDATION_JOBS=2 make check` in 602s
+on the recorded Mac M5 Pro; unit took 417s and bootstrap 140s. The
+[replay protocol](tests/VALIDATION_PROFILE.md#owner-approved-p4-replay-measurement-protocol)
 captures the failing focused probe before implementation, the same probe after,
 matched clean checks and hosted results separately. Then use those measured
 boundaries to review the separate-compilation design. No replacement NFRs are

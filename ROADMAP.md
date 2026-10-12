@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#151.**
+The initial allocation contains **105 identities**. **Next available: RM#152.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -110,17 +110,33 @@ numeric targets or a test-frequency policy in advance. Preserve regression-risk
 coverage and execute selected tests; never reuse test outcomes as cache entries.
 GI#106 is complete only when the user says they are happy with the result.
 
-GI#180's owner-requested pause remains in effect: scheduling this release does
-not restart explanation implementation. Concrete U3/U4 slice contracts need
-selection before work. U5 counterfactuals, U6 change prediction and U7 runtime
-value provenance remain outside this alpha.13 plan unless separately selected;
-all retain their full programme scope and acceptance criteria.
+When alpha.13 was planned, GI#180's owner-requested pause remained in effect;
+that decision did not restart explanation implementation. The later Alpha.14
+direction selects compiler understanding and correctness for planning; see
+[RM#151](#rm-151). Alpha.13's U3/U4 acceptance remains subject to concrete slice
+selection and its existing release gates.
 
 Release only after agreed outcomes and supporting prerequisites are accepted,
 required promotion/package/install checks pass and the owner approves publication.
 Update version-specific documentation and website claims through a separate
 reviewed publication with an iPhone-accessible preview. Do not claim experimental
 work is shipped or describe this release as production-ready.
+
+### Alpha 14 — compiler understanding and correctness
+
+<a id="rm-151"></a>
+
+**RM#151: Alpha.14 — compiler understanding and correctness focus.**
+
+Owner direction, 2026-10-13: Alpha.14 should include some work on compiler
+understanding and correctness, Panackelty's strongest novel area. This is a
+broad release direction only; no particular issue, workstream, implementation,
+acceptance criterion, amount of work, release date, or final release scope is
+selected. Existing work in [GI#180](https://github.com/sproates/panackelty/issues/180)
+and the correctness backlog remains the candidate pool; detailed scope and
+sequencing need a later decision. This direction resumes GI#180 for planning
+and scope assessment only; it does not select or authorize implementation.
+Alpha.13's plan and gates remain separate.
 
 ### Else-if chains
 
@@ -154,7 +170,7 @@ percentage; do not double-count contributing programmes or call planning deliver
 
 | Required outcome | Existing work and remaining definition |
 | --- | --- |
-| Compiler work | Complete the agreed compiler-understanding scope in GI#180; confirm detailed release mapping and acceptance evidence. Its current pause remains in effect. |
+| Compiler work | Complete the agreed compiler-understanding scope in GI#180; confirm detailed release mapping and acceptance evidence. The pause is lifted for Alpha.14 planning and scope assessment only; implementation scope remains unselected. |
 | Namespaces, packages and HTTP | Complete GI#233, including migration, reusable packages, HTTP client/server, reproducibility and integrated acceptance. |
 | Performance of a good standard | GI#263 supplies maintained measurements and explicit regression decisions. Agree representative compile/startup/run, resource and developer-feedback targets from repeatable evidence; no unmeasured performance claim. |
 | Expanded standard library | Define practical application coverage, consistent APIs, tests and examples. This is broader than GI#235's namespace migration; detailed scope is open. |
@@ -389,7 +405,8 @@ resolution in PR#262. [PR#275: Checked namespace signatures](https://github.com/
 merged checked declaration/signature identities as `0bcf092`. PR#284 merged bounded
 function-body identities as `9f8f8a0`. These four foundations are delivered; P3–P8
 remain planned and unstarted. P2 selection is separate from design acceptance.
-The compiler-understanding programme remains paused; its scope is retained.
+The compiler-understanding programme was paused at this stage; the later
+Alpha.14 direction resumes planning and scope assessment only (see RM#151).
 
 User decision, 2026-10-04: **P2 → P3 → P4 → language/local-package release,
 then HTTP client work (P5)**. The first release checkpoint demonstrates complete
@@ -670,10 +687,11 @@ estimated programme progress, including P2's partial 11 pp, is approximately
 
 ## Programme pause and resumption checkpoint — 2026-10-03
 
-**GI#180: Compiler understanding programme is temporarily paused at the user's request.**
+**GI#180: Compiler understanding programme was temporarily paused at the user's request.**
 Scope and acceptance criteria are retained; this is neither cancellation nor completion.
-Resume only when the user selects programme work again; there is no automatic restart date.
-This checkpoint supersedes earlier active-priority and next-action wording below.
+The 2026-10-13 Alpha.14 direction resumes planning and scope assessment only; no
+implementation workstream is selected. This checkpoint supersedes earlier
+active-priority and next-action wording below.
 
 Accepted foundations: RM#98 guard-fact repair (C0), RM#99 source attribution
 experiment (U1), and RM#100 production source maps (U2).
@@ -690,7 +708,8 @@ evaluation/release acceptance and U9 website demonstrations remain unfinished.
 Supporting release and website adoption remain separately tracked, including
 RM#104; this pause starts no release or website work.
 
-On resumption, verify current main, open PRs and child-issue evidence first.
+At the 2026-10-03 checkpoint, the proposed resumption review was to verify main,
+open PRs and child-issue evidence first.
 Compare a bounded U3 type/proof explanation, U0 declaration-effect dependency
 research for U6, and the separately scoped U7 scalar provenance delivery.
 U5 depends on sufficient retained checker evidence; U4 builds on accepted mapping.

@@ -1,62 +1,61 @@
-import stdlib/testing as std_testing
 import project/src/compiler/lexer::{scan_string, StringScan, render, lex}
-import stdlib/testing::{TestResult}
-import stdlib/host as std_host
+import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
+import stdlib/host::{host_exit}
 // Direct lexer unit contracts. Keep these independent of the public compiler CLI:
 // malformed expressions can still have a valid token stream.
 main(): Void {
   mut results: [TestResult] = []
-  results = results.append(std_testing.expect("escaped quote stays inside the string",
+  results = results.append(test_expect("escaped quote stays inside the string",
     scan_string("\"a\\\"b\"tail", 0) == StringScan(6, true), "wrong string boundary"))
-  results = results.append(std_testing.expect("escaped backslash allows the closing quote",
+  results = results.append(test_expect("escaped backslash allows the closing quote",
     scan_string("\"a\\\\\"tail", 0) == StringScan(5, true), "wrong escape state"))
-  results = results.append(std_testing.expect("dangling escape is unterminated",
+  results = results.append(test_expect("dangling escape is unterminated",
     scan_string("\"a\\", 0) == StringScan(3, false), "dangling escape accepted"))
-  results = results.append(std_testing.expect("empty string closes at its second quote",
+  results = results.append(test_expect("empty string closes at its second quote",
     scan_string("\"\"tail", 0) == StringScan(2, true), "wrong empty string boundary"))
-  results = results.append(std_testing.equal_str("classes, comments and escapes",
+  results = results.append(test_equal_str("classes, comments and escapes",
     render(lex("// ignored\n_name42 17 3.14 \"a\\\\b\"")),
     "identifier:_name42\nnumber:17\ndecimal:3.14\nstring:\"a\\\\b\"\n"))
-  results = results.append(std_testing.equal_str("symbol vocabulary and longest match",
+  results = results.append(test_equal_str("symbol vocabulary and longest match",
     render(lex("=> .. == != <= >= && || ( ) { } [ ] . , ; : = + - * / % < > !")),
     "punctuation:=>\npunctuation:..\npunctuation:==\npunctuation:!=\npunctuation:<=\npunctuation:>=\npunctuation:&&\npunctuation:||\npunctuation:(\npunctuation:)\npunctuation:{\npunctuation:}\npunctuation:[\npunctuation:]\npunctuation:.\npunctuation:,\npunctuation:;\npunctuation::\npunctuation:=\npunctuation:+\npunctuation:-\npunctuation:*\npunctuation:/\npunctuation:%\npunctuation:<\npunctuation:>\npunctuation:!\n"))
-  results = results.append(std_testing.equal_str("range and decimal boundaries",
+  results = results.append(test_equal_str("range and decimal boundaries",
     render(lex("1..2 3. 4.5")),
     "number:1\npunctuation:..\nnumber:2\nnumber:3\npunctuation:.\ndecimal:4.5\n"))
-  results = results.append(std_testing.equal_str("every invalid character and position",
+  results = results.append(test_equal_str("every invalid character and position",
     render(lex("valid\n# & | ?")),
     "2:1: unexpected character #\n2:3: unexpected character &\n2:5: unexpected character |\n2:7: unexpected character ?\n"))
-  results = results.append(std_testing.equal_str("unterminated plain string",
+  results = results.append(test_equal_str("unterminated plain string",
     render(lex("\"open")), "1:1: unterminated string\n"))
-  results = results.append(std_testing.equal_str("unterminated escaped quote",
+  results = results.append(test_equal_str("unterminated escaped quote",
     render(lex("\"escaped\\\"")), "1:1: unterminated string\n"))
 
   match lex("name 42") {
     Error(diagnostics) => {
-      results = results.append(std_testing.expect("half-open token offsets", false,
+      results = results.append(test_expect("half-open token offsets", false,
         "unexpected diagnostics"))
     },
     Ok(tokens) => {
       if len(tokens) == 2 {
         first = tokens[0]
         second = tokens[1]
-        results = results.append(std_testing.expect("half-open token offsets",
+        results = results.append(test_expect("half-open token offsets",
           first.text == "name" && first.start == 0 && first.end == 4 &&
           second.text == "42" && second.start == 5 && second.end == 7,
           "wrong token text or half-open offset"))
       } else {
-        results = results.append(std_testing.expect("half-open token offsets", false,
+        results = results.append(test_expect("half-open token offsets", false,
           "expected two tokens"))
       }
     }
   }
 
-  results = results.append(std_testing.equal_str("terminating line breaks only",
+  results = results.append(test_equal_str("terminating line breaks only",
     render(lex("first\nsecond\nthird +\nfour\nitems[\n0\n]\nif ready {\ncall()\n}\nelse {\nother()\n}\nlast")),
     "identifier:first\npunctuation:;\nidentifier:second\npunctuation:;\nidentifier:third\npunctuation:+\nidentifier:four\npunctuation:;\nidentifier:items\npunctuation:[\nnumber:0\npunctuation:]\npunctuation:;\nidentifier:if\nidentifier:ready\npunctuation:{\nidentifier:call\npunctuation:(\npunctuation:)\npunctuation:}\nidentifier:else\npunctuation:{\nidentifier:other\npunctuation:(\npunctuation:)\npunctuation:}\npunctuation:;\nidentifier:last\n"))
 
-  results = results.append(std_testing.equal_str("else continues onto an if line",
+  results = results.append(test_equal_str("else continues onto an if line",
     render(lex("else\n// next arm\nif ready {}")),
     "identifier:else\nidentifier:if\nidentifier:ready\npunctuation:{\npunctuation:}\n"))
-  if std_testing.report(results) > 0 { std_host.exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

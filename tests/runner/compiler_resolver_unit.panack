@@ -1,25 +1,24 @@
-import stdlib/testing as std_testing
 import project/src/compiler/resolver::{LoadedSource,resolve_source,resolve_loaded_sources}
-import stdlib/host as std_host
-import stdlib/testing::{TestResult}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_equal_str, test_report}
 // Fixed resolver contracts, grouped by the former Python test methods.
 // Inputs and exact expected diagnostics are independent of the resolver output.
 
 pure resolver_unit_enforces_lexical_scope_and_shadowing(): [TestResult] {
   [
-    std_testing.equal_str("resolver/enforces_lexical_scope_and_shadowing/1",
+    test_equal_str("resolver/enforces_lexical_scope_and_shadowing/1",
       resolve_source("main(value: Nat, value: Nat): Void {}"),
       "parameter value is already declared"),
-    std_testing.equal_str("resolver/enforces_lexical_scope_and_shadowing/2",
+    test_equal_str("resolver/enforces_lexical_scope_and_shadowing/2",
       resolve_source("main(value: Nat): Void { value: Nat = 1; }"),
       "local value shadows an existing binding"),
-    std_testing.equal_str("resolver/enforces_lexical_scope_and_shadowing/3",
+    test_equal_str("resolver/enforces_lexical_scope_and_shadowing/3",
       resolve_source("main(): Void { value: Nat = 1; for value in 0..1 {} }"),
       "loop variable value shadows an existing binding"),
-    std_testing.equal_str("resolver/enforces_lexical_scope_and_shadowing/4",
+    test_equal_str("resolver/enforces_lexical_scope_and_shadowing/4",
       resolve_source("enum Option[T] { None, Some(T) } main(value: Option[Nat]): Void { match value { Some(value) => print(value), None() => print(0) }; }"),
       "pattern binding value shadows an existing binding"),
-    std_testing.equal_str("resolver/enforces_lexical_scope_and_shadowing/5",
+    test_equal_str("resolver/enforces_lexical_scope_and_shadowing/5",
       resolve_source("main(): Void { if true { inner: Nat = 1; } else {}; print(inner); }"),
       "unknown name inner")
   ]
@@ -27,7 +26,7 @@ pure resolver_unit_enforces_lexical_scope_and_shadowing(): [TestResult] {
 
 pure resolver_unit_method_calls_use_global_callable_lookup(): [TestResult] {
   [
-    std_testing.equal_str("resolver/method_calls_use_global_callable_lookup/1",
+    test_equal_str("resolver/method_calls_use_global_callable_lookup/1",
       resolve_source("record Box { value: Nat } main(): Void { Box(1).missing(); }"),
       "unknown function missing")
   ]
@@ -35,10 +34,10 @@ pure resolver_unit_method_calls_use_global_callable_lookup(): [TestResult] {
 
 pure resolver_unit_propagates_lexer_and_parser_failures(): [TestResult] {
   [
-    std_testing.equal_str("resolver/propagates_lexer_and_parser_failures/1",
+    test_equal_str("resolver/propagates_lexer_and_parser_failures/1",
       resolve_source("#"),
       "lexing failed"),
-    std_testing.equal_str("resolver/propagates_lexer_and_parser_failures/2",
+    test_equal_str("resolver/propagates_lexer_and_parser_failures/2",
       resolve_source("main"),
       "expected opening function parenthesis")
   ]
@@ -46,19 +45,19 @@ pure resolver_unit_propagates_lexer_and_parser_failures(): [TestResult] {
 
 pure resolver_unit_reports_duplicate_and_conflicting_top_level_symbols(): [TestResult] {
   [
-    std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/1",
+    test_equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/1",
       resolve_source("type Value = Nat where value > 0; record Value {} main(): Void {}"),
       "top-level name Value is already declared"),
-    std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/2",
+    test_equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/2",
       resolve_source("print(): Void {} main(): Void {}"),
       "top-level name print conflicts with a constructor or built-in"),
-    std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/3",
+    test_equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/3",
       resolve_source("enum First { Same } enum Second { Same } main(): Void {}"),
       "variant constructor Same is declared by more than one enum"),
-    std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/4",
+    test_equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/4",
       resolve_source("enum Output { print } main(): Void {}"),
       "variant constructor print conflicts with a built-in"),
-    std_testing.equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/5",
+    test_equal_str("resolver/reports_duplicate_and_conflicting_top_level_symbols/5",
       resolve_source("enum Choice { Pick } record Pick {} main(): Void {}"),
       "top-level name Pick conflicts with a constructor or built-in")
   ]
@@ -66,29 +65,29 @@ pure resolver_unit_reports_duplicate_and_conflicting_top_level_symbols(): [TestR
 
 pure resolver_unit_reports_module_graph_failures(): [TestResult] {
   [
-    std_testing.equal_str("resolver/reports_module_graph_failures/1",
+    test_equal_str("resolver/reports_module_graph_failures/1",
       resolve_loaded_sources([
         LoadedSource("main.panack", "import \"missing.panack\"; main(): Void {}")
       ], "main.panack"),
       "module missing.panack is not loaded"),
-    std_testing.equal_str("resolver/reports_module_graph_failures/2",
+    test_equal_str("resolver/reports_module_graph_failures/2",
       resolve_loaded_sources([
         LoadedSource("other.panack", "pure answer(): Nat { 42 }")
       ], "main.panack"),
       "module main.panack is not loaded"),
-    std_testing.equal_str("resolver/reports_module_graph_failures/3",
+    test_equal_str("resolver/reports_module_graph_failures/3",
       resolve_loaded_sources([
         LoadedSource("first.panack", "import \"second.panack\";"),
         LoadedSource("second.panack", "import \"first.panack\";")
       ], "first.panack"),
       "import cycle includes first.panack"),
-    std_testing.equal_str("resolver/reports_module_graph_failures/4",
+    test_equal_str("resolver/reports_module_graph_failures/4",
       resolve_loaded_sources([
         LoadedSource("main.panack", "main(): Void {}"),
         LoadedSource("main.panack", "pure answer(): Nat { 42 }")
       ], "main.panack"),
       "module main.panack is loaded more than once"),
-    std_testing.equal_str("resolver/reports_module_graph_failures/5",
+    test_equal_str("resolver/reports_module_graph_failures/5",
       resolve_loaded_sources([
         LoadedSource("main.panack", "import \"first.panack\"; import \"second.panack\"; main(): Void {}"),
         LoadedSource("first.panack", "pure answer(): Nat { 1 }"),
@@ -100,12 +99,12 @@ pure resolver_unit_reports_module_graph_failures(): [TestResult] {
 
 pure resolver_unit_reports_module_parse_and_lex_failures_with_paths(): [TestResult] {
   [
-    std_testing.equal_str("resolver/reports_module_parse_and_lex_failures_with_paths/1",
+    test_equal_str("resolver/reports_module_parse_and_lex_failures_with_paths/1",
       resolve_loaded_sources([
         LoadedSource("broken.panack", "#")
       ], "broken.panack"),
       "broken.panack:1:1: unexpected character #"),
-    std_testing.equal_str("resolver/reports_module_parse_and_lex_failures_with_paths/2",
+    test_equal_str("resolver/reports_module_parse_and_lex_failures_with_paths/2",
       resolve_loaded_sources([
         LoadedSource("broken.panack", "// heading\nmain")
       ], "broken.panack"),
@@ -115,7 +114,7 @@ pure resolver_unit_reports_module_parse_and_lex_failures_with_paths(): [TestResu
 
 pure resolver_unit_reports_name_failure_in_owning_module(): [TestResult] {
   [
-    std_testing.equal_str("resolver/reports_name_failure_in_owning_module/1",
+    test_equal_str("resolver/reports_name_failure_in_owning_module/1",
       resolve_loaded_sources([
         LoadedSource("main.panack", "import \"broken.panack\"; main(): Void { broken(); }"),
         LoadedSource("broken.panack", "broken(): Void {\n  print(missing);\n}")
@@ -126,7 +125,7 @@ pure resolver_unit_reports_name_failure_in_owning_module(): [TestResult] {
 
 pure resolver_unit_reports_unknown_names_functions_and_variants(): [TestResult] {
   [
-    std_testing.equal_str("resolver/reports_unknown_names_functions_and_variants/1",
+    test_equal_str("resolver/reports_unknown_names_functions_and_variants/1",
       resolve_source("\nenum Option[T] { None, Some(T) }\nmain(): Void {\n  print(missing);\n  unknown();\n  option: Option[Nat] = None();\n  match option { Other(value) => value };\n}\n"),
       "unknown name missing\nunknown function unknown\nunknown variant Other")
   ]
@@ -134,7 +133,7 @@ pure resolver_unit_reports_unknown_names_functions_and_variants(): [TestResult] 
 
 pure resolver_unit_resolves_guard_value_and_recursive_calls(): [TestResult] {
   [
-    std_testing.equal_str("resolver/resolves_guard_value_and_recursive_calls/1",
+    test_equal_str("resolver/resolves_guard_value_and_recursive_calls/1",
       resolve_source("\ntype Positive = Int where value > 0;\npure countdown(value: Nat): Nat {\n  if value == 0 { 0 } else { countdown(value - 1) }\n}\nmain(): Void { print(countdown(3)); }\n"),
       "ok")
   ]
@@ -142,7 +141,7 @@ pure resolver_unit_resolves_guard_value_and_recursive_calls(): [TestResult] {
 
 pure resolver_unit_resolves_reachable_transitive_modules(): [TestResult] {
   [
-    std_testing.equal_str("resolver/resolves_reachable_transitive_modules/1",
+    test_equal_str("resolver/resolves_reachable_transitive_modules/1",
       resolve_loaded_sources([
         LoadedSource("main.panack", "import \"service.panack\"; main(): Void { print(result()); }"),
         LoadedSource("service.panack", "import \"values.panack\"; pure result(): Nat { answer() }"),
@@ -155,7 +154,7 @@ pure resolver_unit_resolves_reachable_transitive_modules(): [TestResult] {
 
 pure resolver_unit_resolves_top_level_callables_builtins_and_local_names(): [TestResult] {
   [
-    std_testing.equal_str("resolver/resolves_top_level_callables_builtins_and_local_names/1",
+    test_equal_str("resolver/resolves_top_level_callables_builtins_and_local_names/1",
       resolve_source("\nrecord Pair { left: Nat, right: Nat }\nenum Option[T] { None, Some(T) }\n\npure sum(pair: Pair): Nat { pair.left + pair.right }\n\npure value_or(option: Option[Nat], fallback: Nat): Nat {\n  match option { Some(value) => value, None() => fallback }\n}\n\nmain(): Void {\n  pair: Pair = Pair(20, 22);\n  print(sum(pair));\n  print(pair.sum());\n  mut values: Map[Str,Nat] = map();\n  values = values.put(\"answer\", 42);\n  print(values.has(\"answer\"));\n  print(values.get(\"answer\"));\n  print(set().add(\"seen\").has(\"seen\"));\n  print(value_or(Some(1), 0));\n}\n"),
       "ok")
   ]
@@ -163,7 +162,7 @@ pure resolver_unit_resolves_top_level_callables_builtins_and_local_names(): [Tes
 
 pure resolver_unit_visits_a_diamond_dependency_only_once(): [TestResult] {
   [
-    std_testing.equal_str("resolver/visits_a_diamond_dependency_only_once/1",
+    test_equal_str("resolver/visits_a_diamond_dependency_only_once/1",
       resolve_loaded_sources([
         LoadedSource("main.panack", "import \"left.panack\"; import \"right.panack\"; main(): Void { print(left() + right()); }"),
         LoadedSource("left.panack", "import \"shared.panack\"; pure left(): Nat { shared() }"),
@@ -188,5 +187,5 @@ main(): Void {
   results = results.concat(resolver_unit_resolves_reachable_transitive_modules())
   results = results.concat(resolver_unit_resolves_top_level_callables_builtins_and_local_names())
   results = results.concat(resolver_unit_visits_a_diamond_dependency_only_once())
-  if std_testing.report(results) > 0 { std_host.exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

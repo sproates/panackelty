@@ -4,7 +4,7 @@ import stdlib/filesystem::{FileKind, FileKind.Directory}
 // The caller owns this unique temporary directory and all files created in it.
 pub record TestWorkspace { root: Path }
 
-pub workspace_create(parent: Path): Result[TestWorkspace,HostError] {
+pub test_workspace_create(parent: Path): Result[TestWorkspace,HostError] {
   match fs_temp_directory(parent) {
     Ok(root) => Ok(TestWorkspace(root)),
     Error(error) => Error(error)
@@ -12,14 +12,14 @@ pub workspace_create(parent: Path): Result[TestWorkspace,HostError] {
 }
 
 // Refuse to discard a workspace that still contains fixtures or output.
-pub workspace_remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
+pub test_workspace_remove_empty(workspace: TestWorkspace): Result[Unit,HostError] {
   fs_remove_directory(workspace.root)
 }
 
 // Discover immediate directory children in fs_list's native-byte sorted order.
 // Symlinks are not followed. A filesystem error aborts discovery without a
 // partial result; fs_list guarantees child names are relative.
-pub discover_fixtures(root: Path): Result[[Path],HostError] {
+pub test_discover_fixtures(root: Path): Result[[Path],HostError] {
   match fs_list(root) {
     Error(error) => Error(error),
     Ok(names) => {
@@ -31,7 +31,7 @@ pub discover_fixtures(root: Path): Result[[Path],HostError] {
           None() => {
             match path_append(root, name) {
               Error(path_error) => {
-                failure = Some(HostError("discover_fixtures", "invalid_argument", 0))
+                failure = Some(HostError("test_discover_fixtures", "invalid_argument", 0))
               },
               Ok(child) => {
                 match fs_metadata(child) {

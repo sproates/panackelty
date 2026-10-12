@@ -75,19 +75,14 @@ compiler_workspace="$workspace/compiler-source"
 mkdir -p "$compiler_workspace/src/compiler"
 cp src/compiler/types.panack src/compiler/lexer.panack src/compiler/parser.panack src/compiler/expression_contracts.panack src/compiler/resolver.panack src/compiler/checker.panack src/compiler/module_bindings.panack src/compiler/module_resolution.panack src/compiler/module_signatures.panack src/compiler/purity.panack src/compiler/module_bodies.panack src/compiler/module_effects.panack src/compiler/module_emission.panack src/compiler/emitter.panack "$compiler_workspace/src/compiler/"
 cat > "$compiler_workspace/main.panack" <<'EOF'
-import stdlib/bytes as byte_buffer
-import stdlib/option as option
-import stdlib/result as result
-import stdlib/environment as environment
-import stdlib/text as text
-import stdlib/path as path
-import stdlib/time as time
-import stdlib/testing as testing
-import stdlib/testing_commands as testing_commands
-import stdlib/testing::{TestOutcome, TestOutcome.TestPassed, TestOutcome.TestFailed, TestResult}
-import stdlib/testing_commands::{TestCommand}
-import stdlib/testing_files::{TestWorkspace}
-import stdlib/time::{DurationError, DurationError.ZeroDurationDivisor, ClockError, ClockError.ClockUnavailable}
+import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, bytes_at, text_encode_utf8, text_decode_utf8}
+import stdlib/option::{option_value_or}
+import stdlib/result::{result_value_or}
+import stdlib/environment::{environment}
+import stdlib/testing::{TestOutcome, TestOutcome.TestPassed, TestOutcome.TestFailed, TestResult, test_expect, test_equal_str, test_equal_nat, test_report}
+import stdlib/testing_commands::{TestCommand, test_command_output, test_command_result}
+import stdlib/testing_files::{TestWorkspace, test_workspace_create, test_workspace_remove_empty, test_discover_fixtures}
+import stdlib/time::{DurationError, DurationError.ZeroDurationDivisor, ClockError, ClockError.ClockUnavailable, duration_seconds, duration_milliseconds, duration_add, duration_subtract, duration_scale, duration_before, duration_as_seconds, duration_divide, duration_ratio}
 import stdlib/host::{HostError}
 import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileMetadata}
 import stdlib/process::{ProcessOutput}
@@ -150,15 +145,15 @@ pure path_body_check_result(source: Str): BodyAndEffects {
   )
 }
 
-pure namespace_loaded_module(source: Str, module_path: Str): Option[LoadedModule] {
+pure namespace_loaded_module(source: Str, path: Str): Option[LoadedModule] {
   match lex(source) {
     Error(errors) => None(),
     Ok(tokens) => match parse_module_complete(tokens) {
       Error(error) => None(),
       Ok(parsed) => {
-        identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), module_path)
+        identity: ModuleIdentity = ModuleIdentity(StandaloneModulePackage(), path)
         bindings: ModuleBindings = collect_module_bindings(identity, parsed)
-        Some(LoadedModule(module_path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
+        Some(LoadedModule(path, parsed, parsed.program, bindings, loaded_module_declaration_index(parsed)))
       }
     }
   }
@@ -231,7 +226,7 @@ async namespace_tcp_server_signature(): Result[[Result[Unit,Str]],Str] {
 }
 
 async namespace_tcp_exchange_signature(): Result[Bytes,Str] {
-  await tcp_exchange("127.0.0.1", 9000, byte_buffer.empty(), 32, 100)
+  await tcp_exchange("127.0.0.1", 9000, bytes_empty(), 32, 100)
 }
 
 async namespace_async_reader_signature(): Result[Bytes,Str] {
@@ -280,56 +275,56 @@ main(): Void {
   utf8_encode_bad_type: BodyAndEffects = body_check_result("pub pure f(): Bytes { utf8_encode(bytes()) }")
   utf8_decode_bad_type: BodyAndEffects = body_check_result("pub pure f(): Str { utf8_decode(\"42\") }")
   impure_effect: BodyAndEffects = body_check_result("pub pure f(): Void { print(\"no\") }")
-  bytes_value: Bytes = byte_buffer.join(text.encode_utf8("A"), byte_buffer.push(byte_buffer.empty(), 33))
-  stdlib_bytes_ok: Bool = byte_buffer.length(bytes_value) == 2 && byte_buffer.at(bytes_value, 1) == 33 && text.decode_utf8(bytes_value) == "A!"
-  stdlib_helpers_ok: Bool = option.value_or[Nat](Some(41), 0) == 41 && result.value_or[Nat,Str](Ok(42), 0) == 42
-  stdlib_environment_ok: Bool = match environment.get("PANACKELTY_NAMESPACE_FIXTURE_VALUE") {
+  bytes_value: Bytes = bytes_join(text_encode_utf8("A"), bytes_push(bytes_empty(), 33))
+  stdlib_bytes_ok: Bool = bytes_length(bytes_value) == 2 && bytes_at(bytes_value, 1) == 33 && text_decode_utf8(bytes_value) == "A!"
+  stdlib_helpers_ok: Bool = option_value_or[Nat](Some(41), 0) == 41 && result_value_or[Nat,Str](Ok(42), 0) == 42
+  stdlib_environment_ok: Bool = match environment("PANACKELTY_NAMESPACE_FIXTURE_VALUE") {
     Some(value) => value == "namespace-ok",
     None() => false
   }
-  test_result: TestResult = testing.equal_nat("namespace import", 42, 42)
+  test_result: TestResult = test_equal_nat("namespace import", 42, 42)
   test_outcome_ok: Bool = test_result.outcome == TestPassed()
-  failed_test_result: TestResult = testing.expect("expected failure", false, "reason")
+  failed_test_result: TestResult = test_expect("expected failure", false, "reason")
   test_failure_shape_ok: Bool = failed_test_result.outcome == TestFailed("reason")
-  string_test_result: TestResult = testing.equal_str("string assertion", "matched", "matched")
-  expectation_result: TestResult = testing.expect("expectation", true, "expected success")
-  time_sum: Duration = time.add(time.seconds(1), time.milliseconds(1000))
-  time_difference: Duration = time.subtract(time_sum, time.seconds(1))
-  ratio_ok: Bool = match time.ratio(time.seconds(2), time.seconds(1)) {
+  string_test_result: TestResult = test_equal_str("string assertion", "matched", "matched")
+  expectation_result: TestResult = test_expect("expectation", true, "expected success")
+  time_sum: Duration = duration_add(duration_seconds(1), duration_milliseconds(1000))
+  time_difference: Duration = duration_subtract(time_sum, duration_seconds(1))
+  ratio_ok: Bool = match duration_ratio(duration_seconds(2), duration_seconds(1)) {
     Ok(value) => value == 2,
     Error(_) => false
   }
-  divide_ok: Bool = match time.divide(time.seconds(2), 2) {
-    Ok(value) => value == time.seconds(1),
+  divide_ok: Bool = match duration_divide(duration_seconds(2), 2) {
+    Ok(value) => value == duration_seconds(1),
     Error(_) => false
   }
-  divide_error: Bool = match time.divide(time.seconds(2), 0) {
+  divide_error: Bool = match duration_divide(duration_seconds(2), 0) {
     Ok(_) => false,
     Error(_) => true
   }
-  ratio_error: Bool = match time.ratio(time.seconds(2), time.seconds(0)) {
+  ratio_error: Bool = match duration_ratio(duration_seconds(2), duration_seconds(0)) {
     Ok(_) => false,
     Error(_) => true
   }
-  zero_divisor_is_reported: Bool = time.divide(time.seconds(2), 0) == Error(ZeroDurationDivisor())
+  zero_divisor_is_reported: Bool = duration_divide(duration_seconds(2), 0) == Error(ZeroDurationDivisor())
   clock_error: ClockError = ClockUnavailable()
   clock_error_is_public: Bool = clock_error == ClockUnavailable()
-  stdlib_time_ok: Bool = time_sum == time.seconds(2) && time_difference == time.seconds(1) &&
-    time.scale(time.seconds(1), 2) == time.seconds(2) &&
-    time.is_before(time.seconds(1), time.seconds(2)) &&
-    time.as_seconds(time.seconds(2)) == 2 && ratio_ok && divide_ok && divide_error && ratio_error &&
+  stdlib_time_ok: Bool = time_sum == duration_seconds(2) && time_difference == duration_seconds(1) &&
+    duration_scale(duration_seconds(1), 2) == duration_seconds(2) &&
+    duration_before(duration_seconds(1), duration_seconds(2)) &&
+    duration_as_seconds(duration_seconds(2)) == 2 && ratio_ok && divide_ok && divide_error && ratio_error &&
     zero_divisor_is_reported && clock_error_is_public
   host_error: HostError = HostError("read", "not_found", 2)
   file_metadata: FileMetadata = FileMetadata(RegularFile(), 12)
-  process_output: ProcessOutput = ProcessOutput(0, 0, byte_buffer.push(byte_buffer.empty(), 65), byte_buffer.empty())
-  command_output_result: TestResult = testing_commands.command_output("command output", process_output, process_output)
-  command_result_result: TestResult = testing_commands.command_result("command result", Ok(process_output), process_output)
+  process_output: ProcessOutput = ProcessOutput(0, 0, bytes_push(bytes_empty(), 65), bytes_empty())
+  command_output_result: TestResult = test_command_output("command output", process_output, process_output)
+  command_result_result: TestResult = test_command_result("command result", Ok(process_output), process_output)
   tcp_limits: TcpServerLimits = TcpServerLimits(2, 1, 512, 1024, 1000, 1000, 250)
   path_error: PathError = EmptyPath()
   stdlib_types_ok: Bool = host_error.operation == "read" && host_error.code == "not_found" &&
     host_error.native_code == 2 && file_metadata.kind == RegularFile() && file_metadata.size == 12 &&
-    process_output.exit_code == 0 && process_output.signal == 0 && byte_buffer.length(process_output.stdout) == 1 &&
-    byte_buffer.length(process_output.stderr) == 0 && tcp_limits.clients == 2 && tcp_limits.response_limit == 1024 &&
+    process_output.exit_code == 0 && process_output.signal == 0 && bytes_length(process_output.stdout) == 1 &&
+    bytes_length(process_output.stderr) == 0 && tcp_limits.clients == 2 && tcp_limits.response_limit == 1024 &&
     path_error == EmptyPath()
   body_contracts_ok: Bool = len(quotient_ok.bodies.diagnostics) == 0 && len(quotient_ok.bodies.functions) == 1 &&
   quotient_ok.bodies.functions[0].status == BodyIdentityChecked() && len(quotient_ok.effects.diagnostics) == 0 &&
@@ -404,7 +399,7 @@ main(): Void {
         match binding_graph_module(graph, identity) {
           Ok(module) => if body_contracts_ok && imported_byte_identity && stdlib_bytes_ok && stdlib_helpers_ok && stdlib_environment_ok && stdlib_time_ok && stdlib_types_ok && test_outcome_ok && test_failure_shape_ok && len(emitted.functions) == 1 && emitted.functions[0].name == "main" && emitted.functions[0].instructions == [ConstInstruction(NatConstant(42)), ReturnInstruction()] && scalar_numeric("Nat") && interpolation.variables == ["name"] &&
             shape.base == "Array" && shape.arguments == ["Nat"] && effect == SignaturePure() {
-            if testing.report([test_result, string_test_result, expectation_result, command_output_result, command_result_result]) == 0 {
+            if test_report([test_result, string_test_result, expectation_result, command_output_result, command_result_result]) == 0 {
               print("module graph namespace ok")
             } else {
               eprint("stdlib testing namespace failed")

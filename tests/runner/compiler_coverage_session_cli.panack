@@ -1,17 +1,15 @@
-import stdlib/text as std_text
-import stdlib/testing as std_testing
-import stdlib/result as std_result
+import stdlib/result::{result_value_or}
 import stdlib/testing_commands::{ProcessOutput}
-import stdlib/testing_files as std_testing_files
-import stdlib/testing::{TestResult}
-import stdlib/bytes as byte_buffer
-import stdlib/path as std_path
-import stdlib/host as std_host
+import stdlib/testing_files::{test_workspace_create}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/bytes::{bytes_empty,bytes_join,text_encode_utf8,text_decode_utf8}
+import stdlib/path::{path_value_to_text}
+import stdlib/host::{host_exit}
 import project/tests/runner/compiler_coverage_session_helpers::{session_path,session_setup,session_command,session_read,session_write,session_contains,session_clean}
 main(): Void {
-  match std_testing_files.workspace_create(session_path("/tmp")) {
-    Error(error) => { std_host.exit(1); }, Ok(workspace) => {
-      dir: Str = std_result.value_or(std_path.to_text(workspace.root), "")
+  match test_workspace_create(session_path("/tmp")) {
+    Error(error) => { host_exit(1); }, Ok(workspace) => {
+      dir: Str = result_value_or(path_value_to_text(workspace.root), "")
       source: Str = dir + "/main.panack"
       child: Str = dir + "/child.panack"
       artifact: Str = dir + "/main.bc"
@@ -22,32 +20,32 @@ main(): Void {
       second: Str = dir + "/second"
       mut results: [TestResult] = []
       for setup in session_setup(source, child, artifact, child_bc, inventory, child_inv) {
-        results = append(results, std_testing.expect("session setup", setup.exit_code == 0, std_text.decode_utf8(setup.stderr)))
+        results = append(results, test_expect("session setup", setup.exit_code == 0, text_decode_utf8(setup.stderr)))
       }
       for args in [["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"],
                    ["coverage-session", second, artifact, inventory, child_bc, child_inv, "--", child_bc, "false"]] {
         run: ProcessOutput = session_command(args)
-        results = append(results, std_testing.expect("nested execution", run.exit_code == 0 && (run.stdout == std_text.encode_utf8("7\n") || run.stdout == std_text.encode_utf8("9\n")), "exit=" + (if run.exit_code == 0 { "0" } else { "nonzero" }) + ", signal=" + (if run.signal == 0 { "0" } else { "nonzero" }) + ", output7=" + (if run.stdout == std_text.encode_utf8("7\n") { "yes" } else { "no" }) + ", output9=" + (if run.stdout == std_text.encode_utf8("9\n") { "yes" } else { "no" }) + ": " + std_text.decode_utf8(run.stdout) + "; stderr: " + std_text.decode_utf8(run.stderr)))
+        results = append(results, test_expect("nested execution", run.exit_code == 0 && (run.stdout == text_encode_utf8("7\n") || run.stdout == text_encode_utf8("9\n")), "exit=" + (if run.exit_code == 0 { "0" } else { "nonzero" }) + ", signal=" + (if run.signal == 0 { "0" } else { "nonzero" }) + ", output7=" + (if run.stdout == text_encode_utf8("7\n") { "yes" } else { "no" }) + ", output9=" + (if run.stdout == text_encode_utf8("9\n") { "yes" } else { "no" }) + ": " + text_decode_utf8(run.stdout) + "; stderr: " + text_decode_utf8(run.stderr)))
       }
       base: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv]
       args: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", second]
       report: ProcessOutput = session_command(args)
-      results = append(results, std_testing.expect("multi-session report", report.exit_code == 0, std_text.decode_utf8(report.stderr)))
+      results = append(results, test_expect("multi-session report", report.exit_code == 0, text_decode_utf8(report.stderr)))
       for expected in ["aggregate sessions=2 executions=4", "declaration/1\tfunction\tchoose\tobserved\t2\t2\n",
         "declaration/1/tail/decision/true\toutcome\ttrue\tobserved\t1\t1\n", "declaration/1/tail/decision/false\toutcome\tfalse\tobserved\t1\t1\n",
         "declaration/2\tfunction\tunused\tobserved\t0\t0\n"] {
-        results = append(results, std_testing.expect("exact aggregate", session_contains(std_text.decode_utf8(report.stdout), expected), expected))
+        results = append(results, test_expect("exact aggregate", session_contains(text_decode_utf8(report.stdout), expected), expected))
       }
       duplicate: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", first])
-      results = append(results, std_testing.expect("duplicate session rejected", duplicate.exit_code == 1 && duplicate.stdout == byte_buffer.empty(), "duplicate accepted"))
+      results = append(results, test_expect("duplicate session rejected", duplicate.exit_code == 1 && duplicate.stdout == bytes_empty(), "duplicate accepted"))
       refused: ProcessOutput = session_command(["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"])
-      results = append(results, std_testing.expect("exclusive session directory", refused.exit_code == 1, "session overwritten"))
+      results = append(results, test_expect("exclusive session directory", refused.exit_code == 1, "session overwritten"))
       original: Bytes = session_read(child)
-      session_write(child, byte_buffer.join(original, std_text.encode_utf8("// stale\n")))
+      session_write(child, bytes_join(original, text_encode_utf8("// stale\n")))
       stale: ProcessOutput = session_command(args)
-      results = append(results, std_testing.expect("stale included source", stale.exit_code == 1 && stale.stdout == byte_buffer.empty(), "stale identity accepted"))
+      results = append(results, test_expect("stale included source", stale.exit_code == 1 && stale.stdout == bytes_empty(), "stale identity accepted"))
       session_clean(dir)
-      if std_testing.report(results) > 0 { std_host.exit(1); }
+      if test_report(results) > 0 { host_exit(1); }
     }
   }
 }

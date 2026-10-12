@@ -1,4 +1,4 @@
-import stdlib/option as std_option
+import stdlib/option::{option_value_or}
 import "stdlib/option.panack" as quoted_option
 pure describe(value: Option[Nat]): Nat {
   match value { Some(number) => number, None() => 0 }

@@ -1,21 +1,19 @@
-import stdlib/text as std_text
-import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/loader::{LoadedProject, load_project}
 import project/src/compiler/diagnostics::{diagnostic_with_source}
-import stdlib/testing as std_testing
-import stdlib/host as std_host
-import stdlib/bytes as byte_buffer
-import stdlib/filesystem as std_filesystem
+import stdlib/testing::{test_equal_str, test_report}
+import stdlib/host::{host_command_arguments, host_exit}
+import stdlib/bytes::{text_encode_utf8}
+import stdlib/filesystem::{filesystem_read_text, filesystem_write_file_bytes}
 main(): Void {
-  filename = std_host.arguments()[0]
-  filesystem_support.write_file_bytes(filename, std_text.encode_utf8("main(): Void { print(missing) }\n"))
+  filename = host_command_arguments()[0]
+  filesystem_write_file_bytes(filename, text_encode_utf8("main(): Void { print(missing) }\n"))
   loaded: LoadedProject = load_project(filename)
-  filesystem_support.write_file_bytes(filename, std_text.encode_utf8("main(): Void {}"))
+  filesystem_write_file_bytes(filename, text_encode_utf8("main(): Void {}"))
   results = [
-    std_testing.equal_str("snapshot file changed", filesystem_support.read_text(filename), "main(): Void {}"),
-    std_testing.equal_str("loader retains original diagnostic source",
+    test_equal_str("snapshot file changed", filesystem_read_text(filename), "main(): Void {}"),
+    test_equal_str("loader retains original diagnostic source",
       diagnostic_with_source(loaded.diagnostics[0], loaded.sources) + "\n",
       "${filename}:1:22: unknown name missing\n  1 | main(): Void { print(missing) }\n    |                      ^\n")
   ]
-  if std_testing.report(results) > 0 { std_host.exit(1) }
+  if test_report(results) > 0 { host_exit(1) }
 }

@@ -1,8 +1,8 @@
-import stdlib/environment as std_environment
+import stdlib/environment::{environment}
 pure describe(value: Option[Str]): Str {
   match value { Some(text) => text, None() => "none" }
 }
 main(): Void {
-  print(describe(std_environment.get("PRESENT")))
-  print(describe(std_environment.get("MISSING")))
+  print(describe(environment("PRESENT")))
+  print(describe(environment("MISSING")))
 }

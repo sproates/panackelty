@@ -1,30 +1,39 @@
+
 // code is a stable portable category; native_code is the POSIX errno, or zero.
 pub record HostError { operation: Str, code: Str, native_code: Nat }
+pub import stdlib/process::{ProcessOutput}
 
-pub run(data: Bytes, arguments: [Str]): Void {
+pub host_run_bytecode(data: Bytes, arguments: [Str]): Void {
   run_bytecode_args(data, arguments)
 }
 
-pub arguments(): [Str] {
+pub host_command_arguments(): [Str] {
   command_args()
 }
 
-pub exit(status: Nat): Void {
+pub host_exit(status: Nat): Void {
   process_exit(status)
 }
 
-pub stderr(message: Str): Void {
+pub host_stderr_text(message: Str): Void {
   eprint(message)
 }
 
-pub stdout(message: Str): Void {
+pub host_stdout_text(message: Str): Void {
   print(message)
 }
 
-pub sleep(duration: Duration): Result[Unit,HostError] {
+pub host_process_run(executable: Path, arguments: [Str], stdin: Bytes,
+                     working_directory: Path, environment: [Str],
+                     timeout: Duration, output_limit: Nat): Result[ProcessOutput,HostError] {
+  process_run(executable, arguments, stdin, working_directory, environment,
+    timeout, output_limit)
+}
+
+pub host_sleep_value(duration: Duration): Result[Unit,HostError] {
   host_sleep(duration)
 }
 
-pub decode_utf8(value: Bytes): Result[Str,HostError] {
+pub host_decode_utf8_value(value: Bytes): Result[Str,HostError] {
   host_decode_utf8(value)
 }

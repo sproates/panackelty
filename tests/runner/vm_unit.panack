@@ -1,11 +1,11 @@
 import stdlib/result::{result_value_or}
 import stdlib/testing::{TestResult, test_expect, test_report}
 import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
-import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command, test_command_output}
 import stdlib/time::{duration_seconds}
-import stdlib/bytes::{bytes_empty, bytes_push}
+import stdlib/bytes::{bytes_empty, bytes_push, text_decode_utf8}
 import stdlib/environment::{environment_value, environment_has_value}
-import stdlib/filesystem::{filesystem_read_text, filesystem_read_file_bytes, filesystem_write_bytes, filesystem_remove_file}
+import stdlib/filesystem::{filesystem_read_text, filesystem_read_bytes, filesystem_read_file_bytes, filesystem_write_bytes, filesystem_remove_file}
 import stdlib/host::{host_process_run, host_exit}
 import stdlib/path::{path_value_append, path_value_from_text, path_value_current, path_value_to_text}
 pure vm_nibble(character: Str): Nat {
@@ -104,10 +104,49 @@ main(): Void {
     Ok(workspace) => {
       mut results: [TestResult] = []
       target = result_value_or(path_value_append(workspace.root, vm_path("input.bc")), workspace.root)
-      results = results.append(test_run_command("native module contracts", TestCommand(
+      progress = result_value_or(path_value_append(workspace.root, vm_path("native-module-progress.txt")), workspace.root)
+      progress_text = vm_text(progress)
+      module_outcome = host_process_run(
         vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), [], bytes_empty(),
-        path_value_current(), vm_environment(), duration_seconds(20), 1048576),
-        ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), bytes_empty())))
+        path_value_current(), vm_environment().append("PANACK_NATIVE_MODULE_PROGRESS_FILE=${progress_text}"),
+        duration_seconds(20), 1048576)
+      mut module_succeeded = false
+      module_result = match module_outcome {
+        Error(problem) => {
+          code = problem.code
+          stage = match filesystem_read_bytes(progress, 4096) {
+            Ok(contents) => {
+              text = text_decode_utf8(contents)
+              if text == "" { "none recorded" } else { text }
+            },
+            Error(read_error) => "none recorded"
+          }
+          test_expect("native module contracts", false,
+            "command failed: ${code}; last completed group: ${stage}")
+        },
+        Ok(output) => {
+          module_succeeded = true
+          test_command_output("native module contracts", output,
+            ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), bytes_empty()))
+        }
+      }
+      results = results.append(module_result)
+      if module_succeeded {
+        stage = match filesystem_read_bytes(progress, 4096) {
+          Ok(contents) => text_decode_utf8(contents),
+          Error(read_error) => "none recorded"
+        }
+        results = results.append(test_expect("native module progress checkpoint",
+          stage == "builtin_domains\n", "final completed-group marker was missing"))
+      }
+      match filesystem_remove_file(progress) {
+        Error(problem) => if problem.code != "not_found" {
+          code = problem.code
+          results = results.append(test_expect("native module progress cleanup", false,
+            "cleanup failed: ${code}"))
+        },
+        Ok(removed) => {}
+      }
       results = results.append(test_run_command("bigint exceeds host word size", TestCommand(
         vm_executable("PANACK_NATIVE_BIGINT_TEST", "./build/vm/test_bigint"), [], bytes_empty(),
         path_value_current(), vm_environment(), duration_seconds(20), 1048576),

@@ -29,6 +29,27 @@ for fixture in cli_environment_files cli_commands cli_check_disasm stdlib; do
     contains "$work/stdout" 'tests: 4, failures: 0'
     pass
 done
+case_name=cli-failure-diagnostics
+checkout=$work/cli-diagnostics-checkout
+mkdir -p "$checkout"
+git -C "$root" archive HEAD | tar -x -C "$checkout"
+ln -s "$root/build" "$checkout/build"
+cat > "$checkout/panack" <<EOF
+#!/bin/sh
+if [ "\${1:-}" = run ] && [ "\${2:-}" = tests/functional/cases/cli_commands/main.panack ]; then
+    printf 'controlled-marker\\n' >&2
+    exit 7
+fi
+exec "$root/panack" "\$@"
+EOF
+chmod +x "$checkout/panack"
+(
+    cd "$checkout"
+    capture 1 60 env PANACKELTY_STDLIB_PATH="$checkout/src/stdlib" \
+        PANACKELTY_STDLIB_VALUE=ambient-test "$root/panack" run "$runner" --case cli_commands
+)
+contains "$work/stdout" 'FAIL case/cli_commands/source: expected exit 0, got 7; exit=7; signal=0; stdout_bytes=0; stdout_prefix=; stderr_bytes=18; stderr_prefix=controlled-marker'
+pass
 case_name=nonempty-workspace-recovery
 mkdir "$work/cleanup"
 capture 1 45 ./panack run "$runner" --test-cleanup-failure "$work/cleanup" --case hello_world

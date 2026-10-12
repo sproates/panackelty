@@ -1,16 +1,18 @@
-import stdlib/result::{result_value_or}
+import stdlib/text as std_text
+import stdlib/testing as std_testing
+import stdlib/result as std_result
 import stdlib/testing_commands::{ProcessOutput}
-import stdlib/testing_files::{test_workspace_create}
-import stdlib/testing::{TestResult, test_expect, test_report}
-import stdlib/bytes::{bytes_empty,text_encode_utf8}
-import stdlib/filesystem::{filesystem_remove_file}
-import stdlib/path::{path_value_to_text}
-import stdlib/host::{host_exit}
+import stdlib/testing_files as std_testing_files
+import stdlib/testing::{TestResult}
+import stdlib/bytes as byte_buffer
+import stdlib/filesystem as std_filesystem
+import stdlib/path as std_path
+import stdlib/host as std_host
 import project/tests/runner/compiler_coverage_session_helpers::{session_path,session_setup,session_require_success,session_command,session_read,session_write,session_clean}
 main(): Void {
-  match test_workspace_create(session_path("/tmp")) {
-    Error(error) => { host_exit(1); }, Ok(workspace) => {
-      dir: Str = result_value_or(path_value_to_text(workspace.root), "")
+  match std_testing_files.workspace_create(session_path("/tmp")) {
+    Error(error) => { std_host.exit(1); }, Ok(workspace) => {
+      dir: Str = std_result.value_or(std_path.to_text(workspace.root), "")
       source: Str = dir + "/main.panack"
       child: Str = dir + "/child.panack"
       artifact: Str = dir + "/main.bc"
@@ -23,7 +25,7 @@ main(): Void {
       for session in [["coverage-session", first, artifact, inventory, child_bc, child_inv, "--", child_bc, "true"],
                       ["coverage-session", second, artifact, inventory, child_bc, child_inv, "--", child_bc, "false"]] {
         setup: ProcessOutput = session_command(session)
-        if setup.exit_code != 0 { host_exit(1); }
+        if setup.exit_code != 0 { std_host.exit(1); }
       }
       args: [Str] = ["coverage-aggregate", "--source", source, inventory, "--source", child, child_inv, "--session", first, "--session", second]
       mut results: [TestResult] = []
@@ -31,22 +33,22 @@ main(): Void {
       raw: Bytes = session_read(raw_path)
       expected: Bytes = session_read(first + "/expect-0.1")
       claimed: Bytes = session_read(first + "/claim-0.1")
-      for file in ["raw-0.1", "expect-0.1", "claim-0.1"] { filesystem_remove_file(session_path(first + "/" + file)); }
+      for file in ["raw-0.1", "expect-0.1", "claim-0.1"] { std_filesystem.remove_file(session_path(first + "/" + file)); }
       lost: ProcessOutput = session_command(args)
-      results = append(results, test_expect("entire child cannot disappear", lost.exit_code == 1 && lost.stdout == bytes_empty(), "lost child accepted"))
+      results = append(results, std_testing.expect("entire child cannot disappear", lost.exit_code == 1 && lost.stdout == byte_buffer.empty(), "lost child accepted"))
       session_write(raw_path, raw)
       session_write(first + "/expect-0.1", expected)
       session_write(first + "/claim-0.1", claimed)
       session_write(first + "/raw-extra", raw)
       surplus: ProcessOutput = session_command(args)
-      results = append(results, test_expect("surplus record rejected", surplus.exit_code == 1 && surplus.stdout == bytes_empty(), "surplus accepted"))
-      filesystem_remove_file(session_path(first + "/raw-extra"))
+      results = append(results, std_testing.expect("surplus record rejected", surplus.exit_code == 1 && surplus.stdout == byte_buffer.empty(), "surplus accepted"))
+      std_filesystem.remove_file(session_path(first + "/raw-extra"))
       missing: Str = dir + "/unregistered"
       unregistered: ProcessOutput = session_command(["coverage-session", missing, artifact, inventory, "--", child_bc, "true"])
       unavailable: ProcessOutput = session_command(["coverage-aggregate", "--source", source, inventory, "--session", missing])
-      results = append(results, test_expect("unregistered child preserves output but blocks report", unregistered.stdout == text_encode_utf8("7\n") && unavailable.exit_code == 1 && unavailable.stdout == bytes_empty(), "missing identity accepted"))
+      results = append(results, std_testing.expect("unregistered child preserves output but blocks report", unregistered.stdout == std_text.encode_utf8("7\n") && unavailable.exit_code == 1 && unavailable.stdout == byte_buffer.empty(), "missing identity accepted"))
       session_clean(dir)
-      if test_report(results) > 0 { host_exit(1); }
+      if std_testing.report(results) > 0 { std_host.exit(1); }
     }
   }
 }

@@ -36,14 +36,15 @@ back to the previous broad source fingerprint. The cache stores compiled
 bytecode only; normal probe invocations still execute the probe and its
 assertions.
 
-### Owner-approved P4 replay measurement protocol — 2026-10-12
+### Owner-approved P4 replay measurement and results — 2026-10-12
 
 The first P4 stdlib module-API migration was not measured as the real developer
 change proposed for GI#106. The owner has directed us to restore the pre-PR #401
 product/API state and repeat the migration with evidence captured from the
 start. Preserve these API decisions: short names in mostly flat domain modules
 (including `path.from_text`, `numeric.divide` and `time.divide`); a curated
-`prelude` facade that exposes those domain modules; removal of the old public
+`prelude` facade that exposes selected domains while keeping `numeric` separate;
+removal of the old public
 `path_string_*` and Str-based trapping filesystem wrappers after caller
 migration; retain the `bytes()` constructor and expose `stdlib/bytes` through
 `prelude.byte_buffer`.
@@ -69,31 +70,75 @@ The captured local log is `/private/tmp/gi106-stdlib-replay/baseline-check.log`.
 This is one clean local sample on one host, not a general benchmark or hosted
 CI measurement. All phases passed; budget warnings do not change the exit status.
 
-1. Use the recorded restored-baseline revision, host, toolchain, cache state and
-   clean-check result above. Two workers match the existing clean-check evidence
-   in this report.
-2. Add one focused acceptance probe for the chosen public surface
+Before applying the migration, the final focused sources were run on the
+restored API tree at `22a6322af4baf7bab1028e50d8edfdbb762ff2cd`, using the
+stage-2 compiler built by that baseline check and separate empty probe caches:
+
+| Probe | Baseline result | Source / toolchain identity |
+| --- | --- | --- |
+| `tests/functional/cases/stdlib_module_api/main.panack` | Expected compile failure in 0.14s; nine missing-binding diagnostics for the selected module API; exit 1; no bytecode published. It has five output assertions for the green run. | Source SHA-256 `1cfb808e66bdb7b3dcaced35be7f3772569d2a13ad06dec7487cc264ad9893cc`; stage-2 compiler SHA-256 `0a74c2bfac23df27d994c448388b4494fa3995ab95094ff25c5e5d4e4973f7c2`. |
+| `tests/functional/failures/stdlib_legacy_api_removed/main.panack` | Existing `path_string_join`, `filesystem_read_text`, and `filesystem_exists` imports compiled and ran in 0.17s; exit 0; one bytecode artifact published. The final suite will require these imports to be rejected. | Source SHA-256 `c4041d88c66db866d6e4434ca94efbcf8d482349ecf933859c554540aec7d39c`; same baseline stage-2 compiler. |
+
+The probe logs and isolated cache directories are retained under
+`/private/tmp/gi106-stdlib-replay/` on the measurement host. These focused
+samples are separate from the earlier full-check baseline; the new functional
+fixtures were added after that clean-check run.
+
+The migration was then applied without editing either probe source. SHA-256
+values for both source files still match the baseline table. The candidate
+stage-2 compiler was rebuilt in 25.15s; its SHA-256 matches the candidate seed
+(`a7448cf05aee8c4945abcab2838aa1238671a6a62bc3c1637563a351b5ff9e1f`).
+
+| Candidate probe | Result | Cache and runner evidence |
+| --- | --- | --- |
+| Same five-output module API probe | First compile-and-run passed in 0.16s. All five output lines matched; red-to-green source remained byte-identical. | Isolated cache changed from zero to one bytecode artifact. Warm repeat passed in 0.03s, emitted the same five lines, and kept one artifact. |
+| Same legacy API probe | Rejected in 0.09s with missing-binding diagnostics for all three removed names; exit 1. | The cache kept its single old baseline artifact and published no candidate bytecode. |
+| Functional runner | Selected positive case: 4/4 runner assertions passed. Selected legacy failure fixture: 5/5 runner assertions passed, including no artifact publication. | Confirms the probe outputs and removed names are part of the normal full functional suite. |
+
+1. The replay used the recorded restored-baseline revision, host, toolchain,
+   cache state and clean-check result above. Two workers match that baseline.
+2. The focused acceptance probe for the chosen public surface
    (`prelude.path.from_text`, `prelude.byte_buffer.join`, coexistence with
-   `bytes()`, and `prelude.numeric.divide` beside `prelude.time.divide`). Run
-   it directly before implementation and capture its expected compile failure,
-   elapsed time, diagnostic and empty probe-cache result. Keep the probe source
-   unchanged while implementing the migration. Also keep a companion probe for
-   the old `path_string_*` and Str-based trapping filesystem imports: it should
-   compile against the baseline, then be rejected with no bytecode after the
-   migration.
-3. Run the same probe after implementation using the same isolated cache. Record
-   its result count, first successful compile-and-run time, cache artifacts and
-   repeated warm-run times. Every run must execute its assertions; only
-   successful compiled bytecode may be reused.
-4. At the completed candidate revision, repeat `make clean` and
-   `VALIDATION_JOBS=2 make check` on the same host and command. Record full wall
-   time and phase timings, preserving all existing tests and adding the focused
-   acceptance probe to unit validation. Report the single matched pair and the
-   extra regression assertions; do not infer a general speedup from one pair.
-5. Record hosted PR results separately for their exact head. Compare focused
-   red/green latency, local clean validation and hosted elapsed time as distinct
-   workloads. Leave the historical timing values informational and GI#106 open
-   until the owner is happy.
+   `bytes()`, and `numeric.divide` beside `prelude.time.divide`) was run before
+   implementation and again after it. Its source stayed byte-identical; the
+   results, diagnostics, cache artifacts and warm repeat are recorded above.
+   The companion legacy-API probe was accepted by the baseline and rejected by
+   the candidate without publishing bytecode.
+3. The completed candidate was checked from a clean build directory with
+   `VALIDATION_JOBS=2 make check` on the same host. The paired phase timings and
+   limits of this single observation follow below. All existing coverage stayed
+   enabled; the module API and legacy-removal fixtures add assertions.
+4. Hosted PR results remain a separate workload and will be recorded for the
+   exact PR head. Keep focused red/green latency, local clean validation and
+   hosted elapsed time distinct. Historical timing figures remain informational;
+   GI#106 remains open until the owner is happy.
+
+### Candidate clean-check result — 2026-10-12
+
+After `make clean`, `VALIDATION_JOBS=2 make check` passed with exit 0. The command
+used the same MacBook Pro M5 Pro, macOS 26.5, Apple clang 21.0.0 and GNU Make 3.81
+as the restored-baseline sample. It started at 20:54 CEST with no competing
+build. The raw log is `/private/tmp/gi106-stdlib-replay/candidate-check-final.log`.
+
+| Phase | Restored baseline | Candidate | Difference |
+| --- | ---: | ---: | ---: |
+| Unit | 417s | 431s | +14s |
+| Functional | 13s | 13s | 0s |
+| Bootstrap | 140s | 144s | +4s |
+| Release smoke | 4s | 3s | -1s |
+| Quick start | <1s | 1s | Rounded to whole seconds |
+| Full check | 602s | 619s | +17s (about 2.8%) |
+
+The candidate run passed every suite. The new legacy-API fixture raised the
+failure-only runner summary from 207 to 210 assertions; the full runner summary
+changed from 365 to 370. Both exact expectations were updated, and the focused
+runner and smoke checks passed before the clean run. Three unrelated untracked
+duplicate files under `examples/` and `src/stdlib/` were held outside package
+inputs for validation and restored afterward; they are not part of the candidate
+change. This is one matched local pair, not a statistical benchmark. It shows no
+clean-check speedup, but the 17-second difference cannot be attributed to the
+migration from one sample. The historical timing budgets are not acceptance
+criteria.
 
 The temporary fault/recovery timings above remain a cache-mechanism check; they
 are not the replay baseline or its acceptance result.

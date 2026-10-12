@@ -1,7 +1,9 @@
+import stdlib/text as std_text
+import stdlib/testing as std_testing
 import project/src/compiler/package_manifest::{parse_package_manifest, PackageManifest, PackageManifestError, PackageManifestDependency, package_manifest_byte_limit}
-import stdlib/bytes::{bytes_empty, bytes_push, bytes_length, text_encode_utf8}
-import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
-import stdlib/host::{host_exit}
+import stdlib/bytes as byte_buffer
+import stdlib/testing::{TestResult}
+import stdlib/host as std_host
 
 pure manifest_fixture(): Str {
   "{\"schema\":1,\"package\":\"geometry.core\",\"version\":\"1.2.3-alpha.1\",\"language\":\"modules-v1\",\"toolchain\":\"0.1.0-alpha.12\",\"source\":\"src\",\"entry\":\"main.panack\",\"exports\":{\"vector\":\"vector.panack\",\"nested/other\":\"nested/other.panack\"},\"dependencies\":{\"geometry\":{\"path\":\"../geometry\"}}}"
@@ -20,21 +22,21 @@ pure replace_first(value: Str, needle: Str, replacement: Str): Str {
 }
 
 pure manifest_accepts(source: Str): Bool {
-  match parse_package_manifest(text_encode_utf8(source), "0.1.0-alpha.12") {
+  match parse_package_manifest(std_text.encode_utf8(source), "0.1.0-alpha.12") {
     Ok(manifest) => manifest.package == "geometry.core",
     Error(error) => false
   }
 }
 
 pure manifest_rejects(source: Str): Bool {
-  match parse_package_manifest(text_encode_utf8(source), "0.1.0-alpha.12") {
+  match parse_package_manifest(std_text.encode_utf8(source), "0.1.0-alpha.12") {
     Ok(manifest) => false,
     Error(error) => true
   }
 }
 
 pure manifest_error_message(source: Str): Str {
-  match parse_package_manifest(text_encode_utf8(source), "0.1.0-alpha.12") {
+  match parse_package_manifest(std_text.encode_utf8(source), "0.1.0-alpha.12") {
     Ok(manifest) => "accepted",
     Error(error) => error.message
   }
@@ -43,86 +45,86 @@ pure manifest_error_message(source: Str): Str {
 main(): Void {
   mut results: [TestResult] = []
   valid: Result[PackageManifest, PackageManifestError] =
-    parse_package_manifest(text_encode_utf8(manifest_fixture()), "0.1.0-alpha.12")
+    parse_package_manifest(std_text.encode_utf8(manifest_fixture()), "0.1.0-alpha.12")
   match valid {
     Ok(manifest) => {
-      results = append(results, test_expect("manifest identity and source root",
+      results = append(results, std_testing.expect("manifest identity and source root",
         manifest.package == "geometry.core" && manifest.version == "1.2.3-alpha.1" &&
           manifest.source == "src" && manifest.language == "modules-v1" &&
           manifest.toolchain == "0.1.0-alpha.12", "wrong parsed manifest values"))
-      results = append(results, test_expect("manifest entry, exports and dependency",
+      results = append(results, std_testing.expect("manifest entry, exports and dependency",
         manifest.entry == Some("main.panack") && len(manifest.exports) == 2 &&
           manifest.exports[1].module == "nested/other" &&
           manifest.dependencies == [PackageManifestDependency("geometry", "../geometry")],
         "wrong parsed package graph"))
     },
-    Error(error) => { results = append(results, test_expect("valid manifest", false, error.message)) }
+    Error(error) => { results = append(results, std_testing.expect("valid manifest", false, error.message)) }
   }
-  results = append(results, test_expect("library can omit entry", manifest_accepts(
+  results = append(results, std_testing.expect("library can omit entry", manifest_accepts(
     "{\"schema\":1,\"package\":\"geometry.core\",\"version\":\"1.2.3\",\"language\":\"modules-v1\",\"toolchain\":\"0.1.0-alpha.12\",\"source\":\"src\",\"exports\":{},\"dependencies\":{}}"), "library manifest was rejected"))
-  results = append(results, test_equal_str("duplicate root key rejected",
+  results = append(results, std_testing.equal_str("duplicate root key rejected",
     manifest_error_message("{\"schema\":1,\"schema\":1}"), "duplicate JSON object key"))
-  results = append(results, test_equal_str("duplicate escaped key rejected",
+  results = append(results, std_testing.equal_str("duplicate escaped key rejected",
     manifest_error_message("{\"schema\":1,\"\\u0073chema\":1}"), "duplicate JSON object key"))
-  results = append(results, test_expect("unknown top-level field rejected",
+  results = append(results, std_testing.expect("unknown top-level field rejected",
     manifest_rejects(replace_first(manifest_fixture(), "{", "{\"extra\":true,")), "unknown field accepted"))
-  results = append(results, test_expect("non-integer schema rejected",
+  results = append(results, std_testing.expect("non-integer schema rejected",
     manifest_rejects(replace_first(manifest_fixture(), "\"schema\":1", "\"schema\":1.0")), "non-integer schema accepted"))
-  results = append(results, test_expect("toolchain mismatch rejected",
+  results = append(results, std_testing.expect("toolchain mismatch rejected",
     manifest_rejects(replace_first(manifest_fixture(), "0.1.0-alpha.12", "0.1.0-alpha.11")), "wrong toolchain accepted"))
-  results = append(results, test_equal_str("malformed JSON number rejected",
+  results = append(results, std_testing.equal_str("malformed JSON number rejected",
     manifest_error_message(replace_first(manifest_fixture(), "\"schema\":1", "\"schema\":01")), "invalid JSON number"))
-  results = append(results, test_expect("parent source path rejected",
+  results = append(results, std_testing.expect("parent source path rejected",
     manifest_rejects(replace_first(manifest_fixture(), "\"source\":\"src\"", "\"source\":\"../src\"")), "escaping source root accepted"))
-  results = append(results, test_expect("absolute entry path rejected",
+  results = append(results, std_testing.expect("absolute entry path rejected",
     manifest_rejects(replace_first(manifest_fixture(), "main.panack", "/main.panack")), "absolute entry accepted"))
-  results = append(results, test_expect("export path requires source suffix",
+  results = append(results, std_testing.expect("export path requires source suffix",
     manifest_rejects(replace_first(manifest_fixture(), "vector.panack", "vector.txt")), "invalid export suffix accepted"))
-  results = append(results, test_expect("reserved dependency alias rejected",
+  results = append(results, std_testing.expect("reserved dependency alias rejected",
     manifest_rejects(replace_first(manifest_fixture(), "geometry\":{", "project\":{")), "reserved alias accepted"))
-  results = append(results, test_expect("invalid prerelease rejected",
+  results = append(results, std_testing.expect("invalid prerelease rejected",
     manifest_rejects(replace_first(manifest_fixture(), "1.2.3-alpha.1", "1.2.3-01")), "invalid SemVer prerelease accepted"))
-  results = append(results, test_equal_str("malformed manifest reports field context",
+  results = append(results, std_testing.equal_str("malformed manifest reports field context",
     manifest_error_message(replace_first(manifest_fixture(), "\"schema\":1", "\"schema\":true")),
     "manifest schema must be the integer 1"))
-  results = append(results, test_equal_str("valid surrogate pair decodes in path",
-    match parse_package_manifest(text_encode_utf8(replace_first(manifest_fixture(), "../geometry", "../geo\\ud83d\\ude42")), "0.1.0-alpha.12") {
+  results = append(results, std_testing.equal_str("valid surrogate pair decodes in path",
+    match parse_package_manifest(std_text.encode_utf8(replace_first(manifest_fixture(), "../geometry", "../geo\\ud83d\\ude42")), "0.1.0-alpha.12") {
       Ok(manifest) => manifest.dependencies[0].path,
       Error(error) => error.message
     }, "../geo🙂"))
-  results = append(results, test_equal_str("unpaired surrogate is rejected",
+  results = append(results, std_testing.equal_str("unpaired surrogate is rejected",
     manifest_error_message("{\"schema\":1,\"extra\":\"\\ud800\"}"),
     "unpaired high surrogate in JSON string"))
-  results = append(results, test_equal_str("invalid JSON escape is rejected",
+  results = append(results, std_testing.equal_str("invalid JSON escape is rejected",
     manifest_error_message("{\"schema\":1,\"extra\":\"\\q\"}"),
     "invalid JSON escape"))
-  results = append(results, test_equal_str("trailing comma in JSON is rejected",
+  results = append(results, std_testing.equal_str("trailing comma in JSON is rejected",
     manifest_error_message("{\"schema\":1,\"extra\":[1,]}"), "trailing comma in JSON array"))
-  results = append(results, test_expect("JSON trailing data is rejected",
+  results = append(results, std_testing.expect("JSON trailing data is rejected",
     manifest_rejects(manifest_fixture() + " false"), "trailing JSON data accepted"))
-  results = append(results, test_equal_str("decoded NUL in source path is rejected",
+  results = append(results, std_testing.equal_str("decoded NUL in source path is rejected",
     manifest_error_message(replace_first(manifest_fixture(), "\"source\":\"src\"", "\"source\":\"src\\u0000x\"")),
     "manifest paths cannot contain NUL"))
-  results = append(results, test_expect("required package field is enforced",
+  results = append(results, std_testing.expect("required package field is enforced",
     manifest_rejects("{\"schema\":1,\"version\":\"1.2.3\",\"language\":\"modules-v1\",\"toolchain\":\"0.1.0-alpha.12\",\"source\":\"src\",\"exports\":{},\"dependencies\":{}}"),
     "missing package accepted"))
 
-  mut invalid_utf8 = bytes_empty()
-  invalid_utf8 = bytes_push(invalid_utf8, 255)
-  results = append(results, test_expect("invalid UTF-8 rejected",
+  mut invalid_utf8 = byte_buffer.empty()
+  invalid_utf8 = byte_buffer.push(invalid_utf8, 255)
+  results = append(results, std_testing.expect("invalid UTF-8 rejected",
     match parse_package_manifest(invalid_utf8, "0.1.0-alpha.12") {
       Ok(manifest) => false,
       Error(error) => error.message == "manifest is not valid UTF-8"
     }, "invalid UTF-8 accepted"))
 
-  mut too_large = bytes_empty()
+  mut too_large = byte_buffer.empty()
   mut index: Nat = 0
   while index <= package_manifest_byte_limit() {
-    too_large = bytes_push(too_large, 32)
+    too_large = byte_buffer.push(too_large, 32)
     index = index + 1
   }
-  results = append(results, test_expect("manifest byte bound",
-    bytes_length(too_large) == package_manifest_byte_limit() + 1 &&
+  results = append(results, std_testing.expect("manifest byte bound",
+    byte_buffer.length(too_large) == package_manifest_byte_limit() + 1 &&
       match parse_package_manifest(too_large, "0.1.0-alpha.12") {
         Ok(manifest) => false,
         Error(error) => error.message == "manifest exceeds 65536-byte limit"
@@ -140,9 +142,9 @@ main(): Void {
     nested = nested + "]"
     depth = depth + 1
   }
-  results = append(results, test_expect("JSON nesting bound",
+  results = append(results, std_testing.expect("JSON nesting bound",
     manifest_error_message(nested) == "manifest JSON nesting exceeds 32 levels",
     "nesting limit was not applied"))
 
-  if test_report(results) > 0 { host_exit(1) }
+  if std_testing.report(results) > 0 { std_host.exit(1) }
 }

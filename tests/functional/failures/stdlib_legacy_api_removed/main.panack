@@ -1,0 +1,7 @@
+import stdlib/prelude::{path_string_join, filesystem_read_text, filesystem_exists}
+
+legacy_path_join(): Str { path_string_join("parent", "child") }
+legacy_read_text(path: Str): Str { filesystem_read_text(path) }
+legacy_exists(path: Str): Bool { filesystem_exists(path) }
+
+main(): Void {}

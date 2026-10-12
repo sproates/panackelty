@@ -1,3 +1,5 @@
+import stdlib/text as std_text
+import stdlib/result as std_result
 pub import project/src/compiler/parser::{unlocated_expression, parse_program_complete, Expr, Block, Program, Statement, FunctionParameter, RecordField, EnumVariant, IndexedVariant, MatchArm, MatchPattern, TopLevel, SourcePos, SourceSpan, Diagnostic, Expr.LocatedExpr, Expr.NatExpr, Expr.DecimalExpr, Expr.StringExpr, Expr.BoolExpr, Expr.NameExpr, Expr.FunctionExpr, Expr.ArrayExpr, Expr.UnaryExpr, Expr.BinaryExpr, Expr.CallExpr, Expr.DotCallExpr, Expr.FieldExpr, Expr.IndexExpr, Expr.IfExpr, Expr.BlockExpr, Expr.MatchExpr, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, BlockValue.NoBlockValue, BlockValue.TailBlockValue}
 pub import project/src/compiler/resolver::{LoadedSource}
 import project/src/compiler/resolver::{SourceUnit, ModuleGraphState, append_program_declarations, duplicate_module_diagnostics, is_builtin, render_resolver_diagnostics, resolve_program, visit_module}

@@ -1,8 +1,13 @@
-import stdlib/path::{path_value_from_text, path_string_join, path_string_suffix, path_string_parent, path_string_is_absolute, path_string_resolve}
-import stdlib/filesystem::{FileKind.SymbolicLink, filesystem_metadata, filesystem_read_bytes, filesystem_read_text, filesystem_exists}
-import stdlib/package_filesystem::{FilesystemRootRead, filesystem_read_beneath}
-import stdlib/bytes::{bytes_length, text_encode_utf8, text_decode_utf8}
-import stdlib/environment::{environment}
+import project/src/compiler/path_support as path_support
+import stdlib/text as std_text
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
+import stdlib/environment as std_environment
+import stdlib/package_filesystem as std_package_filesystem
+import project/src/compiler/filesystem_support as filesystem_support
+import stdlib/filesystem::{FileKind.SymbolicLink}
+import stdlib/package_filesystem::{FilesystemRootRead}
+import stdlib/bytes as byte_buffer
 import project/src/bytecode/decoder::{valid_utf8}
 pub import project/src/compiler/module_bodies::{
   Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
@@ -124,7 +129,7 @@ pure logical_import_segments_valid(path: Str): Bool {
 }
 
 pure logical_import_valid(path: Str): Bool {
-  suffix: Str = path_string_suffix(path)
+  suffix: Str = path_support.suffix(path)
   without_suffix: Str = logical_import_without_suffix(path)
   relative: Str = if starts_with_at(without_suffix, "stdlib/", 0) {
     slice(without_suffix, len("stdlib/"), len(without_suffix))
@@ -142,14 +147,14 @@ pure resolve_import_path(imported: Str, parent: Str, project_root: Str, stdlib_r
   if starts_with_at(imported, "stdlib/", 0) {
     without_suffix: Str = logical_import_without_suffix(imported)
     relative: Str = slice(without_suffix, len("stdlib/"), len(without_suffix))
-    path_string_join(stdlib_root, "${relative}.panack")
+    path_support.join(stdlib_root, "${relative}.panack")
   } else {
     if starts_with_at(imported, "project/", 0) {
       without_suffix: Str = logical_import_without_suffix(imported)
       relative: Str = slice(without_suffix, len("project/"), len(without_suffix))
-      path_string_join(project_root, "${relative}.panack")
+      path_support.join(project_root, "${relative}.panack")
     } else {
-      path_string_join(parent, imported)
+      path_support.join(parent, imported)
     }
   }
 }
@@ -264,7 +269,7 @@ pure package_import_export_path(
       module: Str = slice(logical, len(dependency.alias) + 1, len(logical))
       for exported in dependency.exported_modules {
         if exported.module == module {
-          found = Some(path_string_join(dependency.source_root, exported.path))
+          found = Some(path_support.join(dependency.source_root, exported.path))
           selected_count = selected_count + 1
         }
       }
@@ -292,8 +297,8 @@ pure resolve_package_import_path(
       Some(path) => Ok(path),
       None() => Error("dependency import is not declared or the module is not exported: ${imported}")
     }
-  } else if path_string_suffix(imported) == ".panack" {
-    Ok(path_string_join(parent, imported))
+  } else if path_support.suffix(imported) == ".panack" {
+    Ok(path_support.join(parent, imported))
   } else {
     Error("dependency import is not declared or the module is not exported: ${imported}")
   }
@@ -308,9 +313,9 @@ pure loader_path_within(path: Str, root: Str): Bool {
 }
 
 loader_path_component_is_symlink(path: Str): Bool {
-  match path_value_from_text(path) {
+  match std_path.from_text(path) {
     Error(error) => true,
-    Ok(file) => match filesystem_metadata(file) {
+    Ok(file) => match std_filesystem.metadata(file) {
       Error(error) => false,
       Ok(metadata) => metadata.kind == SymbolicLink()
     }
@@ -334,7 +339,7 @@ loader_path_has_symlink(path: Str, root: Str, allow_leaf_symlink: Bool): Bool {
       character: Str = relative[index]
       if character == "/" {
         if len(segment) > 0 {
-          current = path_string_join(current, segment)
+          current = path_support.join(current, segment)
           found = found || loader_path_component_is_symlink(current)
           segment = ""
         } else {}
@@ -344,7 +349,7 @@ loader_path_has_symlink(path: Str, root: Str, allow_leaf_symlink: Bool): Bool {
       index = index + 1
     }
     if len(segment) > 0 {
-      current = path_string_join(current, segment)
+      current = path_support.join(current, segment)
       if !allow_leaf_symlink {
         found = found || loader_path_component_is_symlink(current)
       } else {}
@@ -360,27 +365,27 @@ pub read_project_source(
   sources: Map[Str, Str]
 ): Result[Str, Str] {
   if !bounded {
-    Ok(filesystem_read_text(path))
+    Ok(filesystem_support.read_text(path))
   } else {
     mut total: Nat = 0
     for loaded in paths {
-      total = total + bytes_length(text_encode_utf8(sources.get(loaded)))
+      total = total + byte_buffer.length(std_text.encode_utf8(sources.get(loaded)))
     }
     if len(paths) >= 256 || total > 8388608 {
       Error("source-map source closure limit exceeded")
     } else {
-      match path_value_from_text(path) {
+      match std_path.from_text(path) {
         Error(error) => Error("invalid source path"),
-        Ok(file) => match filesystem_read_bytes(file, 1048576) {
+        Ok(file) => match std_filesystem.read(file, 1048576) {
           Error(error) => Error("source-map source unavailable or exceeds 1 MiB"),
           Ok(data) => {
-            if total + bytes_length(data) > 8388608 {
+            if total + byte_buffer.length(data) > 8388608 {
               Error("source-map source closure exceeds 8 MiB")
             } else {
               if !valid_utf8(data) {
                 Error("source-map source is not valid UTF-8")
               } else {
-                Ok(text_decode_utf8(data))
+                Ok(std_text.decode_utf8(data))
               }
             }
           }
@@ -403,17 +408,17 @@ pub read_package_source(
   } else {
     mut total: Nat = 0
     for loaded in paths {
-      total = total + bytes_length(text_encode_utf8(sources.get(loaded)))
+      total = total + byte_buffer.length(std_text.encode_utf8(sources.get(loaded)))
     }
     relative: Str = module_relative_path(path, package_root)
     if len(paths) >= 256 || total > 8388608 {
       Error("package source closure limit exceeded")
     } else {
-      match path_value_from_text(package_root) {
+      match std_path.from_text(package_root) {
         Error(error) => Error("invalid package root path"),
-        Ok(root) => match path_value_from_text(relative) {
+        Ok(root) => match std_path.from_text(relative) {
           Error(error) => Error("invalid package-relative source path"),
-          Ok(source) => match filesystem_read_beneath(root, source, 1048576) {
+          Ok(source) => match std_package_filesystem.read_beneath(root, source, 1048576) {
             Error(problem) => {
               code: Str = problem.code
               Error("package source read failed (${code})")
@@ -424,13 +429,13 @@ pub read_package_source(
                 Some(expected) => read.identity != expected
               } {
                 Error("package root identity changed while loading source")
-              } else if bounded && total + bytes_length(read.contents) > 8388608 {
+              } else if bounded && total + byte_buffer.length(read.contents) > 8388608 {
                 Error("package source closure exceeds 8 MiB")
               } else {
                 if !valid_utf8(read.contents) {
                   Error("package source is not valid UTF-8")
                 } else {
-                  Ok(text_decode_utf8(read.contents))
+                  Ok(std_text.decode_utf8(read.contents))
                 }
               }
             }
@@ -484,7 +489,7 @@ load_project_module(
       )
       ProjectLoadState(state.modules, state.visited, diagnostics, state.sources, state.source_paths)
     } else {
-      if path_string_suffix(path) != ".panack" {
+      if path_support.suffix(path) != ".panack" {
         diagnostics: [Diagnostic] = append(
           state.diagnostics,
           loader_diagnostic("import must reference a .panack file: ${path}")
@@ -497,7 +502,7 @@ load_project_module(
           state.source_paths
         )
       } else {
-        if !package_confined && !filesystem_exists(path) {
+        if !package_confined && !filesystem_support.exists(path) {
           diagnostics: [Diagnostic] = append(
             state.diagnostics,
             loader_diagnostic("missing source module ${path}")
@@ -581,7 +586,7 @@ load_project_module(
                       bindings: ModuleBindings = collect_module_bindings(identity, parsed)
                       // Retain original source bindings before the existing core-only
                       // callable internalization used by the execution frontend.
-                      program: Program = if path == path_string_join(stdlib_root, "core.panack") {
+                      program: Program = if path == path_support.join(stdlib_root, "core.panack") {
                         match parse_module_complete(core_tokens(tokens)) {
                           Ok(internal) => lower_legacy_program(internal.program),
                           Error(error) => lower_legacy_program(parsed.program)
@@ -641,7 +646,7 @@ load_project_module(
                                     current.source_paths
                                   )
                                 } else {
-                                  parent: Str = path_string_parent(path)
+                                  parent: Str = path_support.parent(path)
                                   import_root: Str = if package_confined {
                                     package_owner_source_root(path, project_root, dependencies)
                                   } else { project_root }
@@ -687,7 +692,7 @@ load_project_module(
                                 }
                               }
                             } else {
-                              if path_string_is_absolute(imported) {
+                              if path_support.is_absolute(imported) {
                                 diagnostics: [Diagnostic] = append(
                                   current.diagnostics,
                                   loader_diagnostic("imports must use relative or logical paths: ${imported}")
@@ -700,7 +705,7 @@ load_project_module(
                                   current.source_paths
                                 )
                               } else {
-                                if path_string_suffix(imported) != ".panack" {
+                                if path_support.suffix(imported) != ".panack" {
                                   diagnostics: [Diagnostic] = append(
                                     current.diagnostics,
                                     loader_diagnostic("relative import must reference a .panack file: ${imported}")
@@ -713,8 +718,8 @@ load_project_module(
                                     current.source_paths
                                   )
                                 } else {
-                                  parent: Str = path_string_parent(path)
-                                  dependency: Str = path_string_join(parent, imported)
+                                  parent: Str = path_support.parent(path)
+                                  dependency: Str = path_support.join(parent, imported)
                                   current = load_project_module(
                                     dependency,
                                     current,
@@ -858,17 +863,17 @@ load_project_mode_with_configuration(
   package_confined: Bool,
   dependencies: [ManifestDependencyProject]
 ): LoadedProject {
-  resolved: Str = path_string_resolve(entry)
+  resolved: Str = path_support.resolve(entry)
   project_root: Str = if package_confined {
-    path_string_resolve(configured_project_root)
+    path_support.resolve(configured_project_root)
   } else {
-    match environment("PANACKELTY_BOOTSTRAP_ROOT") {
-      Some(value) => path_string_resolve(value),
-      None() => path_string_parent(resolved)
+    match std_environment.get("PANACKELTY_BOOTSTRAP_ROOT") {
+      Some(value) => path_support.resolve(value),
+      None() => path_support.parent(resolved)
     }
   }
-  stdlib_root: Str = match environment("PANACKELTY_STDLIB_PATH") {
-    Some(value) => path_string_resolve(value),
+  stdlib_root: Str = match std_environment.get("PANACKELTY_STDLIB_PATH") {
+    Some(value) => path_support.resolve(value),
     None() => ""
   }
   empty: Set[Str] = set()
@@ -886,7 +891,7 @@ load_project_mode_with_configuration(
     )
   } else {
     core = load_project_module(
-      path_string_join(stdlib_root, "core.panack"),
+      path_support.join(stdlib_root, "core.panack"),
       initial,
       stack,
       project_root,
@@ -1114,7 +1119,7 @@ pub pure loaded_package_binding_graph(
     bindings = append(bindings, module.bindings)
     mut index: Nat = 0
     for imported in module.bindings.imports {
-      parent: Str = path_string_parent(module.source_path)
+      parent: Str = path_support.parent(module.source_path)
       owner_root: Str = if package_confined {
         package_owner_source_root(module.source_path, project_root, dependencies)
       } else { project_root }

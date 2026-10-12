@@ -214,14 +214,14 @@ try {
   assert.deepEqual([...asyncCount.pcs].filter(([key])=>key.startsWith(asyncCount.names.get(childIdentity)+':')).map(([,c])=>c.hits),[1,1,1]); checks++;
   run('./panack',['run',asynchronous.artifact]); checks++;
   const childPath = JSON.stringify(printed.artifact);
-  const nested = fixture('nested',`import stdlib/filesystem::{filesystem_read_file_bytes}\nimport stdlib/host::{host_run_bytecode}\nmain(): Void { raw: Bytes = filesystem_read_file_bytes(${childPath})\n host_run_bytecode(raw, []) }\n`);
+  const nested = fixture('nested',`import stdlib/filesystem as filesystem\nimport stdlib/path as path\nimport stdlib/result as result\nimport stdlib/host as host\nmain(): Void { match filesystem.read(result.value_or(path.from_text(${childPath}), path.current()), 16777216) { Ok(raw) => host.run(raw, []), Error(error) => host.exit(1) } }\n`);
   const nestedCount = observe(nested), nestedBulk = observe(nested,'bulk');
   check(nestedCount.stdout === '42\n' && nestedBulk.stdout === '42\n' && run('./panack',['run',nested.artifact]).stdout === '42\n', 'nested execution semantics preserved');
   check(nestedCount.gap === 'nested-execution', 'missing child execution explicitly incomplete');
-  const indirect = fixture('indirect',`import stdlib/filesystem::{filesystem_read_file_bytes}\nimport stdlib/host::{host_run_bytecode}\nchild(raw: Bytes): Void { host_run_bytecode(raw, []) }\nmain(): Void { raw: Bytes = filesystem_read_file_bytes(${childPath})\n f: Fn[Bytes,Void] = @child\n f.call(raw) }\n`);
+  const indirect = fixture('indirect',`import stdlib/filesystem as filesystem\nimport stdlib/path as path\nimport stdlib/result as result\nimport stdlib/host as host\nchild(raw: Bytes): Void { host.run(raw, []) }\nmain(): Void { match filesystem.read(result.value_or(path.from_text(${childPath}), path.current()), 16777216) { Ok(raw) => { f: Fn[Bytes,Void] = @child\n f.call(raw) }, Error(error) => host.exit(1) } }\n`);
   check(observe(indirect).gap === 'nested-execution', 'indirect child also invalidates completeness');
   const compiledChild = path.join(work,'nested-output.bc');
-  const compiler = fixture('compiler',`import stdlib/filesystem::{filesystem_read_file_bytes}\nimport stdlib/host::{host_run_bytecode}\nmain(): Void { raw: Bytes = filesystem_read_file_bytes(${JSON.stringify(path.resolve('bootstrap/compiler-v9.bc'))})\n host_run_bytecode(raw, ["compile", ${JSON.stringify(printed.file)}, "-o", ${JSON.stringify(compiledChild)}]) }\n`);
+  const compiler = fixture('compiler',`import stdlib/filesystem as filesystem\nimport stdlib/path as path\nimport stdlib/result as result\nimport stdlib/host as host\nmain(): Void { match filesystem.read(result.value_or(path.from_text(${JSON.stringify(path.resolve('bootstrap/compiler-v9.bc'))}), path.current()), 16777216) { Ok(raw) => host.run(raw, ["compile", ${JSON.stringify(printed.file)}, "-o", ${JSON.stringify(compiledChild)}]), Error(error) => host.exit(1) } }\n`);
   const compilerCount = observe(compiler);
   check(compilerCount.gap === 'nested-execution' && fs.readFileSync(compiledChild).equals(fs.readFileSync(printed.artifact)), 'nested compiler preserves artifact but is not measured');
   const lowering = fixture('lowering',`enum Choice { First, Second, Third }

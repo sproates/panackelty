@@ -222,12 +222,46 @@ alone does not justify dependency-aware reuse or separate compilation.
 
 The inventory and local measurements confirm repeated full validation at PR
 and post-merge checkpoints, expose structural overlap in the CI matrix, and
-locate the largest local costs. They still do not measure contributor active
-versus idle wait, a fresh machine or cold OS cache, repeated discovery/tool
-context, or review/reporting overhead. The Slice 2 map below connects likely
-regressions at each major change surface to focused assertions, integration
-checks and hosted lanes. It is a component-to-test map, not an exhaustive
-assertion trace or evidence that any suite can safely be omitted.
+locate the largest local costs. The selected PR sample below adds CI and
+open-to-merge elapsed times, but does not measure contributor active versus
+idle wait, a fresh machine or cold OS cache, repeated discovery/tool context,
+or review/reporting overhead. The Slice 2 map below connects likely regressions
+at each major change surface to focused assertions, integration checks and
+hosted lanes. It is a component-to-test map, not an exhaustive assertion trace
+or evidence that any suite can safely be omitted.
+
+### Contributor/CI wait sample and worker pilot — 2026-10-12
+
+| Pull request | Open to merge | Hosted Check elapsed | Result and limit |
+| --- | ---: | ---: | --- |
+| [#388](https://github.com/sproates/panackelty/pull/388), docs-only | 38m19s | PR 29s; post-merge 31s | Both short Checks passed. The lifecycle window is much longer than either Check, but does not show how much was active work, review, queueing or other delay. |
+| [#394](https://github.com/sproates/panackelty/pull/394), full route | 8m55s | PR 8m34s; post-merge 8m30s | Both full Checks passed. The matched pair did not show a wall-time reduction from skipping the four repeated experiments. |
+| [#396](https://github.com/sproates/panackelty/pull/396), docs-only | 56s | 29s | Check passed; the document classifier took 16s and result gates took 6–7s. One fast docs PR is not a contributor-time baseline. |
+
+These three examples contrast the hosted docs and full routes, not a
+representative sample of developers' work. PR creation-to-merge duration is a
+coarse elapsed window, not a measure of waiting or coding time; it combines
+review, author work, automation and any unobserved gaps. The CI durations also
+include scheduling and parallel jobs. No active-time/idle-time split can be
+inferred from these records.
+
+The bounded hosted worker pilot [PR #397](https://github.com/sproates/panackelty/pull/397)
+changed only the two hosted compiler validation jobs from three to four
+workers; the other suite budgets and assertions were unchanged. Its local
+warm-tree `make check` passed in 420s, which is not a clean-check comparison.
+On the hosted PR run, both Ubuntu compiler lanes failed when the same
+`cli_commands/source` harness invocation timed out; downstream artifact errors
+followed. The macOS compiler package lane passed in 7m08s, compared with 7m55s
+in one earlier, unmatched run. That single macOS observation does not establish
+a gain, and the Ubuntu failures are consistent with resource contention but do
+not prove its cause. PR #397 was closed without merging, so hosted compiler
+validation remains at three workers. No test assertions or gates were removed.
+
+This sample is enough to reject the four-worker setting as a default change,
+not to choose a replacement performance NFR or reduce validation. A future
+optimization needs a named workload and paired evidence for it; if the question
+is contributor idle time, it needs direct timing of that experience rather
+than PR lifecycle timestamps.
 
 <a id="gi106-change-impact-map"></a>
 

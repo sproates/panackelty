@@ -67,13 +67,16 @@ use the relevant `check-*` target and ultimately `make check` for broader
 validation.
 
 `tests/run_probe.sh` caches compiled probe bytecode under `build/probes` (or
-`BUILD_DIR/probes`). Its key covers the selected VM, compiler seed, helper,
-source paths and contents, and all Panackelty sources under `src`, `tests`,
-`examples` and the selected standard library. Added/deleted files and edits with
-restored timestamps invalidate reuse. Cached bytecode has a checked digest;
-failed compilation and inputs changed during compilation are never published.
-Every invocation executes the probe and its assertions. Instrumented VMs have
-separate keys and build directories. `make clean` removes all cached bytecode.
+`BUILD_DIR/probes`). Its key covers the selected VM, compiler seed, runner and
+dependency scanner, the entry source, and its static `stdlib/`, `project/` and
+quoted relative import closure, including implicit `core.panack`. Added,
+removed or changed dependencies invalidate reuse even if timestamps are
+restored. An unfamiliar or unresolved import falls back to hashing all
+Panackelty sources in the repository and selected standard library. Cached
+bytecode has a checked digest; failed compilation and inputs changed during
+compilation are never published. Every invocation executes the probe and its
+assertions. Instrumented VMs have separate keys and build directories. `make clean`
+removes all cached bytecode.
 The compiler integration driver and snapshot helper use the same cache; fixture
 programs still exercise the public CLI. The shell harness compiles its runner
 once per group and reuses it across isolated failure-injection scenarios.
@@ -738,8 +741,10 @@ Project caches are removed before each clean full check; OS page caches are
 uncontrolled. Warm focused runs reuse the final clean run's artifacts. Each probe
 trial starts with a copy of the same successfully primed baseline cache at the same
 path. Unrelated edits preserve output `42`; direct/transitive edits must output
-`43`. All probes execute; cached test results are never used. The existing broad
-source fingerprint and all compiler/seed/VM invalidation controls remain intact.
+`43`. All probes execute; cached test results are never used. These recorded
+baseline observations used the old repository-wide source fingerprint. The
+dependency-aware pilot retains compiler/seed/VM invalidation and separately
+verifies its import-closure key.
 
 `samples.tsv` records external POSIX `time -p` elapsed seconds in the C locale,
 status and completed

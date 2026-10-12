@@ -284,6 +284,21 @@ improvements for the user's decision. The only acceptance criterion for GI#106
 is that the user says they are happy with the result; the issue remains open
 until then.
 
+**Selected candidates and stdlib direction, 2026-10-12:** the user selected
+dependency-aware compiled-probe reuse and a separate-compilation design, while
+keeping every test assertion and the full validation gates. The local reuse
+pilot's synthetic unrelated-edit comparison is recorded in the
+[GI#106 findings](tests/VALIDATION_PROFILE.md#gi106-findings-and-options): the
+compiler-contract probe was reused in 0.04–0.05s instead of recompiling in
+18.32–18.48s. This is not a representative bug-fix result or clean-check speedup.
+The host-enabled local `make check` passed in 421s on a reused build tree; its
+historical budget warnings are not current acceptance gates. Next, measure a
+real stdlib edit's focused fail/pass cycle and broader checks, then use those
+boundaries to review the separate-compilation design. The stdlib naming and
+removal choices are captured in the
+[namespace migration plan](docs/STDLIB_API_NAMESPACE_PLAN.md). No replacement
+NFRs are set and GI#106 remains open until the user is happy.
+
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.
 This local observation establishes neither a regression nor a cause;
@@ -2506,10 +2521,9 @@ the [measured evidence and reviewed disposition](tests/VALIDATION_PROFILE.md#rep
 retain observations against the then-used full/focused comparisons. No post-merge acceptance is needed for this
 measurement slice; the broader GI#106 remains open. Website impact: none, because
 this changes contributor measurement tooling, not public language/release claims.
-Dependency-aware probe reuse and separate-compilation design remain unscheduled;
-establishing the baseline authorises neither optimisation nor a compiler redesign.
-Completing the earlier slice does not close the broader issue. The existing broad
-invalidation concern follows.
+At that baseline delivery, no optimisation or compiler redesign was selected.
+The later owner direction below changes that status; completing the baseline
+slice still did not close GI#106.
 
 **Owner-directed scope and acceptance refresh (2026-10-12):** first inspect the
 complete local-to-CI workflow, its run frequency, repeated work, queue and
@@ -2520,16 +2534,31 @@ coverage and running every selected test's assertions. Reevaluate the old
 120s/15s/75s/60s figures as historical data. Replacement NFRs and build/test changes
 are proposals for the user's decision, not acceptance criteria the task may set
 for itself. Only the user's explicit statement that they are happy completes
-GI#106. Dependency-aware reuse and separate compilation remain options to assess,
-not preselected solutions.
+GI#106. The owner selected dependency-aware compiled-probe reuse (candidate 2)
+and a separate-compilation design (candidate 3), while retaining every test
+assertion and full validation. The probe-reuse pilot is implemented locally on
+`feature/dependency-aware-probes`; a matched unrelated-edit sample shows a
+bounded compiler-probe win. The host-enabled local `make check` passed in 421s
+on a reused build tree (unit 241s, functional 13s, bootstrap 137s, release smoke
+4s, quick-start under 1s). Its historical budget warnings are not current
+acceptance gates, and this is not a clean-check speedup comparison.
+The separate-compilation work is design-only, captured in
+[`docs/GI106_SEPARATE_COMPILATION_DESIGN.md`](docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
+The owner also set P4's public stdlib direction: short names within mostly flat
+domain modules, migrate then remove the Str-based path/filesystem wrappers, and
+retain a curated namespace-preserving prelude. The migration map is in
+[`docs/STDLIB_API_NAMESPACE_PLAN.md`](docs/STDLIB_API_NAMESPACE_PLAN.md); no
+stdlib source API is changed in this cache pilot. Website impact: none for this
+internal validation change; a later public stdlib migration must review website
+and playground examples.
 
-**Evidence assembled so far (2026-10-12):** on macOS arm64, a clean `make check`
+**Earlier baseline evidence (2026-10-12):** on macOS arm64, a clean `make check`
 at two validation workers passed three times with a 608.81s median; the warm
 `check-compiler` collection took 114.44s at two workers and 105s at the default
 four workers. A directly selected lexer probe executed its 13 assertions in
-0.30s with a fresh cache. The probe edit matrix shows the broad source
-fingerprint recompiles a probe after unrelated, direct and transitive source
-edits, but its tiny fixture does not establish whole-suite savings. See the
+0.30s with a fresh cache. The original probe edit matrix showed the broad source
+fingerprint recompiling a probe after unrelated, direct and transitive source
+edits, but its tiny fixture did not establish whole-suite savings. See the
 [GI#106 findings and options](tests/VALIDATION_PROFILE.md#gi106-findings-and-options)
 and [workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
 
@@ -2564,40 +2593,44 @@ developer active time from waiting or review/reporting. It supports retaining
 the existing gates and rejecting the four-worker setting; it does not select a
 replacement NFR or justify another optimization by itself.
 
-Before another performance pilot, agree which developer and release scenarios
-should define acceptable feedback time, including the quick red/green loop,
-focused validation, a clean full check and the required hosted PR path. Measure
-active and waiting time for a representative change if contributor experience
-is the question, then compare one bounded improvement against that workload
-while preserving the mapped regression evidence. Do not infer suite-wide
-savings from the tiny probe matrix, change test cadence from fixture overlap
-alone, or preselect a cache/compiler redesign. Replacement NFRs and acceptance
-remain for the user to decide; GI#106 is complete only when the user explicitly
-says they are happy.
+The selected cache pilot and design work do not resolve which developer and
+release scenarios should define acceptable feedback time. During the P4
+standard-library migration, capture a real focused fail/pass cycle and its cache
+state, then compare it with the clean full check and hosted PR path. Keep active
+work distinct from waiting; do not infer suite-wide savings from the artificial
+unrelated-edit sample or change test cadence from fixture overlap alone.
+Replacement NFRs and acceptance remain for the user to decide; GI#106 is
+complete only when the user explicitly says they are happy.
 
-Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
-`tests`, `examples` and the selected standard library for each compiled probe.
-An unrelated edit can therefore invalidate otherwise reusable compiled tests.
-Native C objects already build incrementally and focused checks exist, but the
+Baseline problem: the former `tests/run_probe.sh` key fingerprinted every
+Panackelty source under `src`, `tests`, `examples` and the selected standard
+library for each compiled probe, so an unrelated edit invalidated otherwise
+reusable bytecode. The local candidate now keys ordinary probes by their static
+import closure and falls back to the broad fingerprint on uncertainty. Native C
+objects already build incrementally and focused checks exist, but the
 Panackelty loader combines reachable modules before checking/emission. Separate
 source files do not yet provide independently compiled module artifacts.
 
-Later cache/design slices, separately selected:
+Selected bounded cache/design work:
 
 1. The bounded baseline above completes the first measurement step. Attribute
-   the representative critical path before selecting further optimisation;
+   the representative critical path before proposing replacement timing NFRs;
    compare any candidate against the same clean/warm/edit workloads and preserve
    all assertions. Tiny-fixture rebuild cost does not predict whole-suite savings.
-2. Deliver dependency-aware compiled-probe reuse if justified, using canonical
-   import resolution and retaining compiler/seed/VM identity and other inputs.
-   Unknown dependencies must conservatively invalidate reuse. Tests must prove
-   unrelated edits reuse artifacts, relevant edits rebuild, and corruption,
-   graph changes, relocation, concurrent publication and input races remain safe.
-   Every invocation still executes the tests; never cache their outcomes.
-3. Produce a separate-compilation design comparing reusable frontend work with
-   compiled module artifacts/interfaces and linking. Address names, generics,
-   guarded types, purity/async effects, compatibility, deterministic bytecode and
-   bootstrap. Recommend a bounded future prototype, or a reason not to proceed.
+2. **In progress:** dependency-aware compiled-probe reuse now fingerprints the
+   entry's static import closure and conservatively falls back to the broad
+   source fingerprint when an import cannot be resolved. Focused harness cases
+   cover stdlib, project, relative and transitive edges, unrelated reuse,
+   corruption and input races. A matched compile-only compiler-contract sample
+   reused an artifact in 0.04–0.05s where the broad-key baseline recompiled in
+   18.32–18.48s after an unrelated source edit. This is not a representative
+   bug-fix result or a clean/full-check speedup; relevant dependency edits still
+   rebuild, and normal probe invocations still execute assertions.
+3. **Design prepared, implementation not selected:** the separate-compilation
+   sketch addresses interface artifacts, generics, guarded types, effects,
+   identity, invalidation, linking, deterministic bytecode and bootstrap. A
+   future prototype needs the user's separate decision after design review and
+   representative measurement.
 
 Evidence to support the user's decision: a workflow and test/change-impact map,
 comparable observations for selected improvements, relevant correctness and

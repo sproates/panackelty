@@ -1,7 +1,8 @@
-import stdlib/numeric::{nat_quotient}
-import stdlib/bytes::{bytes_empty, bytes_push, bytes_join, bytes_length, text_encode_utf8}
-import stdlib/path::{path_value_from_text}
-import stdlib/filesystem::{filesystem_read_bytes, filesystem_metadata, filesystem_write_bytes}
+import stdlib/text as std_text
+import stdlib/numeric as std_numeric
+import stdlib/bytes as byte_buffer
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
 pub import project/src/compiler/loader::{LoadedProject}
 import project/src/compiler/loader::{loaded_binding_graph}
 import project/src/compiler/diagnostics::{diagnostic_character}
@@ -159,12 +160,12 @@ pub pure source_snapshots(project: LoadedProject, root: Str, stdlib_root: Str): 
 }
 
 pub pure source_map_blob(data: Bytes): Bytes {
-  bytes_join(encode_u32(bytes_length(data)), data)
+  byte_buffer.join(encode_u32(byte_buffer.length(data)), data)
 }
 
 pub pure source_map_position(position: SourcePos): Bytes {
-  bytes_join(
-    bytes_join(encode_u32(position.offset), encode_u32(position.line)),
+  byte_buffer.join(
+    byte_buffer.join(encode_u32(position.offset), encode_u32(position.line)),
     encode_u32(position.column)
   )
 }
@@ -173,13 +174,13 @@ pub pure source_map_position(position: SourcePos): Bytes {
 // the entire captured source closure for each emitted instruction.
 pub pure source_map_join(chunks: [Bytes], start: Nat, end: Nat): Bytes {
   if start >= end {
-    bytes_empty()
+    byte_buffer.empty()
   } else {
     if end == start + 1 {
       chunks[start]
     } else {
-      middle: Nat = nat_quotient(start + end, 2)
-      bytes_join(source_map_join(chunks, start, middle), source_map_join(chunks, middle, end))
+      middle: Nat = std_numeric.divide(start + end, 2)
+      byte_buffer.join(source_map_join(chunks, start, middle), source_map_join(chunks, middle, end))
     }
   }
 }
@@ -196,8 +197,8 @@ pub pure serialize_source_map(
   stdlib_root: Str
 ): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib_root)
-  mut valid: Bool = bytes_length(artifact) <= 16777216 && len(snapshots) <= 256
-  mut chunks: [Bytes] = [text_encode_utf8("PANACKMAP1\nlocal-replay-v9\n"),
+  mut valid: Bool = byte_buffer.length(artifact) <= 16777216 && len(snapshots) <= 256
+  mut chunks: [Bytes] = [std_text.encode_utf8("PANACKMAP1\nlocal-replay-v9\n"),
     encode_text(source_identifier(
     entry,
     root,
@@ -206,7 +207,7 @@ pub pure serialize_source_map(
   mut size: Nat = 0
 
   for chunk in chunks {
-    size = size + bytes_length(chunk)
+    size = size + byte_buffer.length(chunk)
   }
   valid = valid && size <= 16777216
   mut indices: Map[Str, Nat] = map()
@@ -216,7 +217,7 @@ pub pure serialize_source_map(
       indices = indices.put(snapshot.path, index)
       name: Bytes = encode_text(snapshot.name)
       text: Bytes = encode_text(snapshot.text)
-      size = size + bytes_length(name) + bytes_length(text)
+      size = size + byte_buffer.length(name) + byte_buffer.length(text)
       valid = size <= 16777216
       if valid {
         chunks = chunks.append(name).append(text)
@@ -228,8 +229,8 @@ pub pure serialize_source_map(
   size = size + 4
   for function in mapped.sources {
     if valid {
-      header: Bytes = bytes_join(encode_text(function.name), encode_u32(len(function.entries)))
-      size = size + bytes_length(header)
+      header: Bytes = byte_buffer.join(encode_text(function.name), encode_u32(len(function.entries)))
+      size = size + byte_buffer.length(header)
       valid = size <= 16777216
       if valid {
         chunks = chunks.append(header)
@@ -241,13 +242,13 @@ pub pure serialize_source_map(
           size <= 16777216 &&
           indices.has(span.start.file) &&
           span.start.file == span.end.file {
-          mut chunk: Bytes = bytes_join(
+          mut chunk: Bytes = byte_buffer.join(
             encode_u32(location.index),
             encode_u32(indices.get(span.start.file))
           )
-          chunk = bytes_join(chunk, source_map_position(span.start))
-          chunk = bytes_join(chunk, source_map_position(span.end))
-          chunk = bytes_push(chunk, if location.lowered {
+          chunk = byte_buffer.join(chunk, source_map_position(span.start))
+          chunk = byte_buffer.join(chunk, source_map_position(span.end))
+          chunk = byte_buffer.push(chunk, if location.lowered {
               1
             } else {
               0
@@ -262,14 +263,14 @@ pub pure serialize_source_map(
   if valid && size <= 16777216 {
     source_map_join(chunks, 0, len(chunks))
   } else {
-    bytes_empty()
+    byte_buffer.empty()
   }
 }
 
 pub source_map_read(path: Str, limit: Nat): Result[Bytes, Str] {
-  match path_value_from_text(path) {
+  match std_path.from_text(path) {
     Error(error) => Error("invalid path"),
-    Ok(file) => match filesystem_read_bytes(file, limit) {
+    Ok(file) => match std_filesystem.read(file, limit) {
       Error(error) => Error("file unavailable or exceeds source-map limit"),
       Ok(data) => Ok(data)
     }
@@ -277,7 +278,7 @@ pub source_map_read(path: Str, limit: Nat): Result[Bytes, Str] {
 }
 
 pub source_map_matches(path: Str, expected: Bytes): Bool {
-  match source_map_read(path, bytes_length(expected)) {
+  match source_map_read(path, byte_buffer.length(expected)) {
     Error(error) => false,
     Ok(actual) => actual == expected
   }
@@ -289,7 +290,7 @@ pub source_snapshots_unchanged(project: LoadedProject): Bool {
   mut unchanged: Bool = true
 
   for path in project.source_paths {
-    if !source_map_matches(path, text_encode_utf8(project.sources.get(path))) {
+    if !source_map_matches(path, std_text.encode_utf8(project.sources.get(path))) {
       unchanged = false
     }
   }
@@ -350,9 +351,9 @@ pub pure source_map_location(
 // links or symlinks as well as ordinary path aliases. Publication is not atomic;
 // consumers reject incomplete pairs. Output directories must be caller-controlled.
 pub source_map_destination_available(path: Str): Bool {
-  match path_value_from_text(path) {
+  match std_path.from_text(path) {
     Error(error) => false,
-    Ok(file) => match filesystem_metadata(file) {
+    Ok(file) => match std_filesystem.metadata(file) {
       Ok(metadata) => false,
       Error(error) => error.code == "not_found"
     }
@@ -360,9 +361,9 @@ pub source_map_destination_available(path: Str): Bool {
 }
 
 pub source_map_write(path: Str, data: Bytes): Bool {
-  match path_value_from_text(path) {
+  match std_path.from_text(path) {
     Error(error) => false,
-    Ok(file) => match filesystem_write_bytes(file, data) {
+    Ok(file) => match std_filesystem.write(file, data) {
       Error(error) => false,
       Ok(unit) => true
     }

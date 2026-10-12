@@ -1,4 +1,5 @@
-import stdlib/bytes::{bytes_push, bytes_length, text_encode_utf8, text_decode_utf8}
+import stdlib/text as std_text
+import stdlib/bytes as byte_buffer
 
 pure name_before(left: Str, right: Str): Bool { left < right }
 
@@ -16,9 +17,9 @@ main(): Void {
   names = names.add("Panackelty")
   print(names.has("Panackelty"))
 
-  message: Bytes = bytes_push(text_encode_utf8("Panack"), 33)
-  print(bytes_length(message))
-  print(text_decode_utf8(message))
+  message: Bytes = byte_buffer.push(std_text.encode_utf8("Panack"), 33)
+  print(byte_buffer.length(message))
+  print(std_text.decode_utf8(message))
 
   // Use an ordinary pure function to choose the ordering.
   files = ["z.txt", "a.panack", "b.panack"].sort_by(@name_before)

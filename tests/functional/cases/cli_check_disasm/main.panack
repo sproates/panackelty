@@ -1,19 +1,22 @@
-import stdlib/result::{result_value_or}
-import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
-import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command}
-import stdlib/testing::{TestResult, test_expect, test_report}
-import stdlib/time::{duration_seconds}
-import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
-import stdlib/filesystem::{filesystem_write_bytes, filesystem_remove_file}
-import stdlib/testing_commands::{testing_process_run}
-import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
-import stdlib/host::{host_exit}
+import stdlib/process as std_process
+import stdlib/text as std_text
+import stdlib/testing as std_testing
+import stdlib/result as std_result
+import stdlib/testing_files as std_testing_files
+import stdlib/testing_commands::{TestCommand, ProcessOutput}
+import stdlib/testing::{TestResult}
+import stdlib/time as std_time
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
+import stdlib/testing_commands as std_testing_commands
+import stdlib/bytes as byte_buffer
+import stdlib/host as std_host
 pure path(value: Str): Path {
-  result_value_or(path_value_from_text(value), path_value_current())
+  std_result.value_or(std_path.from_text(value), std_path.current())
 }
 
 pure child(root: Path, name: Str): Path {
-  result_value_or(path_value_append(root, path(name)), root)
+  std_result.value_or(std_path.join(root, path(name)), root)
 }
 
 pure contains(value: Str, fragment: Str): Bool {
@@ -25,94 +28,94 @@ pure contains(value: Str, fragment: Str): Bool {
 }
 
 pure command(arguments: [Str]): TestCommand {
-  TestCommand(path("./panack"), arguments, bytes_empty(), path_value_current(), [],
-    duration_seconds(10), 1048576)
+  TestCommand(path("./panack"), arguments, byte_buffer.empty(), std_path.current(), [],
+    std_time.seconds(10), 1048576)
 }
 
 main(): Void {
-  match test_workspace_create(path("/tmp")) {
-    Error(error) => { print("workspace creation failed"); host_exit(1) },
+  match std_testing_files.workspace_create(path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); std_host.exit(1) },
     Ok(workspace) => {
       source = "tests/functional/cases/hello_world/main.panack"
       bytecode = child(workspace.root, "hello.bc")
       malformed = child(workspace.root, "malformed.bc")
       legacy = child(workspace.root, "legacy.nu")
-      bytecode_text = result_value_or(path_value_to_text(bytecode), "invalid-bytecode")
-      malformed_text = result_value_or(path_value_to_text(malformed), "invalid-malformed")
-      legacy_text = result_value_or(path_value_to_text(legacy), "invalid-legacy")
+      bytecode_text = std_result.value_or(std_path.to_text(bytecode), "invalid-bytecode")
+      malformed_text = std_result.value_or(std_path.to_text(malformed), "invalid-malformed")
+      legacy_text = std_result.value_or(std_path.to_text(legacy), "invalid-legacy")
       mut results: [TestResult] = []
-      results = results.append(test_run_command("check source", command(["check", source]),
-        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
-      results = results.append(test_run_command("compile source",
+      results = results.append(std_testing_commands.run_command("check source", command(["check", source]),
+        ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("compile source",
         command(["compile", source, "-o", bytecode_text]),
-        ProcessOutput(0, 0, text_encode_utf8("wrote ${bytecode_text}\n"), bytes_empty())))
-      results = results.append(test_run_command("check bytecode",
+        ProcessOutput(0, 0, std_text.encode_utf8("wrote ${bytecode_text}\n"), byte_buffer.empty())))
+      results = results.append(std_testing_commands.run_command("check bytecode",
         command(["check", bytecode_text]),
-        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+        ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
 
-      match testing_process_run(path("./panack"), ["disasm", source], bytes_empty(), path_value_current(), [],
-          duration_seconds(10), 1048576) {
+      match std_process.run(path("./panack"), ["disasm", source], byte_buffer.empty(), std_path.current(), [],
+          std_time.seconds(10), 1048576) {
         Error(error) => {
-          results = results.append(test_expect("source disassembly", false,
+          results = results.append(std_testing.expect("source disassembly", false,
             "process failed"))
         },
         Ok(output) => {
-          text = text_decode_utf8(output.stdout)
-          results = results.append(test_expect("source disassembly",
-            output.exit_code == 0 && output.signal == 0 && output.stderr == bytes_empty() &&
+          text = std_text.decode_utf8(output.stdout)
+          results = results.append(std_testing.expect("source disassembly",
+            output.exit_code == 0 && output.signal == 0 && output.stderr == byte_buffer.empty() &&
               contains(text, "FUNCTION|main|impure|") && contains(text, "CALL|print|1"),
             "unexpected disassembly"))
-          results = results.append(test_run_command("matching bytecode disassembly",
+          results = results.append(std_testing_commands.run_command("matching bytecode disassembly",
             command(["disasm", bytecode_text]),
-            ProcessOutput(0, 0, output.stdout, bytes_empty())))
+            ProcessOutput(0, 0, output.stdout, byte_buffer.empty())))
         }
       }
 
-      match filesystem_write_bytes(malformed, text_encode_utf8("not panack bytecode")) {
+      match std_filesystem.write(malformed, std_text.encode_utf8("not panack bytecode")) {
         Ok(value) => {
-          results = results.append(test_run_command("malformed bytecode",
+          results = results.append(std_testing_commands.run_command("malformed bytecode",
             command(["disasm", malformed_text]),
-            ProcessOutput(1, 0, bytes_empty(),
-              text_encode_utf8("error: not a Panackelty bytecode file\n"))))
+            ProcessOutput(1, 0, byte_buffer.empty(),
+              std_text.encode_utf8("error: not a Panackelty bytecode file\n"))))
         },
         Error(error) => {
-          results = results.append(test_expect("malformed bytecode", false,
+          results = results.append(std_testing.expect("malformed bytecode", false,
             "fixture write failed"))
         }
       }
-      match filesystem_write_bytes(legacy, text_encode_utf8("main(): Void {}")) {
+      match std_filesystem.write(legacy, std_text.encode_utf8("main(): Void {}")) {
         Ok(value) => {
-          results = results.append(test_run_command("legacy source extension",
+          results = results.append(std_testing_commands.run_command("legacy source extension",
             command(["run", legacy_text]),
-            ProcessOutput(1, 0, bytes_empty(),
-              text_encode_utf8("error: expected a .panack source or .bc bytecode file\n"))))
+            ProcessOutput(1, 0, byte_buffer.empty(),
+              std_text.encode_utf8("error: expected a .panack source or .bc bytecode file\n"))))
         },
         Error(error) => {
-          results = results.append(test_expect("legacy source extension", false,
+          results = results.append(std_testing.expect("legacy source extension", false,
             "fixture write failed"))
         }
       }
 
       for file in [bytecode, malformed, legacy] {
-        match filesystem_remove_file(file) {
+        match std_filesystem.remove_file(file) {
           Ok(value) => {},
           Error(error) => {
             code = error.code
-            results = results.append(test_expect("artifact cleanup", false,
+            results = results.append(std_testing.expect("artifact cleanup", false,
               "file removal failed: ${code}"))
           }
         }
       }
-      match test_workspace_remove_empty(workspace) {
+      match std_testing_files.workspace_remove_empty(workspace) {
         Ok(value) => {},
         Error(error) => {
           code = error.code
-          results = results.append(test_expect("workspace cleanup", false,
+          results = results.append(std_testing.expect("workspace cleanup", false,
             "workspace removal failed: ${code}"))
         }
       }
-      failures = test_report(results)
-      if failures > 0 { host_exit(1) }
+      failures = std_testing.report(results)
+      if failures > 0 { std_host.exit(1) }
     }
   }
 }

@@ -54,14 +54,8 @@ and quick start under 1s. It printed warnings against the former 120s full-check
 comparisons. This was not a controlled clean before/after timing experiment and
 does not establish a full-check speedup.
 
-The owner's standard-library direction is also recorded for the follow-on API
-slice: short names inside domain modules (for example, `path.from_text` and
-`bytes.join`), mostly flat existing module groupings, migration followed by
-removal of the old `path_string_*` and Str-based trapping filesystem surface,
-and a curated `prelude` that re-exports module namespaces. The mapping and
-migration boundary are in the [stdlib namespace plan](../docs/STDLIB_API_NAMESPACE_PLAN.md);
-no stdlib source API has changed in this pilot. The design-only candidate is in
-the [separate-compilation sketch](../docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
+The design-only candidate is in the
+[separate-compilation sketch](../docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
 
 ### Findings
 

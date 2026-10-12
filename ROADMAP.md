@@ -2533,7 +2533,7 @@ edits, but its tiny fixture does not establish whole-suite savings. See the
 [workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
 
 **Current recommendation:** retain full PR and post-merge validation and all
-product-test assertions while GI#106 finishes mapping risk. Three earlier
+product-test assertions while GI#106 assesses the workflow. Three earlier
 post-merge push runs failed after successful PR Checks on identical source
 trees. The matched runner-environment comparison and added command diagnostics
 ([PR #391](https://github.com/sproates/panackelty/pull/391),
@@ -2546,21 +2546,33 @@ same-tree post-merge push ([PR #394](https://github.com/sproates/panackelty/pull
 The matched run record ([PR #395](https://github.com/sproates/panackelty/pull/395))
 shows 105 runner-seconds of repeated experiment work avoided, but elapsed Check
 time was 8m34s on the PR and 8m30s on the push, so no wall-time improvement was
-observed. Worker tuning from two to four helped the focused compiler collection
-by about 8%, but it still took about 105s and did not address the clean-check
-unit/bootstrap costs. These are bounded improvements, not evidence that the
-historical timing figures have been met.
+observed. Local two-to-four-worker tuning improved the focused compiler
+collection by about 8%, but it still took about 105s and did not address the
+clean-check unit/bootstrap costs. The separate hosted three-to-four-worker
+pilot ([PR #397](https://github.com/sproates/panackelty/pull/397)) failed in both
+Ubuntu compiler lanes on a timed-out `cli_commands/source` harness invocation;
+its lone faster macOS lane is an unmatched observation. The PR was closed
+without merging, so hosted compiler validation remains at three workers. Do
+not promote four workers based on the local result.
 
-This Slice 2 documentation delivery refines the initial representative map into
-compiler, standard-library, bytecode, VM/runtime, CLI, package/bootstrap and
-validation-routing boundaries, with the assertions and hosted lanes they
-currently exercise. The next investigation step is a small representative
-sample of contributor active time versus waiting, including review/reporting
-overhead. Then compare a bounded set of workflow/build options and recommend one
-evidence-backed pilot. Do not infer suite-wide savings from the tiny probe
-matrix, change test cadence from fixture overlap alone, or preselect a
-cache/compiler redesign. Replacement NFRs and acceptance remain for the user to
-decide; GI#106 is complete only when the user explicitly says they are happy.
+PR #396 merged the Slice 2 component-to-test map, covering compiler,
+standard-library, bytecode, VM/runtime, CLI, package/bootstrap and
+validation-routing boundaries. The small hosted sample of PR lifecycle and
+Check durations distinguishes docs-only from full validation but cannot split
+developer active time from waiting or review/reporting. It supports retaining
+the existing gates and rejecting the four-worker setting; it does not select a
+replacement NFR or justify another optimization by itself.
+
+Before another performance pilot, agree which developer and release scenarios
+should define acceptable feedback time, including the quick red/green loop,
+focused validation, a clean full check and the required hosted PR path. Measure
+active and waiting time for a representative change if contributor experience
+is the question, then compare one bounded improvement against that workload
+while preserving the mapped regression evidence. Do not infer suite-wide
+savings from the tiny probe matrix, change test cadence from fixture overlap
+alone, or preselect a cache/compiler redesign. Replacement NFRs and acceptance
+remain for the user to decide; GI#106 is complete only when the user explicitly
+says they are happy.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.

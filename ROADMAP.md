@@ -69,7 +69,11 @@ The website has its own reviewed publication. After alpha.12 artifacts pass
 public availability and checksum verification, prepare a separate website PR for
 release/download pins, coverage links, namespace and source-coverage claims, and
 else-if examples. Retain the current published-version pins until that review and
-preview pass; do not publish links to the candidate release.
+preview pass; do not publish links to the candidate release. The later alpha.13
+adoption must also document the P4 API names, `prelude.byte_buffer`, removed
+legacy calls and supported examples after the native/browser artifacts are
+available and verified; use a separate website PR and live preview. PR#404 is
+only on `next`, so it requires no immediate change to the site pinned to alpha.12.
 
 Packages, HTTP, the post-namespace stdlib refactor, broad example expansion and
 the repository-wide readability/test programme are not additional gates for
@@ -93,6 +97,7 @@ implementation selection or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
+| Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
@@ -298,15 +303,15 @@ deliberately breaking `path.display` failed in 0.598s, restoring it passed in
 0.276s, and an unchanged repeat passed in 0.037s; changing the imported stdlib
 dependency invalidated the bytecode cache. This confirms a focused stdlib edit
 reruns the affected probe, but it is a synthetic fault cycle, not timing from
-the merged migration or a broader-check result. The owner has directed a
-measured replay of the stdlib API migration from the restored pre-PR #401
-baseline. That clean baseline now passed `VALIDATION_JOBS=2 make check` in 602s
-on the recorded Mac M5 Pro; unit took 417s and bootstrap 140s. The
-[replay protocol](tests/VALIDATION_PROFILE.md#owner-approved-p4-replay-measurement-protocol)
-captures the failing focused probe before implementation, the same probe after,
-matched clean checks and hosted results separately. Then use those measured
-boundaries to review the separate-compilation design. No replacement NFRs are
-set and GI#106 remains open until the user is happy.
+the merged migration or a broader-check result. The owner-directed stdlib API
+replay is complete in merged PR#404. On the recorded Mac M5 Pro, the restored
+baseline and candidate clean checks passed in 602s and 619s respectively; this
+single pair cannot attribute the 17s difference or establish a general
+regression or speedup. The exact-head hosted PR Check took 10m05s and the
+post-merge Check 7m17s. The [replay evidence](tests/VALIDATION_PROFILE.md#owner-approved-p4-replay-evidence)
+records byte-identical focused probes, migration size, timings and limits. Use
+the boundary evidence to review the separate-compilation design. No replacement
+NFRs are set and GI#106 remains open until the user is happy.
 
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.
@@ -475,7 +480,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of PR#386, the final acceptance delivery: PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 shared-library consumers, PR#377–#380 confinement and nested graphs, PR#382 graph conflicts/limits, PR#383 source bounds, PR#384 race-fixture reliability, and full sibling-tree relocation with two apps run from an unrelated working directory; P8 retains its separate clean-installed release gate | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
-| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Planned; not started | P1–P3 as needed | Medium / 1–2 PRs |
+| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on merge of [PR#404](https://github.com/sproates/panackelty/pull/404); API migration and its source, test and documentation callers are complete on `next` | P1–P3 as needed | Medium / 1–2 PRs; delivered |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
 | P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
@@ -619,9 +624,9 @@ root-replacement race fixture reliable on Linux and macOS. The final acceptance
 delivery tests two applications sharing a multi-file library, moves the whole
 sibling workspace, then rechecks/runs both apps and executes pre-move bytecode
 from an unrelated working directory. This closes scoped P3 package acceptance
-effective on merge; P8 retains the separate clean-installed release gate. P4–P8
-remain planned. Their shared design and remaining HTTP/reproducibility slices are
-recorded in P1.
+effective on merge; P8 retains the separate clean-installed release gate. P4
+subsequently completed on merge of PR#404; P5–P8 remain planned. Their shared
+design and remaining HTTP/reproducibility slices are recorded in P1.
 No public registry, separate compilation, web framework or new engine is
 required. Website impact: none for this test-only acceptance; it does not change
 shipped behavior or user-facing package documentation.
@@ -634,12 +639,12 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P1 / [RM#109: Module and package design](#rm-109) | 10% | 100% | 10 pp |
 | P2 / [RM#41: Language namespaces](#rm-41) | 20% | 100%; coordinated migration, identity-only route, compiler, canonical, native/browser, installed and 59-root acceptance completed in merged PR#358 | 20 pp |
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 100% on merge of PR#386; PR#372–#380, #382–#384 establish manifest, CLI, library, graph, confinement and race contracts; final acceptance moves the entire two-app/shared-library tree and verifies both consumers from an unrelated working directory through source and saved bytecode | 15 pp |
-| P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 0% | 0 pp |
+| P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 100% on merge of PR#404; selected flat domain modules and curated facade, removed superseded public APIs, retained `bytes()` through `prelude.byte_buffer`, and added focused positive/negative functional coverage | 5 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | 45% on merge of PR#386 for final P3 acceptance: P1 contributes 10 pp, P2 contributes 20 pp and P3 contributes 15 pp; P4–P8 remain planned | **45 pp; P1–P3 accepted** |
+| **Total** | **100%** | 50% on merge of PR#404: P1 contributes 10 pp, P2 20 pp, P3 15 pp and P4 5 pp; P5–P8 remain planned | **50 pp; P1–P4 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -682,7 +687,7 @@ both applications from an unrelated working directory, moves their whole sibling
 workspace and shared library, then rechecks/runs both apps and executes bytecode
 compiled before the move. This closes the scoped local-package acceptance when
 this delivery merges; P8 still owns the later clean-installed release gate.
-P4–P8 remain planned.
+P4 is complete on merge of PR#404; P5–P8 remain planned.
 Namespace/compiler integration and HTTPS client correctness carry the largest
 shares; local packages and server lifecycle follow, with smaller shares for
 design, reproducibility, migration and final cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -721,10 +726,10 @@ reliability. PR#386 checks, runs and compiles both apps from outside the workspa
 their full shared-library sibling tree, then repeats checks/source runs and
 executes bytecode compiled before the move. P3 acceptance is Done on merge of
 PR#386. P8's clean-installed release gate remains separate.
-P4–P8 have not started.
-Website impact: no adoption update for this internal P2 slice; namespaces remain
-unavailable for execution and version-pinned examples remain accurate. The later
-namespace release checkpoint requires its own adoption follow-up.
+P4 is complete on merge of PR#404; P5–P8 have not started.
+Website impact: PR#404 changes the unreleased `next` tree. No immediate site edit
+is needed while the live site remains pinned to alpha.12; RM#144 owns the
+separate alpha.13 adoption after supporting artifacts are published and verified.
 
 ### Namespace release checkpoint
 
@@ -3625,35 +3630,46 @@ alone does not settle qualified symbol lookup or namespace semantics.
 - [ ] Define focused and public-CLI acceptance tests for lookup, imports,
       qualification, visibility and failures across source and installed toolchains
 
-## Namespace the current standard library — idea
+## Standard-library module API migration
 
 <a id="rm-42"></a>
 
-**RM#42: Standard library namespaces**.
+**RM#42: Standard library namespaces** — Done on merge of
+[PR#404: Measured standard-library module API migration](https://github.com/sproates/panackelty/pull/404).
 
-Current state: Planned as P4 in the [programme register](#rm-108); the
-[shared design](docs/MODULE_PACKAGE_DESIGN.md) sets migration dependencies.
-The historical assessment below remains acceptance input.
+The migration groups APIs into short, mostly flat domain modules; exposes a
+curated `prelude` while keeping `numeric` separate; removes the superseded public
+`path_string_*` and Str-based trapping filesystem wrappers after caller
+migration; and preserves the `bytes()` constructor by exposing the bytes module
+as `prelude.byte_buffer`. The user's decisions and measured replay are recorded
+in the [P4 replay evidence](tests/VALIDATION_PROFILE.md#owner-approved-p4-replay-evidence).
+P4 earns its existing 5% programme weight in the 50% total on merge of PR#404.
+The P8 clean-installed language/local-package release gate and alpha.13 website
+adoption remain separate.
 
 Review how existing library APIs should be grouped, exported and referenced so
 users can discover them and avoid collisions. This is a separate deliverable
 from general namespace support, with an explicit dependency assessment.
 
-- [ ] Inventory current modules and exported names; identify collisions,
+- [x] Inventory current modules and exported names; identify collisions,
       inconsistent naming and unnecessarily exposed implementation details
-- [ ] Propose coherent namespace boundaries and ergonomic qualified/unqualified
+- [x] Propose coherent namespace boundaries and ergonomic qualified/unqualified
       usage, evaluated on real programs and compiler-assisted discoverability
-- [ ] Decide which improvements are possible with today's imports and which
+- [x] Decide which improvements are possible with today's imports and which
       require the language namespace proposal; avoid assuming they must ship
       together or making incompatible naming decisions independently
-- [ ] Plan compatibility or a deliberate preview migration for compiler sources,
+- [x] Plan compatibility or a deliberate preview migration for compiler sources,
       libraries, examples, tests, documentation and installed packages
-- [ ] Define acceptance evidence that public APIs remain accessible, names resolve
+- [x] Define acceptance evidence that public APIs remain accessible, names resolve
       predictably and existing behavior is preserved through the migration
 
-Both production outcomes remain open and Planned in the programme register.
-P1 design acceptance does not ship them; preserve current public contracts until
-their separately selected implementation and migration deliveries.
+PR#404 migrated compiler, standard-library, test and example callers, added
+positive and legacy-API rejection functional coverage, and passed its exact-head
+hosted Check plus the post-merge `next` Check. Its local matched clean checks
+were 602s before and 619s after; this single pair does not establish a cause or
+general performance change. This closeout PR will close GI#235 on merge. GI#106
+remains open and owns the broader workflow investigation; P8 still owns release
+acceptance.
 
 ## Reusable modules and package structure — idea
 

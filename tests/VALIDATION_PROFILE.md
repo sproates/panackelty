@@ -36,6 +36,8 @@ back to the previous broad source fingerprint. The cache stores compiled
 bytecode only; normal probe invocations still execute the probe and its
 assertions.
 
+<a id="owner-approved-p4-replay-evidence"></a>
+
 ### Owner-approved P4 replay measurement and results — 2026-10-12
 
 The first P4 stdlib module-API migration was not measured as the real developer
@@ -108,10 +110,10 @@ stage-2 compiler was rebuilt in 25.15s; its SHA-256 matches the candidate seed
    `VALIDATION_JOBS=2 make check` on the same host. The paired phase timings and
    limits of this single observation follow below. All existing coverage stayed
    enabled; the module API and legacy-removal fixtures add assertions.
-4. Hosted PR results remain a separate workload and will be recorded for the
-   exact PR head. Keep focused red/green latency, local clean validation and
-   hosted elapsed time distinct. Historical timing figures remain informational;
-   GI#106 remains open until the owner is happy.
+4. Hosted PR and post-merge results are recorded separately below for the exact
+   PR head and merged commit. Keep focused red/green latency, local clean
+   validation and hosted elapsed time distinct. Historical timing figures remain
+   informational; GI#106 remains open until the owner is happy.
 
 ### Candidate clean-check result — 2026-10-12
 
@@ -139,6 +141,26 @@ change. This is one matched local pair, not a statistical benchmark. It shows no
 clean-check speedup, but the 17-second difference cannot be attributed to the
 migration from one sample. The historical timing budgets are not acceptance
 criteria.
+
+### Hosted replay checks and migration scope — 2026-10-12
+
+[PR#404](https://github.com/sproates/panackelty/pull/404) changed 128 files
+(4,323 additions and 3,936 deletions) in one commit. Its exact candidate head,
+`3869d68cd2ad36909cd66856beaf747953c190c8`, passed the hosted Check run from
+19:08:17Z to 19:18:22Z (10m05s). Of 23 jobs, 22 passed and the optional
+`Source coverage baseline (next)` job was skipped. The merged `next` commit,
+`ed2335b8373dc939f6ef5cb7d7dd6e01acdd69d6`, passed the post-merge Check run
+from 19:27:08Z to 19:34:25Z (7m17s), also with 22 passed and that optional job
+skipped. See [PR Check run #38295628771](https://github.com/sproates/panackelty/actions/runs/38295628771)
+and [post-merge Check run #38297735222](https://github.com/sproates/panackelty/actions/runs/38297735222).
+
+PR#404 was created at 19:08:14Z and merged at 19:27:05Z, an elapsed 18m51s.
+That interval combines hosted execution, queueing and other activity; available
+timestamps do not separate contributor effort from waiting. These hosted runs
+are separate triggers and do not establish a speedup. Together with the single
+local clean-check pair, the replay provides a measured migration example and
+regression-boundary evidence for GI#106, but does not determine general test
+cadence, replacement NFRs or whether the user is happy.
 
 The temporary fault/recovery timings above remain a cache-mechanism check; they
 are not the replay baseline or its acceptance result.
@@ -217,9 +239,9 @@ also removes or overlaps work safely.
 
 | Option | What it could improve | Cost or risk | Current view |
 | --- | --- | --- | --- |
-| Measure a representative developer change and agree the workloads that matter | Separates time to reproduce, get a failing test, reach a passing focused result, run a clean check and wait for required hosted checks. It can distinguish active work from waiting. | Needs a short, honest timing record across a representative change. A PR timestamp or one CI run is not a substitute. | The owner has approved repeating P4 from a restored pre-migration baseline using the protocol above. Capture the red probe before implementation and the same probe after; compare matched clean checks and keep hosted time separate. |
+| Measure a representative developer change and agree the workloads that matter | Separates time to reproduce, get a failing test, reach a passing focused result, run a clean check and wait for required hosted checks. It can distinguish active work from waiting. | A PR timestamp or one CI run is not a substitute for measuring active work and waiting separately. | The P4 migration replay now provides one actual change with baseline/candidate red-green probes, a matched clean-check pair and separate hosted runs. It does not measure active editing time or split queueing from other waiting; use its component boundaries, but do not generalise it into an NFR. |
 | Improve focused local selection | Helps a developer run the smallest relevant test, then the owning component collection. Existing `check-compiler`, `check-bytecode`, `check-vm` and direct-probe paths provide a base. | Component targets are still sizeable, and a focused pass cannot replace integration or acceptance checks. The test-to-regression map needs more detail for safe automatic selection. | Low-risk developer-workflow option. Keep full PR and post-merge gates. |
-| Reuse compiled probes by actual dependencies | The pilot reused a 21-file compiler-contract probe after unrelated edits and still executes assertions on every normal invocation. The stdlib fault/recovery sample above confirms that changing an imported stdlib module invalidates the selected probe. | Changes in the imported closure still rebuild; clean full checks still compile. A single synthetic fault cycle does not establish suite-wide or representative product-change savings. | Implemented in PR #400; canonical local validation and hosted checks passed. The P4 migration itself was not timed, and the full-check observations do not show a matched clean-build speedup. The owner has now approved a measured P4 replay; the user decides whether to keep the pilot. |
+| Reuse compiled probes by actual dependencies | The pilot reused a 21-file compiler-contract probe after unrelated edits and still executes assertions on every normal invocation. The stdlib fault/recovery sample above confirms that changing an imported stdlib module invalidates the selected probe. | Changes in the imported closure still rebuild; clean full checks still compile. A single synthetic fault cycle does not establish suite-wide or representative product-change savings. | Implemented in PR #400; canonical local validation and hosted checks passed. The measured P4 replay is now recorded above. It found no clean-check speedup in its single 602s/619s pair, which cannot attribute cause or establish a typical outcome. The user decides whether the pilot and the broader workflow are satisfactory. |
 | Select local tests or hosted lanes by change impact | Could run the relevant compiler, library, bytecode, VM or package checks earlier and reduce repeated work. | Missing a dependency edge could hide a regression. The current selector reports components but does not route code changes to component-specific suites. Unknown and shared changes need the conservative full route. | Investigate after assertion-level coverage and ownership are mapped. Do not remove a full gate yet. |
 | Remove exact repeated hosted work | Could reduce runner-minutes where the same target, such as `quick-start`, runs in separate clean jobs. | Runner-minutes are not the same as PR wall time. Job consolidation can change artifact provenance, platform context and failure isolation; those effects need checking before merging jobs. | Candidate for a bounded CI-work pilot if runner cost is the chosen problem. Preserve distinct platform and instrumentation evidence. |
 | Change ordering or increase parallelism | Could shorten time to first failure or reduce a critical-path tail if independent work can run together. | More concurrency can contend for CPU and make timeouts more likely. The hosted four-worker compiler pilot failed on both Ubuntu lanes; ordering alone will not reduce total work. | Keep the current hosted worker limit. Profile a specific bottleneck before changing scheduling. |
@@ -253,14 +275,14 @@ parallel.
 The initial recommendation to measure a representative bug-fix workflow before
 choosing a pilot was superseded by the owner's direction to pursue candidates 2
 and 3 and to use standard-library changes as an additional boundary example.
-The first P4 migration did not produce the planned timing evidence. The owner
-has now directed a deliberate replay; the baseline, test-first probe, cache
-states, matched clean checks and hosted observations are specified above. After
-that replay, use the measured dependency and validation boundaries to review the
-separate-compilation design. Keep runner time separate from contributor wall
-time. Bring replacement NFRs to the user only after the workloads and cache
-states are measurable; this report does not set a numeric completion target for
-GI#106.
+The deliberate P4 replay is now complete: it records the test-first probe,
+cache states, matched clean checks and hosted observations. It offers concrete
+compiler/stdlib regression-boundary evidence for the separate-compilation design.
+Its 18m51s PR lifetime does not separate active work, queueing or other waiting;
+that developer-experience question remains unanswered. Keep runner time separate
+from contributor wall time. Bring replacement NFRs to the user after the
+workloads and cache states are measurable; this report does not set a numeric
+completion target for GI#106.
 
 <a id="gi106-workflow-inventory"></a>
 

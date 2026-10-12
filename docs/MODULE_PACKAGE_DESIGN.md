@@ -459,9 +459,9 @@ example:
 
 ```panackelty
 import http/server as http
-import stdlib/bytes as byte_api
+import stdlib/text as text
 async handle(request: http.Request): Result[http.Response,http.HttpError] {
-  Ok(http.Response(200, [], byte_api.text_encode_utf8("ok")))
+  Ok(http.Response(200, [], text.encode_utf8("ok")))
 }
 async main(): Unit {
   report = await http.serve("127.0.0.1", 8080, @handle,

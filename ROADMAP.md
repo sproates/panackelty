@@ -294,10 +294,8 @@ compiler-contract probe was reused in 0.04–0.05s instead of recompiling in
 The host-enabled local `make check` passed in 421s on a reused build tree; its
 historical budget warnings are not current acceptance gates. Next, measure a
 real stdlib edit's focused fail/pass cycle and broader checks, then use those
-boundaries to review the separate-compilation design. The stdlib naming and
-removal choices are captured in the
-[namespace migration plan](docs/STDLIB_API_NAMESPACE_PLAN.md). No replacement
-NFRs are set and GI#106 remains open until the user is happy.
+boundaries to review the separate-compilation design. No replacement NFRs are
+set and GI#106 remains open until the user is happy.
 
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.
@@ -2544,14 +2542,6 @@ on a reused build tree (unit 241s, functional 13s, bootstrap 137s, release smoke
 acceptance gates, and this is not a clean-check speedup comparison.
 The separate-compilation work is design-only, captured in
 [`docs/GI106_SEPARATE_COMPILATION_DESIGN.md`](docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
-The owner also set P4's public stdlib direction: short names within mostly flat
-domain modules, migrate then remove the Str-based path/filesystem wrappers, and
-retain a curated namespace-preserving prelude. The migration map is in
-[`docs/STDLIB_API_NAMESPACE_PLAN.md`](docs/STDLIB_API_NAMESPACE_PLAN.md); no
-stdlib source API is changed in this cache pilot. Website impact: none for this
-internal validation change; a later public stdlib migration must review website
-and playground examples.
-
 **Earlier baseline evidence (2026-10-12):** on macOS arm64, a clean `make check`
 at two validation workers passed three times with a 608.81s median; the warm
 `check-compiler` collection took 114.44s at two workers and 105s at the default

@@ -1,9 +1,11 @@
+import stdlib/testing as std_testing
+import project/src/compiler/filesystem_support as filesystem_support
 import project/src/compiler/purity::{check_source_frontend,check_loaded_source_frontend,is_impure_builtin}
 import project/src/compiler/parser::{parse_program_source,parse_source}
 import project/src/compiler/resolver::{LoadedSource}
-import stdlib/filesystem::{filesystem_read_text}
-import stdlib/host::{host_exit}
-import stdlib/testing::{TestResult, test_expect, test_equal_str, test_report}
+import stdlib/filesystem as std_filesystem
+import stdlib/host as std_host
+import stdlib/testing::{TestResult}
 // Shared source fixtures also feed the retained Python differential oracle.
 // Success requires ok; failures preserve the original diagnostic substrings.
 pure purity_unit_contains(actual: Str, expected: Str): Bool {
@@ -15,8 +17,8 @@ pure purity_unit_contains(actual: Str, expected: Str): Bool {
 }
 
 pure purity_unit_compare(name: Str, actual: Str, expected: Str): TestResult {
-  if expected == "ok" { test_equal_str(name, actual, expected) } else {
-    test_expect(name, actual != "ok" && purity_unit_contains(actual, expected),
+  if expected == "ok" { std_testing.equal_str(name, actual, expected) } else {
+    std_testing.expect(name, actual != "ok" && purity_unit_contains(actual, expected),
       "expected diagnostic ${expected}, got ${actual}")
   }
 }
@@ -24,7 +26,7 @@ pure purity_unit_compare(name: Str, actual: Str, expected: Str): TestResult {
 purity_unit_source(name: Str, expected: Str): TestResult {
   filename = "tests/fixtures/compiler_purity/${name}.panack"
   // Use the compiler loader's file primitive; missing inputs fail the suite.
-  purity_unit_compare(name, check_source_frontend(filesystem_read_text(filename)), expected)
+  purity_unit_compare(name, check_source_frontend(filesystem_support.read_text(filename)), expected)
 }
 
 main(): Void {
@@ -52,7 +54,7 @@ main(): Void {
   results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-2", "pure function cannot call impure function read_file"))
   results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-3", "pure function cannot call impure function read_line"))
   results = results.append(purity_unit_source("rejects_impure_builtins_from_pure_functions-4", "pure function cannot call impure function fs_read_beneath"))
-  results = results.append(test_expect("directory ancestry query is classified as impure",
+  results = results.append(std_testing.expect("directory ancestry query is classified as impure",
     is_impure_builtin("fs_directories_overlap"), "physical directory inspection must remain impure"))
   results = results.append(purity_unit_compare("async direct and indirect", check_source_frontend("async child(): Nat { 42 } async main(): Unit { f: AsyncFn[Nat] = @child; n = await f.call(); m = await child(); () }"), "ok"))
   results = results.append(purity_unit_compare("async pure helper", check_source_frontend("pure child(): Nat { 42 } async main(): Unit { n = child(); () }"), "ok"))
@@ -78,7 +80,7 @@ main(): Void {
   results = results.append(purity_unit_compare("async nested ordinary context", check_source_frontend("async main(): Unit { if true { print(1); }; () }"), "async function cannot call blocking function print"))
   results = results.append(purity_unit_compare("discarded await", check_source_frontend("async child(): Nat { 42 } async main(): Unit { await child(); () }"), "non-Unit await result"))
   results = results.append(purity_unit_compare("Unit await statement", check_source_frontend("async child(): Unit { () } async main(): Unit { await child(); () }"), "ok"))
-  results = results.append(test_equal_str("render async declaration", parse_program_source("async child(): Nat { 42 }"), "async child(): Nat { 42 }"))
-  results = results.append(test_equal_str("render await expression", parse_source("await child()"), "(await child())"))
-  if test_report(results) > 0 { host_exit(1) }
+  results = results.append(std_testing.equal_str("render async declaration", parse_program_source("async child(): Nat { 42 }"), "async child(): Nat { 42 }"))
+  results = results.append(std_testing.equal_str("render await expression", parse_source("await child()"), "(await child())"))
+  if std_testing.report(results) > 0 { std_host.exit(1) }
 }

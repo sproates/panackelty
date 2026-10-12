@@ -1,13 +1,18 @@
-import stdlib/result::{result_value_or}
+import project/src/compiler/path_support as path_support
+import stdlib/text as std_text
+import stdlib/path as std_path
+import stdlib/filesystem as std_filesystem
+import stdlib/option as std_option
+import stdlib/process as std_process
+import stdlib/result as std_result
 pub import stdlib/testing_commands::{ProcessOutput}
-import stdlib/filesystem::{FileKind.Directory,filesystem_read_bytes,filesystem_write_bytes,filesystem_create_directory,filesystem_list_directory,filesystem_metadata,filesystem_remove_file,filesystem_remove_directory}
-import stdlib/bytes::{bytes_empty,text_encode_utf8,text_decode_utf8}
-import stdlib/path::{path_value_from_text,path_value_current,path_value_to_text,path_string_parent}
-import stdlib/environment::{environment_value}
-import stdlib/host::{host_process_run,host_stderr_text,host_exit}
-import stdlib/time::{duration_seconds}
+import stdlib/filesystem::{FileKind.Directory}
+import stdlib/bytes as byte_buffer
+import stdlib/environment as std_environment
+import stdlib/host as std_host
+import stdlib/time as std_time
 
-pub pure session_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
+pub pure session_path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
 session_environment(base: [Str]): [Str] {
   mut values: [Str] = []
   for variable in base {
@@ -15,13 +20,13 @@ session_environment(base: [Str]): [Str] {
       values = values.append(variable)
     } else {}
   }
-  values.append("PANACKELTY_COMPILER_PATH=" + environment_value("PANACK_TEST_COMPILER")).append("PANACKELTY_STDLIB_PATH=" + environment_value("PANACKELTY_STDLIB_PATH"))
+  values.append("PANACKELTY_COMPILER_PATH=" + std_option.value_or(std_environment.get("PANACK_TEST_COMPILER"), "")).append("PANACKELTY_STDLIB_PATH=" + std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
 }
-pub session_read(path: Str): Bytes { result_value_or(filesystem_read_bytes(session_path(path), 16777216), bytes()) }
+pub session_read(path: Str): Bytes { std_result.value_or(std_filesystem.read(session_path(path), 16777216), bytes()) }
 pub session_write(path: Str, data: Bytes): Void {
-  parent: Str = path_string_parent(path)
-  if parent != "" { filesystem_create_directory(session_path(parent)); } else {}
-  match filesystem_write_bytes(session_path(path), data) { Ok(done) => {}, Error(error) => { host_stderr_text("session fixture write failed: " + error.operation + " " + error.code + " " + path); host_exit(1); } }
+  parent: Str = path_support.parent(path)
+  if parent != "" { std_filesystem.create_directory(session_path(parent)); } else {}
+  match std_filesystem.write(session_path(path), data) { Ok(done) => {}, Error(error) => { std_host.stderr("session fixture write failed: " + error.operation + " " + error.code + " " + path); std_host.exit(1); } }
 }
 pub pure session_contains(text: Str, needle: Str): Bool {
   mut found: Bool = false
@@ -34,16 +39,16 @@ pub session_command_env(args: [Str], environment: [Str]): ProcessOutput {
   if args[0] == "coverage-session" {
     command = args
   } else {
-    command = ["run", environment_value("PANACK_TEST_COMPILER")]
+    command = ["run", std_option.value_or(std_environment.get("PANACK_TEST_COMPILER"), "")]
     for argument in args { command = command.append(argument); }
   }
-  match host_process_run(session_path("./panack-vm"), command, bytes(), path_value_current(), session_environment(environment), duration_seconds(90), 1048576) {
-    Error(error) => { host_stderr_text("session command failed"); host_exit(1); ProcessOutput(1, 0, bytes(), bytes()) }, Ok(result) => result
+  match std_process.run(session_path("./panack-vm"), command, bytes(), std_path.current(), session_environment(environment), std_time.seconds(90), 1048576) {
+    Error(error) => { std_host.stderr("session command failed"); std_host.exit(1); ProcessOutput(1, 0, bytes(), bytes()) }, Ok(result) => result
   }
 }
 pub session_setup(source: Str, child: Str, artifact: Str, child_bc: Str, inventory: Str, child_inv: Str): [ProcessOutput] {
-  session_write(source, text_encode_utf8("import stdlib/result::{result_value_or}\nimport stdlib/host::{host_command_arguments, host_run_bytecode}\nimport stdlib/filesystem::{filesystem_read_bytes}\nimport stdlib/path::{path_value_from_text, path_value_current}\nimport stdlib/bytes::{bytes_empty}\nmain(): Void { args = host_command_arguments(); host_run_bytecode(result_value_or(filesystem_read_bytes(result_value_or(path_value_from_text(args[0]), path_value_current()), 16777216), bytes_empty()), [args[1]]); }\n"))
-  session_write(child, text_encode_utf8("import stdlib/host::{host_command_arguments, host_stdout_text}\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { host_stdout_text(if choose(host_command_arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"))
+  session_write(source, std_text.encode_utf8("import stdlib/result as std_result\nimport stdlib/host as std_host\nimport stdlib/filesystem as std_filesystem\nimport stdlib/path as std_path\nimport stdlib/bytes as byte_buffer\nmain(): Void { args = std_host.arguments(); std_host.run(std_result.value_or(std_filesystem.read(std_result.value_or(std_path.from_text(args[0]), std_path.current()), 16777216), byte_buffer.empty()), [args[1]]); }\n"))
+  session_write(child, std_text.encode_utf8("import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"))
   mut outputs: [ProcessOutput] = []
   outputs = append(outputs, session_command(["compile", source, "-o", artifact]))
   outputs = append(outputs, session_command(["compile", child, "-o", child_bc]))
@@ -52,24 +57,24 @@ pub session_setup(source: Str, child: Str, artifact: Str, child_bc: Str, invento
   outputs
 }
 pub session_setup_child(child: Str, child_bc: Str, child_inv: Str): [ProcessOutput] {
-  session_write(child, text_encode_utf8("import stdlib/host::{host_command_arguments, host_stdout_text}\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { host_stdout_text(if choose(host_command_arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"))
+  session_write(child, std_text.encode_utf8("import stdlib/host as std_host\npure choose(x: Bool): Nat { if x { 7 } else { 9 } }\npure unused(): Nat { 0 }\nmain(): Void { std_host.stdout(if choose(std_host.arguments()[0] == \"true\") == 7 { \"7\" } else { \"9\" }); }\n"))
   [session_command(["compile", child, "-o", child_bc]), session_command(["inventory", child, "-o", child_inv])]
 }
 pub session_require_success(outputs: [ProcessOutput]): Void {
-  for output in outputs { if output.exit_code != 0 { host_stderr_text("session fixture setup failed: " + text_decode_utf8(output.stderr)); host_exit(1); } }
+  for output in outputs { if output.exit_code != 0 { std_host.stderr("session fixture setup failed: " + std_text.decode_utf8(output.stderr)); std_host.exit(1); } }
 }
 pub session_clean(path: Str): Void {
-  match filesystem_list_directory(session_path(path)) {
+  match std_filesystem.list_directory(session_path(path)) {
     Error(error) => {}, Ok(children) => {
       for child in children {
-        file: Str = path + "/" + result_value_or(path_value_to_text(child), "")
-        match filesystem_metadata(session_path(file)) {
+        file: Str = path + "/" + std_result.value_or(std_path.to_text(child), "")
+        match std_filesystem.metadata(session_path(file)) {
           Error(error) => {}, Ok(metadata) => {
-            if metadata.kind == Directory() { session_clean(file); } else { filesystem_remove_file(session_path(file)); }
+            if metadata.kind == Directory() { session_clean(file); } else { std_filesystem.remove_file(session_path(file)); }
           }
         }
       }
-      filesystem_remove_directory(session_path(path));
+      std_filesystem.remove_directory(session_path(path));
     }
   }
 }

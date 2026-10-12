@@ -110,6 +110,7 @@ main(): Void {
         vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), [], bytes_empty(),
         path_value_current(), vm_environment().append("PANACK_NATIVE_MODULE_PROGRESS_FILE=${progress_text}"),
         duration_seconds(20), 1048576)
+      mut module_succeeded = false
       module_result = match module_outcome {
         Error(problem) => {
           code = problem.code
@@ -123,10 +124,21 @@ main(): Void {
           test_expect("native module contracts", false,
             "command failed: ${code}; last completed group: ${stage}")
         },
-        Ok(output) => test_command_output("native module contracts", output,
-          ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), bytes_empty()))
+        Ok(output) => {
+          module_succeeded = true
+          test_command_output("native module contracts", output,
+            ProcessOutput(0, 0, utf8_encode("native module contracts: ok\n"), bytes_empty()))
+        }
       }
       results = results.append(module_result)
+      if module_succeeded {
+        stage = match filesystem_read_bytes(progress, 4096) {
+          Ok(contents) => text_decode_utf8(contents),
+          Error(read_error) => "none recorded"
+        }
+        results = results.append(test_expect("native module progress checkpoint",
+          stage == "builtin_domains\n", "final completed-group marker was missing"))
+      }
       match filesystem_remove_file(progress) {
         Error(problem) => if problem.code != "not_found" {
           code = problem.code

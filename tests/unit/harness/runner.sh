@@ -50,13 +50,6 @@ chmod +x "$checkout/panack"
 )
 contains "$work/stdout" 'FAIL case/cli_commands/source: expected exit 0, got 7; exit=7; signal=0; stdout_bytes=0; stdout_prefix=; stderr_bytes=18; stderr_prefix=controlled-marker'
 pass
-case_name=native-module-progress-is-opt-in
-progress=$work/native-module-progress.txt
-capture 0 45 env PANACK_NATIVE_MODULE_PROGRESS_FILE="$progress" ./build/vm/test_modules
-contains "$work/stdout" 'native module contracts: ok'
-test ! -s "$work/stderr" || fail 'progress marker changed native module stderr'
-[ "$(cat "$progress")" = builtin_domains ] || fail 'native module final progress marker missing'
-pass
 case_name=nonempty-workspace-recovery
 mkdir "$work/cleanup"
 capture 1 45 ./panack run "$runner" --test-cleanup-failure "$work/cleanup" --case hello_world

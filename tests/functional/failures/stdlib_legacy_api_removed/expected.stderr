@@ -1,0 +1,9 @@
+error: <case>/main.panack:1:25: module prelude.panack has no binding path_string_join
+  1 | import stdlib/prelude::{path_string_join, filesystem_read_text, filesystem_exists}
+    |                         ^
+<case>/main.panack:1:43: module prelude.panack has no binding filesystem_read_text
+  1 | import stdlib/prelude::{path_string_join, filesystem_read_text, filesystem_exists}
+    |                                           ^
+<case>/main.panack:1:65: module prelude.panack has no binding filesystem_exists
+  1 | import stdlib/prelude::{path_string_join, filesystem_read_text, filesystem_exists}
+    |                                                                 ^

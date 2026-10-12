@@ -1,29 +1,32 @@
-import stdlib/result::{result_value_or}
-import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command, test_expect_command_error}
-import stdlib/testing::{TestResult, test_report}
-import stdlib/time::{duration_seconds}
-import stdlib/path::{path_value_from_text, path_value_current}
-import stdlib/bytes::{bytes_empty, text_encode_utf8}
+import stdlib/testing_commands as std_testing_commands
+import stdlib/text as std_text
+import stdlib/testing as std_testing
+import stdlib/result as std_result
+import stdlib/testing_commands::{TestCommand, ProcessOutput}
+import stdlib/testing::{TestResult}
+import stdlib/time as std_time
+import stdlib/path as std_path
+import stdlib/bytes as byte_buffer
 pure path(text: Str): Path {
-  result_value_or(path_value_from_text(text), path_value_current())
+  std_result.value_or(std_path.from_text(text), std_path.current())
 }
 
 main(): Void {
   shell = path("/bin/sh")
   missing = path("/does-not-exist")
   command = TestCommand(shell, ["-c", "cat; printf err >&2; exit 7"],
-    text_encode_utf8("input"), path_value_current(), [], duration_seconds(3), 100)
-  absent = TestCommand(missing, [], bytes_empty(), path_value_current(), [], duration_seconds(3), 100)
-  limited = TestCommand(shell, ["-c", "printf too-long"], bytes_empty(),
-    path_value_current(), [], duration_seconds(3), 1)
-  expected = ProcessOutput(7, 0, text_encode_utf8("input"), text_encode_utf8("err"))
+    std_text.encode_utf8("input"), std_path.current(), [], std_time.seconds(3), 100)
+  absent = TestCommand(missing, [], byte_buffer.empty(), std_path.current(), [], std_time.seconds(3), 100)
+  limited = TestCommand(shell, ["-c", "printf too-long"], byte_buffer.empty(),
+    std_path.current(), [], std_time.seconds(3), 1)
+  expected = ProcessOutput(7, 0, std_text.encode_utf8("input"), std_text.encode_utf8("err"))
   results: [TestResult] = [
-    test_run_command("nonzero exit and streams", command, expected),
-    test_expect_command_error("missing executable", absent, "launch_failed"),
-    test_expect_command_error("output bound", limited, "output_limit"),
-    test_run_command("host error is a failure", absent, expected),
-    test_expect_command_error("unexpected completion", command, "timeout")
+    std_testing_commands.run_command("nonzero exit and streams", command, expected),
+    std_testing_commands.expect_command_error("missing executable", absent, "launch_failed"),
+    std_testing_commands.expect_command_error("output bound", limited, "output_limit"),
+    std_testing_commands.run_command("host error is a failure", absent, expected),
+    std_testing_commands.expect_command_error("unexpected completion", command, "timeout")
   ]
-  count = test_report(results)
+  count = std_testing.report(results)
   print("returned ${count}")
 }

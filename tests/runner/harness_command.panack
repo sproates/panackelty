@@ -1,7 +1,7 @@
-import stdlib/testing_commands::{testing_harness_command}
+import stdlib/testing_commands as std_testing_commands
 
 // Keep the shell entry minimal; the command supervisor is checked through the
 // testing_commands standard-library boundary.
 main(): Void {
-  testing_harness_command()
+  std_testing_commands.harness_command()
 }

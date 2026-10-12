@@ -1,1 +1,1 @@
-pub import stdlib/testing_commands::{capture_test_report}
+pub import stdlib/testing_commands as std_testing_commands

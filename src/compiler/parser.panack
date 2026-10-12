@@ -1,3 +1,5 @@
+import stdlib/path as std_path
+import stdlib/result as std_result
 pub import project/src/compiler/lexer::{lex, Token, Diagnostic, SourcePos, SourceSpan, TokenKind, TokenKind.Identifier, TokenKind.Number, TokenKind.DecimalNumber, TokenKind.StringLiteral, TokenKind.Punctuation}
 
 // Build located syntax and retain module metadata without enabling staged features.

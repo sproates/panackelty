@@ -35,7 +35,11 @@ import project/src/compiler/module_resolution::{
   ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall,
   resolve_module_dot_call, resolve_module_path
 }
-import project/src/compiler/module_bindings::{ModulePackageIdentity.ToolchainModulePackage}
+import project/src/compiler/module_bindings::{
+  ModulePackageIdentity.ToolchainModulePackage,
+  ModuleDeclarationKind.ModuleFunction,
+  ModuleDeclarationBinding
+}
 import project/src/compiler/checker::{render_type}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
@@ -92,6 +96,26 @@ pub pure module_emission_symbol(
   }
 }
 
+// Toolchain modules share a package identity, but ordinary functions still
+// need private bytecode names so same-named APIs in different modules remain
+// distinct. Core declarations keep their historical runtime names.
+pure module_emission_callable_symbol(
+  graph: ModuleBindingGraph,
+  entry: ModuleIdentity,
+  binding: ModuleDeclarationBinding
+): Str {
+  if binding.kind == ModuleFunction() &&
+    binding.identity.module.package == ToolchainModulePackage() &&
+    binding.identity.module.path != "core.panack" {
+    match module_emission_module_index(graph, binding.identity.module) {
+      None() => "$missing_" + binding.identity.name,
+      Some(index) => "$module" + module_emission_nat_text(index) + "_" + binding.identity.name
+    }
+  } else {
+    module_emission_symbol(graph, entry, binding.identity)
+  }
+}
+
 pure module_emission_target(
   graph: ModuleBindingGraph,
   entry: ModuleIdentity,
@@ -99,7 +123,7 @@ pure module_emission_target(
 ): Str {
   match target {
     BodyCore(name) => name,
-    BodyDeclaration(binding) => module_emission_symbol(graph, entry, binding.identity)
+    BodyDeclaration(binding) => module_emission_callable_symbol(graph, entry, binding)
   }
 }
 
@@ -181,7 +205,7 @@ pure module_emission_guard_target(
     Error(message) => name,
     Ok(target) => match target {
       NamespaceTarget(identity) => name,
-      DeclarationTarget(binding) => module_emission_symbol(graph, entry, binding.identity)
+      DeclarationTarget(binding) => module_emission_callable_symbol(graph, entry, binding)
     }
   }
 }
@@ -310,7 +334,7 @@ pure module_emission_guard_expression(
       ),
       Ok(resolved) => match resolved {
         NamespaceCall(binding, values, type_arguments) => CallExpr(
-          module_emission_symbol(graph, entry, binding.identity),
+          module_emission_callable_symbol(graph, entry, binding),
           module_emission_guard_expressions(graph, entry, owner, values),
           type_arguments
         ),
@@ -502,7 +526,7 @@ pure module_emission_block(
         BodyLiteral(value) => Some(ExpressionStatement(value)),
         BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyLocalUse(identity) => Some(ExpressionStatement(NameExpr(identity.name))),
-        BodyFunction(binding) => Some(ExpressionStatement(FunctionExpr(module_emission_symbol(graph, entry, binding.identity)))),
+        BodyFunction(binding) => Some(ExpressionStatement(FunctionExpr(module_emission_callable_symbol(graph, entry, binding)))),
         BodyCall(target, types) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyArray() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
@@ -539,7 +563,7 @@ pub pure module_emission_expression(
     BodyInterpolation(parts) => module_emission_interpolation(body),
     BodyLiteral(value) => value,
     BodyLocalUse(identity) => NameExpr(identity.name),
-    BodyFunction(binding) => FunctionExpr(module_emission_symbol(graph, entry, binding.identity)),
+    BodyFunction(binding) => FunctionExpr(module_emission_callable_symbol(graph, entry, binding)),
     BodyCall(target, types) => CallExpr(
       module_emission_target(graph, entry, target),
       module_emission_expressions(graph, entry, body.children),
@@ -640,7 +664,7 @@ pure module_emission_function(
               return_type
             }
             Some(FunctionDeclaration(
-              module_emission_symbol(graph, entry, identity),
+              module_emission_callable_symbol(graph, entry, body.signature.binding),
               emitted_parameters,
               result_type,
               is_pure,
@@ -696,7 +720,8 @@ pub pure module_emission_program(
   mut declarations: [TopLevel] = []
   mut diagnostics: [Diagnostic] = []
   for module in modules {
-    if module.bindings.identity.package == ToolchainModulePackage() {
+    if module.bindings.identity.package == ToolchainModulePackage() &&
+      module.bindings.identity.path == "core.panack" {
       declarations = concat(declarations, module.execution_program.declarations)
     } else {
       for declaration in module.parsed.program.declarations {

@@ -1,1 +1,2 @@
+import stdlib/option as std_option
 import "stdlib/option.txt"

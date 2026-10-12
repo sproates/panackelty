@@ -96,7 +96,8 @@ named functions below; infix arithmetic and ordering are not overloaded.
 
 ### Native paths
 
-Import `stdlib/path` for `PathError`, `Result`, and `Option`. The initial native
+Import `stdlib/path` as a module, for example `import stdlib/path as path`.
+The initial native
 representation is POSIX bytes on the supported Linux and macOS targets. Text
 construction encodes UTF-8; native construction preserves arbitrary bytes.
 Both reject empty input (`EmptyPath`) and embedded NUL (`PathContainsNul`).
@@ -106,16 +107,16 @@ or containment within a directory.
 
 | Function | Result and behavior |
 | --- | --- |
-| `path_from_text(Str)` | `Result[Path,PathError]`; checked UTF-8 construction |
-| `path_from_native(Bytes)` | `Result[Path,PathError]`; checked native-byte construction |
-| `path_current()` | `Path` containing `.`; does not capture the working directory |
-| `path_native_bytes(Path)` | Exact native `Bytes` |
-| `path_to_text(Path)` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
-| `path_display(Path)` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
-| `path_absolute(Path)` | `Bool`; whether the first byte is `/` |
-| `path_append(Path, Path)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
-| `path_directory(Path)` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
-| `path_filename(Path)` | `Option[Path]`; last nonempty component, or `None` for a root |
+| `path.from_text(Str)` | `Result[Path,PathError]`; checked UTF-8 construction |
+| `path.from_native(Bytes)` | `Result[Path,PathError]`; checked native-byte construction |
+| `path.current()` | `Path` containing `.`; does not capture the working directory |
+| `path.native_bytes(Path)` | Exact native `Bytes` |
+| `path.to_text(Path)` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
+| `path.display(Path)` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
+| `path.is_absolute(Path)` | `Bool`; whether the first byte is `/` |
+| `path.join(Path, Path)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
+| `path.directory(Path)` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
+| `path.filename(Path)` | `Option[Path]`; last nonempty component, or `None` for a root |
 
 Appending inserts `/` only when the left operand does not already end with it.
 No operation collapses `.` or `..`, resolves symbolic links, changes case, or
@@ -126,11 +127,13 @@ components remain literal components. Equality compares native bytes exactly:
 humans, not a serialization or shell-escaping format; printing an unconverted
 Path produces `<Path>`.
 
-The existing Str-based `path_parent`, `path_join`, `path_suffix`,
-`path_with_suffix`, `path_is_absolute`, `path_resolve`, and `file_exists` retain
-their bootstrap-compatible contracts. In particular, the old `path_join`
-normalizes its result; the typed `path_append` never does. Typed filesystem queries and I/O are specified below. Non-POSIX
-representations remain follow-up work.
+The standard-library
+`path` module exposes only the typed `Path` operations above. The older
+compiler-known Str path identities remain available for bootstrap internals;
+their string-based adapter functions are not re-exported by the standard
+library. In particular, the legacy `path_join` intrinsic normalizes its result,
+while `path.join` never does. Typed filesystem queries and I/O are specified
+below. Non-POSIX representations remain follow-up work.
 
 ### Exact durations
 
@@ -141,16 +144,16 @@ at their boundaries, as specified below.
 
 | Function | Result and behavior |
 | --- | --- |
-| `duration_nanoseconds(Int)` | Exact `Duration` |
-| `duration_milliseconds(Int)` / `duration_seconds(Int)` | Exact scaled `Duration` |
-| `duration_ticks(Duration)` | Signed `Int` nanoseconds |
-| `duration_from_seconds(Rat)` | `Result[Duration,DurationError]`; rejects fractional nanoseconds |
-| `duration_as_seconds(Duration)` | Exact `Rat`, without rounding |
-| `duration_add(Duration, Duration)` / `duration_subtract(Duration, Duration)` | Exact `Duration` |
-| `duration_scale(Duration, Int)` | Exact `Duration` |
-| `duration_divide(Duration, Int)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
-| `duration_ratio(Duration, Duration)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
-| `duration_before(Duration, Duration)` | `Bool`; signed less-than comparison |
+| `time.from_nanoseconds(Int)` | Exact `Duration` |
+| `time.milliseconds(Int)` / `time.seconds(Int)` | Exact scaled `Duration` |
+| `time.ticks(Duration)` | Signed `Int` nanoseconds |
+| `time.from_seconds(Rat)` | `Result[Duration,DurationError]`; rejects fractional nanoseconds |
+| `time.as_seconds(Duration)` | Exact `Rat`, without rounding |
+| `time.add(Duration, Duration)` / `time.subtract(Duration, Duration)` | Exact `Duration` |
+| `time.scale(Duration, Int)` | Exact `Duration` |
+| `time.divide(Duration, Int)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
+| `time.ratio(Duration, Duration)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
+| `time.is_before(Duration, Duration)` | `Bool`; signed less-than comparison |
 
 `DurationError` is `FractionalNanosecond` or `ZeroDurationDivisor`.
 Construction from seconds accepts an explicitly rational expression such as
@@ -163,15 +166,15 @@ nanoseconds.
 
 ### Monotonic instants
 
-`instant_now(): Result[Instant,ClockError]` reads the host's `CLOCK_MONOTONIC`.
+`time.now(): Result[Instant,ClockError]` reads the host's `CLOCK_MONOTONIC`.
 It is effectful, including when used through other functions. Host read failure
 returns `Error(ClockUnavailable())`. All other operations here are pure:
 
 | Function | Result and behavior |
 | --- | --- |
-| `instant_add(Instant, Duration)` | A shifted `Instant`, including for negative durations |
-| `instant_difference(Instant, Instant)` | Signed `Duration`: first operand minus second |
-| `instant_before(Instant, Instant)` | `Bool`; strict less-than comparison |
+| `time.add_instant(Instant, Duration)` | A shifted `Instant`, including for negative durations |
+| `time.difference(Instant, Instant)` | Signed `Duration`: first operand minus second |
+| `time.is_before_instant(Instant, Instant)` | `Bool`; strict less-than comparison |
 
 All instants obtainable within one program execution share one monotonic clock
 domain. Repeated reads may be equal; later reads do not precede earlier reads.
@@ -538,27 +541,27 @@ and trap before any filesystem operation rather than being truncated.
 
 The standard library is an explicit module graph. Core `Option[T]` and
 `Result[T,E]` types, their constructors, and built-in text/collection methods
-are available in every source program. The compatibility module
-`stdlib/prelude` explicitly re-exports the option/result helpers, byte/text,
-path, environment, time, filesystem and process APIs listed in
-`src/stdlib/README.md`; host, testing and TCP APIs remain separate modules.
-Portable source wrappers provide the `bytes_*` and checked
-`environment(name): Option[Str]` APIs.
+are available in every source program. The curated `stdlib/prelude` re-exports
+the `option`, `result`, `byte_buffer`, `text`, `path`, `environment`, `time`,
+`filesystem`, and `process` modules. Host, testing, numeric,
+package-filesystem, and TCP APIs remain separate modules. Import domain modules
+and use short names within them, such as `path.from_text` or
+`byte_buffer.join`; the prelude uses `byte_buffer` to preserve the core
+`bytes()` constructor.
 
-Persistent array, map, and set operations and the `path_*` operations retain
-their compiler-known polymorphic signatures. They are part of the standard
-library surface: storage operations still execute as VM primitives, while array
-`map` and `reduce` retain their compiler lowering. Source generics provide
-`option_value_or[T]`, `result_value_or[T,E]`, and array `first[T]()` without new
-primitives. Host access remains limited to the ABI calls identified above.
+Persistent array, map, and set operations retain their compiler-known
+polymorphic signatures. Storage operations still execute as VM primitives,
+while array `map` and `reduce` retain their compiler lowering. The generic
+`option.value_or[T]` and `result.value_or[T,E]` helpers are ordinary source
+functions; array `first[T]()` remains a core method. Host access remains limited
+to the ABI calls identified above.
 
 `len` also accepts arrays and byte buffers.
 
-The separately imported `stdlib/testing` module supplies pure `TestResult`
-assertions for Boolean conditions and equality of `Str` and `Nat`. Its effectful
-`test_report` prints outcomes in caller-supplied order and returns the number
-of failures; it does not choose an exit status. Fixture discovery and command
-execution are not part of this initial module.
+The separately imported `stdlib/testing` module supplies pure `expect`,
+`equal_str`, and `equal_nat` assertions that return `TestResult`. Its effectful
+`report` prints outcomes in caller-supplied order and returns the number of
+failures; it does not choose an exit status.
 
 The separately imported `stdlib/testing_files` module discovers immediate
 directory children in the host's deterministic native-byte order and returns
@@ -568,14 +571,14 @@ an atomically created temporary directory. Callers remove its contents and
 explicitly remove the empty directory; nonempty removal fails. This API does
 not establish containment, a filesystem snapshot, or automatic cleanup.
 
-`stdlib/testing_commands` uses the existing bounded `process_run` contract.
-Its `TestCommand` holds the complete invocation, and `test_run_command`
-compares exit code, signal, and both byte streams against a `ProcessOutput`.
-The first mismatch is reported as a `TestResult`; host errors also become
-failed tests. `test_expect_command_error` instead checks a portable host-error
-category. A completed nonzero exit is distinct from a launch or collection
-failure. Pure helpers can check already captured outputs or results without
-running a command. No implicit shell, PATH search, decoding, or sandbox is added.
+`stdlib/testing_commands` uses the bounded `process.run` contract. Its
+`TestCommand` holds the complete invocation, and `run_command` compares exit
+code, signal, and both byte streams against a `ProcessOutput`. The first
+mismatch is reported as a `TestResult`; host errors also become failed tests.
+`expect_command_error` instead checks a portable host-error category. A
+completed nonzero exit is distinct from a launch or collection failure. Pure
+helpers can check already captured outputs or results without running a
+command. No implicit shell, PATH search, decoding, or sandbox is added.
 
 ## Strings
 
@@ -740,10 +743,12 @@ bounds checks in lexers and parsers.
 They are defined once in the bundled `core.panack`; redeclaring their names is
 an error. The loader requires a configured stdlib root containing this core,
 including when `PANACKELTY_STDLIB_PATH` is overridden. The public launcher
-configures the bundled root. No host, testing or value-or helpers are implicitly
-imported. `stdlib/option` and `stdlib/result` now contain only the explicitly
-imported `option_value_or` and `result_value_or` helpers. `stdlib/text` and
-`stdlib/collections` and their prefixed wrappers have been removed; use methods.
+configures the bundled root. No host, testing, or domain-module helper is
+implicitly imported. The explicit
+`stdlib/option` and `stdlib/result` modules provide their generic
+`value_or` helpers within their respective namespaces. Byte and text helpers
+live in `stdlib/bytes` and `stdlib/text`; core string and collection operations
+remain available as methods.
 
 Modules support quoted file-relative imports and logical imports:
 
@@ -889,10 +894,11 @@ should be added when those programs demonstrate a concrete need.
 
 ## Typed filesystem, process, and sleep APIs
 
-Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; `stdlib/prelude`
-includes all three. These APIs use the existing opaque `Path` and `Duration`
-values. Host calls are effectful, including metadata, enumeration, and sleep.
-Only `host_decode_utf8` is pure.
+Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; the prelude
+re-exports these modules. These APIs use opaque `Path` and `Duration` values.
+Host calls are effectful, including metadata, enumeration, and sleep. The
+portable `text.decode_utf8` operation is pure and traps on invalid input;
+`host.decode_utf8` returns a checked result.
 
 Failures return `Result[T,HostError]`, where
 `HostError { operation: Str, code: Str, native_code: Nat }` identifies the service,
@@ -910,17 +916,17 @@ allocate an error value.
 
 | Function | Result |
 | --- | --- |
-| `filesystem_read_beneath(root: Path, relative: Path, limit: Nat)` | `Result[FilesystemRootRead,HostError]`; from `stdlib/package_filesystem` |
-| `fs_read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
-| `fs_write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
-| `fs_metadata(path: Path)` | `Result[FileMetadata,HostError]` |
-| `fs_list(path: Path)` | `Result[[Path],HostError]` |
-| `fs_create_directory(path: Path)` | `Result[Unit,HostError]` |
-| `fs_remove_file(path: Path)` | `Result[Unit,HostError]` |
-| `fs_remove_directory(path: Path)` | `Result[Unit,HostError]` |
-| `fs_temp_file(parent: Path)` | `Result[Path,HostError]` |
-| `fs_temp_directory(parent: Path)` | `Result[Path,HostError]` |
-| `host_decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
+| `package_filesystem.read_beneath(root: Path, relative: Path, limit: Nat)` | `Result[FilesystemRootRead,HostError]` |
+| `filesystem.read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
+| `filesystem.write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
+| `filesystem.metadata(path: Path)` | `Result[FileMetadata,HostError]` |
+| `filesystem.list_directory(path: Path)` | `Result[[Path],HostError]` |
+| `filesystem.create_directory(path: Path)` | `Result[Unit,HostError]` |
+| `filesystem.remove_file(path: Path)` | `Result[Unit,HostError]` |
+| `filesystem.remove_directory(path: Path)` | `Result[Unit,HostError]` |
+| `filesystem.temp_file(parent: Path)` | `Result[Path,HostError]` |
+| `filesystem.temp_directory(parent: Path)` | `Result[Path,HostError]` |
+| `host.decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
 
 Reads and writes accept regular files, follow symlinks, and preserve bytes.
 Reads fail without partial data when their explicit byte limit is exceeded.
@@ -938,7 +944,7 @@ intermediate symlinks follow host path-resolution rules.
 
 Enumeration returns immediate relative child names, excluding `.` and `..`, in
 unsigned native-byte lexicographic order. Join a returned name with its parent
-using `path_append`. Names are never decoded implicitly; arbitrary native bytes
+using `path.join`. Names are never decoded implicitly; arbitrary native bytes
 round-trip where the host filesystem permits them. Enumeration is capped at
 65,536 entries and 16 MiB of names and fails without a partial list. Concurrent
 filesystem changes can affect results; enumeration is not a snapshot.
@@ -952,7 +958,7 @@ it explicitly. There is no automatic cleanup or lifetime tracking.
 
 Ordinary filesystem paths do not establish containment. Relative paths use the
 invocation's working directory; `..`, symlink traversal, and races remain POSIX
-host behavior. The package-loading helper `filesystem_read_beneath` opens the
+host behavior. The package-loading helper `package_filesystem.read_beneath` opens the
 root directory and resolves the requested regular file relative to that held
 descriptor. Relative symlinks are followed only when their target stays under
 the root. Absolute symlinks and attempts to traverse above the root return
@@ -967,7 +973,7 @@ descriptor-relative operations remain separate follow-ups.
 ### Process execution
 
 ```panack
-process_run(
+process.run(
   executable: Path, arguments: [Str], stdin: Bytes, working_directory: Path,
   environment: [Str], timeout: Duration, output_limit: Nat
 ): Result[ProcessOutput,HostError]
@@ -978,7 +984,7 @@ represents completed execution. A normal exit has `signal == 0`, including a
 nonzero exit code. Signal termination has a nonzero signal number and
 `exit_code == 0`. Failure before execution returns `launch_failed`, with errno;
 timeout and output exhaustion return their own error categories, without partial
-output. There is no implicit UTF-8 decoding: use `host_decode_utf8` explicitly.
+output. There is no implicit UTF-8 decoding: use `host.decode_utf8` explicitly.
 
 The executable is an exact path, resolved relative to the requested child
 working directory when relative. There is no PATH search or implicit shell.
@@ -1006,7 +1012,7 @@ add latency.
 
 ### Sleep and timing bounds
 
-`host_sleep(duration: Duration): Result[Unit,HostError]` waits for a nonnegative
+`host.sleep(duration: Duration): Result[Unit,HostError]` waits for a nonnegative
 duration, retries interrupted sleeps, and accepts zero. Sleep and process timeout
 accept at most 31,536,000 seconds (365 days), expressed as exact nanoseconds;
 negative or larger values return `negative_duration` or `out_of_range` before any

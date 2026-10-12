@@ -29,7 +29,8 @@ require_failure_sample() {
         fi
     done
 }
-mkdir -p "$work/source/scripts" "$work/source/tests" "$work/source/src/stdlib" "$work/source/examples" "$work/source/bootstrap" "$work/bin"
+mkdir -p "$work/source/scripts" "$work/source/tests/fixtures/compiler_contracts" "$work/source/src/stdlib" "$work/source/examples" "$work/source/bootstrap" "$work/bin"
+touch "$work/source/tests/fixtures/compiler_contracts/.keep"
 cp scripts/build_baseline.sh "$work/source/scripts/"
 cp tests/run_probe.sh tests/profile_command.sh tests/without_interpreter.sh "$work/source/tests/"
 touch "$work/source/examples/.keep" "$work/source/src/stdlib/.keep"
@@ -43,7 +44,7 @@ case "$1" in
  run)
  if [ "${3:-}" = compile ]; then
    result=42
-   if grep '+ 3' tests/build-baseline-fixture/direct.panack >/dev/null || grep '{ 41 }' tests/build-baseline-fixture/transitive.panack >/dev/null; then result=43; fi
+   if grep '+ 3' tests/fixtures/compiler_contracts/build_baseline_fixture/direct.panack >/dev/null || grep '{ 41 }' tests/fixtures/compiler_contracts/build_baseline_fixture/transitive.panack >/dev/null; then result=43; fi
    printf '%s\n' "$result" > "$6"
    printf 'wrote %s\n' "$6"
  else

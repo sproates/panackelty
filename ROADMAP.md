@@ -241,7 +241,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | Historical evidence includes the controlled macOS arm64 baseline (clean median 134.42s; warm focused compiler median 26.46s against the then-used 120s/15s comparisons) and later noisy observations in the linked profiles. These are measurements, not current targets. | Owner direction 2026-10-12: audit the whole workflow, test selection/cadence, risk boundaries and waiting time; offer NFRs and improvements for the user's decision. The [local/CI inventory](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory) and [initial representative change-impact map](tests/VALIDATION_PROFILE.md#gi106-change-impact-map) are recorded in the validation profile. Next, assess workflow options against these regression boundaries; obtain comparable current clean/warm evidence and sample active/wait, repeated discovery/context and review/reporting cost where reliable evidence exists. This docs-only slice changes no build or test behavior. GI#106 remains open until the user explicitly says they are happy. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | 2026-10-12 macOS arm64: clean-check median 608.81s at two workers; warm `check-compiler` median 114.44s at two workers and 105s at four; one fresh-cache probe 0.30s. Earlier 120s/15s/75s/60s figures remain historical, not current targets. | Owner direction: audit the whole workflow, test selection/cadence, risk boundaries and waiting time; offer NFRs and improvements for the user's decision. The [local/CI inventory](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory) and [initial representative change-impact map](tests/VALIDATION_PROFILE.md#gi106-change-impact-map) are recorded. Recommendation: retain current full PR/post-merge validation while the impact map is incomplete and three recent hosted failures remain unclassified. Next, classify those failures and refine impact boundaries around native-oracle, harness, compiler-integration and bootstrap costs before selecting one bounded improvement. This delivery corrects the isolated measurement fixture and documents a direct single-probe command; product code and required test coverage are unchanged. GI#106 remains open until the user explicitly says they are happy. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -2522,6 +2522,27 @@ are proposals for the user's decision, not acceptance criteria the task may set
 for itself. Only the user's explicit statement that they are happy completes
 GI#106. Dependency-aware reuse and separate compilation remain options to assess,
 not preselected solutions.
+
+**Evidence assembled so far (2026-10-12):** on macOS arm64, a clean `make check`
+at two validation workers passed three times with a 608.81s median; the warm
+`check-compiler` collection took 114.44s at two workers and 105s at the default
+four workers. A directly selected lexer probe executed its 13 assertions in
+0.30s with a fresh cache. The probe edit matrix shows the broad source
+fingerprint recompiles a probe after unrelated, direct and transitive source
+edits, but its tiny fixture does not establish whole-suite savings. See the
+[workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
+
+**Current recommendation:** retain full PR and post-merge validation and all
+test assertions while the change-impact map is representative and three recent
+hosted failures remain unclassified. For a bug-fix loop, run the one relevant
+probe, then its owning component target; run canonical `make check` before
+publishing. Worker tuning from two to four helps by about 8% on the focused
+collection, but does not address its roughly 105s duration or the clean-check
+unit/bootstrap bottlenecks. The next investigation slice is to classify those
+hosted failures and refine the regression boundary around the measured native
+oracle, harness, compiler-integration and bootstrap costs before choosing one
+bounded optimization. Do not infer suite-wide savings from the tiny probe
+matrix or preselect a cache/compiler redesign.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.

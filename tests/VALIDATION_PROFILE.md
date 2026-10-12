@@ -6,6 +6,117 @@
 
 # Validation profiling baseline
 
+<a id="gi106-findings-and-options"></a>
+
+## GI#106 findings and options: 2026-10-12
+
+GI#106 is an open investigation into how build and test work affects day-to-day
+development. This report summarises the evidence gathered so far and the choices
+it supports. The former 120-second clean-check, 15-second focused-check,
+75-second functional and 60-second bootstrap comparisons are historical, not
+current acceptance limits. No replacement NFRs or test-cadence changes are
+proposed as decisions here. The issue is complete only when the user says they
+are happy.
+
+### Findings
+
+| Workload | Evidence | What it tells us |
+| --- | --- | --- |
+| One selected compiler probe | A lexer probe ran 13 assertions in 0.30s from a fresh probe cache. | A narrow red/green loop can be very quick when the failing behavior is easy to select. |
+| Focused compiler collection | Warm `check-compiler` median: 114.44s at two workers and 105s at the local default of four. | More workers helped this collection by about 8%; the collection remains much larger than one test. |
+| Clean local `make check` | Three clean runs at two validation workers passed, with a 608.81s median. Unit took 420–427s and bootstrap 138–140s across the recorded runs. | Unit/native work and bootstrap dominate this measured clean path. The nested profile rows overlap and must not be summed. |
+| Hosted full Check | Ten full runs ranged from 7m46s to 8m53s, with an 8m33s median. Three failed. A matched PR/push pair later passed in 8m34s and 8m30s. | Hosted validation takes about eight and a half minutes in this sample. Skipping four repeated experiments saved 105 runner-seconds but did not reduce elapsed Check time in the matched pair. |
+| PR lifecycle versus CI | [PR #388](https://github.com/sproates/panackelty/pull/388), [#394](https://github.com/sproates/panackelty/pull/394) and [#396](https://github.com/sproates/panackelty/pull/396) took 38m19s, 8m55s and 56s from creation to merge. Their PR Check runs took 29s, 8m34s and 29s respectively. | Lifecycle time can greatly exceed Check time, but the timestamps do not identify author effort, review, queueing or idle gaps. They cannot tell us how long a contributor waited. |
+| Hosted worker pilot | [PR #397](https://github.com/sproates/panackelty/pull/397) changed the compiler worker setting from three to four in hosted package/full-validation jobs. Both Ubuntu compiler lanes timed out in the same `cli_commands/source` harness invocation. One macOS compiler package lane passed in 7m08s, versus 7m55s in an unmatched earlier run. | The pilot did not establish a hosted speed gain and introduced failures consistent with resource contention. Four workers should not become the hosted default on this evidence. |
+| Manual release workflow | The latest observed release workflow took 25m33s and ran the full check before Linux/macOS package builds and the browser bundle. | This is a separate, infrequent acceptance path; it is not the routine PR Check duration. |
+
+The timings, run links and qualifications are recorded in the [workflow
+inventory](#gi106-workflow-inventory). The lifecycle sample is deliberately
+small. It tells us where hosted checks sit in the PR timeline, not how much of
+that timeline was useful work or waiting.
+
+### What the test boundaries tell us
+
+The [change-impact map](#gi106-change-impact-map) connects compiler, standard
+library, bytecode, VM/runtime, CLI, package/bootstrap and validation-routing
+changes to focused evidence and wider acceptance. It is a component map, not a
+complete mapping from every assertion to every possible regression. There is
+not enough evidence to remove tests or reduce full validation cadence safely.
+
+The routine Check runs for each pull-request update and each push to `main` or
+`next`; only documentation-only changes take the short route. Several checks
+cover different boundaries even when they use related programs:
+source and saved-bytecode execution, native verification, sanitizers, bootstrap
+fixed points, package installation and platform-specific builds. Three earlier
+same-tree post-merge checks failed after their PR checks passed; the diagnostics
+did not establish a cause. Keep the PR and post-merge product gates until that
+reliability evidence is understood.
+
+A standard-library change needs direct library behavior checks, compiler checks
+that use the active library, and bootstrap evidence. There is no stdlib-only
+validation lane. Native C objects already build incrementally, but the Panackelty
+loader gathers reachable modules into a compilation unit before checking and
+emission. Source-file boundaries therefore do not yet make independently
+compiled module artifacts possible.
+
+Some grouping and scheduling improvements already exist. The shell harness
+builds its runner once per group; compiler integration and contract probes run
+early to avoid a long final worker tail; and unit suites use bounded parallel
+workers. The top-level `make check` phases remain serial. Further ordering may
+bring a useful failure forward, but it will not reduce the total work unless it
+also removes or overlaps work safely.
+
+### Options
+
+| Option | What it could improve | Cost or risk | Current view |
+| --- | --- | --- | --- |
+| Measure a representative developer change and agree the workloads that matter | Separates time to reproduce, get a failing test, reach a passing focused result, run a clean check and wait for required hosted checks. It can distinguish active work from waiting. | Needs a short, honest timing record across a representative change. A PR timestamp or one CI run is not a substitute. | Best next step before choosing a performance change or replacement NFR. |
+| Improve focused local selection | Helps a developer run the smallest relevant test, then the owning component collection. Existing `check-compiler`, `check-bytecode`, `check-vm` and direct-probe paths provide a base. | Component targets are still sizeable, and a focused pass cannot replace integration or acceptance checks. The test-to-regression map needs more detail for safe automatic selection. | Low-risk developer-workflow option. Keep full PR and post-merge gates. |
+| Reuse compiled probes by actual dependencies | Could avoid recompiling probes after unrelated source edits while still running every assertion each time. | Cache keys must include imported dependency closure, compiler/seed/VM identity, library and flags. Unknown dependencies must invalidate safely. The tiny edit matrix does not show whole-suite savings; clean runs still need to build. | Plausible pilot if measurements show compilation is a material part of the chosen red/green workload. |
+| Select local tests or hosted lanes by change impact | Could run the relevant compiler, library, bytecode, VM or package checks earlier and reduce repeated work. | Missing a dependency edge could hide a regression. The current selector reports components but does not route code changes to component-specific suites. Unknown and shared changes need the conservative full route. | Investigate after assertion-level coverage and ownership are mapped. Do not remove a full gate yet. |
+| Remove exact repeated hosted work | Could reduce runner-minutes where the same target, such as `quick-start`, runs in separate clean jobs. | Runner-minutes are not the same as PR wall time. Job consolidation can change artifact provenance, platform context and failure isolation; those effects need checking before merging jobs. | Candidate for a bounded CI-work pilot if runner cost is the chosen problem. Preserve distinct platform and instrumentation evidence. |
+| Change ordering or increase parallelism | Could shorten time to first failure or reduce a critical-path tail if independent work can run together. | More concurrency can contend for CPU and make timeouts more likely. The hosted four-worker compiler pilot failed on both Ubuntu lanes; ordering alone will not reduce total work. | Keep the current hosted worker limit. Profile a specific bottleneck before changing scheduling. |
+| Add separate compilation for Panackelty modules | Could make module builds independently reusable and reduce repeated frontend work across larger projects. | This is a compiler architecture change. It needs a design for interfaces, generics, linking, identity, invalidation and compatibility, plus substantial correctness validation. It will not make clean full validation disappear. | Long-term design option, not the next performance experiment. |
+| Reduce PR or post-merge validation frequency | Could cut hosted execution and queue demand. | Current same-tree post-merge failures show that the second checkpoint has detected failures missed by green PR checks. Assertion-level equivalence is incomplete. | Not recommended with current evidence. |
+
+### Possible shape of replacement NFRs
+
+There is no evidence for a replacement number yet. Once the workloads are
+measured, there are a few ways to express the requirement:
+
+| Shape | Benefit | Limit |
+| --- | --- | --- |
+| One end-to-end time for all validation | Easy to explain and track. | It combines a developer's focused feedback loop with clean validation and hosted queueing, so it can hide which experience is slow. |
+| Separate outcomes for local red/green, focused component checks, clean full checks and hosted PR feedback | Connects each expectation to a user-visible workflow and its owner. | Needs clearly defined commands, cache state, host and start/end points so results are comparable. |
+| A completion target plus an observed distribution across repeated runs | Allows normal timing variation to be distinguished from a persistent delay. | Needs repeated measurements on comparable environments and an agreed response when the target is missed. |
+| A measured baseline with no pass/fail timing target yet | Avoids treating arbitrary warning numbers as acceptance criteria while evidence is gathered. | Requires a review point where the owner decides whether to set targets and which trade-offs to accept. |
+
+The evidence supports keeping runner time separate from contributor wall time,
+and measuring time to first useful result separately from complete validation.
+My recommendation is to use the baseline-only shape until we have the direct
+workflow sample, then ask the user to choose scenario-specific expectations.
+Any timing warnings should remain informational until that decision is made.
+
+### Recommendation
+
+Keep the current test assertions, PR checks and post-merge checks. Keep hosted
+compiler validation at three workers. Do not start several optimisations in
+parallel.
+
+First record one representative bug-fix workflow: time to reproduce, time to a
+failing test, time to a passing focused result, any broader checks run, and the
+active and waiting portions. Record the cache state and machine. Separately
+record the elapsed hosted PR path and runner work, since reducing runner-minutes
+may not shorten the contributor's feedback time.
+
+Then choose one pilot against the observed bottleneck. If repeated local
+compilation dominates, test dependency-aware probe reuse. If hosted runner work
+dominates, investigate exact repeated targets. If wall-clock time dominates,
+profile the critical path before trying scheduling changes. Compare the same
+workload before and after, preserve all regression assertions, and bring any
+replacement NFRs to the user for a decision. This report does not set a numeric
+completion target for GI#106.
+
 <a id="gi106-workflow-inventory"></a>
 
 ## GI#106 workflow inventory — 2026-10-12

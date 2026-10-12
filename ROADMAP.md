@@ -292,10 +292,16 @@ pilot's synthetic unrelated-edit comparison is recorded in the
 compiler-contract probe was reused in 0.04–0.05s instead of recompiling in
 18.32–18.48s. This is not a representative bug-fix result or clean-check speedup.
 The host-enabled local `make check` passed in 421s on a reused build tree; its
-historical budget warnings are not current acceptance gates. Next, measure a
-real stdlib edit's focused fail/pass cycle and broader checks, then use those
-boundaries to review the separate-compilation design. No replacement NFRs are
-set and GI#106 remains open until the user is happy.
+historical budget warnings are not current acceptance gates. A temporary-copy
+red/green probe of the 42-assertion stdlib runner was also recorded:
+deliberately breaking `path.display` failed in 0.598s, restoring it passed in
+0.276s, and an unchanged repeat passed in 0.037s; changing the imported stdlib
+dependency invalidated the bytecode cache. This confirms a focused stdlib edit
+reruns the affected probe, but it is a synthetic fault cycle, not timing from
+the merged migration or a broader-check result. Next, capture focused and
+broader validation costs during a real upcoming implementation change, then use
+those boundaries to review the separate-compilation design. No replacement NFRs
+are set and GI#106 remains open until the user is happy.
 
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.

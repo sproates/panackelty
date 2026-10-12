@@ -59,7 +59,11 @@ browser-runtime-bundle:
 check:
 	@$(TIMED) check $(CHECK_BUDGET_SECONDS) sh tests/check.sh $(MAKE) --no-print-directory check-phases
 
-check-phases: policy unit functional bootstrap-check quick-start
+check-phases: policy
+	@$(MAKE) --no-print-directory native native-module-build native-fault-build
+	@VALIDATION_JOBS="$(VALIDATION_JOBS)" sh tests/run_check_phases.sh "$(MAKE)"
+	@$(MAKE) --no-print-directory functional
+	@$(MAKE) --no-print-directory quick-start
 
 test: check
 

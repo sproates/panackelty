@@ -46,6 +46,14 @@ result. The current warning values are historical while GI#106 reassesses the
 validation NFRs; a warning is not an acceptance decision.
 The unit phase times `unit-impl`, including the native harness and Panackelty probes, and propagates any failure.
 
+Locally, `make check` first runs policy checks and prepares the native test
+executables. It then runs unit validation alongside the bootstrap proof. With
+the default `VALIDATION_JOBS=4`, the unit suite receives three workers and
+bootstrap receives one; `VALIDATION_JOBS=1` keeps those phases serial. The full
+functional suite and quick-start/package checks still run afterward. This
+changes phase scheduling only: every phase and assertion still runs. Hosted CI
+continues to use its workflow-defined jobs.
+
 For incremental work, use `make check-compiler`, `make check-bytecode`, or
 `make check-vm`. Each runs the owning unit-test subtree plus representative
 public-CLI workflows. The configured 15-second timing warning is a historical

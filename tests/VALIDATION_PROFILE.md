@@ -224,30 +224,40 @@ The inventory and local measurements confirm repeated full validation at PR
 and post-merge checkpoints, expose structural overlap in the CI matrix, and
 locate the largest local costs. They still do not measure contributor active
 versus idle wait, a fresh machine or cold OS cache, repeated discovery/tool
-context, or review/reporting overhead. The initial change-impact map below
-connects representative regression risks to assertions and CI lanes; it is not
-a complete assertion-by-assertion trace or evidence that any suite can safely
-be omitted.
+context, or review/reporting overhead. The Slice 2 map below connects likely
+regressions at each major change surface to focused assertions, integration
+checks and hosted lanes. It is a component-to-test map, not an exhaustive
+assertion trace or evidence that any suite can safely be omitted.
 
 <a id="gi106-change-impact-map"></a>
 
-### GI#106 change-impact map — initial representative slice
+### GI#106 change-impact map — Slice 2 component boundaries
 
 This map was checked against the current Make targets, Check workflow,
-[`tests/README.md`](README.md), and [`tests/COVERAGE.md`](COVERAGE.md). It maps
-representative changes to tests that assert observable failure or success
-conditions, then identifies the wider integration envelope. A shared fixture
-does not make two test paths equivalent: source execution, saved-bytecode
-execution, native verification, instrumentation, bootstrap and installation
-exercise different boundaries.
+[`tests/README.md`](README.md), [`tests/COVERAGE.md`](COVERAGE.md), and the
+compiler/VM boundaries in [`ARCHITECTURE.md`](../ARCHITECTURE.md). It relates a
+plausible regression to focused local evidence and the wider acceptance that
+crosses its callers or artifact boundaries. A shared fixture does not make two
+test paths equivalent: source execution, saved-bytecode execution, native
+verification, instrumentation, bootstrap and installation exercise different
+boundaries.
 
-| Change surface | Focused local evidence and what it asserts | Additional acceptance and hosted execution | Current boundary |
+| Change surface and plausible regression | Focused local evidence | Wider acceptance and hosted evidence | Boundary / evidence limit |
 | --- | --- | --- | --- |
-| Compiler, imports and source loading | `make check-compiler` runs compiler harness/probes and selected public-CLI cases. Parser, resolver, checker, module-binding, loader-confinement and source-limit probes assert fixed results or diagnostic details. Invalid source/import and root-escape cases require no bytecode artifact; namespace identity cases assert distinct expected results from source and saved bytecode. | `make check` adds the full functional corpus, bootstrap fixed points and packaged quick-start. CI runs `ci-compiler` on Ubuntu 22.04, macOS 14 and Ubuntu 24.04; source/bytecode conformance runs on the two package platforms, and bootstrap independently checks compiler-stage identity. | The compiler-only target is a sizeable collection, not a single-test selector. Public CLI corpus and bootstrap add integration evidence it does not contain. |
-| Standard-library source | There is no dedicated stdlib check target. `make unit-runtime-probes` includes `runner/stdlib_unit.panack`; the `stdlib` functional case checks exact public output. `make bootstrap-check` compiles the conformance program at three compiler stages and compares the resulting artifacts. | `ci-runtime` runs on all three CI environments; bootstrap runs on all three; source and bytecode conformance run on Ubuntu 22.04 and macOS 14. Source-coverage collection is conditional on its path/event selector. | Direct stdlib assertions are embedded in runtime probes, while bootstrap and CLI tests cross compiler/runtime boundaries. The native LLVM report instruments C VM sources; it is not a per-stdlib-source assertion map. |
-| Bytecode format, verifier, VM and runtime | `make check-bytecode` covers bytecode probes, native module contracts and CLI check/disassembly cases. `make check-vm` covers native VM/oracle contracts, host-runtime probes and CLI environment/file cases. Fixed malformed artifacts must be rejected; VM and codec probes check specified values, status and streams. | `make check` and `ci-runtime` include source and saved-bytecode functional execution. CI also runs source/bytecode conformance on both package platforms, plus separate VM, oracle and runner sanitizer lanes and native LLVM coverage on Ubuntu 24.04. | The conformance corpus overlaps functional inputs, but the partitions assert different compile/run and malformed-input paths. Sanitizers and C branch coverage add instrumentation evidence; they do not replace language-level assertions. |
-| Package manifest, loading and installation | Manifest parsing is in `make check-compiler`; filesystem contracts are in `make unit-runtime-probes`; package CLI fixtures run with the public command cases. They check malformed manifests and bounds, path/root confinement, relocation, dependency graphs and fail-closed behavior. `make quick-start` checks archive checksum, install, first program, upgrade and removal. | The compiler partition retains manifest/loader unit tests; runtime includes package CLI cases in the functional suite. Bootstrap and bytecode-conformance partitions both invoke the archive/quick-start path on each supported platform; the bootstrap partition also runs on Ubuntu 24.04. The bytecode-conformance job separately checks current README and optional-installer instructions against a published release. | Package checks are split across compiler, runtime, bootstrap and conformance; there is no package-only CI lane. Their boundaries are wider than manifest parsing. |
-| CI routing and suite definitions | `make ci-check` runs `tests/ci_scope.sh`, which checks docs/full classification, local/CI agreement, mixed or unknown changes and unsafe document modes. `tests/ci_partition.sh` checks suite dispatch, multiplicity and failure propagation; harness layout checks pin workflow gates and target wiring. | The `changes` job always classifies the complete PR delta; full-route changes require the existing platform and instrumented jobs. `source_policy_tests` adds selector/coverage-route tests on the full route. | `scripts/validation_components.sh` reports owning components, but `ci_scope.sh` still chooses only `docs` or `full`; it does not select a subset of suites from those component labels. |
+| Compiler frontend and source loading: syntax, resolution, types/effects, imports or emitted instructions regress. | `make check-compiler` runs harness and probes for lexer/parser, resolver, checker, module binding, loader confinement, source limits, compiler contracts and diagnostics. Selected CLI cases cover explanations, commands and expected failures. | `make functional` adds whole-program behavior; source conformance and bootstrap compare compiler stages. Hosted `ci-compiler`, `ci-runtime` and `ci-bootstrap` run on Ubuntu 22.04, macOS 14 and Ubuntu 24.04; source/bytecode conformance adds the two package platforms. | `check-compiler` is a sizeable collection, not a single-test selector. Public CLI corpus and bootstrap add integration evidence it does not contain. |
+| Standard-library source: values, errors, effects or public signatures change, or compiler behavior changes while compiling the library. | There is no stdlib-only target. `make unit-runtime-probes` executes `stdlib_unit.panack`; the stdlib functional case checks public output. Compiler probes use the selected standard-library root and catch some compiler/library interface regressions. | `make check` combines direct probes, functional cases and `make bootstrap-check`'s three-stage compiler/library identity checks. Hosted runtime and bootstrap lanes run on all three environments; source/bytecode conformance runs on both package platforms. | A stdlib edit crosses compiler and runtime boundaries although its source is Panackelty. Current component labels do not establish an independent test boundary. |
+| Bytecode emitter, codec or verifier: output becomes noncanonical, malformed data is accepted, or valid data is rejected. | `make check-bytecode` runs bytecode probes, native module contracts and public CLI check/disassembly cases. Fixed artifacts assert values, status/streams, bounds and rejection behavior; `make check-compiler` also exercises emitted compiler output. | Full functional runs exercise source and saved-bytecode execution; native source/bytecode conformance checks artifact paths independently. Hosted runtime runs on all three environments; bytecode conformance runs on both package platforms. Sanitizer/oracle lanes add native malformed-input evidence under instrumentation. | Serialization/verification and VM execution are related but separate contracts; a passing codec probe alone does not prove execution. |
+| VM, native runtime or host services: instruction execution, value lifetime, builtins, files, processes or environment behavior regresses. | `make check-vm` covers native VM/oracle contracts, the host-runtime probe and CLI environment/file cases. `make unit-runtime-probes` also runs direct stdlib, host and bytecode probes. | Full functional tests run programs through the CLI, including source and saved-bytecode cases and real TCP peers. Hosted runtime runs on all three environments; VM/oracle/runner sanitizer lanes add memory and undefined-behavior evidence, and Ubuntu 24.04 coverage reports native C branch coverage. | Instrumented checks overlap behavior but do not replace it; coverage is native C branch evidence, not language assertion coverage. |
+| Public CLI and functional boundary: command results, status/streams, file protection or source-versus-bytecode behavior changes. | `make check-compiler` checks command/explanation/failure cases; `make check-bytecode` checks check/disassembly; `make check-vm` checks environment/file commands. | `make functional` runs selected success cases, examples, failures, compiler driver and runner smoke through the public command. Hosted `ci-runtime` runs on all three environments; source/bytecode conformance exercises distinct artifact paths on package platforms. | There is no separate CLI-only hosted lane; these cases sit inside compiler/runtime partitions and the full acceptance run. |
+| Package manifest, project loading, archive or installation: roots escape, relocation/dependencies change, or installed instructions fail. | `make check-compiler` checks `package_manifest_unit.panack`; `make unit-runtime-probes` checks package filesystem contracts; selected CLI fixtures cover package commands. `make quick-start` checks checksum, install, first program/output, upgrade and removal. | `ci-bootstrap` runs quick-start on all three environments; `ci-conformance-bytecode` also runs it on both package platforms and checks published README/installer instructions. | This is target-level quick-start repetition in separate clean jobs. It adds platform/package-context evidence, not new quick-start assertion coverage. |
+| Seed compiler and bootstrap: generated stages diverge or compile different libraries/artifacts. | `make bootstrap-check` compares compiler/library fixed points across stages. It is a broad cross-stage check, not a cheap component-only probe. | Hosted bootstrap repeats on Ubuntu 22.04, macOS 14 and Ubuntu 24.04. Source and bytecode conformance on package platforms add execution evidence against the compiler artifact. | Bootstrap identity is distinct from the ordinary compiler probe suite. |
+| Test definitions and routing: a suite stops running, has wrong multiplicity, or an unsafe diff is classified as docs-only. | `make ci-check` exercises docs/full selection, local/CI agreement, mixed/unknown changes, suite dispatch, multiplicity and failure propagation; harness-layout checks pin workflow wiring. | The hosted `changes` job classifies every PR delta; `source_policy_tests` checks coverage selectors on full-route changes. Docs changes run short document/result guards, while full changes require platform and instrumented jobs. | `scripts/validation_components.sh` reports owners but does not choose component-specific suites; unknown or shared changes remain full. |
+
+Changing stdlib code warrants direct stdlib behavior, compiler use of the active
+library, and bootstrap evidence: there is no isolated stdlib lane, and the
+current component labels do not establish an independent build/test boundary.
+The full integration envelope remains the acceptance path while GI#106 evaluates
+narrower development loops.
 
 #### Overlap established by the current recipes
 
@@ -270,10 +280,13 @@ exercise different boundaries.
   ordinary behavioral assertions.
 
 These are recipe- and fixture-level overlaps, not a full assertion identity
-matrix. No test-frequency change, component-specific CI selection or build
-optimization is proposed by this documentation slice. Before deciding that any
-execution is unnecessary, the next review must relate the proposed omission or
-reuse to the assertions and failure modes it would stop exercising.
+matrix. The repeated `quick-start` target is a clear example of repeated work,
+but this map does not decide that either hosted execution is unnecessary: each
+job starts clean and contributes platform or package-context evidence. No
+test-frequency change, component-specific CI selection or build optimization is
+proposed by this documentation slice. Before deciding that any execution is
+unnecessary, relate the proposed omission or reuse to the assertions and failure
+modes it would stop exercising.
 
 ## P3 package manifest parser — 2026-10-11
 

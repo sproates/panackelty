@@ -96,14 +96,16 @@ contract that stalled. Timing profiles and package artifacts are retained, but
 they do not add the missing child diagnostics. Keep the PR and post-merge
 checks unchanged.
 
-Next, make one bounded diagnostics change for these paths: report failure-only,
-bounded child status/diagnostics for the CLI fixture and add opt-in progress
-markers to the native module contract groups. Verify normal output remains
-unchanged and that an induced failure/timeout identifies its stage. Re-run the
-targeted cases on the supported CI platforms without weakening the full Check.
-If those observations still do not reveal a cause, preserve both triggers and
-move on to the separately measured compiler-lane experiment cadence review;
-do not keep repeating uninstrumented full runs.
+The bounded diagnostics slice is implemented locally: failed `cli_commands`
+checks report child status, stream sizes and a 160-character UTF-8 preview;
+native module contracts can persist the last completed top-level group when
+given an opt-in progress-file path. The normal native module streams are
+unchanged. The harness verifies an injected CLI exit and the progress file, and
+a controlled 20-second timeout reported its synthetic last-completed group.
+These checks validate the diagnostics, not the cause of the historical failures.
+After hosted verification, retain both triggers and review the four sequential
+compiler-lane experiments as the next cadence/grouping candidate. Do not keep
+repeating uninstrumented full runs.
 
 The three failures were all from push-triggered Checks on `next`, after a
 successful full Check for the corresponding PR. The merge commit tree exactly
@@ -134,6 +136,8 @@ and aggregation; it is not a pure execution-time or queue-time measurement.
 | Evidence | Environment and result | Comparability |
 | --- | --- | --- |
 | Matched PR and post-merge Check (2026-10-12) | PR run [38194693792](https://github.com/sproates/panackelty/actions/runs/38194693792) passed in 8m11s; push run [38195261690](https://github.com/sproates/panackelty/actions/runs/38195261690) passed in 10m14s. | Same product tree `3ef1daa`; both selected full validation. Run elapsed time includes scheduling and aggregation. This one successful pair coexists with the three earlier same-tree post-merge failures above. |
+| Bounded failure diagnostics (2026-10-12) | Controlled CLI exit 7 reported status and bounded stdout/stderr previews; a synthetic timeout reported `synthetic-coverage-group`. The native-module progress marker is opt-in and the normal success streams stayed unchanged. Targeted runner harness passed. | This validates failure observability only; none of the three historical CI failures was reproduced. Hosted verification is pending on the current delivery. |
+| Canonical `make check`, failure-diagnostics slice (2026-10-12) | macOS arm64, reused build tree: passed in 413s; functional 13s, bootstrap 134s, release smoke 4s, quick start 1s. | Not a clean build or a controlled before/after comparison; no runtime/compiler behavior changed and no performance effect is attributed. The command printed warnings against historical 120s full-check and 60s bootstrap figures; they are not current acceptance gates. |
 | Controlled clean/full rerun (2026-10-12) | macOS arm64, `VALIDATION_JOBS=2`: `make check` took 602.64s, 608.81s and 613.35s (median 608.81s); all three passed. Unit phase median 426s; bootstrap median 138s. | Current product source at `e033be2`; project build outputs were removed between runs. OS page cache was uncontrolled. This is a clean build baseline, not a fresh machine or cold OS cache. |
 | Warm focused and worker comparison (2026-10-12) | `check-compiler` passed three times at two workers (128.09s, 114.44s, 113.60s; median 114.44s) and three times at four workers (110s, 105s, 105s; median 105s). | Same local host and existing artifacts. Four workers improved this focused median by about 8%; it remains a broad component target, not a single-test loop. |
 | Single probe and edit matrix (2026-10-12) | A fresh-cache lexer probe ran 13 assertions in 0.30s. The baseline edit matrix passed all 12 samples: unchanged 0.05s median (0 compiles, 1 run); unrelated 0.13s (1 compile, 1 run); direct dependency 0.12s (1 compile, 1 run); transitive dependency 0.12s (1 compile, 1 run). | The fixture is intentionally tiny; its timings do not predict suite-wide savings. The unchanged compiled artifact is reusable, but any source edit in the broad fingerprint invalidates it. |

@@ -34,6 +34,17 @@ void task_contracts(void);
 void task_artifact(const char *path);
 void resumable_artifact(const char *path, size_t budget);
 
+/* Persist an opt-in checkpoint so timeout reporting survives child termination. */
+static void record_module_progress(const char *stage)
+{
+    const char *path = getenv("PANACK_NATIVE_MODULE_PROGRESS_FILE");
+    if (!path || !*path) return;
+    FILE *file = fopen(path, "w");
+    if (!file) return;
+    fprintf(file, "%s\n", stage);
+    fclose(file);
+}
+
 static void values_own_copies_and_retain_children(void)
 {
     uint8_t bytes[] = {'a', 0, 'b'};
@@ -966,31 +977,57 @@ int main(int argc, char **argv)
         return 0;
     }
     resumable_contracts();
+    record_module_progress("resumable");
     coverage_contracts();
+    record_module_progress("coverage");
     coverage_session_contracts();
+    record_module_progress("coverage_session");
     async_contracts();
+    record_module_progress("async");
     tcp_contracts();
+    record_module_progress("tcp");
     tcp_server_contracts();
+    record_module_progress("tcp_server");
     task_contracts();
+    record_module_progress("tasks");
     bigint_boundaries();
+    record_module_progress("bigint_boundaries");
     values_own_copies_and_retain_children();
+    record_module_progress("value_ownership");
     persistent_versions_keep_shared_children_alive();
+    record_module_progress("persistent_versions");
     append_storage_preserves_branches_and_drops_hidden_children();
+    record_module_progress("append_storage");
     append_container_children_do_not_form_storage_cycles();
+    record_module_progress("append_child_cycles");
     append_branches_match_independent_copies();
+    record_module_progress("append_branches");
     exact_arithmetic_borrows_operands();
+    record_module_progress("exact_arithmetic");
     utf8_offsets_preserve_code_points();
+    record_module_progress("utf8_offsets");
     opaque_host_values_keep_distinct_kinds();
+    record_module_progress("opaque_host_values");
     host_builtins_reject_wrong_operand_types();
+    record_module_progress("host_builtin_types");
     filesystem_root_reads_stay_beneath_the_open_root();
+    record_module_progress("filesystem_root");
     filesystem_directory_overlap_uses_physical_ancestry();
+    record_module_progress("filesystem_ancestry");
     void_return_preserves_value_kind();
+    record_module_progress("void_return");
     frames_release_arguments_on_return_and_trap();
+    record_module_progress("frame_ownership");
     nested_calls_preserve_caller_ownership();
+    record_module_progress("nested_calls");
     verifier_rejects_forged_structures();
+    record_module_progress("verifier");
     decode_mutations_release_partial_programs();
+    record_module_progress("decode_mutations");
     nested_bytecode_releases_rejected_programs();
+    record_module_progress("nested_bytecode");
     builtin_domains_preserve_errors_and_results();
+    record_module_progress("builtin_domains");
     puts("native module contracts: ok");
     return 0;
 }

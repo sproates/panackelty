@@ -497,6 +497,12 @@ full checks.
 | Package inputs | Installed documents/version, native toolchain, quick-start extraction, both supported platform archives |
 | Shared or unknown | Conservative union of all consumers, including Makefile, seed, specifications, selectors and workflows |
 
+The [initial GI#106 change-impact map](VALIDATION_PROFILE.md#gi106-change-impact-map)
+ties representative regression assertions to their focused local targets,
+full acceptance paths and hosted CI partitions. It also records where overlap is
+known at recipe/fixture level and where assertion-level equivalence is still
+unproven.
+
 The native integration envelope remains full for every non-document component. Existing focused `check-compiler`, `check-bytecode` and `check-vm`
 targets help during development but do not replace acceptance checks. The
 launcher builds the native VM, Panackelty probes execute on it, and packaging and

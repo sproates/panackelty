@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#152.**
+The initial allocation contains **105 identities**. **Next available: RM#153.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -130,13 +130,27 @@ work is shipped or describe this release as production-ready.
 
 Owner direction, 2026-10-13: Alpha.14 should include some work on compiler
 understanding and correctness, Panackelty's strongest novel area. This is a
-broad release direction only; no particular issue, workstream, implementation,
-acceptance criterion, amount of work, release date, or final release scope is
-selected. Existing work in [GI#180](https://github.com/sproates/panackelty/issues/180)
-and the correctness backlog remains the candidate pool; detailed scope and
-sequencing need a later decision. This direction resumes GI#180 for planning
-and scope assessment only; it does not select or authorize implementation.
-Alpha.13's plan and gates remain separate.
+broad release direction only; the final release scope, amount of work, and
+release date remain undecided. Existing work in
+[GI#180](https://github.com/sproates/panackelty/issues/180) and the correctness
+backlog remains the candidate pool. [RM#152](#rm-152) selects a bounded
+standard-library dependency assessment for Alpha.14; it does not commit the
+release to a redesign or refactor. Detailed scope and sequencing need a later
+decision. This direction resumes GI#180 for planning and scope assessment only;
+it does not select or authorize implementation. Alpha.13's plan and gates remain
+separate.
+
+<a id="rm-152"></a>
+
+**RM#152: Assess the compiler-facing standard-library boundary** ·
+[GI#409: Assess the compiler-facing standard-library boundary](https://github.com/sproates/panackelty/issues/409).
+
+For Alpha.14, document the compiler's direct and transitive standard-library
+dependencies and distinguish source dependencies, compiler-seed/bootstrap
+rebuilds, VM/runtime ABI coupling, and package versioning. Recommend whether an
+explicit compiler-facing library boundary would help app-facing standard-library
+work proceed independently. This is an assessment: any implementation or
+reorganization requires a later scope decision based on the findings.
 
 ### Else-if chains
 

@@ -169,13 +169,21 @@ experiment coverage before merge. The `next` push still runs the complete
 compiler, runtime, bootstrap, sanitizer, coverage, package and source/bytecode
 conformance gates; only the four same-tree experiments are skipped.
 
-In the matched sample above, the four experiments used 75s on Linux and 80s on
-macOS during the push run (155 runner-seconds total). Skipping them removes that
-work from the post-merge compiler lanes and is expected to shorten the critical
-path by up to about 80s, depending on which remaining gate finishes last. This
-is a cadence change, not a product-test reduction. The first post-merge run after
-the change must confirm the experiments are skipped while all product gates
-still pass.
+The first post-merge verification is complete. PR #394's full Check
+[run #38227299336](https://github.com/sproates/panackelty/actions/runs/38227299336)
+passed in 8m34; the same-tree post-merge Check
+[run #38228244756](https://github.com/sproates/panackelty/actions/runs/38228244756)
+passed in 8m30. The experiment steps took about 44s on Linux and 61s on macOS
+(105 runner-seconds combined) in the PR run, then were skipped in both compiler
+lanes on push. All ordinary product gates still ran and passed.
+
+The four experiments therefore avoid repeated post-merge runner work, but this
+single PR/push pair does not show a total wall-time improvement: the full runs
+differed by only four seconds. Queueing, scheduling and other parallel jobs
+contribute to elapsed time, so no causal wall-time gain is attributed to the
+cadence change. The earlier 75s/80s push measurements remain historical evidence
+for a different run and are not the measured duration of the skipped steps in
+this verification.
 
 The 2026-10-12 clean profile measured 420–427s in the unit phase and 138–140s
 in bootstrap; the functional phase took 13–14s. Within unit, native contracts

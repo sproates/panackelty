@@ -3667,9 +3667,10 @@ PR#404 migrated compiler, standard-library, test and example callers, added
 positive and legacy-API rejection functional coverage, and passed its exact-head
 hosted Check plus the post-merge `next` Check. Its local matched clean checks
 were 602s before and 619s after; this single pair does not establish a cause or
-general performance change. This closeout PR will close GI#235 on merge. GI#106
-remains open and owns the broader workflow investigation; P8 still owns release
-acceptance.
+general performance change. [PR#405](https://github.com/sproates/panackelty/pull/405)
+merged the completion record to `next`; GI#235 was explicitly closed on
+2026-10-12. GI#106 remains open and owns the broader workflow investigation;
+P8 still owns release acceptance.
 
 ## Reusable modules and package structure — idea
 

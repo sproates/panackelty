@@ -82,10 +82,10 @@ and aggregation; it is not a pure execution-time or queue-time measurement.
 This starting inventory confirms repeated full validation at PR and post-merge
 checkpoints and exposes potential overlap inside the full CI matrix. It does not
 measure contributor active/wait time, local cold-check performance on this
-revision, or review/reporting overhead. The initial change-impact map below
-connects representative regression risks to assertions and CI lanes; it is not a
-complete assertion-by-assertion trace or evidence that any suite can safely be
-omitted.
+revision, repeated discovery/tool context, or review/reporting overhead. The
+initial change-impact map below connects representative regression risks to
+assertions and CI lanes; it is not a complete assertion-by-assertion trace or
+evidence that any suite can safely be omitted.
 
 <a id="gi106-change-impact-map"></a>
 

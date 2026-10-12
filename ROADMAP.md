@@ -298,10 +298,13 @@ deliberately breaking `path.display` failed in 0.598s, restoring it passed in
 0.276s, and an unchanged repeat passed in 0.037s; changing the imported stdlib
 dependency invalidated the bytecode cache. This confirms a focused stdlib edit
 reruns the affected probe, but it is a synthetic fault cycle, not timing from
-the merged migration or a broader-check result. Next, capture focused and
-broader validation costs during a real upcoming implementation change, then use
-those boundaries to review the separate-compilation design. No replacement NFRs
-are set and GI#106 remains open until the user is happy.
+the merged migration or a broader-check result. The owner has directed a
+measured replay of the stdlib API migration from the restored pre-PR #401
+baseline. The [replay protocol](tests/VALIDATION_PROFILE.md#owner-approved-p4-replay-measurement-protocol)
+captures the failing focused probe before implementation, the same probe after,
+matched clean checks and hosted results separately. Then use those measured
+boundaries to review the separate-compilation design. No replacement NFRs are
+set and GI#106 remains open until the user is happy.
 
 The 2026-10-08 text-intrinsic bootstrap prerequisite passed final-tree canonical
 `make check` in 205s (functional 4s, bootstrap 20s), above the 120s target.

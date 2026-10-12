@@ -1,4 +1,3 @@
-import stdlib/result as std_result
 record MemoizedFibonacci {
   value: Nat,
   memo: Map[Nat,Nat]

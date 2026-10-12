@@ -1,9 +1,6 @@
-import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
-import stdlib/option as std_option
-import stdlib/bytes as byte_buffer
-import stdlib/path as std_path
-import stdlib/environment as std_environment
+import stdlib/bytes::{bytes_empty, bytes_length, text_encode_utf8}
+import stdlib/path::{path_string_suffix, path_string_parent, path_string_resolve}
+import stdlib/environment::{environment_value}
 pub import project/src/compiler/loader::{LoadedProject}
 import project/src/compiler/loader::{load_project_for_inventory}
 import project/src/compiler/project_frontend::{prepare_project_program}
@@ -237,18 +234,18 @@ pub pure serialize_source_inventory(
   stdlib: Str
 ): Bytes {
   snapshots: [SourceSnapshot] = source_snapshots(project, root, stdlib)
-  mut chunks: [Bytes] = [std_text.encode_utf8("PANACKINV1\nlocal-replay-v9\n"), source_map_blob(compiler),
+  mut chunks: [Bytes] = [text_encode_utf8("PANACKINV1\nlocal-replay-v9\n"), source_map_blob(compiler),
     encode_text(source_identifier(
     entry,
     root,
     stdlib
   )), source_map_blob(artifact), encode_u32(len(snapshots))]
   mut size: Nat = 0
-  mut valid: Bool = byte_buffer.length(compiler) > 0 && byte_buffer.length(compiler) <= 16777216 &&
-    byte_buffer.length(artifact) <= 16777216 && len(snapshots) <= 256
+  mut valid: Bool = bytes_length(compiler) > 0 && bytes_length(compiler) <= 16777216 &&
+    bytes_length(artifact) <= 16777216 && len(snapshots) <= 256
 
   for chunk in chunks {
-    size = size + byte_buffer.length(chunk)
+    size = size + bytes_length(chunk)
   }
   for snapshot in snapshots {
     mut items: [InventoryItem] = []
@@ -258,14 +255,14 @@ pub pure serialize_source_inventory(
       }
     }
     chunks = chunks.append(encode_text(snapshot.name)).append(encode_text(snapshot.text)).append(encode_u32(len(items)))
-    size = size + 12 + byte_buffer.length(std_text.encode_utf8(snapshot.name)) + byte_buffer.length(std_text.encode_utf8(snapshot.text))
+    size = size + 12 + bytes_length(text_encode_utf8(snapshot.name)) + bytes_length(text_encode_utf8(snapshot.text))
     valid = valid && len(items) <= 100000
     for item in items {
       if valid && size <= 16777216 {
         chunk: Bytes = source_map_join([encode_text(item.id), encode_text(item.kind), encode_text(item.detail),
           source_map_position(item.span.start), source_map_position(item.span.end)], 0, 5)
         chunks = chunks.append(chunk)
-        size = size + byte_buffer.length(chunk)
+        size = size + bytes_length(chunk)
       } else {
         valid = false
       }
@@ -274,7 +271,7 @@ pub pure serialize_source_inventory(
   if valid && size <= 16777216 {
     source_map_join(chunks, 0, len(chunks))
   } else {
-    byte_buffer.empty()
+    bytes_empty()
   }
 }
 
@@ -312,7 +309,7 @@ pub pure inventory_arguments(values: [Str], checking: Bool): InventoryArguments 
     index = index + 2
   }
   for root in roots {
-    valid = valid && path_support.suffix(root) == ".panack"
+    valid = valid && path_string_suffix(root) == ".panack"
   }
   InventoryArguments(
     valid && index == len(values) && output != "" && len(roots) <= 16,
@@ -331,7 +328,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
     eprint("error: inventory usage: inventory SOURCE.panack -o FILE [--include SOURCE.panack] | inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]")
     1
   } else {
-    compiler_path: Str = std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), "")
+    compiler_path: Str = environment_value("PANACKELTY_COMPILER_PATH")
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
         eprint("error: inventory compiler identity unavailable")
@@ -340,19 +337,19 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
       Ok(compiler) => {
         // The running compiler was verified by the VM. This trusted identity
         // input is compared exactly, not decoded again in the hosted compiler.
-        mut valid: Bool = byte_buffer.length(compiler) > 0
+        mut valid: Bool = bytes_length(compiler) > 0
         mut projects: [LoadedProject] = []
         mut paths: Set[Str] = set()
-        mut chunks: [Bytes] = [std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(len(args.roots))]
-        mut size: Nat = byte_buffer.length(chunks[0]) + 4
-        root: Str = path_support.parent(path_support.resolve(args.roots[0]))
-        stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
-        output: Str = path_support.resolve(args.output)
+        mut chunks: [Bytes] = [text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(len(args.roots))]
+        mut size: Nat = bytes_length(chunks[0]) + 4
+        root: Str = path_string_parent(path_string_resolve(args.roots[0]))
+        stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+        output: Str = path_string_resolve(args.output)
         if !checking && !source_map_destination_available(output) {
           valid = false
         }
         for source in args.roots {
-          entry: Str = path_support.resolve(source)
+          entry: Str = path_string_resolve(source)
           if paths.has(entry) {
             valid = false
           }
@@ -360,7 +357,7 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
           if valid {
             project: LoadedProject = load_project_for_inventory(entry)
             projects = projects.append(project)
-            project_root: Str = path_support.parent(entry)
+            project_root: Str = path_string_parent(entry)
             identity: ModuleIdentity = source_module_identity(entry, project_root, stdlib)
             match prepare_project_program(project, project_root, stdlib, identity) {
               Error(errors) => {
@@ -376,8 +373,8 @@ pub run_inventory_command(values: [Str], checking: Bool): Nat {
                   root,
                   stdlib
                 )
-                size = size + 4 + byte_buffer.length(inventory)
-                valid = valid && byte_buffer.length(inventory) > 0 && size <= 16777216
+                size = size + 4 + bytes_length(inventory)
+                valid = valid && bytes_length(inventory) > 0 && size <= 16777216
                 if valid {
                   chunks = chunks.append(source_map_blob(inventory))
                 }

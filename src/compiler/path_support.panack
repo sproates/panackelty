@@ -1,7 +1,0 @@
-// Compiler-internal string-path operations used while source paths stay Str-based.
-pub pure join(base: Str, child: Str): Str { path_join(base, child) }
-pub pure suffix(value: Str): Str { path_suffix(value) }
-pub pure parent(value: Str): Str { path_parent(value) }
-pub pure is_absolute(value: Str): Bool { path_is_absolute(value) }
-pub pure with_suffix(value: Str, suffix: Str): Str { path_with_suffix(value, suffix) }
-pub resolve(value: Str): Str { path_resolve(value) }

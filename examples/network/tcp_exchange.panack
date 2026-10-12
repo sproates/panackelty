@@ -1,4 +1,3 @@
-import stdlib/bytes as byte_buffer
 // Development toolchain only. Run against an EOF-delimited echo peer on
 // 127.0.0.1:9000 (change the port to match your peer). Success exits silently;
 // the assertion traps if the peer is unavailable or returns different bytes.

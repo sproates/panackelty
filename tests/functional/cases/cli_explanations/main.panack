@@ -1,54 +1,50 @@
-import stdlib/process as std_process
-import stdlib/text as std_text
-import stdlib/option as std_option
-import stdlib/testing as std_testing
-import stdlib/result as std_result
-import stdlib/testing_files as std_testing_files
-import stdlib/testing::{TestResult}
-import stdlib/time as std_time
-import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
-import stdlib/testing_commands as std_testing_commands
-import stdlib/bytes as byte_buffer
-import stdlib/environment as std_environment
-import stdlib/host as std_host
+import stdlib/result::{result_value_or}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_to_text}
+import stdlib/filesystem::{filesystem_write_bytes, filesystem_remove_file}
+import stdlib/testing_commands::{testing_process_run}
+import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
+import stdlib/environment::{environment_value, environment_has_value}
+import stdlib/host::{host_exit, host_stderr_text}
 
-pure explain_path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
+pure explain_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
 pure explain_contains(text: Str, part: Str): Bool {
   mut found: Bool = false
   for offset in 0..len(text) { if text.starts_with_at(part, offset) { found = true; } }
   found
 }
 explain_write(path: Str, text: Str): Void {
-  match std_filesystem.write(explain_path(path), std_text.encode_utf8(text)) {
-    Ok(done) => {}, Error(error) => { std_host.stderr("fixture write failed"); std_host.exit(1); }
+  match filesystem_write_bytes(explain_path(path), text_encode_utf8(text)) {
+    Ok(done) => {}, Error(error) => { host_stderr_text("fixture write failed"); host_exit(1); }
   }
 }
 explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden: [Str], diagnostic: Str): TestResult {
   mut command: Str = "./panack"
   mut command_arguments: [Str] = arguments
-  if (std_environment.get("PANACK_TEST_COMPILER") != None()) {
+  if environment_has_value("PANACK_TEST_COMPILER") {
     command = "/usr/bin/env"
-    command_arguments = ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack-vm", "run", std_option.value_or(std_environment.get("PANACK_TEST_COMPILER"), "")]
+    command_arguments = ["-u", "PANACKELTY_BOOTSTRAP_ROOT", "./panack-vm", "run", environment_value("PANACK_TEST_COMPILER")]
     for argument in arguments { command_arguments = command_arguments.append(argument) }
   }
-  match std_process.run(explain_path(command), command_arguments, byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
-    Error(error) => std_testing.expect(name, false, "command failed"),
+  match testing_process_run(explain_path(command), command_arguments, bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
+    Error(error) => test_expect(name, false, "command failed"),
     Ok(actual) => {
-      text: Str = std_text.decode_utf8(actual.stdout)
+      text: Str = text_decode_utf8(actual.stdout)
       mut valid: Bool = actual.exit_code == status && actual.signal == 0
       for part in required { if !explain_contains(text, part) { valid = false; } }
       for part in forbidden { if explain_contains(text, part) { valid = false; } }
-      valid = valid && if diagnostic == "" { actual.stderr == byte_buffer.empty() } else { explain_contains(std_text.decode_utf8(actual.stderr), diagnostic) }
-      std_testing.expect(name, valid, text + "; " + std_text.decode_utf8(actual.stderr))
+      valid = valid && if diagnostic == "" { actual.stderr == bytes_empty() } else { explain_contains(text_decode_utf8(actual.stderr), diagnostic) }
+      test_expect(name, valid, text + "; " + text_decode_utf8(actual.stderr))
     }
   }
 }
 main(): Void {
-  match std_testing_files.workspace_create(explain_path("/tmp")) {
-    Error(error) => { std_host.stderr("workspace failed"); std_host.exit(1); },
+  match test_workspace_create(explain_path("/tmp")) {
+    Error(error) => { host_stderr_text("workspace failed"); host_exit(1); },
     Ok(workspace) => {
-      root: Str = std_result.value_or(std_path.to_text(workspace.root), "")
+      root: Str = result_value_or(path_value_to_text(workspace.root), "")
       source: Str = root + "/main.panack"
       library: Str = root + "/library.panack"
       other: Str = root + "/right.panack"
@@ -106,12 +102,12 @@ main(): Void {
           ["explain", source, "--other", "main"], ["explain", source, "--function", "main", "extra"]] {
         results = append(results, explain_run("invalid explain arguments", args, 1, [], ["program:"], "explain usage"))
       }
-      match std_process.run(explain_path("/usr/bin/env"), ["-u", "PANACKELTY_STDLIB_PATH", "./panack-vm", "run",
-          "bootstrap/compiler-v9.bc", "explain", source, "--function", "main"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
-        Error(error) => { results = append(results, std_testing.expect("missing embedded stdlib configuration", false, "command failed")); },
-        Ok(actual) => { results = append(results, std_testing.expect("missing embedded stdlib configuration",
-          actual.exit_code == 1 && actual.signal == 0 && explain_contains(std_text.decode_utf8(actual.stderr), "standard library root is not configured") &&
-          !explain_contains(std_text.decode_utf8(actual.stderr), "VM trap"), std_text.decode_utf8(actual.stderr))); }
+      match testing_process_run(explain_path("/usr/bin/env"), ["-u", "PANACKELTY_STDLIB_PATH", "./panack-vm", "run",
+          "bootstrap/compiler-v9.bc", "explain", source, "--function", "main"], bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
+        Error(error) => { results = append(results, test_expect("missing embedded stdlib configuration", false, "command failed")); },
+        Ok(actual) => { results = append(results, test_expect("missing embedded stdlib configuration",
+          actual.exit_code == 1 && actual.signal == 0 && explain_contains(text_decode_utf8(actual.stderr), "standard library root is not configured") &&
+          !explain_contains(text_decode_utf8(actual.stderr), "VM trap"), text_decode_utf8(actual.stderr))); }
       }
       explain_write(library, "// λ🙂\npub pure inspect[T](item: T): Void { print(item); }\n")
       explain_write(source, "import project/library as library\nmain(): Void {}\n")
@@ -148,12 +144,12 @@ main(): Void {
         ["program: rejected", "effect boundary: rejected", "source: project/library.panack:2:38-2:49", "expression: print(item)", "pure function cannot call impure function print"], ["effect boundary: allowed"], "binding n is Nat, expected Bool"))
       // The explanation's stderr must equal ordinary diagnostics byte for byte,
       // including order; recovered purity violations appear only in evidence.
-      match std_process.run(explain_path("./panack"), ["check", source], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
-        Error(error) => { results = append(results, std_testing.expect("recovery diagnostic parity", false, "check failed")); },
+      match testing_process_run(explain_path("./panack"), ["check", source], bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
+        Error(error) => { results = append(results, test_expect("recovery diagnostic parity", false, "check failed")); },
         Ok(ordinary) => {
-          match std_process.run(explain_path("./panack"), ["explain", source, "--function", "inspect"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
-            Error(error) => { results = append(results, std_testing.expect("recovery diagnostic parity", false, "explain failed")); },
-            Ok(explained) => { results = append(results, std_testing.expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, std_text.decode_utf8(explained.stderr))); }
+          match testing_process_run(explain_path("./panack"), ["explain", source, "--function", "inspect"], bytes_empty(), path_value_current(), [], duration_seconds(15), 1048576) {
+            Error(error) => { results = append(results, test_expect("recovery diagnostic parity", false, "explain failed")); },
+            Ok(explained) => { results = append(results, test_expect("recovery diagnostic parity", ordinary.exit_code == 1 && explained.exit_code == 1 && ordinary.stderr == explained.stderr, text_decode_utf8(explained.stderr))); }
           }
         }
       }
@@ -198,11 +194,11 @@ main(): Void {
         ["explain", source, "--function", "project/missing.panack:duplicate"], 1,
         [], [], "mismatched module identity selector"))
       for file in [source, library, artifact] {
-        match std_filesystem.remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, std_testing.expect("cleanup", false, error.code)); } }
+        match filesystem_remove_file(explain_path(file)) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("cleanup", false, error.code)); } }
       }
-      std_filesystem.remove_file(explain_path(other))
-      match std_testing_files.workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = append(results, std_testing.expect("workspace cleanup", false, error.code)); } }
-      if std_testing.report(results) > 0 { std_host.exit(1); }
+      filesystem_remove_file(explain_path(other))
+      match test_workspace_remove_empty(workspace) { Ok(done) => {}, Error(error) => { results = append(results, test_expect("workspace cleanup", false, error.code)); } }
+      if test_report(results) > 0 { host_exit(1); }
     }
   }
 }

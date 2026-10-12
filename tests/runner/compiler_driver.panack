@@ -1,39 +1,24 @@
-import stdlib/process as std_process
-import stdlib/testing_commands as std_testing_commands
-import stdlib/text as std_text
-import stdlib/environment as std_environment
-import stdlib/option as std_option
-import stdlib/testing as std_testing
-import stdlib/result as std_result
-import stdlib/bytes as byte_buffer
-import stdlib/path as std_path
-import stdlib/filesystem as std_filesystem
-import stdlib/host as std_host
-import stdlib/testing::{TestResult}
-import stdlib/testing_files as std_testing_files
-import stdlib/testing_commands::{TestCommand, ProcessOutput}
-import stdlib/time as std_time
+import stdlib/result::{result_value_or}
+import stdlib/bytes::{bytes_empty, text_encode_utf8, text_decode_utf8}
+import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_to_text}
+import stdlib/filesystem::{filesystem_create_directory, filesystem_read_bytes, filesystem_remove_directory, filesystem_remove_file, filesystem_write_bytes, filesystem_exists}
+import stdlib/host::{host_exit}
+import stdlib/testing::{TestResult, test_expect, test_report}
+import stdlib/testing_files::{test_workspace_create, test_workspace_remove_empty}
+import stdlib/testing_commands::{TestCommand, ProcessOutput, test_run_command, testing_process_run}
+import stdlib/environment::{environment as environment_lookup, environment_value}
+import stdlib/time::{duration_seconds}
 pure path(text: Str): Path {
-  std_result.value_or(std_path.from_text(text), std_path.current())
+  result_value_or(path_value_from_text(text), path_value_current())
 }
 
 pure child(root: Path, name: Str): Path {
-  std_result.value_or(std_path.join(root, path(name)), root)
-}
-
-artifact_exists(value: Str): Bool {
-  match std_path.from_text(value) {
-    Error(error) => false,
-    Ok(file) => match std_filesystem.metadata(file) {
-      Ok(metadata) => true,
-      Error(error) => false
-    }
-  }
+  result_value_or(path_value_append(root, path(name)), root)
 }
 
 pure command(arguments: [Str], timeout: Nat): TestCommand {
-  TestCommand(path("./panack"), arguments, byte_buffer.empty(), std_path.current(), [],
-    std_time.seconds(timeout), 1048576)
+  TestCommand(path("./panack"), arguments, bytes_empty(), path_value_current(), [],
+    duration_seconds(timeout), 1048576)
 }
 
 pure compiler_command(compiler: Str, arguments: [Str]): TestCommand {
@@ -60,21 +45,21 @@ namespace_source_load_rejection(
   if operation == "compile" {
     arguments = concat(arguments, ["-o", output_path])
   } else {}
-  match std_process.run(
+  match testing_process_run(
     path("./panack"),
     arguments,
-    byte_buffer.empty(),
-    std_path.current(),
+    bytes_empty(),
+    path_value_current(),
     [],
-    std_time.seconds(30),
+    duration_seconds(30),
     1048576
   ) {
-    Error(error) => std_testing.expect(name, false, "compiler process failed"),
-    Ok(output) => std_testing.expect(
+    Error(error) => test_expect(name, false, "compiler process failed"),
+    Ok(output) => test_expect(
       name,
-      output.exit_code == 1 && output.signal == 0 && output.stdout == byte_buffer.empty() &&
-        compiler_driver_contains(std_text.decode_utf8(output.stderr), expected),
-      std_text.decode_utf8(output.stderr)
+      output.exit_code == 1 && output.signal == 0 && output.stdout == bytes_empty() &&
+        compiler_driver_contains(text_decode_utf8(output.stderr), expected),
+      text_decode_utf8(output.stderr)
     )
   }
 }
@@ -91,21 +76,21 @@ namespace_bootstrap_root_rejection(
   if operation == "compile" {
     arguments = concat(arguments, ["-o", output_path])
   } else {}
-  match std_process.run(
+  match testing_process_run(
     path("./panack"),
     arguments,
-    byte_buffer.empty(),
-    std_path.current(),
+    bytes_empty(),
+    path_value_current(),
     environment,
-    std_time.seconds(30),
+    duration_seconds(30),
     1048576
   ) {
-    Error(error) => std_testing.expect("bootstrap-root ${operation} rejection", false, "compiler process failed"),
-    Ok(output) => std_testing.expect(
+    Error(error) => test_expect("bootstrap-root ${operation} rejection", false, "compiler process failed"),
+    Ok(output) => test_expect(
       "bootstrap-root ${operation} rejection",
-      output.exit_code == 1 && output.signal == 0 && output.stdout == byte_buffer.empty() &&
-        compiler_driver_contains(std_text.decode_utf8(output.stderr), expected),
-      std_text.decode_utf8(output.stderr)
+      output.exit_code == 1 && output.signal == 0 && output.stdout == bytes_empty() &&
+        compiler_driver_contains(text_decode_utf8(output.stderr), expected),
+      text_decode_utf8(output.stderr)
   )
 }
 }
@@ -117,32 +102,32 @@ namespace_bootstrap_root_command(
   expected: ProcessOutput,
   environment: [Str]
 ): TestResult {
-  match std_process.run(
+  match testing_process_run(
     path("./panack"),
     concat(["run", compiler], arguments),
-    byte_buffer.empty(),
-    std_path.current(),
+    bytes_empty(),
+    path_value_current(),
     environment,
-    std_time.seconds(30),
+    duration_seconds(30),
     1048576
   ) {
-    Error(error) => std_testing.expect(name, false, "compiler process failed"),
-    Ok(output) => std_testing.expect(
+    Error(error) => test_expect(name, false, "compiler process failed"),
+    Ok(output) => test_expect(
       name,
       output.exit_code == expected.exit_code && output.signal == expected.signal &&
         output.stdout == expected.stdout && output.stderr == expected.stderr,
-      std_text.decode_utf8(output.stderr)
+      text_decode_utf8(output.stderr)
     )
   }
 }
 
 main(): Void {
-  match std_testing_files.workspace_create(path("/tmp")) {
-    Error(error) => { print("workspace creation failed"); std_host.exit(1) },
+  match test_workspace_create(path("/tmp")) {
+    Error(error) => { print("workspace creation failed"); host_exit(1) },
     Ok(workspace) => {
       own_compiler = child(workspace.root, "compiler.bc")
-      own_compiler_text = std_result.value_or(std_path.to_text(own_compiler), "invalid-compiler")
-      compiler = match std_environment.get("PANACK_TEST_COMPILER") {
+      own_compiler_text = result_value_or(path_value_to_text(own_compiler), "invalid-compiler")
+      compiler = match environment_lookup("PANACK_TEST_COMPILER") {
         Some(value) => value,
         None() => own_compiler_text
       }
@@ -153,53 +138,53 @@ main(): Void {
       bootstrap = child(workspace.root, "bootstrap.bc")
       namespace_artifact = child(workspace.root, "namespace.bc")
       namespace_async_artifact = child(workspace.root, "namespace-async.bc")
-      self_hosted_text = std_result.value_or(std_path.to_text(self_hosted), "invalid-self-hosted")
-      bootstrap_text = std_result.value_or(std_path.to_text(bootstrap), "invalid-bootstrap")
-      namespace_artifact_text = std_result.value_or(std_path.to_text(namespace_artifact), "invalid-namespace-artifact")
-      namespace_async_artifact_text = std_result.value_or(std_path.to_text(namespace_async_artifact), "invalid-namespace-async-artifact")
+      self_hosted_text = result_value_or(path_value_to_text(self_hosted), "invalid-self-hosted")
+      bootstrap_text = result_value_or(path_value_to_text(bootstrap), "invalid-bootstrap")
+      namespace_artifact_text = result_value_or(path_value_to_text(namespace_artifact), "invalid-namespace-artifact")
+      namespace_async_artifact_text = result_value_or(path_value_to_text(namespace_async_artifact), "invalid-namespace-async-artifact")
       mut results: [TestResult] = []
-      match std_environment.get("PANACK_TEST_COMPILER") {
+      match environment_lookup("PANACK_TEST_COMPILER") {
         Some(cached) => {},
         None() => {
-          results = results.append(std_testing_commands.run_command("compile compiler",
+          results = results.append(test_run_command("compile compiler",
             command(["compile", "src/compiler/main.panack", "-o", compiler], 90),
-            ProcessOutput(0, 0, std_text.encode_utf8("wrote ${compiler}\n"), byte_buffer.empty())))
+            ProcessOutput(0, 0, text_encode_utf8("wrote ${compiler}\n"), bytes_empty())))
         }
       }
-      results = results.append(std_testing_commands.run_command("verify compiler artifact",
-        command(["check", compiler], 30), ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
-      results = results.append(std_testing_commands.run_command("self-hosted check",
+      results = results.append(test_run_command("verify compiler artifact",
+        command(["check", compiler], 30), ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+      results = results.append(test_run_command("self-hosted check",
         compiler_command(compiler, ["check", source]),
-        ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
-      results = results.append(std_testing_commands.run_command("self-hosted run",
+        ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+      results = results.append(test_run_command("self-hosted run",
         compiler_command(compiler, ["run", source]),
-        ProcessOutput(0, 0, std_text.encode_utf8("hello world\n"), byte_buffer.empty())))
-      match std_environment.get("PANACK_TEST_NAMESPACE_EMISSION") {
+        ProcessOutput(0, 0, text_encode_utf8("hello world\n"), bytes_empty())))
+      match environment_lookup("PANACK_TEST_NAMESPACE_EMISSION") {
         Some(enabled) => {
-          results = results.append(std_testing_commands.run_command("namespace identity check",
+          results = results.append(test_run_command("namespace identity check",
             compiler_command(compiler, ["check", namespace_source]),
-            ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace identity source execution",
+            ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+          results = results.append(test_run_command("namespace identity source execution",
             compiler_command(compiler, ["run", namespace_source]),
-            ProcessOutput(0, 0, std_text.encode_utf8("41\n42\n43\n44\n41\n42\n44\n45\n51\n52\n"), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace identity compile",
+            ProcessOutput(0, 0, text_encode_utf8("41\n42\n43\n44\n41\n42\n44\n45\n51\n52\n"), bytes_empty())))
+          results = results.append(test_run_command("namespace identity compile",
             compiler_command(compiler, ["compile", namespace_source, "-o", namespace_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("wrote ${namespace_artifact_text}\n"), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace saved bytecode execution",
+            ProcessOutput(0, 0, text_encode_utf8("wrote ${namespace_artifact_text}\n"), bytes_empty())))
+          results = results.append(test_run_command("namespace saved bytecode execution",
             compiler_command(compiler, ["run", namespace_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("41\n42\n43\n44\n41\n42\n44\n45\n51\n52\n"), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace proof and effect check",
+            ProcessOutput(0, 0, text_encode_utf8("41\n42\n43\n44\n41\n42\n44\n45\n51\n52\n"), bytes_empty())))
+          results = results.append(test_run_command("namespace proof and effect check",
             compiler_command(compiler, ["check", namespace_async_source]),
-            ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace proof and effect source execution",
+            ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+          results = results.append(test_run_command("namespace proof and effect source execution",
             compiler_command(compiler, ["run", namespace_async_source]),
-            ProcessOutput(0, 0, byte_buffer.empty(), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace proof and effect compile",
+            ProcessOutput(0, 0, bytes_empty(), bytes_empty())))
+          results = results.append(test_run_command("namespace proof and effect compile",
             compiler_command(compiler, ["compile", namespace_async_source, "-o", namespace_async_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("wrote ${namespace_async_artifact_text}\n"), byte_buffer.empty())))
-          results = results.append(std_testing_commands.run_command("namespace proof and effect saved bytecode execution",
+            ProcessOutput(0, 0, text_encode_utf8("wrote ${namespace_async_artifact_text}\n"), bytes_empty())))
+          results = results.append(test_run_command("namespace proof and effect saved bytecode execution",
             compiler_command(compiler, ["run", namespace_async_artifact_text]),
-            ProcessOutput(0, 0, byte_buffer.empty(), byte_buffer.empty())))
+            ProcessOutput(0, 0, bytes_empty(), bytes_empty())))
 
           // Compile an isolated multi-module program, remove every source
           // file, then validate and execute only the saved artifact.
@@ -208,54 +193,54 @@ main(): Void {
           standalone_right = child(standalone_root, "right.panack")
           standalone_main = child(standalone_root, "main.panack")
           standalone_artifact = child(workspace.root, "standalone.bc")
-          standalone_left_text = std_result.value_or(std_path.to_text(standalone_left), "invalid-standalone-left")
-          standalone_right_text = std_result.value_or(std_path.to_text(standalone_right), "invalid-standalone-right")
-          standalone_main_text = std_result.value_or(std_path.to_text(standalone_main), "invalid-standalone-main")
-          standalone_artifact_text = std_result.value_or(std_path.to_text(standalone_artifact), "invalid-standalone-artifact")
-          std_filesystem.create_directory(standalone_root)
-          left_write = std_filesystem.write(standalone_left, std_text.encode_utf8(
+          standalone_left_text = result_value_or(path_value_to_text(standalone_left), "invalid-standalone-left")
+          standalone_right_text = result_value_or(path_value_to_text(standalone_right), "invalid-standalone-right")
+          standalone_main_text = result_value_or(path_value_to_text(standalone_main), "invalid-standalone-main")
+          standalone_artifact_text = result_value_or(path_value_to_text(standalone_artifact), "invalid-standalone-artifact")
+          filesystem_create_directory(standalone_root)
+          left_write = filesystem_write_bytes(standalone_left, text_encode_utf8(
             "pub pure answer(): Nat { 11 }\nmain(): Void { print(991) }\n"))
-          right_write = std_filesystem.write(standalone_right, std_text.encode_utf8(
+          right_write = filesystem_write_bytes(standalone_right, text_encode_utf8(
             "pub pure answer(): Nat { 22 }\nmain(): Void { print(992) }\n"))
-          main_write = std_filesystem.write(standalone_main, std_text.encode_utf8(
+          main_write = filesystem_write_bytes(standalone_main, text_encode_utf8(
             "import \"left.panack\" as left\nimport \"right.panack\" as right\nmain(): Void {\n  print(left.answer())\n  print(right.answer())\n}\n"))
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "standalone bytecode fixture setup",
             match left_write { Ok(written) => true, Error(error) => false } &&
               match right_write { Ok(written) => true, Error(error) => false } &&
               match main_write { Ok(written) => true, Error(error) => false },
             "source fixture write failed"
           ))
-          results = append(results, std_testing_commands.run_command("standalone namespace source compile",
+          results = append(results, test_run_command("standalone namespace source compile",
             compiler_command(compiler, ["compile", standalone_main_text, "-o", standalone_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("wrote ${standalone_artifact_text}\n"), byte_buffer.empty())))
+            ProcessOutput(0, 0, text_encode_utf8("wrote ${standalone_artifact_text}\n"), bytes_empty())))
           for file in [standalone_main, standalone_left, standalone_right] {
-            match std_filesystem.remove_file(file) {
+            match filesystem_remove_file(file) {
               Ok(removed) => {},
-              Error(error) => { results = append(results, std_testing.expect(
+              Error(error) => { results = append(results, test_expect(
                 "standalone bytecode source removal", false, "source file removal failed")) }
             }
           }
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "standalone bytecode sources are absent",
-            !artifact_exists(standalone_main_text) && !artifact_exists(standalone_left_text) &&
-              !artifact_exists(standalone_right_text),
+            !filesystem_exists(standalone_main_text) && !filesystem_exists(standalone_left_text) &&
+              !filesystem_exists(standalone_right_text),
             "source files remained after compilation"
           ))
-          results = append(results, std_testing_commands.run_command("standalone saved bytecode validation without sources",
+          results = append(results, test_run_command("standalone saved bytecode validation without sources",
             compiler_command(compiler, ["check", standalone_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
-          results = append(results, std_testing_commands.run_command("standalone saved bytecode execution without sources",
+            ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+          results = append(results, test_run_command("standalone saved bytecode execution without sources",
             compiler_command(compiler, ["run", standalone_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("11\n22\n"), byte_buffer.empty())))
-          match std_filesystem.remove_file(standalone_artifact) {
+            ProcessOutput(0, 0, text_encode_utf8("11\n22\n"), bytes_empty())))
+          match filesystem_remove_file(standalone_artifact) {
             Ok(removed) => {},
-            Error(error) => { results = append(results, std_testing.expect(
+            Error(error) => { results = append(results, test_expect(
               "standalone bytecode artifact cleanup", false, "artifact removal failed")) }
           }
-          match std_filesystem.remove_directory(standalone_root) {
+          match filesystem_remove_directory(standalone_root) {
             Ok(removed) => {},
-            Error(error) => { results = append(results, std_testing.expect(
+            Error(error) => { results = append(results, test_expect(
               "standalone bytecode directory cleanup", false, "directory removal failed")) }
           }
 
@@ -274,31 +259,31 @@ main(): Void {
           bootstrap_link = child(bootstrap_root, "outside-link.panack")
           bootstrap_artifact = child(workspace.root, "bootstrap-root.bc")
           bootstrap_escape_artifact = child(workspace.root, "bootstrap-escape.bc")
-          bootstrap_main_text = std_result.value_or(std_path.to_text(bootstrap_main), "invalid-bootstrap-main")
-          bootstrap_escape_text = std_result.value_or(std_path.to_text(bootstrap_escape), "invalid-bootstrap-escape")
-          bootstrap_symlink_entry_text = std_result.value_or(std_path.to_text(bootstrap_symlink_entry), "invalid-bootstrap-symlink-entry")
-          bootstrap_left_text = std_result.value_or(std_path.to_text(bootstrap_left), "invalid-bootstrap-left")
-          bootstrap_right_text = std_result.value_or(std_path.to_text(bootstrap_right), "invalid-bootstrap-right")
-          bootstrap_shared_text = std_result.value_or(std_path.to_text(bootstrap_shared), "invalid-bootstrap-shared")
-          bootstrap_outside_text = std_result.value_or(std_path.to_text(bootstrap_outside), "invalid-bootstrap-outside")
-          bootstrap_link_text = std_result.value_or(std_path.to_text(bootstrap_link), "invalid-bootstrap-link")
-          bootstrap_artifact_text = std_result.value_or(std_path.to_text(bootstrap_artifact), "invalid-bootstrap-artifact")
-          bootstrap_escape_artifact_text = std_result.value_or(std_path.to_text(bootstrap_escape_artifact), "invalid-bootstrap-escape-artifact")
-          bootstrap_root_text = std_result.value_or(std_path.to_text(bootstrap_root), "invalid-bootstrap-root")
-          bootstrap_stdlib_text = std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), "")
+          bootstrap_main_text = result_value_or(path_value_to_text(bootstrap_main), "invalid-bootstrap-main")
+          bootstrap_escape_text = result_value_or(path_value_to_text(bootstrap_escape), "invalid-bootstrap-escape")
+          bootstrap_symlink_entry_text = result_value_or(path_value_to_text(bootstrap_symlink_entry), "invalid-bootstrap-symlink-entry")
+          bootstrap_left_text = result_value_or(path_value_to_text(bootstrap_left), "invalid-bootstrap-left")
+          bootstrap_right_text = result_value_or(path_value_to_text(bootstrap_right), "invalid-bootstrap-right")
+          bootstrap_shared_text = result_value_or(path_value_to_text(bootstrap_shared), "invalid-bootstrap-shared")
+          bootstrap_outside_text = result_value_or(path_value_to_text(bootstrap_outside), "invalid-bootstrap-outside")
+          bootstrap_link_text = result_value_or(path_value_to_text(bootstrap_link), "invalid-bootstrap-link")
+          bootstrap_artifact_text = result_value_or(path_value_to_text(bootstrap_artifact), "invalid-bootstrap-artifact")
+          bootstrap_escape_artifact_text = result_value_or(path_value_to_text(bootstrap_escape_artifact), "invalid-bootstrap-escape-artifact")
+          bootstrap_root_text = result_value_or(path_value_to_text(bootstrap_root), "invalid-bootstrap-root")
+          bootstrap_stdlib_text = environment_value("PANACKELTY_STDLIB_PATH")
           bootstrap_environment = [
             "PANACKELTY_BOOTSTRAP_ROOT=${bootstrap_root_text}",
             "PANACKELTY_STDLIB_PATH=${bootstrap_stdlib_text}"
           ]
-          std_filesystem.create_directory(bootstrap_root)
-          std_filesystem.create_directory(bootstrap_compiler_dir)
-          bootstrap_left_write = std_filesystem.write(bootstrap_left, std_text.encode_utf8(
+          filesystem_create_directory(bootstrap_root)
+          filesystem_create_directory(bootstrap_compiler_dir)
+          bootstrap_left_write = filesystem_write_bytes(bootstrap_left, text_encode_utf8(
             "pub record Item[T] { value: T }\npub record Envelope[T] { item: Item[T] }\npub enum Outcome[T] { Finished(Envelope[T]) }\npub pure make(): Envelope[Nat] { Envelope(Item(41)) }\npub async fetch(): Nat { 51 }\npub pure identity[T](value: T): T { value }\npub pure indirect_value(): Nat {\n  mut total: Nat = 0\n  values: [Nat] = [20, 21]\n  for value in values {\n    total = total + value\n  }\n  if total == 41 { total + 2 } else { 0 }\n}\npub pure make_outcome(): Outcome[Nat] { Finished(make()) }\npub pure positive(value: Nat): Bool { value == 45 }\npub type Positive = Nat where positive(value)\npub type ProvenPositive = Nat where value > 0\npub pure option_value(): Option[Nat] { Some(71) }\nmain(): Void { print(999) }\n"))
-          bootstrap_right_write = std_filesystem.write(bootstrap_right, std_text.encode_utf8(
+          bootstrap_right_write = filesystem_write_bytes(bootstrap_right, text_encode_utf8(
             "pub record Item[T] { value: T }\npub record Envelope[T] { item: Item[T] }\npub enum Outcome[T] { Finished(Envelope[T]) }\npub pure make(): Envelope[Nat] { Envelope(Item(42)) }\npub async fetch(): Nat { 52 }\npub pure identity[T](value: T): T { value }\npub pure indirect_value(): Nat {\n  mut total: Nat = 0\n  values: [Nat] = [20, 22]\n  for value in values {\n    total = total + value\n  }\n  if total == 42 { total + 2 } else { 0 }\n}\npub pure make_outcome(): Outcome[Nat] { Finished(make()) }\npub pure positive(value: Nat): Bool { value == 46 }\npub type Positive = Nat where positive(value)\npub type ProvenPositive = Nat where value > 0\npub pure option_value(): Option[Nat] { Some(72) }\nmain(): Void { print(998) }\n"))
-          bootstrap_shared_write = std_filesystem.write(bootstrap_shared, std_text.encode_utf8(
+          bootstrap_shared_write = filesystem_write_bytes(bootstrap_shared, text_encode_utf8(
             "pub pure answer(): Option[Nat] { Some(61) }\nmain(): Void { print(997) }\n"))
-          bootstrap_main_write = std_filesystem.write(bootstrap_main, std_text.encode_utf8(
+          bootstrap_main_write = filesystem_write_bytes(bootstrap_main, text_encode_utf8(
             "import \"compiler/left.panack\" as left\n" +
             "import \"compiler/right.panack\" as right\n" +
             "import \"compiler/shared.panack\" as shared\n" +
@@ -333,9 +318,9 @@ main(): Void {
             "  expect(await right_value() == 52)\n" +
             "  ()\n" +
             "}\n"))
-          bootstrap_outside_write = std_filesystem.write(bootstrap_outside, std_text.encode_utf8(
+          bootstrap_outside_write = filesystem_write_bytes(bootstrap_outside, text_encode_utf8(
             "main(): Void { print(777) }\n"))
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "bootstrap-root fixture setup",
             match bootstrap_left_write { Ok(written) => true, Error(error) => false } &&
               match bootstrap_right_write { Ok(written) => true, Error(error) => false } &&
@@ -348,42 +333,42 @@ main(): Void {
             "bootstrap-root core identity source execution",
             compiler,
             ["run", bootstrap_main_text],
-            ProcessOutput(0, 0, byte_buffer.empty(), byte_buffer.empty()),
+            ProcessOutput(0, 0, bytes_empty(), bytes_empty()),
             bootstrap_environment))
           results = append(results, namespace_bootstrap_root_command(
             "slice 6 integrated staged source check",
             compiler,
             ["check", bootstrap_main_text],
-            ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty()),
+            ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty()),
             bootstrap_environment))
           results = append(results, namespace_bootstrap_root_command(
             "slice 6 integrated staged source compile",
             compiler,
             ["compile", bootstrap_main_text, "-o", bootstrap_artifact_text],
-            ProcessOutput(0, 0, std_text.encode_utf8("wrote ${bootstrap_artifact_text}\n"), byte_buffer.empty()),
+            ProcessOutput(0, 0, text_encode_utf8("wrote ${bootstrap_artifact_text}\n"), bytes_empty()),
             bootstrap_environment))
           for file in [bootstrap_main, bootstrap_left, bootstrap_right, bootstrap_shared] {
-            match std_filesystem.remove_file(file) {
+            match filesystem_remove_file(file) {
               Ok(removed) => {},
-              Error(error) => { results = append(results, std_testing.expect(
+              Error(error) => { results = append(results, test_expect(
                 "slice 6 integrated source removal", false, "source file removal failed")) }
             }
           }
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "slice 6 integrated sources are absent",
-            !artifact_exists(bootstrap_main_text) && !artifact_exists(bootstrap_left_text) &&
-              !artifact_exists(bootstrap_right_text) && !artifact_exists(bootstrap_shared_text),
+            !filesystem_exists(bootstrap_main_text) && !filesystem_exists(bootstrap_left_text) &&
+              !filesystem_exists(bootstrap_right_text) && !filesystem_exists(bootstrap_shared_text),
             "source files remained after compilation"
           ))
-          results = append(results, std_testing_commands.run_command(
+          results = append(results, test_run_command(
             "slice 6 integrated saved bytecode validation without sources",
             compiler_command(compiler, ["check", bootstrap_artifact_text]),
-            ProcessOutput(0, 0, std_text.encode_utf8("ok\n"), byte_buffer.empty())))
-          results = append(results, std_testing_commands.run_command(
+            ProcessOutput(0, 0, text_encode_utf8("ok\n"), bytes_empty())))
+          results = append(results, test_run_command(
             "slice 6 integrated saved bytecode execution without sources",
             compiler_command(compiler, ["run", bootstrap_artifact_text]),
-            ProcessOutput(0, 0, byte_buffer.empty(), byte_buffer.empty())))
-          std_filesystem.write(bootstrap_escape, std_text.encode_utf8(
+            ProcessOutput(0, 0, bytes_empty(), bytes_empty())))
+          filesystem_write_bytes(bootstrap_escape, text_encode_utf8(
             "import \"../bootstrap-outside.panack\"\nmain(): Void {}\n"))
           results = append(results, namespace_bootstrap_root_rejection(
             compiler,
@@ -393,23 +378,23 @@ main(): Void {
             "module path escapes the entry directory and standard library roots",
             bootstrap_environment
           ))
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "bootstrap-root escape publishes no artifact",
-            !artifact_exists(bootstrap_escape_artifact_text),
+            !filesystem_exists(bootstrap_escape_artifact_text),
             "rejected bootstrap import produced an artifact"
           ))
-          std_filesystem.write(bootstrap_symlink_entry, std_text.encode_utf8(
+          filesystem_write_bytes(bootstrap_symlink_entry, text_encode_utf8(
             "import \"outside-link.panack\"\nmain(): Void {}\n"))
-          bootstrap_link_setup = std_process.run(
+          bootstrap_link_setup = testing_process_run(
             path("/bin/ln"),
             ["-s", bootstrap_outside_text, bootstrap_link_text],
-            byte_buffer.empty(),
+            bytes_empty(),
             workspace.root,
             [],
-            std_time.seconds(5),
+            duration_seconds(5),
             1024
           )
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "bootstrap-root symlink fixture setup",
             match bootstrap_link_setup { Ok(output) => output.exit_code == 0 && output.signal == 0, Error(error) => false },
             "symlink setup failed"
@@ -426,22 +411,22 @@ main(): Void {
               bootstrap_left, bootstrap_right, bootstrap_shared, bootstrap_link,
               bootstrap_outside, bootstrap_artifact,
               bootstrap_escape_artifact] {
-            if artifact_exists(std_result.value_or(std_path.to_text(file), "")) {
-              match std_filesystem.remove_file(file) {
+            if filesystem_exists(result_value_or(path_value_to_text(file), "")) {
+              match filesystem_remove_file(file) {
                 Ok(removed) => {},
-                Error(error) => { results = append(results, std_testing.expect(
+                Error(error) => { results = append(results, test_expect(
                   "bootstrap-root fixture cleanup", false, "file removal failed")) }
               }
             } else {}
           }
-          match std_filesystem.remove_directory(bootstrap_compiler_dir) {
+          match filesystem_remove_directory(bootstrap_compiler_dir) {
             Ok(removed) => {},
-            Error(error) => { results = append(results, std_testing.expect(
+            Error(error) => { results = append(results, test_expect(
               "bootstrap-root compiler directory cleanup", false, "directory removal failed")) }
           }
-          match std_filesystem.remove_directory(bootstrap_root) {
+          match filesystem_remove_directory(bootstrap_root) {
             Ok(removed) => {},
-            Error(error) => { results = append(results, std_testing.expect(
+            Error(error) => { results = append(results, test_expect(
               "bootstrap-root directory cleanup", false, "directory removal failed")) }
           }
 
@@ -451,14 +436,14 @@ main(): Void {
           symlink_entry = child(source_root, "symlink.panack")
           symlink_import = child(source_root, "outside-link.panack")
           escape_artifact = child(workspace.root, "escape.bc")
-          escape_entry_text = std_result.value_or(std_path.to_text(escape_entry), "invalid-escape-entry")
-          symlink_entry_text = std_result.value_or(std_path.to_text(symlink_entry), "invalid-symlink-entry")
-          symlink_import_text = std_result.value_or(std_path.to_text(symlink_import), "invalid-symlink-import")
-          escape_artifact_text = std_result.value_or(std_path.to_text(escape_artifact), "invalid-escape-artifact")
-          outside_source_text = std_result.value_or(std_path.to_text(outside_source), "invalid-outside-source")
-          std_filesystem.create_directory(source_root)
-          std_filesystem.write(outside_source, std_text.encode_utf8("pure answer(): Nat { 99 }\n"))
-          std_filesystem.write(escape_entry, std_text.encode_utf8("import \"../outside.panack\"\nmain(): Void {}\n"))
+          escape_entry_text = result_value_or(path_value_to_text(escape_entry), "invalid-escape-entry")
+          symlink_entry_text = result_value_or(path_value_to_text(symlink_entry), "invalid-symlink-entry")
+          symlink_import_text = result_value_or(path_value_to_text(symlink_import), "invalid-symlink-import")
+          escape_artifact_text = result_value_or(path_value_to_text(escape_artifact), "invalid-escape-artifact")
+          outside_source_text = result_value_or(path_value_to_text(outside_source), "invalid-outside-source")
+          filesystem_create_directory(source_root)
+          filesystem_write_bytes(outside_source, text_encode_utf8("pure answer(): Nat { 99 }\n"))
+          filesystem_write_bytes(escape_entry, text_encode_utf8("import \"../outside.panack\"\nmain(): Void {}\n"))
           results = append(results, namespace_source_load_rejection(
             compiler,
             "check",
@@ -473,22 +458,22 @@ main(): Void {
             escape_artifact_text,
             "module path escapes the entry directory"
           ))
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "source-loading rejection publishes no bytecode",
-            !artifact_exists(escape_artifact_text),
+            !filesystem_exists(escape_artifact_text),
             "rejected project produced an artifact"
           ))
-          std_filesystem.write(symlink_entry, std_text.encode_utf8("import \"outside-link.panack\"\nmain(): Void {}\n"))
-          link_setup = std_process.run(
+          filesystem_write_bytes(symlink_entry, text_encode_utf8("import \"outside-link.panack\"\nmain(): Void {}\n"))
+          link_setup = testing_process_run(
             path("/bin/ln"),
             ["-s", outside_source_text, symlink_import_text],
-            byte_buffer.empty(),
+            bytes_empty(),
             workspace.root,
             [],
-            std_time.seconds(5),
+            duration_seconds(5),
             1024
           )
-          results = append(results, std_testing.expect(
+          results = append(results, test_expect(
             "source-loading symlink fixture setup",
             match link_setup { Ok(output) => output.exit_code == 0 && output.signal == 0, Error(error) => false },
             "symlink setup failed"
@@ -501,85 +486,85 @@ main(): Void {
             "module path traverses a symbolic link"
           ))
           for file in [escape_entry, symlink_entry, symlink_import, outside_source] {
-            match std_filesystem.remove_file(file) {
+            match filesystem_remove_file(file) {
               Ok(removed) => {},
-              Error(error) => { results = append(results, std_testing.expect("source-loading fixture cleanup", false, "file removal failed")) }
+              Error(error) => { results = append(results, test_expect("source-loading fixture cleanup", false, "file removal failed")) }
             }
           }
-          match std_filesystem.remove_directory(source_root) {
+          match filesystem_remove_directory(source_root) {
             Ok(removed) => {},
-            Error(error) => { results = append(results, std_testing.expect("source-loading directory cleanup", false, "directory removal failed")) }
+            Error(error) => { results = append(results, test_expect("source-loading directory cleanup", false, "directory removal failed")) }
           }
         },
         None() => {}
       }
-      results = results.append(std_testing_commands.run_command("self-hosted compile",
+      results = results.append(test_run_command("self-hosted compile",
         compiler_command(compiler, ["--", "compile", source, "-o", self_hosted_text]),
-        ProcessOutput(0, 0, std_text.encode_utf8("wrote ${self_hosted_text}\n"), byte_buffer.empty())))
-      results = results.append(std_testing_commands.run_command("bootstrap compile",
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${self_hosted_text}\n"), bytes_empty())))
+      results = results.append(test_run_command("bootstrap compile",
         command(["compile", source, "-o", bootstrap_text], 30),
-        ProcessOutput(0, 0, std_text.encode_utf8("wrote ${bootstrap_text}\n"), byte_buffer.empty())))
-      match std_filesystem.read(self_hosted, 1048576) {
-        Error(error) => { results = results.append(std_testing.expect("byte-identical compiler output",
+        ProcessOutput(0, 0, text_encode_utf8("wrote ${bootstrap_text}\n"), bytes_empty())))
+      match filesystem_read_bytes(self_hosted, 1048576) {
+        Error(error) => { results = results.append(test_expect("byte-identical compiler output",
           false, "self-hosted artifact read failed")) },
         Ok(hosted_bytes) => {
-          match std_filesystem.read(bootstrap, 1048576) {
-            Error(error) => { results = results.append(std_testing.expect("byte-identical compiler output",
+          match filesystem_read_bytes(bootstrap, 1048576) {
+            Error(error) => { results = results.append(test_expect("byte-identical compiler output",
               false, "bootstrap artifact read failed")) },
-            Ok(bootstrap_bytes) => { results = results.append(std_testing.expect(
+            Ok(bootstrap_bytes) => { results = results.append(test_expect(
               "byte-identical compiler output", hosted_bytes == bootstrap_bytes,
               "compiler artifacts differed")) }
           }
         }
       }
-      match std_process.run(path("./panack"), ["run", compiler, "disasm", source],
-          byte_buffer.empty(), std_path.current(), [], std_time.seconds(30), 1048576) {
-        Error(error) => { results = results.append(std_testing.expect("self-hosted disassembly",
+      match testing_process_run(path("./panack"), ["run", compiler, "disasm", source],
+          bytes_empty(), path_value_current(), [], duration_seconds(30), 1048576) {
+        Error(error) => { results = results.append(test_expect("self-hosted disassembly",
           false, "source command failed")) },
         Ok(source_disasm) => {
-          results = results.append(std_testing.expect("self-hosted disassembly",
+          results = results.append(test_expect("self-hosted disassembly",
             source_disasm.exit_code == 0 && source_disasm.signal == 0 &&
-              source_disasm.stderr == byte_buffer.empty(), "source disassembly failed"))
-          results = results.append(std_testing_commands.run_command("self-hosted bytecode disassembly",
+              source_disasm.stderr == bytes_empty(), "source disassembly failed"))
+          results = results.append(test_run_command("self-hosted bytecode disassembly",
             compiler_command(compiler, ["disasm", self_hosted_text]),
-            ProcessOutput(0, 0, source_disasm.stdout, byte_buffer.empty())))
+            ProcessOutput(0, 0, source_disasm.stdout, bytes_empty())))
         }
       }
       for file in [self_hosted, bootstrap] {
-        match std_filesystem.remove_file(file) {
+        match filesystem_remove_file(file) {
           Ok(removed) => {},
-          Error(error) => { results = results.append(std_testing.expect("artifact cleanup", false,
+          Error(error) => { results = results.append(test_expect("artifact cleanup", false,
             "file removal failed")) }
         }
       }
-      match std_environment.get("PANACK_TEST_NAMESPACE_EMISSION") {
+      match environment_lookup("PANACK_TEST_NAMESPACE_EMISSION") {
         Some(enabled) => {
           for file in [namespace_artifact, namespace_async_artifact] {
-            match std_filesystem.remove_file(file) {
+            match filesystem_remove_file(file) {
               Ok(removed) => {},
-              Error(error) => { results = results.append(std_testing.expect("namespace artifact cleanup", false, "file removal failed")) }
+              Error(error) => { results = results.append(test_expect("namespace artifact cleanup", false, "file removal failed")) }
             }
           }
         },
         None() => {}
       }
-      match std_environment.get("PANACK_TEST_COMPILER") {
+      match environment_lookup("PANACK_TEST_COMPILER") {
         Some(cached) => {},
         None() => {
-          match std_filesystem.remove_file(own_compiler) {
+          match filesystem_remove_file(own_compiler) {
             Ok(removed2) => {},
-            Error(error) => { results = results.append(std_testing.expect("compiler cleanup", false,
+            Error(error) => { results = results.append(test_expect("compiler cleanup", false,
               "file removal failed")) }
           }
         }
       }
-      match std_testing_files.workspace_remove_empty(workspace) {
+      match test_workspace_remove_empty(workspace) {
         Ok(removed3) => {},
-        Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false,
+        Error(error) => { results = results.append(test_expect("workspace cleanup", false,
           "directory removal failed")) }
       }
-      failures = std_testing.report(results)
-      if failures > 0 { std_host.exit(1) }
+      failures = test_report(results)
+      if failures > 0 { host_exit(1) }
     }
   }
 }

@@ -1,5 +1,5 @@
-import stdlib/result as std_result
-import stdlib/option as std_option
+import stdlib/result::{result_value_or}
+import stdlib/option::{option_value_or}
 
 pure identity[T](value: T): T { value }
 
@@ -14,10 +14,10 @@ pure repeat[T](value: T, count: Nat): T {
 main(): Void {
   print(identity(42))
   print("hello".identity[Str]())
-  print(std_option.value_or([10, 20].first(), 0))
-  print(std_option.value_or([].first[Str](), "empty"))
+  print(option_value_or([10, 20].first(), 0))
+  print(option_value_or([].first[Str](), "empty"))
   value: Result[Nat,Str] = Error("unavailable")
-  print(std_result.value_or(value, 99))
-  print(std_result.value_or[Nat,Str](Ok(5), 99))
+  print(result_value_or(value, 99))
+  print(result_value_or[Nat,Str](Ok(5), 99))
   print(repeat(true, 2))
 }

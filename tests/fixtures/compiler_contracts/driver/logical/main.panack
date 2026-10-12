@@ -1,5 +1,4 @@
-import stdlib/option as std_option
-import stdlib/option as std_option_module
+import stdlib/option as option_module
 import "stdlib/option.panack"
 import "nested/feature.panack" as nested_feature
 main(): Void {

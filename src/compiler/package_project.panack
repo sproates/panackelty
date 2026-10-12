@@ -1,10 +1,7 @@
-import project/src/compiler/path_support as path_support
-import stdlib/path as std_path
-import stdlib/option as std_option
-import stdlib/package_filesystem as std_package_filesystem
-import stdlib/environment as std_environment
+import stdlib/environment::{environment_value}
 pub import stdlib/package_filesystem::{FilesystemRootIdentity}
-import stdlib/package_filesystem::{FilesystemRootRead}
+import stdlib/package_filesystem::{FilesystemRootRead, filesystem_directories_overlap, filesystem_read_beneath}
+import stdlib/path::{path_string_parent, path_string_resolve, path_string_join, path_value_from_text}
 pub import project/src/compiler/package_manifest::{PackageManifestExport}
 import project/src/compiler/package_manifest::{PackageManifest, PackageManifestDependency, parse_package_manifest, package_manifest_byte_limit}
 import project/src/bytecode/decoder::{valid_utf8}
@@ -49,11 +46,11 @@ package_dependency_graph_max_edges(): Nat { 256 }
 package_dependency_graph_max_depth(): Nat { 32 }
 
 physical_source_roots_overlap(left: Str, right: Str): Result[Bool, Str] {
-  match std_path.from_text(left) {
+  match path_value_from_text(left) {
     Error(error) => Error("invalid source root path"),
-    Ok(left_path) => match std_path.from_text(right) {
+    Ok(left_path) => match path_value_from_text(right) {
       Error(error) => Error("invalid source root path"),
-      Ok(right_path) => match std_package_filesystem.directories_overlap(left_path, right_path) {
+      Ok(right_path) => match filesystem_directories_overlap(left_path, right_path) {
         Error(error) => Error("cannot inspect source root directories"),
         Ok(overlaps) => Ok(overlaps)
       }
@@ -71,16 +68,16 @@ pub read_manifest_project(path: Str): Result[ManifestProject, Str] {
 }
 
 read_manifest_project_file(path: Str, is_project_manifest: Bool): Result[ManifestPackageDeclaration, Str] {
-  resolved: Str = path_support.resolve(path)
-  package_root: Str = path_support.parent(resolved)
+  resolved: Str = path_string_resolve(path)
+  package_root: Str = path_string_parent(resolved)
   if resolved != package_root + "/panack.json" {
     Error("project manifest must be named panack.json")
   } else {
-    match std_path.from_text(package_root) {
+    match path_value_from_text(package_root) {
       Error(error) => Error("invalid package root path"),
-      Ok(root) => match std_path.from_text("panack.json") {
+      Ok(root) => match path_value_from_text("panack.json") {
         Error(error) => Error("invalid manifest path"),
-        Ok(relative) => match std_package_filesystem.read_beneath(root, relative, package_manifest_byte_limit()) {
+        Ok(relative) => match filesystem_read_beneath(root, relative, package_manifest_byte_limit()) {
           Error(problem) => {
             code: Str = problem.code
             Error(if is_project_manifest {
@@ -104,7 +101,7 @@ manifest_project_from_read(
   if !valid_utf8(read.contents) {
     Error("project manifest is not valid UTF-8")
   } else {
-    toolchain: Str = std_option.value_or(std_environment.get("PANACKELTY_VERSION"), "")
+    toolchain: Str = environment_value("PANACKELTY_VERSION")
     if toolchain == "" {
       Error("running toolchain version is unavailable")
     } else {
@@ -128,14 +125,14 @@ manifest_project_from_manifest(
   root_identity: FilesystemRootIdentity,
   manifest: PackageManifest
 ): Result[ManifestProject, Str] {
-  source_root: Str = path_support.resolve(path_support.join(package_root, manifest.source))
+  source_root: Str = path_string_resolve(path_string_join(package_root, manifest.source))
   match manifest.entry {
     None() => if len(manifest.exports) == 0 {
       Error("library manifest must export at least one module")
     } else {
       mut exports: [Str] = []
       for exported in manifest.exports {
-        exports = exports.append(path_support.resolve(path_support.join(source_root, exported.path)))
+        exports = exports.append(path_string_resolve(path_string_join(source_root, exported.path)))
       }
       Ok(ManifestProject(
         package_root,
@@ -150,7 +147,7 @@ manifest_project_from_manifest(
       ))
     },
     Some(entry) => {
-      entry_path: Str = path_support.resolve(path_support.join(source_root, entry))
+      entry_path: Str = path_string_resolve(path_string_join(source_root, entry))
       Ok(ManifestProject(
         package_root,
         source_root,
@@ -202,8 +199,8 @@ resolve_package_dependency_graph(
       Some(message) => {},
       None() => {
         alias: Str = dependency.alias
-        dependency_root: Str = path_support.resolve(path_support.join(owner.package_root, dependency.path))
-        dependency_manifest: Str = path_support.join(dependency_root, "panack.json")
+        dependency_root: Str = path_string_resolve(path_string_join(owner.package_root, dependency.path))
+        dependency_manifest: Str = path_string_join(dependency_root, "panack.json")
         match read_manifest_project_file(dependency_manifest, false) {
           Error(message) => { failure = Some("dependency ${alias}: ${message}") },
           Ok(declaration) => {

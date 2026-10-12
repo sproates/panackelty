@@ -1,37 +1,34 @@
-import stdlib/option as std_option
-import stdlib/process as std_process
-import stdlib/result as std_result
-import stdlib/time as std_time
-import stdlib/path as std_path
-import stdlib/host as std_host
-import stdlib/environment as std_environment
-import stdlib/bytes as byte_buffer
+import stdlib/result::{result_value_or}
+import stdlib/time::{duration_seconds}
+import stdlib/path::{path_value_from_text, path_value_current}
+import stdlib/host::{host_command_arguments, host_exit, host_process_run}
+import stdlib/environment::{environment_has_value, environment_value}
+import stdlib/filesystem::{filesystem_read_file_bytes, filesystem_write_file_bytes}
+import stdlib/bytes::{bytes_empty}
 
-pure oracle_path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
-oracle_read_file_bytes(path: Str): Bytes { read_bytes(path) }
-oracle_write_file_bytes(path: Str, data: Bytes): Void { write_bytes(path, data) }
+pure oracle_path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
 
 // Preserve the former registry/arithmetic subprocess timeouts while using only
 // native host capabilities. Arguments: seconds, stdin file, stdout file, command...
 main(): Void {
-  args = std_host.arguments()
-  if len(args) < 4 { eprint("oracle command requires timeout, input, output and executable"); std_host.exit(1) }
+  args = host_command_arguments()
+  if len(args) < 4 { eprint("oracle command requires timeout, input, output and executable"); host_exit(1) }
   mut command: [Str] = []
   for index in 4..len(args) { command = command.append(args[index]) }
   mut environment: [Str] = []
   for name in ["ASAN_OPTIONS", "UBSAN_OPTIONS", "LLVM_PROFILE_FILE"] {
-    if (std_environment.get(name) != None()) { environment = environment.append("${name}=" + std_option.value_or(std_environment.get(name), "")) }
+    if environment_has_value(name) { environment = environment.append("${name}=" + environment_value(name)) }
   }
-  match std_process.run(oracle_path(args[3]), command, oracle_read_file_bytes(args[1]), std_path.current(),
-      environment, std_time.seconds(nat_from_str(args[0])), 16777216) {
-    Error(problem) => { eprint("oracle command failed: ${problem.code}"); std_host.exit(1) },
+  match host_process_run(oracle_path(args[3]), command, filesystem_read_file_bytes(args[1]), path_value_current(),
+      environment, duration_seconds(nat_from_str(args[0])), 16777216) {
+    Error(problem) => { eprint("oracle command failed: ${problem.code}"); host_exit(1) },
     Ok(output) => {
-      if output.exit_code != 0 || output.signal != 0 || output.stderr != byte_buffer.empty() {
+      if output.exit_code != 0 || output.signal != 0 || output.stderr != bytes_empty() {
         eprint("oracle command failed status, signal or stderr contract")
-        if output.stderr != byte_buffer.empty() { eprint(utf8_decode(output.stderr)) }
-        std_host.exit(1)
+        if output.stderr != bytes_empty() { eprint(utf8_decode(output.stderr)) }
+        host_exit(1)
       }
-      oracle_write_file_bytes(args[2], output.stdout)
+      filesystem_write_file_bytes(args[2], output.stdout)
     }
   }
 }

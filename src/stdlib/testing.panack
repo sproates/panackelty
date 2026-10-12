@@ -2,7 +2,7 @@
 pub enum TestOutcome { TestPassed, TestFailed(Str) }
 pub record TestResult { name: Str, outcome: TestOutcome }
 
-pub pure expect(name: Str, condition: Bool, reason: Str): TestResult {
+pub pure test_expect(name: Str, condition: Bool, reason: Str): TestResult {
   if condition {
     TestResult(name, TestPassed())
   } else {
@@ -10,16 +10,16 @@ pub pure expect(name: Str, condition: Bool, reason: Str): TestResult {
   }
 }
 
-pub pure equal_str(name: Str, actual: Str, expected: Str): TestResult {
-  expect(name, actual == expected, "expected ${expected}, got ${actual}")
+pub pure test_equal_str(name: Str, actual: Str, expected: Str): TestResult {
+  test_expect(name, actual == expected, "expected ${expected}, got ${actual}")
 }
 
-pub pure equal_nat(name: Str, actual: Nat, expected: Nat): TestResult {
-  expect(name, actual == expected, "expected ${expected}, got ${actual}")
+pub pure test_equal_nat(name: Str, actual: Nat, expected: Nat): TestResult {
+  test_expect(name, actual == expected, "expected ${expected}, got ${actual}")
 }
 
 // Caller order is retained. The caller can use the returned count as its exit policy.
-pub report(results: [TestResult]): Nat {
+pub test_report(results: [TestResult]): Nat {
   mut failures: Nat = 0
   for result in results {
     name = result.name

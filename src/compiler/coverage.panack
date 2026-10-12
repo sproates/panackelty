@@ -1,10 +1,7 @@
-import project/src/compiler/path_support as path_support
-import stdlib/text as std_text
-import stdlib/option as std_option
-import stdlib/numeric as std_numeric
-import stdlib/path as std_path
-import stdlib/environment as std_environment
-import stdlib/bytes as byte_buffer
+import stdlib/numeric::{nat_quotient}
+import stdlib/path::{path_string_parent, path_string_resolve}
+import stdlib/environment::{environment_value}
+import stdlib/bytes::{bytes_length, bytes_at, text_encode_utf8}
 pub import project/src/compiler/loader::{LoadedProject, LoadedModule, ModuleBindingGraph}
 import project/src/compiler/loader::{load_project_for_inventory, loaded_binding_graph}
 import project/src/compiler/project_frontend::{prepare_project_program}
@@ -58,17 +55,17 @@ pub pure coverage_number(data: Bytes, offset: Nat, width: Nat): Nat {
   mut value: Nat = 0
 
   for index in 0..width {
-    value = value * 256 + byte_buffer.at(data, offset + index)
+    value = value * 256 + bytes_at(data, offset + index)
   }
   value
 }
 
 pub pure coverage_prefix(data: Bytes, expected: Bytes, offset: Nat): Bool {
-  mut valid: Bool = offset + byte_buffer.length(expected) <= byte_buffer.length(data)
+  mut valid: Bool = offset + bytes_length(expected) <= bytes_length(data)
 
   if valid {
-    for index in 0..byte_buffer.length(expected) {
-      valid = valid && byte_buffer.at(data, offset + index) == byte_buffer.at(expected, index)
+    for index in 0..bytes_length(expected) {
+      valid = valid && bytes_at(data, offset + index) == bytes_at(expected, index)
     }
   }
 
@@ -93,14 +90,14 @@ pub pure decode_coverage_at(
   program: BytecodeProgram,
   offset: Nat
 ): CoverageData {
-  prefix: Bytes = source_map_join([std_text.encode_utf8("PANACKCOV1\n"), source_map_blob(artifact),
+  prefix: Bytes = source_map_join([text_encode_utf8("PANACKCOV1\n"), source_map_blob(artifact),
     source_map_blob(inventory), encode_u32(len(program.functions))], 0, 4)
-  mut size: Nat = byte_buffer.length(prefix) + 6
+  mut size: Nat = bytes_length(prefix) + 6
 
   for function in sort_functions(program.functions) {
     size = size + 12 + len(function.instructions) * 32
   }
-  mut valid: Bool = size <= 16777216 && byte_buffer.length(data) == size + offset && coverage_prefix(
+  mut valid: Bool = size <= 16777216 && bytes_length(data) == size + offset && coverage_prefix(
     data,
     prefix,
     offset
@@ -108,7 +105,7 @@ pub pure decode_coverage_at(
   mut functions: [CoverageFunction] = []
   mut terminal: Nat = 0
   if valid {
-    mut cursor: Nat = offset + byte_buffer.length(prefix)
+    mut cursor: Nat = offset + bytes_length(prefix)
     for function in sort_functions(program.functions) {
       entries: Nat = coverage_number(data, cursor, 8)
       valid = valid && coverage_number(data, cursor + 8, 4) == len(function.instructions)
@@ -131,9 +128,9 @@ pub pure decode_coverage_at(
       }
       functions = append(functions, CoverageFunction(entries, cells))
     }
-    terminal = byte_buffer.at(data, cursor + 4)
-    valid = valid && coverage_prefix(data, std_text.encode_utf8("END\n"), cursor) &&
-      (terminal == 1 || terminal == 2 || terminal == 3) && byte_buffer.at(data, cursor + 5) == 0
+    terminal = bytes_at(data, cursor + 4)
+    valid = valid && coverage_prefix(data, text_encode_utf8("END\n"), cursor) &&
+      (terminal == 1 || terminal == 2 || terminal == 3) && bytes_at(data, cursor + 5) == 0
   }
   CoverageData(valid, terminal, functions)
 }
@@ -337,7 +334,7 @@ pure coverage_text_join(chunks: [Str], start: Nat, end: Nat): Str {
     if end == start + 1 {
       chunks[start]
     } else {
-      middle: Nat = std_numeric.divide(start + end, 2)
+      middle: Nat = nat_quotient(start + end, 2)
       coverage_text_join(chunks, start, middle) + coverage_text_join(chunks, middle, end)
     }
   }
@@ -601,10 +598,10 @@ pub run_coverage_report(values: [Str]): Nat {
     eprint("error: coverage-report SOURCE.panack --inventory FILE --coverage RAW")
     1
   } else {
-    entry: Str = path_support.resolve(values[1])
-    root: Str = path_support.parent(entry)
-    stdlib: Str = path_support.resolve(std_option.value_or(std_environment.get("PANACKELTY_STDLIB_PATH"), ""))
-    compiler_path: Str = std_option.value_or(std_environment.get("PANACKELTY_COMPILER_PATH"), "")
+    entry: Str = path_string_resolve(values[1])
+    root: Str = path_string_parent(entry)
+    stdlib: Str = path_string_resolve(environment_value("PANACKELTY_STDLIB_PATH"))
+    compiler_path: Str = environment_value("PANACKELTY_COMPILER_PATH")
     project: LoadedProject = load_project_for_inventory(entry)
     match source_map_read(compiler_path, 16777216) {
       Error(error) => {
@@ -620,11 +617,11 @@ pub run_coverage_report(values: [Str]): Nat {
         artifact: Bytes = serialize_bytecode(mapped.bytecode)
         inner: Bytes = serialize_source_inventory(project, artifact, compiler, entry, root, stdlib)
         inventory: Bytes = source_map_join(
-          [std_text.encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
+          [text_encode_utf8("PANACKINVENTORY1\n"), encode_u32(1), source_map_blob(inner)],
           0,
           3
         )
-        if byte_buffer.length(inner) == 0 || !source_map_matches(
+        if bytes_length(inner) == 0 || !source_map_matches(
           values[3],
           inventory
         ) ||

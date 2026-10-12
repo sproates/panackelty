@@ -63,6 +63,23 @@ These results are not classified as flakes or attributed to runner contention;
 the failed commands need the change-impact/reliability review before proposing
 any validation reduction.
 
+The three failures were all from push-triggered Checks on `next`, after a
+successful full Check for the corresponding PR. The merge commit tree exactly
+matched the PR head tree in each pair: PR #379 / push run
+[38165872429](https://github.com/sproates/panackelty/actions/runs/38165872429)
+used `e59a5e3`; PR #380 / push run
+[38169886896](https://github.com/sproates/panackelty/actions/runs/38169886896)
+used `7b682e9`; PR #386 / push run
+[38181425075](https://github.com/sproates/panackelty/actions/runs/38181425075)
+used `05d9567`. The paired PR Checks were
+[38165222655](https://github.com/sproates/panackelty/actions/runs/38165222655),
+[38169249184](https://github.com/sproates/panackelty/actions/runs/38169249184),
+and [38180632594](https://github.com/sproates/panackelty/actions/runs/38180632594),
+all successful. This shows that the post-merge runs found failures not seen in
+the corresponding PR runs; identical source trees do not establish identical
+runner conditions or explain the failures. Keep post-merge validation until the
+causes are understood.
+
 In successful full run [38179461414](https://github.com/sproates/panackelty/actions/runs/38179461414),
 the workflow completed in 8m47s. The `changes` job started two seconds after
 creation and took 18s. The first full matrix jobs started about 21s after
@@ -74,6 +91,7 @@ and aggregation; it is not a pure execution-time or queue-time measurement.
 
 | Evidence | Environment and result | Comparability |
 | --- | --- | --- |
+| Matched PR and post-merge Check (2026-10-12) | PR run [38194693792](https://github.com/sproates/panackelty/actions/runs/38194693792) passed in 8m11s; push run [38195261690](https://github.com/sproates/panackelty/actions/runs/38195261690) passed in 10m14s. | Same product tree `3ef1daa`; both selected full validation. Run elapsed time includes scheduling and aggregation. This one successful pair coexists with the three earlier same-tree post-merge failures above. |
 | Controlled clean/full rerun (2026-10-12) | macOS arm64, `VALIDATION_JOBS=2`: `make check` took 602.64s, 608.81s and 613.35s (median 608.81s); all three passed. Unit phase median 426s; bootstrap median 138s. | Current product source at `e033be2`; project build outputs were removed between runs. OS page cache was uncontrolled. This is a clean build baseline, not a fresh machine or cold OS cache. |
 | Warm focused and worker comparison (2026-10-12) | `check-compiler` passed three times at two workers (128.09s, 114.44s, 113.60s; median 114.44s) and three times at four workers (110s, 105s, 105s; median 105s). | Same local host and existing artifacts. Four workers improved this focused median by about 8%; it remains a broad component target, not a single-test loop. |
 | Single probe and edit matrix (2026-10-12) | A fresh-cache lexer probe ran 13 assertions in 0.30s. The baseline edit matrix passed all 12 samples: unchanged 0.05s median (0 compiles, 1 run); unrelated 0.13s (1 compile, 1 run); direct dependency 0.12s (1 compile, 1 run); transitive dependency 0.12s (1 compile, 1 run). | The fixture is intentionally tiny; its timings do not predict suite-wide savings. The unchanged compiled artifact is reusable, but any source edit in the broad fingerprint invalidates it. |
@@ -81,6 +99,16 @@ and aggregation; it is not a pure execution-time or queue-time measurement.
 | Controlled clean/full and warm/focused profile (2026-10-04) | macOS arm64: clean median 134.42s; warm `check-compiler` median 26.46s. | Controlled and repeated, but predates the current P3 code and workflow; historical comparison only. |
 | Hosted focused profile (2026-10-10) | Cached `check-compiler`: Linux 127s, macOS 110s; cached `check-vm`: Linux 145s, macOS 114s. | Separate alpha.12 profile, not a current `next` baseline or full-check time. |
 | Release workflow (2026-10-11) | Manual run completed in 25m33s. | One release run; its full check, two package builds and browser bundle run in a different, less frequent path. |
+
+Each full Check's two compiler package lanes run four bounded experiments in
+sequence after package validation: source mapping, runtime provenance,
+source-coverage feasibility and semantic impact. In the matched PR run these
+steps took 43s on Linux and 54s on macOS; in the push run they took 75s and 80s.
+The preceding compiler-package validation step took 4m26s/6m35s on PR Linux/macOS
+and 7m33s/8m05s on push Linux/macOS. The experiments are repeated twice per
+successful PR-to-merge cycle, but their measured time is smaller than the
+compiler-package validation. These jobs are a timing candidate; their evidence
+and change impact need review before changing their cadence.
 
 The 2026-10-12 clean profile measured 420–427s in the unit phase and 138–140s
 in bootstrap; the functional phase took 13–14s. Within unit, native contracts
@@ -102,20 +130,20 @@ as one complete artifact from an identical source archive. A later canonical
 `VALIDATION_JOBS=2 make check` on the existing workspace build tree passed in
 332s; it is not comparable to the clean median above.
 
-At the current `next` head `e033be2`, PR #388's docs-only Check passed in 29s and
-the post-merge push Check passed in 31s; neither run was active when inspected.
-This confirms the docs route's cost only, not the full validation route. CI
-still runs on both the PR revision and the resulting push to `next`.
+At the `next` head `e033be2` immediately before PR #389, PR #388's docs-only
+Check passed in 29s and its post-merge push Check passed in 31s. That confirms
+the docs route's cost only. PR #389 and its resulting push are the matched
+full-route observation above.
 
 The practical red/green path is now explicit: one directly selected probe can
 run in a fraction of a second on a warm cache, while the current default
 four-worker `check-compiler` collection takes about 105s and the clean full
 check about 609s at two workers. Keep all PR and post-merge validation for now:
-the change-impact map is representative rather than assertion-complete, and
-three recent hosted failures still need root-cause classification. Four workers
-help modestly; they do not remove the serial compiler, harness or bootstrap
-costs. The tiny edit matrix alone does not justify dependency-aware reuse or
-separate compilation.
+three same-tree post-merge failures followed green PR Checks, so the second run
+has demonstrated detection value despite its cost. First determine why those
+post-merge-only failures occurred. Four workers help modestly; they do not
+remove the serial compiler, harness or bootstrap costs. The tiny edit matrix
+alone does not justify dependency-aware reuse or separate compilation.
 
 The inventory and local measurements confirm repeated full validation at PR
 and post-merge checkpoints, expose structural overlap in the CI matrix, and

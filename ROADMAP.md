@@ -2533,19 +2533,34 @@ edits, but its tiny fixture does not establish whole-suite savings. See the
 [workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
 
 **Current recommendation:** retain full PR and post-merge validation and all
-test assertions: three earlier post-merge push runs failed after successful PR
-Checks on the identical source trees. For a bug-fix loop, run the one relevant
-probe, then its owning component target; run canonical `make check` before
-publishing. Worker tuning from two to four helps by about 8% on the focused
-collection, but does not address its roughly 105s duration or the clean-check
-unit/bootstrap bottlenecks. The next investigation slice is to classify those
-paired failures by comparing runner environment and isolating their exact
-commands. Then refine the regression boundary around the measured native oracle,
-harness, compiler-integration and bootstrap costs before choosing one bounded
-optimization. The four standalone compiler-lane experiments add less wall time
-than the main compiler validation but run on both platforms at PR and push; map
-their evidence before changing their cadence. Do not infer suite-wide savings
-from the tiny probe matrix or preselect a cache/compiler redesign.
+product-test assertions while GI#106 finishes mapping risk. Three earlier
+post-merge push runs failed after successful PR Checks on identical source
+trees. The matched runner-environment comparison and added command diagnostics
+([PR #391](https://github.com/sproates/panackelty/pull/391),
+[PR #392](https://github.com/sproates/panackelty/pull/392), and
+[PR #393](https://github.com/sproates/panackelty/pull/393)) did not reproduce
+or explain those failures. Keep them visible as unresolved reliability evidence.
+
+The four standalone compiler experiments now run on PRs and are skipped on the
+same-tree post-merge push ([PR #394](https://github.com/sproates/panackelty/pull/394)).
+The matched run record ([PR #395](https://github.com/sproates/panackelty/pull/395))
+shows 105 runner-seconds of repeated experiment work avoided, but elapsed Check
+time was 8m34s on the PR and 8m30s on the push, so no wall-time improvement was
+observed. Worker tuning from two to four helped the focused compiler collection
+by about 8%, but it still took about 105s and did not address the clean-check
+unit/bootstrap costs. These are bounded improvements, not evidence that the
+historical timing figures have been met.
+
+This Slice 2 documentation delivery refines the initial representative map into
+compiler, standard-library, bytecode, VM/runtime, CLI, package/bootstrap and
+validation-routing boundaries, with the assertions and hosted lanes they
+currently exercise. The next investigation step is a small representative
+sample of contributor active time versus waiting, including review/reporting
+overhead. Then compare a bounded set of workflow/build options and recommend one
+evidence-backed pilot. Do not infer suite-wide savings from the tiny probe
+matrix, change test cadence from fixture overlap alone, or preselect a
+cache/compiler redesign. Replacement NFRs and acceptance remain for the user to
+decide; GI#106 is complete only when the user explicitly says they are happy.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.

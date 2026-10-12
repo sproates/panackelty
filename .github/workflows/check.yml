@@ -127,25 +127,25 @@ jobs:
         run: sh tests/release_installer.sh
 
       - name: Set up experiment test tooling
-        if: matrix.suite == 'compiler'
+        if: matrix.suite == 'compiler' && github.event_name == 'pull_request'
         uses: actions/setup-node@v6
         with:
           node-version: 24
 
       - name: Test bounded source-mapping experiment
-        if: matrix.suite == 'compiler'
+        if: matrix.suite == 'compiler' && github.event_name == 'pull_request'
         run: make source-mapping-experiment
 
       - name: Test bounded runtime-provenance experiment
-        if: matrix.suite == 'compiler'
+        if: matrix.suite == 'compiler' && github.event_name == 'pull_request'
         run: make runtime-provenance-experiment
 
       - name: Test bounded source-coverage feasibility
-        if: matrix.suite == 'compiler'
+        if: matrix.suite == 'compiler' && github.event_name == 'pull_request'
         run: make source-coverage-experiment
 
       - name: Test bounded semantic-impact experiment
-        if: matrix.suite == 'compiler'
+        if: matrix.suite == 'compiler' && github.event_name == 'pull_request'
         run: make semantic-impact-experiment
 
       - name: Archive detailed validation profile

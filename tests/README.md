@@ -12,8 +12,9 @@ selected success cases, twenty-three examples, and forty-one expected failures.
 `runner_smoke` from source and saved bytecode.
 
 `make semantic-impact-experiment` runs the bounded compiler-evidence prediction
-experiment with Node 24+. It is a separate Linux/macOS compiler CI step; native
-`make check` remains interpreter-free. See the
+experiment with Node 24+. It runs in pull-request Linux/macOS compiler CI; the
+post-merge push keeps the full product suite and skips this same-tree experiment.
+Native `make check` remains interpreter-free. See the
 [experiment report](experiments/semantic_impact/README.md) for scope and reproduction.
 
 Panackelty has six core validation paths, plus the repository policy and
@@ -587,12 +588,14 @@ Historical core measurements remain in the validation profile as dated evidence.
 
 `make source-mapping-experiment` runs the native-PC source-map acceptance tests, requiring
 Node 24+ in addition to the native toolchain. It is separate from interpreter-free
-`make check` and runs after the isolated compiler CI suite on Linux and macOS.
+`make check` and runs after the isolated compiler suite on Linux and macOS for
+pull requests. Post-merge checks retain the regular source-map unit and CLI tests.
 See [the experiment](experiments/source_mapping/README.md) for its exact scope,
 trust boundary and printed size/timing evidence.
 
 `make source-coverage-experiment` runs the bounded GI#131 feasibility harness
-with the same Node/native requirements and isolated compiler CI placement.
+with the same Node/native requirements in pull-request compiler CI on Linux and
+macOS. Post-merge checks retain the production coverage CLI tests.
 It verifies exact instruction attempts, function entries, expression-start-line
 reach, identity failures and incomplete collection, then prints cost samples.
 See its [decision and denominator limits](experiments/source_coverage/README.md).
@@ -674,7 +677,8 @@ across 227 cases. Performance and fixed-point evidence are in
 `make runtime-provenance-experiment` requires Node 24+ and the native toolchain.
 It runs real-VM derivation, bounded-history, unavailable-evidence and public-CLI
 assertions plus CPU/RSS observations. The retention unit checks also run in
-`make check`; the complete experiment runs in Linux/macOS compiler CI. See its
+`make check`; the complete experiment runs in pull-request Linux/macOS compiler
+CI, while post-merge push checks retain the full product suite. See its
 [scope, privacy policy and findings](experiments/runtime_provenance/README.md).
 No production runtime tracing command or alternate interpreter is added.
 

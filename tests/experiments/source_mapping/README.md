@@ -3,9 +3,9 @@
 Run `make source-mapping-experiment` with the native toolchain and Node 24+.
 The target compiles `trap_probe.c`, which observes the actual VM dispatcher,
 and tests the production `compile --source-map` and `locate` commands. It runs
-in the Linux/macOS compiler CI jobs, separately from interpreter-free native
-`make check`. Canonical self-hosted unit and CLI tests cover the production
-contract without Node.
+in pull-request Linux/macOS compiler CI, separately from interpreter-free
+native `make check`. Post-merge checks retain the canonical self-hosted unit
+and CLI tests that cover the production contract without Node.
 
 ## Independently checked attribution
 

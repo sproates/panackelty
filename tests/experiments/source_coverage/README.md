@@ -1,7 +1,8 @@
 # Source-coverage feasibility — GI#131, first slice
 
 Run `make source-coverage-experiment` from the repository root with the native
-toolchain and Node 24+. This isolated experiment runs in the compiler CI jobs;
+toolchain and Node 24+. This isolated experiment runs in pull-request
+Linux/macOS compiler CI;
 it does not add Node to `make check`, instrument production execution, change
 bytecode, or produce a suite-wide coverage percentage. All temporary artifacts
 are removed by the runner. The JSON output contains exact fixture assertions,

@@ -241,7 +241,7 @@ release; existing publication correctness defects retain their separate treatmen
 
 | Area / existing work | Established target and current evidence | State, responsible role and next action |
 | --- | --- | --- |
-| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | 2026-10-12 macOS arm64: clean-check median 608.81s at two workers; warm `check-compiler` median 114.44s at two workers and 105s at four; one fresh-cache probe 0.30s. Earlier 120s/15s/75s/60s figures remain historical, not current targets. | Owner direction: audit the whole workflow, test selection/cadence, risk boundaries and waiting time; offer NFRs and improvements for the user's decision. The [local/CI inventory](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory) and [initial representative change-impact map](tests/VALIDATION_PROFILE.md#gi106-change-impact-map) are recorded. Recommendation: retain current full PR/post-merge validation while the impact map is incomplete and three recent hosted failures remain unclassified. Next, classify those failures and refine impact boundaries around native-oracle, harness, compiler-integration and bootstrap costs before selecting one bounded improvement. This delivery corrects the isolated measurement fixture and documents a direct single-probe command; product code and required test coverage are unchanged. GI#106 remains open until the user explicitly says they are happy. |
+| Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | 2026-10-12 macOS arm64: clean-check median 608.81s at two workers; warm `check-compiler` median 114.44s at two workers and 105s at four; one fresh-cache probe 0.30s. PR #389 and same-tree post-merge Check took 8m11s and 10m14s; both passed. Earlier 120s/15s/75s/60s figures remain historical. | The [local/CI inventory](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory) and [representative change-impact map](tests/VALIDATION_PROFILE.md#gi106-change-impact-map) are recorded. All three earlier `next` push failures followed green PR Checks on identical product trees; they are still unexplained. Keep both triggers until those post-merge-only failures are understood. Next, compare the paired runner environments and isolate the native timeout and CLI/runner failures. Then review the four sequential compiler-lane experiments (about 43–80s per lane) as a smaller cadence/grouping candidate. PR #389 corrected the isolated measurement fixture and documented a direct single-probe command; the current update records paired CI evidence. Product code and required test coverage are unchanged. GI#106 remains open until the user explicitly says they are happy. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
@@ -2533,16 +2533,19 @@ edits, but its tiny fixture does not establish whole-suite savings. See the
 [workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
 
 **Current recommendation:** retain full PR and post-merge validation and all
-test assertions while the change-impact map is representative and three recent
-hosted failures remain unclassified. For a bug-fix loop, run the one relevant
+test assertions: three earlier post-merge push runs failed after successful PR
+Checks on the identical source trees. For a bug-fix loop, run the one relevant
 probe, then its owning component target; run canonical `make check` before
 publishing. Worker tuning from two to four helps by about 8% on the focused
 collection, but does not address its roughly 105s duration or the clean-check
 unit/bootstrap bottlenecks. The next investigation slice is to classify those
-hosted failures and refine the regression boundary around the measured native
-oracle, harness, compiler-integration and bootstrap costs before choosing one
-bounded optimization. Do not infer suite-wide savings from the tiny probe
-matrix or preselect a cache/compiler redesign.
+paired failures by comparing runner environment and isolating their exact
+commands. Then refine the regression boundary around the measured native oracle,
+harness, compiler-integration and bootstrap costs before choosing one bounded
+optimization. The four standalone compiler-lane experiments add less wall time
+than the main compiler validation but run on both platforms at PR and push; map
+their evidence before changing their cadence. Do not infer suite-wide savings
+from the tiny probe matrix or preselect a cache/compiler redesign.
 
 Problem: `tests/run_probe.sh` fingerprints every Panackelty source under `src`,
 `tests`, `examples` and the selected standard library for each compiled probe.

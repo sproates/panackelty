@@ -573,8 +573,9 @@ acceptance remains required because these tests do not emulate GitHub's schedule
 checker records against actually changed checking and public CLI acceptance.
 It covers direct guard/effect consequences, positively justified local proof and
 ordinary-call preservation, conditional two-edit effect propagation, recovered
-caller boundaries after a type-invalid leaf, nested guard replacement and mutation invalidation. Compiler CI runs
-this separate Node-based experiment. This is not a general semantic-diff feature
+caller boundaries after a type-invalid leaf, nested guard replacement and
+mutation invalidation. Pull-request compiler CI runs this separate Node-based
+experiment. This is not a general semantic-diff feature
 or proof of transitive return guarantees; see the
 [report and limitations](experiments/semantic_impact/README.md).
 
@@ -589,8 +590,10 @@ forgeries must fail closed. Core changes, missing/stale/invalid source inputs an
 mismatched pairs do too. The old checksum forgery finding is now a rejection
 regression against local reproduction, not an accepted metadata weakness.
 
-This additional Node-based suite runs in Linux/macOS compiler CI. It observes the
-real dispatcher and does not add an interpreter dependency to `make check`.
+This additional Node-based suite runs in pull-request Linux/macOS compiler CI.
+Post-merge checks retain the regular product suite and skip the same-tree
+experiment. It observes the real dispatcher and does not add an interpreter
+dependency to `make check`.
 The [contract](../docs/SOURCE_MAPS.md) and [experiment](experiments/source_mapping/README.md)
 state limits; automatic source-aware runtime errors and programme-wide realistic
 usefulness are not claimed.

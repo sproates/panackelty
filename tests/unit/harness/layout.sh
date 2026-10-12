@@ -26,6 +26,7 @@ case_name=ci-runs-full-validation-once-per-pr-revision
 contains .github/workflows/check.yml 'group: validation-${{ github.event.pull_request.number || github.run_id }}'
 contains .github/workflows/check.yml 'cancel-in-progress: ${{ github.event_name == '"'"'pull_request'"'"' }}'
 contains .github/workflows/check.yml 'name: Package (${{ matrix.target }})'
+test "$(grep -Fc "if: matrix.suite == 'compiler' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'compiler feasibility experiments must run only on pull requests'
 pass
 case_name=release-publication-requires-every-gate
 contains .github/workflows/release.yml 'tags:

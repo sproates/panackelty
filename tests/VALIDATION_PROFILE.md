@@ -103,8 +103,9 @@ given an opt-in progress-file path. The normal native module streams are
 unchanged. The harness verifies an injected CLI exit and the progress file, and
 a controlled 20-second timeout reported its synthetic last-completed group.
 These checks validate the diagnostics, not the cause of the historical failures.
-After hosted verification, retain both triggers and review the four sequential
-compiler-lane experiments as the next cadence/grouping candidate. Do not keep
+Hosted verification completed: the corrected PR #392 head and both subsequent
+`next` push runs passed. Retain both triggers for product validation. The four
+sequential compiler-lane experiments' cadence is reviewed below; do not keep
 repeating uninstrumented full runs.
 
 The three failures were all from push-triggered Checks on `next`, after a
@@ -146,15 +147,35 @@ and aggregation; it is not a pure execution-time or queue-time measurement.
 | Hosted focused profile (2026-10-10) | Cached `check-compiler`: Linux 127s, macOS 110s; cached `check-vm`: Linux 145s, macOS 114s. | Separate alpha.12 profile, not a current `next` baseline or full-check time. |
 | Release workflow (2026-10-11) | Manual run completed in 25m33s. | One release run; its full check, two package builds and browser bundle run in a different, less frequent path. |
 
-Each full Check's two compiler package lanes run four bounded experiments in
-sequence after package validation: source mapping, runtime provenance,
-source-coverage feasibility and semantic impact. In the matched PR run these
-steps took 43s on Linux and 54s on macOS; in the push run they took 75s and 80s.
-The preceding compiler-package validation step took 4m26s/6m35s on PR Linux/macOS
-and 7m33s/8m05s on push Linux/macOS. The experiments are repeated twice per
-successful PR-to-merge cycle, but their measured time is smaller than the
-compiler-package validation. These jobs are a timing candidate; their evidence
-and change impact need review before changing their cadence.
+Before the cadence change below, each PR and push Check invoked four bounded
+experiments sequentially in both compiler package lanes: source mapping, runtime
+provenance, source-coverage feasibility and semantic impact. In the matched PR
+run these steps took 43s on Linux and 54s on macOS; in the push run they took 75s
+and 80s. The preceding compiler-package validation step took 4m26s/6m35s on PR
+Linux/macOS and 7m33s/8m05s on push Linux/macOS. Thus they ran twice per
+successful PR-to-merge cycle; these historical timings informed the cadence
+decision below.
+
+### Cadence decision — 2026-10-12
+
+Keep all four experiments on every pull request, on both supported OSes, and
+skip their repeat on the post-merge `push` event. The source-map experiment
+checks the production `compile --source-map`/`locate` path against real VM traps;
+the normal compiler unit/CLI suite also covers the shipped source-map contract.
+Runtime provenance has retention unit coverage in `make check`; source-coverage
+feasibility and semantic impact remain bounded research experiments without
+production interfaces. The pull-request run gives each change the complete
+experiment coverage before merge. The `next` push still runs the complete
+compiler, runtime, bootstrap, sanitizer, coverage, package and source/bytecode
+conformance gates; only the four same-tree experiments are skipped.
+
+In the matched sample above, the four experiments used 75s on Linux and 80s on
+macOS during the push run (155 runner-seconds total). Skipping them removes that
+work from the post-merge compiler lanes and is expected to shorten the critical
+path by up to about 80s, depending on which remaining gate finishes last. This
+is a cadence change, not a product-test reduction. The first post-merge run after
+the change must confirm the experiments are skipped while all product gates
+still pass.
 
 The 2026-10-12 clean profile measured 420–427s in the unit phase and 138–140s
 in bootstrap; the functional phase took 13–14s. Within unit, native contracts

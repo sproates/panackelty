@@ -2530,7 +2530,8 @@ four workers. A directly selected lexer probe executed its 13 assertions in
 0.30s with a fresh cache. The probe edit matrix shows the broad source
 fingerprint recompiles a probe after unrelated, direct and transitive source
 edits, but its tiny fixture does not establish whole-suite savings. See the
-[workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
+[GI#106 findings and options](tests/VALIDATION_PROFILE.md#gi106-findings-and-options)
+and [workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
 
 **Current recommendation:** retain full PR and post-merge validation and all
 product-test assertions while GI#106 assesses the workflow. Three earlier

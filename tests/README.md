@@ -519,6 +519,10 @@ full acceptance paths and hosted CI partitions. It also records where overlap is
 known at recipe/fixture level and where assertion-level equivalence is still
 unproven.
 
+The [GI#106 findings and options](VALIDATION_PROFILE.md#gi106-findings-and-options)
+summarise the current measurements, their limits and the workflow choices still
+under consideration.
+
 The native integration envelope remains full for every non-document component. Existing focused `check-compiler`, `check-bytecode` and `check-vm`
 targets help during development but do not replace acceptance checks. The
 launcher builds the native VM, Panackelty probes execute on it, and packaging and

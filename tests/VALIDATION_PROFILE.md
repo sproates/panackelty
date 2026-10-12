@@ -63,6 +63,48 @@ These results are not classified as flakes or attributed to runner contention;
 the failed commands need the change-impact/reliability review before proposing
 any validation reduction.
 
+### Matched runner environment and failure detail — 2026-10-12
+
+The six matched compiler/runtime jobs used the same GitHub Actions runner and
+base-image versions within each PR/push pair. For PR #379's Linux compiler
+pair, both used runner `2.337.0`, Hosted Compute Agent `20261002.596`, Ubuntu
+`22.04.5`, and image `ubuntu-22.04` version `20261004.315.1`
+([image release](https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20261004.315)).
+The worker instances and Azure regions differed (PR: `northcentralus`; push:
+`westus3`). For PRs #380 and #386's macOS runtime pairs, all four jobs used
+runner `2.337.0`, Hosted Compute Agent `20260828.587`, macOS `14.8.9` build
+`23J631`, and image `macos-14-arm64` version `20260831.0302.1`
+([image release](https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260831.0302));
+all ran in Azure `westus` on distinct worker instances. No runner or base-image
+version drift is visible in these pairs. The different PR/push event contexts
+and distinct workers remain uncontrolled; these observations do not establish
+the cause or justify calling the failures flakes.
+
+The job logs narrow the symptoms but do not give root causes. In run
+[38165872429](https://github.com/sproates/panackelty/actions/runs/38165872429/job/114548252555),
+source and compile passed for `case/cli_commands`, then bytecode returned 1
+instead of 0; the enclosing runner reports only an unexpected child status.
+In run
+[38169886896](https://github.com/sproates/panackelty/actions/runs/38169886896/job/114560150898),
+the fixture runner stopped with exit 1 after its captured output reached
+`PASS case/async_await/source`, and `case/cli_commands/source` also returned 1
+while its compile and bytecode modes passed. In run
+[38181425075](https://github.com/sproates/panackelty/actions/runs/38181425075/job/114594683930),
+the `native module contracts` process timed out; its test binary prints a
+summary only after all contracts finish, so the log does not identify the
+contract that stalled. Timing profiles and package artifacts are retained, but
+they do not add the missing child diagnostics. Keep the PR and post-merge
+checks unchanged.
+
+Next, make one bounded diagnostics change for these paths: report failure-only,
+bounded child status/diagnostics for the CLI fixture and add opt-in progress
+markers to the native module contract groups. Verify normal output remains
+unchanged and that an induced failure/timeout identifies its stage. Re-run the
+targeted cases on the supported CI platforms without weakening the full Check.
+If those observations still do not reveal a cause, preserve both triggers and
+move on to the separately measured compiler-lane experiment cadence review;
+do not keep repeating uninstrumented full runs.
+
 The three failures were all from push-triggered Checks on `next`, after a
 successful full Check for the corresponding PR. The merge commit tree exactly
 matched the PR head tree in each pair: PR #379 / push run
@@ -75,10 +117,10 @@ used `05d9567`. The paired PR Checks were
 [38165222655](https://github.com/sproates/panackelty/actions/runs/38165222655),
 [38169249184](https://github.com/sproates/panackelty/actions/runs/38169249184),
 and [38180632594](https://github.com/sproates/panackelty/actions/runs/38180632594),
-all successful. This shows that the post-merge runs found failures not seen in
-the corresponding PR runs; identical source trees do not establish identical
-runner conditions or explain the failures. Keep post-merge validation until the
-causes are understood.
+all successful. These are same-tree, same-base-image pairs with different
+trigger contexts; the environment comparison rules out image-version drift as
+an evident explanation, but does not explain the failures. Keep post-merge
+validation until the causes are understood.
 
 In successful full run [38179461414](https://github.com/sproates/panackelty/actions/runs/38179461414),
 the workflow completed in 8m47s. The `changes` job started two seconds after

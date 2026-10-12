@@ -371,10 +371,11 @@ with `make clean` where applicable, then inspect `git status` and the final diff
 Never weaken required coverage to make validation pass. If checks cannot run,
 identify the limitation and unverified behavior.
 
-A clean `make check` has a 120-second reference-environment budget; a focused
-incremental check with the toolchain built has a 15-second budget. Report timing,
-apply each budget to its stated workload, and follow the performance disposition
-process for breaches. Preserve required coverage when improving validation speed.
+The former 120-second clean `make check` and 15-second focused incremental-check
+figures are historical comparisons under GI#106, not active acceptance budgets.
+Report the workload and observed timing, and follow the performance disposition
+process for material changes. Preserve required coverage when improving
+validation speed.
 
 Keep the VM as the only execution engine, source compilation before execution,
 the purity boundary, exact numeric semantics, bytecode verification and runtime

@@ -2558,6 +2558,14 @@ on a reused build tree (unit 241s, functional 13s, bootstrap 137s, release smoke
 acceptance gates, and this is not a clean-check speedup comparison.
 The separate-compilation work is design-only, captured in
 [`docs/GI106_SEPARATE_COMPILATION_DESIGN.md`](docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
+**Local full-check phase-overlap pilot (2026-10-13):** the serial recipe took
+422.80s on a clean macOS arm64 run; overlapping unit (three workers) with
+bootstrap (one worker) took 335.77s on the paired clean run. Both passed every
+phase, saving 87.03s (20.6%) in this single observation. User CPU time increased
+from 672.65s to 718.61s, so the elapsed-time gain uses more concurrent CPU. Cache
+state was uncontrolled and this is one pair; it is a promising local pilot, not
+a stable cross-host claim or GI#106 acceptance. Details and phase timings are in
+the [validation profile](tests/VALIDATION_PROFILE.md#local-full-check-phase-overlap-pilot--2026-10-13).
 **Earlier baseline evidence (2026-10-12):** on macOS arm64, a clean `make check`
 at two validation workers passed three times with a 608.81s median; the warm
 `check-compiler` collection took 114.44s at two workers and 105s at the default

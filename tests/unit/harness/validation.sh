@@ -144,3 +144,4 @@ for invalid in 0 33 invalid; do
     test ! -f "$work/runtime/native.started" && test ! -f "$work/runtime/probes.started" || fail 'invalid worker count performed work'
 done
 pass
+sh tests/unit/harness/check_phases.sh

@@ -5624,3 +5624,31 @@ implementation changed; the direct fixture itself took 0.6s. Exact-head
 Linux/macOS CI for this final acceptance delivery is pending. Website impact:
 none; this is an internal acceptance test and makes no shipped behavior or
 website claim.
+
+## Local full-check phase-overlap pilot — 2026-10-13
+
+The local `check-phases` recipe now prepares native prerequisites, overlaps the
+unit suite with the bootstrap proof, then runs functional validation and
+quick-start/package checks. At `VALIDATION_JOBS=4`, the pilot assigns three
+workers to unit and one to bootstrap. A helper regression checks concurrency,
+worker allocation, isolated bootstrap artifacts and runner reports, serial
+one-worker behavior, and failure propagation from either phase. No test phase
+or assertion is removed.
+
+One clean paired run on the macOS arm64 development host compared the original
+serial recipe at tracked base `6f8c67c` with the pilot. Each run started with
+fresh project build outputs; both commands passed:
+
+| Run | Unit | Bootstrap | Functional | Release smoke | Quick start | Total wall time | Process CPU time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Serial baseline | 239s | 138s | 13s | 5s | 1s | 422.80s | 672.65s user + 37.89s system |
+| Pilot, unit 3 + bootstrap 1 in parallel | 291s | 209s | 13s | 4s | 1s | 335.77s | 718.61s user + 38.19s system |
+
+The pilot reduced this pair's wall time by 87.03s (20.6%). The overlapping
+phases used about 6.8% more user CPU time, so this trades higher concurrent
+resource use for shorter elapsed time. This is one pair, with uncontrolled OS
+cache state and no repeat set; treat it as evidence that the scheduling change
+can help on this host, not a stable speed guarantee across machines. The
+historical 120s/15s/75s/60s figures remain non-gating under the owner's GI#106
+direction. This pilot does not complete GI#106, which remains open until the
+user says they are happy. Website impact: none.

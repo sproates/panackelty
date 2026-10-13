@@ -131,9 +131,12 @@ only for full-validation PRs targeting `main`; ordinary `next` PRs and pushes ru
 the fast reader/policy/routing tests without collecting the corpus. An explicit
 `next` refresh push opts in by including `[source-coverage]` in its head commit
 message (for example `git commit --allow-empty -m 'Refresh report [source-coverage]'`
-followed by `git push origin next`). This is an intentional expensive report
-refresh, not a requirement for a task slice. Promotion still requires separate
-owner approval. Documentation-only changes retain the short route.
+followed by `git push origin next`). This runs the source collection on top of
+the route's usual checks, including when the change itself is documentation-only;
+it does not select product validation or package builds. This is an intentional
+expensive report refresh, not a requirement for a task slice. Promotion still
+requires separate owner approval. Unmarked documentation-only changes retain
+the short route.
 
 The separate source job creates
 `source-coverage-RUN_ID` only after collection succeeds. The independent

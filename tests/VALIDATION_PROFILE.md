@@ -5652,3 +5652,50 @@ can help on this host, not a stable speed guarantee across machines. The
 historical 120s/15s/75s/60s figures remain non-gating under the owner's GI#106
 direction. This pilot does not complete GI#106, which remains open until the
 user says they are happy. Website impact: none.
+
+## Cold compiler integration probe overlap — 2026-10-13
+
+The compiler integration probe compiled two expensive fixtures serially inside
+one runner: the driver probe and the loader snapshot probe. The runner now
+supports four independent groups (frontend, namespaces, driver and snapshot).
+`make unit-compiler` and `make check-compiler` prepare the integration runner
+once, then execute all four groups with the existing bounded probe worker pool.
+Every group uses an isolated temporary workspace. No assertions were removed;
+all-mode still runs the whole probe in one process.
+
+On the macOS 26.5 arm64 development host, with native and stage-2 compiler
+prerequisites already built, `VALIDATION_JOBS=4`, and a fresh isolated
+probe cache for each observation, the cold integration results were:
+
+| Layout | Three elapsed samples | Median | Assertions |
+| --- | --- | ---: | ---: |
+| Original serial runner | 52s, 55s, 53s | 53s | 133 passed each run |
+| Four grouped probes | 31s, 32s, 31s | 31s | 27 + 72 + 33 + 1 passed each run |
+
+The median fell by 22s (about 42%). Profiling shows the driver and snapshot
+fixture compilations overlap after the change; previously their approximately
+25–30s compile costs were sequential. This is a repeatable improvement to the
+cold compiler integration slice, not a clean `make check` result. The original
+samples used the ungrouped source from base `ab95e38`; two repetitions ran that
+same source content under a temporary filename so the candidate working tree
+could remain intact. Each observation used a fresh probe cache, so this comparison
+does not depend on bytecode-cache hits.
+
+Three warm `make unit-compiler` samples were 16s before and 14s after, measured
+at one-second granularity. That small difference is not strong evidence of a
+whole-unit-suite speedup. The experiment is from one host, and CPU use under
+overlap was not measured. With an entirely empty probe cache, three additional
+end-to-end invocations took 57.89s, 58.01s and 57.39s; all 133 assertions
+passed. Their profiles show about 27s rebuilding `compiler.panack` as the
+stage-2 seed before the integration checks. This seed build is a prerequisite
+of both layouts. Those totals are not compared with the original 52–55s samples,
+which began with stage 2 already built. The required canonical `make check` and
+exact-head hosted checks determine correctness of the delivery; GI#106 remains open until
+the user says they are happy. Website impact: none; this changes local test
+scheduling only.
+
+The canonical `make check` on this branch then passed in 244s on the reused
+build tree: unit 161s, bootstrap 200s overlapped with unit, functional 14s,
+release smoke 4s and quick start under 1s. All 370 functional cases passed.
+This validates the local tree, but it is not a clean or matched timing
+comparison and does not establish a whole-check speedup.

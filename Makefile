@@ -1,4 +1,4 @@
-.PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean identity-root-audit
+.PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean identity-root-audit compiler-integration-probe
 
 CFLAGS ?= -O2
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
@@ -48,6 +48,12 @@ STAGE3_COMPILER := $(BOOTSTRAP_DIR)/stage3/compiler.bc
 STAGE1_STDLIB := $(BOOTSTRAP_DIR)/stage1/stdlib-conformance.bc
 STAGE2_STDLIB := $(BOOTSTRAP_DIR)/stage2/stdlib-conformance.bc
 STAGE3_STDLIB := $(BOOTSTRAP_DIR)/stage3/stdlib-conformance.bc
+COMPILER_INTEGRATION_SOURCE := tests/runner/compiler_integration_unit.panack
+COMPILER_INTEGRATION_GROUPS := \
+	$(COMPILER_INTEGRATION_SOURCE)::frontend \
+	$(COMPILER_INTEGRATION_SOURCE)::namespaces \
+	$(COMPILER_INTEGRATION_SOURCE)::driver \
+	$(COMPILER_INTEGRATION_SOURCE)::snapshot
 export PANACK_PROBE_CACHE := $(abspath $(BUILD_DIR))/probes
 export PANACK_PROBE_SEED := $(abspath $(SEED_COMPILER))
 
@@ -70,11 +76,11 @@ test: check
 check-compiler: native
 	@$(TIMED) check-compiler $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-compiler-impl
 
-check-compiler-impl: $(STAGE2_COMPILER)
+check-compiler-impl: $(STAGE2_COMPILER) compiler-integration-probe
 	@$(PROFILE) harness/compiler sh tests/harness.sh compiler
 	@$(PROFILE) seed-refresh/failure-contracts sh tests/seed_refresh.sh
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) $(COMPILER_INTEGRATION_GROUPS) \
 		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \
@@ -101,6 +107,9 @@ check-compiler-impl: $(STAGE2_COMPILER)
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) functional/cli-explanations $(PROBE) tests/runner/main.panack --case cli_explanations
 	@$(PROFILE) functional/case/cli_commands $(PROBE) tests/runner/main.panack --case cli_commands
 	@$(PROFILE) functional/failures $(PROBE) tests/runner/main.panack --failures-only
+
+compiler-integration-probe: native $(STAGE2_COMPILER)
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROFILE) probe-prepare/compiler-integration_unit $(PROBE) --compile $(COMPILER_INTEGRATION_SOURCE) "$(BUILD_DIR)/compiler-integration-unit.bc"
 
 check-bytecode: native native-module-build
 	@$(TIMED) check-bytecode $(INCREMENTAL_BUDGET_SECONDS) $(MAKE) --no-print-directory check-bytecode-impl
@@ -150,9 +159,9 @@ unit-runtime-probes:
 		tests/runner/bytecode_native_unit.panack
 	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" $(PROFILE) probe/package_filesystem_unit $(PROBE) tests/runner/package_filesystem_unit.panack
 
-unit-compiler: native $(STAGE2_COMPILER)
+unit-compiler: native $(STAGE2_COMPILER) compiler-integration-probe
 	@$(MAKE) --no-print-directory native-oracle-artifacts
-	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) tests/runner/compiler_integration_unit.panack \
+	@PANACK_PROBE_SEED="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" $(PROBES) $(COMPILER_INTEGRATION_GROUPS) \
 		tests/runner/compiler_contracts_unit.panack \
 		tests/runner/compiler_checker_unit.panack \
 		tests/runner/compiler_purity_unit.panack \

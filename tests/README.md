@@ -376,11 +376,15 @@ No fault-injection controls enter production.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
-`make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
-rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. The probes use fixed expectations;
-their provenance is recorded in
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
+`make unit` and `make check-compiler`. The integration probe is prepared once,
+then runs its frontend (27), namespace (72), driver (33) and snapshot (1)
+groups through the bounded worker pool. Each group keeps its own temporary
+workspace; together they retain the full assertion set while allowing the
+independent driver and snapshot fixture compilations to overlap. They cover
+emitter instructions, diagnostic rendering and source snapshots, loader/imports
+and driver commands, generics, inference, types and host boundaries. The probes
+use fixed expectations; their provenance is recorded in
 `tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.
 
 

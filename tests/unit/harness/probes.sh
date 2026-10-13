@@ -211,6 +211,22 @@ case_name=parallel-probes-preserve-order-streams-and-failures
 cat > tests/run_probe.sh <<'PROBE'
 #!/bin/sh
 set -eu
+if [ "$1" = grouped.panack ]; then
+    case "$PANACK_PROBE_GROUP" in
+        frontend)
+            attempts=0
+            while [ ! -f grouped-snapshot-started ] && [ "$attempts" -lt 5 ]; do
+                sleep 1
+                attempts=$((attempts + 1))
+            done
+            test -f grouped-snapshot-started || exit 9 ;;
+        snapshot) touch grouped-snapshot-started ;;
+    esac
+    printf 'group %s out\n' "$PANACK_PROBE_GROUP"
+    printf 'group %s err\n' "$PANACK_PROBE_GROUP" >&2
+    test "$PANACK_PROBE_GROUP" != failed || exit 7
+    exit
+fi
 case "$1" in
     first)
         attempts=0
@@ -239,6 +255,33 @@ for jobs in 1 2; do
     printf 'failed err\nsecond err\nlast err\n' > expected
     equal_files expected errors
 done
+case_name=parallel-grouped-probes-preserve-group-and-order
+VALIDATION_JOBS=2 sh tests/run_probes.sh grouped.panack::frontend grouped.panack::snapshot > actual 2> errors
+printf 'group frontend out\ngroup snapshot out\n' > expected
+equal_files expected actual
+printf 'group frontend err\ngroup snapshot err\n' > expected
+equal_files expected errors
+pass
+
+case_name=parallel-grouped-probes-propagate-failure
+status=0
+VALIDATION_JOBS=2 sh tests/run_probes.sh grouped.panack::failed grouped.panack::snapshot > actual 2> errors || status=$?
+test "$status" = 7 || fail 'grouped probe batch lost failed status'
+printf 'group failed out\ngroup snapshot out\n' > expected
+equal_files expected actual
+printf 'group failed err\ngroup snapshot err\n' > expected
+equal_files expected errors
+pass
+
+case_name=grouped-probes-reject-invalid-group-names
+if sh tests/run_probes.sh grouped.panack::invalid/group > actual 2> errors; then
+    fail 'grouped probe accepted invalid group name'
+fi
+test ! -s actual || fail 'invalid group performed probe work'
+contains errors 'invalid grouped probe'
+pass
+
+case_name=probe-concurrency-rejects-invalid-worker-count
 for jobs in 0 -1 invalid 33; do
     if VALIDATION_JOBS=$jobs sh tests/run_probes.sh first > actual 2> errors; then
         fail "accepted invalid concurrency: $jobs"

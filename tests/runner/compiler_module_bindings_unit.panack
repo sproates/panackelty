@@ -496,7 +496,8 @@ pure module_emission_bodies_with_status(
         body.parameters,
         body.body,
         body.deferred,
-        status
+        status,
+        body.return_type_evidence
       ))
     } else {
       result = append(result, body)
@@ -1536,6 +1537,22 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): Void { value = \"hello\"; }",
     false
   )
+  explained_return_type: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { 5 }",
+    true
+  )
+  ordinary_return_type: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { 5 }",
+    false
+  )
+  rejected_return_type: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { \"wrong\" }",
+    true
+  )
+  unavailable_return_type: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { missing }",
+    true
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -1553,6 +1570,36 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_inferred_local.functions) == 1 &&
       body_binding_inference_marker(ordinary_inferred_local.functions[0].body.children[0]) == None(),
     "ordinary check retained explanation-only inference metadata"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted function return evidence",
+    len(explained_return_type.functions) == 1 && match explained_return_type.functions[0].return_type_evidence {
+      None() => false,
+      Some(evidence) => evidence.accepted == Some(true)
+    },
+    "accepted return compatibility evidence was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected function return evidence",
+    len(rejected_return_type.functions) == 1 && match rejected_return_type.functions[0].return_type_evidence {
+      None() => false,
+      Some(evidence) => evidence.accepted == Some(false)
+    },
+    "rejected return compatibility evidence was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable function return evidence",
+    len(unavailable_return_type.functions) == 1 && match unavailable_return_type.functions[0].return_type_evidence {
+      None() => false,
+      Some(evidence) => evidence.accepted == None()
+    },
+    "unavailable return compatibility evidence was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no function return evidence",
+    len(ordinary_return_type.functions) == 1 &&
+      ordinary_return_type.functions[0].return_type_evidence == None(),
+    "ordinary checking retained explanation-only return evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

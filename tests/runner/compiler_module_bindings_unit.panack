@@ -1773,6 +1773,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }",
     false
   )
+  accepted_rooted_filesystem_read_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }",
+    true
+  )
+  rejected_rooted_filesystem_read_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }",
+    true
+  )
+  rejected_rooted_filesystem_read_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }",
+    false
+  )
+  unavailable_rooted_filesystem_read_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }",
+    true
+  )
+  unavailable_rooted_filesystem_read_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }",
+    false
+  )
+  ordinary_rooted_filesystem_read_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }",
+    false
+  )
   accepted_filesystem_query_arguments: CheckedModuleBodies = body_test_module_mode(
     "pure f(path: Path): Void { fs_metadata(path); fs_list(path); }",
     true
@@ -2255,6 +2279,49 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_filesystem_io_arguments.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_filesystem_io_arguments.functions[0].body)) == 0,
     "ordinary checking retained explanation-only filesystem IO evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted rooted filesystem read arguments",
+    len(accepted_rooted_filesystem_read_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_rooted_filesystem_read_arguments.functions[0].body)) == 3 &&
+      body_call_argument_evidence(accepted_rooted_filesystem_read_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_rooted_filesystem_read_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_rooted_filesystem_read_arguments.functions[0].body)[2].expected == SignatureType(SignatureCore("Nat"), []),
+    "accepted rooted filesystem read arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected rooted filesystem read argument",
+    len(rejected_rooted_filesystem_read_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_rooted_filesystem_read_argument.functions[0].body)) == 3 &&
+      body_call_argument_evidence(rejected_rooted_filesystem_read_argument.functions[0].body)[0].accepted == Some(false) &&
+      body_call_argument_evidence(rejected_rooted_filesystem_read_argument.functions[0].body)[1].accepted == Some(true) &&
+      body_call_argument_evidence(rejected_rooted_filesystem_read_argument.functions[0].body)[2].accepted == Some(true),
+    "rejected rooted filesystem read argument or accepted siblings were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "rooted filesystem read explanation preserves rejected diagnostics",
+    rejected_rooted_filesystem_read_argument.diagnostics == rejected_rooted_filesystem_read_argument_ordinary.diagnostics,
+    "rooted filesystem read evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable rooted filesystem read argument",
+    len(unavailable_rooted_filesystem_read_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_rooted_filesystem_read_argument.functions[0].body)) == 3 &&
+      body_call_argument_evidence(unavailable_rooted_filesystem_read_argument.functions[0].body)[0].accepted == None() &&
+      body_call_argument_evidence(unavailable_rooted_filesystem_read_argument.functions[0].body)[1].accepted == Some(true) &&
+      body_call_argument_evidence(unavailable_rooted_filesystem_read_argument.functions[0].body)[2].accepted == Some(true),
+    "unavailable rooted filesystem read argument or accepted siblings were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "rooted filesystem read explanation preserves unresolved diagnostics",
+    unavailable_rooted_filesystem_read_argument.diagnostics == unavailable_rooted_filesystem_read_argument_ordinary.diagnostics,
+    "unavailable rooted filesystem read evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no rooted filesystem read argument evidence",
+    len(ordinary_rooted_filesystem_read_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_rooted_filesystem_read_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only rooted filesystem read evidence"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted filesystem query arguments",

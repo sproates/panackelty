@@ -725,6 +725,9 @@ ordinary checking.
 Filesystem I/O cases cover `fs_read` and `fs_write` input types, accepted and
 rejected sibling outcomes, unavailable values, unchanged diagnostics, and no
 evidence during ordinary checking.
+Rooted filesystem read cases cover the root and relative `Path` and `Nat` limit
+arguments to `fs_read_beneath`, including accepted, rejected, unavailable and
+independent sibling evidence with diagnostic parity.
 Filesystem query cases cover `fs_metadata` and `fs_list` Path inputs, including
 accepted, rejected and unavailable evidence, diagnostic parity, and empty
 ordinary-check evidence.

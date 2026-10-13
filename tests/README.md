@@ -216,20 +216,22 @@ retains them as a per-run artifact so timing regressions remain visible.
 is hosted independently by
 [`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage).
 Core Check still generates and uploads `native-coverage-<run-id>` artifacts with
-90-day retention. The separate publisher uses its built-in GitHub token to read
-public artifacts; it needs no new credential. It checks about every 15 minutes
-and supports manual dispatch. GitHub may delay schedules and disables scheduled
-workflows in inactive public repositories after 60 days; maintainers should check
-that repository's Actions status if the public report stops advancing.
+90-day retention. Source coverage artifacts are generated for full-validation
+promotion PRs or an explicitly requested release-candidate refresh; ordinary
+`next` edits do not collect the corpus. The separate publisher uses its built-in
+GitHub token to read public artifacts; it needs no new credential. Production
+publication is on demand through **Coverage Pages → Run workflow** on the
+coverage repository's `main` branch; schedules and push-triggered publishing are
+disabled. See [release preparation](../RELEASE_POLICY.md#release-gate).
 
-Only completed successful trusted main-push Check reports are eligible. The
-publisher validates source ancestry, artifact identity and report navigation,
-serializes deployments, rechecks selection before publishing and prevents rollback
-behind the live report. Its landing page and `provenance.json` identify the core
-source, Check run, artifact and archive date. It verifies every deployed report
-file. Missing/expired reports, API errors and failed validation leave the last
-published report visible; investigate that repository's workflow and rerun a full
-core Check if a fresh artifact is needed. Publishing does not execute core code.
+The publisher selects completed successful trusted native `main` push reports
+and source `next` push reports. It validates source ancestry, artifact identity and
+report navigation, serializes deployments, rechecks selection before publishing
+and prevents rollback behind the live report. Its landing page and
+`provenance.json` identify the core source, Check run, artifact and archive date.
+It verifies every deployed report file. Missing/expired reports, API errors and
+failed validation leave the last published report visible; investigate that
+repository's workflow before retrying. Publishing does not execute core code.
 
 Website publication never selects, downloads or verifies those report bytes.
 The website retains `/coverage/` and `/coverage/html/` as links to the new report;

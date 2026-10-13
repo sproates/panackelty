@@ -24,6 +24,10 @@ Positioning copy.
 [Roadmap](ROADMAP.md)
 <!-- validation:positioning-copy-end -->
 ## Exact fractions and Unit
+<!-- validation:coverage-publication-copy-begin -->
+Browse the coverage report. Publisher behavior is described here.
+<!-- validation:coverage-publication-copy-end -->
+Direct bytecode/verification coverage runs in the test suite.
 README
     printf 'int main(void) { return 0; }\n' > src/main.c
     git add .
@@ -42,6 +46,14 @@ reject_docs() {
 fixture
 printf '\nNext step\n' >> ROADMAP.md
 commit; route docs
+bash "$root/scripts/check_docs.sh" >/dev/null
+# The bounded public-coverage publication guidance is also informational.
+fixture
+awk '{ if ($0 ~ /Publisher behavior is described here/) sub(/Publisher behavior is described here/, "Publication is on demand."); print }' README.md > "$work/readme"
+mv "$work/readme" README.md
+commit; route docs
+plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+[[ "$plan" == $'route=docs\ncomponents=documentation\nchecks=documents,links,whitespace' ]] || fail 'README coverage publication plan'
 bash "$root/scripts/check_docs.sh" >/dev/null
 # Copy inside the explicit README positioning region takes the docs route.
 fixture
@@ -103,7 +115,7 @@ ln -s ARCHITECTURE.md ROADMAP.md
 commit; route full
 reject_docs 'symlink document'
 # Unknown, packaged, executable, specification and policy changes stay full.
-for path in README.md SPEC.md VERSION CHANGELOG.md RELEASE_POLICY.md \
+for path in README.md SPEC.md VERSION CHANGELOG.md \
     tests/functional/input.md docs/new.md \
     'notes with spaces.md' $'notes\nnewline.md'; do
     fixture
@@ -112,7 +124,8 @@ for path in README.md SPEC.md VERSION CHANGELOG.md RELEASE_POLICY.md \
     commit; route full
 done
 # Reviewed process prose is not consumed by builds, packages or fixtures.
-for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md .github/pull_request_template.md; do
+for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md RELEASE_POLICY.md \
+    docs/SOURCE_COVERAGE_BASELINE.md .github/pull_request_template.md; do
     fixture
     mkdir -p "$(dirname "$path")"
     printf '# Process\n' > "$path"

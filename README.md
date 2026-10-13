@@ -760,6 +760,7 @@ For reproducible local build/validation measurements, see the
 [bounded baseline harness](tests/README.md#reproducible-build-and-validation-baseline).
 It runs in a disposable checkout and retains exact candidate inputs and repeated
 clean, warm and dependency-edit observations outside the source tree.
+<!-- validation:coverage-publication-copy-begin -->
 
 Browse the [public native VM coverage report](https://sproates.github.io/panackelty-coverage/)
 for LLVM line/branch results and source navigation without downloading an
@@ -767,10 +768,13 @@ artifact. The landing page identifies the coverage commit, archive date and
 successful validation run. This measures the native C VM corpus, not the
 self-hosted compiler or whole-language coverage. The separate
 [`panackelty-coverage`](https://github.com/sproates/panackelty-coverage) publisher
-checks for eligible reports about every 15 minutes; website publication does not
-wait for it. Documentation-only updates leave the previous report in place; failed validation or publication leaves the last
-published report visible. See [publication details](tests/README.md#public-coverage-publication).
+publishes only when manually dispatched during release preparation. It does not
+poll on a schedule or publish on pushes. Documentation-only updates leave the
+previous report in place; failed validation or publication leaves the last
+published report visible. See [publication details](tests/README.md#public-coverage-publication)
+and the [release gate](RELEASE_POLICY.md#release-gate).
 
+<!-- validation:coverage-publication-copy-end -->
 Direct bytecode/verification coverage runs in
 `tests/runner/bytecode_unit.panack`, `tests/runner/bytecode_native_unit.panack`
 and the native C verifier contracts in `tests/unit/vm/native_modules.c`.

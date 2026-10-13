@@ -26,6 +26,20 @@ Merging to `main` runs checks and creates CI artifacts; it does not publish a
 release. Prepare version and changelog updates in a release PR. Keep verified download
 links and installer defaults on the published version until the new archives
 pass public-artifact verification, then promote them in a follow-up.
+
+Before promoting a release candidate, refresh the Panackelty source coverage
+report deliberately: push a `next` commit whose message includes
+`[source-coverage]`, wait for its Core Check run and source artifact to succeed,
+then manually dispatch **Coverage Pages** on the coverage repository's `main`
+branch. Verify the published `source/provenance.json` and
+`source/summary.json` identify that candidate. This is the expensive collection
+step; ordinary edits and release-workflow validation do not run it. The Release
+workflow has a lightweight gate that checks the published report belongs to
+`sproates/panackelty`'s `next` source channel, its commit is in the release
+history, and no source, test, seed, or collection inputs changed after it was
+measured. If any check fails, refresh and publish coverage again before
+releasing.
+
 After its required checks pass and it is merged, use either release entry point:
 
 - Push an annotated version tag on the merged commit. Its message supplies the

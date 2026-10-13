@@ -150,15 +150,19 @@ approval. Core `main` is not changed by this programme item.
 
 ## Operator rule: refresh with a fresh publication run
 
-To publish an existing validated artifact, start a **new** Coverage Pages run on
-the publisher main branch using workflow_dispatch. In GitHub Actions select
-Coverage Pages, Run workflow, branch main, then Run workflow. If the connector
-cannot dispatch workflows, use the authorised GitHub browser fallback; do not
-substitute a rerun of an old successful production run.
+For release preparation, first create a fresh successful source-coverage artifact
+on the `next` release candidate by including `[source-coverage]` in its commit
+message. Then start a **new** Coverage Pages run on the publisher main branch
+using workflow_dispatch. In GitHub Actions select Coverage Pages, Run workflow,
+branch main, then Run workflow. If the connector cannot dispatch workflows, use
+the authorised GitHub browser fallback; do not substitute a rerun of an old
+successful production run.
 
 Rerunning preparation can leave multiple artifacts named github-pages in one
 workflow run; deploy-pages rejects the ambiguous selection. On 2026-10-06 a rerun
 of 37378463006 hit that exact failure. A fresh run has its own artifact namespace.
 Verify prepare, deploy and every-live-file verification, then confirm source
-provenance matches the intended core commit before recording acceptance. No
-publisher code change or core main promotion is required to refresh the report.
+provenance matches the intended core candidate before promoting it. The core
+Release workflow independently checks this provenance, ancestry, and unchanged
+coverage inputs before it allows package validation to start. No publisher code
+change is required to refresh the report.

@@ -5954,6 +5954,22 @@ or a general latency guarantee. Argument evidence is retained only for
 explanation queries; ordinary checking retains none, and runtime and bytecode
 are unchanged.
 
+## SP1 clean-installed local-package release-gate preparation — 2026-10-13
+
+On the macOS arm64 development host, `make release-smoke` passed in 4s using a
+locally built archive. The smoke relocated the toolchain, then checked, ran and
+compiled two independent apps consuming one shared local library; after moving
+the entire sibling app/library tree, both apps passed checks and source runs and
+their pre-move bytecode ran from an unrelated working directory. `make check`
+also completed with no failing phase in 340s on a reused build tree; release
+smoke took 4s and quick start 1s. `make docs` and shell syntax checks passed.
+
+This validates the new artifact-level regression on `next`; it is not a public
+release-candidate verification. The local archive used the existing `VERSION`
+value, and Linux/macOS release artifacts, browser validation and release
+promotion remain separate acceptance work. The full-check timing is recorded
+for context and does not reopen GI#106.
+
 The final `make check` passed in 262s: unit 180s, bootstrap 216s, and
 functional 14s; unit and bootstrap ran concurrently. The module-binding unit
 suite passed 725 assertions, the functional suite passed 370 cases, and the

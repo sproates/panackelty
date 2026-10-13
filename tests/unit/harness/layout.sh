@@ -26,7 +26,16 @@ case_name=ci-runs-full-validation-once-per-pr-revision
 contains .github/workflows/check.yml 'group: validation-${{ github.event.pull_request.number || github.run_id }}'
 contains .github/workflows/check.yml 'cancel-in-progress: ${{ github.event_name == '"'"'pull_request'"'"' }}'
 contains .github/workflows/check.yml 'name: Package (${{ matrix.target }})'
-test "$(grep -Fc "if: matrix.suite == 'compiler' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'compiler feasibility experiments must run only on pull requests'
+test "$(grep -Fc "if: matrix.suite == 'compiler' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'platform compiler experiments must run only on pull requests'
+test "$(grep -Fc "if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'next compiler experiments must run once in the focused lane'
+pass
+case_name=nightly-package-workflow-targets-next
+contains .github/workflows/nightly-packages.yml 'schedule:'
+contains .github/workflows/nightly-packages.yml "ref: \${{ inputs.branch || 'next' }}"
+contains .github/workflows/nightly-packages.yml 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]'
+contains .github/workflows/nightly-packages.yml 'make check-no-interpreter CI_SUITE=${{ matrix.suite }}'
+contains .github/workflows/nightly-packages.yml 'echo "sha=$(git rev-parse HEAD)"'
+contains .github/workflows/nightly-packages.yml 'name: panackelty-${{ matrix.target }}-${{ steps.source.outputs.sha }}'
 pass
 case_name=release-publication-requires-every-gate
 contains .github/workflows/release.yml 'tags:
@@ -110,6 +119,10 @@ awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
 sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
+make source-mapping-experiment
+make runtime-provenance-experiment
+make source-coverage-experiment
+make semantic-impact-experiment
 make native-sanitize CC=clang SANITIZE_SUITE="${SANITIZE_JOB#sanitize-}"
 |
 make native-coverage LLVM_CC=/usr/bin/clang-18 LLVM_COV=/usr/bin/llvm-cov-18 LLVM_PROFDATA=/usr/bin/llvm-profdata-18
@@ -122,7 +135,7 @@ for tool in clang-18 llvm-cov-18 llvm-profdata-18; do
 done
 absent "$work/test-job" 'apt-get'
 for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
-    'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
+    "fromJSON(needs.changes.outputs.next_integration == 'true' && '[\"compiler\", \"runtime\"]'" \
     "if: startsWith(matrix.suite, 'sanitize-')" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done
 test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 3 || fail 'release checkout credential policy'
 test "$(grep -c 'contents: write' .github/workflows/release.yml)" = 1 || fail 'release permission policy'

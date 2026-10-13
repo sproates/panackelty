@@ -427,10 +427,13 @@ retains command timeouts and binary streams; extra tests reject signal/timeout/s
 mismatches and unsafe archives. See `HARNESS_MIGRATION.md` for the complete inventory.
 The final 21 implementation-only methods retired with their implementation.
 `make policy` rejects source, shebang and command dependencies, with adversarial
-controls. Both platforms cover the complete check, native conformance and
-packaging through five clean `make check-no-interpreter CI_SUITE=…` partitions.
-`tests/ci_partition.sh` checks dispatch, invalid selections, failure propagation
-and shared canonical targets. The stable gates require the entire matrix;
+controls. The five clean `make check-no-interpreter CI_SUITE=…` partitions run
+on both platforms in the `next` nightly and every full `main` Check. For `next`
+PRs, the Linux compiler/runtime lanes and a macOS compiler smoke remain; the
+full Linux validation and two-platform matrix run nightly. `tests/ci_partition.sh`
+checks dispatch, the focused/nightly matrix split, package-smoke selection,
+invalid suites, failure propagation and shared canonical targets. The stable
+gates require the full matrix on main and the focused PR suites on next;
 sanitizer and coverage jobs retain their independent instrumented corpus.
 Sanitizer CI partitions VM contracts, ordinary oracle cases, and the nested
 functional runner. `tests/ci_sanitize.sh` compares standalone and partitioned

@@ -123,23 +123,35 @@ byte-exact 364-case report. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 
-CI runs a validation matrix per pull-request revision and again after a push to
-`main` or `next`. It does not repeat focused developer targets before the full
-suite.
-Superseded PR runs are cancelled. Both packaging platforms run five clean
-`make check-no-interpreter CI_SUITE=…` partitions with an allowlisted command
-environment. The default command without `CI_SUITE` still performs the complete
-standalone proof. CI uses these shared targets:
+The Check workflow keeps the full seven-lane Linux validation and five-suite
+Linux/macOS matrix for pull requests and pushes to `main`. For `next`, full
+pull requests run the compiler and runtime lanes on Linux, run a compiler smoke
+on macOS, and run the four bounded compiler experiments once. They defer the
+remaining Linux bootstrap/sanitizer/coverage lanes and all ten Linux/macOS
+suite-matrix jobs to nightly. A push to `next` keeps the Linux compiler/runtime
+lanes and defers the full validation and package matrix. This gives PRs a
+focused pre-merge gate while the complete test set runs nightly. Superseded PR
+runs are cancelled.
+
+The nightly workflow checks out the latest `next` branch and runs all five
+clean suite partitions on Linux and macOS plus all seven Linux validation
+lanes. It builds and uploads one distribution per platform in the
+`conformance-bytecode` partition; the bootstrap lane retains fixed-point and
+seed-refresh checks without repeating package creation. Manual runs can select
+`next` or `main`. Full Check runs targeting `main` retain the complete matrices
+and package checks. GitHub only starts scheduled workflows defined on the
+repository's default branch, so the nightly workflow must be present on `main`
+even though its scheduled job checks out `next`. CI uses these shared targets:
 
 | Suite | Shared coverage |
 | --- | --- |
 | `compiler` | Policy, full harness, report-capture and seed-failure controls, all compiler probes |
 | `runtime` | Native VM/oracle contracts, host/bytecode probes, complete functional phase |
-| `bootstrap` | Fixed-point bootstrap, independent seed refresh, archive smoke and quick start |
+| `bootstrap` | Fixed-point bootstrap and independent seed refresh; nightly package smoke runs once in the bytecode-conformance partition |
 | `conformance-source` | Every native source conformance program |
-| `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
+| `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; nightly uploads archive |
 
-After each platform's `conformance-bytecode` partition, CI separately runs
+After each nightly platform's `conformance-bytecode` partition, CI separately runs
 `sh tests/release_install_readme.sh` with network access. It downloads the pinned
 public release by executing the current README's platform block, then checks the
 README program/transcript and optional home-directory installation in a temporary

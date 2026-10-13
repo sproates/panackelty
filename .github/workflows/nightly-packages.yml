@@ -1,0 +1,202 @@
+name: Nightly packages
+
+# Scheduled workflows run only from the repository's default branch. This file
+# therefore lives on main and checks out next explicitly for its nightly run.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Branch to validate and package
+        required: true
+        type: choice
+        options: [next, main]
+        default: next
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-packages-${{ inputs.branch || 'next' }}
+  cancel-in-progress: false
+
+jobs:
+  package_build:
+    name: Nightly (${{ matrix.target }}, ${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [linux-x86_64, macos-arm64]
+        suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]
+        include:
+          - target: linux-x86_64
+            runner: ubuntu-22.04
+          - target: macos-arm64
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    env:
+      VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}
+      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
+      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
+      # The bytecode-conformance lane builds and smoke-tests the package once.
+      CI_SKIP_PACKAGE: ${{ matrix.suite == 'bootstrap' }}
+      NIGHTLY_SOURCE_REF: ${{ inputs.branch || 'next' }}
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch || 'next' }}
+
+      - name: Record the exact source revision
+        id: source
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Run isolated validation suite
+        run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}
+
+      - name: Verify README installation against the published release
+        if: matrix.suite == 'conformance-bytecode'
+        run: sh tests/release_install_readme.sh
+
+      - name: Verify optional installer against the published release
+        if: matrix.suite == 'conformance-bytecode'
+        run: sh tests/release_installer.sh
+
+      - name: Record package provenance
+        if: matrix.suite == 'conformance-bytecode' && success()
+        shell: bash
+        run: |
+          archive=$(find build -maxdepth 1 -name 'panackelty-*.tar.gz' -print -quit)
+          checksum=$(awk '{print $1}' "${archive}.sha256")
+          {
+            echo "archive=$(basename "$archive")"
+            echo "sha256=$checksum"
+            echo "source_branch=$NIGHTLY_SOURCE_REF"
+            echo "source_commit=${{ steps.source.outputs.sha }}"
+            echo "runner=$RUNNER_OS-$RUNNER_ARCH"
+            echo "runner_image=${ImageOS:-unknown}"
+            echo "runner_image_version=${ImageVersion:-unknown}"
+          } >"${archive}.provenance"
+
+      - name: Upload nightly package
+        if: matrix.suite == 'conformance-bytecode' && success()
+        uses: actions/upload-artifact@v6
+        with:
+          name: panackelty-${{ matrix.target }}-${{ steps.source.outputs.sha }}
+          path: |
+            build/panackelty-*.tar.gz
+            build/panackelty-*.tar.gz.sha256
+            build/panackelty-*.tar.gz.provenance
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish timing summary
+        if: always() && hashFiles('validation-timings.tsv') != ''
+        shell: bash
+        run: |
+          {
+            echo "### Nightly validation timings"
+            echo
+            echo "Branch: \`$NIGHTLY_SOURCE_REF\`  "
+            echo "Commit: \`${{ steps.source.outputs.sha }}\`"
+            echo
+            echo '| Phase | Duration | Budget | Status |'
+            echo '| --- | ---: | ---: | --- |'
+            while IFS=$'\t' read -r phase elapsed budget status; do
+              if [[ "$status" == "0" ]]; then result=passed; else result="failed ($status)"; fi
+              echo "| $phase | ${elapsed}s | ${budget}s | $result |"
+            done < validation-timings.tsv
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive validation profile
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: nightly-validation-${{ matrix.target }}-${{ matrix.suite }}-${{ github.run_id }}
+          path: |
+            validation-profile.tsv
+            validation-timings.tsv
+          if-no-files-found: warn
+          retention-days: 14
+
+  linux_validation:
+    name: Full Linux validation (${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]
+    runs-on: ubuntu-24.04
+    env:
+      VALIDATION_JOBS: ${{ matrix.suite == 'compiler' && '3' || '2' }}
+      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
+      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
+      VALIDATION_PROFILE_RUN: ${{ matrix.suite }}
+      # Package smoke already runs once per platform in conformance-bytecode.
+      CI_SKIP_PACKAGE: ${{ matrix.suite == 'bootstrap' }}
+      NIGHTLY_SOURCE_REF: ${{ inputs.branch || 'next' }}
+    steps:
+      - name: Check out selected branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.branch || 'next' }}
+
+      - name: Run compiler, runtime and bootstrap suites
+        if: contains(fromJSON('["compiler", "runtime", "bootstrap"]'), matrix.suite)
+        run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
+
+      - name: Check native memory and undefined behaviour
+        if: startsWith(matrix.suite, 'sanitize-')
+        env:
+          SANITIZE_JOB: ${{ matrix.suite }}
+        run: make native-sanitize CC=clang SANITIZE_SUITE="${SANITIZE_JOB#sanitize-}"
+
+      - name: Verify preinstalled LLVM coverage tools
+        if: matrix.suite == 'coverage'
+        run: |
+          /usr/bin/clang-18 --version
+          /usr/bin/llvm-cov-18 --version
+          /usr/bin/llvm-profdata-18 --version
+
+      - name: Measure native branch coverage
+        if: matrix.suite == 'coverage'
+        run: make native-coverage LLVM_CC=/usr/bin/clang-18 LLVM_COV=/usr/bin/llvm-cov-18 LLVM_PROFDATA=/usr/bin/llvm-profdata-18
+
+      - name: Archive native coverage
+        if: matrix.suite == 'coverage'
+        uses: actions/upload-artifact@v6
+        with:
+          name: nightly-native-coverage-${{ github.run_id }}
+          retention-days: 90
+          path: |
+            build/coverage/summary.txt
+            build/coverage/html/
+          if-no-files-found: error
+
+      - name: Publish validation timing summary
+        if: always() && hashFiles('validation-timings.tsv') != ''
+        shell: bash
+        run: |
+          {
+            echo "### Full Linux validation timings"
+            echo
+            echo "Branch: \`$NIGHTLY_SOURCE_REF\`  "
+            echo '| Phase | Duration | Budget | Status |'
+            echo '| --- | ---: | ---: | --- |'
+            while IFS=$'\t' read -r phase elapsed budget status; do
+              if [[ "$status" == "0" ]]; then result=passed; else result="failed ($status)"; fi
+              echo "| $phase | ${elapsed}s | ${budget}s | $result |"
+            done < validation-timings.tsv
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Archive validation profile
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: nightly-linux-validation-${{ matrix.suite }}-${{ github.run_id }}
+          path: |
+            validation-profile.tsv
+            validation-timings.tsv
+          if-no-files-found: warn
+          retention-days: 14

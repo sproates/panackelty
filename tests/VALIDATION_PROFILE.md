@@ -5878,6 +5878,27 @@ passed. The command prints timing warnings against the historical validation
 budgets; under the owner's 2026-10-12 direction these are not active acceptance
 gates and this result does not reopen or extend GI#106.
 
+## GI#134 filesystem I/O argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `fs_read(path, limit)` and `fs_write(path, content)` and
+reported their checked `Path`, `Nat` and `Bytes` arguments. Each sample launched
+the stage-2 compiler VM and included project loading, checking and rendering;
+the filesystem cache was warm. `real` times had a median of 0.05s and a range of
+0.04–0.05s. This is a local reference, not a paired before/after comparison or
+a general latency guarantee. Argument evidence is retained only for explanation
+queries; ordinary checking retains none, and runtime and bytecode are unchanged.
+
+The final `make check` passed in 260s: unit 179s, bootstrap 216s, and functional
+14s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+707 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 117 assertions, covering accepted, rejected and unavailable
+filesystem arguments, independent sibling outcomes, and diagnostic parity.
+Release smoke and quick start passed. The command prints timing warnings
+against historical validation budgets; under the owner's 2026-10-12 direction
+they are not active acceptance gates and this result does not reopen or extend
+GI#106.
+
 ## GI#134 time builtin argument explanation turnaround — 2026-10-13
 
 Ten fresh-process queries of `panack explain ... --function probe` on macOS

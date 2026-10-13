@@ -40,6 +40,9 @@ PASS unresolved environment argument is explicitly unavailable
 PASS accepted time arguments cite checked types
 PASS rejected time argument explains mismatch
 PASS unresolved time argument is explicitly unavailable
+PASS accepted filesystem IO arguments cite checked types
+PASS rejected filesystem IO argument preserves sibling
+PASS unresolved filesystem IO argument is explicitly unavailable
 PASS accepted annotated local cites checked types
 PASS rejected annotated local explains type mismatch
 PASS unresolved annotated local is explicitly unavailable
@@ -112,4 +115,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 114, failures: 0
+tests: 117, failures: 0

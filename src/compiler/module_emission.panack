@@ -423,7 +423,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyBlock(has_tail) => {},
           BodyMatch(targets, bindings, spans) => {},
           BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
-          BodyAssignment(identity) => {},
+          BodyAssignment(identity, assignment_evidence) => {},
           BodyWhile() => {},
           BodyFor(identity) => {},
           BodyEmpty() => {}
@@ -449,7 +449,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyBlock(has_tail) => CallExpr("$unit", [], []),
     BodyMatch(targets, bindings, spans) => CallExpr("$unit", [], []),
     BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
-    BodyAssignment(identity) => CallExpr("$unit", [], []),
+    BodyAssignment(identity, assignment_evidence) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
     BodyFor(identity) => CallExpr("$unit", [], []),
     BodyEmpty() => CallExpr("$unit", [], [])
@@ -490,7 +490,7 @@ pure module_emission_block(
     BodyIf(value) => false,
     BodyMatch(targets, bindings, spans) => false,
     BodyBinding(identity, type, mutable, inferred, type_evidence) => false,
-    BodyAssignment(identity) => false,
+    BodyAssignment(identity, assignment_evidence) => false,
     BodyWhile() => false,
     BodyFor(identity) => false,
     BodyEmpty() => false
@@ -509,7 +509,7 @@ pure module_emission_block(
           mutable,
           module_emission_expression(graph, entry, child.children[0])
         )),
-        BodyAssignment(identity) => Some(AssignmentStatement(
+        BodyAssignment(identity, assignment_evidence) => Some(AssignmentStatement(
           identity.name,
           module_emission_expression(graph, entry, child.children[0])
         )),
@@ -607,7 +607,7 @@ pub pure module_emission_expression(
       MatchExpr(module_emission_expression(graph, entry, body.children[0]), arms)
     },
     BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
-    BodyAssignment(identity) => CallExpr("$unit", [], []),
+    BodyAssignment(identity, assignment_evidence) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
     BodyFor(identity) => CallExpr("$unit", [], []),
     BodyEmpty() => CallExpr("$unit", [], [])

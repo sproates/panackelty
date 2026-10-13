@@ -261,7 +261,7 @@ pure module_effect_expression(
             BodyBlock(has_value) => { invalid_await_operand = true },
             BodyMatch(targets, locals, spans) => { invalid_await_operand = true },
             BodyBinding(identity, type, mutable, inferred, type_evidence) => { invalid_await_operand = true },
-            BodyAssignment(identity) => { invalid_await_operand = true },
+            BodyAssignment(identity, assignment_evidence) => { invalid_await_operand = true },
             BodyWhile() => { invalid_await_operand = true },
             BodyFor(identity) => { invalid_await_operand = true },
             BodyEmpty() => { invalid_await_operand = true }
@@ -342,7 +342,7 @@ pure module_effect_expression(
             BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
-            BodyAssignment(identity) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+            BodyAssignment(identity, assignment_evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
           }
         }
         result = combine_effects(result, module_effect_expression(context, child, false, retain))
@@ -353,7 +353,7 @@ pure module_effect_expression(
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
     BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
     BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, spans) => {},
-    BodyBinding(identity, type, mutable, inferred, type_evidence) => {}, BodyAssignment(identity) => {},
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => {}, BodyAssignment(identity, assignment_evidence) => {},
     BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
   }
   if !children_walked {

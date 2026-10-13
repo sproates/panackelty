@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, body_call_argument_evidence, body_binding_type_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -323,7 +323,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
     BodyMatch(targets, bindings, spans) => {},
-    BodyAssignment(local) => {},
+    BodyAssignment(local, assignment_evidence) => {},
     BodyWhile() => {},
     BodyFor(local) => {},
     BodyEmpty() => {}
@@ -353,7 +353,7 @@ pure inferred_local_type(body: BoundBody): Option[SignatureType] {
     BodyIf(has_else) => None(),
     BodyBlock(has_tail) => None(),
     BodyMatch(targets, bindings, spans) => None(),
-    BodyAssignment(local) => None(),
+    BodyAssignment(local, assignment_evidence) => None(),
     BodyWhile() => None(),
     BodyFor(local) => None(),
     BodyEmpty() => None()
@@ -376,7 +376,7 @@ pure explanation_expression_node(body: BoundBody): Bool {
     BodyIf(has_else) => true,
     BodyBlock(has_tail) => true,
     BodyMatch(targets, bindings, spans) => true,
-    BodyAssignment(local) => false,
+    BodyAssignment(local, assignment_evidence) => false,
     BodyWhile() => false,
     BodyFor(local) => false,
     BodyEmpty() => false
@@ -646,6 +646,63 @@ pure render_binding_type_explanations(
   output
 }
 
+pure render_assignment_type_evidence(
+  evidence: AssignmentTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(render_inferred_type(evidence.expected))
+  label: Str = evidence.label
+  mut output: Str = "${label}: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked assigned value is compatible with the local type"
+    } else {
+      "\nreason: the checked assigned value is incompatible with the local type"
+    },
+    None() => "\nreason: the checker did not determine a complete value or target type"
+  }
+}
+
+pure render_assignment_type_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [AssignmentTypeEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_assignment_type_evidence(function.body))
+    }
+  }
+  mut output: Str = "assignment value checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained local assignment checks)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_assignment_type_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
+    }
+  }
+  output
+}
+
 pure render_inferred_local(
   body: BoundBody,
   sources: Map[Str, Str],
@@ -693,7 +750,7 @@ pure render_inferred_local(
     BodyIf(has_else) => "inferred local: unavailable",
     BodyBlock(has_tail) => "inferred local: unavailable",
     BodyMatch(targets, bindings, spans) => "inferred local: unavailable",
-    BodyAssignment(local) => "inferred local: unavailable",
+    BodyAssignment(local, assignment_evidence) => "inferred local: unavailable",
     BodyWhile() => "inferred local: unavailable",
     BodyFor(local) => "inferred local: unavailable",
     BodyEmpty() => "inferred local: unavailable"
@@ -882,6 +939,12 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_binding_type_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_assignment_type_explanations(
     project,
     selector,
     root,

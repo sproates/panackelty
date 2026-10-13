@@ -5954,6 +5954,14 @@ or a general latency guarantee. Argument evidence is retained only for
 explanation queries; ordinary checking retains none, and runtime and bytecode
 are unchanged.
 
+The final `make check` passed in 262s: unit 180s, bootstrap 216s, and
+functional 14s; unit and bootstrap ran concurrently. The module-binding unit
+suite passed 725 assertions, the functional suite passed 370 cases, and the
+focused explanation CLI suite passed 126 assertions, including the accepted,
+rejected and unavailable `fs_read_beneath` argument cases and diagnostic
+parity. Release smoke and quick start passed. The command prints timing
+warnings against historical budgets; these do not change this result.
+
 The final `make check` passed in 260s: unit 180s, bootstrap 215s, and
 functional 14s; unit and bootstrap ran concurrently. The module-binding unit
 suite passed 719 assertions, the functional suite passed 370 cases, and the

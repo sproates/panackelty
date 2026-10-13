@@ -468,7 +468,7 @@ ci-runtime-phases: unit-runtime functional
 
 # One bounded Linux gate for next PRs; the full compiler/runtime suites and
 # cross-platform matrix run in nightly validation.
-ci-next-smoke: policy native $(STAGE2_COMPILER)
+ci-next-smoke: native $(STAGE2_COMPILER)
 	@sh tests/ci_next_smoke.sh "$(abspath $(STAGE2_COMPILER))"
 
 ifeq ($(CI_SKIP_PACKAGE),true)

@@ -719,6 +719,9 @@ evidence during ordinary checking. Other builtin contracts and indirect callable
 invocations remain outside these slices. Environment argument cases check the
 string key contract for `environment_get` and `environment_has`, including
 accepted, rejected and unavailable evidence plus unchanged diagnostics.
+Time argument cases cover `Duration` and `Instant` inputs, including accepted,
+rejected and unavailable evidence, unchanged diagnostics, and no evidence during
+ordinary checking.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

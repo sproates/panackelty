@@ -360,6 +360,113 @@ pure inferred_local_type(body: BoundBody): Option[SignatureType] {
   }
 }
 
+pure explanation_expression_node(body: BoundBody): Bool {
+  match body.node {
+    BodyBinding(local, type, mutable, inferred) => false,
+    BodyLiteral(value) => true,
+    BodyInterpolation(parts) => true,
+    BodyLocalUse(local) => true,
+    BodyFunction(binding) => true,
+    BodyCall(target, types) => true,
+    BodyArray() => true,
+    BodyUnary(operator) => true,
+    BodyBinary(operator) => true,
+    BodyField(name) => true,
+    BodyIndex() => true,
+    BodyIf(has_else) => true,
+    BodyBlock(has_tail) => true,
+    BodyMatch(targets, bindings, spans) => true,
+    BodyAssignment(local) => false,
+    BodyWhile() => false,
+    BodyFor(local) => false,
+    BodyEmpty() => false
+  }
+}
+
+pure explanation_position_contains(span: SourceSpan, line: Nat, column: Nat): Bool {
+  starts_before: Bool = line > span.start.line ||
+    (line == span.start.line && column >= span.start.column)
+  ends_after: Bool = line < span.end.line ||
+    (line == span.end.line && column < span.end.column)
+  starts_before && ends_after
+}
+
+pure body_explanation_expressions(body: BoundBody): [BoundBody] {
+  mut entries: [BoundBody] = []
+  if explanation_expression_node(body) {
+    entries = append(entries, body)
+  }
+  for child in body.children {
+    entries = concat(entries, body_explanation_expressions(child))
+  }
+  entries
+}
+
+pub pure render_expression_type_explanation(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  line: Nat,
+  column: Nat,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut expressions: [BoundBody] = []
+  mut found_function: Bool = false
+  mut valid_function: Bool = false
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      found_function = true
+      match function.status {
+        BodyIdentityChecked() => {
+          valid_function = true
+          expressions = concat(expressions, body_explanation_expressions(function.body))
+        },
+        BodyDeferred() => {},
+        BodyInvalid() => {}
+      }
+    }
+  }
+  mut has_match: Bool = false
+  mut best_index: Nat = 0
+  mut best_start: Nat = 0
+  mut best_end: Nat = 4294967295
+  for index in 0..len(expressions) {
+    candidate: BoundBody = expressions[index]
+    if candidate.span.start.file == selector.source_path &&
+      candidate.span.end.offset >= candidate.span.start.offset &&
+      explanation_position_contains(candidate.span, line, column) {
+      if !has_match || (candidate.span.start.offset >= best_start &&
+        candidate.span.end.offset <= best_end) {
+        has_match = true
+        best_index = index
+        best_start = candidate.span.start.offset
+        best_end = candidate.span.end.offset
+      }
+    }
+  }
+  if has_match {
+    body: BoundBody = expressions[best_index]
+    type_text: Str = render_inferred_type(body.type)
+    escaped_type: Str = source_map_escape(type_text)
+    output: Str = "checked expression type: ${escaped_type}\n" +
+      explanation_location(Some(body.span), project.sources, root, stdlib_root)
+    output + if type_text == "unavailable" {
+      "\nreason: the checker did not retain a complete type for this expression"
+    } else {
+      "\nreason: type retained from the checked expression"
+    }
+  } else {
+    if !found_function {
+      "checked expression type: unavailable\nreason: no checked body was retained for this function"
+    } else {
+      if !valid_function {
+        "checked expression type: unavailable\nreason: function body type checking did not complete"
+      } else {
+        "checked expression type: unavailable\nreason: no checked expression covers this source location"
+      }
+    }
+  }
+}
 
 pure render_inferred_type(type: Option[SignatureType]): Str {
   match type {

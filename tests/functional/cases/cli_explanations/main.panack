@@ -59,13 +59,26 @@ main(): Void {
       explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void { greeting = \"hello\"; echoed = identity(\"generic\"); explicit: Str = \"annotated\"; }\nmain(): Void {}\n")
       results = append(results, explain_run("inferred locals report initializer evidence", ["explain", source, "--function", "probe"], 0,
         ["inferred locals:", "inferred local: greeting", "expression: \"hello\"", "initializer type: Str", "inferred type: Str", "inferred local: echoed", "expression: identity(\"generic\")", "checked initializer type determines this local type"], ["inferred local: explicit"], ""))
+      explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void {\n  answer = identity(\"typed\");\n}\nmain(): Void {}\n")
+      results = append(results, explain_run("type-at selects the smallest checked expression", ["explain", source, "--function", "probe", "--type-at", "3", "23"], 0,
+        ["checked expression type: Str", "source: project/main.panack:3:21-3:28\nexpression: \"typed\"", "type retained from the checked expression"], [], ""))
+      results = append(results, explain_run("type-at reports the containing generic call type", ["explain", source, "--function", "probe", "--type-at", "3", "12"], 0,
+        ["checked expression type: Str", "source: project/main.panack:3:12-3:29\nexpression: identity(\"typed\")"], [], ""))
+      results = append(results, explain_run("type-at reports no expression at unrelated location", ["explain", source, "--function", "probe", "--type-at", "1", "1"], 0,
+        ["checked expression type: unavailable", "no checked expression covers this source location"], [], ""))
+      results = append(results, explain_run("type-at rejects a zero line", ["explain", source, "--function", "probe", "--type-at", "0", "23"], 1,
+        [], [], "line and column must be positive decimal numbers"))
       explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
       results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))
+      results = append(results, explain_run("type-at does not explain an invalid body", ["explain", source, "--function", "probe", "--type-at", "1", "30"], 1,
+        ["checked expression type: unavailable", "function body type checking did not complete"], [], "cannot infer"))
       explain_write(source, original)
       explain_write(library, "// λ🙂\npub pure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
       results = append(results, explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
         ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
+      results = append(results, explain_run("type-at preserves imported generic expression source", ["explain", source, "--function", "remaining", "--type-at", "3", "17"], 0,
+        ["checked expression type: Nat", "source: project/library.panack:3:15-3:20\nexpression: n - 2"], [], ""))
       explain_write(library, "pub type Positive = Nat where value > 0\npub pure inspect[T](tag: T, value: Nat): Void {\n  if value > 0 { positive: Positive = value; }\n}\n")
       explain_write(source, "import project/library as library\nmain(): Void { library.inspect[Str](\"tag\", 2); }\n")
       results = append(results, explain_run("imported generic guarded conversion attribution", ["explain", source, "--function", "inspect"], 0,

@@ -1,7 +1,8 @@
-# Compiler explanations: inferred locals, guarded conversions, subtraction and effects
+# Compiler explanations: expression and inferred local types, guarded conversions, subtraction and effects
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports inferred local types with their checked initializer types, retained
+reports inferred local types with their checked initializer types, and can query
+the checked type of an expression at a source location. It also reports retained
 proof-bearing guarded conversions, natural-number subtraction and effect-boundary
 evidence for one function. It reads
 source; it does not execute the program, emit bytecode, write files, or consume a
@@ -60,6 +61,16 @@ are omitted. If checking could not determine a complete type, the result is
 `inferred type: unavailable`; the query does not invent a type or change inference
 rules. The output describes the checked definition, not a runtime value or a
 call-site specialisation.
+
+Add `--type-at LINE COLUMN` to query the checked expression covering a
+one-based line and Unicode code-point column in the selected function's source
+file. If expressions overlap, the query reports the smallest source range, so a
+cursor inside a call argument selects that argument while a cursor on the call
+selects the call. Source ranges remain half-open. A location outside a checked
+expression, or a function whose body did not complete type checking, reports
+`checked expression type: unavailable`; the query does not infer from diagnostics
+or reconstruct missing constraints. The ordinary function explanation is still
+included in the output.
 
 Coordinates are one-based lines/Unicode code-point columns and half-open ranges
 in the captured source text. Paths use `project/`, `stdlib/`, or the source-map

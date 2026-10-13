@@ -5694,3 +5694,22 @@ bootstrap 211s, and functional 12s. Its output printed warnings against the
 historical 15s, 60s and 120s figures; ROADMAP.md records those values as
 non-gating under the owner's 2026-10-12 direction. This validation result is
 reported for context only and does not reopen or extend GI#106.
+
+## GI#134 expression type query turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe --type-at 3 23`
+on macOS 26.5 arm64 used a five-line source with a generic identity function and
+an inferred local initialized from `identity("typed")`. Each sample included
+VM startup, project loading, checking, full explanation rendering and selecting
+the expression type; the filesystem cache was warm. `real` times had a median of
+0.0485s and a range of 0.0409–0.0539s. This small fixture and sample establish a
+local reference, not a general latency guarantee or a paired before/after
+comparison. Expression selection traverses retained bodies only for the
+explicit explanation query; ordinary checking, runtime and bytecode are
+unchanged.
+
+The final `make check` passed on the same host in 250s: unit 165s, bootstrap
+207s, and functional 12s; unit and bootstrap ran concurrently. Release-smoke and
+quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.

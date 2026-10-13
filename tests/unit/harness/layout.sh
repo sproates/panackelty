@@ -113,8 +113,16 @@ absent "$work/source-job" 'if: always()'
 contains .github/workflows/check.yml 'node scripts/source_coverage_route.cjs >> "$GITHUB_OUTPUT"'
 contains .github/workflows/check.yml 'name: Source coverage policy tests'
 contains .github/workflows/check.yml 'tests/source_coverage/route.test.cjs'
-contains .github/workflows/check.yml 'needs: [changes, test_run, source_policy_tests, source_coverage]'
+contains .github/workflows/check.yml 'needs: [changes, test_run, source_policy_tests, source_coverage, workflow_validation]'
+contains .github/workflows/check.yml 'name: Workflow configuration validation'
+contains .github/workflows/check.yml "needs.changes.outputs.route == 'workflow'"
+contains .github/workflows/check.yml 'timeout-minutes: 5'
+contains .github/workflows/check.yml 'run: sh tests/workflow_yaml.sh'
 contains .github/workflows/check.yml 'run: node scripts/source_coverage_route.cjs --gate'
+contains scripts/validate_change.sh 'route=workflow)'
+contains scripts/validate_change.sh 'bash tests/ci_scope.sh'
+contains scripts/validate_change.sh 'sh tests/workflow_yaml.sh'
+contains scripts/validate_change.sh 'node --test tests/source_coverage/route.test.cjs'
 awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'

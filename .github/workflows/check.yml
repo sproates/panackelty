@@ -22,6 +22,21 @@ jobs:
           node-version: 24
       - run: node --test tests/source_coverage/reader.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/route.test.cjs
 
+  workflow_validation:
+    name: Workflow configuration validation
+    needs: changes
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'workflow' && !cancelled()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate workflow YAML syntax and structure
+        run: sh tests/workflow_yaml.sh
+      - name: Run workflow and repository layout contracts
+        run: sh tests/unit/harness/layout.sh
+      - name: Run CI routing contracts
+        run: node --test tests/source_coverage/route.test.cjs
+
   source_coverage:
     name: Source coverage baseline (next)
     needs: changes
@@ -320,7 +335,7 @@ jobs:
   # normal cancellation, so a superseded PR update does not wait for old builds.
   package:
     name: Package (${{ matrix.target }})
-    needs: [changes, package_build, platform_smoke]
+    needs: [changes, package_build, platform_smoke, workflow_validation]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -338,10 +353,11 @@ jobs:
           CI_PLATFORM_SMOKE_RESULT: ${{ needs.platform_smoke.result }}
           CI_NEXT_INTEGRATION: ${{ needs.changes.outputs.next_integration }}
           CI_EVENT_NAME: ${{ github.event_name }}
+          CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}
         run: sh scripts/ci_package_gate.sh
 
   test:
-    needs: [changes, test_run, source_policy_tests, source_coverage]
+    needs: [changes, test_run, source_policy_tests, source_coverage, workflow_validation]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -352,6 +368,7 @@ jobs:
           CI_SCOPE_RESULT: ${{ needs.changes.result }}
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.test_run.result }}
+          CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}
         run: sh scripts/ci_gate.sh
       - name: Require applicable source coverage checks
         env:

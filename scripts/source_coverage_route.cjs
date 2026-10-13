@@ -8,7 +8,7 @@ function gate({route,requested,policy,collection}) {
   if(!['true','false'].includes(requested)) throw Error('Missing source coverage route');
   const expectedPolicy=route==='full'?'success':'skipped';
   const expectedCollection=route==='full' && requested==='true'?'success':'skipped';
-  if(!['full','docs'].includes(route) || policy!==expectedPolicy || collection!==expectedCollection)
+  if(!['full','docs','workflow'].includes(route) || policy!==expectedPolicy || collection!==expectedCollection)
     throw Error('Applicable source coverage checks did not pass');
 }
 if(require.main===module) {

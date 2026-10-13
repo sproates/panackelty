@@ -304,25 +304,42 @@ complete only when the user explicitly says they are happy with the result.
 | `make bootstrap-check` | Regenerates compiler stages from the tracked seed and checks fixed points and seed freshness. | Protects the self-hosted compiler/stdlib/toolchain boundary; it is a separate, substantial phase of `make check`. |
 | `make quick-start` | Builds and verifies the package archive/checksum and fresh install, first program, upgrade and uninstall path. | Covers contributor/consumer packaging paths that compiler unit tests do not. |
 | `make docs` | Runs informational-document validation without the full code suite. | The CI classifier also has a docs-only route; code changes do not receive that route. |
+| Workflow/CI-only route | Static validation for changes confined to GitHub Actions YAML and the explicit CI selection, gate and contract allowlist in `scripts/ci_scope.sh`. | Parses workflow YAML and runs workflow/layout, route and required-result contracts; it does not compile the product. Product, mixed and unlisted changes remain full. |
 | `make check` | Serial top-level order: policy, unit, functional, bootstrap-check, quick-start. Unit internals use bounded workers. | Canonical broad local validation. A focused cached probe is not a substitute for the phases it omits. |
 
 ### Hosted workflows and triggers
 
 | Workflow | Trigger and scope | Observed repetition |
 | --- | --- | --- |
-| Check | Every pull request update, and every push to `main` or `next`. `changes` chooses docs-only or full validation. Full route has ten package/suite jobs (two OS × compiler, runtime, bootstrap, source conformance, bytecode conformance), seven Ubuntu full/sanitizer/coverage jobs, and source-policy tests. Source-coverage baseline is conditional. | A PR run is cancelled when a newer run for that PR supersedes it. A merge then creates a separate push run on `main`/`next`; push runs use distinct groups and are not cancelled. |
+| Check | Every pull request update, and every push to `main` or `next`. `changes` chooses docs-only, workflow/CI-only or full validation. Full route has ten package/suite jobs (two OS × compiler, runtime, bootstrap, source conformance, bytecode conformance), seven Ubuntu full/sanitizer/coverage jobs, and source-policy tests. Source-coverage baseline is conditional. | A PR run is cancelled when a newer run for that PR supersedes it. A merge then creates a separate push run on `main`/`next`; push runs use distinct groups and are not cancelled. |
 | Validation profile | Manual dispatch or PRs that change the profiling workflow and selected measurement scripts. Runs compiler, bytecode and VM focused checks in initial and cached states on Linux and macOS. | Not added to routine code PRs. Four latest observed runs were three profiling-related PR runs and one manual run. |
 | Release | Manual dispatch with confirmed version/commit or `v*` tag. Runs complete `make check`, then builds release packages on Linux and macOS and the browser-runtime bundle. | Infrequent release gate; latest observed manual run took 25m33s end to end. |
 | Website recovery | Manual workflow. Website and browser integration checks are owned by their separate repositories; core Check does not wait for those workflows. | Not part of every core PR or push. |
+
+**Workflow-only route change (2026-10-13):** PR #413 changed only
+`.github/workflows/nightly-packages.yml`, but it selected the full Check route.
+The exact source-coverage baseline job took 17m38 even though no source-coverage
+input changed. The current PR adds an explicit route for workflow YAML and a
+bounded allowlist of CI selector, gate and contract files. That route still runs
+the classifier and document checks, parses every workflow's YAML syntax and
+top-level job structure, runs the repository workflow/layout contracts, and
+requires both stable result gates to observe successful workflow validation.
+Any product path mixed into the diff, plus unlisted/shared inputs, remains full.
+Local selector and route/gate contracts pass for this proposed change. The hosted
+duration of the new route is pending; no wall-time saving is claimed until it is
+observed. Product correctness suites remain covered on product changes. The
+local runner uses the same focused workflow and routing contracts; canonical
+`make check` remains required for product-impacting validation changes.
 
 The full Check route is not a single test suite run once. The per-OS package
 matrix and the additional Ubuntu compiler/runtime/bootstrap lanes serve different
 platform, isolated-command, sanitizer and coverage purposes, but their source
 and target names show structural overlap. No assertion-by-assertion overlap map
 exists yet, so this inventory does not treat the matrix as seven or ten complete
-repetitions of every test. The present route classifier distinguishes
-docs-only from code changes; it does not yet route code changes by compiler,
-stdlib, bytecode, VM/runtime or package impact.
+repetitions of every test. Outside the configuration-only route above, the
+classifier still distinguishes only docs from full product validation; it does
+not route product changes by compiler, stdlib, bytecode, VM/runtime or package
+impact.
 
 ### Recent timing and failure sample
 

@@ -104,7 +104,7 @@ commit; route full
 reject_docs 'symlink document'
 # Unknown, packaged, executable, specification and policy changes stay full.
 for path in README.md SPEC.md VERSION CHANGELOG.md RELEASE_POLICY.md \
-    .github/workflows/check.yml tests/functional/input.md docs/new.md \
+    tests/functional/input.md docs/new.md \
     'notes with spaces.md' $'notes\nnewline.md'; do
     fixture
     mkdir -p "$(dirname "$path")"
@@ -120,6 +120,33 @@ for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md .github/pull_request_templat
     plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
     [[ "$plan" == $'route=docs\ncomponents=process\nchecks=documents,links,whitespace' ]] || fail 'process plan'
 done
+fixture
+mkdir -p .github/workflows
+printf 'name: Nightly\non: {}\njobs: {}\n' > .github/workflows/nightly-packages.yml
+commit; route workflow
+plan=$(bash "$root/scripts/ci_scope.sh" --plan "$base" "$head")
+[[ "$plan" == $'route=workflow\ncomponents=workflow\nchecks=workflow-syntax,workflow-contracts,documents,links,whitespace' ]] || fail 'workflow-only plan'
+fixture
+mkdir -p .github/workflows
+printf 'name: Profile\non: {}\njobs: {}\n' > .github/workflows/profile.yml
+printf '\nWorkflow scope documentation\n' >> ROADMAP.md
+commit; route workflow
+fixture
+mkdir -p .github/workflows
+printf 'name: Nightly\non: {}\njobs: {}\n' > .github/workflows/nightly-packages.yml
+printf '\n/* mixed product change */\n' >> src/main.c
+commit; route full
+fixture
+mkdir -p .github/workflows
+printf 'name: Check\non: {}\njobs: {}\n' > .github/workflows/check.yml
+commit; route workflow
+fixture
+mkdir -p scripts tests
+printf '#!/bin/sh\n' > scripts/ci_scope.sh
+printf '#!/bin/sh\n' > scripts/validate_change.sh
+printf '#!/bin/sh\n' > scripts/ci_gate.sh
+printf '#!/usr/bin/env bash\n' > tests/ci_scope.sh
+commit; route workflow
 fixture
 mkdir -p .github docs tests
 for path in .github/pull_request_template.md ROADMAP.md docs/ROADMAP_PROCESS.md tests/COVERAGE.md; do
@@ -158,7 +185,6 @@ examples/hello.panack examples
 SPEC.md shared
 bootstrap/compiler-v9.bc shared
 Makefile shared
-.github/workflows/check.yml shared
 unrecognised/input.data unknown
 CASES
 # Local classification includes staged, unstaged and untracked changes, with the
@@ -228,6 +254,31 @@ awk '{ if ($0 == "Positioning copy.") $0 = "Locally updated positioning copy."; 
 mv "$work/readme" README.md
 PATH="$work/forbidden:$PATH" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || { cat "$work/output"; fail 'local README positioning route'; }
 [[ ! -e build && ! -e panack-vm ]] || fail 'README positioning created native artifacts'
+# The workflow route runs the focused configuration contracts and never falls
+# through to make docs or the full compiler suite.
+fixture
+mkdir -p scripts .github/workflows tests/unit/harness tests/source_coverage
+cp "$root"/scripts/{ci_docs.sh,ci_scope.sh,validation_components.sh,validate_change.sh,check_docs.sh,doc_links.awk} scripts/
+cp "$root"/Makefile .
+printf '%s\n' 'printf "ci_scope\\n" >> "$VALIDATION_CALLS"' > tests/ci_scope.sh
+printf '%s\n' 'printf "workflow_yaml\\n" >> "$VALIDATION_CALLS"' > tests/workflow_yaml.sh
+printf '%s\n' 'printf "layout\\n" >> "$VALIDATION_CALLS"' > tests/unit/harness/layout.sh
+printf '%s\n' "require('node:test')('workflow route contract dispatch', () => require('node:fs').appendFileSync(process.env.VALIDATION_CALLS, 'route\\n'));" > tests/source_coverage/route.test.cjs
+printf 'name: Check\non: {}\njobs: {}\n' > .github/workflows/check.yml
+git add .
+git commit -qm baseline
+base=$(git rev-parse HEAD)
+printf '\nname: Check\non: {}\njobs: {}\n' > .github/workflows/check.yml
+commit
+mkdir "$work/no-make"
+printf '%s\n' "echo 'unexpected make invocation' >&2" 'exit 93' > "$work/no-make/make"
+chmod +x "$work/no-make/make"
+export VALIDATION_CALLS="$work/validation-calls"
+: > "$VALIDATION_CALLS"
+PATH="$work/no-make:$PATH" bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1 || { cat "$work/output"; fail 'local workflow route'; }
+printf 'ci_scope\nworkflow_yaml\nlayout\nroute\n' > "$work/expected-calls"
+cmp "$VALIDATION_CALLS" "$work/expected-calls" || fail 'workflow route ran the wrong focused checks'
+unset VALIDATION_CALLS
 printf '\n[broken](absent.md)\n' >> ROADMAP.md
 bash scripts/validate_change.sh --plan "$base" >/dev/null || fail 'plan executed checks'
 if bash scripts/validate_change.sh --run "$base" > "$work/output" 2>&1; then fail 'local ignored docs failure'; fi
@@ -300,33 +351,41 @@ printf '\n[broken](missing.md\n' >> ROADMAP.md
 reject_docs 'unclosed inline link'
 # A failed or cancelled classifier must fail every stable check, not skip green.
 for result in failure cancelled skipped ''; do
-    for selected in docs website full ''; do
+    for selected in docs workflow website full ''; do
         if CI_SCOPE_RESULT="$result" CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed classification'; fi
     done
 done
 for selected in '' invalid; do
     if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted invalid route'; fi
 done
-CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
-CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
-if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted retired website route'; fi
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted retired website route'; fi
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=failure sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed workflow validation'; fi
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_PACKAGE_BUILD_RESULT=skipped \
-    CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
+    CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
+    sh "$root/scripts/ci_package_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_PACKAGE_BUILD_RESULT=skipped \
+    CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=success CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
+    sh "$root/scripts/ci_package_gate.sh" >/dev/null
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_PACKAGE_BUILD_RESULT=skipped \
+    CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=failure CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
+    sh "$root/scripts/ci_package_gate.sh" >/dev/null 2>&1; then fail 'accepted failed workflow validation in package gate'; fi
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=skipped \
+    CI_PLATFORM_SMOKE_RESULT=success CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
     sh "$root/scripts/ci_package_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=skipped \
-    CI_PLATFORM_SMOKE_RESULT=success CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
-    sh "$root/scripts/ci_package_gate.sh" >/dev/null
-CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=skipped \
-    CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=push \
+    CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=push \
     sh "$root/scripts/ci_package_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=success \
-    CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=false CI_EVENT_NAME=pull_request \
+    CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=false CI_EVENT_NAME=pull_request \
     sh "$root/scripts/ci_package_gate.sh" >/dev/null
 for policy in \
     'CI_PACKAGE_BUILD_RESULT=success CI_PLATFORM_SMOKE_RESULT=success CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request' \
     'CI_PACKAGE_BUILD_RESULT=skipped CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request' \
     'CI_PACKAGE_BUILD_RESULT=cancelled CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=false CI_EVENT_NAME=pull_request'; do
-    if env CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full $policy sh "$root/scripts/ci_package_gate.sh" >/dev/null 2>&1; then
+    if env CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_WORKFLOW_RESULT=skipped $policy sh "$root/scripts/ci_package_gate.sh" >/dev/null 2>&1; then
         fail 'accepted a skipped, failed or misrouted package validation'
     fi
 done
@@ -335,10 +394,12 @@ done
 [ "$(sh "$root/scripts/ci_next_integration.sh" pull_request main refs/pull/123/merge)" = false ] || fail 'misrouted a main pull request'
 [ "$(sh "$root/scripts/ci_next_integration.sh" push '' refs/heads/main)" = false ] || fail 'misrouted a main push'
 if sh "$root/scripts/ci_next_integration.sh" pull_request next >/dev/null 2>&1; then fail 'accepted incomplete branch policy input'; fi
-for selected in docs full; do
+for selected in docs workflow full; do
     for result in failure cancelled skipped success ''; do
-        if [[ "$selected:$result" == docs:skipped || "$selected:$result" == full:success ]]; then continue; fi
-        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT="$result" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
+        if [[ "$selected:$result" == docs:skipped || "$selected:$result" == workflow:skipped || "$selected:$result" == full:success ]]; then continue; fi
+        workflow_result=skipped
+        [[ "$selected" != workflow ]] || workflow_result=success
+        if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE="$selected" CI_VALIDATION_RESULT="$result" CI_WORKFLOW_RESULT="$workflow_result" sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then
             fail 'accepted failed, cancelled or unexpected execution result'
         fi
     done
@@ -348,18 +409,26 @@ bash scripts/check_docs.sh >/dev/null
 echo 'CI routing, stable-result guards and documentation checks passed.'
 # Only short result gates may be unconditional. Real work must be cancellable.
 awk '
-/^  (package|test):$/ { gate=1; heavy=0; name=$1; next }
+/^  (package|test):$/ { gate=1; heavy=0; workflow=0; name=$1; next }
 /^  (package_build|platform_smoke|test_run):$/ { gate=0; heavy=1; next }
-/^  [a-z_]+:$/ { gate=0; heavy=0 }
-gate && name=="package:" && /^    needs: \[changes, package_build, platform_smoke\]$/ { dependencies++ }
-gate && name=="test:" && /^    needs: \[changes, test_run, source_policy_tests, source_coverage\]$/ { dependencies++ }
+/^  workflow_validation:$/ { gate=0; heavy=0; workflow=1; next }
+/^  [a-z_]+:$/ { gate=0; heavy=0; workflow=0 }
+gate && name=="package:" && /^    needs: \[changes, package_build, platform_smoke, workflow_validation\]$/ { dependencies++ }
+gate && name=="test:" && /^    needs: \[changes, test_run, source_policy_tests, source_coverage, workflow_validation\]$/ { dependencies++ }
 gate && /^    if: always\(\)$/ { guards++ }
 gate && /^    timeout-minutes: 2$/ { bounds++ }
 heavy && /^    needs: changes$/ { work_dependencies++ }
 heavy && /^    if: / && /needs\.changes\.result == \047success\047/ && /needs\.changes\.outputs\.route == \047full\047/ && /!cancelled\(\)/ { routes++ }
+workflow && /^    needs: changes$/ { workflow_dependencies++ }
+workflow && /^    if: / && /needs\.changes\.result == \047success\047/ && /needs\.changes\.outputs\.route == \047workflow\047/ && /!cancelled\(\)/ { workflow_routes++ }
 heavy && /^    if: always/ { bad=1 }
-END { exit bad || dependencies!=2 || guards!=2 || bounds!=2 || work_dependencies!=3 || routes!=3 }
+END { exit bad || dependencies!=2 || guards!=2 || bounds!=2 || work_dependencies!=3 || routes!=3 || workflow_dependencies!=1 || workflow_routes!=1 }
 ' .github/workflows/check.yml || fail 'stable gates or cancellable work dependencies'
+grep -F 'CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}' .github/workflows/check.yml >/dev/null || fail 'missing workflow validation result gate'
+grep -F 'run: sh tests/workflow_yaml.sh' .github/workflows/check.yml >/dev/null || fail 'workflow route omitted YAML validation'
+grep -F 'run: sh tests/unit/harness/layout.sh' .github/workflows/check.yml >/dev/null || fail 'workflow route omitted workflow contracts'
+awk '/^  workflow_validation:$/ { selected=1 } /^  source_coverage:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/workflow-job"
+grep -F 'timeout-minutes: 5' "$work/workflow-job" >/dev/null || fail 'workflow validation has no bounded timeout'
 test "$(grep -c 'run: sh scripts/ci_gate.sh' .github/workflows/check.yml)" = 1 || fail 'missing test result script'
 grep -F 'run: sh scripts/ci_package_gate.sh' .github/workflows/check.yml >/dev/null || fail 'missing package result script'
 grep -F 'CI_PACKAGE_BUILD_RESULT: ${{ needs.package_build.result }}' .github/workflows/check.yml >/dev/null || fail 'missing package result'

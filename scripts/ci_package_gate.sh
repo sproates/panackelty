@@ -15,8 +15,20 @@ case "${CI_SCOPE_ROUTE-}" in
             fail 'package validation unexpectedly ran for a documentation route'
         [ "${CI_PLATFORM_SMOKE_RESULT-}" = skipped ] || \
             fail 'platform validation unexpectedly ran for a documentation route'
+        [ "${CI_WORKFLOW_RESULT-}" = skipped ] || \
+            fail 'workflow validation unexpectedly ran for a documentation route'
         echo 'Documentation checks passed; package and platform validation are not applicable.' ;;
+    workflow)
+        [ "${CI_PACKAGE_BUILD_RESULT-}" = skipped ] || \
+            fail 'package validation unexpectedly ran for a workflow-only route'
+        [ "${CI_PLATFORM_SMOKE_RESULT-}" = skipped ] || \
+            fail 'platform validation unexpectedly ran for a workflow-only route'
+        [ "${CI_WORKFLOW_RESULT-}" = success ] || \
+            fail 'workflow configuration validation did not succeed'
+        echo 'Workflow syntax and repository contracts passed; package builds are not applicable.' ;;
     full)
+        [ "${CI_WORKFLOW_RESULT-}" = skipped ] || \
+            fail 'unexpected workflow validation outside the workflow-only route'
         if [ "${CI_NEXT_INTEGRATION-}" = true ]; then
             [ "${CI_PACKAGE_BUILD_RESULT-}" = skipped ] || \
                 fail 'next package matrix must be deferred to nightly'

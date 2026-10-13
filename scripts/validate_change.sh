@@ -17,6 +17,12 @@ git diff --cached --check "$merge_base" --
 route=${plan%%$'\n'*}
 case "$route" in
     route=docs) make docs ;;
+    route=workflow)
+        echo 'Running focused workflow and CI routing validation; product validation is not applicable.'
+        bash tests/ci_scope.sh
+        sh tests/workflow_yaml.sh
+        sh tests/unit/harness/layout.sh
+        node --test tests/source_coverage/route.test.cjs ;;
     route=full)
         echo 'Running canonical local validation; CI additionally runs platform and instrumentation gates.'
         make docs

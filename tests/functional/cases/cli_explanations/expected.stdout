@@ -19,6 +19,15 @@ PASS rejected rational conversion argument explains mismatch
 PASS accepted numeric parser argument cites checked types
 PASS unresolved quotient argument is explicitly unavailable
 PASS accepted quotient arguments cite checked types
+PASS accepted collection append item cites checked type
+PASS rejected collection append item explains mismatch
+PASS map method reports key and value checks
+PASS rejected map value retains independent key check
+PASS accepted map lookup cites checked key type
+PASS accepted map get cites checked key type
+PASS rejected set method lookup explains item mismatch
+PASS accepted set lookup cites checked item type
+PASS unresolved set item is explicitly unavailable
 PASS accepted annotated local cites checked types
 PASS rejected annotated local explains type mismatch
 PASS unresolved annotated local is explicitly unavailable
@@ -91,4 +100,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 93, failures: 0
+tests: 102, failures: 0

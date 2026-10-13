@@ -116,6 +116,33 @@ main(): Void {
       explain_write(source, "pure probe(): Nat { quotient(7, 2) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted quotient arguments cite checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to quotient: accepted", "expression: 7", "actual type: Nat", "expected type: Nat", "call argument 2 to quotient: accepted", "expression: 2", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): [Nat] { append([1], 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted collection append item cites checked type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to append: accepted", "expression: 2", "actual type: Nat", "expected type: Nat", "compatible with the function parameter type"], [], ""))
+      explain_write(source, "pure probe(): [Nat] { append([1], \"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected collection append item explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to append: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the function parameter type"], [], "cannot append Str to Array[Nat]"))
+      explain_write(source, "pure probe(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\", 1); values }\nmain(): Void {}\n")
+      results = append(results, explain_run("map method reports key and value checks", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to map_put: accepted", "expression: \"key\"", "actual type: Str", "expected type: Str", "call argument 3 to map_put: accepted", "expression: 1", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): Map[Str,Nat] { values: Map[Str,Nat] = map(); map_put(values, \"key\", \"wrong\"); values }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected map value retains independent key check", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to map_put: accepted", "call argument 3 to map_put: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat"], [], "cannot store Str in Map[Str,Nat]"))
+      explain_write(source, "pure probe(): Bool { values: Map[Str,Nat] = map(); map_has(values, \"key\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted map lookup cites checked key type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to map_has: accepted", "expression: \"key\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "pure probe(): Nat { values: Map[Str,Nat] = map(); map_get(values, \"key\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted map get cites checked key type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to map_get: accepted", "expression: \"key\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "pure probe(): Bool { values: Set[Nat] = set(); values.has(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected set method lookup explains item mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to has: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat"], [], "invalid set element type Str"))
+      explain_write(source, "pure probe(): Bool { values: Set[Nat] = set(); set_has(values, 1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted set lookup cites checked item type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to set_has: accepted", "expression: 1", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): Set[Nat] { values: Set[Nat] = set(); set_add(values, missing); values }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved set item is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to set_add: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
         ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))

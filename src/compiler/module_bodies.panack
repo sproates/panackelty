@@ -1765,7 +1765,8 @@ pure body_check_existing_special_core_call(
               )
               diagnostics = checked.diagnostics
               deferred = checked.deferred
-              output = checked.body.type
+              output = checked.body.type;
+              call_arguments = body_direct_call_argument_metadata(checked.body)
             }
           }
         }
@@ -2504,12 +2505,15 @@ pure body_check_collection_core_call(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
 
   if len(children) != expected_count {
     diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got ${len(children)}", span.start))
   } else {
-    if children[0].type == None() || children[1].type == None() ||
-      (operation == "map_put" && children[2].type == None()) ||
+    if children[0].type == None() ||
+      ((operation != "append" && operation != "map_put" && operation != "map_get" &&
+        operation != "map_has" && operation != "set_add" && operation != "set_has" &&
+        operation != "has") && children[1].type == None()) ||
       (operation == "array_reduce" && children[2].type == None()) {
       deferred = append(deferred, span)
     } else {
@@ -2528,6 +2532,20 @@ pure body_check_collection_core_call(
             )
             diagnostics = concat(diagnostics, item.diagnostics)
             deferred = concat(deferred, item.deferred)
+            if context.retain_guard_conversions {
+              accepted: Option[Bool] = if len(item.diagnostics) > 0 {
+                Some(false)
+              } else {
+                if len(item.deferred) > 0 { None() } else { Some(true) }
+              }
+              call_arguments = append(call_arguments, CallArgumentEvidence(
+                "call argument 2 to append",
+                children[1].span,
+                children[1].type,
+                collection.arguments[0],
+                accepted
+              ))
+            }
             if len(item.diagnostics) == 0 && len(item.deferred) == 0 {
               output = Some(collection)
             }
@@ -2606,12 +2624,18 @@ pure body_check_collection_core_call(
           )
           diagnostics = checked.diagnostics
           deferred = checked.deferred
-          output = checked.body.type
+          output = checked.body.type;
+          call_arguments = body_direct_call_argument_metadata(checked.body)
         }
       }
     }
   }
-  BodyResult(BoundBody(BodyEmpty(), span, [], output, [], []), diagnostics, deferred)
+  node: BodyNode = if context.retain_guard_conversions {
+    BodyCall(BodyCore(operation), [], call_arguments)
+  } else {
+    BodyEmpty()
+  }
+  BodyResult(BoundBody(node, span, [], output, [], []), diagnostics, deferred)
 }
 
 pure body_check_map_set_call(
@@ -2626,6 +2650,7 @@ pure body_check_map_set_call(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
   is_map: Bool = collection.identity == SignatureCore("Map") && len(collection.arguments) == 2
   is_set: Bool = collection.identity == SignatureCore("Set") && len(collection.arguments) == 1
   is_lookup: Bool = operation == "map_get" || operation == "map_has" || operation == "has"
@@ -2644,10 +2669,38 @@ pure body_check_map_set_call(
           key: BodyResult = body_require_value(context, children[1], expected_key, "key to " + operation)
           diagnostics = concat(diagnostics, key.diagnostics)
           deferred = concat(deferred, key.deferred)
+          if context.retain_guard_conversions {
+            accepted: Option[Bool] = if len(key.diagnostics) > 0 {
+              Some(false)
+            } else {
+              if len(key.deferred) > 0 { None() } else { Some(true) }
+            }
+            call_arguments = append(call_arguments, CallArgumentEvidence(
+              "call argument 2 to " + operation,
+              children[1].span,
+              children[1].type,
+              expected_key,
+              accepted
+            ))
+          }
           if operation == "map_put" {
             value: BodyResult = body_require_value(context, children[2], collection.arguments[1], "value to map_put")
             diagnostics = concat(diagnostics, value.diagnostics)
             deferred = concat(deferred, value.deferred)
+            if context.retain_guard_conversions {
+              accepted: Option[Bool] = if len(value.diagnostics) > 0 {
+                Some(false)
+              } else {
+                if len(value.deferred) > 0 { None() } else { Some(true) }
+              }
+              call_arguments = append(call_arguments, CallArgumentEvidence(
+                "call argument 3 to map_put",
+                children[2].span,
+                children[2].type,
+                collection.arguments[1],
+                accepted
+              ))
+            }
             output = Some(collection)
           } else {
             if is_lookup {
@@ -2659,13 +2712,32 @@ pure body_check_map_set_call(
           item: BodyResult = body_require_value(context, children[1], collection.arguments[0], operation)
           diagnostics = concat(diagnostics, item.diagnostics)
           deferred = concat(deferred, item.deferred)
+          if context.retain_guard_conversions {
+            accepted: Option[Bool] = if len(item.diagnostics) > 0 {
+              Some(false)
+            } else {
+              if len(item.deferred) > 0 { None() } else { Some(true) }
+            }
+            call_arguments = append(call_arguments, CallArgumentEvidence(
+              "call argument 2 to " + operation,
+              children[1].span,
+              children[1].type,
+              collection.arguments[0],
+              accepted
+            ))
+          }
           output = if operation == "set_add" { Some(collection) } else { body_core_type("Bool") }
         }
       }
     }
   }
+  node: BodyNode = if context.retain_guard_conversions {
+    BodyCall(BodyCore(operation), [], call_arguments)
+  } else {
+    BodyEmpty()
+  }
   BodyResult(
-    BoundBody(BodyEmpty(), span, [], output, body_collection_call_solutions(operation, children), []),
+    BoundBody(node, span, [], output, body_collection_call_solutions(operation, children), []),
     diagnostics,
     deferred
   )

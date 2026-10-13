@@ -1653,6 +1653,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): Nat { nat(1/2) }",
     false
   )
+  accepted_collection_append: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): [Nat] { append([1], 2) }",
+    true
+  )
+  rejected_collection_append: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): [Nat] { append([1], \"wrong\") }",
+    true
+  )
+  accepted_collection_map_put: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); map_put(values, \"key\", 1); values }",
+    true
+  )
+  rejected_collection_map_put: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Map[Str,Nat] { values: Map[Str,Nat] = map(); map_put(values, \"key\", \"wrong\"); values }",
+    true
+  )
+  unavailable_collection_set_add: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Set[Nat] { values: Set[Nat] = set(); set_add(values, missing); values }",
+    true
+  )
+  ordinary_collection_append: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): [Nat] { append([1], 2) }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -1874,6 +1898,49 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_rational_builtin.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_rational_builtin.functions[0].body)) == 0,
     "ordinary checking retained explanation-only numeric argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted collection append evidence",
+    len(accepted_collection_append.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_collection_append.functions[0].body)) == 1 &&
+      body_call_argument_evidence(accepted_collection_append.functions[0].body)[0].accepted == Some(true),
+    "accepted collection append argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected collection append evidence",
+    len(rejected_collection_append.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_collection_append.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_collection_append.functions[0].body)[0].accepted == Some(false),
+    "rejected collection append argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains both collection map_put arguments",
+    len(accepted_collection_map_put.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_collection_map_put.functions[0].body)) == 2 &&
+      body_call_argument_evidence(accepted_collection_map_put.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_collection_map_put.functions[0].body)[1].accepted == Some(true),
+    "accepted collection map_put arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking rejects an incompatible collection map_put value",
+    len(rejected_collection_map_put.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_collection_map_put.functions[0].body)) == 2 &&
+      body_call_argument_evidence(rejected_collection_map_put.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(rejected_collection_map_put.functions[0].body)[1].accepted == Some(false),
+    "rejected collection map_put value was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable collection set_add item",
+    len(unavailable_collection_set_add.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_collection_set_add.functions[0].body)) == 1 &&
+      body_call_argument_evidence(unavailable_collection_set_add.functions[0].body)[0].accepted == None(),
+    "unavailable collection set_add item was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no collection argument evidence",
+    len(ordinary_collection_append.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_collection_append.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only collection argument evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

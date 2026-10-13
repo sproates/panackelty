@@ -1,4 +1,9 @@
 PASS imported generic proof
+PASS imported generic guarded conversion attribution
+PASS guarded conversion cites local branch facts
+PASS guarded source proves a broader guarded target
+PASS rejected guarded conversion explains missing proof
+PASS guarded to base widening has no proof conversion
 PASS query does not execute main
 PASS unknown function
 PASS ordinary source executes
@@ -55,4 +60,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 57, failures: 0
+tests: 62, failures: 0

@@ -3,8 +3,9 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, GuardConversionEvidence, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
+import project/src/compiler/checker::{Bounds}
 pub import project/src/compiler/checker::{SubtractionEvidence}
 import project/src/compiler/checker::{SubtractionDecision}
 pub import project/src/compiler/purity::{EffectEvidence}
@@ -293,6 +294,121 @@ pure render_effect_evidence(
   output
 }
 
+pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
+  mut entries: [GuardConversionEvidence] = body.guard_conversions
+  for child in body.children {
+    entries = concat(entries, body_guard_conversions(child))
+  }
+  entries
+}
+
+pure render_guard_nat(value: Nat): Str {
+  "${value}"
+}
+
+pure render_guard_bounds(bounds: Bounds): Str {
+  mut output: Str = ""
+  if bounds.has_lower {
+    lower: Str = render_guard_nat(bounds.lower)
+    output = "value >= ${lower}"
+  }
+  if bounds.has_upper {
+    upper: Str = render_guard_nat(bounds.upper)
+    output = output + if output == "" {
+      "value <= ${upper}"
+    } else {
+      " and value <= ${upper}"
+    }
+  }
+  if output == "" {
+    "no numeric bounds retained"
+  } else {
+    output
+  }
+}
+
+pure render_guard_conversion(
+  entry: GuardConversionEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match entry.proven {
+    Some(proven) => if proven { "proved" } else { "unproved" },
+    None() => "unavailable"
+  }
+  source_type: Str = source_map_escape(entry.source_type)
+  target_type: Str = source_map_escape(entry.target_type)
+  target_guard: Str = source_map_escape(entry.target_guard)
+  mut output: Str = "guarded conversion: ${status}\n" + explanation_location(
+    Some(entry.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nconversion: ${source_type} -> ${target_type}"
+  match entry.source_guard {
+    None() => {},
+    Some(guard) => {
+      source_guard: Str = source_map_escape(guard)
+      output = output + "\nsource guard: ${source_guard}"
+    }
+  }
+  output = output + "\ntarget guard: ${target_guard}"
+  match entry.bounds {
+    None() => {
+      output = output + "\nfacts: unavailable"
+    },
+    Some(bounds) => {
+      facts: Str = render_guard_bounds(bounds)
+      output = output + "\nfacts: ${facts}"
+    }
+  }
+  output = output + if entry.proven == Some(true) {
+    "\nreason: retained value facts satisfy the target guard"
+  } else {
+    if entry.proven == Some(false) {
+      "\nreason: retained value facts do not prove the target guard; this does not establish a runtime failure"
+    } else {
+      "\nreason: no applicable value facts were retained for this conversion"
+    }
+  }
+  output
+}
+
+pure render_guard_conversion_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [GuardConversionEvidence] = []
+  mut found_function: Bool = false
+  for body in project.module_bodies {
+    if body.signature.binding.identity == selector.identity {
+      found_function = true
+      entries = concat(entries, body_guard_conversions(body.body))
+    }
+  }
+  mut output: Str = "guarded conversions:"
+  if !found_function {
+    output = output + " unavailable\nreason: no checked body was retained for this function"
+  } else {
+    if len(entries) == 0 {
+      output = output + " none"
+    } else {
+      for entry in entries {
+        output = output + "\n\n" + render_guard_conversion(
+          entry,
+          project.sources,
+          root,
+          stdlib_root
+        )
+      }
+    }
+  }
+  output
+}
+
 pub pure render_function_explanations(
   project: LoadedProject,
   selector: SourceMapFunctionSelector,
@@ -306,6 +422,12 @@ pub pure render_function_explanations(
     selector.display_name,
     selector.source_path,
     accepted,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_guard_conversion_explanations(
+    project,
+    selector,
     root,
     stdlib_root
   )

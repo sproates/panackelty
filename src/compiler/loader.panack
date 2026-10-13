@@ -13,7 +13,7 @@ pub import project/src/compiler/module_bodies::{
   Diagnostic, LoadedModule, ModuleBindingGraph, ModuleSignature, BoundFunctionBody
 }
 import project/src/compiler/module_bodies::{
-  CheckedModuleBodies, BodyCheckStatus.BodyIdentityChecked, check_module_bodies
+  CheckedModuleBodies, BodyCheckStatus.BodyIdentityChecked, check_module_bodies, check_module_bodies_explained
 }
 import project/src/compiler/module_effects::{CheckedModuleEffects, check_module_effects}
 import project/src/compiler/module_bindings::{ModuleBindings, ModuleIdentity, ModuleDeclarationKind.ModuleFunction, collect_module_bindings, loaded_module_declaration_index, module_binding_diagnostics, source_module_identity, source_package_module_identity, module_relative_path, module_programs, module_declaration_positions}
@@ -963,11 +963,12 @@ load_project_mode_with_configuration(
       }
     }
     for module in loaded.modules {
-      checked_bodies: CheckedModuleBodies = check_module_bodies(
+      checked_bodies: CheckedModuleBodies = check_module_bodies_explained(
         graph,
         loaded.modules,
         signatures,
-        module
+        module,
+        retain
       )
       if len(module_execution_diagnostics(module.parsed)) > 0 {
         diagnostics = concat(diagnostics, checked_bodies.diagnostics)

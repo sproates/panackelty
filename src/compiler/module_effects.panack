@@ -385,7 +385,8 @@ pub pure check_module_effects(
         signatures,
         function.signature.binding.identity,
         function.signature.parameters,
-        map()
+        map(),
+        false
       )
       context: ModuleEffectContext = ModuleEffectContext(
         body_context,

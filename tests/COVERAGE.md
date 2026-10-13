@@ -688,8 +688,18 @@ retention parity. The public `cli_explanations` functional case verifies importe
 Unicode/generic source ranges, local proof versus whole-program rejection,
 missing/unsupported evidence, no program execution, malformed input/options and
 ordinary source/bytecode execution. These tests cover the bounded subtraction
-query, not the unimplemented type/effect, change-impact or runtime explanations.
+query, not the remaining type/effect, change-impact or runtime explanations.
 Panackelty source execution coverage percentages remain unmeasured.
+
+The guarded-conversion explanation slice retains decisions only for the explicit
+`explain` query. Compiler module-body unit cases cover a branch fact proving a
+conversion, known passing and failing literals, and empty evidence during
+ordinary checking. The public `cli_explanations` case checks guarded-to-guarded
+conversion, target guard and source facts, honest unproved output, and omission
+of guarded-to-base widening. Checker unit cases verify that a compatible
+guarded source can convert when its invariant proves the target, and that a
+stricter target is rejected without further facts. Inferred-type explanations
+remain outside this slice.
 
 ## Indexed compiler declaration lookup
 

@@ -59,9 +59,26 @@ main(): Void {
       explain_write(library, "// λ🙂\npub pure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
       results = append(results, explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
         ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
+      explain_write(library, "pub type Positive = Nat where value > 0\npub pure inspect[T](tag: T, value: Nat): Void {\n  if value > 0 { positive: Positive = value; }\n}\n")
+      explain_write(source, "import project/library as library\nmain(): Void { library.inspect[Str](\"tag\", 2); }\n")
+      results = append(results, explain_run("imported generic guarded conversion attribution", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversion: proved", "source: project/library.panack:3:", "conversion: Nat -> library.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\ntype NonNegative = Nat where value >= 0\npure inspect(value: Nat): Void { if value > 0 { positive: Positive = value; } }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded conversion cites local branch facts", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversions:", "guarded conversion: proved", "conversion: Nat -> main.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\ntype NonNegative = Nat where value >= 0\npure inspect(value: Positive): Void { broad: NonNegative = value; }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded source proves a broader guarded target", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversion: proved", "conversion: main.panack:Positive -> main.panack:NonNegative", "source guard: (value > 0)", "target guard: (value >= 0)", "facts: value >= 1"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\npure inspect(): Positive { 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected guarded conversion explains missing proof", ["explain", source, "--function", "inspect"], 1,
+        ["program: rejected", "guarded conversion: unproved", "source: project/main.panack:2:", "expression: 0", "conversion: Nat -> main.panack:Positive", "facts: value >= 0 and value <= 0", "do not prove the target guard"], [], "function inspect returns Nat, expected Positive"))
+      explain_write(source, "type Positive = Nat where value > 0\npure inspect(value: Positive): Nat { value }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded to base widening has no proof conversion", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversions: none"], ["guarded conversion:"], ""))
       results = append(results, explain_run("query does not execute main", ["explain", source, "--function", "main"], 0,
         ["subtraction: unavailable", "no subtraction evidence"], ["\n3\n", "\n2\n"], ""))
       results = append(results, explain_run("unknown function", ["explain", source, "--function", "absent"], 1, [], [], "unknown function absent"))
+      explain_write(source, "main(): Void { print(3); print(2); }\n")
       results = append(results, explain_run("ordinary source executes", [source], 0, ["3\n2\n"], ["program:"], ""))
       results = append(results, explain_run("ordinary compile", ["compile", source, "-o", artifact], 0, ["wrote "], [], ""))
       results = append(results, explain_run("ordinary bytecode executes", [artifact], 0, ["3\n2\n"], ["program:"], ""))

@@ -1,7 +1,8 @@
-# Compiler explanations: subtraction and effect boundaries
+# Compiler explanations: guarded conversions, subtraction and effect boundaries
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports retained natural-number subtraction and effect-boundary evidence for one function. It reads
+reports retained proof-bearing guarded conversions, natural-number subtraction
+and effect-boundary evidence for one function. It reads
 source; it does not execute the program, emit bytecode, write files, or consume a
 source-map sidecar. The command is implemented in unreleased core; existing
 published/browser versions do not acquire it automatically.
@@ -100,6 +101,27 @@ stderr: the original type-first diagnostics are preserved, and the project remai
 rejected. There is no separate
 capability taxonomy such as Network or Filesystem in this output.
 
+## Guarded-conversion explanations
+
+The query reports conversions into a guarded type when the checker consults
+value facts to decide whether the target guard is proved. For example,
+`positive: Positive = value` inside `if value > 0` reports the retained local
+bound and the target guard. A conversion from one guarded type to another also
+reports the source invariant used to prove the target. Output includes the
+source range, source and target types, available bounds, and whether the proof
+passed, failed, or could not be decided. An unproved conversion does not prove a
+runtime failure, and the normal diagnostic remains unchanged.
+
+This slice covers proof-bearing conversions into guarded targets, including
+core values and guarded source invariants. The checker accepts a guarded source
+for a compatible guarded target only when its invariant proves the target
+guard; this also permits conversions that previously failed, such as
+`Positive` to `NonNegative`. Stricter target guards still require sufficient
+facts. Widening a guarded value to its unguarded base type is not a
+proof-bearing conversion and is omitted. The query does not infer new facts.
+Guard-conversion evidence is retained only by the explicit `explain` query;
+ordinary project checking keeps the evidence collections empty.
+
 ## Boundaries and cost
 
 This first query covers binary Nat subtraction in function definitions. Generic
@@ -108,16 +130,19 @@ specialisation or runtime path execution. Imported definitions keep their own
 source locations. A query can include multiple subtraction obligations in checker
 traversal order, including nested subtractions and both branches.
 
-The proof rules and acceptance semantics are unchanged. Variable-to-variable
-relations, compound guard inference and arithmetic constant folding are not added.
+The checker adds the narrow guarded-source conversion described above;
+explanation mode records that same checker decision. Other proof rules and
+acceptance semantics are unchanged. Variable-to-variable relations, compound
+guard inference and arithmetic constant folding are not added.
 The original checker may reject mathematically safe expressions outside its
 supported proof rules. Constant values are retained, but declaration/initializer
 provenance chains are not; the operation range identifies the operands being
 checked. Type-declaration guards are not part of this function query. General type explanations, transitive effect explanations, compilation provenance, suggested requirements, change
 predictions and runtime value derivations remain separate programme work.
 
-Only the explicit query retains subtraction/effect evidence and lower-bound origins. Ordinary
-checking carries empty evidence/availability collections and omits guard origins. Effect decisions
+Only the explicit query retains subtraction/effect evidence, lower-bound origins,
+and guarded-conversion decisions. Ordinary checking carries empty
+evidence/availability collections and omits guard origins. Effect decisions
 share the same traversal and predicates in both modes; opt-in records retain local
 reasons and source spans, with no extra type analysis pass. After body errors only the query runs the
 filtered effect traversal; ordinary compilation skips it. No evidence
@@ -128,7 +153,20 @@ source-map loader reports failures for exceeded bounds. This is a source-size
 bound, not a hard guarantee on compiler time, memory, or output size. Plain text
 is the current presentation, not a versioned machine-readable protocol.
 
-Acceptance coverage lives in `tests/runner/compiler_explanations_unit.panack` and
+## Query turnaround baseline
+
+On macOS 26.5 arm64, five end-to-end CLI queries against a two-module project
+with an imported generic function and a guarded conversion took 0.05s, 0.04s,
+0.04s, 0.05s and 0.04s (`real` time). Each sample launched a new VM process and
+included project loading, checking and rendering; the filesystem cache was warm
+after the first query. The median was 0.04s and the observed range was 0.04–0.05s.
+Use 0.25s per query on this fixture and host as the initial useful turnaround
+target, giving five times the observed maximum for source-size and host variance.
+This is a local comparison target, not a CI timing gate or a build-performance
+investigation.
+
+Acceptance coverage lives in `tests/runner/compiler_explanations_unit.panack`,
+`tests/runner/compiler_module_bindings_unit.panack` and
 `tests/functional/cases/cli_explanations`, plus the existing mutation/checker,
 bootstrap and public-CLI suites. Measurements and limitations are recorded in
 [the validation profile](../tests/VALIDATION_PROFILE.md). This bounded delivery

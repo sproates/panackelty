@@ -792,10 +792,19 @@ pure assignable_checked(
         evaluate_nat_guard(guarded.guard, value.nat_value)
       } else {
         mut proven: Bool = false
+        guarded_source: GuardedTypeLookup = guarded_type(program, value.name)
+        compatible_source_base: Bool = guarded_source.base == guarded.base ||
+          (guarded_source.base == "Nat" && guarded.base == "Int")
+        if guarded_source.found && compatible_source_base {
+          source_facts: Map[Str, Bounds] = condition_facts(guarded_source.guard, map(), true)
+          if map_has(source_facts, "value") {
+            proven = prove_guard_bounds(guarded.guard, map_get(source_facts, "value"))
+          } else {}
+        } else {}
         match unlocated_expression(source) {
           LocatedExpr(position, inner, located_type_argument_spans) => {},
           NameExpr(name) => {
-            if map_has(facts, name) {
+            if !proven && map_has(facts, name) {
               proven = prove_guard_bounds(guarded.guard, map_get(facts, name))
             } else {}
           },
@@ -3598,6 +3607,15 @@ pub pure check_program_evidence_mode(
           }
           mut return_ok: Bool = assignable(program, checked.info.name, return_type)
           guarded_return: GuardedTypeLookup = guarded_type(program, return_type)
+          guarded_source: GuardedTypeLookup = guarded_type(program, checked.info.name)
+          compatible_guarded_base: Bool = guarded_source.base == guarded_return.base ||
+            (guarded_source.base == "Nat" && guarded_return.base == "Int")
+          if !return_ok && guarded_return.found && guarded_source.found && compatible_guarded_base {
+            source_facts: Map[Str, Bounds] = condition_facts(guarded_source.guard, map(), true)
+            if map_has(source_facts, "value") {
+              return_ok = prove_guard_bounds(guarded_return.guard, map_get(source_facts, "value"))
+            } else {}
+          } else {}
           if !return_ok && guarded_return.found && checked.info.has_nat && base_type(
             program,
             checked.info.name

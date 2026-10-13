@@ -5677,3 +5677,20 @@ can help on this host, not a stable speed guarantee across machines. The
 historical 120s/15s/75s/60s figures remain non-gating under the owner's GI#106
 direction. This pilot does not complete GI#106, which remains open until the
 user says they are happy. Website impact: none.
+
+## GI#134 explain query turnaround baseline — 2026-10-13
+
+Five fresh-process `panack-vm run <stage-2 compiler> explain <entry> --function
+inspect` queries loaded and checked a two-module project with an imported
+generic function and a guarded conversion. On macOS 26.5 arm64, end-to-end
+`real` times were 0.05s, 0.04s, 0.04s, 0.05s and 0.04s (median 0.04s; range
+0.04–0.05s). Each measurement includes VM startup, source loading, checking and
+rendering; the filesystem cache was warm after the first sample. Set an initial
+useful target of at most 0.25s per query for this fixture and host, five times
+the observed maximum. This is a local comparison target, not a CI timing gate.
+
+The required full `make check` passed on the same host in 315s: unit 270s,
+bootstrap 211s, and functional 12s. Its output printed warnings against the
+historical 15s, 60s and 120s figures; ROADMAP.md records those values as
+non-gating under the owner's 2026-10-12 direction. This validation result is
+reported for context only and does not reopen or extend GI#106.

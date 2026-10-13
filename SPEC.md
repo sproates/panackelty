@@ -463,10 +463,13 @@ A guarded type is a nominal refinement of a primitive scalar. `value` denotes
 the candidate value. The initial decidable guard language contains literals,
 `value`, comparisons, `&&`, `||`, and arithmetic.
 
-The checker accepts a conversion only when it can prove the guard from a
-literal or from facts introduced by a surrounding `if`. It does not silently
-insert a runtime check. A future `check<T>(expression): Result<T, GuardError>`
-operation will be the explicit boundary for untrusted values.
+The checker accepts a conversion only when it can prove the target guard from
+the value's literal, facts introduced by a surrounding `if`, or the invariant
+of a guarded source type with a compatible primitive base. A guarded source
+does not prove a stricter target unless its invariant entails that target
+guard. The checker does not silently insert a runtime check. A future
+`check<T>(expression): Result<T, GuardError>` operation will be the explicit
+boundary for untrusted values.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a
@@ -1184,8 +1187,9 @@ closure, compatibility, I/O bounds, output safety and source disclosure.
 ## Compiler explanations
 
 `panack explain SOURCE.panack --function NAME` performs the ordinary frontend
-checks with opt-in evidence retention and reports binary `Nat` subtraction
-obligations and local call/await effect boundaries from the named function.
+checks with opt-in evidence retention and reports proof-bearing conversions
+into guarded types, binary `Nat` subtraction obligations, and local call/await
+effect boundaries from the named function.
 Effect output retains existing pure/ordinary/async decisions and callable-type
 classification without inferring transitive or runtime effects. Effect evidence is
 unavailable for type-invalid functions. The query can retain boundaries for
@@ -1194,8 +1198,11 @@ signature or declaration type errors suppress all recovery. Ordinary compilation
 original diagnostics remain unchanged; recovered effect violations appear only in
 the local explanation. An allowed boundary does not imply that a callee body or
 the whole program is valid.
-The command exposes existing constant/lower-bound
-proof decisions without adding proof rules or changing acceptance. A local
+The command exposes constant/lower-bound proof decisions and proof-bearing
+conversions into guarded targets, including source facts and unresolved
+results. The checker accepts conversion from a compatible guarded source when
+its invariant proves the target guard; stricter guards still require sufficient
+facts. Other unsupported proof rules remain unchanged. A local
 proved obligation does not imply whole-program validity; unproved does not imply
 a runtime counterexample. Unsupported/invalid operands and unavailable evidence
 are explicit. Generic results describe definitions, not specialisations. No user

@@ -140,16 +140,25 @@ for contract in \
     'sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes' \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
-    'ci-bootstrap: bootstrap-check quick-start' \
+    'CI_PACKAGE_SMOKE_TARGETS := quick-start' \
+    'ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)' \
     'sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh' \
     'bootstrap-fixed-point: $(STAGE3_COMPILER) $(STAGE1_STDLIB) $(STAGE2_STDLIB) $(STAGE3_STDLIB)' \
     'seed-refresh/native-staging sh tests/seed_refresh.sh --native' \
     'native-conformance/source sh tests/native_conformance.sh source' \
-    'native-conformance/bytecode sh tests/native_conformance.sh bytecode'; do
+    'ci-conformance-bytecode-check: native $(STAGE2_COMPILER)' \
+    'native-conformance/bytecode sh tests/native_conformance.sh bytecode' \
+    'ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)'; do
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"
 done
+for target in ci-bootstrap ci-conformance-bytecode; do
+    make -n --no-print-directory "$target" CI_SKIP_PACKAGE=true > "$work/package-skipped"
+    if grep -F 'quick-start' "$work/package-skipped" >/dev/null; then fail "next route packages from $target"; fi
+    make -n --no-print-directory "$target" CI_SKIP_PACKAGE=false > "$work/package-enabled"
+    grep -F 'quick-start' "$work/package-enabled" >/dev/null || fail "default route lost package smoke from $target"
+done
 grep -F 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]' .github/workflows/check.yml >/dev/null || fail 'missing package partition'
-grep -F 'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing validation partition'
+grep -F "fromJSON(needs.changes.outputs.next_integration == 'true' && '[\"compiler\", \"runtime\"]' || '[\"compiler\", \"runtime\", \"bootstrap\", \"sanitize-vm\", \"sanitize-oracle\", \"sanitize-runner\", \"coverage\"]')" .github/workflows/check.yml >/dev/null || fail 'missing full and focused validation partitions'
 grep -F 'run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing isolated suite dispatch'
 grep -F 'run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing project suite dispatch'
 echo 'CI partition dispatch, failure propagation and shared coverage passed.'

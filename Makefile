@@ -456,7 +456,7 @@ check-no-interpreter:
 
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
-.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
+.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode ci-conformance-bytecode-check
 ci-compiler: policy native
 	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
@@ -466,14 +466,21 @@ ci-runtime:
 
 ci-runtime-phases: unit-runtime functional
 
-ci-bootstrap: bootstrap-check quick-start
+ifeq ($(CI_SKIP_PACKAGE),true)
+CI_PACKAGE_SMOKE_TARGETS :=
+else
+CI_PACKAGE_SMOKE_TARGETS := quick-start
+endif
+
+ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)
 
 ci-conformance-source: native $(STAGE2_COMPILER)
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/source sh tests/native_conformance.sh source
 
-ci-conformance-bytecode: native $(STAGE2_COMPILER)
+ci-conformance-bytecode-check: native $(STAGE2_COMPILER)
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
-	@$(MAKE) --no-print-directory quick-start
+
+ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)
 
 # Bounded source-coverage counters; no production instrumentation or report ABI.
 .PHONY: source-coverage-experiment

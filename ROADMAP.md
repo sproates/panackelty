@@ -2576,14 +2576,36 @@ edits, but its tiny fixture did not establish whole-suite savings. See the
 [GI#106 findings and options](tests/VALIDATION_PROFILE.md#gi106-findings-and-options)
 and [workflow inventory and measurements](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory).
 
-**Current recommendation:** retain full PR and post-merge validation and all
-product-test assertions while GI#106 assesses the workflow. Three earlier
+**Earlier recommendation (superseded for `next` on 2026-10-13):** retain full PR
+and post-merge validation and all product-test assertions while GI#106 assesses
+the workflow. Three earlier
 post-merge push runs failed after successful PR Checks on identical source
 trees. The matched runner-environment comparison and added command diagnostics
 ([PR #391](https://github.com/sproates/panackelty/pull/391),
 [PR #392](https://github.com/sproates/panackelty/pull/392), and
 [PR #393](https://github.com/sproates/panackelty/pull/393)) did not reproduce
 or explain those failures. Keep them visible as unresolved reliability evidence.
+
+**Owner-directed CI cadence change (2026-10-13):** the owner asked for nightly
+builds for active branches such as `next` and for pull requests into `next` not
+to build distributions. The owner clarified that leaving full Linux validation
+on every `next` PR would miss the purpose of the cadence change. Accordingly,
+the proposed `next` PR gate keeps Linux compiler/runtime checks, a macOS
+compiler smoke and the four bounded compiler experiments; the full seven-lane
+Linux validation and ten-job Linux/macOS suite matrix move to nightly. A
+`next` push uses the focused Linux gate. Full Check runs targeting `main` and
+release validation remain unchanged.
+
+**Assessment and evidence:** this changes when several suites detect a
+regression, not which assertions exist in the full nightly/release path. A
+package, bootstrap, sanitizer, coverage, or source/bytecode conformance failure
+can reach `next` before its next nightly run. One prior `next` PR Check (run
+38336471151) used 49m50s of runner time across the ten-job package/platform
+matrix; that matrix also ran tests, so this is not a measured package-only
+saving or a wall-time estimate. The focused route's actual hosted cost and
+feedback time remain to be measured after the PRs are available. The scheduled
+workflow must be merged to the default `main` branch before GitHub will run it.
+GI#106 remains open; only the owner's explicit acceptance can complete it.
 
 The four standalone compiler experiments now run on PRs and are skipped on the
 same-tree post-merge push ([PR #394](https://github.com/sproates/panackelty/pull/394)).

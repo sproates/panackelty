@@ -1,10 +1,10 @@
-# Compiler explanations: expression and inferred local types, guarded conversions, subtraction and effects
+# Compiler explanations: expression, local and function return types, guarded conversions, subtraction and effects
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports inferred local types with their checked initializer types, and can query
-the checked type of an expression at a source location. It also reports retained
-proof-bearing guarded conversions, natural-number subtraction and effect-boundary
-evidence for one function. It reads
+reports inferred local types with their checked initializer types, can query the
+checked type of an expression at a source location, and reports function return
+type checks. It also reports retained proof-bearing guarded conversions,
+natural-number subtraction and effect-boundary evidence for one function. It reads
 source; it does not execute the program, emit bytecode, write files, or consume a
 source-map sidecar. The command is implemented in unreleased core; existing
 published/browser versions do not acquire it automatically.
@@ -61,6 +61,16 @@ are omitted. If checking could not determine a complete type, the result is
 `inferred type: unavailable`; the query does not invent a type or change inference
 rules. The output describes the checked definition, not a runtime value or a
 call-site specialisation.
+
+## Function return types
+
+The function explanation reports the check of its final result against the
+declared return type. `return type: accepted` or `rejected` comes from the
+existing checker decision and includes the result expression's checked type,
+declared type and source range. `return type: unavailable` marks a deferred
+compatibility check. If the checker rejects an incomplete result, the boundary
+can be `rejected` while `actual type` is `unavailable`; the query does not fill
+in an unresolved type. The normal diagnostic and exit status remain unchanged.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

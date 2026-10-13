@@ -5713,3 +5713,20 @@ The final `make check` passed on the same host in 250s: unit 165s, bootstrap
 quick-start passed. Warnings against historical timing figures remain
 non-gating under the owner's 2026-10-12 direction; this result does not reopen
 or extend GI#106.
+
+## GI#134 function return explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function returns` on macOS
+26.5 arm64 used a two-function source with a valid `Nat` return. Each sample
+included VM startup, project loading, checking and explanation rendering; the
+filesystem cache was warm. `real` times had a median of 0.0465s and a range of
+0.0393–0.0485s. This small fixture establishes a local reference, not a paired
+before/after comparison or a general latency guarantee. Return evidence is
+retained only for the explicit explanation query; ordinary checking keeps it
+empty, and runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 303s: unit 256s, bootstrap
+212s, and functional 14s; unit and bootstrap ran concurrently. Release-smoke
+and quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.

@@ -95,7 +95,7 @@ implementation selection or completion of the first non-alpha milestone.
 | --- | --- | --- |
 | Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
-| Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): bounded subtraction, local effects, guarded conversions and inferred locals delivered; broader checked type/effect/proof scope remains | Current slice adds a source-location query for the smallest checked expression type; retain checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic parity and measured cost |
+| Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): bounded subtraction, local effects, guarded conversions, inferred locals and expression types delivered through PR #419; broader checked type/effect/proof scope remains | Current slice explains accepted/rejected function return type checks with actual result types and source expressions; retain checker evidence, accepted/rejected/unavailable distinctions, diagnostic parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
 | Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
@@ -1387,7 +1387,7 @@ live verification remain separately recorded in the website follow-up register.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
-| [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Investigation in progress | Accepted queries cover subtraction (#219), local effects (#225), guarded conversions (#417) and inferred locals (#418); current expression-type query adds source-selected checked types. Broader type/effect/proof scope remains open. |
+| [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Investigation in progress | Accepted queries cover subtraction (#219), local effects (#225), guarded conversions (#417), inferred locals (#418) and expression types (#419); current return-type query adds accepted/rejected function-boundary evidence. Broader type/effect/proof scope remains open. |
 | <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Investigation in progress | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
 | <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
 | <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Investigation in progress | [RM#106: Semantic-impact experiment](#rm-106) establishes bounded direct predictions and positive local non-impact; one-change transitive acceptance and production remain open. |
@@ -4125,8 +4125,12 @@ source expressions, omits annotated locals, and reports incomplete inference as
 unavailable without changing inference rules. This follow-up adds an optional
 one-based line/column query for the smallest checked expression at that location,
 including explicit unavailable output when no complete function body or matching
-expression type is retained. These remain bounded, unreleased CLI slices; broader
-checked type/proof scope remains open. The current website
+expression type is retained. PR #419 accepted this query. The current follow-up
+retains the check between a function's actual result type and its declared
+return type, including rejected and unavailable outcomes with the returned
+expression's source range; ordinary checking keeps this evidence empty. These
+remain bounded, unreleased CLI slices; broader checked type/proof scope remains
+open. The current website
 stays accurate for its published versions; review website promotion at the next
 supporting release. Runtime value provenance is its own linked workstream #172;
 automatic fixes remain outside #134.

@@ -3,6 +3,9 @@ PASS type-at selects the smallest checked expression
 PASS type-at reports the containing generic call type
 PASS type-at reports no expression at unrelated location
 PASS type-at rejects a zero line
+PASS accepted function return type cites checked result
+PASS rejected function return explains actual and expected types
+PASS unresolved function return is explicitly unavailable
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
 PASS imported generic proof
@@ -68,4 +71,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 70, failures: 0
+tests: 73, failures: 0

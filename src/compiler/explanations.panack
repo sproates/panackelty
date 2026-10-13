@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -479,6 +479,59 @@ pure render_inferred_type(type: Option[SignatureType]): Str {
   }
 }
 
+pure render_return_type_evidence(
+  evidence: ReturnTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(body_type_text(evidence.expected))
+  mut output: Str = "return type: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked function result is compatible with its declared return type"
+    } else {
+      "\nreason: the checked function result is incompatible with its declared return type"
+    },
+    None() => "\nreason: the checker did not determine a complete function result type"
+  }
+}
+
+pure render_return_type_explanation(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut output: Str = "return type: unavailable\nreason: no return type evidence was retained for this function"
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      match function.return_type_evidence {
+        None() => {},
+        Some(evidence) => {
+          output = render_return_type_evidence(
+            evidence,
+            project.sources,
+            root,
+            stdlib_root
+          )
+        }
+      }
+    }
+  }
+  output
+}
+
 pure render_inferred_local(
   body: BoundBody,
   sources: Map[Str, Str],
@@ -697,6 +750,12 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_inferred_local_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_return_type_explanation(
     project,
     selector,
     root,

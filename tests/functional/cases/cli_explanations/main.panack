@@ -68,6 +68,15 @@ main(): Void {
         ["checked expression type: unavailable", "no checked expression covers this source location"], [], ""))
       results = append(results, explain_run("type-at rejects a zero line", ["explain", source, "--function", "probe", "--type-at", "0", "23"], 1,
         [], [], "line and column must be positive decimal numbers"))
+      explain_write(source, "pure returns(): Nat { 5 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted function return type cites checked result", ["explain", source, "--function", "returns"], 0,
+        ["return type: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with its declared return type"], [], ""))
+      explain_write(source, "pure returns(): Nat { \"wrong\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected function return explains actual and expected types", ["explain", source, "--function", "returns"], 1,
+        ["return type: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with its declared return type"], [], "function returns returns Str, expected Nat"))
+      explain_write(source, "pure returns(): Nat { missing }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved function return is explicitly unavailable", ["explain", source, "--function", "returns"], 1,
+        ["return type: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete function result type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
       results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))

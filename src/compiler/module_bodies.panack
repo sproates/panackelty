@@ -106,12 +106,20 @@ pub enum BodyCheckStatus {
   BodyInvalid
 }
 
+pub record ReturnTypeEvidence {
+  span: SourceSpan,
+  actual: Option[SignatureType],
+  expected: SignatureType,
+  accepted: Option[Bool]
+}
+
 pub record BoundFunctionBody {
   signature: ModuleSignature,
   parameters: [BodyLocal],
   body: BoundBody,
   deferred: [SourceSpan],
-  status: BodyCheckStatus
+  status: BodyCheckStatus,
+  return_type_evidence: Option[ReturnTypeEvidence]
 }
 
 pub record CheckedModuleBodies {
@@ -458,6 +466,35 @@ pure body_require_value(
       )
     }
   }
+}
+
+pure body_return_value_span(body: BoundBody): SourceSpan {
+  mut span: SourceSpan = body.span
+  match body.node {
+    BodyBlock(has_tail) => if has_tail {
+      for child in body.children {
+        span = child.span
+      }
+    },
+    BodyBinding(local, type, mutable, inferred) => {},
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(local) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyAssignment(local) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+  }
+  span
 }
 
 pure body_operation_scalar(context: BodyContext, value: BoundBody): Str {
@@ -3091,9 +3128,35 @@ pure check_module_bodies_mode(
                   BodyIdentityChecked()
                 }
               }
+              return_type_evidence: Option[ReturnTypeEvidence] = if context.retain_guard_conversions {
+                accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+                  Some(false)
+                } else {
+                  if len(required.deferred) > 0 {
+                    None()
+                  } else {
+                    Some(true)
+                  }
+                }
+                Some(ReturnTypeEvidence(
+                  body_return_value_span(checked.body),
+                  checked.body.type,
+                  expected,
+                  accepted
+                ))
+              } else {
+                None()
+              }
               functions = append(
                 functions,
-                BoundFunctionBody(signature, bound_parameters, checked.body, all_deferred, status)
+                BoundFunctionBody(
+                  signature,
+                  bound_parameters,
+                  checked.body,
+                  all_deferred,
+                  status,
+                  return_type_evidence
+                )
               )
             }
           }

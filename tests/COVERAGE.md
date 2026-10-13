@@ -703,7 +703,12 @@ inferred local names, source expressions, initializer/result types, omission of
 annotated locals, generic calls and explicit unavailability for incomplete
 inference. Its expression-type query selects the smallest checked expression at
 a requested line/column, distinguishes a generic call from its nested literal,
-and reports unavailable for unrelated locations and invalid zero coordinates.
+preserves imported generic source attribution, and reports unavailable for
+unrelated locations, invalid bodies and zero coordinates. Function return cases
+verify accepted and rejected checker decisions, actual/declared types and the
+returned expression's source span; module-body tests check that ordinary
+checking retains no return explanation metadata and that unresolved results keep
+an unavailable decision.
 
 ## Indexed compiler declaration lookup
 

@@ -333,15 +333,19 @@ policy, formatting and validation tools cover only their documented scope.
 Website source, previews, release promotion and publishing belong in the
 [website repository](https://github.com/sproates/panackelty-website). Follow its contributor and validation instructions.
 
-Run `bash scripts/validate_change.sh --plan origin/main` to inspect the affected
-components and required checks, then use `--run` to execute the selected local
-route. It includes branch changes plus staged, unstaged and untracked edits.
+Run `bash scripts/validate_change.sh --plan origin/next` for work targeting
+`next`, or use `origin/main` for work targeting `main`, to inspect the affected
+components and required checks. Use `--run` to execute that local route. It
+includes branch changes plus staged, unstaged and untracked edits.
 For changes limited to the informational/process files in `scripts/ci_docs.sh`,
 this runs `make docs`; review the content as well. CI checks those documents and local file
 links without building the toolchain. See
 [change-aware CI](tests/README.md#change-aware-ci) for the exact boundary.
 
-For implementation, specification, packaged-input, workflow, mixed or unknown
+For CI/workflow-only changes listed by `scripts/ci_scope.sh`, the local runner
+executes the focused routing, YAML, result-gate and workflow/layout contracts.
+Workflow changes mixed with product code, or any unlisted/shared change, select
+full validation. For product, specification, packaged-input, mixed or unknown
 changes, run from the repository root:
 
 ```sh

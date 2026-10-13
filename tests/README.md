@@ -481,16 +481,18 @@ in place. Findings and next investigations live in
 Use the same selector locally and in CI:
 
 ```sh
-bash scripts/validate_change.sh --plan origin/main
-bash scripts/validate_change.sh --run origin/main
+bash scripts/validate_change.sh --plan origin/next
+bash scripts/validate_change.sh --run origin/next
 ```
 
 The plan reports `route`, affected `components` and required `checks`. Local
 selection compares the merge base with the working tree and index and includes
 untracked, non-ignored files. The run checks branch/index/worktree whitespace,
-then executes `make docs` alone for `docs`, `make docs` and canonical
-`make check` for `full`. CI runs the same route with its additional platform,
-sanitizer and coverage gates. No route caches test outcomes.
+then executes `make docs` alone for `docs`, the routing, workflow YAML, result
+gate and repository layout contracts for `workflow`, and `make docs` plus
+canonical `make check` for `full`. CI runs those focused contracts on the
+workflow route and adds platform, sanitizer and coverage gates for full product
+validation. No route caches test outcomes.
 Use a different base ref when appropriate. Invalid local refs fail visibly;
 missing CI history and empty diffs conservatively select full validation.
 `make docs` remains available for a focused document check; it does not itself
@@ -502,20 +504,26 @@ without building the compiler, and remains part of `make check` through policy.
 | `README.md` changes confined to the marked positioning-copy region before `## Exact fractions and Unit` | Document, local-link and whitespace checks; quick-start, examples, installation and packaged README content remain full-validation inputs |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Only GitHub Actions workflow files and the explicit CI routing, gate and contract files listed by `scripts/ci_scope.sh` | Workflow YAML syntax/structure, CI routing, result-gate and repository layout contracts; product compiler, package and platform suites are not applicable to this configuration-only route |
 | Any other `README.md` change, or a mixture of positioning copy with any full-validation input | Full native validation and both platform packages |
-| Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages |
+| Any component, shared contract, unlisted path or mixture with product code | Full native validation and both platform packages |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
-All document inputs must be regular non-executable files on both sides.
+All document inputs must be regular non-executable files on both sides. CI-only
+inputs must also be regular non-executable files and must belong to the explicit
+allowlist in `scripts/ci_scope.sh`; edits to any other shared input select full
+validation. The workflow route still runs the classifier, documentation checks,
+workflow YAML parser, required-result guards and the repository's workflow/layout
+contract tests. Changes to `check.yml` are covered by that route's own contracts.
 README.md stays package-owned except when comparing the complete file outside
 the bounded positioning-copy markers leaves it identical. Before those markers
 exist on a historical base, the classifier uses the preamble through the fixed
 `## Exact fractions and Unit` boundary; malformed or moved boundaries fall back
 to full validation. The local selector checks both index and working-tree
 versions so an unsafe staged edit cannot be hidden by an unstaged reversal. All
-other inputs retain full validation. The classifier compares the complete PR
-diff from its merge base. Renames expand into old-path deletion/new-path
+other non-document, non-CI inputs retain full validation. The classifier
+compares the complete PR diff from its merge base. Renames expand into old-path deletion/new-path
 addition; symlinks, executable Markdown and unmerged local indexes cannot use
 the fast path. `scripts/ci_docs.sh` owns the explicit document allowlist and
 positioning boundary. Other README content remains a packaged input, `SPEC.md`

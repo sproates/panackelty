@@ -14,9 +14,11 @@ test('ordinary slices require fast tests, promotion requires collection too',()=
     assert.throws(()=>gate({route:'full',requested:'false',policy:result,collection:'skipped'}));
   }
 });
-test('docs skip both source jobs and uncertain routing fails closed',()=>{
+test('docs and workflow routes skip source jobs and uncertain routing fails closed',()=>{
   for(const requested of ['true','false'])
     assert.doesNotThrow(()=>gate({route:'docs',requested,policy:'skipped',collection:'skipped'}));
+  for(const requested of ['true','false'])
+    assert.doesNotThrow(()=>gate({route:'workflow',requested,policy:'skipped',collection:'skipped'}));
   assert.throws(()=>gate({route:'unknown',requested:'false',policy:'success',collection:'skipped'}));
   assert.throws(()=>gate({route:'full',requested:'',policy:'success',collection:'skipped'}));
 });

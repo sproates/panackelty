@@ -22,7 +22,7 @@ case "$route" in
         bash tests/ci_scope.sh
         sh tests/workflow_yaml.sh
         sh tests/unit/harness/layout.sh
-        node --test tests/source_coverage/route.test.cjs ;;
+        node --test tests/source_coverage/route.test.cjs tests/source_coverage/release_gate.test.cjs ;;
     route=full)
         echo 'Running canonical local validation; CI additionally runs platform and instrumentation gates.'
         make docs

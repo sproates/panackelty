@@ -13,10 +13,10 @@ ci_static_validation_path() {
     case "$1" in
         .github/workflows/*.yml|.github/workflows/*.yaml|\
         scripts/ci_scope.sh|scripts/validate_change.sh|scripts/ci_gate.sh|scripts/ci_package_gate.sh|\
-        scripts/ci_next_integration.sh|scripts/source_coverage_route.cjs|\
+        scripts/ci_next_integration.sh|scripts/source_coverage_route.cjs|scripts/release_source_coverage.cjs|\
         scripts/validation_components.sh|scripts/ci_docs.sh|scripts/check_docs.sh|\
         tests/ci_scope.sh|tests/ci_partition.sh|tests/ci_conformance.sh|\
-        tests/source_coverage/route.test.cjs|tests/unit/harness/layout.sh|tests/workflow_yaml.sh)
+        tests/source_coverage/route.test.cjs|tests/source_coverage/release_gate.test.cjs|tests/unit/harness/layout.sh|tests/workflow_yaml.sh)
             return 0 ;;
         *) return 1 ;;
     esac
@@ -74,7 +74,7 @@ count=0
 position_mode=commit
 [[ "$worktree" == 1 ]] && position_mode=worktree
 while IFS= read -r -d '' path; do
-    if [[ "$path" == README.md ]] && ci_readme_positioning_only "$base" "$head" "$position_mode"; then
+    if [[ "$path" == README.md ]] && ci_readme_informational_only "$base" "$head" "$position_mode"; then
         component=documentation
     elif ci_static_validation_path "$path"; then
         # CI definitions and their narrow routing-contract suite do not change

@@ -8,7 +8,7 @@ validation_component() {
     fi
     if ci_informational_doc "$1"; then
         case "$1" in
-            CONTRIBUTING.md|docs/ROADMAP_PROCESS.md|.github/pull_request_template.md) printf 'process\n' ;;
+            CONTRIBUTING.md|RELEASE_POLICY.md|docs/ROADMAP_PROCESS.md|docs/SOURCE_COVERAGE_BASELINE.md|.github/pull_request_template.md) printf 'process\n' ;;
             *) printf 'documentation\n' ;;
         esac
         return

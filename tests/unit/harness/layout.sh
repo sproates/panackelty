@@ -46,6 +46,14 @@ contains .github/workflows/nightly-packages.yml 'echo "sha=$(git rev-parse HEAD)
 contains .github/workflows/nightly-packages.yml 'name: panackelty-${{ matrix.target }}-${{ steps.source.outputs.sha }}'
 pass
 case_name=release-publication-requires-every-gate
+contains .github/workflows/release.yml 'source_coverage_gate:'
+contains .github/workflows/release.yml 'needs: source_coverage_gate'
+contains .github/workflows/release.yml 'fetch-depth: 0'
+contains .github/workflows/release.yml 'https://sproates.github.io/panackelty-coverage/source/provenance.json'
+contains .github/workflows/release.yml 'https://sproates.github.io/panackelty-coverage/source/summary.json'
+contains .github/workflows/release.yml 'node scripts/release_source_coverage.cjs'
+contains scripts/release_source_coverage.cjs 'Measured source coverage commit is not an ancestor'
+contains scripts/release_source_coverage.cjs 'Coverage inputs changed after measurement'
 contains .github/workflows/release.yml 'tags:
       - "v*"'
 contains .github/workflows/release.yml 'permissions:
@@ -149,7 +157,7 @@ absent "$work/test-job" 'apt-get'
 for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
     'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
     "if: startsWith(matrix.suite, 'sanitize-')" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done
-test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 3 || fail 'release checkout credential policy'
+test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 4 || fail 'release checkout credential policy'
 test "$(grep -c 'contents: write' .github/workflows/release.yml)" = 1 || fail 'release permission policy'
 pass
 case_name=required-bug-report-fields

@@ -3,8 +3,8 @@
 `panack explain SOURCE.panack --function NAME` checks the complete project and
 reports inferred local types with their checked initializer types, can query the
 checked type of an expression at a source location, and reports function return
-direct function-call argument, annotated local initializer and assignment value
-type checks. It also reports retained
+direct function-call argument, selected text/byte builtin argument, annotated
+local initializer and assignment value type checks. It also reports retained
 proof-bearing guarded conversions, natural-number subtraction and effect-boundary
 evidence for one function. It reads source; it does not execute the program, emit
 bytecode, write files, or consume a source-map sidecar. The command is implemented
@@ -79,9 +79,13 @@ in an unresolved type. The normal diagnostic and exit status remain unchanged.
 For each checked direct function call in the selected function, the explanation
 reports each argument's checked type against the corresponding parameter type.
 Accepted, rejected and unavailable outcomes come from the existing checker
-decision and include the argument expression's source range. This slice does
-not report builtin contracts or indirect callable invocations. Diagnostics and
-exit status remain unchanged.
+decision and include the argument expression's source range. The same applies
+to checked arguments for the text helpers `is_digit`, `is_letter`,
+`is_whitespace`, `starts_with`, `starts_with_at`, `reverse` and `slice`, and the
+byte helpers `byte_append`, `bytes_concat`, `byte_len`, `byte_get`,
+`utf8_encode` and `utf8_decode`. Other builtin contracts and indirect callable
+invocations remain outside this slice. Diagnostics and exit status remain
+unchanged.
 
 ## Annotated local initializers
 

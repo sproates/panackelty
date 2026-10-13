@@ -3,7 +3,7 @@
 `panack explain SOURCE.panack --function NAME` checks the complete project and
 reports inferred local types with their checked initializer types, can query the
 checked type of an expression at a source location, and reports function return
-and direct function-call argument type checks. It also reports retained
+direct function-call argument and annotated local initializer type checks. It also reports retained
 proof-bearing guarded conversions, natural-number subtraction and effect-boundary
 evidence for one function. It reads source; it does not execute the program, emit
 bytecode, write files, or consume a source-map sidecar. The command is implemented
@@ -81,6 +81,14 @@ Accepted, rejected and unavailable outcomes come from the existing checker
 decision and include the argument expression's source range. This slice does
 not report builtin contracts or indirect callable invocations. Diagnostics and
 exit status remain unchanged.
+
+## Annotated local initializers
+
+For each explicitly annotated local in the selected function, the explanation
+reports the initializer's checked type against the annotation, with the existing
+accepted, rejected or unavailable decision and the initializer's source range.
+Inferred locals remain in the inferred-local section. Assignment checks are not
+included here; diagnostics and exit status remain unchanged.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

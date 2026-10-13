@@ -422,7 +422,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyIf(has_else) => {},
           BodyBlock(has_tail) => {},
           BodyMatch(targets, bindings, spans) => {},
-          BodyBinding(identity, type, mutable, inferred) => {},
+          BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
           BodyAssignment(identity) => {},
           BodyWhile() => {},
           BodyFor(identity) => {},
@@ -448,7 +448,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyIf(has_else) => CallExpr("$unit", [], []),
     BodyBlock(has_tail) => CallExpr("$unit", [], []),
     BodyMatch(targets, bindings, spans) => CallExpr("$unit", [], []),
-    BodyBinding(identity, type, mutable, inferred) => CallExpr("$unit", [], []),
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
     BodyAssignment(identity) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
     BodyFor(identity) => CallExpr("$unit", [], []),
@@ -489,7 +489,7 @@ pure module_emission_block(
     BodyIndex() => false,
     BodyIf(value) => false,
     BodyMatch(targets, bindings, spans) => false,
-    BodyBinding(identity, type, mutable, inferred) => false,
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => false,
     BodyAssignment(identity) => false,
     BodyWhile() => false,
     BodyFor(identity) => false,
@@ -502,7 +502,7 @@ pure module_emission_block(
   for child in body.children {
     if index < count {
       statement: Option[Statement] = match child.node {
-        BodyBinding(identity, type, mutable, inferred) => Some(BindingStatement(
+        BodyBinding(identity, type, mutable, inferred, type_evidence) => Some(BindingStatement(
           identity.name,
           "",
           None(),
@@ -606,7 +606,7 @@ pub pure module_emission_expression(
       }
       MatchExpr(module_emission_expression(graph, entry, body.children[0]), arms)
     },
-    BodyBinding(identity, type, mutable, inferred) => CallExpr("$unit", [], []),
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
     BodyAssignment(identity) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
     BodyFor(identity) => CallExpr("$unit", [], []),

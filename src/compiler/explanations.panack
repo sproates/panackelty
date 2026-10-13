@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, body_call_argument_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, body_call_argument_evidence, body_binding_type_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -306,7 +306,7 @@ pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
 pure body_inferred_locals(body: BoundBody): [BoundBody] {
   mut entries: [BoundBody] = []
   match body.node {
-    BodyBinding(local, type, mutable, inferred) => match inferred {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => match inferred {
       Some(value) => if value { entries = append(entries, body) },
       None() => {}
     },
@@ -336,7 +336,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
 
 pure inferred_local_type(body: BoundBody): Option[SignatureType] {
   match body.node {
-    BodyBinding(local, type, mutable, inferred) => match type {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => match type {
       Some(value) => Some(value),
       None() => None()
     },
@@ -362,7 +362,7 @@ pure inferred_local_type(body: BoundBody): Option[SignatureType] {
 
 pure explanation_expression_node(body: BoundBody): Bool {
   match body.node {
-    BodyBinding(local, type, mutable, inferred) => false,
+    BodyBinding(local, type, mutable, inferred, type_evidence) => false,
     BodyLiteral(value) => true,
     BodyInterpolation(parts) => true,
     BodyLocalUse(local) => true,
@@ -589,6 +589,63 @@ pure render_call_argument_explanations(
   output
 }
 
+pure render_binding_type_evidence(
+  evidence: BindingTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(body_type_text(evidence.expected))
+  label: Str = evidence.label
+  mut output: Str = "${label}: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked initializer is compatible with the annotated local type"
+    } else {
+      "\nreason: the checked initializer is incompatible with the annotated local type"
+    },
+    None() => "\nreason: the checker did not determine a complete initializer type"
+  }
+}
+
+pure render_binding_type_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BindingTypeEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_binding_type_evidence(function.body))
+    }
+  }
+  mut output: Str = "annotated local checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained annotated local initializers)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_binding_type_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
+    }
+  }
+  output
+}
+
 pure render_inferred_local(
   body: BoundBody,
   sources: Map[Str, Str],
@@ -596,7 +653,7 @@ pure render_inferred_local(
   stdlib_root: Str
 ): Str {
   match body.node {
-    BodyBinding(local, type, mutable, inferred) => {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => {
       local_name: Str = source_map_escape(local.name)
       mut output: Str = "inferred local: ${local_name}"
       if len(body.children) == 0 {
@@ -819,6 +876,12 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_call_argument_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_binding_type_explanations(
     project,
     selector,
     root,

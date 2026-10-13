@@ -32,16 +32,9 @@ case "${CI_SCOPE_ROUTE-}" in
         if [ "${CI_NEXT_INTEGRATION-}" = true ]; then
             [ "${CI_PACKAGE_BUILD_RESULT-}" = skipped ] || \
                 fail 'next package matrix must be deferred to nightly'
-            case "${CI_EVENT_NAME-}" in
-                pull_request)
-                    [ "${CI_PLATFORM_SMOKE_RESULT-}" = success ] || \
-                        fail 'next pull requests require the macOS compiler validation' ;;
-                push)
-                    [ "${CI_PLATFORM_SMOKE_RESULT-}" = skipped ] || \
-                        fail 'post-merge next pushes must not run the pull-request platform smoke' ;;
-                *) fail 'unexpected event for next validation' ;;
-            esac
-            echo 'Focused Linux checks passed; next full Linux/macOS validation and distribution builds are nightly.'
+            [ "${CI_PLATFORM_SMOKE_RESULT-}" = skipped ] || \
+                fail 'next validation must not run a macOS compiler job'
+            echo 'Next PR smoke is Linux-only; full Linux/macOS validation and distribution builds are nightly.'
         else
             [ "${CI_PACKAGE_BUILD_RESULT-}" = success ] || \
                 fail 'full two-platform package validation did not succeed'

@@ -203,37 +203,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  platform_smoke:
-    name: Mac compiler validation (macos-arm64)
+  next_smoke:
+    name: Next Linux smoke
     needs: changes
     if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request' && !cancelled()
-    runs-on: macos-14
-    env:
-      VALIDATION_JOBS: 3
-      VALIDATION_PROFILE_FILE: ${{ github.workspace }}/validation-profile.tsv
-      VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - name: Run compiler validation without a distribution build
-        run: make check-no-interpreter CI_SUITE=compiler
-      - name: Archive validation profile
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: validation-profile-macos-compiler-${{ github.run_id }}
-          path: |
-            validation-profile.tsv
-            validation-timings.tsv
-          if-no-files-found: warn
+      - name: Run bounded compiler and runtime smoke
+        run: make check-no-interpreter CI_SUITE=next-smoke
 
   test_run:
     name: Full validation (${{ matrix.suite }})
     strategy:
       fail-fast: false
       matrix:
-        suite: ${{ fromJSON(needs.changes.outputs.next_integration == 'true' && '["compiler", "runtime"]' || '["compiler", "runtime", "bootstrap", "sanitize-vm", "sanitize-oracle", "sanitize-runner", "coverage"]') }}
+        suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]
     needs: changes
-    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && needs.changes.outputs.next_integration != 'true' && !cancelled()
     # Pin coverage to the image providing the matching LLVM 18 toolchain.
     runs-on: ubuntu-24.04
     env:
@@ -248,28 +236,6 @@ jobs:
       - name: Run project checks
         if: contains(fromJSON('["compiler", "runtime"]'), matrix.suite)
         run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
-
-      - name: Set up experiment test tooling for next pull requests
-        if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-
-      - name: Test bounded source-mapping experiment
-        if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'
-        run: make source-mapping-experiment
-
-      - name: Test bounded runtime-provenance experiment
-        if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'
-        run: make runtime-provenance-experiment
-
-      - name: Test bounded source-coverage feasibility
-        if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'
-        run: make source-coverage-experiment
-
-      - name: Test bounded semantic-impact experiment
-        if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'
-        run: make semantic-impact-experiment
 
       - name: Check native memory and undefined behaviour
         if: startsWith(matrix.suite, 'sanitize-')
@@ -335,7 +301,7 @@ jobs:
   # normal cancellation, so a superseded PR update does not wait for old builds.
   package:
     name: Package (${{ matrix.target }})
-    needs: [changes, package_build, platform_smoke, workflow_validation]
+    needs: [changes, package_build, workflow_validation]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -350,14 +316,14 @@ jobs:
           CI_SCOPE_RESULT: ${{ needs.changes.result }}
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_PACKAGE_BUILD_RESULT: ${{ needs.package_build.result }}
-          CI_PLATFORM_SMOKE_RESULT: ${{ needs.platform_smoke.result }}
+          CI_PLATFORM_SMOKE_RESULT: skipped
           CI_NEXT_INTEGRATION: ${{ needs.changes.outputs.next_integration }}
           CI_EVENT_NAME: ${{ github.event_name }}
           CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}
         run: sh scripts/ci_package_gate.sh
 
   test:
-    needs: [changes, test_run, source_policy_tests, source_coverage, workflow_validation]
+    needs: [changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation]
     if: always()
     runs-on: ubuntu-22.04
     timeout-minutes: 2
@@ -368,6 +334,9 @@ jobs:
           CI_SCOPE_RESULT: ${{ needs.changes.result }}
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_VALIDATION_RESULT: ${{ needs.test_run.result }}
+          CI_NEXT_SMOKE_RESULT: ${{ needs.next_smoke.result }}
+          CI_NEXT_INTEGRATION: ${{ needs.changes.outputs.next_integration }}
+          CI_EVENT_NAME: ${{ github.event_name }}
           CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}
         run: sh scripts/ci_gate.sh
       - name: Require applicable source coverage checks

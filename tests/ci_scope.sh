@@ -361,6 +361,12 @@ done
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_VALIDATION_RESULT=skipped CI_NEXT_SMOKE_RESULT=success CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted product smoke on a docs route'; fi
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_VALIDATION_RESULT=skipped CI_NEXT_SMOKE_RESULT=success CI_WORKFLOW_RESULT=success sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted product smoke on a workflow route'; fi
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=skipped CI_NEXT_SMOKE_RESULT=success CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
+CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=skipped CI_NEXT_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=push CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=success CI_NEXT_SMOKE_RESULT=success CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted repeated full next validation'; fi
+if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_VALIDATION_RESULT=skipped CI_NEXT_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted a skipped next PR smoke'; fi
 if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=website CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=skipped sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted retired website route'; fi
 if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_VALIDATION_RESULT=skipped CI_WORKFLOW_RESULT=failure sh "$root/scripts/ci_gate.sh" >/dev/null 2>&1; then fail 'accepted failed workflow validation'; fi
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=docs CI_PACKAGE_BUILD_RESULT=skipped \
@@ -373,7 +379,7 @@ if CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=workflow CI_PACKAGE_BUILD_RESULT=skipp
     CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=failure CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
     sh "$root/scripts/ci_package_gate.sh" >/dev/null 2>&1; then fail 'accepted failed workflow validation in package gate'; fi
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=skipped \
-    CI_PLATFORM_SMOKE_RESULT=success CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
+    CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request \
     sh "$root/scripts/ci_package_gate.sh" >/dev/null
 CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=skipped \
     CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=push \
@@ -382,8 +388,7 @@ CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_PACKAGE_BUILD_RESULT=success \
     CI_PLATFORM_SMOKE_RESULT=skipped CI_WORKFLOW_RESULT=skipped CI_NEXT_INTEGRATION=false CI_EVENT_NAME=pull_request \
     sh "$root/scripts/ci_package_gate.sh" >/dev/null
 for policy in \
-    'CI_PACKAGE_BUILD_RESULT=success CI_PLATFORM_SMOKE_RESULT=success CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request' \
-    'CI_PACKAGE_BUILD_RESULT=skipped CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request' \
+    'CI_PACKAGE_BUILD_RESULT=success CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=true CI_EVENT_NAME=pull_request' \
     'CI_PACKAGE_BUILD_RESULT=cancelled CI_PLATFORM_SMOKE_RESULT=skipped CI_NEXT_INTEGRATION=false CI_EVENT_NAME=pull_request'; do
     if env CI_SCOPE_RESULT=success CI_SCOPE_ROUTE=full CI_WORKFLOW_RESULT=skipped $policy sh "$root/scripts/ci_package_gate.sh" >/dev/null 2>&1; then
         fail 'accepted a skipped, failed or misrouted package validation'
@@ -410,11 +415,11 @@ echo 'CI routing, stable-result guards and documentation checks passed.'
 # Only short result gates may be unconditional. Real work must be cancellable.
 awk '
 /^  (package|test):$/ { gate=1; heavy=0; workflow=0; name=$1; next }
-/^  (package_build|platform_smoke|test_run):$/ { gate=0; heavy=1; next }
+/^  (package_build|next_smoke|test_run):$/ { gate=0; heavy=1; next }
 /^  workflow_validation:$/ { gate=0; heavy=0; workflow=1; next }
 /^  [a-z_]+:$/ { gate=0; heavy=0; workflow=0 }
-gate && name=="package:" && /^    needs: \[changes, package_build, platform_smoke, workflow_validation\]$/ { dependencies++ }
-gate && name=="test:" && /^    needs: \[changes, test_run, source_policy_tests, source_coverage, workflow_validation\]$/ { dependencies++ }
+gate && name=="package:" && /^    needs: \[changes, package_build, workflow_validation\]$/ { dependencies++ }
+gate && name=="test:" && /^    needs: \[changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation\]$/ { dependencies++ }
 gate && /^    if: always\(\)$/ { guards++ }
 gate && /^    timeout-minutes: 2$/ { bounds++ }
 heavy && /^    needs: changes$/ { work_dependencies++ }
@@ -433,13 +438,12 @@ test "$(grep -c 'run: sh scripts/ci_gate.sh' .github/workflows/check.yml)" = 1 |
 grep -F 'run: sh scripts/ci_package_gate.sh' .github/workflows/check.yml >/dev/null || fail 'missing package result script'
 grep -F 'CI_PACKAGE_BUILD_RESULT: ${{ needs.package_build.result }}' .github/workflows/check.yml >/dev/null || fail 'missing package result'
 grep -F 'CI_VALIDATION_RESULT: ${{ needs.test_run.result }}' .github/workflows/check.yml >/dev/null || fail 'missing test result'
+grep -F 'CI_NEXT_SMOKE_RESULT: ${{ needs.next_smoke.result }}' .github/workflows/check.yml >/dev/null || fail 'missing next smoke result'
 grep -F 'name: Package (${{ matrix.target }})' .github/workflows/check.yml >/dev/null || fail 'package check names changed'
 grep -F "needs.changes.outputs.next_integration != 'true' && !cancelled()" .github/workflows/check.yml >/dev/null || fail 'next package matrix was not deferred'
-grep -F "github.event_name == 'pull_request' && !cancelled()" .github/workflows/check.yml >/dev/null || fail 'next PRs lost the macOS compiler smoke'
-grep -F "fromJSON(needs.changes.outputs.next_integration == 'true' && '[\"compiler\", \"runtime\"]'" .github/workflows/check.yml >/dev/null || fail 'next PR still runs the full Linux matrix'
-for experiment in source-mapping-experiment runtime-provenance-experiment source-coverage-experiment semantic-impact-experiment; do
-    grep -F "run: make $experiment" .github/workflows/check.yml >/dev/null || fail "next PR omitted $experiment"
-done
+grep -F 'name: Next Linux smoke' .github/workflows/check.yml >/dev/null || fail 'next PR smoke job is missing'
+grep -F "needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request' && !cancelled()" .github/workflows/check.yml >/dev/null || fail 'next smoke is not limited to next PRs'
+! grep -F 'platform_smoke' .github/workflows/check.yml >/dev/null || fail 'macOS smoke remains in Check'
 grep -F 'CI_PACKAGE_SMOKE_TARGETS := quick-start' Makefile >/dev/null || fail 'nightly package smoke default changed'
 grep -F 'ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)' Makefile >/dev/null || fail 'bootstrap package smoke is not branch-gated'
 grep -F 'ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)' Makefile >/dev/null || fail 'bytecode package smoke is not branch-gated'

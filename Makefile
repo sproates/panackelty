@@ -456,7 +456,7 @@ check-no-interpreter:
 
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
-.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode ci-conformance-bytecode-check
+.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode ci-conformance-bytecode-check ci-next-smoke
 ci-compiler: policy native
 	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
@@ -465,6 +465,11 @@ ci-runtime:
 	@sh tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases
 
 ci-runtime-phases: unit-runtime functional
+
+# One bounded Linux gate for next PRs; the full compiler/runtime suites and
+# cross-platform matrix run in nightly validation.
+ci-next-smoke: policy native $(STAGE2_COMPILER)
+	@sh tests/ci_next_smoke.sh "$(abspath $(STAGE2_COMPILER))"
 
 ifeq ($(CI_SKIP_PACKAGE),true)
 CI_PACKAGE_SMOKE_TARGETS :=

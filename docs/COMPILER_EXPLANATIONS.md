@@ -3,11 +3,11 @@
 `panack explain SOURCE.panack --function NAME` checks the complete project and
 reports inferred local types with their checked initializer types, can query the
 checked type of an expression at a source location, and reports function return
-direct function-call argument, selected text/byte/numeric builtin argument,
-annotated local initializer and assignment value type checks. It also reports
-retained proof-bearing guarded conversions, natural-number subtraction and
-effect-boundary evidence for one function. It reads source; it does not execute
-the program, emit bytecode, write files, or consume a source-map sidecar. The
+direct function-call argument, selected text/byte/numeric/collection builtin
+argument, annotated local initializer and assignment value checks. It also
+reports retained proof-bearing guarded conversions, natural-number subtraction
+and effect-boundary evidence for one function. It reads source; it does not
+execute the program, emit bytecode, write files, or consume a source-map sidecar. The
 command is implemented in unreleased core; existing published/browser versions
 do not acquire it automatically.
 
@@ -84,9 +84,11 @@ to checked arguments for the text helpers `is_digit`, `is_letter`,
 `is_whitespace`, `starts_with`, `starts_with_at`, `reverse` and `slice`, and the
 byte helpers `byte_append`, `bytes_concat`, `byte_len`, `byte_get`,
 `utf8_encode` and `utf8_decode`, and the numeric helpers `nat`, `dec`,
-`nat_from_str` and `quotient`. Other builtin contracts and indirect callable
-invocations remain outside this slice. Diagnostics and exit status remain
-unchanged.
+`nat_from_str` and `quotient`. The collection checks cover append items, map
+keys/values, set items and membership keys for `append`, `map_put`, `map_get`,
+`map_has`, `set_add`, `set_has` and `has`, including their receiver-method
+forms. Collection joins, callback contracts and other builtins remain outside
+this slice. Diagnostics and exit status remain unchanged.
 
 ## Annotated local initializers
 

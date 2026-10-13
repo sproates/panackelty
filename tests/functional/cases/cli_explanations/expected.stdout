@@ -12,6 +12,10 @@ PASS unresolved direct call argument is explicitly unavailable
 PASS accepted annotated local cites checked types
 PASS rejected annotated local explains type mismatch
 PASS unresolved annotated local is explicitly unavailable
+PASS accepted assignment value cites checked types
+PASS type-compatible value remains separately rejected for immutability
+PASS rejected assignment value explains type mismatch
+PASS unresolved assignment value is explicitly unavailable
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
 PASS imported generic proof
@@ -77,4 +81,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 79, failures: 0
+tests: 83, failures: 0

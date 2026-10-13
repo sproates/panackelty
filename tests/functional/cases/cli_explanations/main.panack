@@ -95,6 +95,18 @@ main(): Void {
       explain_write(source, "probe(): Void { value: Nat = missing; }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved annotated local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["annotated local value initializer: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete initializer type"], [], "unknown name missing"))
+      explain_write(source, "probe(): Nat { mut value: Nat = 0; value = 5; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted assignment value cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the local type"], [], ""))
+      explain_write(source, "probe(): Nat { value: Nat = 0; value = 5; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("type-compatible value remains separately rejected for immutability", ["explain", source, "--function", "probe"], 1,
+        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat"], [], "cannot assign to immutable local value"))
+      explain_write(source, "probe(): Nat { mut value: Nat = 0; value = \"wrong\"; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected assignment value explains type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["assignment value compatibility for value: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the local type"], [], "cannot assign Str to Nat"))
+      explain_write(source, "probe(): Nat { mut value: Nat = 0; value = missing; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved assignment value is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["assignment value compatibility for value: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete value or target type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
       results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))

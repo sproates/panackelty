@@ -5714,6 +5714,23 @@ quick-start passed. Warnings against historical timing figures remain
 non-gating under the owner's 2026-10-12 direction; this result does not reopen
 or extend GI#106.
 
+## GI#134 assignment-value explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used one mutable `Nat` local assigned a compatible literal. Each
+sample included VM startup, project loading, checking and explanation rendering;
+the filesystem cache was warm. `real` times had a median of 0.0491s and a range
+of 0.0429–0.0571s. This is a local reference, not a paired before/after
+comparison or general latency guarantee. Assignment evidence is retained only
+for explanation checks; ordinary checking retains none, and runtime and
+bytecode are unchanged.
+
+The final `make check` passed on the same host in 333s: unit 286s, bootstrap
+221s, and functional 15s; unit and bootstrap ran concurrently. Release-smoke
+and quick-start passed. Warnings against historical timing figures remain
+non-gating under the owner's 2026-10-12 direction; this result does not reopen
+or extend GI#106.
+
 ## GI#134 annotated local initializer explanation turnaround — 2026-10-13
 
 Ten fresh-process queries of `panack explain ... --function probe` on macOS

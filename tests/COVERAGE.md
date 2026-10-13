@@ -714,7 +714,11 @@ checking retains no argument explanation metadata. Builtin contracts and
 indirect callable invocations remain outside this CLI slice.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
-and assignment checks are outside this slice.
+with assignment checks covered separately below.
+Assignment-value cases exercise accepted/rejected/unavailable compatibility
+against an existing mutable local; module-body tests verify ordinary checking
+retains no assignment evidence. The reported decision concerns type
+compatibility, separately from mutability diagnostics.
 
 ## Indexed compiler declaration lookup
 

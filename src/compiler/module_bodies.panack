@@ -55,7 +55,9 @@ pub enum BodyNode {
   BodyIf(Bool),
   BodyBlock(Bool),
   BodyMatch([BodyTarget], [[BodyLocalIdentity]], [SourceSpan]),
-  BodyBinding(BodyLocalIdentity, Option[SignatureType], Bool),
+  // The optional flag is populated only for explicit explanation checks. It
+  // records whether this local's type came from its initializer or annotation.
+  BodyBinding(BodyLocalIdentity, Option[SignatureType], Bool, Option[Bool]),
   BodyAssignment(BodyLocalIdentity),
   BodyWhile,
   BodyFor(BodyLocalIdentity),
@@ -266,7 +268,7 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyMatch(targets, bindings, spans) => {},
-    BodyBinding(identity, type, mutable) => {},
+    BodyBinding(identity, type, mutable, inferred) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
     BodyFor(identity) => {},
@@ -323,7 +325,7 @@ pure body_guard_source_span(value: BoundBody): SourceSpan {
     BodyIndex() => {},
     BodyIf(has_else) => {},
     BodyMatch(targets, bindings, spans) => {},
-    BodyBinding(identity, type, mutable) => {},
+    BodyBinding(identity, type, mutable, inferred) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
     BodyFor(identity) => {},
@@ -537,7 +539,7 @@ pure body_proves_nat_subtraction(
       BodyIf(has_else) => false,
       BodyBlock(has_tail) => false,
       BodyMatch(targets, bindings, spans) => false,
-      BodyBinding(identity, type, mutable) => false,
+      BodyBinding(identity, type, mutable, inferred) => false,
       BodyAssignment(identity) => false,
       BodyWhile() => false,
       BodyFor(identity) => false,
@@ -594,7 +596,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
     BodyMatch(targets, bindings, spans) => {},
-    BodyBinding(identity, type, mutable) => {},
+    BodyBinding(identity, type, mutable, inferred) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
     BodyFor(identity) => {},
@@ -702,7 +704,7 @@ pure body_condition_facts(
               BodyIf(has_else) => {},
               BodyBlock(has_tail) => {},
               BodyMatch(targets, bindings, spans) => {},
-              BodyBinding(other_identity, type, mutable) => {},
+              BodyBinding(other_identity, type, mutable, inferred) => {},
               BodyAssignment(other_identity) => {},
               BodyWhile() => {},
               BodyFor(other_identity) => {},
@@ -717,7 +719,7 @@ pure body_condition_facts(
             BodyIf(has_else) => {},
             BodyBlock(has_tail) => {},
             BodyMatch(targets, bindings, spans) => {},
-            BodyBinding(identity, type, mutable) => {},
+            BodyBinding(identity, type, mutable, inferred) => {},
             BodyAssignment(identity) => {},
             BodyFor(identity) => {},
             BodyWhile() => {},
@@ -739,7 +741,7 @@ pure body_condition_facts(
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
     BodyMatch(targets, bindings, spans) => {},
-    BodyBinding(identity, type, mutable) => {},
+    BodyBinding(identity, type, mutable, inferred) => {},
     BodyAssignment(identity) => {},
     BodyWhile() => {},
     BodyFor(identity) => {},
@@ -770,7 +772,7 @@ pure body_invalidate_assigned_locals(
     BodyIf(has_else) => {},
     BodyBlock(has_tail) => {},
     BodyMatch(targets, bindings, spans) => {},
-    BodyBinding(identity, type, mutable) => {},
+    BodyBinding(identity, type, mutable, inferred) => {},
     BodyWhile() => {},
     BodyFor(identity) => {},
     BodyEmpty() => {}
@@ -2818,7 +2820,12 @@ pure bind_body_block(
         visible = visible.put(name, BodyLocal(local, type, mutable))
         checked = BodyResult(
           BoundBody(
-          BodyBinding(local, type, mutable),
+            BodyBinding(
+              local,
+              type,
+              mutable,
+              if current_context.retain_guard_conversions { Some(spelling == "") } else { None() }
+            ),
           checked.body.span,
           [checked.body],
           body_core_type("Void"),
@@ -2846,7 +2853,12 @@ pure bind_body_block(
           visible = visible.put(name, BodyLocal(local, checked.body.type, false))
           checked = BodyResult(
             BoundBody(
-            BodyBinding(local, checked.body.type, false),
+            BodyBinding(
+              local,
+              checked.body.type,
+              false,
+              if current_context.retain_guard_conversions { Some(true) } else { None() }
+            ),
             checked.body.span,
             [checked.body],
             body_core_type("Void"),
@@ -3648,7 +3660,7 @@ pure body_callable(type: SignatureType): Bool {
   }
 }
 
-pure body_type_complete(type: SignatureType): Bool {
+pub pure body_type_complete(type: SignatureType): Bool {
   mut complete: Bool = !body_is_hole(type)
 
   for argument in type.arguments {
@@ -3768,8 +3780,8 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
       }
       node = BodyCall(target, arguments)
     },
-    BodyBinding(local, type, mutable) => {
-      node = BodyBinding(local, body_solve_optional(type, solutions), mutable)
+    BodyBinding(local, type, mutable, inferred) => {
+      node = BodyBinding(local, body_solve_optional(type, solutions), mutable, inferred)
     },
     BodyLiteral(value) => {},
     BodyInterpolation(parts) => {},

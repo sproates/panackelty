@@ -1,3 +1,5 @@
+PASS inferred locals report initializer evidence
+PASS incomplete inferred local is explicitly unavailable
 PASS imported generic proof
 PASS imported generic guarded conversion attribution
 PASS guarded conversion cites local branch facts
@@ -60,4 +62,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 62, failures: 0
+tests: 64, failures: 0

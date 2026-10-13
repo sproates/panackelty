@@ -953,6 +953,29 @@ pure body_test_module_mode(source: Str, retain_guard_conversions: Bool): Checked
   }
 }
 
+pure body_binding_inference_marker(body: BoundBody): Option[Bool] {
+  match body.node {
+    BodyBinding(identity, type, mutable, inferred) => inferred,
+    BodyLiteral(value) => None(),
+    BodyInterpolation(parts) => None(),
+    BodyLocalUse(local) => None(),
+    BodyFunction(binding) => None(),
+    BodyCall(target, types) => None(),
+    BodyArray() => None(),
+    BodyUnary(operator) => None(),
+    BodyBinary(operator) => None(),
+    BodyField(name) => None(),
+    BodyIndex() => None(),
+    BodyIf(has_else) => None(),
+    BodyBlock(has_tail) => None(),
+    BodyMatch(targets, bindings, spans) => None(),
+    BodyAssignment(local) => None(),
+    BodyWhile() => None(),
+    BodyFor(local) => None(),
+    BodyEmpty() => None()
+  }
+}
+
 pure body_guard_conversion_entries(body: BoundBody): [GuardConversionEvidence] {
   mut entries: [GuardConversionEvidence] = body.guard_conversions
   for child in body.children {
@@ -1501,6 +1524,36 @@ pure namespace_body_tests(): [TestResult] {
       len(body_guard_conversion_entries(ordinary_guarded_branch.functions[0].body)) == 0,
     "ordinary checking retained opt-in proof evidence"
   ))
+  inferred_local: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { value = \"hello\"; }",
+    true
+  )
+  annotated_local: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { value: Str = \"hello\"; }",
+    true
+  )
+  ordinary_inferred_local: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { value = \"hello\"; }",
+    false
+  )
+  results = append(results, std_testing.expect(
+    "explanation checking marks inferred locals",
+    len(inferred_local.functions) == 1 &&
+      body_binding_inference_marker(inferred_local.functions[0].body.children[0]) == Some(true),
+    "inferred binding metadata was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking distinguishes annotated locals",
+    len(annotated_local.functions) == 1 &&
+      body_binding_inference_marker(annotated_local.functions[0].body.children[0]) == Some(false),
+    "annotation was reported as inference"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no inferred-local explanation metadata",
+    len(ordinary_inferred_local.functions) == 1 &&
+      body_binding_inference_marker(ordinary_inferred_local.functions[0].body.children[0]) == None(),
+    "ordinary check retained explanation-only inference metadata"
+  ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"
   )
@@ -1574,7 +1627,7 @@ pure namespace_body_tests(): [TestResult] {
   }
   if len(checked.functions) == 3 {
     call: BoundBody = checked.functions[0].body.children[0]
-    results = append(results, std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
+    results = append(results, std_testing.expect("qualified bound call retains declaration identity", match call.node { BodyCall(target, types) => match target { BodyDeclaration(binding) => binding.identity == DeclarationIdentity(left.bindings.identity, "take"), BodyCore(name) => false }, BodyLiteral(value) => false, BodyInterpolation(parts) => false, BodyLocalUse(local) => false, BodyFunction(binding) => false, BodyArray() => false, BodyUnary(operator) => false, BodyBinary(operator) => false, BodyField(name) => false, BodyIndex() => false, BodyIf(has_else) => false, BodyBlock(has_tail) => false, BodyMatch(targets, bindings, spans) => false, BodyBinding(local, type, mutable, inferred) => false, BodyAssignment(local) => false, BodyWhile() => false, BodyFor(local) => false, BodyEmpty() => false }, "call target was re-spelled"))
   }
   lexical: CheckedModuleBodies = body_test_module("pub pure f(value: Nat): Nat { mut local = value; local = 2; if true { inner = local; inner }; local }")
   results = append(results, std_testing.equal_nat("nested lexical body binds", len(lexical.diagnostics), 0))

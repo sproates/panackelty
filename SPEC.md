@@ -1189,7 +1189,10 @@ closure, compatibility, I/O bounds, output safety and source disclosure.
 `panack explain SOURCE.panack --function NAME` performs the ordinary frontend
 checks with opt-in evidence retention and reports proof-bearing conversions
 into guarded types, binary `Nat` subtraction obligations, and local call/await
-effect boundaries from the named function.
+effect boundaries from the named function. It also reports inferred local types
+with their checked initializer type and source expression; annotated locals are
+omitted, and incomplete types are explicitly unavailable. This query does not
+change inference rules or claim runtime values or call-site specialisations.
 Effect output retains existing pure/ordinary/async decisions and callable-type
 classification without inferring transitive or runtime effects. Effect evidence is
 unavailable for type-invalid functions. The query can retain boundaries for

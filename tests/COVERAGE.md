@@ -698,8 +698,10 @@ ordinary checking. The public `cli_explanations` case checks guarded-to-guarded
 conversion, target guard and source facts, honest unproved output, and omission
 of guarded-to-base widening. Checker unit cases verify that a compatible
 guarded source can convert when its invariant proves the target, and that a
-stricter target is rejected without further facts. Inferred-type explanations
-remain outside this slice.
+stricter target is rejected without further facts. The same CLI case checks
+inferred local names, source expressions, initializer/result types, omission of
+annotated locals, generic calls and explicit unavailability for incomplete
+inference.
 
 ## Indexed compiler declaration lookup
 

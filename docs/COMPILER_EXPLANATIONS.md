@@ -1,8 +1,9 @@
-# Compiler explanations: guarded conversions, subtraction and effect boundaries
+# Compiler explanations: inferred locals, guarded conversions, subtraction and effects
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports retained proof-bearing guarded conversions, natural-number subtraction
-and effect-boundary evidence for one function. It reads
+reports inferred local types with their checked initializer types, retained
+proof-bearing guarded conversions, natural-number subtraction and effect-boundary
+evidence for one function. It reads
 source; it does not execute the program, emit bytecode, write files, or consume a
 source-map sidecar. The command is implemented in unreleased core; existing
 published/browser versions do not acquire it automatically.
@@ -48,6 +49,17 @@ new evidence. False branches are labelled explicitly.
 - Type and purity failures retain ordinary diagnostics on stderr and exit status
   1. Accepted projects exit 0, including a valid function with no supported
   explanation. Invalid arguments or a missing function in a valid project exit 1.
+
+## Inferred local types
+
+For locals without an annotation, `inferred locals` reports the checked
+initializer expression and its source range, the initializer's checked type, and
+the resulting local type. For example, `copy = identity("hello")` reports the
+generic call at its source location and the inferred `Str` type. Annotated locals
+are omitted. If checking could not determine a complete type, the result is
+`inferred type: unavailable`; the query does not invent a type or change inference
+rules. The output describes the checked definition, not a runtime value or a
+call-site specialisation.
 
 Coordinates are one-based lines/Unicode code-point columns and half-open ranges
 in the captured source text. Paths use `project/`, `stdlib/`, or the source-map

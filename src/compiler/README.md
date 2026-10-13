@@ -200,9 +200,11 @@ documented in `../../docs/SOURCE_MAPS.md`.
   bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
   [source-map contract](../../docs/SOURCE_MAPS.md).
-- `explanations.panack` presents opt-in subtraction decisions, guarded conversion
-  proofs, and effect boundaries retained by the checker, using loaded source
-  snapshots. See the
+- `explanations.panack` presents opt-in inferred-local types, subtraction
+  decisions, guarded-conversion proofs and effect boundaries retained by the
+  checker, using loaded source snapshots. Inferred locals show the checked
+  initializer type and source expression; incomplete types remain unavailable.
+  See the
   [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
 - `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
   `explain` for source and version-9 bytecode. Staged checked programs use

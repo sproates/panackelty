@@ -422,14 +422,19 @@ installer or new-platform change. Website parity remains separately unscheduled
 under [RM#118: Website installation command parity](#rm-118); release pins remain
 unchanged.
 
-## Modules programme — 2026-10-03
+## Modules, packages and HTTP programme (SP1) — 2026-10-03
 
 <a id="rm-108"></a>
 
-**RM#108: Modules programme** ·
+**RM#108: Modules, packages and HTTP programme (SP1)** ·
 [GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233).
 
-**P2 implementation in progress; foundations and slices 1–5 are merged on `next`.**
+SP1 is the owner-selected name and sequence for the existing RM#108/GI#233
+programme. P2, P3 and P4 are complete on `next`; the clean-installed
+language/local-package release gate is in progress and must pass before HTTP
+implementation begins.
+
+P2 foundations and slices 1–5 are merged on `next`.
 P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
 merged on 2026-10-03 as `80cd50f`. The user selected P2 on 2026-10-04;
 its first module/binding foundation merged in
@@ -437,8 +442,9 @@ its first module/binding foundation merged in
 as `a5cdb1a`, followed by qualified-reference syntax and cross-module binding
 resolution in PR#262. [PR#275: Checked namespace signatures](https://github.com/sproates/panackelty/pull/275)
 merged checked declaration/signature identities as `0bcf092`. PR#284 merged bounded
-function-body identities as `9f8f8a0`. These four foundations are delivered; P3–P8
-remain planned and unstarted. P2 selection is separate from design acceptance.
+function-body identities as `9f8f8a0`. These foundations are delivered; P2
+selection is separate from design acceptance. P3 and P4 later completed on
+`next`; see the current status table and SP1 sequence below.
 The compiler-understanding programme remains paused; its scope is retained.
 
 User decision, 2026-10-04: **P2 → P3 → P4 → language/local-package release,
@@ -457,6 +463,22 @@ precede P3; neither reopens P2 or changes the original P1–P8 scope weights. RM
 is also the alpha.12 release prerequisite recorded below. The two follow-ups have
 no dependency on each other. The revised sequence is P2 → RM#149/RM#150 → P3 →
 P4 → language/local-package release, then HTTP client work (P5).
+
+Owner decision, 2026-10-13: SP1's order is local reusable packages (P3 / GI#199),
+standard-library namespaces (P4 / GI#235), the clean-installed language/local-
+package release gate (first gate in P8 / GI#238), then the HTTP client (P5 / GI#236)
+and server (P6 / GI#237). HTTP work must not start before the first gate passes.
+P7 / GI#200 remains part of final P8 acceptance but does not block this gate or
+the initial HTTP milestones.
+
+SP1's HTTP work follows four layers: inventory compiler, VM/runtime, bytecode,
+host and bootstrap impact; complete identified compiler-affecting changes
+together; add only reusable compiler-independent standard-library support; then
+implement the HTTP package. If later work reveals another compiler need, return
+to the compiler layer and update the inventory. This reduces late discovery risk
+but cannot guarantee there will be no later compiler rebuilds. The accepted
+[module/package design](docs/MODULE_PACKAGE_DESIGN.md#http-client-and-server-boundary)
+owns the package API, transport, security and lifecycle details.
 
 The following milestone is **a working independently consumed HTTP client package**.
 A clean native application imports its public client API, requests HTTP and HTTPS
@@ -490,12 +512,12 @@ bootstrap, docs, independent review and explicit merge approval.
 | P2 | [RM#41: Language namespaces](#rm-41) · [GI#198: Language namespaces](https://github.com/sproates/panackelty/issues/198) | Done on `next` through merged PR#358; alpha.12 promotion/release acceptance remains | P1 | Large; delivered |
 | Before P3 | [RM#149: Namespace example set](#rm-149) · [GI#359](https://github.com/sproates/panackelty/issues/359) | Done on `next` through merged PR#362 | Namespace-capable toolchain | Medium / 1 PR |
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
-| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of PR#386, the final acceptance delivery: PR#372 rooted reads, PR#374 application CLI/loading, PR#375 exported-library checking, PR#376 shared-library consumers, PR#377–#380 confinement and nested graphs, PR#382 graph conflicts/limits, PR#383 source bounds, PR#384 race-fixture reliability, and full sibling-tree relocation with two apps run from an unrelated working directory; P8 retains its separate clean-installed release gate | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
-| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on merge of [PR#404](https://github.com/sproates/panackelty/pull/404); API migration and its source, test and documentation callers are complete on `next` | P1–P3 as needed | Medium / 1–2 PRs; delivered |
+| P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of PR#386, the final acceptance delivery; P8's separate clean-installed release gate remains | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
+| P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on merge of [PR#404](https://github.com/sproates/panackelty/pull/404); API migration and source, test and documentation callers are complete on `next` | P1–P3 as needed | Medium / 1–2 PRs; delivered |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
 | P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
-| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Language/local-package gate P1–P4; client gate after P5; final all including P6/P7 | Medium / 1–2 PRs, provisional; reassess across three gates |
+| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | In progress: the local release-archive gate now exercises the installed toolchain with two apps sharing a library across package-tree relocation. Core validation passed locally; browser candidate PR#11 is validating the P4 `next` revision. Release promotion and cross-platform artifact acceptance remain open. | Language/local-package gate P1–P4; client gate after P5; final all including P6/P7 | Medium / 1–2 PRs, provisional; reassess across three gates |
 
 <a id="rm-149"></a>
 
@@ -636,8 +658,9 @@ delivery tests two applications sharing a multi-file library, moves the whole
 sibling workspace, then rechecks/runs both apps and executes pre-move bytecode
 from an unrelated working directory. This closes scoped P3 package acceptance
 effective on merge; P8 retains the separate clean-installed release gate. P4
-subsequently completed on merge of PR#404; P5–P8 remain planned. Their shared
-design and remaining HTTP/reproducibility slices are recorded in P1.
+subsequently completed on merge of PR#404; P5–P7 remain planned and P8's first
+gate is in progress. Their shared design and remaining HTTP/reproducibility
+slices are recorded in P1.
 No public registry, separate compilation, web framework or new engine is
 required. Website impact: none for this test-only acceptance; it does not change
 shipped behavior or user-facing package documentation.
@@ -655,7 +678,7 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | 50% on merge of PR#404: P1 contributes 10 pp, P2 20 pp, P3 15 pp and P4 5 pp; P5–P8 remain planned | **50 pp; P1–P4 accepted** |
+| **Total** | **100%** | 50% on merge of PR#404: P1 contributes 10 pp, P2 20 pp, P3 15 pp and P4 5 pp; P5–P7 remain planned and P8 is in progress without completion credit | **50 pp; P1–P4 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2
@@ -698,7 +721,8 @@ both applications from an unrelated working directory, moves their whole sibling
 workspace and shared library, then rechecks/runs both apps and executes bytecode
 compiled before the move. This closes the scoped local-package acceptance when
 this delivery merges; P8 still owns the later clean-installed release gate.
-P4 is complete on merge of PR#404; P5–P8 remain planned.
+P4 is complete on merge of PR#404; P5–P7 remain planned and P8's first gate
+is in progress.
 Namespace/compiler integration and HTTPS client correctness carry the largest
 shares; local packages and server lifecycle follow, with smaller shares for
 design, reproducibility, migration and final cross-task acceptance. These coarse estimates include each task's own tests/docs;
@@ -737,10 +761,11 @@ reliability. PR#386 checks, runs and compiles both apps from outside the workspa
 their full shared-library sibling tree, then repeats checks/source runs and
 executes bytecode compiled before the move. P3 acceptance is Done on merge of
 PR#386. P8's clean-installed release gate remains separate.
-P4 is complete on merge of PR#404; P5–P8 have not started.
-Website impact: PR#404 changes the unreleased `next` tree. No immediate site edit
-is needed while the live site remains pinned to alpha.12; RM#144 owns the
-separate alpha.13 adoption after supporting artifacts are published and verified.
+P4 is complete on merge of PR#404; P5–P7 have not started and P8's first gate is
+in progress. This release-archive change only adds acceptance coverage. Browser
+PR#11 tests the candidate but remains unmerged, so no public artifact or site
+claim changes; the live site stays pinned to alpha.12. RM#144 owns the separate
+alpha.13 adoption after supporting artifacts are published and verified.
 
 ### Namespace release checkpoint
 

@@ -305,6 +305,10 @@ checksum test independently verifies the digest emitted by `package-checksum`.
 the `.tar.gz`, creates all program inputs outside the checkout, and covers help,
 version, checking, source and bytecode execution, arguments, bundled standard
 library imports, and malformed-bytecode rejection without development tools.
+It also runs the two-application shared-library check against the packaged,
+relocated compiler, VM and standard library, then moves the application/library
+tree and repeats check, source execution and saved-bytecode execution from an
+unrelated working directory.
 `tests/quick_start.sh` extracts its program and expected transcript from the
 README inside the final archive, installs that archive under an isolated home,
 runs the documented commands with development tools absent from `PATH`, then

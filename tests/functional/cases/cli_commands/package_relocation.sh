@@ -1,7 +1,10 @@
 #!/bin/sh
 set -eu
 
-[ "$#" = 3 ] || { echo 'expected compiler, toolchain version, and standard library root' >&2; exit 2; }
+if [ "$#" -ne 3 ] && [ "$#" -ne 5 ]; then
+    echo 'expected compiler, toolchain version, standard library root, and optional VM and CLI paths' >&2
+    exit 2
+fi
 repo_root=$(pwd)
 compiler=$1
 version=$2
@@ -14,8 +17,16 @@ case "$stdlib" in
     /*) ;;
     *) stdlib="$repo_root/$stdlib" ;;
 esac
-panack_vm="$repo_root/panack-vm"
-panack="$repo_root/panack"
+panack_vm=${4:-"$repo_root/panack-vm"}
+panack=${5:-"$repo_root/panack"}
+case "$panack_vm" in
+    /*) ;;
+    *) panack_vm="$repo_root/$panack_vm" ;;
+esac
+case "$panack" in
+    /*) ;;
+    *) panack="$repo_root/$panack" ;;
+esac
 work=$(mktemp -d "${TMPDIR:-/tmp}/panack-package-relocation.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 trap 'exit 1' HUP INT TERM

@@ -3,6 +3,7 @@
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const {spawnSync} = require('node:child_process');
 const {regular,sha,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
+const {validateManifest} = require('./source_coverage_manifest.cjs');
 const checkout = path.resolve(__dirname,'..');
 function command(args, timeout = 180000, extraEnv = {}) {
   const result = spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
@@ -15,7 +16,7 @@ function baseline(output, allowDirty = false) {
   const manifestBytes = regular(path.join(checkout,'tests/source_coverage/manifest.json'));
   const manifest = JSON.parse(manifestBytes);
   const tracked = command(['git','ls-files','src']).trim().split('\n').filter(p=>p.endsWith('.panack')).sort();
-  if (JSON.stringify(tracked) !== JSON.stringify([...manifest.eligible].sort())) throw Error('Eligible source manifest differs from tracked src/**/*.panack');
+  validateManifest(manifest,tracked);
   const commit = command(['git','rev-parse','HEAD']).trim();
   const clean = !allowDirty && !command(['git','status','--porcelain','--untracked-files=all']).trim();
   if (!clean && !allowDirty) throw Error('Dirty tracked source; commit first or use --allow-dirty for a non-publishable development report');
@@ -88,7 +89,7 @@ function baseline(output, allowDirty = false) {
   console.log(`Policy candidate counts: ${JSON.stringify({metrics:report.metrics,components:report.components})}`);
   const policy=JSON.parse(regular(path.join(checkout,'tests/source_coverage/policy.json')));
   const result=checkPolicy(report,policy,{commit,manifestHash:report.manifestHash,allowDirty});
-  console.log(`Coverage policy: ${result.status}; ${result.protected} protected items`);
+  console.log(`Coverage report integrity: ${result.status}`);
   writeReport(output,report);
   console.log(JSON.stringify({output,clean,sessions:sessions.length,executions:sessions.reduce((n,s)=>n+s.executions,0),metrics:report.metrics},null,2));
   // Keep raw evidence locally for diagnosis; CI publishes only the bounded static report.

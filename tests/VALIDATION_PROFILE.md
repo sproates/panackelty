@@ -318,18 +318,25 @@ complete only when the user explicitly says they are happy with the result.
 
 **Workflow-only route change (2026-10-13):** PR #413 changed only
 `.github/workflows/nightly-packages.yml`, but it selected the full Check route.
-The exact source-coverage baseline job took 17m38 even though no source-coverage
-input changed. The current PR adds an explicit route for workflow YAML and a
-bounded allowlist of CI selector, gate and contract files. That route still runs
-the classifier and document checks, parses every workflow's YAML syntax and
-top-level job structure, runs the repository workflow/layout contracts, and
-requires both stable result gates to observe successful workflow validation.
-Any product path mixed into the diff, plus unlisted/shared inputs, remains full.
-Local selector and route/gate contracts pass for this proposed change. The hosted
-duration of the new route is pending; no wall-time saving is claimed until it is
-observed. Product correctness suites remain covered on product changes. The
-local runner uses the same focused workflow and routing contracts; canonical
-`make check` remains required for product-impacting validation changes.
+Its source-coverage baseline job took 17m38 even though no source-coverage input
+changed. PR #414 added an explicit route for workflow YAML and a bounded allowlist
+of CI selector, gate and contract files. It still runs classifier and document
+checks, parses every workflow's YAML syntax and top-level job structure, runs the
+repository workflow/layout contracts, and requires both stable result gates to
+observe successful workflow validation. Product, mixed, unknown and unlisted
+shared inputs retain full validation. The local runner executes the same focused
+contracts; product correctness suites remain covered on product changes.
+
+The PR #414 Check run completed in 40s
+([run](https://github.com/sproates/panackelty/actions/runs/38344966573)); the
+post-merge `next` push completed in 36s
+([run](https://github.com/sproates/panackelty/actions/runs/38345085148)). Both
+skipped the product suites, package matrix, macOS compiler lane and
+source-coverage collection; the workflow configuration, routing, result-gate and
+workflow/layout contracts passed. The 17m38 observation from PR #413 is a single
+job duration, not a matched total-workflow baseline, so these runs establish the
+new route's end-to-end duration and that the unrelated source-coverage job is
+removed, but not a controlled whole-run speedup.
 
 The full Check route is not a single test suite run once. The per-OS package
 matrix and the additional Ubuntu compiler/runtime/bootstrap lanes serve different

@@ -180,6 +180,15 @@ main(): Void {
       explain_write(source, "probe(): Int { duration_ticks(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved time argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["call argument 1 to duration_ticks: unavailable", "expression: missing", "actual type: unavailable", "expected type: Duration", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted filesystem IO arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_read: accepted", "expression: path", "actual type: Path", "expected type: Path", "call argument 2 to fs_read: accepted", "expression: limit", "actual type: Nat", "expected type: Nat", "call argument 1 to fs_write: accepted", "expression: path", "call argument 2 to fs_write: accepted", "actual type: Bytes", "expected type: Bytes"], [], ""))
+      explain_write(source, "probe(): Void { fs_read(\"path\", 1); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected filesystem IO argument preserves sibling", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read: rejected", "expression: \"path\"", "actual type: Str", "expected type: Path", "call argument 2 to fs_read: accepted", "actual type: Nat", "expected type: Nat"], [], "fs_read"))
+      explain_write(source, "probe(): Void { fs_read(missing, 1); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved filesystem IO argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_read: accepted", "expected type: Nat"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
         ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))

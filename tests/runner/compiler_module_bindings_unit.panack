@@ -1749,6 +1749,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant); }",
     false
   )
+  accepted_filesystem_io_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }",
+    true
+  )
+  rejected_filesystem_io_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_read(\"path\", 1); }",
+    true
+  )
+  rejected_filesystem_io_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_read(\"path\", 1); }",
+    false
+  )
+  unavailable_filesystem_io_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_read(missing, 1); }",
+    true
+  )
+  unavailable_filesystem_io_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_read(missing, 1); }",
+    false
+  )
+  ordinary_filesystem_io_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -2141,6 +2165,48 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_time_arguments.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_time_arguments.functions[0].body)) == 0,
     "ordinary checking retained explanation-only time argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted filesystem IO arguments",
+    len(accepted_filesystem_io_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_filesystem_io_arguments.functions[0].body)) == 4 &&
+      body_call_argument_evidence(accepted_filesystem_io_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_filesystem_io_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Nat"), []) &&
+      body_call_argument_evidence(accepted_filesystem_io_arguments.functions[0].body)[2].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_filesystem_io_arguments.functions[0].body)[3].expected == SignatureType(SignatureCore("Bytes"), []),
+    "accepted filesystem IO arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected filesystem IO argument",
+    len(rejected_filesystem_io_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_filesystem_io_argument.functions[0].body)) == 2 &&
+      body_call_argument_evidence(rejected_filesystem_io_argument.functions[0].body)[0].accepted == Some(false) &&
+      body_call_argument_evidence(rejected_filesystem_io_argument.functions[0].body)[1].accepted == Some(true),
+    "rejected filesystem IO argument or accepted sibling was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "filesystem IO argument explanation preserves rejected diagnostics",
+    rejected_filesystem_io_argument.diagnostics == rejected_filesystem_io_argument_ordinary.diagnostics,
+    "filesystem IO argument evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable filesystem IO argument",
+    len(unavailable_filesystem_io_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_filesystem_io_argument.functions[0].body)) == 2 &&
+      body_call_argument_evidence(unavailable_filesystem_io_argument.functions[0].body)[0].accepted == None() &&
+      body_call_argument_evidence(unavailable_filesystem_io_argument.functions[0].body)[1].accepted == Some(true),
+    "unavailable filesystem IO argument or accepted sibling was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "filesystem IO argument explanation preserves unresolved diagnostics",
+    unavailable_filesystem_io_argument.diagnostics == unavailable_filesystem_io_argument_ordinary.diagnostics,
+    "unavailable filesystem IO evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no filesystem IO argument evidence",
+    len(ordinary_filesystem_io_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_filesystem_io_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only filesystem IO evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

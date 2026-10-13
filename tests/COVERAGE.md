@@ -722,6 +722,9 @@ accepted, rejected and unavailable evidence plus unchanged diagnostics.
 Time argument cases cover `Duration` and `Instant` inputs, including accepted,
 rejected and unavailable evidence, unchanged diagnostics, and no evidence during
 ordinary checking.
+Filesystem I/O cases cover `fs_read` and `fs_write` input types, accepted and
+rejected sibling outcomes, unavailable values, unchanged diagnostics, and no
+evidence during ordinary checking.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

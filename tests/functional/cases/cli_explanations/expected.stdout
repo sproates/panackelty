@@ -1,6 +1,12 @@
 PASS inferred locals report initializer evidence
+PASS type-at selects the smallest checked expression
+PASS type-at reports the containing generic call type
+PASS type-at reports no expression at unrelated location
+PASS type-at rejects a zero line
 PASS incomplete inferred local is explicitly unavailable
+PASS type-at does not explain an invalid body
 PASS imported generic proof
+PASS type-at preserves imported generic expression source
 PASS imported generic guarded conversion attribution
 PASS guarded conversion cites local branch facts
 PASS guarded source proves a broader guarded target
@@ -62,4 +68,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 64, failures: 0
+tests: 70, failures: 0

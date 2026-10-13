@@ -701,7 +701,9 @@ guarded source can convert when its invariant proves the target, and that a
 stricter target is rejected without further facts. The same CLI case checks
 inferred local names, source expressions, initializer/result types, omission of
 annotated locals, generic calls and explicit unavailability for incomplete
-inference.
+inference. Its expression-type query selects the smallest checked expression at
+a requested line/column, distinguishes a generic call from its nested literal,
+and reports unavailable for unrelated locations and invalid zero coordinates.
 
 ## Indexed compiler declaration lookup
 

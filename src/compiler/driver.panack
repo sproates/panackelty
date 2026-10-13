@@ -6,7 +6,7 @@ import stdlib/bytes as byte_buffer
 import stdlib/path as std_path
 import stdlib/filesystem as std_filesystem
 import stdlib/host as std_host
-import project/src/compiler/explanations::{explanation_function_selector, render_function_explanations}
+import project/src/compiler/explanations::{explanation_function_selector, render_function_explanations, render_expression_type_explanation}
 import project/src/compiler/coverage_session::{run_coverage_aggregate}
 import project/src/compiler/coverage::{run_coverage_report}
 import project/src/compiler/source_inventory::{run_inventory_command}
@@ -114,7 +114,7 @@ report_driver_error(message: Str): Nat {
 }
 
 pure driver_usage(): Str {
-  "usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]\n       panack coverage-session DIRECTORY ARTIFACT INVENTORY [ARTIFACT INVENTORY ...] -- [arguments...]\n       panack coverage-aggregate --source SOURCE INVENTORY [--source SOURCE INVENTORY ...] --session DIRECTORY [--session DIRECTORY ...]\n       panack coverage-report SOURCE.panack --inventory FILE --coverage RAW\n       panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]\n       panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]\n       panack FILE | panack {check,compile,run,disasm} FILE\n       panack check --project panack.json\n       panack compile --project panack.json [-o FILE]\n       panack run --project panack.json [arguments...]\n       panack explain SOURCE.panack --function NAME\n       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP\n       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC"
+  "usage: panack coverage-run ARTIFACT.bc INVENTORY RAW [arguments...]\n       panack coverage-session DIRECTORY ARTIFACT INVENTORY [ARTIFACT INVENTORY ...] -- [arguments...]\n       panack coverage-aggregate --source SOURCE INVENTORY [--source SOURCE INVENTORY ...] --session DIRECTORY [--session DIRECTORY ...]\n       panack coverage-report SOURCE.panack --inventory FILE --coverage RAW\n       panack inventory SOURCE.panack -o FILE [--include SOURCE.panack]\n       panack inventory-check SOURCE.panack --inventory FILE [--include SOURCE.panack]\n       panack FILE | panack {check,compile,run,disasm} FILE\n       panack check --project panack.json\n       panack compile --project panack.json [-o FILE]\n       panack run --project panack.json [arguments...]\n       panack explain SOURCE.panack --function NAME [--type-at LINE COLUMN]\n       panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP\n       panack locate ARTIFACT.bc --source SOURCE.panack --source-map MAP --function NAME --instruction PC"
 }
 
 run_manifest_command(arguments: [Str]): Nat {
@@ -328,51 +328,98 @@ run_manifest_library_check(project: ManifestProject): Nat {
   }
 }
 
-run_explain_command(values: [Str]): Nat {
-  if len(values) != 4 {
-    report_driver_error("explain usage: explain SOURCE.panack --function NAME")
-  } else {
-    if path_support.suffix(values[1]) != ".panack" || values[2] != "--function" || values[3] == "" {
-      report_driver_error("explain usage: explain SOURCE.panack --function NAME")
+pure explanation_coordinate(text: Str): Option[Nat] {
+  mut valid: Bool = len(text) > 0 && len(text) <= 10
+  for index in 0..len(text) {
+    if text[index] < "0" || text[index] > "9" {
+      valid = false
+    }
+  }
+  if valid {
+    value: Nat = nat_from_str(text)
+    if value > 0 && value <= 4294967295 {
+      Some(value)
     } else {
-      loaded: LoadedProject = load_project_explained(values[1])
-      entry: Str = path_support.resolve(values[1])
-      root: Str = driver_project_root(entry)
-      stdlib_root: Str = match std_environment.get("PANACKELTY_STDLIB_PATH") {
-        Some(value) => path_support.resolve(value),
-        None() => ""
+      None()
+    }
+  } else {
+    None()
+  }
+}
+
+run_explain_command(values: [Str]): Nat {
+  usage: Str = "explain usage: explain SOURCE.panack --function NAME [--type-at LINE COLUMN]"
+  has_type_position: Bool = len(values) == 7
+  if len(values) != 4 && !has_type_position {
+    report_driver_error(usage)
+  } else {
+    if path_support.suffix(values[1]) != ".panack" || values[2] != "--function" || values[3] == "" ||
+      (has_type_position && values[4] != "--type-at") {
+      report_driver_error(usage)
+    } else {
+      line: Option[Nat] = if has_type_position {
+        explanation_coordinate(values[5])
+      } else {
+        None()
       }
-      selected: Result[SourceMapFunctionSelector, Str] = explanation_function_selector(
-        loaded,
-        values[3],
-        entry,
-        root,
-        stdlib_root
-      )
-      match selected {
-        Error(message) => if starts_with_at(message, "unknown function selector ", 0) {
-          report_driver_error("explain: unknown function " + source_map_escape(values[3]))
-        } else {
-          report_driver_error("explain: " + message)
-        },
-        Ok(function) => {
-          prepared: PreparedProject = prepare_loaded_project(entry, loaded)
-          diagnostics: [Diagnostic] = tooling_diagnostics(loaded)
-          valid: Bool = prepared.valid && len(diagnostics) == 0
-          print(render_function_explanations(
-            loaded,
-            function,
-            valid,
-            root,
-            stdlib_root
-          ))
-          if valid {
-            0
+      column: Option[Nat] = if has_type_position {
+        explanation_coordinate(values[6])
+      } else {
+        None()
+      }
+      if has_type_position && (line == None() || column == None()) {
+        report_driver_error(usage + "; line and column must be positive decimal numbers")
+      } else {
+        loaded: LoadedProject = load_project_explained(values[1])
+        entry: Str = path_support.resolve(values[1])
+        root: Str = driver_project_root(entry)
+        stdlib_root: Str = match std_environment.get("PANACKELTY_STDLIB_PATH") {
+          Some(value) => path_support.resolve(value),
+          None() => ""
+        }
+        selected: Result[SourceMapFunctionSelector, Str] = explanation_function_selector(
+          loaded,
+          values[3],
+          entry,
+          root,
+          stdlib_root
+        )
+        match selected {
+          Error(message) => if starts_with_at(message, "unknown function selector ", 0) {
+            report_driver_error("explain: unknown function " + source_map_escape(values[3]))
           } else {
-            if len(diagnostics) > 0 {
-              report_driver_error(diagnostic_messages(diagnostics, loaded.sources))
+            report_driver_error("explain: " + message)
+          },
+          Ok(function) => {
+            prepared: PreparedProject = prepare_loaded_project(entry, loaded)
+            diagnostics: [Diagnostic] = tooling_diagnostics(loaded)
+            valid: Bool = prepared.valid && len(diagnostics) == 0
+            mut report: Str = render_function_explanations(
+              loaded,
+              function,
+              valid,
+              root,
+              stdlib_root
+            )
+            if has_type_position {
+              report = report + "\n\n" + render_expression_type_explanation(
+                loaded,
+                function,
+                match line { Some(value) => value, None() => 1 },
+                match column { Some(value) => value, None() => 1 },
+                root,
+                stdlib_root
+              )
+            }
+            print(report)
+            if valid {
+              0
             } else {
-              report_driver_error(prepared.message)
+              if len(diagnostics) > 0 {
+                report_driver_error(diagnostic_messages(diagnostics, loaded.sources))
+              } else {
+                report_driver_error(prepared.message)
+              }
             }
           }
         }

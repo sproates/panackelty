@@ -171,6 +171,15 @@ main(): Void {
       explain_write(source, "probe(): Str { environment_get(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved environment argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["call argument 1 to environment_get: unavailable", "expression: missing", "actual type: unavailable", "expected type: Str", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(duration: Duration, instant: Instant, integer: Int, rational: Rat): Bool { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted time arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to duration_nanoseconds: accepted", "expression: integer", "actual type: Int", "expected type: Int", "call argument 1 to duration_ticks: accepted", "expression: duration", "actual type: Duration", "expected type: Duration", "call argument 1 to duration_from_seconds: accepted", "expression: rational", "actual type: Rat", "expected type: Rat", "call argument 1 to instant_add: accepted", "expected type: Instant", "call argument 2 to instant_add: accepted", "expected type: Duration", "call argument 1 to instant_difference: accepted", "call argument 2 to instant_difference: accepted", "call argument 1 to instant_before: accepted", "call argument 2 to instant_before: accepted"], [], ""))
+      explain_write(source, "probe(): Int { duration_ticks(\"bad\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected time argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to duration_ticks: rejected", "expression: \"bad\"", "actual type: Str", "expected type: Duration", "incompatible with the expected type"], [], "duration_ticks"))
+      explain_write(source, "probe(): Int { duration_ticks(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved time argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to duration_ticks: unavailable", "expression: missing", "actual type: unavailable", "expected type: Duration", "did not determine a complete argument type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
         ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))

@@ -5877,3 +5877,25 @@ environment arguments plus diagnostic parity. Release smoke and quick start
 passed. The command prints timing warnings against the historical validation
 budgets; under the owner's 2026-10-12 direction these are not active acceptance
 gates and this result does not reopen or extend GI#106.
+
+## GI#134 time builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `duration_nanoseconds`, `duration_ticks`,
+`duration_from_seconds`, `instant_add`, `instant_difference` and
+`instant_before`, with `Int`, `Duration`, `Rat` and `Instant` arguments. Each
+sample launched the stage-2 compiler VM and included project loading, checking
+and rendering; the filesystem cache was warm. `real` times had a median of
+0.05s and a range of 0.04–0.05s. This is a local reference, not a paired
+before/after comparison or a general latency guarantee. Argument evidence is
+retained only for explanation queries; ordinary checking retains none, and
+runtime and bytecode are unchanged.
+
+The final `make check` passed in 260s: unit 179s, bootstrap 216s, and functional
+13s; unit and bootstrap ran concurrently. The module-binding unit suite passed
+701 assertions, the functional suite passed 370 cases, and the explanation CLI
+fixture passed 114 assertions, covering all six argument-bearing time builtins
+plus rejected, unavailable and diagnostic-parity cases. Release smoke and quick
+start passed. The command prints timing warnings against historical validation
+budgets; under the owner's 2026-10-12 direction they are not active acceptance
+gates and this result does not reopen or extend GI#106.

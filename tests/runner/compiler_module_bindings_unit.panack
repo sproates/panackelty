@@ -1725,6 +1725,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
     false
   )
+  accepted_time_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant); }",
+    true
+  )
+  rejected_time_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Int { duration_ticks(\"bad\") }",
+    true
+  )
+  rejected_time_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Int { duration_ticks(\"bad\") }",
+    false
+  )
+  unavailable_time_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Int { duration_ticks(missing) }",
+    true
+  )
+  unavailable_time_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Int { duration_ticks(missing) }",
+    false
+  )
+  ordinary_time_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(duration: Duration, instant: Instant, integer: Int, rational: Rat): Void { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant); }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -2071,6 +2095,52 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_environment_arguments.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_environment_arguments.functions[0].body)) == 0,
     "ordinary checking retained explanation-only environment evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted time arguments",
+    len(accepted_time_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_time_arguments.functions[0].body)) == 9 &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Int"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Duration"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[2].expected == SignatureType(SignatureCore("Rat"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[3].expected == SignatureType(SignatureCore("Instant"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[4].expected == SignatureType(SignatureCore("Duration"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[5].expected == SignatureType(SignatureCore("Instant"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[6].expected == SignatureType(SignatureCore("Instant"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[7].expected == SignatureType(SignatureCore("Instant"), []) &&
+      body_call_argument_evidence(accepted_time_arguments.functions[0].body)[8].expected == SignatureType(SignatureCore("Instant"), []),
+    "accepted time arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected time argument",
+    len(rejected_time_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_time_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_time_argument.functions[0].body)[0].accepted == Some(false),
+    "rejected time argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "time argument explanation preserves rejected diagnostics",
+    rejected_time_argument.diagnostics == rejected_time_argument_ordinary.diagnostics,
+    "time argument evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable time argument",
+    len(unavailable_time_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_time_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(unavailable_time_argument.functions[0].body)[0].accepted == None(),
+    "unavailable time argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "time argument explanation preserves unresolved diagnostics",
+    unavailable_time_argument.diagnostics == unavailable_time_argument_ordinary.diagnostics,
+    "unavailable time evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no time argument evidence",
+    len(ordinary_time_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_time_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only time argument evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

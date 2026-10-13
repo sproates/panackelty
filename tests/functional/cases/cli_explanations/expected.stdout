@@ -43,6 +43,9 @@ PASS unresolved time argument is explicitly unavailable
 PASS accepted filesystem IO arguments cite checked types
 PASS rejected filesystem IO argument preserves sibling
 PASS unresolved filesystem IO argument is explicitly unavailable
+PASS accepted rooted filesystem read arguments cite checked types
+PASS rejected rooted filesystem read argument preserves siblings
+PASS unresolved rooted filesystem read argument is explicitly unavailable
 PASS accepted filesystem query arguments cite checked types
 PASS rejected filesystem query argument explains mismatch
 PASS unresolved filesystem query argument is explicitly unavailable

@@ -247,7 +247,7 @@ pure module_effect_expression(
         mut invalid_await_operand: Bool = len(expression.children) == 0
         if len(expression.children) > 0 {
           match expression.children[0].node {
-            BodyCall(target, types) => {},
+            BodyCall(target, types, call_arguments) => {},
             BodyLiteral(value) => { invalid_await_operand = true },
             BodyInterpolation(parts) => { invalid_await_operand = true },
             BodyLocalUse(identity) => { invalid_await_operand = true },
@@ -298,7 +298,7 @@ pure module_effect_expression(
         children_walked = true
       }
     },
-    BodyCall(target, types) => {
+    BodyCall(target, types, call_arguments) => {
       result = module_effect_call(context, target, expression, awaited, retain)
       for child in expression.children {
         result = combine_effects(result, module_effect_expression(context, child, false, retain))
@@ -339,7 +339,7 @@ pure module_effect_expression(
               }
             },
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
-            BodyFunction(binding) => {}, BodyCall(target, types) => {}, BodyArray() => {},
+            BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
             BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred) => {},
             BodyAssignment(identity) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}

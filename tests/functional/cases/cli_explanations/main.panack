@@ -77,6 +77,15 @@ main(): Void {
       explain_write(source, "pure returns(): Nat { missing }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved function return is explicitly unavailable", ["explain", source, "--function", "returns"], 1,
         ["return type: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete function result type"], [], "unknown name missing"))
+      explain_write(source, "pure take[T](value: T): T { value }\npure caller(): Str { take(\"typed\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted direct call argument cites checked types", ["explain", source, "--function", "caller"], 0,
+        ["call argument 1 to take: accepted", "expression: \"typed\"", "actual type: Str", "expected type: Str", "compatible with the function parameter type"], [], ""))
+      explain_write(source, "pure take(value: Nat): Nat { value }\npure caller(): Nat { take(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected direct call argument explains type mismatch", ["explain", source, "--function", "caller"], 1,
+        ["call argument 1 to take: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the function parameter type"], [], "expected Nat"))
+      explain_write(source, "pure take(value: Nat): Nat { value }\npure caller(): Nat { take(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved direct call argument is explicitly unavailable", ["explain", source, "--function", "caller"], 1,
+        ["call argument 1 to take: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
       results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))

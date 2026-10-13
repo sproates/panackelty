@@ -46,7 +46,7 @@ pub enum BodyNode {
   BodyInterpolation([Str]),
   BodyLocalUse(BodyLocalIdentity),
   BodyFunction(ModuleDeclarationBinding),
-  BodyCall(BodyTarget, [SignatureType]),
+  BodyCall(BodyTarget, [SignatureType], [CallArgumentEvidence]),
   BodyArray,
   BodyUnary(Str),
   BodyBinary(Str),
@@ -113,6 +113,14 @@ pub record ReturnTypeEvidence {
   accepted: Option[Bool]
 }
 
+pub record CallArgumentEvidence {
+  label: Str,
+  span: SourceSpan,
+  actual: Option[SignatureType],
+  expected: SignatureType,
+  accepted: Option[Bool]
+}
+
 pub record BoundFunctionBody {
   signature: ModuleSignature,
   parameters: [BodyLocal],
@@ -120,6 +128,36 @@ pub record BoundFunctionBody {
   deferred: [SourceSpan],
   status: BodyCheckStatus,
   return_type_evidence: Option[ReturnTypeEvidence]
+}
+
+pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
+  mut entries: [CallArgumentEvidence] = []
+  match body.node {
+    BodyCall(target, types, call_arguments) => {
+      entries = concat(entries, call_arguments)
+    },
+    BodyBinding(local, type, mutable, inferred) => {},
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(local) => {},
+    BodyFunction(binding) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyAssignment(local) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+  }
+  for child in body.children {
+    entries = concat(entries, body_call_argument_evidence(child))
+  }
+  entries
 }
 
 pub record CheckedModuleBodies {
@@ -268,7 +306,7 @@ pure body_guard_bounds(context: BodyContext, value: BoundBody): Option[Bounds] {
     },
     BodyInterpolation(parts) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -325,7 +363,7 @@ pure body_guard_source_span(value: BoundBody): SourceSpan {
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -481,7 +519,7 @@ pure body_return_value_span(body: BoundBody): SourceSpan {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -567,7 +605,7 @@ pure body_proves_nat_subtraction(
       },
       BodyInterpolation(parts) => false,
       BodyFunction(binding) => false,
-      BodyCall(target, types) => false,
+      BodyCall(target, types, call_arguments) => false,
       BodyArray() => false,
       BodyUnary(operator) => false,
       BodyBinary(operator) => false,
@@ -624,7 +662,7 @@ pure body_condition_literal(value: BoundBody): Option[Nat] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -732,7 +770,7 @@ pure body_condition_facts(
               BodyLiteral(other_literal) => {},
               BodyInterpolation(parts) => {},
               BodyFunction(binding) => {},
-              BodyCall(target, types) => {},
+              BodyCall(target, types, call_arguments) => {},
               BodyArray() => {},
               BodyUnary(other_operator) => {},
               BodyBinary(other_operator) => {},
@@ -749,7 +787,7 @@ pure body_condition_facts(
             },
             BodyInterpolation(parts) => {},
             BodyFunction(binding) => {},
-            BodyCall(target, types) => {},
+            BodyCall(target, types, call_arguments) => {},
             BodyArray() => {},
             BodyField(field) => {},
             BodyIndex() => {},
@@ -771,7 +809,7 @@ pure body_condition_facts(
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyField(field) => {},
     BodyIndex() => {},
@@ -800,7 +838,7 @@ pure body_invalidate_assigned_locals(
     BodyInterpolation(parts) => {},
     BodyLocalUse(identity) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -1022,6 +1060,7 @@ pure body_call(
     index = index + 1
   }
   mut resolved_types: [SignatureType] = []
+  mut call_arguments: [CallArgumentEvidence] = []
   mut type_index: Nat = 0
   for type in types {
     match signature_type(
@@ -1177,6 +1216,32 @@ pure body_call(
                   BodyResult(child, [], []),
                   expected
                 )
+                if context.retain_guard_conversions && !contract.constructor {
+                  argument_diagnostics: [Diagnostic] = concat(
+                    required.diagnostics,
+                    refined_child.diagnostics
+                  )
+                  argument_deferred: [SourceSpan] = concat(
+                    required.deferred,
+                    refined_child.deferred
+                  )
+                  accepted: Option[Bool] = if len(argument_diagnostics) > 0 {
+                    Some(false)
+                  } else {
+                    if len(argument_deferred) > 0 {
+                      None()
+                    } else {
+                      Some(true)
+                    }
+                  }
+                  call_arguments = append(call_arguments, CallArgumentEvidence(
+                    "call argument " + body_nat_text(index + 1) + " to " + contract.name,
+                    child.span,
+                    child.type,
+                    expected,
+                    accepted
+                  ))
+                }
                 value = refined_child.body
                 diagnostics = concat(diagnostics, refined_child.diagnostics)
                 deferred = concat(deferred, refined_child.deferred)
@@ -1216,7 +1281,7 @@ pure body_call(
     )
   } else {
     BodyResult(
-      BoundBody(BodyCall(target, resolved_types), span, children, output, [], []),
+      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], []),
       diagnostics,
       deferred
     )
@@ -1361,7 +1426,7 @@ pure body_check_tcp_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_existing_special_core_call(
@@ -1569,7 +1634,7 @@ pure body_check_existing_special_core_call(
   }
   BodyResult(
     BoundBody(
-      BodyCall(target, types),
+      BodyCall(target, types, []),
       span,
       children,
       output,
@@ -1611,7 +1676,7 @@ pure body_check_rational_conversion(
       output = body_core_type(if name == "nat" { "Nat" } else { "Dec" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_environment_core_call(
@@ -1643,7 +1708,7 @@ pure body_check_environment_core_call(
       output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_time_core_call(
@@ -1722,7 +1787,7 @@ pure body_check_time_core_call(
   if len(diagnostics) > 0 || len(deferred) > 0 {
     output = None()
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_intrinsic_type(context: BodyContext, name: Str): SignatureType {
@@ -1811,7 +1876,7 @@ pure body_check_typed_intrinsic(
   if len(diagnostics) == 0 && len(deferred) == 0 {
     output = Some(result)
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_host_filesystem_core_call(
@@ -2057,7 +2122,7 @@ pure body_check_text_core_call(
       output = if name == "slice" || name == "reverse" { body_core_type("Str") } else { body_core_type("Bool") }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_bytes_core_call(
@@ -2113,7 +2178,7 @@ pure body_check_bytes_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_path_error_type(): SignatureType {
@@ -2217,7 +2282,7 @@ pure body_check_path_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_optional_type(type: Option[SignatureType]): SignatureType {
@@ -3836,12 +3901,22 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
   }
   mut node: BodyNode = body.node
   match node {
-    BodyCall(target, types) => {
+    BodyCall(target, types, call_arguments) => {
       mut arguments: [SignatureType] = []
       for type in types {
         arguments = append(arguments, body_solve_type(type, solutions))
       }
-      node = BodyCall(target, arguments)
+      mut solved_arguments: [CallArgumentEvidence] = []
+      for argument in call_arguments {
+        solved_arguments = append(solved_arguments, CallArgumentEvidence(
+          argument.label,
+          argument.span,
+          body_solve_optional(argument.actual, solutions),
+          body_solve_type(argument.expected, solutions),
+          argument.accepted
+        ))
+      }
+      node = BodyCall(target, arguments, solved_arguments)
     },
     BodyBinding(local, type, mutable, inferred) => {
       node = BodyBinding(local, body_solve_optional(type, solutions), mutable, inferred)

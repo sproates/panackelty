@@ -169,4 +169,11 @@ grep -F 'aggregate sessions=1 executions=1' coverage-aggregate.stdout >/dev/null
   fail "coverage aggregation is missing its session summary"
 test ! -s coverage-aggregate.stderr || fail "coverage aggregation wrote unexpected stderr"
 
+sh "$root/tests/functional/cases/cli_commands/package_relocation.sh" \
+  "$temporary/relocated/toolchain/share/panackelty/compiler-v9.bc" \
+  "$release_version" \
+  "$temporary/relocated/toolchain/share/panackelty/stdlib" \
+  "$temporary/relocated/toolchain/libexec/panackelty/panack-vm" \
+  "$panack"
+
 echo "release smoke: ok"

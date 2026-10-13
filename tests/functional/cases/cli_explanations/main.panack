@@ -162,6 +162,15 @@ main(): Void {
       explain_write(source, "import project/library as library\nmain(): Void { library.probe[Str](\"tag\", \"path\"); }\n")
       results = append(results, explain_run("imported generic path argument keeps definition source", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to path_from_text: accepted", "source: project/library.panack:1:", "expression: value", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "probe(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted environment arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to environment_has: accepted", "expression: \"ONE\"", "actual type: Str", "expected type: Str", "call argument 1 to environment_get: accepted", "expression: \"TWO\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "probe(): Bool { environment_has(2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected environment argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to environment_has: rejected", "expression: 2", "actual type: Nat", "expected type: Str", "incompatible with the expected type"], [], "environment_has"))
+      explain_write(source, "probe(): Str { environment_get(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved environment argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to environment_get: unavailable", "expression: missing", "actual type: unavailable", "expected type: Str", "did not determine a complete argument type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
         ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))

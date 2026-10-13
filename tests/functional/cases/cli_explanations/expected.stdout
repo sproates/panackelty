@@ -34,6 +34,9 @@ PASS unresolved path argument is unavailable while its sibling is accepted
 PASS accepted native path conversion reports byte argument
 PASS accepted typed path append reports Path arguments
 PASS imported generic path argument keeps definition source
+PASS accepted environment arguments cite checked types
+PASS rejected environment argument explains mismatch
+PASS unresolved environment argument is explicitly unavailable
 PASS accepted annotated local cites checked types
 PASS rejected annotated local explains type mismatch
 PASS unresolved annotated local is explicitly unavailable
@@ -106,4 +109,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 108, failures: 0
+tests: 111, failures: 0

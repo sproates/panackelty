@@ -716,7 +716,9 @@ mutation/lookup argument contracts, including accepted, rejected and
 unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,
 independent sibling outcomes, imported generic source attribution, and empty
 evidence during ordinary checking. Other builtin contracts and indirect callable
-invocations remain outside this slice.
+invocations remain outside these slices. Environment argument cases check the
+string key contract for `environment_get` and `environment_has`, including
+accepted, rejected and unavailable evidence plus unchanged diagnostics.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

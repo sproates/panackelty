@@ -1851,6 +1851,7 @@ pure body_check_environment_core_call(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
   if len(children) != 1 {
     diagnostics = append(
       diagnostics,
@@ -1865,11 +1866,25 @@ pure body_check_environment_core_call(
     )
     diagnostics = concat(diagnostics, required.diagnostics)
     deferred = concat(deferred, required.deferred)
+    if context.retain_guard_conversions {
+      accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+        Some(false)
+      } else {
+        if len(required.deferred) > 0 { None() } else { Some(true) }
+      }
+      call_arguments = append(call_arguments, CallArgumentEvidence(
+        "call argument 1 to " + name,
+        children[0].span,
+        children[0].type,
+        SignatureType(SignatureCore("Str"), []),
+        accepted
+      ))
+    }
     if len(diagnostics) == 0 && len(deferred) == 0 {
       output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_time_core_call(

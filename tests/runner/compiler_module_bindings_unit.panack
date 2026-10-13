@@ -1701,6 +1701,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): Str { path_join(\"parent\", \"child\") }",
     false
   )
+  accepted_environment_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
+    true
+  )
+  rejected_environment_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Bool { environment_has(2) }",
+    true
+  )
+  rejected_environment_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Bool { environment_has(2) }",
+    false
+  )
+  unavailable_environment_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { environment_get(missing) }",
+    true
+  )
+  unavailable_environment_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { environment_get(missing) }",
+    false
+  )
+  ordinary_environment_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -2007,6 +2031,46 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_path_arguments.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_path_arguments.functions[0].body)) == 0,
     "ordinary checking retained explanation-only path argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted environment arguments",
+    len(accepted_environment_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_environment_arguments.functions[0].body)) == 2 &&
+      body_call_argument_evidence(accepted_environment_arguments.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_environment_arguments.functions[0].body)[1].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_environment_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Str"), []) &&
+      body_call_argument_evidence(accepted_environment_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Str"), []),
+    "accepted environment arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected environment argument",
+    len(rejected_environment_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_environment_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_environment_argument.functions[0].body)[0].accepted == Some(false),
+    "rejected environment argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "environment argument explanation preserves rejected diagnostics",
+    rejected_environment_argument.diagnostics == rejected_environment_argument_ordinary.diagnostics,
+    "environment argument evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable environment argument",
+    len(unavailable_environment_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_environment_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(unavailable_environment_argument.functions[0].body)[0].accepted == None(),
+    "unavailable environment argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "environment argument explanation preserves unresolved diagnostics",
+    unavailable_environment_argument.diagnostics == unavailable_environment_argument_ordinary.diagnostics,
+    "unavailable environment evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no environment argument evidence",
+    len(ordinary_environment_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_environment_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only environment evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

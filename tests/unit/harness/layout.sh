@@ -27,7 +27,15 @@ contains .github/workflows/check.yml 'group: validation-${{ github.event.pull_re
 contains .github/workflows/check.yml 'cancel-in-progress: ${{ github.event_name == '"'"'pull_request'"'"' }}'
 contains .github/workflows/check.yml 'name: Package (${{ matrix.target }})'
 test "$(grep -Fc "if: matrix.suite == 'compiler' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'platform compiler experiments must run only on pull requests'
-test "$(grep -Fc "if: matrix.suite == 'compiler' && needs.changes.outputs.next_integration == 'true' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'next compiler experiments must run once in the focused lane'
+contains .github/workflows/check.yml 'name: Next Linux smoke'
+contains .github/workflows/check.yml 'timeout-minutes: 5'
+contains .github/workflows/check.yml 'run: make check-no-interpreter CI_SUITE=next-smoke'
+contains .github/workflows/check.yml "needs.changes.outputs.next_integration != 'true' && !cancelled()"
+absent .github/workflows/check.yml 'platform_smoke'
+awk '/^  test_run:$/ { selected=1 } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/next-job"
+for experiment in source-mapping-experiment runtime-provenance-experiment source-coverage-experiment semantic-impact-experiment; do
+    absent "$work/next-job" "$experiment"
+done
 pass
 case_name=nightly-package-workflow-targets-next
 contains .github/workflows/nightly-packages.yml 'schedule:'
@@ -113,7 +121,7 @@ absent "$work/source-job" 'if: always()'
 contains .github/workflows/check.yml 'node scripts/source_coverage_route.cjs >> "$GITHUB_OUTPUT"'
 contains .github/workflows/check.yml 'name: Source coverage policy tests'
 contains .github/workflows/check.yml 'tests/source_coverage/route.test.cjs'
-contains .github/workflows/check.yml 'needs: [changes, test_run, source_policy_tests, source_coverage, workflow_validation]'
+contains .github/workflows/check.yml 'needs: [changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation]'
 contains .github/workflows/check.yml 'name: Workflow configuration validation'
 contains .github/workflows/check.yml "needs.changes.outputs.route == 'workflow'"
 contains .github/workflows/check.yml 'timeout-minutes: 5'
@@ -127,10 +135,6 @@ awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
 sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
-make source-mapping-experiment
-make runtime-provenance-experiment
-make source-coverage-experiment
-make semantic-impact-experiment
 make native-sanitize CC=clang SANITIZE_SUITE="${SANITIZE_JOB#sanitize-}"
 |
 make native-coverage LLVM_CC=/usr/bin/clang-18 LLVM_COV=/usr/bin/llvm-cov-18 LLVM_PROFDATA=/usr/bin/llvm-profdata-18
@@ -143,7 +147,7 @@ for tool in clang-18 llvm-cov-18 llvm-profdata-18; do
 done
 absent "$work/test-job" 'apt-get'
 for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
-    "fromJSON(needs.changes.outputs.next_integration == 'true' && '[\"compiler\", \"runtime\"]'" \
+    'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
     "if: startsWith(matrix.suite, 'sanitize-')" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done
 test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 3 || fail 'release checkout credential policy'
 test "$(grep -c 'contents: write' .github/workflows/release.yml)" = 1 || fail 'release permission policy'

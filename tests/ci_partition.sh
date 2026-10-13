@@ -140,6 +140,8 @@ for contract in \
     'sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes' \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
+    'ci-next-smoke: native $(STAGE2_COMPILER)' \
+    'sh tests/ci_next_smoke.sh "$(abspath $(STAGE2_COMPILER))"' \
     'CI_PACKAGE_SMOKE_TARGETS := quick-start' \
     'ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)' \
     'sh tests/run_suites.sh $(MAKE) bootstrap-fixed-point bootstrap-seed-refresh' \
@@ -158,7 +160,9 @@ for target in ci-bootstrap ci-conformance-bytecode; do
     grep -F 'quick-start' "$work/package-enabled" >/dev/null || fail "default route lost package smoke from $target"
 done
 grep -F 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]' .github/workflows/check.yml >/dev/null || fail 'missing package partition'
-grep -F "fromJSON(needs.changes.outputs.next_integration == 'true' && '[\"compiler\", \"runtime\"]' || '[\"compiler\", \"runtime\", \"bootstrap\", \"sanitize-vm\", \"sanitize-oracle\", \"sanitize-runner\", \"coverage\"]')" .github/workflows/check.yml >/dev/null || fail 'missing full and focused validation partitions'
+grep -F 'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' .github/workflows/check.yml >/dev/null || fail 'missing full main validation partition'
 grep -F 'run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing isolated suite dispatch'
 grep -F 'run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing project suite dispatch'
+grep -F 'run: make check-no-interpreter CI_SUITE=next-smoke' .github/workflows/check.yml >/dev/null || fail 'next PR does not use the bounded smoke'
+grep -F "needs.changes.outputs.next_integration != 'true' && !cancelled()" .github/workflows/check.yml >/dev/null || fail 'next runs full verification'
 echo 'CI partition dispatch, failure propagation and shared coverage passed.'

@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#153.**
+The initial allocation contains **105 identities**. **Next available: RM#154.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -5120,6 +5120,28 @@ preservation are design sketches, not accepted syntax or available verification.
 Related work includes [SymDiff differential program verification](https://www.microsoft.com/en-us/research/project/symdiff-differential-program-verifier/).
 The intended distinction is approachable change boundaries in normal development
 and release workflows, not a claim that arbitrary program equivalence is decidable.
+
+### Guarded types — exploration
+
+<a id="rm-153"></a>
+
+**RM#153: Expand guarded types beyond numeric bounds** · [GI#435: Expand guarded types beyond numeric bounds](https://github.com/sproates/panackelty/issues/435).
+
+Assess how Panackelty could express and prove useful invariants beyond numeric
+bounds. Candidate examples include non-empty or constrained strings,
+identifier-like values, enum alternatives and collection constraints; these
+need evaluation, not automatic inclusion. Define the boundary between static
+proof and explicit runtime validation, sound proof propagation and invalidation,
+diagnostics, and limits on guard expressions. Purity alone does not make
+arbitrary computation terminating, cheap or decidable.
+
+Begin with a reviewed semantics proposal and staged implementation plan.
+Untrusted-input adapters remain coordinated with
+[RM#73: JSON support](#rm-73) and
+[RM#74: Type-driven input handling](#rm-74), avoiding duplicate scope.
+This is an unscheduled proposal and a candidate for future compiler/correctness
+work under [RM#151: Alpha.14 direction](#rm-151); it does not select a release
+scope or authorise implementation.
 
 ### JSON data support — exploration
 

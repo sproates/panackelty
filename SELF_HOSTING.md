@@ -172,9 +172,12 @@ fixed point. Program declaration indexes are internal compiler data, not a new
 bytecode ABI or an unchecked compilation mode. See the indexed-lookup measurements
 in [the validation profile](tests/VALIDATION_PROFILE.md).
 
-The first U3 query refreshes the v9 seed with opt-in checker evidence and
-`panack explain SOURCE.panack --function NAME`. Ordinary proof rules and emitted
-program bytes are unchanged. Fresh stage-2/3/4 compiler and standard-library
+The U3 query refreshes the v9 seed with opt-in checker evidence and
+`panack explain SOURCE.panack --function NAME`. The current follow-up slice adds
+retained explanations for proof-bearing conversions into guarded types. The
+checker now accepts a guarded source for a compatible guarded target when the
+source invariant proves the target; ordinary checks still retain no explanation
+evidence. Fresh stage-2/3/4 compiler and standard-library
 fixed points validate the refresh; see the [query contract](docs/COMPILER_EXPLANATIONS.md)
 and validation profile. This is a bounded subtraction query, not full compiler
 or runtime explanations.

@@ -7,7 +7,7 @@ import stdlib/time as std_time
 import project/src/compiler/module_signatures::{signature_effect, signature_declaration, signature_type, substitute_signature_type, check_module_signatures}
 import project/src/compiler/module_bindings::{ModulePackageIdentity, ModulePackageIdentity.ToolchainModulePackage, module_import_names, module_reserved_binding}
 import project/src/compiler/module_resolution::{ResolvedModuleUses, ResolvedModuleTarget, ResolvedModuleTarget.DeclarationTarget, ResolvedModuleTarget.NamespaceTarget, ResolvedDotCall, ResolvedDotCall.NamespaceCall, ResolvedDotCall.ValueMethodCall, binding_graph_module, binding_graph_target, module_identity_in, resolve_module_expression_uses, resolve_module_path_inner, resolve_module_type, module_head_is_namespace, resolve_module_function, resolve_module_path, resolve_module_dot_call_scoped, module_import_shadow_diagnostics}
-import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name}
+import project/src/compiler/parser::{Statement, Statement.BindingStatement, Statement.AssignmentStatement, Statement.ExpressionStatement, Statement.WhileStatement, Statement.ForStatement, BlockValue, BlockValue.NoBlockValue, BlockValue.TailBlockValue, Block, Program, MatchArm, MatchPattern, ParsedModule, ParsedTypeRef, TopLevel, TopLevel.ImportDeclaration, TopLevel.TypeDeclaration, TopLevel.RecordDeclaration, TopLevel.EnumDeclaration, TopLevel.FunctionDeclaration, DeclarationSyntax, RecordField, FunctionParameter, EnumVariant, expression_span, expression_reference_path, reference_head, unlocated_expression, lowered_method_name, render_expr}
 import project/src/compiler/lexer::{prior_index}
 import project/src/compiler/types::{SourcePos}
 import project/src/compiler/checker::{GuardedTypeLookup, condition_facts, render_type, prove_guard_bounds}
@@ -62,12 +62,23 @@ pub enum BodyNode {
   BodyEmpty
 }
 
+pub record GuardConversionEvidence {
+  span: SourceSpan,
+  source_type: Str,
+  target_type: Str,
+  source_guard: Option[Str],
+  target_guard: Str,
+  bounds: Option[Bounds],
+  proven: Option[Bool]
+}
+
 pub record BoundBody {
   node: BodyNode,
   span: SourceSpan,
   children: [BoundBody],
   type: Option[SignatureType],
-  constraints: [BodySolution]
+  constraints: [BodySolution],
+  guard_conversions: [GuardConversionEvidence]
 }
 
 pub record BodyContext {
@@ -76,7 +87,8 @@ pub record BodyContext {
   signatures: [ModuleSignature],
   owner: DeclarationIdentity,
   parameters: [Str],
-  facts: Map[Str, Bounds]
+  facts: Map[Str, Bounds],
+  retain_guard_conversions: Bool
 }
 
 record BodyResult {
@@ -115,11 +127,11 @@ pure body_result(
   children: [BoundBody],
   type: Option[SignatureType]
 ): BodyResult {
-  BodyResult(BoundBody(node, span, children, type, []), [], [])
+  BodyResult(BoundBody(node, span, children, type, [], []), [], [])
 }
 
 pure body_failure(message: Str, span: SourceSpan): BodyResult {
-  BodyResult(BoundBody(BodyEmpty(), span, [], None(), []), [Diagnostic(message, span.start)], [])
+  BodyResult(BoundBody(BodyEmpty(), span, [], None(), [], []), [Diagnostic(message, span.start)], [])
 }
 
 pub pure body_signature(
@@ -286,66 +298,118 @@ pure body_guard_spec(context: BodyContext, type: SignatureType): Option[GuardedT
   result
 }
 
+record BodyGuardConversionDecision {
+  proven: Option[Bool],
+  evidence: Option[GuardConversionEvidence]
+}
+
+pure body_guard_source_span(value: BoundBody): SourceSpan {
+  mut span: SourceSpan = value.span
+  match value.node {
+    BodyBlock(has_tail) => if has_tail {
+      for child in value.children {
+        span = body_guard_source_span(child)
+      }
+    },
+    BodyLiteral(literal) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(identity) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(field) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyBinding(identity, type, mutable) => {},
+    BodyAssignment(identity) => {},
+    BodyWhile() => {},
+    BodyFor(identity) => {},
+    BodyEmpty() => {}
+  }
+  span
+}
+
 pure body_guard_conversion(
   context: BodyContext,
   value: BoundBody,
   expected: SignatureType
-): Option[Bool] {
-  mut result: Option[Bool] = None()
+): Option[BodyGuardConversionDecision] {
+  mut result: Option[BodyGuardConversionDecision] = None()
   match value.type {
     None() => {},
-    Some(actual) => {
-      match body_guard_spec(context, expected) {
-        Some(target) => {
-          match actual.identity {
-            SignatureCore(actual_base) => {
-              compatible: Bool = actual_base == target.base ||
-                (actual_base == "Nat" && target.base == "Int")
-              if compatible {
-                match body_guard_bounds(context, value) {
-                  None() => {},
-                  Some(bounds) => {
-                    result = Some(prove_guard_bounds(target.guard, bounds))
-                  }
-                }
-              } else {}
-            },
-            SignatureNominal(identity) => match body_guard_spec(context, actual) {
-              None() => {},
-              Some(source) => {
-                compatible: Bool = source.base == target.base ||
-                  (source.base == "Nat" && target.base == "Int")
-                if compatible {
-                  source_facts: Map[Str, Bounds] = condition_facts(source.guard, map(), true)
-                  if source_facts.has("value") {
-                    result = Some(prove_guard_bounds(target.guard, source_facts.get("value")))
-                  }
-                } else {}
+    Some(actual) => match body_guard_spec(context, expected) {
+      Some(target) => match actual.identity {
+        SignatureCore(actual_base) => {
+          compatible: Bool = actual_base == target.base ||
+            (actual_base == "Nat" && target.base == "Int")
+          if compatible {
+            bounds: Option[Bounds] = body_guard_bounds(context, value)
+            proven: Option[Bool] = match bounds {
+              None() => None(),
+              Some(facts) => Some(prove_guard_bounds(target.guard, facts))
+            }
+            evidence: GuardConversionEvidence = GuardConversionEvidence(
+              body_guard_source_span(value),
+              body_type_text(actual),
+              body_type_text(expected),
+              None(),
+              render_expr(target.guard),
+              bounds,
+              proven
+            )
+            result = Some(BodyGuardConversionDecision(proven, Some(evidence)))
+          } else {}
+        },
+        SignatureNominal(identity) => match body_guard_spec(context, actual) {
+          None() => {},
+          Some(source) => {
+            compatible: Bool = source.base == target.base ||
+              (source.base == "Nat" && target.base == "Int")
+            if compatible {
+              source_facts: Map[Str, Bounds] = condition_facts(source.guard, map(), true)
+              mut bounds: Option[Bounds] = None()
+              if source_facts.has("value") {
+                bounds = Some(source_facts.get("value"))
               }
-            },
-            SignatureParameter(owner, index) => {},
-            SignatureCallable(effect) => {},
-            SignatureHole(owner, path, index) => {}
+              proven: Option[Bool] = match bounds {
+                None() => None(),
+                Some(facts) => Some(prove_guard_bounds(target.guard, facts))
+              }
+              evidence: GuardConversionEvidence = GuardConversionEvidence(
+                body_guard_source_span(value),
+                body_type_text(actual),
+                body_type_text(expected),
+                Some(render_expr(source.guard)),
+                render_expr(target.guard),
+                bounds,
+                proven
+              )
+              result = Some(BodyGuardConversionDecision(proven, Some(evidence)))
+            } else {}
           }
         },
-        None() => {
-          match body_guard_spec(context, actual) {
-            Some(source) => {
-              target_base: Str = match expected.identity {
-                SignatureCore(name) => name,
-                SignatureNominal(identity) => "",
-                SignatureParameter(owner, index) => "",
-                SignatureCallable(effect) => "",
-                SignatureHole(owner, path, index) => ""
-              }
-              if target_base == source.base ||
-                (source.base == "Nat" && target_base == "Int") {
-                result = Some(true)
-              } else {}
-            },
-            None() => {}
+        SignatureParameter(owner, index) => {},
+        SignatureCallable(effect) => {},
+        SignatureHole(owner, path, index) => {}
+      },
+      None() => match body_guard_spec(context, actual) {
+        Some(source) => {
+          target_base: Str = match expected.identity {
+            SignatureCore(name) => name,
+            SignatureNominal(identity) => "",
+            SignatureParameter(owner, index) => "",
+            SignatureCallable(effect) => "",
+            SignatureHole(owner, path, index) => ""
           }
-        }
+          if target_base == source.base ||
+            (source.base == "Nat" && target_base == "Int") {
+            result = Some(BodyGuardConversionDecision(Some(true), None()))
+          } else {}
+        },
+        None() => {}
       }
     }
   }
@@ -358,7 +422,13 @@ pure body_compatibility_value(
   expected: SignatureType
 ): Option[Bool] {
   match body_guard_conversion(context, value, expected) {
-    Some(valid) => Some(valid),
+    Some(decision) => match decision.proven {
+      Some(valid) => Some(valid),
+      None() => match value.type {
+        None() => None(),
+        Some(actual) => body_compatibility(context, actual, expected)
+      }
+    },
     None() => match value.type {
       None() => None(),
       Some(actual) => body_compatibility(context, actual, expected)
@@ -483,7 +553,8 @@ pure body_context_with_facts(context: BodyContext, facts: Map[Str, Bounds]): Bod
     context.signatures,
     context.owner,
     context.parameters,
-    facts
+    facts,
+    context.retain_guard_conversions
   )
 }
 
@@ -1106,7 +1177,7 @@ pure body_call(
     )
   } else {
     BodyResult(
-      BoundBody(BodyCall(target, resolved_types), span, children, output, []),
+      BoundBody(BodyCall(target, resolved_types), span, children, output, [], []),
       diagnostics,
       deferred
     )
@@ -1251,7 +1322,7 @@ pure body_check_tcp_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_existing_special_core_call(
@@ -1463,7 +1534,8 @@ pure body_check_existing_special_core_call(
       span,
       children,
       output,
-      body_collection_call_solutions(name, children)
+      body_collection_call_solutions(name, children),
+      []
     ),
     diagnostics,
     deferred
@@ -1500,7 +1572,7 @@ pure body_check_rational_conversion(
       output = body_core_type(if name == "nat" { "Nat" } else { "Dec" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_environment_core_call(
@@ -1532,7 +1604,7 @@ pure body_check_environment_core_call(
       output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_time_core_call(
@@ -1611,7 +1683,7 @@ pure body_check_time_core_call(
   if len(diagnostics) > 0 || len(deferred) > 0 {
     output = None()
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_intrinsic_type(context: BodyContext, name: Str): SignatureType {
@@ -1700,7 +1772,7 @@ pure body_check_typed_intrinsic(
   if len(diagnostics) == 0 && len(deferred) == 0 {
     output = Some(result)
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_host_filesystem_core_call(
@@ -1946,7 +2018,7 @@ pure body_check_text_core_call(
       output = if name == "slice" || name == "reverse" { body_core_type("Str") } else { body_core_type("Bool") }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_bytes_core_call(
@@ -2002,7 +2074,7 @@ pure body_check_bytes_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_path_error_type(): SignatureType {
@@ -2106,7 +2178,7 @@ pure body_check_path_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), []), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_optional_type(type: Option[SignatureType]): SignatureType {
@@ -2246,7 +2318,7 @@ pure body_check_collection_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyEmpty(), span, [], output, []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyEmpty(), span, [], output, [], []), diagnostics, deferred)
 }
 
 pure body_check_map_set_call(
@@ -2300,7 +2372,7 @@ pure body_check_map_set_call(
     }
   }
   BodyResult(
-    BoundBody(BodyEmpty(), span, [], output, body_collection_call_solutions(operation, children)),
+    BoundBody(BodyEmpty(), span, [], output, body_collection_call_solutions(operation, children), []),
     diagnostics,
     deferred
   )
@@ -2438,7 +2510,7 @@ pure bind_body_expression_with_type_argument_spans(
             }
           }
           result = BodyResult(
-            BoundBody(BodyFunction(binding), origin, [], type, []),
+            BoundBody(BodyFunction(binding), origin, [], type, [], []),
             result.diagnostics,
             deferred
           )
@@ -2634,6 +2706,7 @@ pure bind_body_if(
     origin,
     [checked_condition.body, checked_yes.body, checked_no.body],
     None(),
+    [],
     []
   ),
     concat(checked_condition.diagnostics, concat(checked_yes.diagnostics, checked_no.diagnostics)),
@@ -2668,7 +2741,7 @@ pure bind_body_children(
     deferred = concat(deferred, checked.deferred)
     index = index + 1
   }
-  BodyResult(BoundBody(node, span, children, None(), []), diagnostics, deferred)
+  BodyResult(BoundBody(node, span, children, None(), [], []), diagnostics, deferred)
 }
 
 pure bind_body_block(
@@ -2749,6 +2822,7 @@ pure bind_body_block(
           checked.body.span,
           [checked.body],
           body_core_type("Void"),
+          [],
           []
         ),
           checked.diagnostics,
@@ -2776,6 +2850,7 @@ pure bind_body_block(
             checked.body.span,
             [checked.body],
             body_core_type("Void"),
+            [],
             []
           ),
             checked.diagnostics,
@@ -2811,6 +2886,7 @@ pure bind_body_block(
             checked.body.span,
             [checked.body],
             body_core_type("Void"),
+            [],
             []
           ),
             checked.diagnostics,
@@ -2843,7 +2919,7 @@ pure bind_body_block(
         checked = check_body_conditional(
           current_context,
           BodyResult(
-            BoundBody(BodyWhile(), span, [checked_condition.body, checked_body.body], None(), []),
+            BoundBody(BodyWhile(), span, [checked_condition.body, checked_body.body], None(), [], []),
             concat(checked_condition.diagnostics, checked_body.diagnostics),
             concat(checked_condition.deferred, checked_body.deferred)
           ),
@@ -2875,7 +2951,7 @@ pure bind_body_block(
           append(statement_path, 2)
         )
         checked = BodyResult(
-          BoundBody(BodyFor(local), span, [iterable.body, nested.body], body_core_type("Void"), []),
+          BoundBody(BodyFor(local), span, [iterable.body, nested.body], body_core_type("Void"), [], []),
           concat(item.diagnostics, nested.diagnostics),
           concat(item.deferred, nested.deferred)
         )
@@ -2902,7 +2978,7 @@ pure bind_body_block(
     }
   }
   BodyResult(
-    BoundBody(BodyBlock(block.value != NoBlockValue()), span, children, output, []),
+    BoundBody(BodyBlock(block.value != NoBlockValue()), span, children, output, [], []),
     diagnostics,
     deferred
   )
@@ -2913,6 +2989,26 @@ pub pure check_module_bodies(
   modules: [LoadedModule],
   signatures: [ModuleSignature],
   module: LoadedModule
+): CheckedModuleBodies {
+  check_module_bodies_mode(graph, modules, signatures, module, false)
+}
+
+pub pure check_module_bodies_explained(
+  graph: ModuleBindingGraph,
+  modules: [LoadedModule],
+  signatures: [ModuleSignature],
+  module: LoadedModule,
+  retain_guard_conversions: Bool
+): CheckedModuleBodies {
+  check_module_bodies_mode(graph, modules, signatures, module, retain_guard_conversions)
+}
+
+pure check_module_bodies_mode(
+  graph: ModuleBindingGraph,
+  modules: [LoadedModule],
+  signatures: [ModuleSignature],
+  module: LoadedModule,
+  retain_guard_conversions: Bool
 ): CheckedModuleBodies {
   mut functions: [BoundFunctionBody] = []
   mut diagnostics: [Diagnostic] = module_import_shadow_diagnostics(module.bindings, module.parsed)
@@ -2926,7 +3022,9 @@ pub pure check_module_bodies(
             None() => {},
             Some(signature) => {
               diagnostic_start: Nat = len(diagnostics)
-              context: BodyContext = BodyContext(graph, modules, signatures, owner, type_parameters, map())
+              context: BodyContext = BodyContext(
+                graph, modules, signatures, owner, type_parameters, map(), retain_guard_conversions
+              )
               mut locals: Map[Str, BodyLocal] = map()
               mut bound_parameters: [BodyLocal] = []
               mut index: Nat = 0
@@ -3205,7 +3303,7 @@ pure check_body_operation(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions),
     diagnostics,
     deferred
   ),
@@ -3360,7 +3458,7 @@ pure check_body_conditional(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions),
     diagnostics,
     deferred
   ),
@@ -3408,7 +3506,8 @@ pure body_iteration_item(context: BodyContext, checked: BodyResult): BodyResult 
     checked.body.span,
     checked.body.children,
     output,
-    checked.body.constraints
+    checked.body.constraints,
+    checked.body.guard_conversions
   ),
     diagnostics,
     deferred
@@ -3459,7 +3558,7 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
     }
   }
   BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions),
     diagnostics,
     deferred
   )
@@ -3489,7 +3588,7 @@ pure bind_body_string(
         local: BodyLocal = locals.get(name)
         children = append(
           children,
-          BoundBody(BodyLocalUse(local.identity), span, [], local.type, [])
+          BoundBody(BodyLocalUse(local.identity), span, [], local.type, [], [])
         )
         match local.type {
           None() => {
@@ -3518,7 +3617,7 @@ pure bind_body_string(
       }
     }
     result = BodyResult(
-      BoundBody(BodyInterpolation(interpolation.parts), span, children, body_core_type("Str"), []),
+      BoundBody(BodyInterpolation(interpolation.parts), span, children, body_core_type("Str"), [], []),
       diagnostics,
       deferred
     )
@@ -3689,17 +3788,42 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints)
+  BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints, body.guard_conversions)
 }
 
 pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureType): BodyResult {
   match body_guard_conversion(context, checked.body, expected) {
-    Some(proven) => if proven {
-      checked
-    } else {
-      match checked.body.type {
-        None() => checked,
-        Some(actual) => body_apply_solutions(context, checked, body_solutions(actual, expected))
+    Some(decision) => {
+      mut with_evidence: BodyResult = checked
+      if context.retain_guard_conversions {
+        match decision.evidence {
+          None() => {},
+          Some(evidence) => {
+            retained: BoundBody = BoundBody(
+              checked.body.node,
+              checked.body.span,
+              checked.body.children,
+              checked.body.type,
+              checked.body.constraints,
+              append(checked.body.guard_conversions, evidence)
+            )
+            with_evidence = BodyResult(retained, checked.diagnostics, checked.deferred)
+          }
+        }
+      }
+      match decision.proven {
+        Some(proven) => if proven {
+          with_evidence
+        } else {
+          match checked.body.type {
+            None() => with_evidence,
+            Some(actual) => body_apply_solutions(context, with_evidence, body_solutions(actual, expected))
+          }
+        },
+        None() => match checked.body.type {
+          None() => with_evidence,
+          Some(actual) => body_apply_solutions(context, with_evidence, body_solutions(actual, expected))
+        }
       }
     },
     None() => match checked.body.type {
@@ -3843,7 +3967,8 @@ pure body_apply_solutions(
     body.span,
     body.children,
     body.type,
-    concat(body.constraints, constraints)
+    concat(body.constraints, constraints),
+    body.guard_conversions
   )
   BodyResult(retained, diagnostics, deferred)
 }
@@ -4233,7 +4358,8 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
     checked.body.span,
     checked.body.children,
     output,
-    checked.body.constraints
+    checked.body.constraints,
+    checked.body.guard_conversions
   ),
     diagnostics,
     deferred
@@ -4324,7 +4450,8 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
     checked.body.span,
     checked.body.children,
     output,
-    checked.body.constraints
+    checked.body.constraints,
+    checked.body.guard_conversions
   ),
     diagnostics,
     deferred
@@ -4610,6 +4737,6 @@ pure bind_body_match(
       }
     }
   }
-  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [])
+  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [], [])
   body_apply_solutions(context, BodyResult(body, diagnostics, deferred), solutions)
 }

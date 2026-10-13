@@ -500,8 +500,9 @@ main(): Void {
 }
 ```
 
-The compiler only accepts a conversion when it can prove the guard. It does not
-hide a runtime check inside otherwise pure code.
+The compiler only accepts a conversion when it can prove the target guard from
+the value or its guarded source type. It does not hide a runtime check inside
+otherwise pure code.
 
 ### Explicit effects, practical algorithms
 
@@ -606,15 +607,16 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
-### Explain subtraction and effect checks
+### Explain guarded conversions, subtraction and effect checks
 
 ```sh
 panack explain example.panack --function remaining
 ```
 
-The explanation query shows why a `Nat` subtraction is proved or unproved,
-using the checker's actual constants or guard bounds and their source locations.
-It also explains local call and await effect boundaries, including why pure or
+The explanation query shows proof-bearing conversions into guarded types and
+why a `Nat` subtraction is proved or unproved, using the checker's actual
+constants or guard bounds and their source locations. It also explains local
+call and await effect boundaries, including why pure or
 async code rejects a call, and reports whole-program acceptance separately. Unproved does not
 mean a runtime failure was demonstrated; unsupported explanations remain explicit.
 A body type error in another function need not hide valid local effect evidence;

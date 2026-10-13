@@ -240,6 +240,9 @@ structural branch/array joins, known iterable/index types, and return compatibil
 Record and variant construction, nominal fields and exhaustive matches use original
 declaration identities; payload bindings retain their lexical owners and types. Interpolated strings retain
 ordered lexical-local children and decoded text parts, including repeated uses.
+The explicit explanation load can retain the checker's proof-bearing conversions
+into guarded targets, including source types, guard expressions, available bounds
+and proof decisions; ordinary checking leaves this collection empty.
 `expression_contracts.panack` shares literal decoding and exact numeric result
 rules with the legacy checker/emitter; nominal identities never enter those
 scalar helpers. Nominals compare original
@@ -1461,7 +1464,11 @@ ordinary compilation runs purity only after successful type checking, while
 explanations can check separately type-valid functions with valid declarations. Resolver
 or loading errors yield no partial fabricated proofs. `explanations.panack`
 formats retained decisions against loaded source snapshots; `driver.panack`
-selects a function with `explain`. Whole-project validity, local proof status and
+selects a function with `explain`. It reports guarded conversions only when the
+checker consults facts for a guarded target; a compatible guarded source can
+now convert when its invariant proves the target, while a stricter target still
+needs additional facts. Guarded-to-base widening remains outside this proof
+query. Whole-project validity, local proof status and
 unsupported evidence remain distinct. Generic evidence describes source
 function definitions. No runtime, emitter, serialization or v9 instruction changes
 are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines

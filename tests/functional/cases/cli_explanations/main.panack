@@ -56,6 +56,13 @@ main(): Void {
       mut results: [TestResult] = []
       original: Str = "import project/library as library\nmain(): Void { print(library.remaining[Str](\"x\", 5)); print(library.remaining[Nat](7, 4)); }\n"
       explain_write(source, original)
+      explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void { greeting = \"hello\"; echoed = identity(\"generic\"); explicit: Str = \"annotated\"; }\nmain(): Void {}\n")
+      results = append(results, explain_run("inferred locals report initializer evidence", ["explain", source, "--function", "probe"], 0,
+        ["inferred locals:", "inferred local: greeting", "expression: \"hello\"", "initializer type: Str", "inferred type: Str", "inferred local: echoed", "expression: identity(\"generic\")", "checked initializer type determines this local type"], ["inferred local: explicit"], ""))
+      explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
+      results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))
+      explain_write(source, original)
       explain_write(library, "// λ🙂\npub pure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
       results = append(results, explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
         ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))

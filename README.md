@@ -607,15 +607,16 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
-### Explain guarded conversions, subtraction and effect checks
+### Explain inferred locals, guarded conversions, subtraction and effects
 
 ```sh
 panack explain example.panack --function remaining
 ```
 
-The explanation query shows proof-bearing conversions into guarded types and
-why a `Nat` subtraction is proved or unproved, using the checker's actual
-constants or guard bounds and their source locations. It also explains local
+The explanation query shows inferred local types and their checked initializer
+evidence, proof-bearing conversions into guarded types, and why a `Nat`
+subtraction is proved or unproved, using the checker's actual constants or guard
+bounds and their source locations. It also explains local
 call and await effect boundaries, including why pure or
 async code rejects a call, and reports whole-program acceptance separately. Unproved does not
 mean a runtime failure was demonstrated; unsupported explanations remain explicit.

@@ -4119,11 +4119,14 @@ The selected GI#134 follow-up explains proof-bearing conversions into guarded
 targets, including core-value facts and guarded source invariants. It also
 accepts a guarded source for a compatible guarded target when the source
 invariant proves the target; stricter targets still require sufficient facts.
-Guarded-to-base widening is excluded because it needs no proof. The feature remains an unreleased
-CLI capability, so the current website stays accurate for its published versions;
-review website promotion at the next supporting release.
-Runtime value provenance is its own linked workstream #172; new inference rules
-and automatic fixes remain outside #134.
+Guarded-to-base widening is excluded because it needs no proof. The current
+follow-up adds inferred-local explanations from checked initializer types and
+source expressions, omits annotated locals, and reports incomplete inference as
+unavailable without changing inference rules. These remain bounded, unreleased
+CLI slices; broader checked type/proof scope remains open. The current website
+stays accurate for its published versions; review website promotion at the next
+supporting release. Runtime value provenance is its own linked workstream #172;
+automatic fixes remain outside #134.
 
 ### Systematic invariant testing
 

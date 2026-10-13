@@ -173,8 +173,9 @@ bytecode ABI or an unchecked compilation mode. See the indexed-lookup measuremen
 in [the validation profile](tests/VALIDATION_PROFILE.md).
 
 The U3 query refreshes the v9 seed with opt-in checker evidence and
-`panack explain SOURCE.panack --function NAME`. The current follow-up slice adds
-retained explanations for proof-bearing conversions into guarded types. The
+`panack explain SOURCE.panack --function NAME`. Follow-up slices add retained
+explanations for proof-bearing conversions into guarded types and inferred local
+types with checked initializer evidence. The
 checker now accepts a guarded source for a compatible guarded target when the
 source invariant proves the target; ordinary checks still retain no explanation
 evidence. Fresh stage-2/3/4 compiler and standard-library

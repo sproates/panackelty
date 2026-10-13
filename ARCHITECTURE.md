@@ -1468,7 +1468,9 @@ selects a function with `explain`. It reports guarded conversions only when the
 checker consults facts for a guarded target; a compatible guarded source can
 now convert when its invariant proves the target, while a stricter target still
 needs additional facts. Guarded-to-base widening remains outside this proof
-query. Whole-project validity, local proof status and
+query. It also reports inferred local types from the checked initializer and its
+source range, while annotated locals are omitted and incomplete results remain
+unavailable. Whole-project validity, local proof status and
 unsupported evidence remain distinct. Generic evidence describes source
 function definitions. No runtime, emitter, serialization or v9 instruction changes
 are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines

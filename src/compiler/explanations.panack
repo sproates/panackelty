@@ -3,7 +3,8 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, GuardConversionEvidence, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
 pub import project/src/compiler/checker::{SubtractionEvidence}
@@ -302,6 +303,129 @@ pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
   entries
 }
 
+pure body_inferred_locals(body: BoundBody): [BoundBody] {
+  mut entries: [BoundBody] = []
+  match body.node {
+    BodyBinding(local, type, mutable, inferred) => match inferred {
+      Some(value) => if value { entries = append(entries, body) },
+      None() => {}
+    },
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(local) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyAssignment(local) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+  }
+  for child in body.children {
+    entries = concat(entries, body_inferred_locals(child))
+  }
+  entries
+}
+
+pure inferred_local_type(body: BoundBody): Option[SignatureType] {
+  match body.node {
+    BodyBinding(local, type, mutable, inferred) => match type {
+      Some(value) => Some(value),
+      None() => None()
+    },
+    BodyLiteral(value) => None(),
+    BodyInterpolation(parts) => None(),
+    BodyLocalUse(local) => None(),
+    BodyFunction(binding) => None(),
+    BodyCall(target, types) => None(),
+    BodyArray() => None(),
+    BodyUnary(operator) => None(),
+    BodyBinary(operator) => None(),
+    BodyField(name) => None(),
+    BodyIndex() => None(),
+    BodyIf(has_else) => None(),
+    BodyBlock(has_tail) => None(),
+    BodyMatch(targets, bindings, spans) => None(),
+    BodyAssignment(local) => None(),
+    BodyWhile() => None(),
+    BodyFor(local) => None(),
+    BodyEmpty() => None()
+  }
+}
+
+
+pure render_inferred_type(type: Option[SignatureType]): Str {
+  match type {
+    None() => "unavailable",
+    Some(value) => if body_type_complete(value) {
+      body_type_text(value)
+    } else {
+      "unavailable"
+    }
+  }
+}
+
+pure render_inferred_local(
+  body: BoundBody,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  match body.node {
+    BodyBinding(local, type, mutable, inferred) => {
+      local_name: Str = source_map_escape(local.name)
+      mut output: Str = "inferred local: ${local_name}"
+      if len(body.children) == 0 {
+        output = output + "\nsource: unavailable\ninferred type: unavailable\nreason: no initializer evidence was retained"
+      } else {
+        initializer: BoundBody = body.children[0]
+        output = output + "\n" + explanation_location(
+          Some(initializer.span),
+          sources,
+          root,
+          stdlib_root
+        )
+        initializer_type: Str = render_inferred_type(initializer.type)
+        inferred_type: Str = render_inferred_type(inferred_local_type(body))
+        escaped_initializer_type: Str = source_map_escape(initializer_type)
+        escaped_inferred_type: Str = source_map_escape(inferred_type)
+        output = output + "\ninitializer type: ${escaped_initializer_type}"
+        output = output + "\ninferred type: ${escaped_inferred_type}"
+        output = output + if inferred_type == "unavailable" {
+          "\nreason: the initializer did not determine a complete type"
+        } else {
+          "\nreason: the checked initializer type determines this local type"
+        }
+      }
+      output
+    },
+    BodyLiteral(value) => "inferred local: unavailable",
+    BodyInterpolation(parts) => "inferred local: unavailable",
+    BodyLocalUse(local) => "inferred local: unavailable",
+    BodyFunction(binding) => "inferred local: unavailable",
+    BodyCall(target, types) => "inferred local: unavailable",
+    BodyArray() => "inferred local: unavailable",
+    BodyUnary(operator) => "inferred local: unavailable",
+    BodyBinary(operator) => "inferred local: unavailable",
+    BodyField(name) => "inferred local: unavailable",
+    BodyIndex() => "inferred local: unavailable",
+    BodyIf(has_else) => "inferred local: unavailable",
+    BodyBlock(has_tail) => "inferred local: unavailable",
+    BodyMatch(targets, bindings, spans) => "inferred local: unavailable",
+    BodyAssignment(local) => "inferred local: unavailable",
+    BodyWhile() => "inferred local: unavailable",
+    BodyFor(local) => "inferred local: unavailable",
+    BodyEmpty() => "inferred local: unavailable"
+  }
+}
+
 pure render_guard_nat(value: Nat): Str {
   "${value}"
 }
@@ -409,6 +533,40 @@ pure render_guard_conversion_explanations(
   output
 }
 
+pure render_inferred_local_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BoundBody] = []
+  mut found_function: Bool = false
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      found_function = true
+      entries = concat(entries, body_inferred_locals(function.body))
+    }
+  }
+  mut output: Str = "inferred locals:"
+  if !found_function {
+    output = output + " unavailable\nreason: no checked body was retained for this function"
+  } else {
+    if len(entries) == 0 {
+      output = output + " none"
+    } else {
+      for entry in entries {
+        output = output + "\n\n" + render_inferred_local(
+          entry,
+          project.sources,
+          root,
+          stdlib_root
+        )
+      }
+    }
+  }
+  output
+}
+
 pub pure render_function_explanations(
   project: LoadedProject,
   selector: SourceMapFunctionSelector,
@@ -426,6 +584,12 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_guard_conversion_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_inferred_local_explanations(
     project,
     selector,
     root,

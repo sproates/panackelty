@@ -708,7 +708,10 @@ unrelated locations, invalid bodies and zero coordinates. Function return cases
 verify accepted and rejected checker decisions, actual/declared types and the
 returned expression's source span; module-body tests check that ordinary
 checking retains no return explanation metadata and that unresolved results keep
-an unavailable decision.
+an unavailable decision. Direct function-call argument cases exercise
+accepted/rejected/unavailable parameter compatibility and source spans; ordinary
+checking retains no argument explanation metadata. Builtin contracts and
+indirect callable invocations remain outside this CLI slice.
 
 ## Indexed compiler declaration lookup
 

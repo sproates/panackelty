@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, body_call_argument_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -314,7 +314,7 @@ pure body_inferred_locals(body: BoundBody): [BoundBody] {
     BodyInterpolation(parts) => {},
     BodyLocalUse(local) => {},
     BodyFunction(binding) => {},
-    BodyCall(target, types) => {},
+    BodyCall(target, types, call_arguments) => {},
     BodyArray() => {},
     BodyUnary(operator) => {},
     BodyBinary(operator) => {},
@@ -344,7 +344,7 @@ pure inferred_local_type(body: BoundBody): Option[SignatureType] {
     BodyInterpolation(parts) => None(),
     BodyLocalUse(local) => None(),
     BodyFunction(binding) => None(),
-    BodyCall(target, types) => None(),
+    BodyCall(target, types, call_arguments) => None(),
     BodyArray() => None(),
     BodyUnary(operator) => None(),
     BodyBinary(operator) => None(),
@@ -367,7 +367,7 @@ pure explanation_expression_node(body: BoundBody): Bool {
     BodyInterpolation(parts) => true,
     BodyLocalUse(local) => true,
     BodyFunction(binding) => true,
-    BodyCall(target, types) => true,
+    BodyCall(target, types, call_arguments) => true,
     BodyArray() => true,
     BodyUnary(operator) => true,
     BodyBinary(operator) => true,
@@ -532,6 +532,63 @@ pure render_return_type_explanation(
   output
 }
 
+pure render_call_argument_evidence(
+  evidence: CallArgumentEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(body_type_text(evidence.expected))
+  label: Str = evidence.label
+  mut output: Str = "${label}: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked argument is compatible with the function parameter type"
+    } else {
+      "\nreason: the checked argument is incompatible with the function parameter type"
+    },
+    None() => "\nreason: the checker did not determine a complete argument type"
+  }
+}
+
+pure render_call_argument_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [CallArgumentEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_call_argument_evidence(function.body))
+    }
+  }
+  mut output: Str = "call argument checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained direct function call arguments)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_call_argument_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
+    }
+  }
+  output
+}
+
 pure render_inferred_local(
   body: BoundBody,
   sources: Map[Str, Str],
@@ -570,7 +627,7 @@ pure render_inferred_local(
     BodyInterpolation(parts) => "inferred local: unavailable",
     BodyLocalUse(local) => "inferred local: unavailable",
     BodyFunction(binding) => "inferred local: unavailable",
-    BodyCall(target, types) => "inferred local: unavailable",
+    BodyCall(target, types, call_arguments) => "inferred local: unavailable",
     BodyArray() => "inferred local: unavailable",
     BodyUnary(operator) => "inferred local: unavailable",
     BodyBinary(operator) => "inferred local: unavailable",
@@ -756,6 +813,12 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_return_type_explanation(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_call_argument_explanations(
     project,
     selector,
     root,

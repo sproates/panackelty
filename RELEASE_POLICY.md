@@ -37,7 +37,9 @@ step; ordinary edits and release-workflow validation do not run it. The Release
 workflow has a lightweight gate that checks the published report belongs to
 `sproates/panackelty`'s `next` source channel, its commit is in the release
 history, and no source, test, seed, or collection inputs changed after it was
-measured. If any check fails, refresh and publish coverage again before
+measured. A current, structurally valid report is a release gate; its coverage
+percentages and covered amounts are informational and have no minimum threshold.
+If the report is stale or invalid, refresh and publish coverage again before
 releasing.
 
 After its required checks pass and it is merged, use either release entry point:

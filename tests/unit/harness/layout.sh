@@ -54,6 +54,8 @@ contains .github/workflows/release.yml 'https://sproates.github.io/panackelty-co
 contains .github/workflows/release.yml 'node scripts/release_source_coverage.cjs'
 contains scripts/release_source_coverage.cjs 'Measured source coverage commit is not an ancestor'
 contains scripts/release_source_coverage.cjs 'Coverage inputs changed after measurement'
+contains scripts/release_source_coverage.cjs 'Published source summary does not identify its measured and unmeasured source scope'
+contains tests/source_coverage/release_gate.test.cjs 'zero reported coverage does not block'
 contains .github/workflows/release.yml 'tags:
       - "v*"'
 contains .github/workflows/release.yml 'permissions:
@@ -120,6 +122,7 @@ printf '  push:\n    branches: [main, next]\n  pull_request:\n' > "$work/expecte
 equal_files "$work/events" "$work/expected"
 awk '/^  source_coverage:$/ { selected=1; next } /^  changes:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/source-job"
 for text in 'needs.changes.outputs.source_coverage == '\''true'\''' 'needs.changes.outputs.source_coverage_refresh == '\''true'\''' 'node --test tests/source_coverage/reader.test.cjs' \
+    'tests/source_coverage/manifest.test.cjs' \
     'tests/source_coverage/policy.test.cjs' \
     'node tests/source_coverage/parity.cjs' 'node scripts/source_coverage_baseline.cjs' \
     'name: source-coverage-${{ github.run_id }}' 'path: build/source-coverage' 'if-no-files-found: error'; do
@@ -129,6 +132,8 @@ absent "$work/source-job" 'if: always()'
 contains .github/workflows/check.yml 'node scripts/source_coverage_route.cjs >> "$GITHUB_OUTPUT"'
 contains .github/workflows/check.yml 'source_coverage_refresh: ${{ steps.scope.outputs.source_coverage_refresh }}'
 contains .github/workflows/check.yml 'name: Source coverage policy tests'
+contains .github/workflows/check.yml 'tests/source_coverage/manifest.test.cjs'
+contains .github/workflows/check.yml 'tests/source_coverage/release_gate.test.cjs'
 contains .github/workflows/check.yml 'tests/source_coverage/route.test.cjs'
 contains .github/workflows/check.yml 'needs: [changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation]'
 contains .github/workflows/check.yml 'name: Workflow configuration validation'

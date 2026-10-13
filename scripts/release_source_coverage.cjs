@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const {execFileSync} = require('node:child_process');
+const {createHash} = require('node:crypto');
 
 function validate({releaseSha, provenance, summary, isAncestor, changedPaths}) {
   if (!/^[a-f0-9]{40}$/.test(releaseSha)) throw new Error('Invalid release commit');
@@ -22,6 +23,18 @@ function validate({releaseSha, provenance, summary, isAncestor, changedPaths}) {
       Date.parse(summary.generatedAt) > Date.parse(provenance.archived_at) + 300000) {
     throw new Error('Published source summary does not match its provenance');
   }
+  const eligible = summary.manifest?.eligible, unmeasured = summary.manifest?.unmeasured;
+  const measuredPaths = summary.files?.map(file => file.path);
+  const validSourcePath = value => /^src\/(?:bytecode|compiler|stdlib)\/.+\.panack$/.test(value);
+  if (summary.manifest?.schema !== 1 || !Array.isArray(eligible) || !eligible.length ||
+      eligible.some(path => !validSourcePath(path)) || !Array.isArray(unmeasured) ||
+      unmeasured.some(file => !validSourcePath(file?.path) || typeof file.reason !== 'string' || !file.reason.trim()) ||
+      !Array.isArray(measuredPaths) || new Set([...eligible, ...unmeasured.map(file => file.path)]).size !== eligible.length + unmeasured.length ||
+      JSON.stringify([...measuredPaths].sort()) !== JSON.stringify([...eligible].sort())) {
+    throw new Error('Published source summary does not identify its measured and unmeasured source scope');
+  }
+  const manifestHash = createHash('sha256').update(JSON.stringify(summary.manifest)).digest('hex');
+  if (summary.manifestHash !== manifestHash) throw new Error('Published source summary has a stale manifest identity');
   if (!isAncestor(provenance.coverage_sha, releaseSha)) {
     throw new Error('Measured source coverage commit is not an ancestor of the release commit');
   }

@@ -85,11 +85,10 @@ further scope requires an explicit owner decision.
 Owner decision, 2026-10-06: plan a further alpha release after alpha.12 around
 HTTP and expanded explanations, using existing backlog scope. On 2026-10-13,
 the owner selected a first guarded-types implementation slice under GI#435:
-non-empty strings. The slice adds static proof for non-empty literals and values
-established by branch checks; empty or unproven conversions are rejected. It does
-not add implicit runtime validation or other guard families. **Planned, not
-released; no date selected.** This records release intent, not feature delivery
-or completion of the first non-alpha milestone.
+a non-empty string guard. Detailed semantics and acceptance remain for slice
+planning; other guard families are outside this Alpha.13 selection. **Planned,
+not released; no date selected.** This records release intent, not feature
+delivery or completion of the first non-alpha milestone.
 
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
@@ -97,7 +96,7 @@ or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
-| Non-empty string guard | RM#153: Expand guarded types beyond numeric bounds / [GI#435](https://github.com/sproates/panackelty/issues/435): first implementation slice; define `NonEmptyStr` as a guarded `Str` | Accept non-empty literals and values proven non-empty by a branch check; reject empty literals and unproven conversions; cover source and bytecode behavior, diagnostics and proof invalidation; add no implicit runtime check or other guard family |
+| Non-empty string guard | RM#153: Expand guarded types beyond numeric bounds / [GI#435](https://github.com/sproates/panackelty/issues/435): first implementation slice | Implement and validate the selected non-empty string guard; settle its detailed semantics and acceptance during slice planning; other guard families remain outside this scope |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
@@ -5141,10 +5140,10 @@ diagnostics, and limits on guard expressions. Purity alone does not make
 arbitrary computation terminating, cheap or decidable.
 
 The first implementation slice is selected for Alpha.13 under
-[RM#144](#rm-144): a `NonEmptyStr` guard defined by `value != ""`, with static
-proof from non-empty literals and branch facts that establish non-emptiness.
-Unproven conversions fail checking; no implicit runtime check is inserted.
-Other non-numeric guards and broader validation semantics remain unscheduled.
+[RM#144](#rm-144): a non-empty string guard. Its syntax, proof behavior,
+conversion and validation semantics, failure behavior, and tests remain for
+slice planning. Other non-numeric guards and broader validation semantics
+remain unscheduled.
 Untrusted-input adapters remain coordinated with
 [RM#73: JSON support](#rm-73) and
 [RM#74: Type-driven input handling](#rm-74), avoiding duplicate scope.

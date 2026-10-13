@@ -176,6 +176,29 @@ pub pure body_call_argument_evidence(body: BoundBody): [CallArgumentEvidence] {
   entries
 }
 
+pure body_direct_call_argument_metadata(body: BoundBody): [CallArgumentEvidence] {
+  match body.node {
+    BodyCall(target, types, call_arguments) => call_arguments,
+    BodyBinding(local, type, mutable, inferred, type_evidence) => [],
+    BodyLiteral(value) => [],
+    BodyInterpolation(parts) => [],
+    BodyLocalUse(local) => [],
+    BodyFunction(binding) => [],
+    BodyArray() => [],
+    BodyUnary(operator) => [],
+    BodyBinary(operator) => [],
+    BodyField(name) => [],
+    BodyIndex() => [],
+    BodyIf(has_else) => [],
+    BodyBlock(has_tail) => [],
+    BodyMatch(targets, bindings, spans) => [],
+    BodyAssignment(local, assignment_evidence) => [],
+    BodyWhile() => [],
+    BodyFor(local) => [],
+    BodyEmpty() => []
+  }
+}
+
 pub pure body_binding_type_evidence(body: BoundBody): [BindingTypeEvidence] {
   mut entries: [BindingTypeEvidence] = []
   match body.node {
@@ -1520,6 +1543,7 @@ pure body_check_existing_special_core_call(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
   name: Str = match target {
     BodyCore(value) => value,
     BodyDeclaration(binding) => ""
@@ -1650,14 +1674,16 @@ pure body_check_existing_special_core_call(
           )
           diagnostics = checked.diagnostics
           deferred = checked.deferred
-          output = checked.body.type
+          output = checked.body.type;
+          call_arguments = body_direct_call_argument_metadata(checked.body)
         } else {
           if name == "bytes" || name == "byte_append" || name == "bytes_concat" ||
             name == "byte_len" || name == "byte_get" || name == "utf8_encode" || name == "utf8_decode" {
             checked: BodyResult = body_check_bytes_core_call(context, name, children, span)
             diagnostics = checked.diagnostics
             deferred = checked.deferred
-            output = checked.body.type
+            output = checked.body.type;
+            call_arguments = body_direct_call_argument_metadata(checked.body)
           } else {
           if name == "nat_from_str" {
             if len(children) != 1 {
@@ -1712,7 +1738,7 @@ pure body_check_existing_special_core_call(
   }
   BodyResult(
     BoundBody(
-      BodyCall(target, types, []),
+      BodyCall(target, types, call_arguments),
       span,
       children,
       output,
@@ -2167,6 +2193,7 @@ pure body_check_text_core_call(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
   mut index: Nat = 0
 
   if len(children) != expected_count {
@@ -2194,13 +2221,27 @@ pure body_check_text_core_call(
       )
       diagnostics = concat(diagnostics, required.diagnostics)
       deferred = concat(deferred, required.deferred)
+      if context.retain_guard_conversions {
+        accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+          Some(false)
+        } else {
+          if len(required.deferred) > 0 { None() } else { Some(true) }
+        }
+        call_arguments = append(call_arguments, CallArgumentEvidence(
+          "call argument ${number} to " + name,
+          children[index].span,
+          children[index].type,
+          expected,
+          accepted
+        ))
+      }
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
       output = if name == "slice" || name == "reverse" { body_core_type("Str") } else { body_core_type("Bool") }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_bytes_core_call(
@@ -2215,6 +2256,7 @@ pure body_check_bytes_core_call(
   mut diagnostics: [Diagnostic] = []
   mut deferred: [SourceSpan] = []
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
 
   if len(children) != expected_count {
     diagnostics = append(
@@ -2242,6 +2284,20 @@ pure body_check_bytes_core_call(
       )
       diagnostics = concat(diagnostics, required.diagnostics)
       deferred = concat(deferred, required.deferred)
+      if context.retain_guard_conversions {
+        accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+          Some(false)
+        } else {
+          if len(required.deferred) > 0 { None() } else { Some(true) }
+        }
+        call_arguments = append(call_arguments, CallArgumentEvidence(
+          "call argument ${number} to " + name,
+          children[index].span,
+          children[index].type,
+          expected,
+          accepted
+        ))
+      }
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
@@ -2256,7 +2312,7 @@ pure body_check_bytes_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_path_error_type(): SignatureType {

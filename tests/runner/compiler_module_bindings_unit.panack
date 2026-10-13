@@ -1601,6 +1601,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): Nat { mut value: Nat = 0; value = 5; value }",
     false
   )
+  accepted_text_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { reverse(\"text\") }",
+    true
+  )
+  rejected_text_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { reverse(5) }",
+    true
+  )
+  unavailable_text_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { reverse(missing) }",
+    true
+  )
+  accepted_bytes_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Bytes { byte_append(bytes(), 65) }",
+    true
+  )
+  rejected_bytes_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Bytes { byte_append(bytes(), \"wrong\") }",
+    true
+  )
+  ordinary_text_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { reverse(\"text\") }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -1729,6 +1753,49 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_assignment.functions) == 1 &&
       len(body_assignment_type_evidence(ordinary_assignment.functions[0].body)) == 0,
     "ordinary checking retained explanation-only assignment evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted text builtin argument evidence",
+    len(accepted_text_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_text_builtin.functions[0].body)) == 1 &&
+      body_call_argument_evidence(accepted_text_builtin.functions[0].body)[0].accepted == Some(true),
+    "accepted text builtin argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected text builtin argument evidence",
+    len(rejected_text_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_text_builtin.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_text_builtin.functions[0].body)[0].accepted == Some(false),
+    "rejected text builtin argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable text builtin argument evidence",
+    len(unavailable_text_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_text_builtin.functions[0].body)) == 1 &&
+      body_call_argument_evidence(unavailable_text_builtin.functions[0].body)[0].accepted == None(),
+    "unavailable text builtin argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted bytes builtin arguments",
+    len(accepted_bytes_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_bytes_builtin.functions[0].body)) == 2 &&
+      body_call_argument_evidence(accepted_bytes_builtin.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_bytes_builtin.functions[0].body)[1].accepted == Some(true),
+    "accepted bytes builtin arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected bytes builtin arguments",
+    len(rejected_bytes_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_bytes_builtin.functions[0].body)) == 2 &&
+      body_call_argument_evidence(rejected_bytes_builtin.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(rejected_bytes_builtin.functions[0].body)[1].accepted == Some(false),
+    "rejected bytes builtin argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no text builtin argument evidence",
+    len(ordinary_text_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_text_builtin.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only builtin argument evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

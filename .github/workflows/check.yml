@@ -40,7 +40,7 @@ jobs:
   source_coverage:
     name: Source coverage baseline (next)
     needs: changes
-    if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && needs.changes.outputs.source_coverage == 'true' && !cancelled()
+    if: needs.changes.result == 'success' && needs.changes.outputs.source_coverage == 'true' && (needs.changes.outputs.route == 'full' || needs.changes.outputs.source_coverage_refresh == 'true') && !cancelled()
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -70,6 +70,7 @@ jobs:
     outputs:
       route: ${{ steps.scope.outputs.route }}
       source_coverage: ${{ steps.scope.outputs.source_coverage }}
+      source_coverage_refresh: ${{ steps.scope.outputs.source_coverage_refresh }}
       next_integration: ${{ steps.scope.outputs.next_integration }}
     steps:
       - name: Check out repository
@@ -343,6 +344,7 @@ jobs:
         env:
           CI_SCOPE_ROUTE: ${{ needs.changes.outputs.route }}
           CI_SOURCE_REQUESTED: ${{ needs.changes.outputs.source_coverage }}
+          CI_SOURCE_REFRESH: ${{ needs.changes.outputs.source_coverage_refresh }}
           CI_SOURCE_POLICY_RESULT: ${{ needs.source_policy_tests.result }}
           CI_SOURCE_COLLECTION_RESULT: ${{ needs.source_coverage.result }}
         run: node scripts/source_coverage_route.cjs --gate

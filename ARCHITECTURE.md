@@ -1470,12 +1470,14 @@ now convert when its invariant proves the target, while a stricter target still
 needs additional facts. Guarded-to-base widening remains outside this proof
 query. It also reports inferred local types from the checked initializer and its
 source range, while annotated locals are omitted and incomplete results remain
-unavailable. Whole-project validity, local proof status and
-unsupported evidence remain distinct. Generic evidence describes source
-function definitions. No runtime, emitter, serialization or v9 instruction changes
-are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines
-scope and source limits; U3 types/effects and the other programme queries remain
-open. The earlier investigation tables are historical inventories.
+unavailable. Selected builtin argument checks, including path core calls, use
+retained actual/expected type decisions and source spans. Whole-project validity,
+local proof status and unsupported evidence remain distinct. Generic evidence
+describes source function definitions. No runtime, emitter, serialization or v9
+instruction changes are involved. The detailed
+[contract](docs/COMPILER_EXPLANATIONS.md) defines scope and source limits; U3
+types/effects and the other programme queries remain open. The earlier
+investigation tables are historical inventories.
 
 ## U3 local effect evidence
 

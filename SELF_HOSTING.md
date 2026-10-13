@@ -175,8 +175,10 @@ in [the validation profile](tests/VALIDATION_PROFILE.md).
 The U3 query refreshes the v9 seed with opt-in checker evidence and
 `panack explain SOURCE.panack --function NAME`. Follow-up slices add retained
 explanations for proof-bearing conversions into guarded types and inferred local
-types with checked initializer evidence. The
-checker now accepts a guarded source for a compatible guarded target when the
+types with checked initializer evidence, followed by selected builtin argument
+checks including path APIs. These records remain opt-in to `explain`; ordinary
+checking keeps their evidence empty. The checker now accepts a guarded source
+for a compatible guarded target when the
 source invariant proves the target; ordinary checks still retain no explanation
 evidence. Fresh stage-2/3/4 compiler and standard-library
 fixed points validate the refresh; see the [query contract](docs/COMPILER_EXPLANATIONS.md)

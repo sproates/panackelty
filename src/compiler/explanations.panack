@@ -553,9 +553,9 @@ pure render_call_argument_evidence(
   ) + "\nactual type: ${actual}\nexpected type: ${expected}"
   output + match evidence.accepted {
     Some(accepted) => if accepted {
-      "\nreason: the checked argument is compatible with the function parameter type"
+      "\nreason: the checked argument is compatible with the expected type"
     } else {
-      "\nreason: the checked argument is incompatible with the function parameter type"
+      "\nreason: the checked argument is incompatible with the expected type"
     },
     None() => "\nreason: the checker did not determine a complete argument type"
   }

@@ -1,10 +1,10 @@
-# Compiler explanations: expression, local and function return types, guarded conversions, subtraction and effects
+# Compiler explanations: expression and argument types, guarded conversions, subtraction and effects
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports inferred local types with their checked initializer types, can query the
-checked type of an expression at a source location, and reports function return
-direct function-call argument, selected text/byte/numeric/collection builtin
-argument, annotated local initializer and assignment value checks. It also
+reports inferred local types with their checked initializer types, the checked
+type of an expression at a source location, function return checks, direct
+function-call argument checks, selected text/byte/numeric/collection/path builtin
+argument checks, and annotated local initializer and assignment value checks. It also
 reports retained proof-bearing guarded conversions, natural-number subtraction
 and effect-boundary evidence for one function. It reads source; it does not
 execute the program, emit bytecode, write files, or consume a source-map sidecar. The
@@ -87,8 +87,13 @@ byte helpers `byte_append`, `bytes_concat`, `byte_len`, `byte_get`,
 `nat_from_str` and `quotient`. The collection checks cover append items, map
 keys/values, set items and membership keys for `append`, `map_put`, `map_get`,
 `map_has`, `set_add`, `set_has` and `has`, including their receiver-method
-forms. Collection joins, callback contracts and other builtins remain outside
-this slice. Diagnostics and exit status remain unchanged.
+forms. Path checks cover the typed arguments to `path_from_text`,
+`path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
+`path_display`, `path_absolute`, `path_directory`, `path_filename`,
+`path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
+`path_with_suffix` and `path_resolve`. Collection joins, callback contracts and
+other builtins remain outside these slices. Diagnostics and exit status remain
+unchanged.
 
 ## Annotated local initializers
 

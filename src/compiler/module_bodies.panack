@@ -1565,7 +1565,8 @@ pure body_check_existing_special_core_call(
     checked: BodyResult = body_check_path_core_call(context, name, children, span)
     diagnostics = concat(diagnostics, checked.diagnostics)
     deferred = concat(deferred, checked.deferred)
-    output = checked.body.type
+    output = checked.body.type;
+    call_arguments = body_direct_call_argument_metadata(checked.body)
   } else {
   if name == "$unit" {
     if len(children) != 0 {
@@ -2397,6 +2398,7 @@ pure body_check_path_core_call(
   mut diagnostics: [Diagnostic] = []
   mut deferred: [SourceSpan] = []
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
   if len(children) != expected_count {
     diagnostics = append(
       diagnostics,
@@ -2428,6 +2430,20 @@ pure body_check_path_core_call(
       )
       diagnostics = concat(diagnostics, required.diagnostics)
       deferred = concat(deferred, required.deferred)
+      if context.retain_guard_conversions {
+        accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+          Some(false)
+        } else {
+          if len(required.deferred) > 0 { None() } else { Some(true) }
+        }
+        call_arguments = append(call_arguments, CallArgumentEvidence(
+          "call argument ${number} to " + name,
+          children[index].span,
+          children[index].type,
+          expected,
+          accepted
+        ))
+      }
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
@@ -2472,7 +2488,7 @@ pure body_check_path_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_optional_type(type: Option[SignatureType]): SignatureType {

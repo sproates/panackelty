@@ -713,8 +713,10 @@ accepted/rejected/unavailable parameter compatibility and source spans; ordinary
 checking retains no argument explanation metadata. The CLI slice also covers
 text, byte, rational-conversion, numeric-parser, quotient and collection
 mutation/lookup argument contracts, including accepted, rejected and
-unavailable values. Other builtin contracts and indirect callable invocations
-remain outside this slice.
+unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,
+independent sibling outcomes, imported generic source attribution, and empty
+evidence during ordinary checking. Other builtin contracts and indirect callable
+invocations remain outside this slice.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

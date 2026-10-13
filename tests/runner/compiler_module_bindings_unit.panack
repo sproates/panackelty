@@ -1677,6 +1677,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): [Nat] { append([1], 2) }",
     false
   )
+  accepted_path_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { path_join(\"parent\", \"child\") }",
+    true
+  )
+  rejected_path_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { path_join(\"wrong\", 2) }",
+    true
+  )
+  rejected_path_arguments_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { path_join(\"wrong\", 2) }",
+    false
+  )
+  unavailable_path_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { path_join(missing, \"child\") }",
+    true
+  )
+  unavailable_path_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { path_join(missing, \"child\") }",
+    false
+  )
+  ordinary_path_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Str { path_join(\"parent\", \"child\") }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -1941,6 +1965,48 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_collection_append.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_collection_append.functions[0].body)) == 0,
     "ordinary checking retained explanation-only collection argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted path arguments",
+    len(accepted_path_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_path_arguments.functions[0].body)) == 2 &&
+      body_call_argument_evidence(accepted_path_arguments.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_path_arguments.functions[0].body)[1].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_path_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Str"), []) &&
+      body_call_argument_evidence(accepted_path_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Str"), []),
+    "accepted path arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected path arguments independently",
+    len(rejected_path_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_path_arguments.functions[0].body)) == 2 &&
+      body_call_argument_evidence(rejected_path_arguments.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(rejected_path_arguments.functions[0].body)[1].accepted == Some(false),
+    "rejected path arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "path argument explanation preserves rejected diagnostics",
+    rejected_path_arguments.diagnostics == rejected_path_arguments_ordinary.diagnostics,
+    "path argument evidence changed the original type diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable path arguments independently",
+    len(unavailable_path_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_path_argument.functions[0].body)) == 2 &&
+      body_call_argument_evidence(unavailable_path_argument.functions[0].body)[0].accepted == None() &&
+      body_call_argument_evidence(unavailable_path_argument.functions[0].body)[1].accepted == Some(true),
+    "unavailable path argument was not retained independently"
+  ))
+  results = append(results, std_testing.expect(
+    "path argument explanation preserves unresolved diagnostics",
+    unavailable_path_argument.diagnostics == unavailable_path_argument_ordinary.diagnostics,
+    "unavailable path evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no path argument evidence",
+    len(ordinary_path_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_path_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only path argument evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

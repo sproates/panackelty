@@ -711,9 +711,9 @@ checking retains no return explanation metadata and that unresolved results keep
 an unavailable decision. Direct function-call argument cases exercise
 accepted/rejected/unavailable parameter compatibility and source spans; ordinary
 checking retains no argument explanation metadata. The CLI slice also covers
-text and byte builtin argument contracts, including accepted, rejected and
-unavailable values. Other builtin contracts and indirect callable invocations
-remain outside this slice.
+text, byte, rational-conversion, numeric-parser and quotient builtin argument
+contracts, including accepted, rejected and unavailable values. Other builtin
+contracts and indirect callable invocations remain outside this slice.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

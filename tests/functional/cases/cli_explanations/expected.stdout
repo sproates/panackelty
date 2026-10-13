@@ -14,6 +14,11 @@ PASS rejected text builtin argument explains type mismatch
 PASS unresolved bytes builtin argument is explicitly unavailable
 PASS rejected bytes builtin argument explains type mismatch
 PASS accepted bytes builtin arguments cite checked types
+PASS accepted rational conversion argument cites checked types
+PASS rejected rational conversion argument explains mismatch
+PASS accepted numeric parser argument cites checked types
+PASS unresolved quotient argument is explicitly unavailable
+PASS accepted quotient arguments cite checked types
 PASS accepted annotated local cites checked types
 PASS rejected annotated local explains type mismatch
 PASS unresolved annotated local is explicitly unavailable
@@ -86,4 +91,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 88, failures: 0
+tests: 93, failures: 0

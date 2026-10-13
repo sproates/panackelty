@@ -76,16 +76,19 @@ the repository-wide readability/test programme are not additional gates for
 this three-outcome release. Their existing scope and dependencies remain intact;
 further scope requires an explicit owner decision.
 
-### Alpha 13 — HTTP and expanded explanations
+### Alpha 13 — HTTP, expanded explanations and guarded-type assessment
 
 <a id="rm-144"></a>
 
-**RM#144: Planned alpha.13 — HTTP and expanded explanations.**
+**RM#144: Planned alpha.13 — HTTP, expanded explanations and guarded-type assessment.**
 
 Owner decision, 2026-10-06: plan a further alpha release after alpha.12 around
-HTTP and expanded explanations, using existing backlog scope. **Planned, not
-released; no date selected.** This records release intent, not feature delivery,
-implementation selection or completion of the first non-alpha milestone.
+HTTP and expanded explanations, using existing backlog scope. On 2026-10-13,
+the owner added the GI#435 guarded-types assessment. Its Alpha.13 scope is limited
+to the reviewed semantics proposal and staged implementation plan in that issue;
+it does not select or authorize guarded-type feature implementation. **Planned,
+not released; no date selected.** This records release intent, not feature
+delivery or completion of the first non-alpha milestone.
 
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
@@ -93,6 +96,7 @@ implementation selection or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
+| Guarded types beyond numeric bounds — assessment only | RM#153: Expand guarded types beyond numeric bounds / [GI#435](https://github.com/sproates/panackelty/issues/435): selected for Alpha.13 semantics assessment; no feature implementation is committed | Deliver a reviewed semantics proposal separating static proof from explicit runtime validation, sound propagation/invalidation, diagnostics and guard-expression limits, plus a staged implementation plan and the issue’s positive, negative and unsupported examples |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
@@ -5135,13 +5139,16 @@ proof and explicit runtime validation, sound proof propagation and invalidation,
 diagnostics, and limits on guard expressions. Purity alone does not make
 arbitrary computation terminating, cheap or decidable.
 
-Begin with a reviewed semantics proposal and staged implementation plan.
+The reviewed semantics proposal and staged implementation plan are selected for
+Alpha.13 under [RM#144](#rm-144). This assessment does not select or authorize
+feature implementation; implementation remains unscheduled until the semantics
+are agreed and its scope is separately selected.
 Untrusted-input adapters remain coordinated with
 [RM#73: JSON support](#rm-73) and
 [RM#74: Type-driven input handling](#rm-74), avoiding duplicate scope.
-This is an unscheduled proposal and a candidate for future compiler/correctness
-work under [RM#151: Alpha.14 direction](#rm-151); it does not select a release
-scope or authorise implementation.
+After the assessment, implementation may remain a candidate for future
+compiler/correctness work under [RM#151: Alpha.14 direction](#rm-151); the
+Alpha.13 assessment does not preselect that work.
 
 ### JSON data support — exploration
 

@@ -250,12 +250,16 @@ release; existing publication correctness defects retain their separate treatmen
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
-**GI#106 CI configuration route (proposed in this PR):** workflow and explicitly
-listed CI routing/gate/contract-only changes take focused syntax and contract
-checks; product, mixed, unknown and other shared changes retain full validation.
-This addresses the unrelated 17m38 source-coverage collection observed on
-workflow-only PR #413. The route's actual hosted duration is not yet measured, so
-no elapsed-time saving is claimed. GI#106 remains open for owner acceptance.
+**GI#106 CI configuration route (PR #414):** workflow and explicitly listed CI
+routing/gate/contract-only changes take focused syntax and contract checks;
+product, mixed, unknown and other shared changes retain full validation. The
+first PR run completed in 40s and its post-merge `next` push in 36s. Both skipped
+the product suites, package matrix, macOS compiler lane and source-coverage
+collection while passing workflow validation and stable result gates. This
+removes the unrelated 17m38 source-coverage job observed on workflow-only PR
+#413. The 17m38 figure is one job, not a matched whole-run baseline, so these
+observations demonstrate the new route's duration rather than a controlled
+end-to-end speedup. GI#106 remains open for owner acceptance.
 
 **GI#106 performance disposition update (2026-10-10):** after the clean
 two/four-worker comparison (530.32s/379s), the exact merged alpha.12 candidate

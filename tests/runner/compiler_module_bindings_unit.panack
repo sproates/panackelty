@@ -1625,6 +1625,34 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(): Str { reverse(\"text\") }",
     false
   )
+  accepted_rational_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { nat(1/2) }",
+    true
+  )
+  rejected_rational_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Dec { dec(\"wrong\") }",
+    true
+  )
+  accepted_numeric_parse: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { nat_from_str(\"42\") }",
+    true
+  )
+  rejected_numeric_parse: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { nat_from_str(42) }",
+    true
+  )
+  unavailable_quotient: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { quotient(missing, 2) }",
+    true
+  )
+  accepted_quotient: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { quotient(7, 2) }",
+    true
+  )
+  ordinary_rational_builtin: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Nat { nat(1/2) }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -1796,6 +1824,56 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_text_builtin.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_text_builtin.functions[0].body)) == 0,
     "ordinary checking retained explanation-only builtin argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted rational conversion evidence",
+    len(accepted_rational_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_rational_builtin.functions[0].body)) == 1 &&
+      body_call_argument_evidence(accepted_rational_builtin.functions[0].body)[0].accepted == Some(true),
+    "accepted rational conversion argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected rational conversion evidence",
+    len(rejected_rational_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_rational_builtin.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_rational_builtin.functions[0].body)[0].accepted == Some(false),
+    "rejected rational conversion argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted numeric parser evidence",
+    len(accepted_numeric_parse.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_numeric_parse.functions[0].body)) == 1 &&
+      body_call_argument_evidence(accepted_numeric_parse.functions[0].body)[0].accepted == Some(true),
+    "accepted numeric parser argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected numeric parser evidence",
+    len(rejected_numeric_parse.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_numeric_parse.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_numeric_parse.functions[0].body)[0].accepted == Some(false),
+    "rejected numeric parser argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable quotient argument evidence",
+    len(unavailable_quotient.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_quotient.functions[0].body)) == 2 &&
+      body_call_argument_evidence(unavailable_quotient.functions[0].body)[0].accepted == None() &&
+      body_call_argument_evidence(unavailable_quotient.functions[0].body)[1].accepted == Some(true),
+    "unavailable quotient argument was not retained independently"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains both accepted quotient arguments",
+    len(accepted_quotient.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_quotient.functions[0].body)) == 2 &&
+      body_call_argument_evidence(accepted_quotient.functions[0].body)[0].accepted == Some(true) &&
+      body_call_argument_evidence(accepted_quotient.functions[0].body)[1].accepted == Some(true),
+    "accepted quotient arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no numeric builtin argument evidence",
+    len(ordinary_rational_builtin.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_rational_builtin.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only numeric argument evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

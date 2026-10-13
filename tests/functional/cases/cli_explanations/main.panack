@@ -101,6 +101,21 @@ main(): Void {
       explain_write(source, "pure probe(): Bytes { byte_append(bytes(), 65) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted bytes builtin arguments cite checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to byte_append: accepted", "expression: bytes()", "actual type: Bytes", "expected type: Bytes", "call argument 2 to byte_append: accepted", "source: project/main.panack:1:44-1:46", "expression: 65", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): Nat { nat(1/2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted rational conversion argument cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to nat: accepted", "actual type: Rat", "expected type: Rat", "compatible with the function parameter type"], [], ""))
+      explain_write(source, "pure probe(): Dec { dec(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected rational conversion argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to dec: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Rat", "incompatible with the function parameter type"], [], "argument 1 to dec is Str, expected Rat"))
+      explain_write(source, "pure probe(): Nat { nat_from_str(\"42\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted numeric parser argument cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to nat_from_str: accepted", "actual type: Str", "expected type: Str", "compatible with the function parameter type"], [], ""))
+      explain_write(source, "pure probe(): Nat { quotient(missing, 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved quotient argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to quotient: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "call argument 2 to quotient: accepted"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Nat { quotient(7, 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted quotient arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to quotient: accepted", "expression: 7", "actual type: Nat", "expected type: Nat", "call argument 2 to quotient: accepted", "expression: 2", "actual type: Nat", "expected type: Nat"], [], ""))
       explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
         ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))

@@ -5800,3 +5800,22 @@ the CLI explanation case passed source, compile and bytecode execution with 88
 inner assertions. Release-smoke and quick-start passed. Warnings against
 historical timing figures remain non-gating under the owner's 2026-10-12
 direction; this result does not reopen or extend GI#106.
+
+## GI#134 numeric builtin argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `quotient(7, 2)` and reported both checked arguments. Each
+sample included VM startup, project loading, checking and explanation rendering;
+the filesystem cache was warm. `real` times had a median of 0.0520s and a range
+of 0.0425–0.0562s. This is a local reference, not a paired before/after
+comparison or general latency guarantee. Numeric builtin argument evidence is
+retained only for explanation checks; ordinary checking retains none, and
+runtime and bytecode are unchanged.
+
+The final `make check` passed on the same host in 325s: unit 283s, bootstrap
+220s, and functional 13s; unit and bootstrap ran concurrently. The module-body
+unit probe passed 677 assertions, the functional suite passed 370 cases, and
+the CLI explanation case passed source, compile and bytecode execution with 93
+inner assertions. Release-smoke and quick-start passed. Warnings against
+historical timing figures remain non-gating under the owner's 2026-10-12
+direction; this result does not reopen or extend GI#106.

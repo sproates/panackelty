@@ -1697,6 +1697,20 @@ pure body_check_existing_special_core_call(
               )
               diagnostics = concat(diagnostics, required.diagnostics)
               deferred = concat(deferred, required.deferred)
+              if context.retain_guard_conversions {
+                accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+                  Some(false)
+                } else {
+                  if len(required.deferred) > 0 { None() } else { Some(true) }
+                }
+                call_arguments = append(call_arguments, CallArgumentEvidence(
+                  "call argument 1 to nat_from_str",
+                  children[0].span,
+                  children[0].type,
+                  SignatureType(SignatureCore("Str"), []),
+                  accepted
+                ))
+              }
               if len(diagnostics) == 0 && len(deferred) == 0 {
                 output = body_core_type("Nat")
               }
@@ -1710,6 +1724,32 @@ pure body_check_existing_special_core_call(
                 right: BodyResult = body_require_value(context, children[1], SignatureType(SignatureCore("Nat"), []), "argument 2 to quotient")
                 diagnostics = concat(diagnostics, concat(left.diagnostics, right.diagnostics))
                 deferred = concat(deferred, concat(left.deferred, right.deferred))
+                if context.retain_guard_conversions {
+                  left_accepted: Option[Bool] = if len(left.diagnostics) > 0 {
+                    Some(false)
+                  } else {
+                    if len(left.deferred) > 0 { None() } else { Some(true) }
+                  }
+                  right_accepted: Option[Bool] = if len(right.diagnostics) > 0 {
+                    Some(false)
+                  } else {
+                    if len(right.deferred) > 0 { None() } else { Some(true) }
+                  }
+                  call_arguments = append(call_arguments, CallArgumentEvidence(
+                    "call argument 1 to quotient",
+                    children[0].span,
+                    children[0].type,
+                    SignatureType(SignatureCore("Nat"), []),
+                    left_accepted
+                  ))
+                  call_arguments = append(call_arguments, CallArgumentEvidence(
+                    "call argument 2 to quotient",
+                    children[1].span,
+                    children[1].type,
+                    SignatureType(SignatureCore("Nat"), []),
+                    right_accepted
+                  ))
+                }
                 if len(diagnostics) == 0 && len(deferred) == 0 {
                   output = body_core_type("Nat")
                 }
@@ -1761,6 +1801,7 @@ pure body_check_rational_conversion(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut call_arguments: [CallArgumentEvidence] = []
 
   if len(children) != 1 {
     diagnostics = append(
@@ -1776,11 +1817,25 @@ pure body_check_rational_conversion(
     )
     diagnostics = concat(diagnostics, required.diagnostics)
     deferred = concat(deferred, required.deferred)
+    if context.retain_guard_conversions {
+      accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+        Some(false)
+      } else {
+        if len(required.deferred) > 0 { None() } else { Some(true) }
+      }
+      call_arguments = append(call_arguments, CallArgumentEvidence(
+        "call argument 1 to " + name,
+        children[0].span,
+        children[0].type,
+        SignatureType(SignatureCore("Rat"), []),
+        accepted
+      ))
+    }
     if len(diagnostics) == 0 && len(deferred) == 0 {
       output = body_core_type(if name == "nat" { "Nat" } else { "Dec" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
 }
 
 pure body_check_environment_core_call(

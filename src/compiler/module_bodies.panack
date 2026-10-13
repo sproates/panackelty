@@ -2062,7 +2062,9 @@ pure body_check_typed_intrinsic(
       )
       diagnostics = concat(diagnostics, required.diagnostics)
       deferred = concat(deferred, required.deferred)
-      if context.retain_guard_conversions && (name == "fs_read" || name == "fs_write") {
+      if context.retain_guard_conversions && (
+        name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list"
+      ) {
         accepted: Option[Bool] = if len(required.diagnostics) > 0 {
           Some(false)
         } else {

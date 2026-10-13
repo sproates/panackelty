@@ -725,6 +725,9 @@ ordinary checking.
 Filesystem I/O cases cover `fs_read` and `fs_write` input types, accepted and
 rejected sibling outcomes, unavailable values, unchanged diagnostics, and no
 evidence during ordinary checking.
+Filesystem query cases cover `fs_metadata` and `fs_list` Path inputs, including
+accepted, rejected and unavailable evidence, diagnostic parity, and empty
+ordinary-check evidence.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

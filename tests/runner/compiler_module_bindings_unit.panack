@@ -1773,6 +1773,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }",
     false
   )
+  accepted_filesystem_query_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path): Void { fs_metadata(path); fs_list(path); }",
+    true
+  )
+  rejected_filesystem_query_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_metadata(\"path\"); }",
+    true
+  )
+  rejected_filesystem_query_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_metadata(\"path\"); }",
+    false
+  )
+  unavailable_filesystem_query_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_metadata(missing); }",
+    true
+  )
+  unavailable_filesystem_query_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(): Void { fs_metadata(missing); }",
+    false
+  )
+  ordinary_filesystem_query_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path): Void { fs_metadata(path); fs_list(path); }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -2207,6 +2231,44 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_filesystem_io_arguments.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_filesystem_io_arguments.functions[0].body)) == 0,
     "ordinary checking retained explanation-only filesystem IO evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted filesystem query arguments",
+    len(accepted_filesystem_query_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_filesystem_query_arguments.functions[0].body)) == 2 &&
+      body_call_argument_evidence(accepted_filesystem_query_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_filesystem_query_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Path"), []),
+    "accepted filesystem query arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected filesystem query argument",
+    len(rejected_filesystem_query_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_filesystem_query_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(rejected_filesystem_query_argument.functions[0].body)[0].accepted == Some(false),
+    "rejected filesystem query argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "filesystem query argument explanation preserves rejected diagnostics",
+    rejected_filesystem_query_argument.diagnostics == rejected_filesystem_query_argument_ordinary.diagnostics,
+    "filesystem query argument evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable filesystem query argument",
+    len(unavailable_filesystem_query_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_filesystem_query_argument.functions[0].body)) == 1 &&
+      body_call_argument_evidence(unavailable_filesystem_query_argument.functions[0].body)[0].accepted == None(),
+    "unavailable filesystem query argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "filesystem query argument explanation preserves unresolved diagnostics",
+    unavailable_filesystem_query_argument.diagnostics == unavailable_filesystem_query_argument_ordinary.diagnostics,
+    "unavailable filesystem query evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no filesystem query argument evidence",
+    len(ordinary_filesystem_query_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_filesystem_query_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only filesystem query evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

@@ -86,6 +86,15 @@ main(): Void {
       explain_write(source, "pure take(value: Nat): Nat { value }\npure caller(): Nat { take(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved direct call argument is explicitly unavailable", ["explain", source, "--function", "caller"], 1,
         ["call argument 1 to take: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))
+      explain_write(source, "probe(): Void { value: Nat = \"wrong\"; }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected annotated local explains type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["annotated local value initializer: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the annotated local type"], [], "cannot assign Str to Nat"))
+      explain_write(source, "probe(): Void { value: Nat = missing; }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved annotated local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["annotated local value initializer: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete initializer type"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
       results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))

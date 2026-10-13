@@ -712,6 +712,9 @@ an unavailable decision. Direct function-call argument cases exercise
 accepted/rejected/unavailable parameter compatibility and source spans; ordinary
 checking retains no argument explanation metadata. Builtin contracts and
 indirect callable invocations remain outside this CLI slice.
+Annotated local cases exercise accepted/rejected/unavailable initializer
+compatibility and source spans; inferred locals remain reported separately,
+and assignment checks are outside this slice.
 
 ## Indexed compiler declaration lookup
 

@@ -5699,3 +5699,22 @@ build tree: unit 161s, bootstrap 200s overlapped with unit, functional 14s,
 release smoke 4s and quick start under 1s. All 370 functional cases passed.
 This validates the local tree, but it is not a clean or matched timing
 comparison and does not establish a whole-check speedup.
+
+### Focused profile fixture repairs — 2026-10-13
+
+The first hosted Validation profile for PR #411 failed in two compiler probes
+on both Linux and macOS. Replaying those probes against the unchanged `next`
+base reproduced the failures sequentially, so they were fixture defects already
+present in the base rather than a race introduced by grouping. The loader
+confinement fixture imported `project/src/compiler/path_support` and
+`filesystem_support` without creating those files under its temporary project
+root; it now copies the checked-in helper sources there and removes them during
+cleanup. The coverage-session process fixture called `std_process.run` without
+importing `stdlib/process`; adding that import makes setup succeed and allows
+the subprocess, external-process and timeout assertions to run.
+
+Both repaired probes pass locally. `VALIDATION_JOBS=2 make check-compiler`
+passed in 118s, including all four integration groups and the focused compiler
+probes. The historical 15s focused-check budget still emits a warning; it is
+not a failure gate. Hosted validation for the updated PR head is pending. No
+compiler/runtime implementation changed. Website impact: none.

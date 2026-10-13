@@ -2063,7 +2063,7 @@ pure body_check_typed_intrinsic(
       diagnostics = concat(diagnostics, required.diagnostics)
       deferred = concat(deferred, required.deferred)
       if context.retain_guard_conversions && (
-        name == "fs_read" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" ||
+        name == "fs_read" || name == "fs_read_beneath" || name == "fs_write" || name == "fs_metadata" || name == "fs_list" ||
         name == "fs_directories_overlap" || name == "fs_create_directory" || name == "fs_remove_file" ||
         name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory"
       ) {

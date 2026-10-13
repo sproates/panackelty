@@ -5961,3 +5961,15 @@ focused explanation CLI suite passed 123 assertions, covering accepted,
 rejected and unavailable filesystem path arguments, sibling outcomes and
 diagnostic parity. Release smoke and quick start passed. The command prints
 timing warnings against historical budgets; these do not change this result.
+
+## GI#134 rooted filesystem read argument explanation turnaround — 2026-10-13
+
+Ten fresh-process queries of `panack explain ... --function probe` on macOS
+26.5 arm64 used `fs_read_beneath(root, relative, limit)` and reported its two
+checked `Path` arguments and `Nat` limit. Each sample launched the stage-2
+compiler VM and included project loading, checking and rendering; the
+filesystem cache was warm. `real` times had a median of 0.05s and a range of
+0.04–0.06s. This is a local reference, not a paired before/after comparison or
+a general latency guarantee. Argument evidence is retained only for
+explanation queries; ordinary checking retains none, and runtime and bytecode
+are unchanged.

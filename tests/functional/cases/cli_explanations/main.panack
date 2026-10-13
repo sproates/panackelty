@@ -189,6 +189,15 @@ main(): Void {
       explain_write(source, "probe(): Void { fs_read(missing, 1); }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved filesystem IO argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["call argument 1 to fs_read: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_read: accepted", "expected type: Nat"], [], "unknown name missing"))
+      explain_write(source, "probe(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted rooted filesystem read arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_read_beneath: accepted", "expression: root", "actual type: Path", "expected type: Path", "call argument 2 to fs_read_beneath: accepted", "expression: relative", "actual type: Path", "expected type: Path", "call argument 3 to fs_read_beneath: accepted", "expression: limit", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "probe(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected rooted filesystem read argument preserves siblings", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read_beneath: rejected", "expression: \"root\"", "actual type: Str", "expected type: Path", "call argument 2 to fs_read_beneath: accepted", "actual type: Path", "expected type: Path", "call argument 3 to fs_read_beneath: accepted", "actual type: Nat", "expected type: Nat"], [], "fs_read_beneath"))
+      explain_write(source, "probe(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved rooted filesystem read argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read_beneath: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_read_beneath: accepted", "actual type: Path", "expected type: Path", "call argument 3 to fs_read_beneath: accepted", "actual type: Nat", "expected type: Nat"], [], "unknown name missing"))
       explain_write(source, "probe(path: Path): Void { fs_metadata(path); fs_list(path); }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted filesystem query arguments cite checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to fs_metadata: accepted", "expression: path", "actual type: Path", "expected type: Path", "call argument 1 to fs_list: accepted", "expression: path", "actual type: Path", "expected type: Path"], [], ""))

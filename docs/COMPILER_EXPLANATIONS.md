@@ -99,7 +99,9 @@ exit status remain unchanged. Time checks cover arguments to `duration_nanosecon
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
 `instant_before`.
 The filesystem I/O checks cover the `Path` and byte-limit inputs to `fs_read`
-and the `Path` and `Bytes` inputs to `fs_write`. Filesystem query checks cover
+and the `Path` and `Bytes` inputs to `fs_write`. Rooted filesystem read checks
+cover the root and relative `Path` inputs and the `Nat` limit to
+`fs_read_beneath`. Filesystem query checks cover
 the `Path` inputs to `fs_metadata`, `fs_list`, `fs_directories_overlap`,
 `fs_create_directory`, `fs_remove_file`, `fs_remove_directory`, `fs_temp_file`
 and `fs_temp_directory`.

@@ -4,8 +4,8 @@
 reports inferred local types with their checked initializer types, the checked
 type of an expression at a source location, function return checks, direct
 function-call argument checks, selected text/byte/numeric/collection/path,
-environment, time and filesystem I/O builtin argument checks, and annotated
-local initializer and assignment value checks. It also
+environment, time and filesystem builtin argument checks, and annotated local
+initializer and assignment value checks. It also
 reports retained proof-bearing guarded conversions, natural-number subtraction
 and effect-boundary evidence for one function. It reads source; it does not
 execute the program, emit bytecode, write files, or consume a source-map sidecar. The
@@ -99,7 +99,8 @@ exit status remain unchanged. Time checks cover arguments to `duration_nanosecon
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
 `instant_before`.
 The filesystem I/O checks cover the `Path` and byte-limit inputs to `fs_read`
-and the `Path` and `Bytes` inputs to `fs_write`.
+and the `Path` and `Bytes` inputs to `fs_write`. Filesystem query checks cover
+the `Path` inputs to `fs_metadata` and `fs_list`.
 
 ## Annotated local initializers
 

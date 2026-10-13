@@ -46,6 +46,9 @@ PASS unresolved filesystem IO argument is explicitly unavailable
 PASS accepted filesystem query arguments cite checked types
 PASS rejected filesystem query argument explains mismatch
 PASS unresolved filesystem query argument is explicitly unavailable
+PASS accepted filesystem path arguments cite checked types
+PASS rejected filesystem path argument preserves sibling
+PASS unresolved filesystem path argument is explicitly unavailable
 PASS accepted annotated local cites checked types
 PASS rejected annotated local explains type mismatch
 PASS unresolved annotated local is explicitly unavailable
@@ -118,4 +121,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 120, failures: 0
+tests: 123, failures: 0

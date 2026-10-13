@@ -198,6 +198,15 @@ main(): Void {
       explain_write(source, "probe(): Void { fs_list(missing); }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved filesystem query argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["call argument 1 to fs_list: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(path: Path, other: Path): Void { fs_directories_overlap(path, other); fs_create_directory(path); fs_remove_file(path); fs_remove_directory(path); fs_temp_file(path); fs_temp_directory(path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted filesystem path arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_directories_overlap: accepted", "actual type: Path", "expected type: Path", "call argument 2 to fs_directories_overlap: accepted", "call argument 1 to fs_create_directory: accepted", "call argument 1 to fs_remove_file: accepted", "call argument 1 to fs_remove_directory: accepted", "call argument 1 to fs_temp_file: accepted", "call argument 1 to fs_temp_directory: accepted"], [], ""))
+      explain_write(source, "probe(path: Path): Void { fs_directories_overlap(\"root\", path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected filesystem path argument preserves sibling", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_directories_overlap: rejected", "expression: \"root\"", "actual type: Str", "expected type: Path", "call argument 2 to fs_directories_overlap: accepted", "actual type: Path", "expected type: Path"], [], "fs_directories_overlap"))
+      explain_write(source, "probe(path: Path): Void { fs_directories_overlap(missing, path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved filesystem path argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_directories_overlap: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_directories_overlap: accepted", "actual type: Path", "expected type: Path"], [], "unknown name missing"))
       explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
         ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))

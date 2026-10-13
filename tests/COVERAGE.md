@@ -728,6 +728,9 @@ evidence during ordinary checking.
 Filesystem query cases cover `fs_metadata` and `fs_list` Path inputs, including
 accepted, rejected and unavailable evidence, diagnostic parity, and empty
 ordinary-check evidence.
+Filesystem path-operation cases cover overlap, create/remove and temporary
+path builtins, including accepted and unavailable/rejected sibling outcomes,
+diagnostic parity and empty ordinary-check evidence.
 Annotated local cases exercise accepted/rejected/unavailable initializer
 compatibility and source spans; inferred locals remain reported separately,
 with assignment checks covered separately below.

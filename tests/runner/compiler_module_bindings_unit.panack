@@ -1797,6 +1797,30 @@ pure namespace_body_tests(): [TestResult] {
     "pure f(path: Path): Void { fs_metadata(path); fs_list(path); }",
     false
   )
+  accepted_filesystem_path_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path, other: Path): Void { fs_directories_overlap(path, other); fs_create_directory(path); fs_remove_file(path); fs_remove_directory(path); fs_temp_file(path); fs_temp_directory(path); }",
+    true
+  )
+  rejected_filesystem_path_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path): Void { fs_directories_overlap(\"root\", path); }",
+    true
+  )
+  rejected_filesystem_path_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path): Void { fs_directories_overlap(\"root\", path); }",
+    false
+  )
+  unavailable_filesystem_path_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path): Void { fs_directories_overlap(missing, path); }",
+    true
+  )
+  unavailable_filesystem_path_argument_ordinary: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path): Void { fs_directories_overlap(missing, path); }",
+    false
+  )
+  ordinary_filesystem_path_arguments: CheckedModuleBodies = body_test_module_mode(
+    "pure f(path: Path, other: Path): Void { fs_directories_overlap(path, other); fs_create_directory(path); fs_remove_file(path); fs_remove_directory(path); fs_temp_file(path); fs_temp_directory(path); }",
+    false
+  )
   results = append(results, std_testing.expect(
     "explanation checking marks inferred locals",
     len(inferred_local.functions) == 1 &&
@@ -2269,6 +2293,48 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_filesystem_query_arguments.functions) == 1 &&
       len(body_call_argument_evidence(ordinary_filesystem_query_arguments.functions[0].body)) == 0,
     "ordinary checking retained explanation-only filesystem query evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains accepted filesystem path arguments",
+    len(accepted_filesystem_path_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(accepted_filesystem_path_arguments.functions[0].body)) == 7 &&
+      body_call_argument_evidence(accepted_filesystem_path_arguments.functions[0].body)[0].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_filesystem_path_arguments.functions[0].body)[1].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_filesystem_path_arguments.functions[0].body)[2].expected == SignatureType(SignatureCore("Path"), []) &&
+      body_call_argument_evidence(accepted_filesystem_path_arguments.functions[0].body)[6].expected == SignatureType(SignatureCore("Path"), []),
+    "accepted filesystem path arguments were not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected filesystem path argument",
+    len(rejected_filesystem_path_argument.functions) == 1 &&
+      len(body_call_argument_evidence(rejected_filesystem_path_argument.functions[0].body)) == 2 &&
+      body_call_argument_evidence(rejected_filesystem_path_argument.functions[0].body)[0].accepted == Some(false) &&
+      body_call_argument_evidence(rejected_filesystem_path_argument.functions[0].body)[1].accepted == Some(true),
+    "rejected filesystem path argument or accepted sibling was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "filesystem path argument explanation preserves rejected diagnostics",
+    rejected_filesystem_path_argument.diagnostics == rejected_filesystem_path_argument_ordinary.diagnostics,
+    "filesystem path argument evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable filesystem path argument",
+    len(unavailable_filesystem_path_argument.functions) == 1 &&
+      len(body_call_argument_evidence(unavailable_filesystem_path_argument.functions[0].body)) == 2 &&
+      body_call_argument_evidence(unavailable_filesystem_path_argument.functions[0].body)[0].accepted == None() &&
+      body_call_argument_evidence(unavailable_filesystem_path_argument.functions[0].body)[1].accepted == Some(true),
+    "unavailable filesystem path argument or accepted sibling was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "filesystem path argument explanation preserves unresolved diagnostics",
+    unavailable_filesystem_path_argument.diagnostics == unavailable_filesystem_path_argument_ordinary.diagnostics,
+    "unavailable filesystem path evidence changed the original diagnostics"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no filesystem path argument evidence",
+    len(ordinary_filesystem_path_arguments.functions) == 1 &&
+      len(body_call_argument_evidence(ordinary_filesystem_path_arguments.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only filesystem path evidence"
   ))
   guarded_invariant: CheckedModuleBodies = body_test_module(
     "pub type Positive = Nat where value > 0; pub pure f(value: Positive): Nat { value - 1 }"

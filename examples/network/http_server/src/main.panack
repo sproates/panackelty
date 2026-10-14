@@ -1,0 +1,28 @@
+// Start this program, then request http://127.0.0.1:8080/ once. The finite
+// server closes after its first client has finished.
+import http/server as http
+import stdlib/text as text
+
+async respond(request: http.Request): Result[http.Response,http.HttpError] {
+  Ok(http.Response(200,
+    [http.Header("Content-Type", "text/plain; charset=utf-8")],
+    text.encode_utf8("hello from Panackelty HTTP server\n")))
+}
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+async main(): Unit {
+  result = await http.serve("127.0.0.1", 8080, @respond,
+    http.ServerLimits(1, 1, 4096, 4096, 5000, 10000, 1000))
+  match result {
+    Error(problem) => expect(false),
+    Ok(reports) => {
+      expect(reports.len() == 1)
+      match reports[0] { Ok(done) => (), Error(problem) => expect(false) }
+    }
+  }
+  ()
+}

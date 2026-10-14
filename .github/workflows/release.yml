@@ -23,7 +23,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  source_coverage_gate:
+    name: Require release source coverage
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out release history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Fetch the measured release candidate
+        run: git fetch --no-tags origin +refs/heads/next:refs/remotes/origin/next
+
+      - name: Read the published source coverage provenance
+        run: |
+          curl --fail --location --retry 2 \
+            https://sproates.github.io/panackelty-coverage/source/provenance.json \
+            --output "$RUNNER_TEMP/source-provenance.json"
+          curl --fail --location --retry 2 \
+            https://sproates.github.io/panackelty-coverage/source/summary.json \
+            --output "$RUNNER_TEMP/source-summary.json"
+
+      - name: Require current source coverage for this release
+        run: node scripts/release_source_coverage.cjs "$GITHUB_SHA" \
+          "$RUNNER_TEMP/source-provenance.json" "$RUNNER_TEMP/source-summary.json"
+
   validate:
+    needs: source_coverage_gate
     runs-on: ubuntu-22.04
     steps:
       - name: Check out exact release source

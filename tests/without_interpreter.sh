@@ -5,7 +5,7 @@ set -eu
 [ "$#" -le 1 ] || { echo 'expected at most one isolated validation suite' >&2; exit 2; }
 suite=${1:-all}
 case "$suite" in
-    all|compiler|runtime|bootstrap|conformance-source|conformance-bytecode) ;;
+    all|compiler|runtime|bootstrap|conformance-source|conformance-bytecode|next-smoke) ;;
     *) echo 'unknown isolated validation suite' >&2; exit 2 ;;
 esac
 root=$(pwd -P)
@@ -13,7 +13,7 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/panack-native-environment.XXXXXX")
 trap 'rm -rf "$work"' 0
 trap 'exit 1' HUP INT TERM
 mkdir "$work/bin"
-for utility in sh bash git make cc gcc clang as ld ar ranlib xcrun xcodebuild \
+for utility in sh bash git make cc gcc clang node as ld ar ranlib xcrun xcodebuild curl-config \
     awk basename cat chmod cmp comm cp cut date dd diff dirname env find grep gzip \
     head install ln ls mkdir mkfifo mktemp mv od readlink realpath rm rmdir sed sha256sum shasum \
     sleep sort stat sw_vers sysctl tail tar tee time touch tr uname wc which xargs; do

@@ -24,8 +24,14 @@ the root-replacement race acceptance reliable. The final integration fixture che
 unrelated working directory, moves their complete sibling tree and shared
 multi-file library, then rechecks/runs both and executes bytecode compiled before
 the move. PR#404 completes P4's standard-library API namespace migration on
-`next`; P5–P8 remain planned, with the separate clean-installed release
-acceptance retained in P8.
+`next`; PR#450 delivers the first end-to-end P5 client slice. Native transport
+lifecycle evidence now includes deterministic deadline/readiness boundary and
+cancellation/cleanup tests, plus a late TLS server-flight timeout fixture for
+source and saved bytecode; late DNS completion remains open. An initial
+libcurl version/build/license snapshot is recorded in
+[NATIVE_HTTP_CLIENT_DESIGN.md](NATIVE_HTTP_CLIENT_DESIGN.md); dependency pinning,
+complete transitive license inventory and clean-host archive acceptance remain
+open. The separate clean-installed release acceptance remains in P8.
 ## Current implementation audit
 
 Audit baseline: core revision `b32267e` (2026-10-03). The table records the
@@ -480,18 +486,52 @@ remaining work, then return ordered reports. Destroying the owner cancels immedi
 Each child owns its request/response buffers and nested client operation; no callback
 or resolver/TLS operation may retain freed execution state.
 
+P6 is sequenced before P5 by owner decision on 2026-10-14. The existing
+`tcp_serve` receives one byte buffer only after the peer closes its write side;
+HTTP clients normally keep the connection open while waiting for the response.
+Therefore the existing API cannot serve HTTP unchanged, although its bounded
+listener, polling, child-execution and shutdown ownership are reusable. The P6
+owner-selected design exposes bounded incremental per-client reads through the
+existing server owner, so the Panackelty HTTP package parses request framing and
+constructs the public Request value. The handler's serialized response returns
+through the owner's bounded write path. The new read operation must be scoped to
+its active child execution, deadline and client; it must not expose a forgeable
+socket handle or permit reads outside a server handler. Keep P5 client
+interoperability as a later P8 check once P5 exists.
+
+P6 is planned as three implementation slices:
+
+1. **Incremental TCP service:** add an async server worker with a typed context
+   and a bounded read-chunk operation available only to that active child.
+   Preserve the existing EOF-delimited `tcp_serve` contract, listener ownership,
+   per-client deadlines, cumulative request limits, cancellation and bounded
+   response writes. Test source and saved bytecode with a client that leaves its
+   write side open, plus bounds and out-of-scope rejection.
+2. **Panackelty HTTP package:** define shared request/response/error types and
+   source-owned incremental HTTP/1.1 request parsing and response serialization.
+   Add the finite `http/server` handler facade, strict framing and header/body
+   limits, method/version failures, and handler/error mapping. Keep parser and
+   serializer tests independent of the native socket owner.
+3. **Interoperability and acceptance:** exercise the packaged source API with
+   independent clients, malformed/partial and oversized inputs, concurrency,
+   disconnect, shutdown and port-conflict cases. Add the runnable example and
+   installed-package/source/bytecode checks. P5-client interoperability is
+   added after P5 exists.
+
+These slices partition P6's existing scope; they do not add HTTP TLS, keepalive,
+pipelining, HTTP/2, a framework or P5/libcurl dependency.
+
 ### Native prerequisite decisions and acceptance gates
 
-P5 begins with a bounded transport/backend decision PR, not an assumption that
-wrapping `tcp_exchange` suffices. Compare a maintained native HTTP/TLS transport
-backend with lower-level duplex/TLS integration against Linux/macOS availability,
-license/redistribution, deterministic fixtures, cancellation, byte framing control,
-DNS behavior, trust stores, packaging and interpreter-free builds. Record the
-selected dependency/version and primary-source evidence before implementation;
-this design does not claim that an unresearched external library satisfies them.
-Retaining the source parser is required: if a proposed backend owns HTTP framing,
-it must instead be justified as an explicit design amendment, not hidden below
-this contract. Do not implement cryptography or certificate validation in Panackelty.
+P5 uses libcurl as the initial native client transport for the alpha.13 proof of
+concept. Fold the needed feasibility checks into the first implementation layer;
+do not create a separate backend bake-off before implementation. Keep the HTTP
+package and host adapter independent of libcurl so the proof can be replaced if
+implementation reveals a concrete incompatibility. This choice does not commit
+future releases to libcurl. Retaining the source parser is required: a backend
+that owns HTTP framing would need an explicit design amendment, not a hidden
+change to this contract. Do not implement cryptography or certificate validation
+in Panackelty.
 
 DNS must be bounded by the operation deadline and cancellable without blocking the
 VM event loop. A worker/resolver must be joined/quiesced or detached from execution
@@ -502,11 +542,49 @@ operations in embedded/browser hosts; no silent browser fetch substitution. Audi
 malformed bytecode arguments before allocation/I/O, fault-inject cleanup paths,
 and test resolver/TLS late completion and deadline-versus-readiness races.
 
-If the required backend cannot meet these gates, report the blocker and revise P5
-scope with the user. Do not downgrade hostname HTTPS to numeric-address HTTP and
-call the first milestone done. P6 reuses the accepted bounded stream/ownership
-mechanism but does not block initial client acceptance. Public package facade,
+If libcurl cannot meet these gates in the supported builds, stop and revisit the
+backend choice; do not downgrade hostname HTTPS to numeric-address HTTP and call
+the first milestone done. Record the tested libcurl version, build configuration,
+license and transitive dependencies with the implementation evidence. P6 reuses
+the accepted bounded stream/ownership mechanism but does not use libcurl as a
+server backend or block initial client acceptance. Public package facade,
 transport contract and installed release support must be tested together.
+
+#### Libcurl proof-of-concept boundary
+
+Owner decision, 2026-10-14: use libcurl as the initial P5 client backend for the
+alpha.13 proof of concept. This is an implementation choice for the proof, not a
+permanent dependency commitment. Keep it behind a replaceable internal adapter;
+revisit the choice if implementation evidence shows a hard incompatibility with
+the security, lifecycle, packaging or platform requirements below.
+
+Use libcurl only for hostname resolution, connection setup and verified TLS in
+connect-only mode. Panackelty sends and receives raw connection bytes through
+libcurl's raw I/O operations; the source package continues to construct requests,
+parse HTTP framing and enforce response limits. Do not use libcurl's HTTP transfer
+API for this design. Do not expose libcurl types, option names or error strings in
+Panackelty source APIs, bytecode contracts or public error variants.
+
+The runtime adapter owns opaque libcurl handles and exposes only the transport
+operations needed by the VM. With the multi interface, an easy handle remains
+attached while raw I/O is active; non-ready sends and receives return to the
+cooperative runtime for readiness polling and retry. Cleanup must remove and
+destroy handles before releasing operation state. Prove that connection setup,
+including DNS, does not block the VM event loop, and that cancellation and late
+completion cannot retain or access freed execution state. The chosen asynchronous
+resolver configuration is part of the tested build, not an ambient system
+assumption.
+
+Keep the HTTP parser and public package contract independent of the adapter. Add
+a transport conformance suite for connect, raw duplex I/O, verified hostname TLS,
+timeouts, cancellation and cleanup; retain separate backend-free parser tests.
+This allows a later native transport to replace libcurl without exposing a
+libcurl migration to Panackelty programs. Replacement still requires rerunning the
+same conformance and package acceptance tests. Pin and test the TLS backend and
+trust configuration on Linux and macOS, and make proxy behavior explicit rather
+than inheriting unexpected environment settings. The implementation must show
+that the dependency can be reproducibly built and included in interpreter-free
+native packages.
 
 ## Positive and negative acceptance plan
 
@@ -541,7 +619,7 @@ code. Existing host capability controls still apply.
 ## Dependency reproduction (P7)
 
 Keep local paths as the baseline. P7 is independently schedulable after P1/P3;
-remote retrieval is not required for the language/local-package release or
+remote retrieval is not required for the language/local-package checkpoint or
 first-client acceptance. P7 first adds a committed `panack.lock.json` containing exact graph
 identities, toolchain/language version, normalized source locations and SHA-256
 content digests, plus explicit immutable Git acquisition and a vendor directory for offline use. Define the
@@ -610,31 +688,39 @@ baseline change. A larger PR count is not a larger completion percentage.
 | P2 / RM#41 | AST/bindings and diagnostics; qualified type/effect/emission identity; stdlib adapter/bootstrap/tooling conformance | Large; original 3–5 PR estimate requires reassessment; remaining count unquantified pending effect/emission, guard/general inference, migration and acceptance decomposition |
 | P3 / RM#43 | Strict manifest/explicit CLI; physical root confinement/graph identity; two-app and relocated-install acceptance | Large; 2–4 PRs after P1/P2; host path identity/race safety is a prerequisite, not existing capability |
 | P4 / RM#42 | Public stdlib inventory/names; explicit exports/re-exports and prefix migration; remove bootstrap adapter with coordinated source migration verified | Medium; 1–2 PRs after P2/P3; preserve core identity and existing API behavior |
-| P5 / RM#110 | Backend decision; bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large, uncertain; 4–7 PRs after P1–P3; DNS/TLS packaging and cancellation may require re-estimation before coding |
-| P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3 and accepted transport mechanism; initial client does not wait for it |
+| P5 / RM#110 | Libcurl-backed bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large; 4–7 PRs after P1–P3; re-estimate from implementation evidence |
+| P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3; P5 interoperability is checked when P5 is delivered |
 | P7 / RM#44 | Lock/digest model; bounded immutable Git restore; explicit vendor/offline workflow; corrupt/conflicting graph and cross-machine acceptance | Large; 3–5 PRs independently after P1/P3; remote acquisition/backend packaging add uncertainty |
-| P8 / RM#112 | Language/local-package release gate after P1–P4; HTTP-client gate after P5; final all-outcomes gate including P6/P7 pinned/offline reproduction | Medium; 1–2 acceptance/release PRs, provisional and to be reassessed across three gates; final closure waits for P2–P7 |
+| P8 / RM#112 | Language/local-package acceptance checkpoint after P1–P4; HTTP-client checkpoint after P5; final all-outcomes acceptance including P6/P7 pinned/offline reproduction | Medium; 1–2 acceptance/release PRs, provisional and to be reassessed across three checkpoints; final closure waits for P2–P7 |
 
-The selected sequence, agreed on 2026-10-04, is P2 → P3 → P4 → release before
-HTTP client work. P8 has three distinct acceptance gates:
+The sequence selected on 2026-10-04 placed a language/local-package release
+after P4 and before HTTP. The owner superseded that release ordering on
+2026-10-14: no public release or core promotion occurs before SP1 implementation
+is complete. The P1–P4 installed-package checks remain final release-acceptance
+evidence and do not block P5. P8 retains three acceptance checkpoints:
 
-1. **Language/local-package release after P1–P4:** a clean installed toolchain
+1. **Language/local-package checkpoint after P1–P4:** a clean installed toolchain
    builds and runs two independent applications consuming one local library;
    relocated toolchain/package trees, namespace/stdlib migration, executed docs,
-   fresh bootstrap and required native/browser baseline conformance pass. Use the
-   normal release review/publication process. Neither HTTP nor P7 is required.
+   fresh bootstrap and required native/browser baseline conformance pass. This
+   may use a locally or CI-built release archive; it does not promote core or
+   publish a release, and it does not block P5. Complete this evidence before
+   final alpha.13 release acceptance. Neither HTTP nor P7 is required for this
+   checkpoint.
 2. **HTTP-client gate after P5:** validate the independent local-package client
    against the bounded HTTP/HTTPS, TLS rejection, timeout, malformed-response and
    cleanup contracts. The server (P6) and dependency reproduction (P7) may follow.
-3. **Final all-outcomes gate:** accept every task, including P6's server
+3. **Final all-outcomes checkpoint:** accept every task, including P6's server
    lifecycle/walkthrough and P7's pinned remote restore and verified offline
-   reproduction, with clean/relocated workflows, executed docs and supporting
-   releases. Earlier gates do not close P8 or the programme as a whole.
+   reproduction, with clean/relocated workflows, executed docs and release
+   candidate evidence. Publish alpha.13 only after all scoped SP1 outcomes and
+   final release acceptance pass. Earlier checkpoints do not close P8 or the
+   programme as a whole.
 
-These gates partition existing P8 acceptance without changing scope or weights.
-P7 is independent once P1/P3 are accepted, not a prerequisite for the first release
-or client. No version is allocated and the checkpoint does not imply leaving
-alpha. Revisit transport/backend feasibility before fixing P5's detailed size.
+These checkpoints partition existing P8 acceptance without changing scope or
+weights. P7 is independent once P1/P3 are accepted, not a prerequisite for P5.
+No version is allocated and the final release does not imply leaving alpha.
+Reassess P5's estimate as implementation evidence accumulates.
 Browser namespace conformance belongs to P2/P4; browser HTTP support is not
 implied. GI#166 typed service exchange and GI#162 preview-server replacement
 remain separate work. The [roadmap checkpoint](../ROADMAP.md#namespace-release-checkpoint)

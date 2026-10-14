@@ -151,7 +151,8 @@ Status meanings:
 | Panackelty-hosted fixture orchestration | `runner/main.panack`; `functional/cases/runner_smoke`; `functional/cases/stdlib_module_api`; `functional/failures/stdlib_legacy_api_removed`; `functional/cases/cli_check_disasm`; `functional/cases/cli_commands`; `functional/cases/cli_environment_files`; `functional/cases/cli_diagnostic_display`; `functional/cases/cli_rational_failures`; `runner/compiler_driver.panack`; `unit/harness/runner.sh` | **Covered** — thirty selected success fixtures and twenty-three example programs run source, compile, and bytecode with byte-exact streams/status; sixty failure fixtures check exact normalized diagnostics for check/compile and absent artifacts; fourteen also check run/disasm. The new module API fixture covers `prelude.path.from_text`, the `prelude.byte_buffer` alias alongside the `bytes()` constructor, and distinct `numeric.divide` and `prelude.time.divide` calls; its failure companion requires legacy `path_string_*` and Str-based trapping filesystem imports to be rejected. Source and bytecode checks, matching disassembly, malformed bytecode and legacy extension rejection, bare-path execution, default compile output, arguments, stderr/exit status, help and version, environment override, text and binary file round trips, missing paths, invalid UTF-8, and permission denial on unprivileged POSIX hosts, paired example discovery, explicit artifact and workspace cleanup, deterministic reports, injected output/diagnostic mismatches, missing fixture expectations, nonempty-workspace recovery, isolated inherited environment for `stdlib`, and checkout-bound compiler `source.path` are covered. The canonical check captures one complete runner report during the native oracle smoke execution and checks its exact bytes in both functional smoke modes; standalone targets still run the full runner. |
 | Native C11 seed VM | `runner/vm_unit.panack`; `native_oracle_contracts.sh`; portable vectors | **Covered** for strict C11 compilation, bounded decoding and verification, exhaustive truncations, shared and forged malformed artifacts, differential program output, large integers, exact decimals, collections, UTF-8, host arguments/environment/status, nested execution, forged dynamic traps, byte-identical self-hosted compilation, and running the complete compiler. |
 | Verified self-hosted seed refresh | `seed_refresh.sh`; `make bootstrap-check` | **Covered** for recorded input digest verification before execution, fresh verified compiler stages 2–4, compiler/library byte identity, exact conformance output, failure preservation, locks/signals/concurrent edits, publication and idempotence. A real refresh uses a restricted `PATH`; failure injection uses a shell fake VM. |
-| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The alpha.12 candidate extends that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
+| Reproducible native distribution | `unit/harness/bootstrap.sh`; `make bootstrap-check`; `unit/harness/distribution.sh`; `unit/harness/layout.sh`; `native_conformance.sh`; `release_archive_smoke.sh`; `quick_start.sh`; `make package` | **Covered** for seed verification, corrupt-seed rejection in an isolated checkout with shared VM inode/byte preservation, stage-2/stage-3 compiler and standard-library identity, installed layout with bundled logical standard-library imports, canonical release and bytecode version reporting, native conformance, and a friendly single-root archive containing the launcher, native VM, compiler seed, standard-library sources, license, user-facing release documents, and the complete tested example set. Distribution regressions also exercise functional compiler handoff, packaging, checksums, and the documented quick start from a checkout path containing spaces and parentheses, plus an installation destination with those characters. The archive structure test rejects unsafe or unexpected paths, files, ownership metadata, and platform sidecars; checksum coverage recomputes and compares the published SHA-256 digest, and a relocated packaged tour example executes with its exact expected output. The exact-artifact release gate relocates the final archive, removes development tools from `PATH`, creates its inputs outside the checkout, and verifies help, version, source checking and execution, compilation, bytecode execution, argument forwarding, standard-library discovery, and malformed-bytecode rejection. The alpha.12 candidate extends that relocated archive gate to exercise inventory, inventory-check, coverage-run, coverage-session, coverage-aggregate and coverage-report using the namespace trip-planner example. The current SP1 first-gate acceptance adds the two-application shared-library and package-tree relocation fixture against the packaged, relocated compiler, VM and standard library, including source and saved-bytecode execution from an unrelated working directory. The final package gate extracts its source and expected transcript from the packaged README, then verifies checksum, install, version, check, source execution, compilation, bytecode execution, upgrade, and removal from a clean home and runtime-only `PATH`. Workflow contract coverage verifies PR and main-only push triggers, cancellation of superseded PR runs, and shared canonical suites across the validation matrix plus isolated full coverage on each packaging platform. Native build-flag coverage checks the optimisation default, user overrides, and retained strict C11 warnings. Workflow contract coverage fixes the independent packaging matrix at Ubuntu 22.04 x86-64 and macOS 14 arm64, retains checksums and build provenance beside both archives, and rejects premature publication. The tag workflow additionally requires an exact canonical version tag, complete validation, both successful package jobs, downloaded checksum and provenance verification, and write permission isolated to final prerelease publication. |
+| CI-only validation routing | `scripts/ci_scope.sh`; `scripts/validate_change.sh`; `tests/ci_scope.sh`; `tests/workflow_yaml.sh`; `tests/unit/harness/layout.sh`; `tests/source_coverage/route.test.cjs` | **Covered** for the explicit configuration-only allowlist, workflow-only versus mixed-product routing, matching local/hosted focused checks, YAML syntax and top-level job structure, source-coverage skip gates, stable required-check results, and existing workflow/layout contracts. Product paths and unlisted CI inputs retain full validation. |
 | Public bug reporting | `.github/ISSUE_TEMPLATE/bug_report.yml`; `unit/harness/layout.sh`; `CONTRIBUTING.md` | **Covered** by a required GitHub issue form for version, platform, minimal source, command, expected behavior, actual output, and saved-bytecode behavior; blank issues are disabled and security reports are redirected to the private channel. |
 | Public project website | [website repository](https://github.com/sproates/panackelty-website) | Independently validated and published; no core website test dependency. |
 | Short-circuit `&&` and `||` | `runner/vm_unit.panack` | **Covered** for avoiding an unsafe right-hand expression. |
@@ -427,11 +428,15 @@ retains command timeouts and binary streams; extra tests reject signal/timeout/s
 mismatches and unsafe archives. See `HARNESS_MIGRATION.md` for the complete inventory.
 The final 21 implementation-only methods retired with their implementation.
 `make policy` rejects source, shebang and command dependencies, with adversarial
-controls. Both platforms cover the complete check, native conformance and
-packaging through five clean `make check-no-interpreter CI_SUITE=…` partitions.
-`tests/ci_partition.sh` checks dispatch, invalid selections, failure propagation
-and shared canonical targets. The stable gates require the entire matrix;
-sanitizer and coverage jobs retain their independent instrumented corpus.
+controls. The five clean `make check-no-interpreter CI_SUITE=…` partitions run
+on both platforms in the `next` nightly and every full `main` Check. A full PR
+to `next` runs a bounded Linux compiler/runtime smoke plus the P5 late-DNS
+timeout/cancellation case in source and saved-bytecode mode; the larger Linux
+validation, platform matrix and package jobs run nightly. The merge push skips
+the product smoke. `tests/ci_partition.sh` checks dispatch, the PR/nightly
+split, package-smoke selection, invalid suites, failure propagation and shared
+canonical targets. Stable gates retain their names on both branches; sanitizer
+and coverage jobs retain their independent instrumented corpus.
 Sanitizer CI partitions VM contracts, ordinary oracle cases, and the nested
 functional runner. `tests/ci_sanitize.sh` compares standalone and partitioned
 operation multiplicity and injects compile, verify, execution, stderr and output
@@ -548,17 +553,55 @@ stop/drain and destruction (including final admission racing writable clients
 with zero grace), handler traps/malformed results, finite computation
 budgets, bind conflict, foreign handlers and separate embedded capabilities.
 `native_faults.c` sweeps successful server allocations and cancellation lifetimes;
-injected socket/bind/listen/accept/poll/read/write/clock failures track all server
-and accepted descriptors. `tcp_serve.sh` runs source and saved-bytecode programs
+both EOF and streaming owners are covered. Injected socket/bind/listen/accept/
+poll/read/write/clock failures track all server and accepted descriptors.
+`tcp_serve.sh` runs source and saved-bytecode programs
 against independent binary/fragmented/empty peers, checks ordered success/error
 reports, and exercises busy-handler fairness and source typing/effect rejection.
 Both bytecode verifiers reject the independent server arity/effect fixtures.
 The pre-server seed's `legacy-server-name.hex` preserves old user-function behavior.
 Browser runtime tests check explicit listening rejection.
 
-Evidence concerns finite EOF-framed TCP only: no TLS/HTTP/IPv6, general source
+The streaming prerequisite additionally tests a complete source and saved-bytecode
+server whose client keeps its write side open while awaiting a reply. Unit tests
+exercise context delivery, bounded incremental reads, cumulative request-limit
+failure and rejection outside an owner-enabled server child.
+
+Evidence covers finite EOF-framed TCP and its bounded streaming prerequisite;
+it does not establish server-side HTTP interoperability, TLS/IPv6, general source
 spawning, unbounded service operation or large-scale reactor performance claim.
-Platform and sanitizer validation results belong in the implementation PR.
+
+## Native HTTP client (P5 proof of concept)
+
+`tests/http_client_package.sh` drives a deterministic local HTTP and HTTPS
+fixture through both source execution and saved bytecode. It covers successful
+and non-2xx responses, repeated headers, informational responses, chunked and
+close framing, truncated and conflicting response framing, body limits, URL
+validation, deadlines, trusted TLS, host-name verification and untrusted
+certificate rejection. Its local CA is selected with `CURL_CA_BUNDLE`; peer and
+host verification stay enabled. It also installs into an isolated temporary
+prefix and checks the installed package in source and saved-bytecode mode. The
+script is part of the functional suite. `tests/unit/vm/http.c` rejects malformed
+native-service arguments before opening a connection and repeatedly destroys
+HTTP requests and HTTPS handshakes in progress, checking that the peer observes
+connection closure. The native fault sweep exercises project-owned transport
+allocations and result construction through connection failures.
+These cases do not establish redirects, proxy behavior, connection reuse,
+IPv6, arbitrary malformed-wire fuzzing or broad server interoperability.
+The native unit suite deterministically exercises the deadline/readiness boundary:
+readiness before the deadline is accepted, while readiness at or after the
+deadline times out. The `tls-late` fixture also delays a real TLS server flight
+past a 100 ms deadline and verifies `Timeout` for source and saved bytecode
+before attempting to deliver that flight. The `dns-late` fixture interposes a
+local resolver for a reserved test hostname, delays completion past the 100 ms
+deadline, verifies `Timeout`, then keeps the VM alive with a separate loopback
+request until the cancelled resolver returns. It covers source and saved
+bytecode without external DNS. The paired `dns-failure` case returns a
+deterministic unknown-host result and checks the public `DnsFailure` mapping
+for source and saved bytecode. `connect-failure` reserves and closes a loopback
+port, then checks the public `ConnectFailure` mapping for source and saved
+bytecode. Platform and sanitizer validation results
+belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,
@@ -684,8 +727,77 @@ retention parity. The public `cli_explanations` functional case verifies importe
 Unicode/generic source ranges, local proof versus whole-program rejection,
 missing/unsupported evidence, no program execution, malformed input/options and
 ordinary source/bytecode execution. These tests cover the bounded subtraction
-query, not the unimplemented type/effect, change-impact or runtime explanations.
+query, not the remaining type/effect, change-impact or runtime explanations.
 Panackelty source execution coverage percentages remain unmeasured.
+
+The guarded-conversion explanation slice retains decisions only for the explicit
+`explain` query. Compiler module-body unit cases cover a branch fact proving a
+conversion, known passing and failing literals, and empty evidence during
+ordinary checking. The public `cli_explanations` case checks guarded-to-guarded
+conversion, target guard and source facts, honest unproved output, and omission
+of guarded-to-base widening. Checker unit cases verify that a compatible
+guarded source can convert when its invariant proves the target, and that a
+stricter target is rejected without further facts. The same CLI case checks
+inferred local names, source expressions, initializer/result types, omission of
+annotated locals, generic calls and explicit unavailability for incomplete
+inference. Its expression-type query selects the smallest checked expression at
+a requested line/column, distinguishes a generic call from its nested literal,
+preserves imported generic source attribution, and reports unavailable for
+unrelated locations, invalid bodies and zero coordinates. Function return cases
+verify accepted and rejected checker decisions, actual/declared types and the
+returned expression's source span; module-body tests check that ordinary
+checking retains no return explanation metadata and that unresolved results keep
+an unavailable decision. Direct function-call argument cases exercise
+accepted/rejected/unavailable parameter compatibility and source spans; ordinary
+checking retains no argument explanation metadata. The CLI slice also covers
+text, byte, rational-conversion, numeric-parser, quotient and collection
+mutation/lookup argument contracts, including accepted, rejected and
+unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,
+independent sibling outcomes, imported generic source attribution, and empty
+evidence during ordinary checking. Other builtin contracts and indirect callable
+invocations remain outside these slices. Environment argument cases check the
+string key contract for `environment_get` and `environment_has`, including
+accepted, rejected and unavailable evidence plus unchanged diagnostics.
+Time argument cases cover `Duration` and `Instant` inputs, including accepted,
+rejected and unavailable evidence, unchanged diagnostics, and no evidence during
+ordinary checking.
+The collection callback slice covers accepted `map` and `reduce` contracts,
+including pure callable status, arity, expected input types, map's non-Void
+result rule, and reduce's accumulator result type. Unit tests verify retained
+evidence and its absence in ordinary checking. Public CLI cases cover accepted,
+rejected and unavailable map/reduce callback contracts while asserting original
+diagnostics and exit status.
+Filesystem I/O cases cover `fs_read` and `fs_write` input types, accepted and
+rejected sibling outcomes, unavailable values, unchanged diagnostics, and no
+evidence during ordinary checking.
+Rooted filesystem read cases cover the root and relative `Path` and `Nat` limit
+arguments to `fs_read_beneath`, including accepted, rejected, unavailable and
+independent sibling evidence with diagnostic parity.
+Filesystem query cases cover `fs_metadata` and `fs_list` Path inputs, including
+accepted, rejected and unavailable evidence, diagnostic parity, and empty
+ordinary-check evidence.
+Filesystem path-operation cases cover overlap, create/remove and temporary
+path builtins, including accepted and unavailable/rejected sibling outcomes,
+diagnostic parity and empty ordinary-check evidence.
+Annotated local cases exercise accepted/rejected/unavailable initializer
+compatibility and source spans; inferred locals remain reported separately,
+with assignment checks covered separately below.
+Assignment-value cases exercise accepted/rejected/unavailable compatibility
+against an existing mutable local; module-body tests verify ordinary checking
+retains no assignment evidence. The reported decision concerns type
+compatibility, separately from mutability diagnostics.
+
+## U3 checked type-join explanations
+
+The compiler module-body suite verifies retained accepted and rejected array
+element joins, accepted, rejected and unavailable `concat` element joins, a
+conditional result join, an unresolved mixed `Nat`/`Rat` join, and empty join
+evidence during ordinary checking. The public CLI regression checks accepted
+array, concatenation, conditional and match joins, a rejected array join with
+the original diagnostic intact, and unavailable conditional and concatenation
+joins with their input types and source locations. No coercion or checker
+acceptance rule changes. Source and bytecode execution both run the
+`cli_explanations` fixture.
 
 ## Indexed compiler declaration lookup
 

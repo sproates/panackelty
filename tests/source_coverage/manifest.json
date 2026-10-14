@@ -19,6 +19,11 @@
     "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/text.panack",
     "src/stdlib/time.panack"
   ],
+  "unmeasured": [
+    {"path": "src/compiler/package_manifest.panack", "reason": "Package manifest support is not included in the bounded native source-execution corpus."},
+    {"path": "src/compiler/package_project.panack", "reason": "Package project support is not included in the bounded native source-execution corpus."},
+    {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."}
+  ],
   "units": [
     "compiler_lexer", "compiler_parser", "compiler_resolver", "compiler_purity", "compiler_contracts",
     "compiler_module_bindings", "compiler_source_spans", "compiler_instruction_sources", "compiler_source_maps",

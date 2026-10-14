@@ -463,10 +463,13 @@ A guarded type is a nominal refinement of a primitive scalar. `value` denotes
 the candidate value. The initial decidable guard language contains literals,
 `value`, comparisons, `&&`, `||`, and arithmetic.
 
-The checker accepts a conversion only when it can prove the guard from a
-literal or from facts introduced by a surrounding `if`. It does not silently
-insert a runtime check. A future `check<T>(expression): Result<T, GuardError>`
-operation will be the explicit boundary for untrusted values.
+The checker accepts a conversion only when it can prove the target guard from
+the value's literal, facts introduced by a surrounding `if`, or the invariant
+of a guarded source type with a compatible primitive base. A guarded source
+does not prove a stricter target unless its invariant entails that target
+guard. The checker does not silently insert a runtime check. A future
+`check<T>(expression): Result<T, GuardError>` operation will be the explicit
+boundary for untrusted values.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a
@@ -1123,7 +1126,7 @@ Each connection sends one request terminated by a write-half close. The owner
 reads until EOF, runs the named handler once, writes its returned bytes completely,
 then closes the socket. Binary and empty data are valid; an extra request byte
 fails before handler activation. An oversized response fails before sending.
-There are no added framing bytes, streaming handles, HTTP, DNS, TLS or IPv6.
+There are no added framing bytes, connection handles, HTTP, DNS, TLS or IPv6.
 `tcp_exchange` is a compatible client. A client that withholds EOF reaches its
 deadline. The [finite echo example](examples/network/tcp_serve.panack) pairs with
 [the client example](examples/network/tcp_exchange.panack).
@@ -1135,6 +1138,32 @@ including through an indirect call. Runtime ownership needs no source `spawn`
 syntax. Instruction budgets are not wall-clock preemption or a total memory cap.
 I/O payload capacity is bounded by concurrent request/response limits; VM values,
 transient copies and allocations performed by handlers are additional memory.
+
+### Native TCP streaming server prerequisite
+
+`tcp_serve` keeps its EOF-delimited contract above. `tcp_serve_stream` is an
+additive development-toolchain service for protocols whose peer waits for a
+response before closing its write side. It takes the same address, port and
+limits, plus `AsyncFn[Context,Result[Bytes,Str]]` and a value of that same
+`Context` type. The owner starts the named worker as soon as a client is accepted
+and passes that value to it. The operation returns the same ordered finite-server
+report as `tcp_serve`.
+
+Only an active worker started by `tcp_serve_stream` may await
+`tcp_server_read_chunk(max_bytes)`. The positive `Nat` limit is at most 16,384
+bytes. A completion contains up to that many currently available bytes; it may
+contain fewer. `Ok(empty_bytes)` means peer EOF, including on later reads after
+EOF. A socket failure or cumulative per-client `request_limit` breach returns
+`Error(Str)`. No bytes are automatically buffered for the worker before it asks
+to read. A call outside that active child traps; the API does not expose a socket
+or forgeable connection record. Existing per-client deadlines, admission,
+concurrency, cancellation and bounded response writes remain owned by the server.
+
+This primitive does not add HTTP framing. The Panackelty HTTP package owns
+incremental parsing and response serialization; P6 is the selected consumer.
+Native Linux/macOS support follows the server capability gate; WASI remains
+unavailable. The source-level limit is checked again at runtime for saved or
+forged bytecode.
 
 Admission stops on the total-client limit, admission deadline or a host stop
 request. The listener closes immediately. Existing clients drain until the
@@ -1169,6 +1198,45 @@ its own native opt-in, separate from outbound TCP. Handler children inherit the
 outbound permission, never listening permission. These internal host APIs are
 experimental, not a stable embedding ABI.
 
+### Native HTTP client (P5 proof of concept)
+
+Import the package namespace `http/client` and call:
+
+```panack
+import http/client as http
+
+async fetch(): Result[http.Response,http.HttpError] {
+  await http.get("https://example.test/status")
+}
+```
+
+`get(url)` performs one HTTP/1.1 GET and returns a typed `Response` containing
+the status, ordered headers (including repeated fields) and raw `Bytes` body.
+Non-2xx status codes are returned normally. `get_with_limits(url, limits)` uses
+the same operation with a caller-selected timeout and response bounds. Defaults
+are 10 seconds, 64 KiB of response headers and 1 MiB of body. Hard limits are
+60 seconds, 64 KiB and 1 MiB respectively. The transport also caps total raw
+response bytes at 16 MiB.
+
+The package accepts HTTP and HTTPS URLs with ASCII DNS names or dotted IPv4
+addresses. It rejects IPv6, user information, fragments, non-ASCII hosts,
+control characters and unsupported schemes. Requests use origin-form paths and
+close the connection after one response. Fixed-length, chunked and close-delimited
+responses are supported. Invalid or ambiguous framing is a typed protocol error.
+Redirects, request bodies, cookies, connection reuse and proxy use are not
+supported.
+
+The native runtime uses libcurl multi connect-only mode for asynchronous DNS,
+connection establishment and TLS; the Panackelty package constructs and parses
+HTTP bytes. Certificate-chain and hostname verification stay enabled and use
+the platform trust store. `CURL_CA_BUNDLE` may select a PEM trust bundle.
+Native builds need libcurl development files and `curl-config`; linked libcurl
+must include asynchronous DNS and thread-safe features. WASI/browser execution
+is unavailable.
+This is the replaceable libcurl backend selected for the alpha.13 proof of
+concept. See the [P5 design](docs/NATIVE_HTTP_CLIENT_DESIGN.md) for the package
+boundary, exact limits, error categories and fixture coverage.
+
 ## Optional instruction source lookup
 
 `panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP` emits an optional
@@ -1184,8 +1252,12 @@ closure, compatibility, I/O bounds, output safety and source disclosure.
 ## Compiler explanations
 
 `panack explain SOURCE.panack --function NAME` performs the ordinary frontend
-checks with opt-in evidence retention and reports binary `Nat` subtraction
-obligations and local call/await effect boundaries from the named function.
+checks with opt-in evidence retention and reports proof-bearing conversions
+into guarded types, binary `Nat` subtraction obligations, and local call/await
+effect boundaries from the named function. It also reports inferred local types
+with their checked initializer type and source expression; annotated locals are
+omitted, and incomplete types are explicitly unavailable. This query does not
+change inference rules or claim runtime values or call-site specialisations.
 Effect output retains existing pure/ordinary/async decisions and callable-type
 classification without inferring transitive or runtime effects. Effect evidence is
 unavailable for type-invalid functions. The query can retain boundaries for
@@ -1194,8 +1266,11 @@ signature or declaration type errors suppress all recovery. Ordinary compilation
 original diagnostics remain unchanged; recovered effect violations appear only in
 the local explanation. An allowed boundary does not imply that a callee body or
 the whole program is valid.
-The command exposes existing constant/lower-bound
-proof decisions without adding proof rules or changing acceptance. A local
+The command exposes constant/lower-bound proof decisions and proof-bearing
+conversions into guarded targets, including source facts and unresolved
+results. The checker accepts conversion from a compatible guarded source when
+its invariant proves the target guard; stricter guards still require sufficient
+facts. Other unsupported proof rules remain unchanged. A local
 proved obligation does not imply whole-program validity; unproved does not imply
 a runtime counterexample. Unsupported/invalid operands and unavailable evidence
 are explicit. Generic results describe definitions, not specialisations. No user

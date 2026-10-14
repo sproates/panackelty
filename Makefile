@@ -1,6 +1,11 @@
 .PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean identity-root-audit compiler-integration-probe
 
 CFLAGS ?= -O2
+HTTP_CURL_CONFIG ?= curl-config
+HTTP_CURL_CFLAGS := $(shell $(HTTP_CURL_CONFIG) --cflags 2>/dev/null)
+HTTP_CURL_LIBS := $(shell $(HTTP_CURL_CONFIG) --libs 2>/dev/null)
+CPPFLAGS += $(HTTP_CURL_CFLAGS)
+LDLIBS += $(HTTP_CURL_LIBS)
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
 
 CHECK_BUDGET_SECONDS ?= 120
@@ -193,9 +198,19 @@ $(BUILD_DIR)/vm/tcp_client: tests/tcp_client.c
 	@mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
-functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client
+$(BUILD_DIR)/vm/http_client: tests/http_client.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
+
+$(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CFLAGS) $(VM_WARNINGS) $< -o $@
+
+functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(MAKE) --no-print-directory identity-root-audit
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
+	@PANACK_BIN="$(abspath panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"
@@ -236,8 +251,8 @@ $(BUILD_DIR)/vm/%.o: src/vm/%.c
 	@mkdir -p "$(@D)"
 	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -MMD -MP -c $< -o $@
 
-$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
-	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
+$(BUILD_DIR)/vm/test_modules: tests/unit/vm/native_modules.c tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS)
+	$(PROFILE) "native-build/$@" $(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) -Isrc/vm $(LDFLAGS) $< tests/unit/vm/resumable.c tests/unit/vm/coverage.c tests/unit/vm/coverage_session.c tests/unit/vm/tasks.c tests/unit/vm/async.c tests/unit/vm/tcp.c tests/unit/vm/http.c tests/unit/vm/tcp_server.c $(VM_LIBRARY_OBJECTS) -o $@ $(LDLIBS)
 
 FAULT_OBJECTS := $(patsubst src/vm/%.c,$(BUILD_DIR)/fault/%.o,$(filter-out src/vm/main.c,$(VM_SOURCES)))
 export PANACK_NATIVE_FAULT_TEST := $(abspath $(BUILD_DIR)/fault/test_faults)
@@ -335,7 +350,7 @@ native-coverage: native
 # Source coverage is opt-in SC4 collection, not LLVM instrumentation of .panack files.
 .PHONY: source-coverage-baseline source-coverage-report-tests
 source-coverage-report-tests: native $(STAGE2_COMPILER)
-	node --test tests/source_coverage/reader.test.cjs tests/source_coverage/policy.test.cjs
+	node --test tests/source_coverage/reader.test.cjs tests/source_coverage/manifest.test.cjs tests/source_coverage/policy.test.cjs tests/source_coverage/release_gate.test.cjs
 	PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACKELTY_STDLIB_PATH="$(abspath src/stdlib)" node tests/source_coverage/parity.cjs
 
 source-coverage-baseline: native
@@ -397,18 +412,20 @@ install: native
 	install -d "$(DESTDIR)$(PREFIX)/libexec/panackelty"
 	install -d "$(DESTDIR)$(PREFIX)/share/panackelty"
 	install -d "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib"
+	install -d "$(DESTDIR)$(PREFIX)/packages/http"
 	install -d "$(DESTDIR)$(PREFIX)/share/doc/panackelty"
 	install -m 755 panack "$(DESTDIR)$(PREFIX)/bin/panack"
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
 	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
 	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
+	cp -R packages/http/. "$(DESTDIR)$(PREFIX)/packages/http/"
 	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 
 package: native-check
 	$(MAKE) quick-start
 
-package-archive: native
+package-archive: native $(BUILD_DIR)/vm/http_client
 	rm -rf "$(PACKAGE_STAGE)"
 	$(MAKE) install DESTDIR="$(PACKAGE_STAGE)" PREFIX="/$(PACKAGE_ROOT_NAME)"
 	install -d "$(PACKAGE_ROOT)/examples"
@@ -417,7 +434,7 @@ package-archive: native
 	COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -C "$(PACKAGE_STAGE)" -czf "$(PACKAGE_ARCHIVE)" "$(PACKAGE_ROOT_NAME)"
 
 release-smoke: package-archive
-	@$(TIMED) release-smoke $(INCREMENTAL_BUDGET_SECONDS) sh tests/release_archive_smoke.sh "$(PACKAGE_ARCHIVE)" "$(VERSION)"
+	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(TIMED) release-smoke $(INCREMENTAL_BUDGET_SECONDS) sh tests/release_archive_smoke.sh "$(PACKAGE_ARCHIVE)" "$(VERSION)"
 
 package-checksum: release-smoke
 	@archive="$(PACKAGE_ARCHIVE)" && \
@@ -465,7 +482,7 @@ check-no-interpreter:
 
 # CI partitions use the same targets as the canonical check. Each runs in a
 # fresh checkout; only runtime + functional share a session-local observation.
-.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode
+.PHONY: ci-compiler ci-runtime ci-runtime-phases ci-bootstrap ci-conformance-source ci-conformance-bytecode ci-conformance-bytecode-check ci-next-smoke
 ci-compiler: policy native
 	@$(MAKE) --no-print-directory $(STAGE2_COMPILER)
 	@sh tests/run_suites.sh $(MAKE) unit-harness unit-compiler
@@ -475,14 +492,26 @@ ci-runtime:
 
 ci-runtime-phases: unit-runtime functional
 
-ci-bootstrap: bootstrap-check quick-start
+# One bounded Linux gate for next PRs; the full compiler/runtime suites and
+# cross-platform matrix run in nightly validation.
+ci-next-smoke: native $(STAGE2_COMPILER) $(BUILD_DIR)/vm/http_fixture
+	@sh tests/ci_next_smoke.sh "$(abspath $(STAGE2_COMPILER))"
+
+ifeq ($(CI_SKIP_PACKAGE),true)
+CI_PACKAGE_SMOKE_TARGETS :=
+else
+CI_PACKAGE_SMOKE_TARGETS := quick-start
+endif
+
+ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)
 
 ci-conformance-source: native $(STAGE2_COMPILER)
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/source sh tests/native_conformance.sh source
 
-ci-conformance-bytecode: native $(STAGE2_COMPILER)
+ci-conformance-bytecode-check: native $(STAGE2_COMPILER)
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" $(PROFILE) native-conformance/bytecode sh tests/native_conformance.sh bytecode
-	@$(MAKE) --no-print-directory quick-start
+
+ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)
 
 # Bounded source-coverage counters; no production instrumentation or report ABI.
 .PHONY: source-coverage-experiment

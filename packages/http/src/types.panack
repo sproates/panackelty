@@ -1,0 +1,37 @@
+// Shared nominal HTTP data types. The client facade will reuse these types.
+pub record Header {
+  name: Str,
+  value: Str
+}
+
+pub record Request {
+  method: Str,
+  target: Str,
+  headers: [Header],
+  body: Bytes
+}
+
+pub record Response {
+  status: Nat,
+  headers: [Header],
+  body: Bytes
+}
+
+pub enum HttpError {
+  InvalidUrl(Str),
+  InvalidLimits,
+  DnsFailure,
+  ConnectFailure,
+  TlsFailure,
+  Timeout,
+  ProtocolError(Str),
+  LimitExceeded(Str),
+  Cancelled,
+  UnsupportedHost,
+  UnsupportedMethod(Str),
+  UnsupportedVersion(Str),
+  UnsupportedTransferEncoding,
+  InvalidRequest,
+  InvalidResponse,
+  TransportFailure(Str)
+}

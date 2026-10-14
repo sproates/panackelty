@@ -1,0 +1,785 @@
+import project/types::{Header, HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.LimitExceeded,
+  HttpError.InvalidResponse, HttpError.ProtocolError, HttpError.UnsupportedMethod,
+  HttpError.UnsupportedTransferEncoding, HttpError.UnsupportedVersion}
+pub import project/types::{HttpError, Request, Response}
+import stdlib/bytes as byte_buffer
+import stdlib/text as text
+
+record RequestHead {
+  method: Str,
+  target: Str,
+  headers: [Header],
+  body_start: Nat,
+  content_length: Option[Nat],
+  chunked: Bool
+}
+
+record ResponseHead {
+  status: Nat,
+  headers: [Header],
+  body_start: Nat,
+  content_length: Option[Nat],
+  chunked: Bool
+}
+
+record ChunkedBody {
+  body: Bytes,
+  next: Nat
+}
+
+record RequestLine {
+  method: Str,
+  target: Str
+}
+
+pub pure http_header_limit(): Nat { 65536 }
+
+pure byte_length(data: Bytes): Nat { byte_buffer.length(data) }
+pure byte_at(data: Bytes, index: Nat): Nat { byte_buffer.at(data, index) }
+
+pure find_crlf(data: Bytes, start: Nat, limit: Nat): Option[Nat] {
+  mut found: Option[Nat] = None()
+  mut cursor = start
+  while cursor + 1 < limit && found == None() {
+    if byte_at(data, cursor) == 13 && byte_at(data, cursor + 1) == 10 {
+      found = Some(cursor)
+    } else {
+      cursor = cursor + 1
+    }
+  }
+  found
+}
+
+pure find_header_end(data: Bytes): Option[Nat] {
+  mut found: Option[Nat] = None()
+  mut cursor: Nat = 0
+  while cursor + 3 < byte_length(data) && found == None() {
+    if byte_at(data, cursor) == 13 && byte_at(data, cursor + 1) == 10 &&
+        byte_at(data, cursor + 2) == 13 && byte_at(data, cursor + 3) == 10 {
+      found = Some(cursor)
+    } else {
+      cursor = cursor + 1
+    }
+  }
+  found
+}
+
+pure copy_bytes(data: Bytes, start: Nat, end: Nat): Bytes {
+  mut output: Bytes = byte_buffer.empty()
+  mut cursor = start
+  while cursor < end {
+    output = byte_buffer.push(output, byte_at(data, cursor))
+    cursor = cursor + 1
+  }
+  output
+}
+
+pure ascii_text(data: Bytes, start: Nat, end: Nat): Str {
+  text.decode_utf8(copy_bytes(data, start, end))
+}
+
+pure ascii_digit(value: Nat): Bool { value >= 48 && value <= 57 }
+pure ascii_upper(value: Nat): Bool { value >= 65 && value <= 90 }
+pure ascii_lower(value: Nat): Bool { value >= 97 && value <= 122 }
+
+pure token_byte(value: Nat): Bool {
+  ascii_digit(value) || ascii_upper(value) || ascii_lower(value) ||
+    value == 33 || value == 35 || value == 36 || value == 37 || value == 38 ||
+    value == 39 || value == 42 || value == 43 || value == 45 || value == 46 ||
+    value == 94 || value == 95 || value == 96 || value == 124 || value == 126
+}
+
+pure lower_ascii(value: Str): Str {
+  mut output: Bytes = byte_buffer.empty()
+  mut cursor: Nat = 0
+  encoded: Bytes = text.encode_utf8(value)
+  while cursor < byte_length(encoded) {
+    byte: Nat = byte_at(encoded, cursor)
+    output = byte_buffer.push(output, if ascii_upper(byte) { byte + 32 } else { byte })
+    cursor = cursor + 1
+  }
+  text.decode_utf8(output)
+}
+
+pure trim_ows_start(data: Bytes, start: Nat, end: Nat): Nat {
+  mut cursor = start
+  while cursor < end && (byte_at(data, cursor) == 32 || byte_at(data, cursor) == 9) {
+    cursor = cursor + 1
+  }
+  cursor
+}
+
+pure trim_ows_end(data: Bytes, start: Nat, end: Nat): Nat {
+  mut cursor = start
+  mut last_non_ows = start
+  while cursor < end {
+    if byte_at(data, cursor) != 32 && byte_at(data, cursor) != 9 {
+      last_non_ows = cursor + 1
+    }
+    cursor = cursor + 1
+  }
+  last_non_ows
+}
+
+pure parse_header(data: Bytes, start: Nat, end: Nat): Result[Header,HttpError] {
+  if start >= end || byte_at(data, start) == 32 || byte_at(data, start) == 9 {
+    Error(ProtocolError("invalid HTTP header line"))
+  } else {
+    mut colon: Option[Nat] = None()
+    mut cursor = start
+    while cursor < end && colon == None() {
+      if byte_at(data, cursor) == 58 { colon = Some(cursor) }
+      else { cursor = cursor + 1 }
+    }
+    match colon {
+      None() => Error(ProtocolError("HTTP header is missing a colon")),
+      Some(split) => {
+        mut valid_name = split > start
+        mut name_cursor = start
+        while name_cursor < split {
+          if !token_byte(byte_at(data, name_cursor)) { valid_name = false }
+          name_cursor = name_cursor + 1
+        }
+        mut value_cursor = split + 1
+        while value_cursor < end {
+          value_byte: Nat = byte_at(data, value_cursor)
+          if value_byte != 9 && (value_byte < 32 || value_byte > 126) {
+            valid_name = false
+          }
+          value_cursor = value_cursor + 1
+        }
+        if !valid_name {
+          Error(ProtocolError("invalid HTTP header name or value"))
+        } else {
+          value_start: Nat = trim_ows_start(data, split + 1, end)
+          value_end: Nat = trim_ows_end(data, value_start, end)
+          Ok(Header(ascii_text(data, start, split), ascii_text(data, value_start, value_end)))
+        }
+      }
+    }
+  }
+}
+
+pure parse_decimal(data: Bytes, start: Nat, end: Nat, limit: Nat): Result[Nat,HttpError] {
+  if start == end { Error(ProtocolError("empty Content-Length")) }
+  else {
+    mut value: Nat = 0
+    mut cursor = start
+    mut invalid = false
+    mut too_large = false
+    while cursor < end && !too_large {
+      byte: Nat = byte_at(data, cursor)
+      if byte >= 48 {
+        digit: Nat = byte - 48
+        if digit > 9 { invalid = true }
+        else {
+          value = value * 10 + digit
+          if value > limit { too_large = true }
+        }
+      } else {
+        invalid = true
+      }
+      cursor = cursor + 1
+    }
+    if too_large { Error(LimitExceeded("request body")) }
+    else if invalid { Error(ProtocolError("invalid Content-Length")) }
+    else { Ok(value) }
+  }
+}
+
+pure parse_request_line(data: Bytes, end: Nat): Result[RequestLine,HttpError] {
+  mut first: Option[Nat] = None()
+  mut second: Option[Nat] = None()
+  mut cursor: Nat = 0
+  while cursor < end {
+    if byte_at(data, cursor) == 32 {
+      if first == None() { first = Some(cursor) }
+      else if second == None() { second = Some(cursor) }
+      else { second = Some(end + 1) }
+    }
+    cursor = cursor + 1
+  }
+  match first {
+    None() => Error(ProtocolError("invalid HTTP request line")),
+    Some(method_end) => match second {
+      None() => Error(ProtocolError("invalid HTTP request line")),
+      Some(target_end) => if target_end == end + 1 || method_end == 0 || target_end == method_end + 1 ||
+          target_end + 1 >= end {
+        Error(ProtocolError("invalid HTTP request line"))
+      } else {
+        mut method_valid = true
+        mut method_cursor: Nat = 0
+        while method_cursor < method_end {
+          if !token_byte(byte_at(data, method_cursor)) { method_valid = false }
+          method_cursor = method_cursor + 1
+        }
+        mut target_valid = true
+        mut target_cursor = method_end + 1
+        while target_cursor < target_end {
+          byte: Nat = byte_at(data, target_cursor)
+          if byte < 33 || byte > 126 { target_valid = false }
+          target_cursor = target_cursor + 1
+        }
+        mut version_valid = true
+        mut version_cursor = end
+        mut version_dot = false
+        mut version_digit_before_dot = false
+        mut version_digit_after_dot = false
+        mut version_prefix_valid = false
+        if end >= target_end + 6 {
+          version_prefix_valid = byte_at(data, target_end + 1) == 72 &&
+            byte_at(data, target_end + 2) == 84 && byte_at(data, target_end + 3) == 84 &&
+            byte_at(data, target_end + 4) == 80 && byte_at(data, target_end + 5) == 47
+          version_cursor = target_end + 6
+          while version_cursor < end {
+            byte: Nat = byte_at(data, version_cursor)
+            if byte == 46 && !version_dot {
+              version_dot = true
+            } else if byte >= 48 && byte <= 57 {
+              if version_dot { version_digit_after_dot = true }
+              else { version_digit_before_dot = true }
+            } else {
+              version_valid = false
+            }
+            version_cursor = version_cursor + 1
+          }
+        } else {
+          version_valid = false
+        }
+        if !method_valid || !target_valid || !version_valid ||
+            !version_prefix_valid ||
+            !version_dot || !version_digit_before_dot || !version_digit_after_dot {
+          Error(ProtocolError("invalid HTTP request line"))
+        } else if ascii_text(data, target_end + 1, end) != "HTTP/1.1" {
+          Error(UnsupportedVersion(ascii_text(data, target_end + 1, end)))
+        } else {
+          Ok(RequestLine(ascii_text(data, 0, method_end),
+            ascii_text(data, method_end + 1, target_end)))
+        }
+      }
+    }
+  }
+}
+
+pure request_head(data: Bytes, header_end: Nat, body_limit: Nat): Result[RequestHead,HttpError] {
+  match find_crlf(data, 0, header_end + 2) {
+    None() => Error(ProtocolError("invalid HTTP request line")),
+    Some(line_end) => match parse_request_line(data, line_end) {
+      Error(error) => Error(error),
+      Ok(parts) => {
+        method: Str = parts.method
+        target: Str = parts.target
+        mut headers: [Header] = []
+        mut cursor = line_end + 2
+        mut content_length: Option[Nat] = None()
+        mut saw_transfer_encoding = false
+        mut valid_transfer_encoding = false
+        mut host_count: Nat = 0
+        mut failed: Option[HttpError] = None()
+        while cursor < header_end && failed == None() {
+          match find_crlf(data, cursor, header_end + 2) {
+            None() => { failed = Some(ProtocolError("invalid HTTP header terminator")) },
+            Some(end) => match parse_header(data, cursor, end) {
+              Error(error) => { failed = Some(error) },
+              Ok(header) => {
+                name: Str = lower_ascii(header.name)
+                if name == "host" {
+                  host_count = host_count + 1
+                  if header.value == "" { failed = Some(ProtocolError("empty Host header")) }
+                } else if name == "content-length" {
+                  if content_length != None() {
+                    failed = Some(ProtocolError("duplicate Content-Length"))
+                  } else {
+                    match parse_decimal(text.encode_utf8(header.value), 0,
+                        byte_length(text.encode_utf8(header.value)), body_limit) {
+                      Error(error) => { failed = Some(error) },
+                      Ok(length) => { content_length = Some(length) }
+                    }
+                  }
+                } else if name == "transfer-encoding" {
+                  if saw_transfer_encoding {
+                    failed = Some(UnsupportedTransferEncoding())
+                  } else {
+                    saw_transfer_encoding = true
+                    valid_transfer_encoding = lower_ascii(header.value) == "chunked"
+                  }
+                }
+                headers = headers.append(header)
+                cursor = end + 2
+              }
+            }
+          }
+        }
+        if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidRequest()) } }
+        else if host_count != 1 { Error(ProtocolError("HTTP/1.1 requires one Host header")) }
+        else if saw_transfer_encoding && !valid_transfer_encoding { Error(UnsupportedTransferEncoding()) }
+        else if saw_transfer_encoding && content_length != None() {
+          Error(ProtocolError("Transfer-Encoding conflicts with Content-Length"))
+        }
+        else {
+          Ok(RequestHead(method, target, headers, header_end + 4, content_length, saw_transfer_encoding))
+        }
+      }
+    }
+  }
+}
+
+pure skip_chunk_ows(data: Bytes, cursor: Nat, end: Nat): Nat {
+  mut next = cursor
+  while next < end && (byte_at(data, next) == 32 || byte_at(data, next) == 9) {
+    next = next + 1
+  }
+  next
+}
+
+pure chunk_extensions_valid(data: Bytes, start: Nat, end: Nat): Bool {
+  mut cursor = start
+  mut valid = true
+  while cursor < end && valid {
+    if byte_at(data, cursor) != 59 {
+      valid = false
+    } else {
+      cursor = skip_chunk_ows(data, cursor + 1, end)
+      name_start: Nat = cursor
+      while cursor < end && token_byte(byte_at(data, cursor)) {
+        cursor = cursor + 1
+      }
+      if cursor == name_start {
+        valid = false
+      } else {
+        cursor = skip_chunk_ows(data, cursor, end)
+        if cursor < end && byte_at(data, cursor) == 61 {
+          cursor = skip_chunk_ows(data, cursor + 1, end)
+          if cursor < end && byte_at(data, cursor) == 34 {
+            cursor = cursor + 1
+            mut closed = false
+            while cursor < end && !closed && valid {
+              byte: Nat = byte_at(data, cursor)
+              if byte == 34 {
+                closed = true
+                cursor = cursor + 1
+              } else if byte == 92 {
+                cursor = cursor + 1
+                if cursor >= end { valid = false }
+                else {
+                  escaped: Nat = byte_at(data, cursor)
+                  if escaped != 9 && (escaped < 32 || escaped > 126) { valid = false }
+                  cursor = cursor + 1
+                }
+              } else {
+                if byte != 9 && (byte < 32 || byte > 126) { valid = false }
+                cursor = cursor + 1
+              }
+            }
+            if !closed { valid = false }
+          } else {
+            value_start: Nat = cursor
+            while cursor < end && token_byte(byte_at(data, cursor)) {
+              cursor = cursor + 1
+            }
+            if cursor == value_start { valid = false }
+          }
+          cursor = skip_chunk_ows(data, cursor, end)
+        }
+        if cursor < end && byte_at(data, cursor) != 59 { valid = false }
+      }
+    }
+  }
+  valid
+}
+
+pure parse_chunk_size(data: Bytes, start: Nat, end: Nat, remaining: Nat): Result[Nat,HttpError] {
+  mut digit_end = end
+  mut cursor = start
+  mut invalid = false
+  while cursor < end && digit_end == end {
+    if byte_at(data, cursor) == 59 { digit_end = cursor }
+    else { cursor = cursor + 1 }
+  }
+  if digit_end == end { digit_end = end }
+  if digit_end == start { invalid = true }
+  else if digit_end < end && !chunk_extensions_valid(data, digit_end, end) { invalid = true }
+  mut size: Nat = 0
+  cursor = start
+  while cursor < digit_end {
+    byte: Nat = byte_at(data, cursor)
+    digit: Option[Nat] = if byte < 48 { None() }
+      else if byte <= 57 { Some(byte - 48) }
+      else if byte < 65 { None() }
+      else if byte <= 70 { Some(byte - 55) }
+      else if byte < 97 { None() }
+      else if byte <= 102 { Some(byte - 87) }
+      else { None() }
+    match digit {
+      None() => { invalid = true },
+      Some(value) => { size = size * 16 + value }
+    }
+    cursor = cursor + 1
+  }
+  cursor = digit_end
+  while cursor < end {
+    byte: Nat = byte_at(data, cursor)
+    if byte < 32 || byte > 126 { invalid = true }
+    cursor = cursor + 1
+  }
+  if invalid { Error(ProtocolError("invalid chunk size")) }
+  else if size > remaining { Error(LimitExceeded("request body")) }
+  else { Ok(size) }
+}
+
+pure parse_trailers(data: Bytes, start: Nat, eof: Bool, header_bytes: Nat): Result[Option[Nat],HttpError] {
+  mut cursor = start
+  mut trailer_bytes: Nat = 0
+  mut finished = false
+  mut need_more = false
+  mut failed: Option[HttpError] = None()
+  while !finished && !need_more && failed == None() {
+    match find_crlf(data, cursor, byte_length(data)) {
+      None() => { need_more = true },
+      Some(end) => if end == cursor {
+        trailer_bytes = trailer_bytes + 2
+        if header_bytes + trailer_bytes > http_header_limit() {
+          failed = Some(LimitExceeded("request headers and trailers"))
+        }
+        cursor = cursor + 2
+        finished = true
+      } else {
+        mut trailer_cursor = cursor
+        while trailer_cursor < end + 2 {
+          trailer_bytes = trailer_bytes + 1
+          trailer_cursor = trailer_cursor + 1
+        }
+        if header_bytes + trailer_bytes > http_header_limit() {
+          failed = Some(LimitExceeded("request headers and trailers"))
+        } else {
+          match parse_header(data, cursor, end) {
+            Error(error) => { failed = Some(error) },
+            Ok(header) => {
+              name: Str = lower_ascii(header.name)
+              if name == "content-length" || name == "transfer-encoding" || name == "host" {
+                failed = Some(ProtocolError("framing field is not allowed in trailers"))
+              }
+              cursor = end + 2
+            }
+          }
+        }
+      }
+    }
+  }
+  if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidRequest()) } }
+  else if need_more && eof { Error(ProtocolError("truncated chunk trailer")) }
+  else if need_more { Ok(None()) }
+  else if finished { Ok(Some(cursor)) }
+  else { Error(ProtocolError("invalid chunk trailer")) }
+}
+
+pure decode_chunked(data: Bytes, start: Nat, eof: Bool, body_limit: Nat,
+    header_bytes: Nat): Result[Option[ChunkedBody],HttpError] {
+  mut cursor = start
+  mut body: Bytes = byte_buffer.empty()
+  mut need_more = false
+  mut finished = false
+  mut failed: Option[HttpError] = None()
+  while !need_more && !finished && failed == None() {
+    match find_crlf(data, cursor, byte_length(data)) {
+      None() => { need_more = true },
+      Some(line_end) => match parse_chunk_size(data, cursor, line_end, body_limit) {
+        Error(error) => { failed = Some(error) },
+        Ok(size) => {
+          data_start: Nat = line_end + 2
+          if size == 0 {
+            match parse_trailers(data, data_start, eof, header_bytes) {
+              Error(error) => { failed = Some(error) },
+              Ok(trailers) => match trailers {
+                None() => { need_more = true },
+                Some(next) => { cursor = next; finished = true }
+              }
+            }
+          } else if byte_length(body) + size > body_limit {
+            failed = Some(LimitExceeded("request body"))
+          } else if byte_length(data) < data_start + size + 2 {
+            need_more = true
+          } else if byte_at(data, data_start + size) != 13 || byte_at(data, data_start + size + 1) != 10 {
+            failed = Some(ProtocolError("chunk data is missing CRLF"))
+          } else {
+            body = byte_buffer.join(body, copy_bytes(data, data_start, data_start + size))
+            cursor = data_start + size + 2
+          }
+        }
+      }
+    }
+  }
+  if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidRequest()) } }
+  else if need_more && eof { Error(ProtocolError("truncated chunked request body")) }
+  else if need_more { Ok(None()) }
+  else if byte_length(data) > cursor { Error(ProtocolError("extra bytes after HTTP request")) }
+  else if finished { Ok(Some(ChunkedBody(body, cursor))) }
+  else { Error(ProtocolError("invalid chunked request")) }
+}
+
+pub pure parse_request(data: Bytes, eof: Bool, body_limit: Nat): Result[Option[Request],HttpError] {
+  match find_header_end(data) {
+    None() => if byte_length(data) > http_header_limit() {
+      Error(LimitExceeded("request headers"))
+    } else if eof { Error(ProtocolError("incomplete HTTP request headers")) }
+    else { Ok(None()) },
+    Some(header_end) => if header_end + 4 > http_header_limit() {
+      Error(LimitExceeded("request headers"))
+    } else {
+      match request_head(data, header_end, body_limit) {
+        Error(error) => Error(error),
+        Ok(head) => {
+          header_bytes: Nat = header_end + 4
+          match head.content_length {
+            Some(length) => {
+              if byte_length(data) < head.body_start + length {
+                if eof { Error(ProtocolError("truncated HTTP request body")) } else { Ok(None()) }
+              } else if byte_length(data) > head.body_start + length {
+                Error(ProtocolError("extra bytes after HTTP request"))
+              } else if head.method != "GET" && head.method != "POST" {
+                Error(UnsupportedMethod(head.method))
+              } else {
+                Ok(Some(Request(head.method, head.target, head.headers,
+                  copy_bytes(data, head.body_start, byte_length(data)))))
+              }
+            },
+            None() => if head.chunked {
+              match decode_chunked(data, head.body_start, eof, body_limit,
+                  header_bytes) {
+                Error(error) => Error(error),
+                Ok(decoded) => match decoded {
+                  None() => Ok(None()),
+                  Some(chunked) => if head.method != "GET" && head.method != "POST" {
+                    Error(UnsupportedMethod(head.method))
+                  } else {
+                    Ok(Some(Request(head.method, head.target, head.headers, chunked.body)))
+                  }
+                }
+              }
+            } else if byte_length(data) > head.body_start {
+              Error(ProtocolError("request body has no framing"))
+            } else if head.method != "GET" && head.method != "POST" {
+              Error(UnsupportedMethod(head.method))
+            } else {
+              Ok(Some(Request(head.method, head.target, head.headers, byte_buffer.empty())))
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+pure find_header_end_from(data: Bytes, start: Nat): Option[Nat] {
+  mut found: Option[Nat] = None()
+  mut cursor = start
+  while cursor + 3 < byte_length(data) && found == None() {
+    if byte_at(data, cursor) == 13 && byte_at(data, cursor + 1) == 10 &&
+        byte_at(data, cursor + 2) == 13 && byte_at(data, cursor + 3) == 10 {
+      found = Some(cursor)
+    } else { cursor = cursor + 1 }
+  }
+  found
+}
+
+pure parse_response_status(data: Bytes, start: Nat, end: Nat): Result[Nat,HttpError] {
+  supported_version: Bool = end >= start + 12 &&
+    byte_at(data, start + 6) == 46 &&
+    (byte_at(data, start + 7) == 48 || byte_at(data, start + 7) == 49)
+  valid_prefix: Bool = end >= start + 12 &&
+    byte_at(data, start) == 72 && byte_at(data, start + 1) == 84 &&
+    byte_at(data, start + 2) == 84 && byte_at(data, start + 3) == 80 &&
+    byte_at(data, start + 4) == 47 && byte_at(data, start + 5) == 49 &&
+    byte_at(data, start + 8) == 32
+  if !valid_prefix || !supported_version {
+    Error(ProtocolError("invalid HTTP response status line"))
+  } else {
+    first: Nat = byte_at(data, start + 9)
+    second: Nat = byte_at(data, start + 10)
+    third: Nat = byte_at(data, start + 11)
+    mut valid = first >= 48 && first <= 57 && second >= 48 && second <= 57 &&
+      third >= 48 && third <= 57
+    if end > start + 12 && byte_at(data, start + 12) != 32 { valid = false }
+    mut cursor = start + 12
+    while cursor < end {
+      byte: Nat = byte_at(data, cursor)
+      if byte != 9 && (byte < 32 || byte > 126) { valid = false }
+      cursor = cursor + 1
+    }
+    if !valid || first < 48 || first > 57 || second < 48 || second > 57 ||
+        third < 48 || third > 57 {
+      Error(ProtocolError("invalid HTTP response status line"))
+    } else {
+      first_digit: Nat = if first >= 48 { first - 48 } else { 0 }
+      second_digit: Nat = if second >= 48 { second - 48 } else { 0 }
+      third_digit: Nat = if third >= 48 { third - 48 } else { 0 }
+      status: Nat = first_digit * 100 + second_digit * 10 + third_digit
+      if status < 100 || status > 599 { Error(ProtocolError("invalid HTTP response status line")) }
+      else if status == 101 { Error(ProtocolError("protocol upgrades are unsupported")) }
+      else { Ok(status) }
+    }
+  }
+}
+
+pure parse_response_decimal(data: Bytes, start: Nat, end: Nat, limit: Nat): Result[Nat,HttpError] {
+  if start == end { Error(ProtocolError("empty Content-Length")) }
+  else {
+    mut value: Nat = 0
+    mut valid = true
+    mut too_large = false
+    mut cursor = start
+    while cursor < end {
+      byte: Nat = byte_at(data, cursor)
+      if byte >= 48 {
+        digit: Nat = byte - 48
+        if digit > 9 { valid = false }
+        else {
+          value = value * 10 + digit
+          if value > limit { too_large = true }
+        }
+      } else { valid = false }
+      cursor = cursor + 1
+    }
+    if !valid { Error(ProtocolError("invalid Content-Length")) }
+    else if too_large { Error(LimitExceeded("response body")) }
+    else { Ok(value) }
+  }
+}
+
+pure response_head(data: Bytes, offset: Nat, header_end: Nat, body_limit: Nat):
+    Result[ResponseHead,HttpError] {
+  match find_crlf(data, offset, header_end + 2) {
+    None() => Error(ProtocolError("invalid HTTP response status line")),
+    Some(status_end) => match parse_response_status(data, offset, status_end) {
+      Error(error) => Error(error),
+      Ok(status) => {
+        mut headers: [Header] = []
+        mut content_length: Option[Nat] = None()
+        mut saw_transfer_encoding = false
+        mut valid_transfer_encoding = false
+        mut failed: Option[HttpError] = None()
+        mut cursor = status_end + 2
+        while cursor < header_end && failed == None() {
+          match find_crlf(data, cursor, header_end + 2) {
+            None() => { failed = Some(ProtocolError("invalid HTTP header terminator")) },
+            Some(end) => match parse_header(data, cursor, end) {
+              Error(error) => { failed = Some(error) },
+              Ok(header) => {
+                name: Str = lower_ascii(header.name)
+                if name == "content-length" {
+                  if content_length != None() {
+                    failed = Some(ProtocolError("duplicate Content-Length"))
+                  } else {
+                    value: Bytes = text.encode_utf8(header.value)
+                    match parse_response_decimal(value, 0, byte_length(value), body_limit) {
+                      Error(error) => { failed = Some(error) },
+                      Ok(length) => { content_length = Some(length) }
+                    }
+                  }
+                } else if name == "transfer-encoding" {
+                  if saw_transfer_encoding { failed = Some(UnsupportedTransferEncoding()) }
+                  else {
+                    saw_transfer_encoding = true
+                    valid_transfer_encoding = lower_ascii(header.value) == "chunked"
+                  }
+                }
+                headers = headers.append(header)
+                cursor = end + 2
+              }
+            }
+          }
+        }
+        if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidResponse()) } }
+        else if saw_transfer_encoding && !valid_transfer_encoding { Error(UnsupportedTransferEncoding()) }
+        else if saw_transfer_encoding && content_length != None() {
+          Error(ProtocolError("Transfer-Encoding conflicts with Content-Length"))
+        } else {
+          Ok(ResponseHead(status, headers, header_end + 4, content_length, saw_transfer_encoding))
+        }
+      }
+    }
+  }
+}
+
+pub pure parse_response(data: Bytes, header_limit: Nat, body_limit: Nat): Result[Response,HttpError] {
+  if header_limit == 0 || header_limit > http_header_limit() || body_limit == 0 ||
+      body_limit > 1048576 {
+    Error(InvalidLimits())
+  } else {
+    mut cursor: Nat = 0
+    mut informationals: Nat = 0
+    mut header_bytes: Nat = 0
+    mut final_head: Option[ResponseHead] = None()
+    mut failed: Option[HttpError] = None()
+    mut seeking_final = true
+    while seeking_final && failed == None() {
+      match find_header_end_from(data, cursor) {
+        None() => { failed = Some(if byte_length(data) > header_limit {
+          LimitExceeded("response headers and trailers")
+        } else { ProtocolError("incomplete HTTP response headers") }) },
+        Some(header_end) => {
+          mut section_bytes: Nat = 0
+          mut section_cursor: Nat = cursor
+          while section_cursor < header_end + 4 {
+            section_bytes = section_bytes + 1
+            section_cursor = section_cursor + 1
+          }
+          header_bytes = header_bytes + section_bytes
+          if header_bytes > header_limit { failed = Some(LimitExceeded("response headers and trailers")) }
+          else {
+            match response_head(data, cursor, header_end, body_limit) {
+              Error(error) => { failed = Some(error) },
+              Ok(head) => if head.status < 200 {
+                informationals = informationals + 1
+                if informationals > 8 { failed = Some(LimitExceeded("informational responses")) }
+                else { cursor = head.body_start }
+              } else {
+                final_head = Some(head)
+                seeking_final = false
+              }
+            }
+          }
+        }
+      }
+    }
+    if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidResponse()) } }
+    else { match final_head {
+      None() => Error(ProtocolError("missing final HTTP response")),
+      Some(head) => {
+        mut remaining: Nat = 0
+        mut body_cursor: Nat = head.body_start
+        while body_cursor < byte_length(data) {
+          remaining = remaining + 1
+          body_cursor = body_cursor + 1
+        }
+        if head.status == 204 || head.status == 205 || head.status == 304 {
+          if remaining != 0 { Error(ProtocolError("body forbidden for this HTTP status")) }
+          else { Ok(Response(head.status, head.headers, byte_buffer.empty())) }
+        } else {
+          match head.content_length {
+            Some(length) => if remaining < length {
+              Error(ProtocolError("truncated HTTP response body"))
+            } else if remaining > length {
+              Error(ProtocolError("extra bytes after HTTP response"))
+            } else {
+              Ok(Response(head.status, head.headers, copy_bytes(data, head.body_start, byte_length(data))))
+            },
+            None() => if head.chunked {
+              match decode_chunked(data, head.body_start, true, body_limit, header_bytes) {
+                Error(error) => Error(error),
+                Ok(decoded) => match decoded {
+                  None() => Error(ProtocolError("truncated chunked HTTP response body")),
+                  Some(body) => Ok(Response(head.status, head.headers, body.body))
+                }
+              }
+            } else if remaining > body_limit {
+              Error(LimitExceeded("response body"))
+            } else {
+              Ok(Response(head.status, head.headers, copy_bytes(data, head.body_start, byte_length(data))))
+            }
+          }
+        }
+      }
+    }}
+  }
+}

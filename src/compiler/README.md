@@ -115,7 +115,9 @@ documented in `../../docs/SOURCE_MAPS.md`.
   prepares contracts across the graph before binding staged function bodies;
   ordinary legacy projects skip both passes. Graph scans are not yet indexed.
 - `module_bodies.panack` retains structural bodies with original declaration/core
-  targets, lexical binder paths, source spans and tagged local/callable types.
+  targets, lexical binder paths, source spans and tagged local/callable types. The
+  explicit explanation load can also retain proof-bearing guarded conversions;
+  ordinary body checking leaves that evidence empty.
   It checks literal/local/annotation/direct-call/explicit-generic/return types,
   scalar operators, control flow, arrays, record/variant construction, fields,
   exhaustive variant patterns, inferred generic functions and known iterable/index types.
@@ -198,8 +200,11 @@ documented in `../../docs/SOURCE_MAPS.md`.
   bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
   [source-map contract](../../docs/SOURCE_MAPS.md).
-- `explanations.panack` presents opt-in subtraction decisions and guard origins
-  retained by the checker, using loaded source snapshots. See the
+- `explanations.panack` presents opt-in inferred-local types, array/conditional/
+  match type joins, subtraction decisions, guarded-conversion proofs and effect boundaries retained by the
+  checker, using loaded source snapshots. Inferred locals show the checked
+  initializer type and source expression; incomplete types remain unavailable.
+  See the
   [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
 - `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
   `explain` for source and version-9 bytecode. Staged checked programs use

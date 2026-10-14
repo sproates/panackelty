@@ -56,12 +56,326 @@ main(): Void {
       mut results: [TestResult] = []
       original: Str = "import project/library as library\nmain(): Void { print(library.remaining[Str](\"x\", 5)); print(library.remaining[Nat](7, 4)); }\n"
       explain_write(source, original)
+      explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void { greeting = \"hello\"; echoed = identity(\"generic\"); explicit: Str = \"annotated\"; }\nmain(): Void {}\n")
+      results = append(results, explain_run("inferred locals report initializer evidence", ["explain", source, "--function", "probe"], 0,
+        ["inferred locals:", "inferred local: greeting", "expression: \"hello\"", "initializer type: Str", "inferred type: Str", "inferred local: echoed", "expression: identity(\"generic\")", "checked initializer type determines this local type"], ["inferred local: explicit"], ""))
+      explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void {\n  answer = identity(\"typed\");\n}\nmain(): Void {}\n")
+      results = append(results, explain_run("type-at selects the smallest checked expression", ["explain", source, "--function", "probe", "--type-at", "3", "23"], 0,
+        ["checked expression type: Str", "source: project/main.panack:3:21-3:28\nexpression: \"typed\"", "type retained from the checked expression"], [], ""))
+      results = append(results, explain_run("type-at reports the containing generic call type", ["explain", source, "--function", "probe", "--type-at", "3", "12"], 0,
+        ["checked expression type: Str", "source: project/main.panack:3:12-3:29\nexpression: identity(\"typed\")"], [], ""))
+      results = append(results, explain_run("type-at reports no expression at unrelated location", ["explain", source, "--function", "probe", "--type-at", "1", "1"], 0,
+        ["checked expression type: unavailable", "no checked expression covers this source location"], [], ""))
+      results = append(results, explain_run("type-at rejects a zero line", ["explain", source, "--function", "probe", "--type-at", "0", "23"], 1,
+        [], [], "line and column must be positive decimal numbers"))
+      explain_write(source, "pure returns(): Nat { 5 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted function return type cites checked result", ["explain", source, "--function", "returns"], 0,
+        ["return type: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with its declared return type"], [], ""))
+      explain_write(source, "pure returns(): Nat { \"wrong\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected function return explains actual and expected types", ["explain", source, "--function", "returns"], 1,
+        ["return type: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with its declared return type"], [], "function returns returns Str, expected Nat"))
+      explain_write(source, "pure returns(): Nat { missing }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved function return is explicitly unavailable", ["explain", source, "--function", "returns"], 1,
+        ["return type: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete function result type"], [], "unknown name missing"))
+      explain_write(source, "pure take[T](value: T): T { value }\npure caller(): Str { take(\"typed\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted direct call argument cites checked types", ["explain", source, "--function", "caller"], 0,
+        ["call argument 1 to take: accepted", "expression: \"typed\"", "actual type: Str", "expected type: Str", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure take(value: Nat): Nat { value }\npure caller(): Nat { take(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected direct call argument explains type mismatch", ["explain", source, "--function", "caller"], 1,
+        ["call argument 1 to take: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the expected type"], [], "expected Nat"))
+      explain_write(source, "pure take(value: Nat): Nat { value }\npure caller(): Nat { take(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved direct call argument is explicitly unavailable", ["explain", source, "--function", "caller"], 1,
+        ["call argument 1 to take: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Str { reverse(\"text\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted text builtin argument cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to reverse: accepted", "expression: \"text\"", "actual type: Str", "expected type: Str", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure probe(): Str { reverse(5) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected text builtin argument explains type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to reverse: rejected", "source: project/main.panack:1:29-1:30", "expression: 5", "actual type: Nat", "expected type: Str", "incompatible with the expected type"], [], "argument 1 to reverse is Nat, expected Str"))
+      explain_write(source, "pure probe(): Bytes { byte_append(bytes(), missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved bytes builtin argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to byte_append: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Bytes { byte_append(bytes(), \"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected bytes builtin argument explains type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to byte_append: rejected", "source: project/main.panack:1:44-1:51", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the expected type"], [], "argument 2 to byte_append is Str, expected Nat"))
+      explain_write(source, "pure probe(): Bytes { byte_append(bytes(), 65) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted bytes builtin arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to byte_append: accepted", "expression: bytes()", "actual type: Bytes", "expected type: Bytes", "call argument 2 to byte_append: accepted", "source: project/main.panack:1:44-1:46", "expression: 65", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): Nat { nat(1/2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted rational conversion argument cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to nat: accepted", "actual type: Rat", "expected type: Rat", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure probe(): Dec { dec(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected rational conversion argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to dec: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Rat", "incompatible with the expected type"], [], "argument 1 to dec is Str, expected Rat"))
+      explain_write(source, "pure probe(): Nat { nat_from_str(\"42\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted numeric parser argument cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to nat_from_str: accepted", "actual type: Str", "expected type: Str", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure probe(): Nat { quotient(missing, 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved quotient argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to quotient: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "call argument 2 to quotient: accepted"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Nat { quotient(7, 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted quotient arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to quotient: accepted", "expression: 7", "actual type: Nat", "expected type: Nat", "call argument 2 to quotient: accepted", "expression: 2", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): [Nat] { append([1], 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted collection append item cites checked type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to append: accepted", "expression: 2", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure probe(): [Str] { [1].map(@format) }; pure format(value: Nat): Str { \"x\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted map callback contract explains purity, input and result", ["explain", source, "--function", "probe"], 0,
+        ["array_map callback contract: accepted", "callback type: PureFn[Nat,Str]", "expected callback parameter types: [Nat]", "callback result type: Str", "expected callback result: any non-Void value", "accepted the callback's purity, arity, parameter types and result constraint"], [], ""))
+      explain_write(source, "pure probe(): Nat { [1].reduce(0, @bad_sum) }; pure bad_sum(total: Nat, value: Nat): Str { \"bad\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected reduce callback explains result accumulator mismatch", ["explain", source, "--function", "probe"], 1,
+        ["array_reduce callback contract: rejected", "callback type: PureFn[Nat,Nat,Str]", "expected callback parameter types: [Nat, Nat]", "callback result type: Str", "expected callback result: Nat", "rejected at least one callback contract requirement"], [], "reduce callback must have type"))
+      explain_write(source, "pure probe(): [Nat] { [1].map(@ordinary) }; ordinary(value: Nat): Nat { value }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected map callback explains effect requirement", ["explain", source, "--function", "probe"], 1,
+        ["array_map callback contract: rejected", "callback type: Fn[Nat,Nat]", "expected callback parameter types: [Nat]", "checker rejected at least one callback contract requirement"], [], "requires a pure callable"))
+      explain_write(source, "pure probe(): [Nat] { [1].map(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unavailable map callback contract reports missing type", ["explain", source, "--function", "probe"], 1,
+        ["array_map callback contract: unavailable", "callback type: unavailable", "expected callback parameter types: [Nat]", "callback result type: unavailable", "did not determine a complete callback contract"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): [Nat] { append([1], \"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected collection append item explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to append: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the expected type"], [], "cannot append Str to Array[Nat]"))
+      explain_write(source, "pure probe(): Map[Str,Nat] { values: Map[Str,Nat] = map(); values.put(\"key\", 1); values }\nmain(): Void {}\n")
+      results = append(results, explain_run("map method reports key and value checks", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to map_put: accepted", "expression: \"key\"", "actual type: Str", "expected type: Str", "call argument 3 to map_put: accepted", "expression: 1", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): Map[Str,Nat] { values: Map[Str,Nat] = map(); map_put(values, \"key\", \"wrong\"); values }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected map value retains independent key check", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to map_put: accepted", "call argument 3 to map_put: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat"], [], "cannot store Str in Map[Str,Nat]"))
+      explain_write(source, "pure probe(): Bool { values: Map[Str,Nat] = map(); map_has(values, \"key\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted map lookup cites checked key type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to map_has: accepted", "expression: \"key\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "pure probe(): Nat { values: Map[Str,Nat] = map(); map_get(values, \"key\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted map get cites checked key type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to map_get: accepted", "expression: \"key\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "pure probe(): Bool { values: Set[Nat] = set(); values.has(\"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected set method lookup explains item mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to has: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat"], [], "invalid set element type Str"))
+      explain_write(source, "pure probe(): Bool { values: Set[Nat] = set(); set_has(values, 1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted set lookup cites checked item type", ["explain", source, "--function", "probe"], 0,
+        ["call argument 2 to set_has: accepted", "expression: 1", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "pure probe(): Set[Nat] { values: Set[Nat] = set(); set_add(values, missing); values }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved set item is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 2 to set_add: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Str { path_join(\"parent\", \"child\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted path arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to path_join: accepted", "expression: \"parent\"", "actual type: Str", "expected type: Str", "call argument 2 to path_join: accepted", "expression: \"child\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "pure probe(): Str { path_join(\"wrong\", 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected path argument preserves its accepted sibling", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to path_join: accepted", "actual type: Str", "expected type: Str", "call argument 2 to path_join: rejected", "expression: 2", "actual type: Nat", "expected type: Str"], [], "path_join"))
+      explain_write(source, "pure probe(): Str { path_join(missing, \"child\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved path argument is unavailable while its sibling is accepted", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to path_join: unavailable", "expression: missing", "actual type: unavailable", "expected type: Str", "call argument 2 to path_join: accepted", "actual type: Str", "expected type: Str"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Void { path_from_native(bytes()); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted native path conversion reports byte argument", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to path_from_native: accepted", "expression: bytes()", "actual type: Bytes", "expected type: Bytes"], [], ""))
+      explain_write(source, "pure probe(): Void { path_append(path_current(), path_current()); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted typed path append reports Path arguments", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to path_append: accepted", "actual type: Path", "expected type: Path", "call argument 2 to path_append: accepted", "actual type: Path", "expected type: Path"], [], ""))
+      explain_write(library, "pub pure probe[T](tag: T, value: Str): Void { path_from_text(value); }\n")
+      explain_write(source, "import project/library as library\nmain(): Void { library.probe[Str](\"tag\", \"path\"); }\n")
+      results = append(results, explain_run("imported generic path argument keeps definition source", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to path_from_text: accepted", "source: project/library.panack:1:", "expression: value", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "probe(): Void { environment_has(\"ONE\"); environment_get(\"TWO\"); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted environment arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to environment_has: accepted", "expression: \"ONE\"", "actual type: Str", "expected type: Str", "call argument 1 to environment_get: accepted", "expression: \"TWO\"", "actual type: Str", "expected type: Str"], [], ""))
+      explain_write(source, "probe(): Bool { environment_has(2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected environment argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to environment_has: rejected", "expression: 2", "actual type: Nat", "expected type: Str", "incompatible with the expected type"], [], "environment_has"))
+      explain_write(source, "probe(): Str { environment_get(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved environment argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to environment_get: unavailable", "expression: missing", "actual type: unavailable", "expected type: Str", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(duration: Duration, instant: Instant, integer: Int, rational: Rat): Bool { duration_nanoseconds(integer); duration_ticks(duration); duration_from_seconds(rational); instant_add(instant, duration); instant_difference(instant, instant); instant_before(instant, instant) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted time arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to duration_nanoseconds: accepted", "expression: integer", "actual type: Int", "expected type: Int", "call argument 1 to duration_ticks: accepted", "expression: duration", "actual type: Duration", "expected type: Duration", "call argument 1 to duration_from_seconds: accepted", "expression: rational", "actual type: Rat", "expected type: Rat", "call argument 1 to instant_add: accepted", "expected type: Instant", "call argument 2 to instant_add: accepted", "expected type: Duration", "call argument 1 to instant_difference: accepted", "call argument 2 to instant_difference: accepted", "call argument 1 to instant_before: accepted", "call argument 2 to instant_before: accepted"], [], ""))
+      explain_write(source, "probe(): Int { duration_ticks(\"bad\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected time argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to duration_ticks: rejected", "expression: \"bad\"", "actual type: Str", "expected type: Duration", "incompatible with the expected type"], [], "duration_ticks"))
+      explain_write(source, "probe(): Int { duration_ticks(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved time argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to duration_ticks: unavailable", "expression: missing", "actual type: unavailable", "expected type: Duration", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(path: Path, limit: Nat, content: Bytes): Void { fs_read(path, limit); fs_write(path, content); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted filesystem IO arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_read: accepted", "expression: path", "actual type: Path", "expected type: Path", "call argument 2 to fs_read: accepted", "expression: limit", "actual type: Nat", "expected type: Nat", "call argument 1 to fs_write: accepted", "expression: path", "call argument 2 to fs_write: accepted", "actual type: Bytes", "expected type: Bytes"], [], ""))
+      explain_write(source, "probe(): Void { fs_read(\"path\", 1); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected filesystem IO argument preserves sibling", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read: rejected", "expression: \"path\"", "actual type: Str", "expected type: Path", "call argument 2 to fs_read: accepted", "actual type: Nat", "expected type: Nat"], [], "fs_read"))
+      explain_write(source, "probe(): Void { fs_read(missing, 1); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved filesystem IO argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_read: accepted", "expected type: Nat"], [], "unknown name missing"))
+      explain_write(source, "probe(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(root, relative, limit); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted rooted filesystem read arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_read_beneath: accepted", "expression: root", "actual type: Path", "expected type: Path", "call argument 2 to fs_read_beneath: accepted", "expression: relative", "actual type: Path", "expected type: Path", "call argument 3 to fs_read_beneath: accepted", "expression: limit", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "probe(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(\"root\", relative, limit); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected rooted filesystem read argument preserves siblings", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read_beneath: rejected", "expression: \"root\"", "actual type: Str", "expected type: Path", "call argument 2 to fs_read_beneath: accepted", "actual type: Path", "expected type: Path", "call argument 3 to fs_read_beneath: accepted", "actual type: Nat", "expected type: Nat"], [], "fs_read_beneath"))
+      explain_write(source, "probe(root: Path, relative: Path, limit: Nat): Void { fs_read_beneath(missing, relative, limit); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved rooted filesystem read argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_read_beneath: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_read_beneath: accepted", "actual type: Path", "expected type: Path", "call argument 3 to fs_read_beneath: accepted", "actual type: Nat", "expected type: Nat"], [], "unknown name missing"))
+      explain_write(source, "probe(path: Path): Void { fs_metadata(path); fs_list(path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted filesystem query arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_metadata: accepted", "expression: path", "actual type: Path", "expected type: Path", "call argument 1 to fs_list: accepted", "expression: path", "actual type: Path", "expected type: Path"], [], ""))
+      explain_write(source, "probe(): Void { fs_metadata(\"path\"); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected filesystem query argument explains mismatch", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_metadata: rejected", "expression: \"path\"", "actual type: Str", "expected type: Path", "incompatible with the expected type"], [], "fs_metadata"))
+      explain_write(source, "probe(): Void { fs_list(missing); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved filesystem query argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_list: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "did not determine a complete argument type"], [], "unknown name missing"))
+      explain_write(source, "probe(path: Path, other: Path): Void { fs_directories_overlap(path, other); fs_create_directory(path); fs_remove_file(path); fs_remove_directory(path); fs_temp_file(path); fs_temp_directory(path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted filesystem path arguments cite checked types", ["explain", source, "--function", "probe"], 0,
+        ["call argument 1 to fs_directories_overlap: accepted", "actual type: Path", "expected type: Path", "call argument 2 to fs_directories_overlap: accepted", "call argument 1 to fs_create_directory: accepted", "call argument 1 to fs_remove_file: accepted", "call argument 1 to fs_remove_directory: accepted", "call argument 1 to fs_temp_file: accepted", "call argument 1 to fs_temp_directory: accepted"], [], ""))
+      explain_write(source, "probe(path: Path): Void { fs_directories_overlap(\"root\", path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected filesystem path argument preserves sibling", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_directories_overlap: rejected", "expression: \"root\"", "actual type: Str", "expected type: Path", "call argument 2 to fs_directories_overlap: accepted", "actual type: Path", "expected type: Path"], [], "fs_directories_overlap"))
+      explain_write(source, "probe(path: Path): Void { fs_directories_overlap(missing, path); }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved filesystem path argument is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["call argument 1 to fs_directories_overlap: unavailable", "expression: missing", "actual type: unavailable", "expected type: Path", "call argument 2 to fs_directories_overlap: accepted", "actual type: Path", "expected type: Path"], [], "unknown name missing"))
+      explain_write(source, "probe(): Void { value: Nat = 5; }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted annotated local cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["annotated local value initializer: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the annotated local type"], [], ""))
+      explain_write(source, "probe(): Void { value: Nat = \"wrong\"; }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected annotated local explains type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["annotated local value initializer: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the annotated local type"], [], "cannot assign Str to Nat"))
+      explain_write(source, "probe(): Void { value: Nat = missing; }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved annotated local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["annotated local value initializer: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete initializer type"], [], "unknown name missing"))
+      explain_write(source, "probe(): Nat { mut value: Nat = 0; value = 5; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted assignment value cites checked types", ["explain", source, "--function", "probe"], 0,
+        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat", "compatible with the local type"], [], ""))
+      explain_write(source, "probe(): Nat { value: Nat = 0; value = 5; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("type-compatible value remains separately rejected for immutability", ["explain", source, "--function", "probe"], 1,
+        ["assignment value compatibility for value: accepted", "expression: 5", "actual type: Nat", "expected type: Nat"], [], "cannot assign to immutable local value"))
+      explain_write(source, "probe(): Nat { mut value: Nat = 0; value = \"wrong\"; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected assignment value explains type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["assignment value compatibility for value: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the local type"], [], "cannot assign Str to Nat"))
+      explain_write(source, "probe(): Nat { mut value: Nat = 0; value = missing; value }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved assignment value is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["assignment value compatibility for value: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete value or target type"], [], "unknown name missing"))
+      explain_write(source, "probe(): [Int] { [1, -2] }\nmain(): Void {}\n")
+      results = append(results, explain_run("array element join explains inferred collection type", ["explain", source, "--function", "probe"], 0,
+        ["checked type joins:", "checked type join: accepted", "context: array element type", "input types: Nat and Int", "resulting type: Int", "checker combined these input types"], [], ""))
+      explain_write(source, "probe(): [Nat] { concat([1], [2]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("array concatenation explains its element type join", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: array concatenation", "input types: Nat and Nat", "resulting type: Nat", "checker combined these input types"], [], ""))
+      explain_write(source, "probe(): [Nat] { concat([1], [\"wrong\"]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected array concatenation join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: array concatenation", "input types: Nat and Str", "resulting type: unavailable", "checker rejected these incompatible input types"], [], "cannot concatenate Array[Nat] and Array[Str]"))
+      explain_write(source, "probe(): [Nat] { concat([1], [missing]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unavailable array concatenation join reports unresolved type", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: array concatenation", "input types: Nat and unavailable", "resulting type: unavailable", "did not determine a complete join"], [], "unknown name missing"))
+      explain_write(source, "probe(): [Nat] { [1, \"wrong\"] }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected array element join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: array element type", "input types: Nat and Str", "resulting type: unavailable", "checker rejected these incompatible input types"], [], "array elements have incompatible types Nat and Str"))
+      explain_write(source, "probe(flag: Bool): Int { if flag { 1 } else { -2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("conditional result explains the combined type", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: conditional result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "enum Choice { First, Second }\nprobe(value: Choice): Int { match value { First() => 1, Second() => -2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("match arms explain the combined type", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: match result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, -2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("generic calls explain repeated type parameter joins", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: generic parameter T for combine", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Nat { combine(1, \"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected generic inference join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: generic parameter T for combine", "input types: Nat and Str", "resulting type: unavailable"], [], "incompatible type arguments to combine"))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, 3 / 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved generic inference join is explicit", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: generic parameter T for combine", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "argument 2 to combine is Rat, expected Int"))
+      explain_write(source, "probe(): Int { 1 + -2 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted binary operator explains operand and result types", ["explain", source, "--function", "probe"], 0,
+        ["operator type checks:", "operator type check: accepted", "operator: +", "left operand type: Nat", "right operand type: Int", "resulting expression type: Int"], [], ""))
+      explain_write(source, "probe(): Int { -1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted unary operator marks right operand not applicable", ["explain", source, "--function", "probe"], 0,
+        ["operator type check: accepted", "operator: -", "left operand type: Nat", "right operand: not applicable", "resulting expression type: Int"], [], ""))
+      explain_write(source, "probe(): Nat { 1 + \"wrong\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected operator explains operand type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["operator type check: rejected", "operator: +", "left operand type: Nat", "right operand type: Str", "resulting expression type: unavailable"], [], "operator + does not accept Nat and Str"))
+      explain_write(source, "probe(): Nat { missing + 1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved operator operand is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["operator type check: unavailable", "operator: +", "left operand type: unavailable", "right operand type: Nat", "resulting expression type: unavailable", "did not determine the required operand types"], [], "unknown name missing"))
+      explain_write(source, "probe(values: [Nat], position: Nat): Nat { values[position] }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted index explains receiver and position types", ["explain", source, "--function", "probe"], 0,
+        ["checked type requirements:", "checked type requirement: accepted", "context: index receiver", "actual type: Array[Nat]", "expected type: Str, Bytes or Array[T]", "resulting type: Nat", "context: index position", "actual type: Nat", "expected type: Nat", "resulting type: not applicable"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { value[0] }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected index receiver preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: index receiver", "checked type requirement: rejected", "expression: value", "actual type: Nat", "expected type: Str, Bytes or Array[T]"], [], "indexing requires Str, Bytes, or an array, got Nat"))
+      explain_write(source, "probe(values: [Nat], position: Str): Nat { values[position] }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected index position preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: index position", "checked type requirement: rejected", "expression: position", "actual type: Str", "expected type: Nat"], [], "index must be Nat, got Str"))
+      explain_write(source, "probe(): Nat { missing[0] }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved index receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: index receiver", "checked type requirement: unavailable", "actual type: unavailable", "expected type: Str, Bytes or Array[T]", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "probe(): Nat { for item in [1, 2] { item }; 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted array iteration explains its item type", ["explain", source, "--function", "probe"], 0,
+        ["checked type requirements:", "checked type requirement: accepted", "context: for iterable", "actual type: Array[Nat]", "expected type: Range, Bytes or Array[T]", "resulting type: Nat"], [], ""))
+      explain_write(source, "probe(): Nat { for item in true { 0 }; 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected iteration source preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: for iterable", "checked type requirement: rejected", "expression: true", "actual type: Bool", "expected type: Range, Bytes or Array[T]"], [], "for requires a Range or array, got Bool"))
+      explain_write(source, "probe(): Nat { for item in missing { 0 }; 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved iteration source is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: for iterable", "checked type requirement: unavailable", "actual type: unavailable", "expected type: Range, Bytes or Array[T]", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "probe(flag: Bool): Nat { if flag { 1 } else { 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted if condition explains its Bool requirement", ["explain", source, "--function", "probe"], 0,
+        ["context: if condition", "checked type requirement: accepted", "actual type: Bool", "expected type: Bool", "resulting type: not applicable"], [], ""))
+      explain_write(source, "probe(): Nat { if 1 { 1 } else { 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected if condition preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: if condition", "checked type requirement: rejected", "actual type: Nat", "expected type: Bool"], [], "if condition must be Bool"))
+      explain_write(source, "probe(): Nat { if missing { 1 } else { 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved if condition is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: if condition", "checked type requirement: unavailable", "actual type: unavailable", "expected type: Bool", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "probe(flag: Bool): Void { while flag {} }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted while condition explains its Bool requirement", ["explain", source, "--function", "probe"], 0,
+        ["context: while condition", "checked type requirement: accepted", "actual type: Bool", "expected type: Bool", "resulting type: not applicable"], [], ""))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("valid match variant remains accepted when match is non-exhaustive", ["explain", source, "--function", "probe"], 1,
+        ["program: rejected", "context: match variant", "checked type requirement: accepted", "expression: First()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice", "resulting type: not applicable"], [], "non-exhaustive match; missing Second"))
+      explain_write(source, "enum Choice { First }; enum Other { Second }; probe(value: Choice): Nat { match value { Second() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("wrong match variant explains enum membership rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match variant", "checked type requirement: rejected", "expression: Second()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice"], [], "Second is not a variant of Choice"))
+      explain_write(source, "enum Choice { First }; probe(): Nat { match missing { First() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved match subject leaves variant membership unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: match variant", "checked type requirement: unavailable", "actual type: unavailable", "expected type: variant of the matched enum", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "record Box[T] { value: T }; probe(box: Box[Nat]): Nat { box.value }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted generic record field explains receiver and result types", ["explain", source, "--function", "probe"], 0,
+        ["context: field access", "checked type requirement: accepted", "actual type: main.panack:Box[Nat]", "expected type: record with field value", "resulting type: Nat"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { value.value }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected non-record field receiver preserves diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: field access", "checked type requirement: rejected", "actual type: Nat", "expected type: record with field value"], [], "field access requires a record, got Nat"))
+      explain_write(source, "record Box { value: Nat }; probe(): Nat { missing.value }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved field receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: field access", "checked type requirement: unavailable", "actual type: unavailable", "expected type: record with field value", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))
+      explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
+      results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))
+      results = append(results, explain_run("type-at does not explain an invalid body", ["explain", source, "--function", "probe", "--type-at", "1", "30"], 1,
+        ["checked expression type: unavailable", "function body type checking did not complete"], [], "cannot infer"))
+      explain_write(source, original)
       explain_write(library, "// λ🙂\npub pure remaining[T](item: T, n: Nat): Nat {\n  if n >= 2 { n - 2 } else { 0 }\n}\n")
       results = append(results, explain_run("imported generic proof", ["explain", source, "--function", "remaining"], 0,
         ["program: accepted", "function: remaining", "subtraction: proved", "source: project/library.panack:3:15-3:20\nexpression: n - 2", "left lower bound: 2", "guard branch: true\nsource: project/library.panack:3:6-3:12\nexpression: n >= 2"], ["subtraction: unproved"], ""))
+      results = append(results, explain_run("type-at preserves imported generic expression source", ["explain", source, "--function", "remaining", "--type-at", "3", "17"], 0,
+        ["checked expression type: Nat", "source: project/library.panack:3:15-3:20\nexpression: n - 2"], [], ""))
+      explain_write(library, "pub type Positive = Nat where value > 0\npub pure inspect[T](tag: T, value: Nat): Void {\n  if value > 0 { positive: Positive = value; }\n}\n")
+      explain_write(source, "import project/library as library\nmain(): Void { library.inspect[Str](\"tag\", 2); }\n")
+      results = append(results, explain_run("imported generic guarded conversion attribution", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversion: proved", "source: project/library.panack:3:", "conversion: Nat -> library.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\ntype NonNegative = Nat where value >= 0\npure inspect(value: Nat): Void { if value > 0 { positive: Positive = value; } }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded conversion cites local branch facts", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversions:", "guarded conversion: proved", "conversion: Nat -> main.panack:Positive", "target guard: (value > 0)", "facts: value >= 1", "retained value facts satisfy the target guard"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\ntype NonNegative = Nat where value >= 0\npure inspect(value: Positive): Void { broad: NonNegative = value; }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded source proves a broader guarded target", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversion: proved", "conversion: main.panack:Positive -> main.panack:NonNegative", "source guard: (value > 0)", "target guard: (value >= 0)", "facts: value >= 1"], ["guarded conversion: unproved"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\npure inspect(): Positive { 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected guarded conversion explains missing proof", ["explain", source, "--function", "inspect"], 1,
+        ["program: rejected", "guarded conversion: unproved", "source: project/main.panack:2:", "expression: 0", "conversion: Nat -> main.panack:Positive", "facts: value >= 0 and value <= 0", "do not prove the target guard"], [], "function inspect returns Nat, expected Positive"))
+      explain_write(source, "type Positive = Nat where value > 0\npure inspect(value: Positive): Nat { value }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded to base widening has no proof conversion", ["explain", source, "--function", "inspect"], 0,
+        ["guarded conversions: none"], ["guarded conversion:"], ""))
       results = append(results, explain_run("query does not execute main", ["explain", source, "--function", "main"], 0,
         ["subtraction: unavailable", "no subtraction evidence"], ["\n3\n", "\n2\n"], ""))
       results = append(results, explain_run("unknown function", ["explain", source, "--function", "absent"], 1, [], [], "unknown function absent"))
+      explain_write(source, "main(): Void { print(3); print(2); }\n")
       results = append(results, explain_run("ordinary source executes", [source], 0, ["3\n2\n"], ["program:"], ""))
       results = append(results, explain_run("ordinary compile", ["compile", source, "-o", artifact], 0, ["wrote "], [], ""))
       results = append(results, explain_run("ordinary bytecode executes", [artifact], 0, ["3\n2\n"], ["program:"], ""))
@@ -70,7 +384,7 @@ main(): Void {
         ["program: rejected", "subtraction: unproved", "does not establish a runtime failure"], ["left lower bound", "guard branch"], "Nat subtraction may underflow"))
       explain_write(source, "main(): Void { mut n: Nat = 3; if n >= 2 { n = 4; if n > 2 { print(n - 3); } } }")
       results = append(results, explain_run("fresh guard is cited", ["explain", source, "--function", "main"], 0,
-        ["subtraction: proved", "left lower bound: 3", "expression: n > 2"], ["expression: n >= 2"], ""))
+        ["subtraction: proved", "left lower bound: 3", "expression: n > 2"], ["left lower bound: 2"], ""))
       explain_write(source, "pure f(n: Nat): Nat { if n < 2 { 0 } else { n - 2 } } main(): Void {}")
       results = append(results, explain_run("false branch proof", ["explain", source, "--function", "f"], 0,
         ["subtraction: proved", "guard branch: false", "expression: n < 2"], [], ""))

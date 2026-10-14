@@ -413,7 +413,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyLiteral(value) => {},
           BodyInterpolation(values) => {},
           BodyFunction(binding) => {},
-          BodyCall(target, types) => {},
+          BodyCall(target, types, call_arguments) => {},
           BodyArray() => {},
           BodyUnary(operator) => {},
           BodyBinary(operator) => {},
@@ -422,8 +422,8 @@ pure module_emission_interpolation(body: BoundBody): Expr {
           BodyIf(has_else) => {},
           BodyBlock(has_tail) => {},
           BodyMatch(targets, bindings, spans) => {},
-          BodyBinding(identity, type, mutable) => {},
-          BodyAssignment(identity) => {},
+          BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
+          BodyAssignment(identity, assignment_evidence) => {},
           BodyWhile() => {},
           BodyFor(identity) => {},
           BodyEmpty() => {}
@@ -439,7 +439,7 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyLiteral(value) => value,
     BodyLocalUse(identity) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(""),
-    BodyCall(target, types) => CallExpr("$unit", [], []),
+    BodyCall(target, types, call_arguments) => CallExpr("$unit", [], []),
     BodyArray() => CallExpr("$unit", [], []),
     BodyUnary(operator) => CallExpr("$unit", [], []),
     BodyBinary(operator) => CallExpr("$unit", [], []),
@@ -448,8 +448,8 @@ pure module_emission_interpolation(body: BoundBody): Expr {
     BodyIf(has_else) => CallExpr("$unit", [], []),
     BodyBlock(has_tail) => CallExpr("$unit", [], []),
     BodyMatch(targets, bindings, spans) => CallExpr("$unit", [], []),
-    BodyBinding(identity, type, mutable) => CallExpr("$unit", [], []),
-    BodyAssignment(identity) => CallExpr("$unit", [], []),
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
+    BodyAssignment(identity, assignment_evidence) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
     BodyFor(identity) => CallExpr("$unit", [], []),
     BodyEmpty() => CallExpr("$unit", [], [])
@@ -481,7 +481,7 @@ pure module_emission_block(
     BodyInterpolation(parts) => false,
     BodyLocalUse(identity) => false,
     BodyFunction(binding) => false,
-    BodyCall(target, types) => false,
+    BodyCall(target, types, call_arguments) => false,
     BodyArray() => false,
     BodyUnary(operator) => false,
     BodyBinary(operator) => false,
@@ -489,8 +489,8 @@ pure module_emission_block(
     BodyIndex() => false,
     BodyIf(value) => false,
     BodyMatch(targets, bindings, spans) => false,
-    BodyBinding(identity, type, mutable) => false,
-    BodyAssignment(identity) => false,
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => false,
+    BodyAssignment(identity, assignment_evidence) => false,
     BodyWhile() => false,
     BodyFor(identity) => false,
     BodyEmpty() => false
@@ -502,14 +502,14 @@ pure module_emission_block(
   for child in body.children {
     if index < count {
       statement: Option[Statement] = match child.node {
-        BodyBinding(identity, type, mutable) => Some(BindingStatement(
+        BodyBinding(identity, type, mutable, inferred, type_evidence) => Some(BindingStatement(
           identity.name,
           "",
           None(),
           mutable,
           module_emission_expression(graph, entry, child.children[0])
         )),
-        BodyAssignment(identity) => Some(AssignmentStatement(
+        BodyAssignment(identity, assignment_evidence) => Some(AssignmentStatement(
           identity.name,
           module_emission_expression(graph, entry, child.children[0])
         )),
@@ -527,7 +527,7 @@ pure module_emission_block(
         BodyInterpolation(parts) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyLocalUse(identity) => Some(ExpressionStatement(NameExpr(identity.name))),
         BodyFunction(binding) => Some(ExpressionStatement(FunctionExpr(module_emission_callable_symbol(graph, entry, binding)))),
-        BodyCall(target, types) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
+        BodyCall(target, types, call_arguments) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyArray() => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyUnary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
         BodyBinary(operator) => Some(ExpressionStatement(module_emission_expression(graph, entry, child))),
@@ -564,7 +564,7 @@ pub pure module_emission_expression(
     BodyLiteral(value) => value,
     BodyLocalUse(identity) => NameExpr(identity.name),
     BodyFunction(binding) => FunctionExpr(module_emission_callable_symbol(graph, entry, binding)),
-    BodyCall(target, types) => CallExpr(
+    BodyCall(target, types, call_arguments) => CallExpr(
       module_emission_target(graph, entry, target),
       module_emission_expressions(graph, entry, body.children),
       []
@@ -606,8 +606,8 @@ pub pure module_emission_expression(
       }
       MatchExpr(module_emission_expression(graph, entry, body.children[0]), arms)
     },
-    BodyBinding(identity, type, mutable) => CallExpr("$unit", [], []),
-    BodyAssignment(identity) => CallExpr("$unit", [], []),
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => CallExpr("$unit", [], []),
+    BodyAssignment(identity, assignment_evidence) => CallExpr("$unit", [], []),
     BodyWhile() => CallExpr("$unit", [], []),
     BodyFor(identity) => CallExpr("$unit", [], []),
     BodyEmpty() => CallExpr("$unit", [], [])

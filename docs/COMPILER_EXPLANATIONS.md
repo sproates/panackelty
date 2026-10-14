@@ -1,10 +1,20 @@
-# Compiler explanations: subtraction and effect boundaries
+# Compiler explanations: expression and argument types, guarded conversions, subtraction and effects
 
 `panack explain SOURCE.panack --function NAME` checks the complete project and
-reports retained natural-number subtraction and effect-boundary evidence for one function. It reads
-source; it does not execute the program, emit bytecode, write files, or consume a
-source-map sidecar. The command is implemented in unreleased core; existing
-published/browser versions do not acquire it automatically.
+reports inferred local types with their checked initializer types, the checked
+type of an expression at a source location, function return checks, direct
+function-call argument checks, selected text/byte/numeric/collection/path,
+environment, time and filesystem builtin argument checks, and annotated local
+initializer and assignment value checks, plus retained array `map` and `reduce`
+callback contracts, unary/binary operator type decisions, indexing and
+iteration and field access type checks, Boolean condition requirements for
+`if` and `while`, and `match` variant membership. It also reports retained proof-bearing guarded
+conversions, natural-number subtraction and effect-boundary evidence, and
+array/conditional/match/generic parameter type joins for one function. It reads
+source; it does not
+execute the program, emit bytecode, write files, or consume a source-map sidecar. The
+command is implemented in unreleased core; existing published/browser versions
+do not acquire it automatically.
 
 For staged multi-module projects, qualify a query with the portable module
 identity, for example `--function project/library.panack:lookup`. A bare name
@@ -47,6 +57,144 @@ new evidence. False branches are labelled explicitly.
 - Type and purity failures retain ordinary diagnostics on stderr and exit status
   1. Accepted projects exit 0, including a valid function with no supported
   explanation. Invalid arguments or a missing function in a valid project exit 1.
+
+## Inferred local types
+
+For locals without an annotation, `inferred locals` reports the checked
+initializer expression and its source range, the initializer's checked type, and
+the resulting local type. For example, `copy = identity("hello")` reports the
+generic call at its source location and the inferred `Str` type. Annotated locals
+are omitted. If checking could not determine a complete type, the result is
+`inferred type: unavailable`; the query does not invent a type or change inference
+rules. The output describes the checked definition, not a runtime value or a
+call-site specialisation.
+
+## Function return types
+
+The function explanation reports the check of its final result against the
+declared return type. `return type: accepted` or `rejected` comes from the
+existing checker decision and includes the result expression's checked type,
+declared type and source range. `return type: unavailable` marks a deferred
+compatibility check. If the checker rejects an incomplete result, the boundary
+can be `rejected` while `actual type` is `unavailable`; the query does not fill
+in an unresolved type. The normal diagnostic and exit status remain unchanged.
+
+## Direct function-call arguments
+
+For each checked direct function call in the selected function, the explanation
+reports each argument's checked type against the corresponding parameter type.
+Accepted, rejected and unavailable outcomes come from the existing checker
+decision and include the argument expression's source range. The same applies
+to checked arguments for the text helpers `is_digit`, `is_letter`,
+`is_whitespace`, `starts_with`, `starts_with_at`, `reverse` and `slice`, and the
+byte helpers `byte_append`, `bytes_concat`, `byte_len`, `byte_get`,
+`utf8_encode` and `utf8_decode`, and the numeric helpers `nat`, `dec`,
+`nat_from_str` and `quotient`. The collection checks cover append items, map
+keys/values, set items and membership keys for `append`, `map_put`, `map_get`,
+`map_has`, `set_add`, `set_has` and `has`, including their receiver-method
+forms. Path checks cover the typed arguments to `path_from_text`,
+`path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
+`path_display`, `path_absolute`, `path_directory`, `path_filename`,
+`path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
+`path_with_suffix` and `path_resolve`. Other generic collection-call joins,
+callback contracts for other operations, and other builtins remain outside
+these slices. The environment checks cover the
+string key arguments to `environment_get` and `environment_has`. Diagnostics and
+exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
+`duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
+`instant_before`.
+
+## Array callback contracts
+
+For receiver calls to `[T].map(callback)` and `[T].reduce(initial, callback)`,
+the explanation reports the callback's checked callable type, expected parameter
+types, result type and accepted, rejected or unavailable outcome. It reflects
+the existing checker requirements: callbacks must be pure and have the required
+arity; each supplied element or accumulator must be accepted by the matching
+callback parameter; `map` callbacks must return a value; and `reduce` callback
+results must be compatible with the initial accumulator type. The source
+location identifies the callback expression. Original diagnostics and type
+acceptance remain unchanged; ordinary checking retains no callback explanation
+evidence.
+The filesystem I/O checks cover the `Path` and byte-limit inputs to `fs_read`
+and the `Path` and `Bytes` inputs to `fs_write`. Rooted filesystem read checks
+cover the root and relative `Path` inputs and the `Nat` limit to
+`fs_read_beneath`. Filesystem query checks cover
+the `Path` inputs to `fs_metadata`, `fs_list`, `fs_directories_overlap`,
+`fs_create_directory`, `fs_remove_file`, `fs_remove_directory`, `fs_temp_file`
+and `fs_temp_directory`.
+
+## Annotated local initializers
+
+For each explicitly annotated local in the selected function, the explanation
+reports the initializer's checked type against the annotation, with the existing
+accepted, rejected or unavailable decision and the initializer's source range.
+Inferred locals remain in the inferred-local section. Assignment checks are not
+included here; diagnostics and exit status remain unchanged.
+
+## Assignment values
+
+For each assignment to an existing local, the explanation reports the assigned
+value's checked type against the local's known type, with accepted, rejected or
+unavailable and the value's source range. This describes type compatibility
+only; a separate immutability error can still reject the assignment. Diagnostics
+and exit status remain unchanged.
+
+## Checked type joins
+
+The query reports the checker's existing type-join decisions when it combines
+array literal element types, the element types of the arrays passed to `concat`,
+the two results of an `if` expression, successive match arm results, or repeated
+arguments that constrain one generic function type parameter. Each entry
+identifies the join context and source location, both input types, the resulting
+type when determined, and whether the join was accepted, rejected or
+unavailable. For generic calls, only repeated constraints
+that reach the checker's join operation are shown; this is not a complete trace
+of generic inference. An unavailable join means the checker could not derive a
+complete result from the available types; it does not imply that the types are
+incompatible. Rejected joins keep the original diagnostic and exit status. This
+query does not add coercions or change type inference.
+
+## Unary and binary operator types
+
+For checked unary and binary expressions, the query reports the operator,
+operand types, resulting expression type, source range, and the existing
+operator type decision as accepted, rejected, or unavailable. This reports the
+type-checking decision only. In particular, an accepted `Nat` subtraction
+operator type does not mean its separate underflow proof succeeded; use the
+subtraction explanation for that proof. Ordinary diagnostics and program
+acceptance remain unchanged, and ordinary checking retains no operator
+explanation evidence.
+
+## Checked type requirements
+
+For an indexed expression, the query reports two independent checks: whether
+the receiver is a supported indexable type (`Str`, `Bytes` or `Array[T]`), and
+whether the position has type `Nat`. The receiver check includes the resulting
+element type when available. For a `for` loop, it reports the iterable type,
+the accepted iterable forms (`Range`, `Bytes` or `Array[T]`), and the resulting
+item type when available. For field access, it reports whether the receiver
+is a record containing the requested field and the resulting field type when
+available. For `if` and `while`, it reports whether the condition has the
+required `Bool` type. For each `match` arm, it reports whether the
+resolved variant belongs to the matched enum. This membership result does not
+claim that a match is exhaustive, that arms are unique, or that pattern binding
+counts are correct; those checks remain separately diagnosed. Each decision has
+its own source range and an accepted, rejected or unavailable status. These are
+local checked-body results;
+`program: accepted/rejected` remains the whole-project result. Original
+diagnostics and ordinary checking are unchanged, and ordinary checking retains
+no checked type requirement evidence.
+
+Add `--type-at LINE COLUMN` to query the checked expression covering a
+one-based line and Unicode code-point column in the selected function's source
+file. If expressions overlap, the query reports the smallest source range, so a
+cursor inside a call argument selects that argument while a cursor on the call
+selects the call. Source ranges remain half-open. A location outside a checked
+expression, or a function whose body did not complete type checking, reports
+`checked expression type: unavailable`; the query does not infer from diagnostics
+or reconstruct missing constraints. The ordinary function explanation is still
+included in the output.
 
 Coordinates are one-based lines/Unicode code-point columns and half-open ranges
 in the captured source text. Paths use `project/`, `stdlib/`, or the source-map
@@ -100,6 +248,27 @@ stderr: the original type-first diagnostics are preserved, and the project remai
 rejected. There is no separate
 capability taxonomy such as Network or Filesystem in this output.
 
+## Guarded-conversion explanations
+
+The query reports conversions into a guarded type when the checker consults
+value facts to decide whether the target guard is proved. For example,
+`positive: Positive = value` inside `if value > 0` reports the retained local
+bound and the target guard. A conversion from one guarded type to another also
+reports the source invariant used to prove the target. Output includes the
+source range, source and target types, available bounds, and whether the proof
+passed, failed, or could not be decided. An unproved conversion does not prove a
+runtime failure, and the normal diagnostic remains unchanged.
+
+This slice covers proof-bearing conversions into guarded targets, including
+core values and guarded source invariants. The checker accepts a guarded source
+for a compatible guarded target only when its invariant proves the target
+guard; this also permits conversions that previously failed, such as
+`Positive` to `NonNegative`. Stricter target guards still require sufficient
+facts. Widening a guarded value to its unguarded base type is not a
+proof-bearing conversion and is omitted. The query does not infer new facts.
+Guard-conversion evidence is retained only by the explicit `explain` query;
+ordinary project checking keeps the evidence collections empty.
+
 ## Boundaries and cost
 
 This first query covers binary Nat subtraction in function definitions. Generic
@@ -108,16 +277,19 @@ specialisation or runtime path execution. Imported definitions keep their own
 source locations. A query can include multiple subtraction obligations in checker
 traversal order, including nested subtractions and both branches.
 
-The proof rules and acceptance semantics are unchanged. Variable-to-variable
-relations, compound guard inference and arithmetic constant folding are not added.
+The checker adds the narrow guarded-source conversion described above;
+explanation mode records that same checker decision. Other proof rules and
+acceptance semantics are unchanged. Variable-to-variable relations, compound
+guard inference and arithmetic constant folding are not added.
 The original checker may reject mathematically safe expressions outside its
 supported proof rules. Constant values are retained, but declaration/initializer
 provenance chains are not; the operation range identifies the operands being
 checked. Type-declaration guards are not part of this function query. General type explanations, transitive effect explanations, compilation provenance, suggested requirements, change
 predictions and runtime value derivations remain separate programme work.
 
-Only the explicit query retains subtraction/effect evidence and lower-bound origins. Ordinary
-checking carries empty evidence/availability collections and omits guard origins. Effect decisions
+Only the explicit query retains subtraction/effect evidence, lower-bound origins,
+and guarded-conversion decisions. Ordinary checking carries empty
+evidence/availability collections and omits guard origins. Effect decisions
 share the same traversal and predicates in both modes; opt-in records retain local
 reasons and source spans, with no extra type analysis pass. After body errors only the query runs the
 filtered effect traversal; ordinary compilation skips it. No evidence
@@ -128,7 +300,20 @@ source-map loader reports failures for exceeded bounds. This is a source-size
 bound, not a hard guarantee on compiler time, memory, or output size. Plain text
 is the current presentation, not a versioned machine-readable protocol.
 
-Acceptance coverage lives in `tests/runner/compiler_explanations_unit.panack` and
+## Query turnaround baseline
+
+On macOS 26.5 arm64, five end-to-end CLI queries against a two-module project
+with an imported generic function and a guarded conversion took 0.05s, 0.04s,
+0.04s, 0.05s and 0.04s (`real` time). Each sample launched a new VM process and
+included project loading, checking and rendering; the filesystem cache was warm
+after the first query. The median was 0.04s and the observed range was 0.04–0.05s.
+Use 0.25s per query on this fixture and host as the initial useful turnaround
+target, giving five times the observed maximum for source-size and host variance.
+This is a local comparison target, not a CI timing gate or a build-performance
+investigation.
+
+Acceptance coverage lives in `tests/runner/compiler_explanations_unit.panack`,
+`tests/runner/compiler_module_bindings_unit.panack` and
 `tests/functional/cases/cli_explanations`, plus the existing mutation/checker,
 bootstrap and public-CLI suites. Measurements and limitations are recorded in
 [the validation profile](../tests/VALIDATION_PROFILE.md). This bounded delivery

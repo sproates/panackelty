@@ -172,9 +172,17 @@ fixed point. Program declaration indexes are internal compiler data, not a new
 bytecode ABI or an unchecked compilation mode. See the indexed-lookup measurements
 in [the validation profile](tests/VALIDATION_PROFILE.md).
 
-The first U3 query refreshes the v9 seed with opt-in checker evidence and
-`panack explain SOURCE.panack --function NAME`. Ordinary proof rules and emitted
-program bytes are unchanged. Fresh stage-2/3/4 compiler and standard-library
+The U3 query refreshes the v9 seed with opt-in checker evidence and
+`panack explain SOURCE.panack --function NAME`. Follow-up slices add retained
+explanations for proof-bearing conversions into guarded types and inferred local
+types with checked initializer evidence, followed by selected builtin argument
+checks including path APIs. The current extension records array, conditional and
+match type joins with accepted, rejected and unavailable results. These records
+remain opt-in to `explain`; ordinary
+checking keeps their evidence empty. The checker now accepts a guarded source
+for a compatible guarded target when the
+source invariant proves the target; ordinary checks still retain no explanation
+evidence. Fresh stage-2/3/4 compiler and standard-library
 fixed points validate the refresh; see the [query contract](docs/COMPILER_EXPLANATIONS.md)
 and validation profile. This is a bounded subtraction query, not full compiler
 or runtime explanations.
@@ -215,6 +223,12 @@ The historical milestones below retain their original version numbers.
 The subsequent TCP service refresh keeps format v9 and rebuilds the compiler
 seed with the additive builtin signature, effect checking and decoder validation.
 The seed refresh transaction checks compiler and stdlib fixed points.
+
+The bounded streaming-server prerequisite also keeps v9. It adds reserved
+async-only identities for the context-bearing server worker and scoped chunk
+reads; the seed refresh verifies identical stage-2/3/4 compiler and standard-
+library artifacts. Existing `tcp_serve` EOF behavior and bytecode layouts remain
+unchanged.
 
 ## Bootstrap status
 

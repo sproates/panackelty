@@ -2367,7 +2367,7 @@ pure render_match_arms(arms: [MatchArm]): Str {
   output
 }
 
-pure render_expr(expression: Expr): Str {
+pub pure render_expr(expression: Expr): Str {
   match expression {
     LocatedExpr(position, value, located_type_argument_spans) => render_expr(value),
     NatExpr(value) => "${value}",

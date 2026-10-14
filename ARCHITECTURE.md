@@ -240,6 +240,9 @@ structural branch/array joins, known iterable/index types, and return compatibil
 Record and variant construction, nominal fields and exhaustive matches use original
 declaration identities; payload bindings retain their lexical owners and types. Interpolated strings retain
 ordered lexical-local children and decoded text parts, including repeated uses.
+The explicit explanation load can retain the checker's proof-bearing conversions
+into guarded targets, including source types, guard expressions, available bounds
+and proof decisions; ordinary checking leaves this collection empty.
 `expression_contracts.panack` shares literal decoding and exact numeric result
 rules with the legacy checker/emitter; nominal identities never enter those
 scalar helpers. Nominals compare original
@@ -1115,8 +1118,13 @@ checks validate record fields, integer ranges, actual handler ownership/kind and
 completion shapes, preserving old saved user functions with the public name.
 
 `tcp_server.c` owns a nonblocking listener and at most 32 reusable connection
-slots. It retains at most 256 outcomes in acceptance order. Each connection
-moves through read, handler-start, handler-run, write and free states. Poll
+slots. It retains at most 256 outcomes in acceptance order. `tcp_serve` moves
+each connection through EOF-read, handler-start, handler-run, write and free
+states. The additive streaming mode starts a worker on acceptance; only that
+child can register a bounded read, which moves the client into readiness polling
+until one chunk or EOF is completed. Per-client request bytes remain cumulative
+against the same hard limit, and the worker's typed context value is retained by
+the server owner for each accepted child. Poll
 snapshots include the unique admission index as well as the descriptor: an
 expired slot and reused descriptor cannot receive stale readiness. There are
 no externally queued server completions or native producer callbacks.
@@ -1140,11 +1148,21 @@ permission, so recursive server invocation traps. WASI returns unavailable.
 
 The CLI drives the same resumable dispatcher and owner pump. This does not
 extend the fake-host `VMTasks` experiment into a public source scheduler or add
-resource handles, general spawning, threads, indefinite servers, HTTP or TLS.
+resource handles, general spawning, threads or indefinite servers. HTTP framing
+and server behavior remain in the Panackelty package.
 The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns delivery state and the
 subsequent broader grooming decision. Tests cover native ownership, source and
 saved-bytecode peers, allocation/descriptor faults, capabilities and browser
 rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records limits.
+
+## Native HTTP client (P5 proof of concept)
+
+The [P5 design](docs/NATIVE_HTTP_CLIENT_DESIGN.md) keeps URL/request/response
+semantics in `packages/http` and uses a private native transport intrinsic only
+for DNS, connect, verified TLS and bounded raw duplex I/O. The current adapter
+uses libcurl multi connect-only mode; neither libcurl's HTTP parser nor its
+types and error strings cross the source boundary. The package owns response
+framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
 ## Implicit core and standard methods
 
@@ -1461,12 +1479,20 @@ ordinary compilation runs purity only after successful type checking, while
 explanations can check separately type-valid functions with valid declarations. Resolver
 or loading errors yield no partial fabricated proofs. `explanations.panack`
 formats retained decisions against loaded source snapshots; `driver.panack`
-selects a function with `explain`. Whole-project validity, local proof status and
-unsupported evidence remain distinct. Generic evidence describes source
-function definitions. No runtime, emitter, serialization or v9 instruction changes
-are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines
-scope and source limits; U3 types/effects and the other programme queries remain
-open. The earlier investigation tables are historical inventories.
+selects a function with `explain`. It reports guarded conversions only when the
+checker consults facts for a guarded target; a compatible guarded source can
+now convert when its invariant proves the target, while a stricter target still
+needs additional facts. Guarded-to-base widening remains outside this proof
+query. It also reports inferred local types from the checked initializer and its
+source range, while annotated locals are omitted and incomplete results remain
+unavailable. Selected builtin argument checks, including path core calls, use
+retained actual/expected type decisions and source spans. Whole-project validity,
+local proof status and unsupported evidence remain distinct. Generic evidence
+describes source function definitions. No runtime, emitter, serialization or v9
+instruction changes are involved. The detailed
+[contract](docs/COMPILER_EXPLANATIONS.md) defines scope and source limits; U3
+types/effects and the other programme queries remain open. The earlier
+investigation tables are historical inventories.
 
 ## U3 local effect evidence
 

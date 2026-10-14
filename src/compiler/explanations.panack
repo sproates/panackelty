@@ -3,8 +3,10 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyTypeCheckEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_check_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
+import project/src/compiler/checker::{Bounds}
 pub import project/src/compiler/checker::{SubtractionEvidence}
 import project/src/compiler/checker::{SubtractionDecision}
 pub import project/src/compiler/purity::{EffectEvidence}
@@ -293,6 +295,832 @@ pure render_effect_evidence(
   output
 }
 
+pure body_guard_conversions(body: BoundBody): [GuardConversionEvidence] {
+  mut entries: [GuardConversionEvidence] = body.guard_conversions
+  for child in body.children {
+    entries = concat(entries, body_guard_conversions(child))
+  }
+  entries
+}
+
+pure body_inferred_locals(body: BoundBody): [BoundBody] {
+  mut entries: [BoundBody] = []
+  match body.node {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => match inferred {
+      Some(value) => if value { entries = append(entries, body) },
+      None() => {}
+    },
+    BodyLiteral(value) => {},
+    BodyInterpolation(parts) => {},
+    BodyLocalUse(local) => {},
+    BodyFunction(binding) => {},
+    BodyCall(target, types, call_arguments) => {},
+    BodyArray() => {},
+    BodyUnary(operator) => {},
+    BodyBinary(operator) => {},
+    BodyField(name) => {},
+    BodyIndex() => {},
+    BodyIf(has_else) => {},
+    BodyBlock(has_tail) => {},
+    BodyMatch(targets, bindings, spans) => {},
+    BodyAssignment(local, assignment_evidence) => {},
+    BodyWhile() => {},
+    BodyFor(local) => {},
+    BodyEmpty() => {}
+  }
+  for child in body.children {
+    entries = concat(entries, body_inferred_locals(child))
+  }
+  entries
+}
+
+pure inferred_local_type(body: BoundBody): Option[SignatureType] {
+  match body.node {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => match type {
+      Some(value) => Some(value),
+      None() => None()
+    },
+    BodyLiteral(value) => None(),
+    BodyInterpolation(parts) => None(),
+    BodyLocalUse(local) => None(),
+    BodyFunction(binding) => None(),
+    BodyCall(target, types, call_arguments) => None(),
+    BodyArray() => None(),
+    BodyUnary(operator) => None(),
+    BodyBinary(operator) => None(),
+    BodyField(name) => None(),
+    BodyIndex() => None(),
+    BodyIf(has_else) => None(),
+    BodyBlock(has_tail) => None(),
+    BodyMatch(targets, bindings, spans) => None(),
+    BodyAssignment(local, assignment_evidence) => None(),
+    BodyWhile() => None(),
+    BodyFor(local) => None(),
+    BodyEmpty() => None()
+  }
+}
+
+pure explanation_expression_node(body: BoundBody): Bool {
+  match body.node {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => false,
+    BodyLiteral(value) => true,
+    BodyInterpolation(parts) => true,
+    BodyLocalUse(local) => true,
+    BodyFunction(binding) => true,
+    BodyCall(target, types, call_arguments) => true,
+    BodyArray() => true,
+    BodyUnary(operator) => true,
+    BodyBinary(operator) => true,
+    BodyField(name) => true,
+    BodyIndex() => true,
+    BodyIf(has_else) => true,
+    BodyBlock(has_tail) => true,
+    BodyMatch(targets, bindings, spans) => true,
+    BodyAssignment(local, assignment_evidence) => false,
+    BodyWhile() => false,
+    BodyFor(local) => false,
+    BodyEmpty() => false
+  }
+}
+
+pure explanation_position_contains(span: SourceSpan, line: Nat, column: Nat): Bool {
+  starts_before: Bool = line > span.start.line ||
+    (line == span.start.line && column >= span.start.column)
+  ends_after: Bool = line < span.end.line ||
+    (line == span.end.line && column < span.end.column)
+  starts_before && ends_after
+}
+
+pure body_explanation_expressions(body: BoundBody): [BoundBody] {
+  mut entries: [BoundBody] = []
+  if explanation_expression_node(body) {
+    entries = append(entries, body)
+  }
+  for child in body.children {
+    entries = concat(entries, body_explanation_expressions(child))
+  }
+  entries
+}
+
+pub pure render_expression_type_explanation(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  line: Nat,
+  column: Nat,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut expressions: [BoundBody] = []
+  mut found_function: Bool = false
+  mut valid_function: Bool = false
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      found_function = true
+      match function.status {
+        BodyIdentityChecked() => {
+          valid_function = true
+          expressions = concat(expressions, body_explanation_expressions(function.body))
+        },
+        BodyDeferred() => {},
+        BodyInvalid() => {}
+      }
+    }
+  }
+  mut has_match: Bool = false
+  mut best_index: Nat = 0
+  mut best_start: Nat = 0
+  mut best_end: Nat = 4294967295
+  for index in 0..len(expressions) {
+    candidate: BoundBody = expressions[index]
+    if candidate.span.start.file == selector.source_path &&
+      candidate.span.end.offset >= candidate.span.start.offset &&
+      explanation_position_contains(candidate.span, line, column) {
+      if !has_match || (candidate.span.start.offset >= best_start &&
+        candidate.span.end.offset <= best_end) {
+        has_match = true
+        best_index = index
+        best_start = candidate.span.start.offset
+        best_end = candidate.span.end.offset
+      }
+    }
+  }
+  if has_match {
+    body: BoundBody = expressions[best_index]
+    type_text: Str = render_inferred_type(body.type)
+    escaped_type: Str = source_map_escape(type_text)
+    output: Str = "checked expression type: ${escaped_type}\n" +
+      explanation_location(Some(body.span), project.sources, root, stdlib_root)
+    output + if type_text == "unavailable" {
+      "\nreason: the checker did not retain a complete type for this expression"
+    } else {
+      "\nreason: type retained from the checked expression"
+    }
+  } else {
+    if !found_function {
+      "checked expression type: unavailable\nreason: no checked body was retained for this function"
+    } else {
+      if !valid_function {
+        "checked expression type: unavailable\nreason: function body type checking did not complete"
+      } else {
+        "checked expression type: unavailable\nreason: no checked expression covers this source location"
+      }
+    }
+  }
+}
+
+pure render_inferred_type(type: Option[SignatureType]): Str {
+  match type {
+    None() => "unavailable",
+    Some(value) => if body_type_complete(value) {
+      body_type_text(value)
+    } else {
+      "unavailable"
+    }
+  }
+}
+
+pure render_return_type_evidence(
+  evidence: ReturnTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(body_type_text(evidence.expected))
+  mut output: Str = "return type: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked function result is compatible with its declared return type"
+    } else {
+      "\nreason: the checked function result is incompatible with its declared return type"
+    },
+    None() => "\nreason: the checker did not determine a complete function result type"
+  }
+}
+
+pure render_return_type_explanation(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut output: Str = "return type: unavailable\nreason: no return type evidence was retained for this function"
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      match function.return_type_evidence {
+        None() => {},
+        Some(evidence) => {
+          output = render_return_type_evidence(
+            evidence,
+            project.sources,
+            root,
+            stdlib_root
+          )
+        }
+      }
+    }
+  }
+  output
+}
+
+pure render_call_argument_evidence(
+  evidence: CallArgumentEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(body_type_text(evidence.expected))
+  label: Str = evidence.label
+  mut output: Str = "${label}: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked argument is compatible with the expected type"
+    } else {
+      "\nreason: the checked argument is incompatible with the expected type"
+    },
+    None() => "\nreason: the checker did not determine a complete argument type"
+  }
+}
+
+pure render_call_argument_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [CallArgumentEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_call_argument_evidence(function.body))
+    }
+  }
+  mut output: Str = "call argument checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained direct function call arguments)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_call_argument_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_binding_type_evidence(
+  evidence: BindingTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(body_type_text(evidence.expected))
+  label: Str = evidence.label
+  mut output: Str = "${label}: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked initializer is compatible with the annotated local type"
+    } else {
+      "\nreason: the checked initializer is incompatible with the annotated local type"
+    },
+    None() => "\nreason: the checker did not determine a complete initializer type"
+  }
+}
+
+pure render_binding_type_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BindingTypeEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_binding_type_evidence(function.body))
+    }
+  }
+  mut output: Str = "annotated local checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained annotated local initializers)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_binding_type_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_assignment_type_evidence(
+  evidence: AssignmentTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  expected: Str = source_map_escape(render_inferred_type(evidence.expected))
+  label: Str = evidence.label
+  mut output: Str = "${label}: ${status}\n" + explanation_location(
+    Some(evidence.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nactual type: ${actual}\nexpected type: ${expected}"
+  output + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checked assigned value is compatible with the local type"
+    } else {
+      "\nreason: the checked assigned value is incompatible with the local type"
+    },
+    None() => "\nreason: the checker did not determine a complete value or target type"
+  }
+}
+
+pure render_assignment_type_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [AssignmentTypeEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_assignment_type_evidence(function.body))
+    }
+  }
+  mut output: Str = "assignment value checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained local assignment checks)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_assignment_type_evidence(
+        entry,
+        project.sources,
+        root,
+        stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_type_join_evidence(
+  evidence: TypeJoinEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  context: Str = source_map_escape(evidence.context)
+  left: Str = source_map_escape(render_inferred_type(evidence.left))
+  right: Str = source_map_escape(render_inferred_type(evidence.right))
+  result: Str = source_map_escape(render_inferred_type(evidence.result))
+  "checked type join: ${status}\ncontext: ${context}\n" + explanation_location(
+    Some(evidence.span), sources, root, stdlib_root
+  ) + "\ninput types: ${left} and ${right}\nresulting type: ${result}" + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checker combined these input types using its existing compatibility rules"
+    } else {
+      "\nreason: the checker rejected these incompatible input types"
+    },
+    None() => "\nreason: the checker did not determine a complete join from the available input types"
+  }
+}
+
+pure render_type_join_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [TypeJoinEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_type_join_evidence(function.body))
+    }
+  }
+  mut output: Str = "checked type joins:"
+  if len(entries) == 0 {
+    output = output + " none (no retained checked joins for this function)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_type_join_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_operator_type_evidence(
+  evidence: OperatorTypeEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  operator: Str = source_map_escape(evidence.operator)
+  left: Str = source_map_escape(render_inferred_type(evidence.left))
+  result: Str = source_map_escape(render_inferred_type(evidence.result))
+  right: Str = if evidence.unary {
+    "right operand: not applicable"
+  } else {
+    "right operand type: " + source_map_escape(render_inferred_type(evidence.right))
+  }
+  "operator type check: ${status}\noperator: ${operator}\n" + explanation_location(
+    Some(evidence.span), sources, root, stdlib_root
+  ) + "\nleft operand type: ${left}\n${right}\nresulting expression type: ${result}" + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the existing operator type rules accepted these operand types"
+    } else {
+      "\nreason: the existing operator type rules rejected these operand types"
+    },
+    None() => "\nreason: the checker did not determine the required operand types"
+  }
+}
+
+pure render_operator_type_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [OperatorTypeEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_operator_type_evidence(function.body))
+    }
+  }
+  mut output: Str = "operator type checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained unary or binary operator type checks)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_operator_type_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_type_check_evidence(
+  evidence: BodyTypeCheckEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  context: Str = source_map_escape(evidence.context)
+  expected: Str = source_map_escape(evidence.expected)
+  result: Str = if evidence.context == "index position" ||
+    evidence.context == "if condition" || evidence.context == "while condition" ||
+    evidence.context == "match variant" {
+    "not applicable"
+  } else {
+    source_map_escape(render_inferred_type(evidence.result))
+  }
+  "checked type requirement: ${status}\ncontext: ${context}\n" +
+    explanation_location(Some(evidence.span), sources, root, stdlib_root) +
+    "\nactual type: ${actual}\nexpected type: ${expected}\nresulting type: ${result}" +
+    match evidence.accepted {
+      Some(accepted) => if accepted {
+        "\nreason: the existing checker accepted this type for the requirement"
+      } else {
+        "\nreason: the existing checker rejected this type for the requirement"
+      },
+      None() => "\nreason: the checker did not determine a complete type decision"
+    }
+}
+
+pure render_type_check_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BodyTypeCheckEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_type_check_evidence(function.body))
+    }
+  }
+  mut output: Str = "checked type requirements:"
+  if len(entries) == 0 {
+    output = output + " none (no retained checked type requirements)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_type_check_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_collection_callback_evidence(
+  evidence: CollectionCallbackEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  operation: Str = evidence.operation
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  callback: Str = source_map_escape(render_inferred_type(evidence.callback))
+  result: Str = source_map_escape(render_inferred_type(evidence.result))
+  mut parameters: Str = ""
+  for parameter in evidence.expected_parameters {
+    if parameters != "" { parameters = parameters + ", " }
+    parameters = parameters + source_map_escape(body_type_text(parameter))
+  }
+  expected_result: Str = match evidence.expected_result {
+    Some(type) => source_map_escape(body_type_text(type)),
+    None() => if operation == "array_map" { "any non-Void value" } else { "unavailable" }
+  }
+  "${operation} callback contract: ${status}\n" + explanation_location(
+    Some(evidence.span), sources, root, stdlib_root
+  ) + "\ncallback type: ${callback}\nexpected callback parameter types: [${parameters}]\ncallback result type: ${result}\nexpected callback result: ${expected_result}" + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checker accepted the callback's purity, arity, parameter types and result constraint"
+    } else {
+      "\nreason: the checker rejected at least one callback contract requirement"
+    },
+    None() => "\nreason: the checker did not determine a complete callback contract"
+  }
+}
+
+pure render_collection_callback_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [CollectionCallbackEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_collection_callback_evidence(function.body))
+    }
+  }
+  mut output: Str = "collection callback contracts:"
+  if len(entries) == 0 {
+    output = output + " none (no retained array map or reduce callback checks)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_collection_callback_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
+pure render_inferred_local(
+  body: BoundBody,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  match body.node {
+    BodyBinding(local, type, mutable, inferred, type_evidence) => {
+      local_name: Str = source_map_escape(local.name)
+      mut output: Str = "inferred local: ${local_name}"
+      if len(body.children) == 0 {
+        output = output + "\nsource: unavailable\ninferred type: unavailable\nreason: no initializer evidence was retained"
+      } else {
+        initializer: BoundBody = body.children[0]
+        output = output + "\n" + explanation_location(
+          Some(initializer.span),
+          sources,
+          root,
+          stdlib_root
+        )
+        initializer_type: Str = render_inferred_type(initializer.type)
+        inferred_type: Str = render_inferred_type(inferred_local_type(body))
+        escaped_initializer_type: Str = source_map_escape(initializer_type)
+        escaped_inferred_type: Str = source_map_escape(inferred_type)
+        output = output + "\ninitializer type: ${escaped_initializer_type}"
+        output = output + "\ninferred type: ${escaped_inferred_type}"
+        output = output + if inferred_type == "unavailable" {
+          "\nreason: the initializer did not determine a complete type"
+        } else {
+          "\nreason: the checked initializer type determines this local type"
+        }
+      }
+      output
+    },
+    BodyLiteral(value) => "inferred local: unavailable",
+    BodyInterpolation(parts) => "inferred local: unavailable",
+    BodyLocalUse(local) => "inferred local: unavailable",
+    BodyFunction(binding) => "inferred local: unavailable",
+    BodyCall(target, types, call_arguments) => "inferred local: unavailable",
+    BodyArray() => "inferred local: unavailable",
+    BodyUnary(operator) => "inferred local: unavailable",
+    BodyBinary(operator) => "inferred local: unavailable",
+    BodyField(name) => "inferred local: unavailable",
+    BodyIndex() => "inferred local: unavailable",
+    BodyIf(has_else) => "inferred local: unavailable",
+    BodyBlock(has_tail) => "inferred local: unavailable",
+    BodyMatch(targets, bindings, spans) => "inferred local: unavailable",
+    BodyAssignment(local, assignment_evidence) => "inferred local: unavailable",
+    BodyWhile() => "inferred local: unavailable",
+    BodyFor(local) => "inferred local: unavailable",
+    BodyEmpty() => "inferred local: unavailable"
+  }
+}
+
+pure render_guard_nat(value: Nat): Str {
+  "${value}"
+}
+
+pure render_guard_bounds(bounds: Bounds): Str {
+  mut output: Str = ""
+  if bounds.has_lower {
+    lower: Str = render_guard_nat(bounds.lower)
+    output = "value >= ${lower}"
+  }
+  if bounds.has_upper {
+    upper: Str = render_guard_nat(bounds.upper)
+    output = output + if output == "" {
+      "value <= ${upper}"
+    } else {
+      " and value <= ${upper}"
+    }
+  }
+  if output == "" {
+    "no numeric bounds retained"
+  } else {
+    output
+  }
+}
+
+pure render_guard_conversion(
+  entry: GuardConversionEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match entry.proven {
+    Some(proven) => if proven { "proved" } else { "unproved" },
+    None() => "unavailable"
+  }
+  source_type: Str = source_map_escape(entry.source_type)
+  target_type: Str = source_map_escape(entry.target_type)
+  target_guard: Str = source_map_escape(entry.target_guard)
+  mut output: Str = "guarded conversion: ${status}\n" + explanation_location(
+    Some(entry.span),
+    sources,
+    root,
+    stdlib_root
+  ) + "\nconversion: ${source_type} -> ${target_type}"
+  match entry.source_guard {
+    None() => {},
+    Some(guard) => {
+      source_guard: Str = source_map_escape(guard)
+      output = output + "\nsource guard: ${source_guard}"
+    }
+  }
+  output = output + "\ntarget guard: ${target_guard}"
+  match entry.bounds {
+    None() => {
+      output = output + "\nfacts: unavailable"
+    },
+    Some(bounds) => {
+      facts: Str = render_guard_bounds(bounds)
+      output = output + "\nfacts: ${facts}"
+    }
+  }
+  output = output + if entry.proven == Some(true) {
+    "\nreason: retained value facts satisfy the target guard"
+  } else {
+    if entry.proven == Some(false) {
+      "\nreason: retained value facts do not prove the target guard; this does not establish a runtime failure"
+    } else {
+      "\nreason: no applicable value facts were retained for this conversion"
+    }
+  }
+  output
+}
+
+pure render_guard_conversion_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [GuardConversionEvidence] = []
+  mut found_function: Bool = false
+  for body in project.module_bodies {
+    if body.signature.binding.identity == selector.identity {
+      found_function = true
+      entries = concat(entries, body_guard_conversions(body.body))
+    }
+  }
+  mut output: Str = "guarded conversions:"
+  if !found_function {
+    output = output + " unavailable\nreason: no checked body was retained for this function"
+  } else {
+    if len(entries) == 0 {
+      output = output + " none"
+    } else {
+      for entry in entries {
+        output = output + "\n\n" + render_guard_conversion(
+          entry,
+          project.sources,
+          root,
+          stdlib_root
+        )
+      }
+    }
+  }
+  output
+}
+
+pure render_inferred_local_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BoundBody] = []
+  mut found_function: Bool = false
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      found_function = true
+      entries = concat(entries, body_inferred_locals(function.body))
+    }
+  }
+  mut output: Str = "inferred locals:"
+  if !found_function {
+    output = output + " unavailable\nreason: no checked body was retained for this function"
+  } else {
+    if len(entries) == 0 {
+      output = output + " none"
+    } else {
+      for entry in entries {
+        output = output + "\n\n" + render_inferred_local(
+          entry,
+          project.sources,
+          root,
+          stdlib_root
+        )
+      }
+    }
+  }
+  output
+}
+
 pub pure render_function_explanations(
   project: LoadedProject,
   selector: SourceMapFunctionSelector,
@@ -306,6 +1134,57 @@ pub pure render_function_explanations(
     selector.display_name,
     selector.source_path,
     accepted,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_guard_conversion_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_inferred_local_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_return_type_explanation(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_call_argument_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_binding_type_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_assignment_type_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_type_join_explanations(
+    project, selector, root, stdlib_root
+  )
+  output = output + "\n\n" + render_operator_type_explanations(
+    project, selector, root, stdlib_root
+  )
+  output = output + "\n\n" + render_type_check_explanations(
+    project, selector, root, stdlib_root
+  )
+  output = output + "\n\n" + render_collection_callback_explanations(
+    project,
+    selector,
     root,
     stdlib_root
   )

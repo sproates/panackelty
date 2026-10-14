@@ -123,23 +123,36 @@ byte-exact 364-case report. Standalone `make functional` and
 `runner_smoke` still execute the full runner themselves; standalone oracle,
 sanitizer and coverage targets retain their own complete corpus execution.
 
-CI runs a validation matrix per pull-request revision and again after a push to
-`main` or `next`. It does not repeat focused developer targets before the full
-suite.
-Superseded PR runs are cancelled. Both packaging platforms run five clean
-`make check-no-interpreter CI_SUITE=…` partitions with an allowlisted command
-environment. The default command without `CI_SUITE` still performs the complete
-standalone proof. CI uses these shared targets:
+The Check workflow keeps the full seven-lane Linux validation and five-suite
+Linux/macOS matrix for pull requests and pushes to `main`. A full pull request
+to `next` runs one bounded Linux smoke: it builds the native VM and stage-2
+compiler, runs one source program, compiles it to bytecode, verifies the
+bytecode and runs it, then exercises the P5 late-DNS timeout/cancellation case
+in source and saved-bytecode mode. It skips compiler experiments, the larger
+Linux suites, macOS jobs and package builds. A merge push to `next` skips that
+product smoke; the nightly run checks the complete branch. Documentation and
+workflow routes retain their short checks, and `main` validation is unchanged.
+Superseded PR runs are cancelled.
+
+The nightly workflow checks out the latest `next` branch and runs all five
+clean suite partitions on Linux and macOS plus all seven Linux validation
+lanes. It builds and uploads one distribution per platform in the
+`conformance-bytecode` partition; the bootstrap lane retains fixed-point and
+seed-refresh checks without repeating package creation. Manual runs can select
+`next` or `main`. Full Check runs targeting `main` retain the complete matrices
+and package checks. GitHub only starts scheduled workflows defined on the
+repository's default branch, so the nightly workflow must be present on `main`
+even though its scheduled job checks out `next`. CI uses these shared targets:
 
 | Suite | Shared coverage |
 | --- | --- |
 | `compiler` | Policy, full harness, report-capture and seed-failure controls, all compiler probes |
 | `runtime` | Native VM/oracle contracts, host/bytecode probes, complete functional phase |
-| `bootstrap` | Fixed-point bootstrap, independent seed refresh, archive smoke and quick start |
+| `bootstrap` | Fixed-point bootstrap and independent seed refresh; nightly package smoke runs once in the bytecode-conformance partition |
 | `conformance-source` | Every native source conformance program |
-| `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; uploads archive |
+| `conformance-bytecode` | Every native compile/bytecode conformance program, negative cases and CLI checks, archive smoke and quick start; nightly uploads archive |
 
-After each platform's `conformance-bytecode` partition, CI separately runs
+After each nightly platform's `conformance-bytecode` partition, CI separately runs
 `sh tests/release_install_readme.sh` with network access. It downloads the pinned
 public release by executing the current README's platform block, then checks the
 README program/transcript and optional home-directory installation in a temporary
@@ -204,20 +217,22 @@ retains them as a per-run artifact so timing regressions remain visible.
 is hosted independently by
 [`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage).
 Core Check still generates and uploads `native-coverage-<run-id>` artifacts with
-90-day retention. The separate publisher uses its built-in GitHub token to read
-public artifacts; it needs no new credential. It checks about every 15 minutes
-and supports manual dispatch. GitHub may delay schedules and disables scheduled
-workflows in inactive public repositories after 60 days; maintainers should check
-that repository's Actions status if the public report stops advancing.
+90-day retention. Source coverage artifacts are generated for full-validation
+promotion PRs or an explicitly requested release-candidate refresh; ordinary
+`next` edits do not collect the corpus. The separate publisher uses its built-in
+GitHub token to read public artifacts; it needs no new credential. Production
+publication is on demand through **Coverage Pages → Run workflow** on the
+coverage repository's `main` branch; schedules and push-triggered publishing are
+disabled. See [release preparation](../RELEASE_POLICY.md#release-gate).
 
-Only completed successful trusted main-push Check reports are eligible. The
-publisher validates source ancestry, artifact identity and report navigation,
-serializes deployments, rechecks selection before publishing and prevents rollback
-behind the live report. Its landing page and `provenance.json` identify the core
-source, Check run, artifact and archive date. It verifies every deployed report
-file. Missing/expired reports, API errors and failed validation leave the last
-published report visible; investigate that repository's workflow and rerun a full
-core Check if a fresh artifact is needed. Publishing does not execute core code.
+The publisher selects completed successful trusted native `main` push reports
+and source `next` push reports. It validates source ancestry, artifact identity and
+report navigation, serializes deployments, rechecks selection before publishing
+and prevents rollback behind the live report. Its landing page and
+`provenance.json` identify the core source, Check run, artifact and archive date.
+It verifies every deployed report file. Missing/expired reports, API errors and
+failed validation leave the last published report visible; investigate that
+repository's workflow before retrying. Publishing does not execute core code.
 
 Website publication never selects, downloads or verifies those report bytes.
 The website retains `/coverage/` and `/coverage/html/` as links to the new report;
@@ -291,6 +306,13 @@ checksum test independently verifies the digest emitted by `package-checksum`.
 the `.tar.gz`, creates all program inputs outside the checkout, and covers help,
 version, checking, source and bytecode execution, arguments, bundled standard
 library imports, and malformed-bytecode rejection without development tools.
+It also runs the two-application shared-library check against the packaged,
+relocated compiler, VM and standard library, then moves the application/library
+tree and repeats check, source execution and saved-bytecode execution from an
+unrelated working directory. The archive includes `packages/http` beside its
+example package; the gate checks and runs that example in source and bytecode
+against an independent loopback client with development tools absent from
+`PATH`.
 `tests/quick_start.sh` extracts its program and expected transcript from the
 README inside the final archive, installs that archive under an isolated home,
 runs the documented commands with development tools absent from `PATH`, then
@@ -473,16 +495,18 @@ in place. Findings and next investigations live in
 Use the same selector locally and in CI:
 
 ```sh
-bash scripts/validate_change.sh --plan origin/main
-bash scripts/validate_change.sh --run origin/main
+bash scripts/validate_change.sh --plan origin/next
+bash scripts/validate_change.sh --run origin/next
 ```
 
 The plan reports `route`, affected `components` and required `checks`. Local
 selection compares the merge base with the working tree and index and includes
 untracked, non-ignored files. The run checks branch/index/worktree whitespace,
-then executes `make docs` alone for `docs`, `make docs` and canonical
-`make check` for `full`. CI runs the same route with its additional platform,
-sanitizer and coverage gates. No route caches test outcomes.
+then executes `make docs` alone for `docs`, the routing, workflow YAML, result
+gate and repository layout contracts for `workflow`, and `make docs` plus
+canonical `make check` for `full`. CI runs those focused contracts on the
+workflow route and adds platform, sanitizer and coverage gates for full product
+validation. No route caches test outcomes.
 Use a different base ref when appropriate. Invalid local refs fail visibly;
 missing CI history and empty diffs conservatively select full validation.
 `make docs` remains available for a focused document check; it does not itself
@@ -494,20 +518,26 @@ without building the compiler, and remains part of `make check` through policy.
 | `README.md` changes confined to the marked positioning-copy region before `## Exact fractions and Unit` | Document, local-link and whitespace checks; quick-start, examples, installation and packaged README content remain full-validation inputs |
 | Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
 | Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Only GitHub Actions workflow files and the explicit CI routing, gate and contract files listed by `scripts/ci_scope.sh` | Workflow YAML syntax/structure, CI routing, result-gate and repository layout contracts; product compiler, package and platform suites are not applicable to this configuration-only route |
 | Any other `README.md` change, or a mixture of positioning copy with any full-validation input | Full native validation and both platform packages |
-| Any component, shared contract, unlisted path or mixture with code | Full native validation and both platform packages |
+| Any component, shared contract, unlisted path or mixture with product code | Full native validation and both platform packages |
 | Missing revisions/history or empty/unknown diff | Full validation |
 | Classification or document checking fails/cancels | Existing named checks fail; no false successful skip |
 
-All document inputs must be regular non-executable files on both sides.
+All document inputs must be regular non-executable files on both sides. CI-only
+inputs must also be regular non-executable files and must belong to the explicit
+allowlist in `scripts/ci_scope.sh`; edits to any other shared input select full
+validation. The workflow route still runs the classifier, documentation checks,
+workflow YAML parser, required-result guards and the repository's workflow/layout
+contract tests. Changes to `check.yml` are covered by that route's own contracts.
 README.md stays package-owned except when comparing the complete file outside
 the bounded positioning-copy markers leaves it identical. Before those markers
 exist on a historical base, the classifier uses the preamble through the fixed
 `## Exact fractions and Unit` boundary; malformed or moved boundaries fall back
 to full validation. The local selector checks both index and working-tree
 versions so an unsafe staged edit cannot be hidden by an unstaged reversal. All
-other inputs retain full validation. The classifier compares the complete PR
-diff from its merge base. Renames expand into old-path deletion/new-path
+other non-document, non-CI inputs retain full validation. The classifier
+compares the complete PR diff from its merge base. Renames expand into old-path deletion/new-path
 addition; symlinks, executable Markdown and unmerged local indexes cannot use
 the fast path. `scripts/ci_docs.sh` owns the explicit document allowlist and
 positioning boundary. Other README content remains a packaged input, `SPEC.md`
@@ -599,6 +629,24 @@ Finite TCP server coverage uses `unit/vm/tcp_server.c` for owner/host contracts,
 `tcp_serve.sh` with independent `tcp_client.c` peers for public source and saved
 bytecode. These run through canonical unit/functional targets. Loopback binding
 must be permitted. Playground runtime tests assert explicit WASI rejection.
+
+The same integration script covers the additive streaming mode: a complete
+source program and its saved bytecode read one bounded chunk from an independent
+client that deliberately leaves its write side open while waiting for the
+response. The native owner unit tests also cover the cumulative request bound and
+reject the read service outside a server-owned streaming child.
+
+`http_package.sh` runs Panackelty-owned HTTP parser and serializer cases from both
+source and saved bytecode, then checks and compiles an application importing the
+packaged `http/server` facade. Its independent C peer exercises the runnable
+`examples/network/http_server` package source and saved bytecode, then drives one
+finite server through GET/POST, handler errors, method and framing errors,
+partial and oversized requests, concurrent clients, disconnect recovery and
+orderly shutdown. A held loopback port verifies bind-conflict reporting.
+Parser/serializer cases remain independent of the native TCP server and cover
+incremental input, Content-Length, chunked framing, malformed and ambiguous
+requests, method/version errors, header/body bounds and response framing/header
+injection.
 
 ## Website validation ownership
 

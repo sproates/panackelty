@@ -26,9 +26,36 @@ case_name=ci-runs-full-validation-once-per-pr-revision
 contains .github/workflows/check.yml 'group: validation-${{ github.event.pull_request.number || github.run_id }}'
 contains .github/workflows/check.yml 'cancel-in-progress: ${{ github.event_name == '"'"'pull_request'"'"' }}'
 contains .github/workflows/check.yml 'name: Package (${{ matrix.target }})'
-test "$(grep -Fc "if: matrix.suite == 'compiler' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'compiler feasibility experiments must run only on pull requests'
+test "$(grep -Fc "if: matrix.suite == 'compiler' && github.event_name == 'pull_request'" .github/workflows/check.yml)" = 5 || fail 'platform compiler experiments must run only on pull requests'
+contains .github/workflows/check.yml 'name: Next Linux smoke'
+contains .github/workflows/check.yml 'timeout-minutes: 5'
+contains .github/workflows/check.yml 'run: make check-no-interpreter CI_SUITE=next-smoke'
+contains .github/workflows/check.yml "needs.changes.outputs.next_integration != 'true' && !cancelled()"
+absent .github/workflows/check.yml 'platform_smoke'
+awk '/^  test_run:$/ { selected=1 } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/next-job"
+for experiment in source-mapping-experiment runtime-provenance-experiment source-coverage-experiment semantic-impact-experiment; do
+    absent "$work/next-job" "$experiment"
+done
+pass
+case_name=nightly-package-workflow-targets-next
+contains .github/workflows/nightly-packages.yml 'schedule:'
+contains .github/workflows/nightly-packages.yml "ref: \${{ inputs.branch || 'next' }}"
+contains .github/workflows/nightly-packages.yml 'suite: [compiler, runtime, bootstrap, conformance-source, conformance-bytecode]'
+contains .github/workflows/nightly-packages.yml 'make check-no-interpreter CI_SUITE=${{ matrix.suite }}'
+contains .github/workflows/nightly-packages.yml 'echo "sha=$(git rev-parse HEAD)"'
+contains .github/workflows/nightly-packages.yml 'name: panackelty-${{ matrix.target }}-${{ steps.source.outputs.sha }}'
 pass
 case_name=release-publication-requires-every-gate
+contains .github/workflows/release.yml 'source_coverage_gate:'
+contains .github/workflows/release.yml 'needs: source_coverage_gate'
+contains .github/workflows/release.yml 'fetch-depth: 0'
+contains .github/workflows/release.yml 'https://sproates.github.io/panackelty-coverage/source/provenance.json'
+contains .github/workflows/release.yml 'https://sproates.github.io/panackelty-coverage/source/summary.json'
+contains .github/workflows/release.yml 'node scripts/release_source_coverage.cjs'
+contains scripts/release_source_coverage.cjs 'Measured source coverage commit is not an ancestor'
+contains scripts/release_source_coverage.cjs 'Coverage inputs changed after measurement'
+contains scripts/release_source_coverage.cjs 'Published source summary does not identify its measured and unmeasured source scope'
+contains tests/source_coverage/release_gate.test.cjs 'zero reported coverage does not block'
 contains .github/workflows/release.yml 'tags:
       - "v*"'
 contains .github/workflows/release.yml 'permissions:
@@ -94,7 +121,8 @@ awk '/^on:$/ { selected=1; next } /^concurrency:/ { selected=0 } selected && NF 
 printf '  push:\n    branches: [main, next]\n  pull_request:\n' > "$work/expected"
 equal_files "$work/events" "$work/expected"
 awk '/^  source_coverage:$/ { selected=1; next } /^  changes:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/source-job"
-for text in 'needs.changes.outputs.source_coverage == '\''true'\''' 'node --test tests/source_coverage/reader.test.cjs' \
+for text in 'needs.changes.outputs.source_coverage == '\''true'\''' 'needs.changes.outputs.source_coverage_refresh == '\''true'\''' 'node --test tests/source_coverage/reader.test.cjs' \
+    'tests/source_coverage/manifest.test.cjs' \
     'tests/source_coverage/policy.test.cjs' \
     'node tests/source_coverage/parity.cjs' 'node scripts/source_coverage_baseline.cjs' \
     'name: source-coverage-${{ github.run_id }}' 'path: build/source-coverage' 'if-no-files-found: error'; do
@@ -102,10 +130,21 @@ for text in 'needs.changes.outputs.source_coverage == '\''true'\''' 'node --test
 done
 absent "$work/source-job" 'if: always()'
 contains .github/workflows/check.yml 'node scripts/source_coverage_route.cjs >> "$GITHUB_OUTPUT"'
+contains .github/workflows/check.yml 'source_coverage_refresh: ${{ steps.scope.outputs.source_coverage_refresh }}'
 contains .github/workflows/check.yml 'name: Source coverage policy tests'
+contains .github/workflows/check.yml 'tests/source_coverage/manifest.test.cjs'
+contains .github/workflows/check.yml 'tests/source_coverage/release_gate.test.cjs'
 contains .github/workflows/check.yml 'tests/source_coverage/route.test.cjs'
-contains .github/workflows/check.yml 'needs: [changes, test_run, source_policy_tests, source_coverage]'
+contains .github/workflows/check.yml 'needs: [changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation]'
+contains .github/workflows/check.yml 'name: Workflow configuration validation'
+contains .github/workflows/check.yml "needs.changes.outputs.route == 'workflow'"
+contains .github/workflows/check.yml 'timeout-minutes: 5'
+contains .github/workflows/check.yml 'run: sh tests/workflow_yaml.sh'
 contains .github/workflows/check.yml 'run: node scripts/source_coverage_route.cjs --gate'
+contains scripts/validate_change.sh 'route=workflow)'
+contains scripts/validate_change.sh 'bash tests/ci_scope.sh'
+contains scripts/validate_change.sh 'sh tests/workflow_yaml.sh'
+contains scripts/validate_change.sh 'node --test tests/source_coverage/route.test.cjs'
 awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
@@ -124,7 +163,7 @@ absent "$work/test-job" 'apt-get'
 for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
     'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
     "if: startsWith(matrix.suite, 'sanitize-')" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done
-test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 3 || fail 'release checkout credential policy'
+test "$(grep -c 'persist-credentials: false' .github/workflows/release.yml)" = 4 || fail 'release checkout credential policy'
 test "$(grep -c 'contents: write' .github/workflows/release.yml)" = 1 || fail 'release permission policy'
 pass
 case_name=required-bug-report-fields

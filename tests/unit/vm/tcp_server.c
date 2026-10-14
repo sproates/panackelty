@@ -20,20 +20,32 @@ void coverage_server_end(VMCoverageRun *run);
 static VMCoverageRun *coverage_run;
 
 static char *parameters[] = {"request"};
+static char *stream_parameters[] = {"max_bytes"};
 static Instruction echo_code[] = {
     {.op = OP_LOAD, .name = "request"},
     {.op = OP_MAKE_VARIANT, .name = "Result", .name2 = "Ok", .count = 1},
     {.op = OP_RETURN}};
 static Instruction main_code[] = {{.op = OP_CALL, .name = "$unit", .arity = 0}, {.op = OP_RETURN}};
+static Instruction stream_code[] = {{.op = OP_LOAD, .name = "max_bytes"},
+                                    {.op = OP_AWAIT_CALL,
+                                     .name = "$tcp_server_read_chunk",
+                                     .arity = 1},
+                                    {.op = OP_RETURN}};
 static Function functions[] = {{.name = "main", .pure = true, .ins = main_code, .ins_count = 2},
                                {.name = "reply",
                                 .is_async = true,
                                 .param_count = 1,
                                 .params = parameters,
                                 .ins = echo_code,
-                                .ins_count = 3}};
+                                 .ins_count = 3},
+                                {.name = "stream_reply",
+                                 .is_async = true,
+                                 .param_count = 1,
+                                 .params = stream_parameters,
+                                 .ins = stream_code,
+                                 .ins_count = 3}};
 #define echo_function functions[1]
-static Program program = {.functions = functions, .count = 2};
+static Program program = {.functions = functions, .count = 3};
 static VMTcpServerLimits limits = {4, 2, 32768, 32768, 2000, 2000, 1000};
 
 static size_t unused_port(void)
@@ -54,6 +66,18 @@ static VMTcpServer *start(size_t port, VMTcpServerLimits options)
              .coverage = vm_coverage_run_collector(coverage_run)};
     Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
     VMTcpServer *server = tcp_server_start(&vm, &echo_function, address, port, options, true);
+    release(address);
+    assert(server && !tcp_server_error(server) && !tcp_server_done(server));
+    return server;
+}
+
+static VMTcpServer *start_stream(size_t port, VMTcpServerLimits options, Value *context)
+{
+    VM vm = {.program = &program, .coverage_run = coverage_run,
+             .coverage = vm_coverage_run_collector(coverage_run)};
+    Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
+    VMTcpServer *server = tcp_server_start_stream(&vm, &functions[2], context, address, port,
+                                                  options, true);
     release(address);
     assert(server && !tcp_server_error(server) && !tcp_server_done(server));
     return server;
@@ -309,6 +333,78 @@ static void embedded_contracts(void)
     assert(!verify(&complete, &error));
 }
 
+static void streaming_contracts(void)
+{
+    size_t port = unused_port();
+    VMTcpServerLimits options = {1, 1, 256, 256, 2000, 2000, 1000};
+    Value *context = value_size(64);
+    VMTcpServer *server = start_stream(port, options, context);
+    release(context);
+    int fd = connect_client(port);
+    static const uint8_t request[] = "GET /alpha HTTP/1.1\r\n";
+    assert(send(fd, request, sizeof(request) - 1, 0) == (ssize_t)(sizeof(request) - 1));
+    /* The peer keeps its write side open until it receives the response. */
+    reply_is(server, fd, request, sizeof(request) - 1);
+    drain(server);
+    Value *reports = outcomes(server, 1);
+    assert(!strcmp(reports->as.sequence.items[0]->as.named.name, "Ok"));
+    tcp_server_destroy(server);
+    close(fd);
+
+    options.request_limit = 4;
+    port = unused_port();
+    context = value_size(64);
+    server = start_stream(port, options, context);
+    release(context);
+    fd = connect_client(port);
+    assert(send(fd, request, sizeof(request) - 1, 0) == (ssize_t)(sizeof(request) - 1));
+    drain(server);
+    reports = outcomes(server, 1);
+    Value *failure = reports->as.sequence.items[0];
+    assert(!strcmp(failure->as.named.name, "Error"));
+    assert(failure->as.named.values[0]->as.bytes.length == strlen("TCP request limit exceeded"));
+    struct pollfd ready = {.fd = fd, .events = POLLIN};
+    assert(poll(&ready, 1, 1000) == 1);
+    assert(recv(fd, (uint8_t[1]){0}, 1, 0) == 0);
+    tcp_server_destroy(server);
+    close(fd);
+
+    for (size_t invalid_limit = 0; invalid_limit < 2; invalid_limit++) {
+        port = unused_port();
+        context = value_size(invalid_limit ? 16385 : 0);
+        server = start_stream(port, options, context);
+        release(context);
+        fd = connect_client(port);
+        pump(server);
+        assert(tcp_server_error(server));
+        tcp_server_destroy(server);
+        close(fd);
+    }
+}
+
+static bool register_without_effect(void *context, Value *value, const char **error)
+{
+    (void)context;
+    (void)value;
+    (void)error;
+    return true;
+}
+
+static void server_read_scope_contract(void)
+{
+    VM vm = {.program = &program};
+    Value *limit = value_size(64);
+    Value *arguments[] = {limit};
+    const char *error = NULL;
+    VMExecution *execution = vm_execution_create_async(&vm, &functions[2], arguments,
+                                                       register_without_effect, NULL, &error);
+    assert(execution && !error);
+    assert(vm_execution_advance(execution, 8) == VM_TRAPPED);
+    assert(strstr(vm.error, "unavailable in this execution"));
+    assert(vm_execution_destroy(execution));
+    release(limit);
+}
+
 void tcp_server_contracts(void)
 {
     const char *error;
@@ -454,4 +550,6 @@ void tcp_server_contracts(void)
     outbound_contracts();
     embedded_contracts();
     zero_grace_contract();
+    streaming_contracts();
+    server_read_scope_contract();
 }

@@ -16,7 +16,13 @@ case "$archive" in
 esac
 
 temporary=$(mktemp -d "${TMPDIR:-/tmp}/panack-release.XXXXXX")
-trap 'rm -rf "$temporary"' EXIT HUP INT TERM
+server_pid=
+cleanup() {
+  if [ -n "$server_pid" ]; then kill "$server_pid" 2>/dev/null || :; wait "$server_pid" 2>/dev/null || :; fi
+  rm -rf "$temporary"
+}
+trap cleanup EXIT HUP INT TERM
+http_client=${PANACK_HTTP_CLIENT:?}
 
 fail() {
   echo "release smoke: $*" >&2
@@ -168,5 +174,44 @@ run_clean coverage-aggregate --source "$namespace_source" trip.pinv --session tr
 grep -F 'aggregate sessions=1 executions=1' coverage-aggregate.stdout >/dev/null || \
   fail "coverage aggregation is missing its session summary"
 test ! -s coverage-aggregate.stderr || fail "coverage aggregation wrote unexpected stderr"
+
+http_example=$temporary/relocated/toolchain/examples/network/http_server
+http_manifest=$http_example/panack.json
+http_source=$http_example/src/main.panack
+cp "$http_source" "$temporary/http_example.main.panack"
+for mode in source bytecode; do
+  http_port=$("$http_client" port)
+  sed "s/8080/$http_port/g" "$temporary/http_example.main.panack" >"$http_source.next"
+  mv "$http_source.next" "$http_source"
+  run_clean check --project "$http_manifest" >http-check.stdout 2>http-check.stderr || \
+    fail "installed HTTP example project check failed"
+  test ! -s http-check.stderr || fail "installed HTTP example check wrote unexpected stderr"
+  run_clean compile --project "$http_manifest" -o http-server.bc \
+    >http-compile.stdout 2>http-compile.stderr || fail "installed HTTP example compile failed"
+  test -s http-server.bc || fail "installed HTTP example produced no bytecode"
+  test ! -s http-compile.stderr || fail "installed HTTP example compile wrote unexpected stderr"
+  if [ "$mode" = source ]; then
+    run_clean run --project "$http_manifest" >http-run.stdout 2>http-run.stderr &
+  else
+    run_clean run http-server.bc >http-run.stdout 2>http-run.stderr &
+  fi
+  server_pid=$!
+  if ! "$http_client" "$http_port" example; then
+    echo "installed HTTP example mode=$mode port=$http_port pid=$server_pid" >&2
+    cat http-run.stdout http-run.stderr >&2
+    fail "independent HTTP client rejected installed example"
+  fi
+  wait "$server_pid" || fail "installed HTTP example execution failed"
+  server_pid=
+  test ! -s http-run.stdout || fail "installed HTTP example wrote unexpected stdout"
+  test ! -s http-run.stderr || fail "installed HTTP example wrote unexpected stderr"
+done
+
+sh "$root/tests/functional/cases/cli_commands/package_relocation.sh" \
+  "$temporary/relocated/toolchain/share/panackelty/compiler-v9.bc" \
+  "$release_version" \
+  "$temporary/relocated/toolchain/share/panackelty/stdlib" \
+  "$temporary/relocated/toolchain/libexec/panackelty/panack-vm" \
+  "$panack"
 
 echo "release smoke: ok"

@@ -67,6 +67,8 @@ bool vm_execution_complete_print(VMExecution *execution, const char *error);
  * Print acknowledgement and read completion APIs cannot complete each other. */
 VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,
                                        VMServiceWait wait, void *context, const char **error);
+/* Grant the incremental socket-read service only to a server-owned child. */
+bool vm_execution_enable_server_reads(VMExecution *execution);
 bool vm_execution_complete_read(VMExecution *execution, Value *result);
 /* Native TCP is opt-in for embedded executions. Poll runs bounded socket work
  * on the owner thread, never bytecode. Zero wait interleaves independent VMs.
@@ -74,6 +76,8 @@ bool vm_execution_complete_read(VMExecution *execution, Value *result);
  * read/print completions cannot complete a TCP wait. */
 bool vm_execution_enable_tcp(VMExecution *execution);
 bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms);
+bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms);
+bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms);
 /* Listening is a separate opt-in. Pump dispatches at most budget child steps;
  * stop closes admission then drains. Destroy cancels synchronously. */
 bool vm_execution_enable_server(VMExecution *execution);

@@ -46,7 +46,8 @@ pure module_effect_mode(effect: Option[SignatureEffect]): Str {
 }
 
 pure module_async_builtin(name: Str): Bool {
-  name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve"
+  name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
+    name == "tcp_serve_stream" || name == "tcp_server_read_chunk"
 }
 
 pure module_effect_for_target(
@@ -247,7 +248,7 @@ pure module_effect_expression(
         mut invalid_await_operand: Bool = len(expression.children) == 0
         if len(expression.children) > 0 {
           match expression.children[0].node {
-            BodyCall(target, types) => {},
+            BodyCall(target, types, call_arguments) => {},
             BodyLiteral(value) => { invalid_await_operand = true },
             BodyInterpolation(parts) => { invalid_await_operand = true },
             BodyLocalUse(identity) => { invalid_await_operand = true },
@@ -260,8 +261,8 @@ pure module_effect_expression(
             BodyIf(has_else) => { invalid_await_operand = true },
             BodyBlock(has_value) => { invalid_await_operand = true },
             BodyMatch(targets, locals, spans) => { invalid_await_operand = true },
-            BodyBinding(identity, type, mutable) => { invalid_await_operand = true },
-            BodyAssignment(identity) => { invalid_await_operand = true },
+            BodyBinding(identity, type, mutable, inferred, type_evidence) => { invalid_await_operand = true },
+            BodyAssignment(identity, assignment_evidence) => { invalid_await_operand = true },
             BodyWhile() => { invalid_await_operand = true },
             BodyFor(identity) => { invalid_await_operand = true },
             BodyEmpty() => { invalid_await_operand = true }
@@ -298,7 +299,7 @@ pure module_effect_expression(
         children_walked = true
       }
     },
-    BodyCall(target, types) => {
+    BodyCall(target, types, call_arguments) => {
       result = module_effect_call(context, target, expression, awaited, retain)
       for child in expression.children {
         result = combine_effects(result, module_effect_expression(context, child, false, retain))
@@ -339,10 +340,10 @@ pure module_effect_expression(
               }
             },
             BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
-            BodyFunction(binding) => {}, BodyCall(target, types) => {}, BodyArray() => {},
+            BodyFunction(binding) => {}, BodyCall(target, types, call_arguments) => {}, BodyArray() => {},
             BodyBinary(operator) => {}, BodyField(field) => {}, BodyIndex() => {}, BodyIf(value) => {},
-            BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable) => {},
-            BodyAssignment(identity) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
+            BodyBlock(value) => {}, BodyMatch(targets, locals, spans) => {}, BodyBinding(identity, type, mutable, inferred, type_evidence) => {},
+            BodyAssignment(identity, assignment_evidence) => {}, BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
           }
         }
         result = combine_effects(result, module_effect_expression(context, child, false, retain))
@@ -353,7 +354,7 @@ pure module_effect_expression(
     BodyLiteral(value) => {}, BodyInterpolation(parts) => {}, BodyLocalUse(identity) => {},
     BodyFunction(binding) => {}, BodyArray() => {}, BodyBinary(operator) => {}, BodyField(field) => {},
     BodyIndex() => {}, BodyIf(value) => {}, BodyMatch(targets, locals, spans) => {},
-    BodyBinding(identity, type, mutable) => {}, BodyAssignment(identity) => {},
+    BodyBinding(identity, type, mutable, inferred, type_evidence) => {}, BodyAssignment(identity, assignment_evidence) => {},
     BodyWhile() => {}, BodyFor(identity) => {}, BodyEmpty() => {}
   }
   if !children_walked {
@@ -385,7 +386,8 @@ pub pure check_module_effects(
         signatures,
         function.signature.binding.identity,
         function.signature.parameters,
-        map()
+        map(),
+        false
       )
       context: ModuleEffectContext = ModuleEffectContext(
         body_context,

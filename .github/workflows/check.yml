@@ -212,6 +212,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
+      - name: Install native HTTP client dependency
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
       - name: Run bounded compiler and runtime smoke
         run: make check-no-interpreter CI_SUITE=next-smoke
 

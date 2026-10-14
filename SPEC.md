@@ -1198,6 +1198,45 @@ its own native opt-in, separate from outbound TCP. Handler children inherit the
 outbound permission, never listening permission. These internal host APIs are
 experimental, not a stable embedding ABI.
 
+### Native HTTP client (P5 proof of concept)
+
+Import the package namespace `http/client` and call:
+
+```panack
+import http/client as http
+
+async fetch(): Result[http.Response,http.HttpError] {
+  await http.get("https://example.test/status")
+}
+```
+
+`get(url)` performs one HTTP/1.1 GET and returns a typed `Response` containing
+the status, ordered headers (including repeated fields) and raw `Bytes` body.
+Non-2xx status codes are returned normally. `get_with_limits(url, limits)` uses
+the same operation with a caller-selected timeout and response bounds. Defaults
+are 10 seconds, 64 KiB of response headers and 1 MiB of body. Hard limits are
+60 seconds, 64 KiB and 1 MiB respectively. The transport also caps total raw
+response bytes at 16 MiB.
+
+The package accepts HTTP and HTTPS URLs with ASCII DNS names or dotted IPv4
+addresses. It rejects IPv6, user information, fragments, non-ASCII hosts,
+control characters and unsupported schemes. Requests use origin-form paths and
+close the connection after one response. Fixed-length, chunked and close-delimited
+responses are supported. Invalid or ambiguous framing is a typed protocol error.
+Redirects, request bodies, cookies, connection reuse and proxy use are not
+supported.
+
+The native runtime uses libcurl multi connect-only mode for asynchronous DNS,
+connection establishment and TLS; the Panackelty package constructs and parses
+HTTP bytes. Certificate-chain and hostname verification stay enabled and use
+the platform trust store. `CURL_CA_BUNDLE` may select a PEM trust bundle.
+Native builds need libcurl development files and `curl-config`; linked libcurl
+must include asynchronous DNS and thread-safe features. WASI/browser execution
+is unavailable.
+This is the replaceable libcurl backend selected for the alpha.13 proof of
+concept. See the [P5 design](docs/NATIVE_HTTP_CLIENT_DESIGN.md) for the package
+boundary, exact limits, error categories and fixture coverage.
+
 ## Optional instruction source lookup
 
 `panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP` emits an optional

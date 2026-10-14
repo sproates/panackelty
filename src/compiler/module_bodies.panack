@@ -1412,7 +1412,7 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
       name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
       name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" ||
-      name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
+      name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
       name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
       body_path_core_call(target)
   }
@@ -1481,6 +1481,25 @@ pure body_tcp_expected_argument(
   index: Nat,
   context_type: SignatureType
 ): SignatureType {
+  if name == "http_transport_exchange" {
+    if index == 0 {
+      SignatureType(SignatureCore("Str"), [])
+    } else {
+      if index == 1 {
+        SignatureType(SignatureCore("Nat"), [])
+      } else {
+        if index == 2 {
+          SignatureType(SignatureCore("Bool"), [])
+        } else {
+          if index == 3 {
+            SignatureType(SignatureCore("Bytes"), [])
+          } else {
+            SignatureType(SignatureCore("Nat"), [])
+          }
+        }
+      }
+    }
+  } else {
   if name == "async_fake_read" {
     SignatureType(SignatureCore("Bool"), [])
   } else {
@@ -1517,7 +1536,7 @@ pure body_tcp_expected_argument(
         }
       }
     }
-  }
+  }}
 }
 
 pure body_check_tcp_core_call(
@@ -1530,7 +1549,9 @@ pure body_check_tcp_core_call(
 ): BodyResult {
   expected_count: Nat = if name == "tcp_serve" { 4 } else {
     if name == "tcp_serve_stream" { 5 } else {
-      if name == "tcp_exchange" { 5 } else { 1 }
+      if name == "http_transport_exchange" { 6 } else {
+        if name == "tcp_exchange" { 5 } else { 1 }
+      }
     }
   }
   mut diagnostics: [Diagnostic] = initial_diagnostics
@@ -2306,7 +2327,7 @@ pure body_check_special_core_call(
       )
     }
   } else {
-  if name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
+  if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_serve_stream" || name == "tcp_server_read_chunk" {
     if len(types) > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)

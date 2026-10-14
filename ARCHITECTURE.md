@@ -1148,11 +1148,21 @@ permission, so recursive server invocation traps. WASI returns unavailable.
 
 The CLI drives the same resumable dispatcher and owner pump. This does not
 extend the fake-host `VMTasks` experiment into a public source scheduler or add
-resource handles, general spawning, threads, indefinite servers, HTTP or TLS.
+resource handles, general spawning, threads or indefinite servers. HTTP framing
+and server behavior remain in the Panackelty package.
 The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns delivery state and the
 subsequent broader grooming decision. Tests cover native ownership, source and
 saved-bytecode peers, allocation/descriptor faults, capabilities and browser
 rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records limits.
+
+## Native HTTP client (P5 proof of concept)
+
+The [P5 design](docs/NATIVE_HTTP_CLIENT_DESIGN.md) keeps URL/request/response
+semantics in `packages/http` and uses a private native transport intrinsic only
+for DNS, connect, verified TLS and bounded raw duplex I/O. The current adapter
+uses libcurl multi connect-only mode; neither libcurl's HTTP parser nor its
+types and error strings cross the source boundary. The package owns response
+framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
 ## Implicit core and standard methods
 

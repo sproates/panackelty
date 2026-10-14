@@ -1199,6 +1199,7 @@ pure body_call(
   }
   mut resolved_types: [SignatureType] = []
   mut call_arguments: [CallArgumentEvidence] = []
+  mut type_joins: [TypeJoinEvidence] = []
   mut type_index: Nat = 0
   for type in types {
     match signature_type(
@@ -1280,25 +1281,32 @@ pure body_call(
                 None() => {
                   inference_deferred = true
                 },
-                Some(actual) => match body_infer(
-                  context,
-                  contract.inputs[index],
-                  actual,
-                  contract.owner,
-                  inferred
-                ) {
-                  Error(message) => {
-                    diagnostics = append(
-                      diagnostics,
-                      Diagnostic(
-                      "inference for " + contract.name + ": " + message,
-                      child.span.start
-                    )
-                    )
-                  },
-                  Ok(evidence) => {
-                    inferred = evidence.arguments
-                    inference_deferred = inference_deferred || evidence.deferred
+                Some(actual) => {
+                  inference: BodyInference = body_infer(
+                    context,
+                    contract.inputs[index],
+                    actual,
+                    contract.owner,
+                    inferred,
+                    contract.name,
+                    contract.parameters,
+                    child.span
+                  )
+                  type_joins = concat(type_joins, inference.type_joins)
+                  match inference.failure {
+                    Some(message) => {
+                      diagnostics = append(
+                        diagnostics,
+                        Diagnostic(
+                          "inference for " + contract.name + ": " + message,
+                          child.span.start
+                        )
+                      )
+                    },
+                    None() => {
+                      inferred = inference.arguments
+                      inference_deferred = inference_deferred || inference.deferred
+                    }
                   }
                 }
               }
@@ -1419,7 +1427,7 @@ pure body_call(
     )
   } else {
     BodyResult(
-      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], [], [], []),
+      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], [], type_joins, []),
       diagnostics,
       deferred
     )
@@ -5108,7 +5116,9 @@ pure body_contract(context: BodyContext, target: BodyTarget): Result[Option[Body
 
 record BodyInference {
   arguments: [SignatureType],
-  deferred: Bool
+  deferred: Bool,
+  type_joins: [TypeJoinEvidence],
+  failure: Option[Str]
 }
 
 pure body_infer(
@@ -5116,11 +5126,15 @@ pure body_infer(
   template: SignatureType,
   actual: SignatureType,
   owner: DeclarationIdentity,
-  arguments: [SignatureType]
-): Result[BodyInference, Str] {
+  arguments: [SignatureType],
+  function_name: Str,
+  parameter_names: [Str],
+  span: SourceSpan
+): BodyInference {
   mut result: [SignatureType] = arguments
   mut failure: Option[Str] = None()
   mut deferred: Bool = false
+  mut type_joins: [TypeJoinEvidence] = []
   mut parameter: Option[Nat] = None()
 
   match template.identity {
@@ -5139,15 +5153,50 @@ pure body_infer(
       if index >= len(result) {
         failure = Some("missing inference parameter")
       } else {
+        previous: SignatureType = result[index]
+        repeated: Bool = body_type_complete(previous)
         match body_join(context, result[index], actual) {
           Error(message) => {
+            if context.retain_guard_conversions && repeated {
+              parameter_name: Str = if index < len(parameter_names) { parameter_names[index] } else { "?" }
+              type_joins = append(type_joins, TypeJoinEvidence(
+                "generic parameter " + parameter_name + " for " + function_name,
+                span,
+                Some(previous),
+                Some(actual),
+                None(),
+                Some(false)
+              ))
+            }
             failure = Some(message)
           },
           Ok(optional) => match optional {
             None() => {
               deferred = true
+              if context.retain_guard_conversions && repeated {
+                parameter_name: Str = if index < len(parameter_names) { parameter_names[index] } else { "?" }
+                type_joins = append(type_joins, TypeJoinEvidence(
+                  "generic parameter " + parameter_name + " for " + function_name,
+                  span,
+                  Some(previous),
+                  Some(actual),
+                  None(),
+                  None()
+                ))
+              }
             },
             Some(type) => {
+              if context.retain_guard_conversions && repeated {
+                parameter_name: Str = if index < len(parameter_names) { parameter_names[index] } else { "?" }
+                type_joins = append(type_joins, TypeJoinEvidence(
+                  "generic parameter " + parameter_name + " for " + function_name,
+                  span,
+                  Some(previous),
+                  Some(actual),
+                  Some(type),
+                  Some(true)
+                ))
+              }
               mut joined: [SignatureType] = []
               mut cursor: Nat = 0
               for argument in result {
@@ -5171,11 +5220,22 @@ pure body_infer(
       if compatible_head && len(template.arguments) == len(actual.arguments) {
         mut index: Nat = 0
         for child in template.arguments {
-          match body_infer(context, child, actual.arguments[index], owner, result) {
-            Error(message) => {
+          inferred: BodyInference = body_infer(
+            context,
+            child,
+            actual.arguments[index],
+            owner,
+            result,
+            function_name,
+            parameter_names,
+            span
+          )
+          type_joins = concat(type_joins, inferred.type_joins)
+          match inferred.failure {
+            Some(message) => {
               failure = Some(message)
             },
-            Ok(inferred) => {
+            None() => {
               result = inferred.arguments
               deferred = deferred || inferred.deferred
             }
@@ -5185,10 +5245,7 @@ pure body_infer(
       }
     }
   }
-  match failure {
-    Some(message) => Error(message),
-    None() => Ok(BodyInference(result, deferred))
-  }
+  BodyInference(result, deferred, type_joins, failure)
 }
 
 pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): BodyResult {

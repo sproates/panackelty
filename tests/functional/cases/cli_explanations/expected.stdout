@@ -70,6 +70,9 @@ PASS unavailable array concatenation join reports unresolved type
 PASS rejected array element join preserves checker diagnostic
 PASS conditional result explains the combined type
 PASS match arms explain the combined type
+PASS generic calls explain repeated type parameter joins
+PASS rejected generic inference join preserves checker diagnostic
+PASS unresolved generic inference join is explicit
 PASS unresolved branch join is explicit
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
@@ -136,4 +139,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 138, failures: 0
+tests: 141, failures: 0

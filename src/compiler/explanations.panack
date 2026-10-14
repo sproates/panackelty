@@ -743,7 +743,7 @@ pure render_type_join_explanations(
   }
   mut output: Str = "checked type joins:"
   if len(entries) == 0 {
-    output = output + " none (no retained array, conditional or match joins)"
+    output = output + " none (no retained checked joins for this function)"
   } else {
     for entry in entries {
       output = output + "\n\n" + render_type_join_evidence(

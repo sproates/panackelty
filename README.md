@@ -40,7 +40,8 @@ is also the name of this project's command-line tool.
   can prove the rule. Try the [guarded-types example](examples/guards.panack)
   or read the [specification](SPEC.md#guarded-types).
 - **Inspect selected compiler decisions.** `panack explain` exposes evidence
-  for supported `Nat` subtraction proofs, checked type joins, selected array
+  for supported `Nat` subtraction proofs, checked type joins (including
+  repeated generic parameter constraints), selected array
   `map`/`reduce` callback contracts, and local call/await effect checks. Its
   explanations are bounded; they do not certify whole-program validity or
   explain runtime behavior. See the

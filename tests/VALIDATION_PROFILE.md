@@ -5997,3 +5997,15 @@ filesystem cache was warm. `real` times had a median of 0.05s and a range of
 a general latency guarantee. Argument evidence is retained only for
 explanation queries; ordinary checking retains none, and runtime and bytecode
 are unchanged.
+
+## GI#134 checked type-join explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+a valid one-file source with an `if` result nested in a match arm. Each query
+included source loading, checking and explanation rendering with a warm
+filesystem cache. `real` times were 0.05s, 0.04s, 0.05s, 0.04s and 0.05s
+(median 0.05s, range 0.04–0.05s). This is not a paired before/after comparison
+or a general latency guarantee. The new join evidence is retained only by
+explanation-mode body checking; ordinary checking keeps the collection empty.
+The compiler data layout changes, but emitted bytecode and runtime behavior do
+not.

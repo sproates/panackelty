@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -703,6 +703,57 @@ pure render_assignment_type_explanations(
   output
 }
 
+pure render_type_join_evidence(
+  evidence: TypeJoinEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  context: Str = source_map_escape(evidence.context)
+  left: Str = source_map_escape(render_inferred_type(evidence.left))
+  right: Str = source_map_escape(render_inferred_type(evidence.right))
+  result: Str = source_map_escape(render_inferred_type(evidence.result))
+  "checked type join: ${status}\ncontext: ${context}\n" + explanation_location(
+    Some(evidence.span), sources, root, stdlib_root
+  ) + "\ninput types: ${left} and ${right}\nresulting type: ${result}" + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checker combined these input types using its existing compatibility rules"
+    } else {
+      "\nreason: the checker rejected these incompatible input types"
+    },
+    None() => "\nreason: the checker did not determine a complete join from the available input types"
+  }
+}
+
+pure render_type_join_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [TypeJoinEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_type_join_evidence(function.body))
+    }
+  }
+  mut output: Str = "checked type joins:"
+  if len(entries) == 0 {
+    output = output + " none (no retained array, conditional or match joins)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_type_join_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
 pure render_inferred_local(
   body: BoundBody,
   sources: Map[Str, Str],
@@ -945,6 +996,12 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_assignment_type_explanations(
+    project,
+    selector,
+    root,
+    stdlib_root
+  )
+  output = output + "\n\n" + render_type_join_explanations(
     project,
     selector,
     root,

@@ -176,7 +176,9 @@ The U3 query refreshes the v9 seed with opt-in checker evidence and
 `panack explain SOURCE.panack --function NAME`. Follow-up slices add retained
 explanations for proof-bearing conversions into guarded types and inferred local
 types with checked initializer evidence, followed by selected builtin argument
-checks including path APIs. These records remain opt-in to `explain`; ordinary
+checks including path APIs. The current extension records array, conditional and
+match type joins with accepted, rejected and unavailable results. These records
+remain opt-in to `explain`; ordinary
 checking keeps their evidence empty. The checker now accepts a guarded source
 for a compatible guarded target when the
 source invariant proves the target; ordinary checks still retain no explanation

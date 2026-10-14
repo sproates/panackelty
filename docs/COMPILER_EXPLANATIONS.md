@@ -6,10 +6,11 @@ type of an expression at a source location, function return checks, direct
 function-call argument checks, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks, plus retained array `map` and `reduce`
-callback contracts and unary/binary operator type decisions. It also reports
-retained proof-bearing guarded conversions, natural-number subtraction and
-effect-boundary evidence, and array/conditional/match/generic parameter type
-joins for one function. It reads source; it does not
+callback contracts, unary/binary operator type decisions, and indexing and
+iteration type checks. It also reports retained proof-bearing guarded
+conversions, natural-number subtraction and effect-boundary evidence, and
+array/conditional/match/generic parameter type joins for one function. It reads
+source; it does not
 execute the program, emit bytecode, write files, or consume a source-map sidecar. The
 command is implemented in unreleased core; existing published/browser versions
 do not acquire it automatically.
@@ -163,6 +164,19 @@ operator type does not mean its separate underflow proof succeeded; use the
 subtraction explanation for that proof. Ordinary diagnostics and program
 acceptance remain unchanged, and ordinary checking retains no operator
 explanation evidence.
+
+## Indexing and iteration types
+
+For an indexed expression, the query reports two independent checks: whether
+the receiver is a supported indexable type (`Str`, `Bytes` or `Array[T]`), and
+whether the position has type `Nat`. The receiver check includes the resulting
+element type when available. For a `for` loop, it reports the iterable type,
+the accepted iterable forms (`Range`, `Bytes` or `Array[T]`), and the resulting
+item type when available. Each decision has its own source range and an
+accepted, rejected or unavailable status. These are local checked-body results;
+`program: accepted/rejected` remains the whole-project result. Original
+diagnostics and ordinary checking are unchanged, and ordinary checking retains
+no indexing or iteration explanation evidence.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

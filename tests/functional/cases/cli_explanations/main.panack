@@ -291,6 +291,27 @@ main(): Void {
       explain_write(source, "probe(): Nat { missing + 1 }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved operator operand is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["operator type check: unavailable", "operator: +", "left operand type: unavailable", "right operand type: Nat", "resulting expression type: unavailable", "did not determine the required operand types"], [], "unknown name missing"))
+      explain_write(source, "probe(values: [Nat], position: Nat): Nat { values[position] }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted index explains receiver and position types", ["explain", source, "--function", "probe"], 0,
+        ["index and iteration type checks:", "index/iteration type check: accepted", "context: index receiver", "actual type: Array[Nat]", "expected type: Str, Bytes or Array[T]", "resulting type: Nat", "context: index position", "actual type: Nat", "expected type: Nat", "resulting type: not applicable"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { value[0] }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected index receiver preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: index receiver", "index/iteration type check: rejected", "expression: value", "actual type: Nat", "expected type: Str, Bytes or Array[T]"], [], "indexing requires Str, Bytes, or an array, got Nat"))
+      explain_write(source, "probe(values: [Nat], position: Str): Nat { values[position] }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected index position preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: index position", "index/iteration type check: rejected", "expression: position", "actual type: Str", "expected type: Nat"], [], "index must be Nat, got Str"))
+      explain_write(source, "probe(): Nat { missing[0] }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved index receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: index receiver", "index/iteration type check: unavailable", "actual type: unavailable", "expected type: Str, Bytes or Array[T]", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "probe(): Nat { for item in [1, 2] { item }; 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted array iteration explains its item type", ["explain", source, "--function", "probe"], 0,
+        ["index and iteration type checks:", "index/iteration type check: accepted", "context: for iterable", "actual type: Array[Nat]", "expected type: Range, Bytes or Array[T]", "resulting type: Nat"], [], ""))
+      explain_write(source, "probe(): Nat { for item in true { 0 }; 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected iteration source preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: for iterable", "index/iteration type check: rejected", "expression: true", "actual type: Bool", "expected type: Range, Bytes or Array[T]"], [], "for requires a Range or array, got Bool"))
+      explain_write(source, "probe(): Nat { for item in missing { 0 }; 0 }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved iteration source is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: for iterable", "index/iteration type check: unavailable", "actual type: unavailable", "expected type: Range, Bytes or Array[T]", "did not determine a complete type decision"], [], "unknown name missing"))
       explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))

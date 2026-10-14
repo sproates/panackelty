@@ -6085,3 +6085,25 @@ fixtures, release smoke (8s) and quick start (1s). Unit took 315s and bootstrap
 235s; the command emitted historical budget warnings for those phases and the
 overall check. There were no test failures. These local timings are validation
 evidence, not a paired performance comparison, and do not expand GI#106 scope.
+
+## GI#134 indexing and iteration explanation turnaround — 2026-10-14
+
+Five fresh-process stage-2 compiler VM queries on macOS arm64 used a function
+with both an array `for` loop and an indexed read. Each included source loading,
+checking and explanation rendering with a warm filesystem cache. `real` times
+were 0.05s, 0.04s, 0.05s, 0.04s and 0.04s (median 0.04s, range 0.04–0.05s).
+This is a local reference, not a paired before/after comparison or general
+latency guarantee. Index/iteration evidence is retained only for explanation
+queries; ordinary checking, diagnostics, and runtime behavior are unchanged.
+
+The module-binding suite passed 754 assertions and the explanation CLI fixture
+passed 151 cases. `make docs` and `git diff --check` passed. Full `make check`
+passed on the reused local build tree in 425s, including HTTP/TCP fixtures,
+release smoke (8s) and quick start (1s). Unit took 315s and bootstrap 236s; the
+command emitted historical budget warnings for these phases and overall check.
+There were no test failures. These local timings are validation evidence, not a
+paired performance comparison, and do not expand GI#106 scope.
+
+After the full run, an explicit rejected-index-receiver regression was added;
+the focused module-binding suite and CLI fixture then passed at 755 assertions
+and 152 cases. No implementation code changed after the full run.

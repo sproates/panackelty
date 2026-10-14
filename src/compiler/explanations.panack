@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, OperatorTypeEvidence, BodyAccessEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_operator_type_evidence, body_access_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -809,6 +809,62 @@ pure render_operator_type_explanations(
   output
 }
 
+pure render_access_type_evidence(
+  evidence: BodyAccessEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  actual: Str = source_map_escape(render_inferred_type(evidence.actual))
+  context: Str = source_map_escape(evidence.context)
+  expected: Str = source_map_escape(evidence.expected)
+  result: Str = if evidence.context == "index position" {
+    "not applicable"
+  } else {
+    source_map_escape(render_inferred_type(evidence.result))
+  }
+  "index/iteration type check: ${status}\ncontext: ${context}\n" +
+    explanation_location(Some(evidence.span), sources, root, stdlib_root) +
+    "\nactual type: ${actual}\nexpected type: ${expected}\nresulting type: ${result}" +
+    match evidence.accepted {
+      Some(accepted) => if accepted {
+        "\nreason: the existing checker accepted this type for the operation"
+      } else {
+        "\nreason: the existing checker rejected this type for the operation"
+      },
+      None() => "\nreason: the checker did not determine a complete type decision"
+    }
+}
+
+pure render_access_type_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [BodyAccessEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_access_evidence(function.body))
+    }
+  }
+  mut output: Str = "index and iteration type checks:"
+  if len(entries) == 0 {
+    output = output + " none (no retained index or iteration checks)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_access_type_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
 pure render_collection_callback_evidence(
   evidence: CollectionCallbackEvidence,
   sources: Map[Str, Str],
@@ -1119,6 +1175,9 @@ pub pure render_function_explanations(
     project, selector, root, stdlib_root
   )
   output = output + "\n\n" + render_operator_type_explanations(
+    project, selector, root, stdlib_root
+  )
+  output = output + "\n\n" + render_access_type_explanations(
     project, selector, root, stdlib_root
   )
   output = output + "\n\n" + render_collection_callback_explanations(

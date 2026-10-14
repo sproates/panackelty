@@ -84,6 +84,10 @@ PASS unresolved index receiver is explicitly unavailable
 PASS accepted array iteration explains its item type
 PASS rejected iteration source preserves checker diagnostic
 PASS unresolved iteration source is explicitly unavailable
+PASS accepted if condition explains its Bool requirement
+PASS rejected if condition preserves checker diagnostic
+PASS unresolved if condition is explicitly unavailable
+PASS accepted while condition explains its Bool requirement
 PASS unresolved branch join is explicit
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
@@ -150,4 +154,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 152, failures: 0
+tests: 156, failures: 0

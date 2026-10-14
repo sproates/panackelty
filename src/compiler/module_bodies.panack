@@ -84,7 +84,7 @@ pub record BoundBody {
   type_joins: [TypeJoinEvidence],
   callback_contracts: [CollectionCallbackEvidence],
   operator_checks: [OperatorTypeEvidence],
-  access_checks: [BodyAccessEvidence]
+  type_checks: [BodyTypeCheckEvidence]
 }
 
 pub record BodyContext {
@@ -170,7 +170,7 @@ pub record OperatorTypeEvidence {
   accepted: Option[Bool]
 }
 
-pub record BodyAccessEvidence {
+pub record BodyTypeCheckEvidence {
   context: Str,
   span: SourceSpan,
   actual: Option[SignatureType],
@@ -327,10 +327,10 @@ pub pure body_operator_type_evidence(body: BoundBody): [OperatorTypeEvidence] {
   entries
 }
 
-pub pure body_access_evidence(body: BoundBody): [BodyAccessEvidence] {
-  mut entries: [BodyAccessEvidence] = body.access_checks
+pub pure body_type_check_evidence(body: BoundBody): [BodyTypeCheckEvidence] {
+  mut entries: [BodyTypeCheckEvidence] = body.type_checks
   for child in body.children {
-    entries = concat(entries, body_access_evidence(child))
+    entries = concat(entries, body_type_check_evidence(child))
   }
   entries
 }
@@ -3769,7 +3769,7 @@ pure bind_body_block(
           iterable.body.type_joins,
           iterable.body.callback_contracts,
           iterable.body.operator_checks,
-          item.body.access_checks
+          item.body.type_checks
         )
         nested: BodyResult = bind_body_block(
           current_context,
@@ -4171,7 +4171,7 @@ pure check_body_operation(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins, node.callback_contracts, operator_checks, node.access_checks),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins, node.callback_contracts, operator_checks, node.type_checks),
     diagnostics,
     deferred
   ),
@@ -4282,6 +4282,22 @@ pure check_body_conditional(
   // If/while callers already aggregate condition and branch obligations, so
   // there is no synthetic leading marker to remove here.
   mut deferred: [SourceSpan] = concat(checked.deferred, required.deferred)
+  mut type_checks: [BodyTypeCheckEvidence] = node.type_checks
+  if context.retain_guard_conversions {
+    accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+      Some(false)
+    } else {
+      if len(required.deferred) > 0 { None() } else { Some(true) }
+    }
+    type_checks = append(type_checks, BodyTypeCheckEvidence(
+      if loop { "while condition" } else { "if condition" },
+      node.children[0].span,
+      node.children[0].type,
+      "Bool",
+      None(),
+      accepted
+    ))
+  }
   mut type_joins: [TypeJoinEvidence] = []
   mut output: Option[SignatureType] = body_core_type("Void")
   if has_else {
@@ -4367,7 +4383,7 @@ pure check_body_conditional(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, concat(node.type_joins, type_joins), node.callback_contracts, node.operator_checks, node.access_checks),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, concat(node.type_joins, type_joins), node.callback_contracts, node.operator_checks, type_checks),
     diagnostics,
     deferred
   ),
@@ -4425,7 +4441,7 @@ pure body_iteration_item(context: BodyContext, checked: BodyResult): BodyResult 
     checked.body.callback_contracts,
     checked.body.operator_checks,
     if context.retain_guard_conversions {
-      append(checked.body.access_checks, BodyAccessEvidence(
+      append(checked.body.type_checks, BodyTypeCheckEvidence(
         "for iterable",
         checked.body.span,
         checked.body.type,
@@ -4434,7 +4450,7 @@ pure body_iteration_item(context: BodyContext, checked: BodyResult): BodyResult 
         accepted
       ))
     } else {
-      checked.body.access_checks
+      checked.body.type_checks
     }
   ),
     diagnostics,
@@ -4490,14 +4506,14 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
       }
     }
   }
-  mut access_checks: [BodyAccessEvidence] = node.access_checks
+  mut type_checks: [BodyTypeCheckEvidence] = node.type_checks
   if context.retain_guard_conversions {
     index_accepted: Option[Bool] = if len(required.diagnostics) > 0 {
       Some(false)
     } else {
       if len(required.deferred) > 0 { None() } else { Some(true) }
     }
-    access_checks = append(access_checks, BodyAccessEvidence(
+    type_checks = append(type_checks, BodyTypeCheckEvidence(
       "index receiver",
       node.children[0].span,
       node.children[0].type,
@@ -4505,7 +4521,7 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
       output,
       receiver_accepted
     ))
-    access_checks = append(access_checks, BodyAccessEvidence(
+    type_checks = append(type_checks, BodyTypeCheckEvidence(
       "index position",
       node.children[1].span,
       node.children[1].type,
@@ -4515,7 +4531,7 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
     ))
   }
   BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins, node.callback_contracts, node.operator_checks, access_checks),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins, node.callback_contracts, node.operator_checks, type_checks),
     diagnostics,
     deferred
   )
@@ -4799,9 +4815,9 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
       evidence.accepted
     ))
   }
-    mut access_checks: [BodyAccessEvidence] = []
-    for evidence in body.access_checks {
-      access_checks = append(access_checks, BodyAccessEvidence(
+    mut type_checks: [BodyTypeCheckEvidence] = []
+    for evidence in body.type_checks {
+      type_checks = append(type_checks, BodyTypeCheckEvidence(
         evidence.context,
         evidence.span,
         body_solve_optional(evidence.actual, solutions),
@@ -4810,7 +4826,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
         evidence.accepted
       ))
     }
-    BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints, body.guard_conversions, body.type_joins, callback_contracts, body.operator_checks, access_checks)
+    BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints, body.guard_conversions, body.type_joins, callback_contracts, body.operator_checks, type_checks)
 }
 
 pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureType): BodyResult {
@@ -4831,7 +4847,7 @@ pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureT
               checked.body.type_joins,
               checked.body.callback_contracts,
               checked.body.operator_checks,
-              checked.body.access_checks
+              checked.body.type_checks
             )
             with_evidence = BodyResult(retained, checked.diagnostics, checked.deferred)
           }
@@ -4998,7 +5014,7 @@ pure body_apply_solutions(
     body.type_joins,
     body.callback_contracts,
     body.operator_checks,
-    body.access_checks
+    body.type_checks
   )
   BodyResult(retained, diagnostics, deferred)
 }
@@ -5477,7 +5493,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
     concat(checked.body.type_joins, type_joins),
     checked.body.callback_contracts,
     checked.body.operator_checks,
-    checked.body.access_checks
+    checked.body.type_checks
   ),
     diagnostics,
     deferred
@@ -5573,7 +5589,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
     checked.body.type_joins,
     checked.body.callback_contracts,
     checked.body.operator_checks,
-    checked.body.access_checks
+    checked.body.type_checks
   ),
     diagnostics,
     deferred

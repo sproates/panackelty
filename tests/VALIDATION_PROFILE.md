@@ -6107,3 +6107,20 @@ paired performance comparison, and do not expand GI#106 scope.
 After the full run, an explicit rejected-index-receiver regression was added;
 the focused module-binding suite and CLI fixture then passed at 755 assertions
 and 152 cases. No implementation code changed after the full run.
+
+## GI#134 conditional and loop condition type explanations — 2026-10-14
+
+Five warm stage-2 compiler VM queries for an `if` condition with explanation
+rendering took 0.05s, 0.04s, 0.05s, 0.05s and 0.05s (median 0.05s, range
+0.04–0.05s). This is a local reference, not a paired before/after benchmark or
+general latency guarantee. The explanation-only checker retained explicit type
+requirements only when explanation mode was enabled; ordinary diagnostics and
+runtime behavior remain unchanged.
+
+The compiler module-binding suite passed 760 assertions, and the explanation
+CLI fixture passed 156 cases. Documentation/link and whitespace checks passed.
+The full canonical validation route passed in 342s, including HTTP/TCP fixtures,
+bootstrap fixed points, release smoke (8s) and quick start (0s). Bootstrap took
+231s and emitted its existing 60s budget warning; the overall check emitted its
+existing 120s budget warning. No tests failed. These measurements are validation
+evidence, not a paired performance comparison.

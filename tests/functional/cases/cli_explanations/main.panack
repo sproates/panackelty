@@ -333,6 +333,15 @@ main(): Void {
       explain_write(source, "enum Choice { First }; probe(): Nat { match missing { First() => 1 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved match subject leaves variant membership unavailable", ["explain", source, "--function", "probe"], 1,
         ["context: match variant", "checked type requirement: unavailable", "actual type: unavailable", "expected type: variant of the matched enum", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "record Box[T] { value: T }; probe(box: Box[Nat]): Nat { box.value }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted generic record field explains receiver and result types", ["explain", source, "--function", "probe"], 0,
+        ["context: field access", "checked type requirement: accepted", "actual type: main.panack:Box[Nat]", "expected type: record with field value", "resulting type: Nat"], [], ""))
+      explain_write(source, "probe(value: Nat): Nat { value.value }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected non-record field receiver preserves diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["context: field access", "checked type requirement: rejected", "actual type: Nat", "expected type: record with field value"], [], "field access requires a record, got Nat"))
+      explain_write(source, "record Box { value: Nat }; probe(): Nat { missing.value }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved field receiver is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: field access", "checked type requirement: unavailable", "actual type: unavailable", "expected type: record with field value", "did not determine a complete type decision"], [], "unknown name missing"))
       explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))

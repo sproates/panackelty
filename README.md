@@ -43,8 +43,8 @@ is also the name of this project's command-line tool.
   for supported `Nat` subtraction proofs, checked type joins (including
   repeated generic parameter constraints), selected array
   `map`/`reduce` callback contracts, unary/binary operator type checks, and
-  index, iteration, `if`/`while` condition, and `match` variant type checks,
-  plus local call/await effect checks. Its explanations are bounded; they do not certify
+  index, iteration, field access, `if`/`while` condition, and `match` variant
+  type checks, plus local call/await effect checks. Its explanations are bounded; they do not certify
   whole-program validity or explain runtime behavior. See the
   [explanation guide](docs/COMPILER_EXPLANATIONS.md).
 - **A compiler built with the language.** Panackelty's compiler is written in

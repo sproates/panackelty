@@ -5506,6 +5506,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
   mut diagnostics: [Diagnostic] = checked.diagnostics
   mut deferred: [SourceSpan] = body_child_obligations(checked)
   mut output: Option[SignatureType] = None()
+  mut accepted: Option[Bool] = None()
 
   match checked.body.children[0].type {
     None() => {
@@ -5525,6 +5526,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
       match record {
         Some(signature) => {
           if signature.binding.kind != ModuleRecord() {
+            accepted = Some(false)
             diagnostics = append(
               diagnostics,
               Diagnostic(
@@ -5543,15 +5545,18 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
                   type.arguments
                 ) {
                   Error(message) => {
+                    accepted = Some(false)
                     diagnostics = append(diagnostics, Diagnostic(message, checked.body.span.start))
                   },
                   Ok(value) => {
                     output = Some(value)
+                    accepted = Some(true)
                   }
                 }
               }
             }
             if !found {
+              accepted = Some(false)
               diagnostics = append(
                 diagnostics,
                 Diagnostic(
@@ -5566,6 +5571,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
           if body_is_hole(type) {
             deferred = append(deferred, checked.body.span)
           } else {
+            accepted = Some(false)
             diagnostics = append(
               diagnostics,
               Diagnostic(
@@ -5578,6 +5584,17 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
       }
     }
   }
+  mut type_checks: [BodyTypeCheckEvidence] = checked.body.type_checks
+  if context.retain_guard_conversions {
+    type_checks = append(type_checks, BodyTypeCheckEvidence(
+      "field access",
+      checked.body.span,
+      checked.body.children[0].type,
+      "record with field " + field,
+      output,
+      accepted
+    ))
+  }
   BodyResult(
     BoundBody(
     checked.body.node,
@@ -5589,7 +5606,7 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
     checked.body.type_joins,
     checked.body.callback_contracts,
     checked.body.operator_checks,
-    checked.body.type_checks
+    type_checks
   ),
     diagnostics,
     deferred

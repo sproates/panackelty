@@ -40,9 +40,10 @@ is also the name of this project's command-line tool.
   can prove the rule. Try the [guarded-types example](examples/guards.panack)
   or read the [specification](SPEC.md#guarded-types).
 - **Inspect selected compiler decisions.** `panack explain` exposes evidence
-  for supported `Nat` subtraction proofs and local call/await effect checks. Its
-  explanations are bounded; they do not certify whole-program validity or
-  explain runtime behavior. See the [explanation guide](docs/COMPILER_EXPLANATIONS.md).
+  for supported `Nat` subtraction proofs, checked type joins, and local
+  call/await effect checks. Its explanations are bounded; they do not certify
+  whole-program validity or explain runtime behavior. See the
+  [explanation guide](docs/COMPILER_EXPLANATIONS.md).
 - **A compiler built with the language.** Panackelty's compiler is written in
   Panackelty, and reproducible bootstrap checks require successive builds to
   converge byte-for-byte. Follow the [self-hosting guide](SELF_HOSTING.md) for
@@ -622,7 +623,7 @@ panack disasm hello.bc
 
 Arguments after the input path are passed to the program.
 
-### Explain inferred locals, guarded conversions, subtraction and effects
+### Explain checked types, guarded conversions, subtraction and effects
 
 ```sh
 panack explain example.panack --function remaining
@@ -631,7 +632,8 @@ panack explain example.panack --function remaining
 The explanation query shows inferred local types and their checked initializer
 evidence, proof-bearing conversions into guarded types, and why a `Nat`
 subtraction is proved or unproved, using the checker's actual constants or guard
-bounds and their source locations. It also explains local
+bounds and their source locations. It also explains how array elements,
+conditional results and match arms combine into a checked result type, and local
 call and await effect boundaries, including why pure or
 async code rejects a call, and reports whole-program acceptance separately. Unproved does not
 mean a runtime failure was demonstrated; unsupported explanations remain explicit.

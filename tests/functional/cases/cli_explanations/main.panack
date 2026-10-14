@@ -237,6 +237,21 @@ main(): Void {
       explain_write(source, "probe(): Nat { mut value: Nat = 0; value = missing; value }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved assignment value is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["assignment value compatibility for value: unavailable", "expression: missing", "actual type: unavailable", "expected type: Nat", "did not determine a complete value or target type"], [], "unknown name missing"))
+      explain_write(source, "probe(): [Int] { [1, -2] }\nmain(): Void {}\n")
+      results = append(results, explain_run("array element join explains inferred collection type", ["explain", source, "--function", "probe"], 0,
+        ["checked type joins:", "checked type join: accepted", "context: array element type", "input types: Nat and Int", "resulting type: Int", "checker combined these input types"], [], ""))
+      explain_write(source, "probe(): [Nat] { [1, \"wrong\"] }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected array element join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: array element type", "input types: Nat and Str", "resulting type: unavailable", "checker rejected these incompatible input types"], [], "array elements have incompatible types Nat and Str"))
+      explain_write(source, "probe(flag: Bool): Int { if flag { 1 } else { -2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("conditional result explains the combined type", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: conditional result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "enum Choice { First, Second }\nprobe(value: Choice): Int { match value { First() => 1, Second() => -2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("match arms explain the combined type", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: match result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))
       explain_write(source, "probe(): Void { unresolved = []; }\nmain(): Void {}\n")
       results = append(results, explain_run("incomplete inferred local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["inferred local: unresolved", "inferred type: unavailable", "initializer did not determine a complete type"], ["inferred type: Array"], "cannot infer"))

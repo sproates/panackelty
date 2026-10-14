@@ -59,6 +59,11 @@ PASS accepted assignment value cites checked types
 PASS type-compatible value remains separately rejected for immutability
 PASS rejected assignment value explains type mismatch
 PASS unresolved assignment value is explicitly unavailable
+PASS array element join explains inferred collection type
+PASS rejected array element join preserves checker diagnostic
+PASS conditional result explains the combined type
+PASS match arms explain the combined type
+PASS unresolved branch join is explicit
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
 PASS imported generic proof
@@ -124,4 +129,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 126, failures: 0
+tests: 131, failures: 0

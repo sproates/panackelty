@@ -80,7 +80,8 @@ pub record BoundBody {
   children: [BoundBody],
   type: Option[SignatureType],
   constraints: [BodySolution],
-  guard_conversions: [GuardConversionEvidence]
+  guard_conversions: [GuardConversionEvidence],
+  type_joins: [TypeJoinEvidence]
 }
 
 pub record BodyContext {
@@ -134,6 +135,15 @@ pub record AssignmentTypeEvidence {
   span: SourceSpan,
   actual: Option[SignatureType],
   expected: Option[SignatureType],
+  accepted: Option[Bool]
+}
+
+pub record TypeJoinEvidence {
+  context: Str,
+  span: SourceSpan,
+  left: Option[SignatureType],
+  right: Option[SignatureType],
+  result: Option[SignatureType],
   accepted: Option[Bool]
 }
 
@@ -261,6 +271,14 @@ pub pure body_assignment_type_evidence(body: BoundBody): [AssignmentTypeEvidence
   entries
 }
 
+pub pure body_type_join_evidence(body: BoundBody): [TypeJoinEvidence] {
+  mut entries: [TypeJoinEvidence] = body.type_joins
+  for child in body.children {
+    entries = concat(entries, body_type_join_evidence(child))
+  }
+  entries
+}
+
 pub record CheckedModuleBodies {
   functions: [BoundFunctionBody],
   diagnostics: [Diagnostic]
@@ -276,11 +294,11 @@ pure body_result(
   children: [BoundBody],
   type: Option[SignatureType]
 ): BodyResult {
-  BodyResult(BoundBody(node, span, children, type, [], []), [], [])
+  BodyResult(BoundBody(node, span, children, type, [], [], []), [], [])
 }
 
 pure body_failure(message: Str, span: SourceSpan): BodyResult {
-  BodyResult(BoundBody(BodyEmpty(), span, [], None(), [], []), [Diagnostic(message, span.start)], [])
+  BodyResult(BoundBody(BodyEmpty(), span, [], None(), [], [], []), [Diagnostic(message, span.start)], [])
 }
 
 pub pure body_signature(
@@ -1382,7 +1400,7 @@ pure body_call(
     )
   } else {
     BodyResult(
-      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], []),
+      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], [], []),
       diagnostics,
       deferred
     )
@@ -1591,7 +1609,7 @@ pure body_check_tcp_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], []), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_check_existing_special_core_call(
@@ -1849,6 +1867,7 @@ pure body_check_existing_special_core_call(
       children,
       output,
       body_collection_call_solutions(name, children),
+      [],
       []
     ),
     diagnostics,
@@ -1901,7 +1920,7 @@ pure body_check_rational_conversion(
       output = body_core_type(if name == "nat" { "Nat" } else { "Dec" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_check_environment_core_call(
@@ -1948,7 +1967,7 @@ pure body_check_environment_core_call(
       output = body_core_type(if name == "environment_has" { "Bool" } else { "Str" })
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_check_time_core_call(
@@ -2042,7 +2061,7 @@ pure body_check_time_core_call(
   if len(diagnostics) > 0 || len(deferred) > 0 {
     output = None()
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_intrinsic_type(context: BodyContext, name: Str): SignatureType {
@@ -2150,7 +2169,7 @@ pure body_check_typed_intrinsic(
   if len(diagnostics) == 0 && len(deferred) == 0 {
     output = Some(result)
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_check_host_filesystem_core_call(
@@ -2412,7 +2431,7 @@ pure body_check_text_core_call(
       output = if name == "slice" || name == "reverse" { body_core_type("Str") } else { body_core_type("Bool") }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_check_bytes_core_call(
@@ -2483,7 +2502,7 @@ pure body_check_bytes_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_path_error_type(): SignatureType {
@@ -2602,7 +2621,7 @@ pure body_check_path_core_call(
       }
     }
   }
-  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(BodyCall(BodyCore(name), [], call_arguments), span, children, output, [], [], []), diagnostics, deferred)
 }
 
 pure body_optional_type(type: Option[SignatureType]): SignatureType {
@@ -2765,7 +2784,7 @@ pure body_check_collection_core_call(
   } else {
     BodyEmpty()
   }
-  BodyResult(BoundBody(node, span, [], output, [], []), diagnostics, deferred)
+  BodyResult(BoundBody(node, span, [], output, [], [], []), diagnostics, deferred)
 }
 
 pure body_check_map_set_call(
@@ -2867,7 +2886,7 @@ pure body_check_map_set_call(
     BodyEmpty()
   }
   BodyResult(
-    BoundBody(node, span, [], output, body_collection_call_solutions(operation, children), []),
+    BoundBody(node, span, [], output, body_collection_call_solutions(operation, children), [], []),
     diagnostics,
     deferred
   )
@@ -3005,7 +3024,7 @@ pure bind_body_expression_with_type_argument_spans(
             }
           }
           result = BodyResult(
-            BoundBody(BodyFunction(binding), origin, [], type, [], []),
+            BoundBody(BodyFunction(binding), origin, [], type, [], [], []),
             result.diagnostics,
             deferred
           )
@@ -3202,6 +3221,7 @@ pure bind_body_if(
     [checked_condition.body, checked_yes.body, checked_no.body],
     None(),
     [],
+    [],
     []
   ),
     concat(checked_condition.diagnostics, concat(checked_yes.diagnostics, checked_no.diagnostics)),
@@ -3236,7 +3256,7 @@ pure bind_body_children(
     deferred = concat(deferred, checked.deferred)
     index = index + 1
   }
-  BodyResult(BoundBody(node, span, children, None(), [], []), diagnostics, deferred)
+  BodyResult(BoundBody(node, span, children, None(), [], [], []), diagnostics, deferred)
 }
 
 pure bind_body_block(
@@ -3360,6 +3380,7 @@ pure bind_body_block(
           [checked.body],
           body_core_type("Void"),
           [],
+          [],
           []
         ),
           checked.diagnostics,
@@ -3393,6 +3414,7 @@ pure bind_body_block(
             checked.body.span,
             [checked.body],
             body_core_type("Void"),
+            [],
             [],
             []
           ),
@@ -3475,6 +3497,7 @@ pure bind_body_block(
             [checked.body],
             body_core_type("Void"),
             [],
+            [],
             []
           ),
             checked.diagnostics,
@@ -3507,7 +3530,7 @@ pure bind_body_block(
         checked = check_body_conditional(
           current_context,
           BodyResult(
-            BoundBody(BodyWhile(), span, [checked_condition.body, checked_body.body], None(), [], []),
+            BoundBody(BodyWhile(), span, [checked_condition.body, checked_body.body], None(), [], [], []),
             concat(checked_condition.diagnostics, checked_body.diagnostics),
             concat(checked_condition.deferred, checked_body.deferred)
           ),
@@ -3539,7 +3562,7 @@ pure bind_body_block(
           append(statement_path, 2)
         )
         checked = BodyResult(
-          BoundBody(BodyFor(local), span, [iterable.body, nested.body], body_core_type("Void"), [], []),
+          BoundBody(BodyFor(local), span, [iterable.body, nested.body], body_core_type("Void"), [], [], []),
           concat(item.diagnostics, nested.diagnostics),
           concat(item.deferred, nested.deferred)
         )
@@ -3566,7 +3589,7 @@ pure bind_body_block(
     }
   }
   BodyResult(
-    BoundBody(BodyBlock(block.value != NoBlockValue()), span, children, output, [], []),
+    BoundBody(BodyBlock(block.value != NoBlockValue()), span, children, output, [], [], []),
     diagnostics,
     deferred
   )
@@ -3917,7 +3940,7 @@ pure check_body_operation(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins),
     diagnostics,
     deferred
   ),
@@ -4028,23 +4051,64 @@ pure check_body_conditional(
   // If/while callers already aggregate condition and branch obligations, so
   // there is no synthetic leading marker to remove here.
   mut deferred: [SourceSpan] = concat(checked.deferred, required.deferred)
+  mut type_joins: [TypeJoinEvidence] = []
   mut output: Option[SignatureType] = body_core_type("Void")
   if has_else {
     output = None()
     match node.children[1].type {
       None() => {
         deferred = append(deferred, node.span)
+        if context.retain_guard_conversions {
+          type_joins = append(type_joins, TypeJoinEvidence(
+            if loop { "loop result" } else { "conditional result" },
+            node.span,
+            node.children[1].type,
+            None(),
+            None(),
+            None()
+          ))
+        }
       },
       Some(left) => match node.children[2].type {
         None() => {
           deferred = append(deferred, node.span)
+          if context.retain_guard_conversions {
+            type_joins = append(type_joins, TypeJoinEvidence(
+              if loop { "loop result" } else { "conditional result" },
+              node.span,
+              Some(left),
+              None(),
+              None(),
+              None()
+            ))
+          }
         },
         Some(right) => match body_join(context, left, right) {
           Error(message) => {
             diagnostics = append(diagnostics, Diagnostic(message, node.span.start))
+            if context.retain_guard_conversions {
+              type_joins = append(type_joins, TypeJoinEvidence(
+                if loop { "loop result" } else { "conditional result" },
+                node.span,
+                Some(left),
+                Some(right),
+                None(),
+                Some(false)
+              ))
+            }
           },
           Ok(joined) => {
             output = joined
+            if context.retain_guard_conversions {
+              type_joins = append(type_joins, TypeJoinEvidence(
+                if loop { "loop result" } else { "conditional result" },
+                node.span,
+                Some(left),
+                Some(right),
+                joined,
+                if joined == None() { None() } else { Some(true) }
+              ))
+            }
             if joined == None() {
               deferred = append(deferred, node.span)
             }
@@ -4072,7 +4136,7 @@ pure check_body_conditional(
   body_apply_solutions(
     context,
     BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, concat(node.type_joins, type_joins)),
     diagnostics,
     deferred
   ),
@@ -4121,7 +4185,8 @@ pure body_iteration_item(context: BodyContext, checked: BodyResult): BodyResult 
     checked.body.children,
     output,
     checked.body.constraints,
-    checked.body.guard_conversions
+    checked.body.guard_conversions,
+    checked.body.type_joins
   ),
     diagnostics,
     deferred
@@ -4172,7 +4237,7 @@ pure check_body_index(context: BodyContext, checked: BodyResult): BodyResult {
     }
   }
   BodyResult(
-    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions),
+    BoundBody(node.node, node.span, node.children, output, node.constraints, node.guard_conversions, node.type_joins),
     diagnostics,
     deferred
   )
@@ -4202,7 +4267,7 @@ pure bind_body_string(
         local: BodyLocal = locals.get(name)
         children = append(
           children,
-          BoundBody(BodyLocalUse(local.identity), span, [], local.type, [], [])
+          BoundBody(BodyLocalUse(local.identity), span, [], local.type, [], [], [])
         )
         match local.type {
           None() => {
@@ -4231,7 +4296,7 @@ pure bind_body_string(
       }
     }
     result = BodyResult(
-      BoundBody(BodyInterpolation(interpolation.parts), span, children, body_core_type("Str"), [], []),
+      BoundBody(BodyInterpolation(interpolation.parts), span, children, body_core_type("Str"), [], [], []),
       diagnostics,
       deferred
     )
@@ -4440,7 +4505,7 @@ pure body_solve(body: BoundBody, solutions: [BodySolution]): BoundBody {
     BodyFor(local) => {},
     BodyEmpty() => {}
   }
-  BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints, body.guard_conversions)
+  BoundBody(node, body.span, children, body_solve_optional(body.type, solutions), body.constraints, body.guard_conversions, body.type_joins)
 }
 
 pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureType): BodyResult {
@@ -4457,7 +4522,8 @@ pure body_refine(context: BodyContext, checked: BodyResult, expected: SignatureT
               checked.body.children,
               checked.body.type,
               checked.body.constraints,
-              append(checked.body.guard_conversions, evidence)
+              append(checked.body.guard_conversions, evidence),
+              checked.body.type_joins
             )
             with_evidence = BodyResult(retained, checked.diagnostics, checked.deferred)
           }
@@ -4620,7 +4686,8 @@ pure body_apply_solutions(
     body.children,
     body.type,
     concat(body.constraints, constraints),
-    body.guard_conversions
+    body.guard_conversions,
+    body.type_joins
   )
   BodyResult(retained, diagnostics, deferred)
 }
@@ -4954,8 +5021,11 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
   mut diagnostics: [Diagnostic] = checked.diagnostics
   mut deferred: [SourceSpan] = body_child_obligations(checked)
   mut item: Option[SignatureType] = Some(SignatureType(SignatureHole(context.owner, path, 0), []))
+  mut type_joins: [TypeJoinEvidence] = []
+  mut seen_element: Bool = false
 
   for child in checked.body.children {
+    previous_item: Option[SignatureType] = item
     if child.type == body_core_type("Void") {
       diagnostics = append(
         diagnostics,
@@ -4966,18 +5036,49 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
       None() => {
         item = None()
         deferred = append(deferred, child.span)
+        if context.retain_guard_conversions && seen_element {
+          type_joins = append(type_joins, TypeJoinEvidence(
+            "array element type",
+            child.span,
+            previous_item,
+            None(),
+            None(),
+            None()
+          ))
+        }
       },
       Some(type) => match item {
-        None() => {},
+        None() => {
+          if context.retain_guard_conversions && seen_element {
+            type_joins = append(type_joins, TypeJoinEvidence(
+              "array element type", child.span, None(), Some(type), None(), None()
+            ))
+          }
+        },
         Some(previous) => match body_join(context, previous, type) {
           Error(message) => {
             diagnostics = append(
               diagnostics,
               Diagnostic("array elements have " + message, child.span.start)
             )
+            if context.retain_guard_conversions && !body_is_hole(previous) {
+              type_joins = append(type_joins, TypeJoinEvidence(
+                "array element type", child.span, Some(previous), Some(type), None(), Some(false)
+              ))
+            }
           },
           Ok(joined) => {
             item = joined
+            if context.retain_guard_conversions && !body_is_hole(previous) {
+              type_joins = append(type_joins, TypeJoinEvidence(
+                "array element type",
+                child.span,
+                Some(previous),
+                Some(type),
+                joined,
+                if joined == None() { None() } else { Some(true) }
+              ))
+            }
             if joined == None() {
               deferred = append(deferred, child.span)
             }
@@ -4985,6 +5086,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
         }
       }
     }
+    seen_element = true
   }
   mut output: Option[SignatureType] = None()
   mut solutions: [BodySolution] = []
@@ -5011,7 +5113,8 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
     checked.body.children,
     output,
     checked.body.constraints,
-    checked.body.guard_conversions
+    checked.body.guard_conversions,
+    concat(checked.body.type_joins, type_joins)
   ),
     diagnostics,
     deferred
@@ -5103,7 +5206,8 @@ pure check_body_field(context: BodyContext, checked: BodyResult, field: Str): Bo
     checked.body.children,
     output,
     checked.body.constraints,
-    checked.body.guard_conversions
+    checked.body.guard_conversions,
+    checked.body.type_joins
   ),
     diagnostics,
     deferred
@@ -5193,6 +5297,7 @@ pure bind_body_match(
     }
   }
   mut output: Option[SignatureType] = None()
+  mut type_joins: [TypeJoinEvidence] = []
   mut first: Bool = true
   mut seen: [DeclarationIdentity] = []
   mut index: Nat = 1
@@ -5330,10 +5435,21 @@ pure bind_body_match(
       first = false
     } else {
       match output {
-        None() => {},
+        None() => {
+          if context.retain_guard_conversions {
+            type_joins = append(type_joins, TypeJoinEvidence(
+              "match result", checked.body.span, None(), checked.body.type, None(), None()
+            ))
+          }
+        },
         Some(previous) => match checked.body.type {
           None() => {
             output = None()
+            if context.retain_guard_conversions {
+              type_joins = append(type_joins, TypeJoinEvidence(
+                "match result", checked.body.span, Some(previous), None(), None(), None()
+              ))
+            }
           },
           Some(type) => match body_join(context, previous, type) {
             Error(message) => {
@@ -5341,9 +5457,24 @@ pure bind_body_match(
                 diagnostics,
                 Diagnostic("match arms have " + message, checked.body.span.start)
               )
+              if context.retain_guard_conversions {
+                type_joins = append(type_joins, TypeJoinEvidence(
+                  "match result", checked.body.span, Some(previous), Some(type), None(), Some(false)
+                ))
+              }
             },
             Ok(joined) => {
               output = joined
+              if context.retain_guard_conversions {
+                type_joins = append(type_joins, TypeJoinEvidence(
+                  "match result",
+                  checked.body.span,
+                  Some(previous),
+                  Some(type),
+                  joined,
+                  if joined == None() { None() } else { Some(true) }
+                ))
+              }
             }
           }
         }
@@ -5389,6 +5520,6 @@ pure bind_body_match(
       }
     }
   }
-  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [], [])
+  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [], [], type_joins)
   body_apply_solutions(context, BodyResult(body, diagnostics, deferred), solutions)
 }

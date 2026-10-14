@@ -7,7 +7,8 @@ function-call argument checks, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks. It also
 reports retained proof-bearing guarded conversions, natural-number subtraction
-and effect-boundary evidence for one function. It reads source; it does not
+effect-boundary evidence, and array/conditional/match result type joins for one
+function. It reads source; it does not
 execute the program, emit bytecode, write files, or consume a source-map sidecar. The
 command is implemented in unreleased core; existing published/browser versions
 do not acquire it automatically.
@@ -92,7 +93,7 @@ forms. Path checks cover the typed arguments to `path_from_text`,
 `path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
 `path_display`, `path_absolute`, `path_directory`, `path_filename`,
 `path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
-`path_with_suffix` and `path_resolve`. Collection joins, callback contracts and
+`path_with_suffix` and `path_resolve`. Generic collection-call joins, callback contracts and
 other builtins remain outside these slices. The environment checks cover the
 string key arguments to `environment_get` and `environment_has`. Diagnostics and
 exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
@@ -121,6 +122,17 @@ value's checked type against the local's known type, with accepted, rejected or
 unavailable and the value's source range. This describes type compatibility
 only; a separate immutability error can still reject the assignment. Diagnostics
 and exit status remain unchanged.
+
+## Checked type joins
+
+The query reports the checker's existing type-join decisions when it combines
+array element types, the two results of an `if` expression, or successive match
+arm results. Each entry identifies the join context and source location, the two
+input types, the resulting type when determined, and whether the join was
+accepted, rejected or unavailable. An unavailable join means the checker could
+not derive a complete result from the available types; it does not imply that
+the types are incompatible. Rejected joins keep the original diagnostic and
+exit status. This query does not add coercions or change type inference.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

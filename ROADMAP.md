@@ -93,15 +93,17 @@ implementation selection or completion of the first non-alpha milestone.
 
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
-| Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
+| Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors; libcurl is the initial replaceable native client backend for the alpha.13 proof of concept | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): bounded subtraction, local effects, guarded conversions, inferred locals, expression types, returns, call arguments, annotated locals and assignment compatibility through PR #423; selected text/byte builtins through PR #424, numeric builtins through PR #425, collection mutation/lookup through PR #426, path arguments through PR #427, environment arguments through PR #428, time arguments through PR #429, filesystem I/O through PR #430, filesystem query arguments through PR #432 and filesystem path operations through PR #433; broader checked type/effect/proof scope remains | Current slice explains `fs_read_beneath` arguments with source expressions; retain checker evidence, accepted/rejected/unavailable distinctions, diagnostic parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
 | Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
-HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
-language/local-package checkpoint before HTTP, and client-before-server sequencing.
+HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the P2 → P3 → P4
+implementation order, and client-before-server sequencing. The P1–P4
+language/local-package acceptance evidence is required for the eventual alpha.13
+release, but no public release or core promotion is required before P5.
 Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
 scope does not complete reproducible dependencies or the whole GI#233 programme.
 
@@ -430,9 +432,10 @@ unchanged.
 [GI#233: Modules programme](https://github.com/sproates/panackelty/issues/233).
 
 SP1 is the owner-selected name and sequence for the existing RM#108/GI#233
-programme. P2, P3 and P4 are complete on `next`; the clean-installed
-language/local-package release gate is in progress and must pass before HTTP
-implementation begins.
+programme. P2, P3 and P4 are complete on `next`. Their clean-installed and
+relocated-package acceptance evidence remains part of P8's final alpha.13
+acceptance, but an intermediate release is not required and this evidence does
+not block P5.
 
 P2 foundations and slices 1–5 are merged on `next`.
 P1 was completed by [PR#240: Module and package design](https://github.com/sproates/panackelty/pull/240),
@@ -471,12 +474,31 @@ and server (P6 / GI#237). HTTP work must not start before the first gate passes.
 P7 / GI#200 remains part of final P8 acceptance but does not block this gate or
 the initial HTTP milestones.
 
+Owner decision, 2026-10-14: SP1 implementation will finish before the alpha.13
+release. The earlier plan to publish/promote a P1–P4 language/local-package
+release before P5 is superseded. Keep its clean-installed and relocated-package
+checks as P8 acceptance evidence, but they do not block P5 and do not trigger an
+intermediate release. Complete all SP1 implementation and final P8 acceptance
+before promoting or publishing alpha.13. This changes delivery sequencing only;
+SP1 scope and weights remain unchanged.
+
+Owner decision, 2026-10-14: use libcurl as the initial native client backend for
+P5 within the alpha.13 proof of concept. Do not spend a separate pre-implementation
+PR on comparing backends. Keep libcurl behind an internal replaceable adapter and
+keep Panackelty's HTTP parser and public package contract independent of it. Fold
+version/build, licensing/transitive-dependency, verified TLS, asynchronous DNS,
+cancellation, packaging and interpreter-free build checks into implementation.
+If implementation evidence shows a hard incompatibility with those requirements,
+pause and revisit the backend choice. This is the P5 client direction; it does not
+select libcurl as a server backend for P6 or create a permanent dependency promise.
+
 SP1's HTTP work follows four layers: inventory compiler, VM/runtime, bytecode,
 host and bootstrap impact; complete identified compiler-affecting changes
 together; add only reusable compiler-independent standard-library support; then
-implement the HTTP package. If later work reveals another compiler need, return
-to the compiler layer and update the inventory. This reduces late discovery risk
-but cannot guarantee there will be no later compiler rebuilds. The accepted
+implement the HTTP package using the libcurl POC direction above. If later work
+reveals another compiler need, return to the compiler layer and update the
+inventory. This reduces late discovery risk but cannot guarantee there will be no
+later compiler rebuilds. The accepted
 [module/package design](docs/MODULE_PACKAGE_DESIGN.md#http-client-and-server-boundary)
 owns the package API, transport, security and lifecycle details.
 
@@ -514,10 +536,10 @@ bootstrap, docs, independent review and explicit merge approval.
 | Before P3 | [RM#150: Namespace performance investigation](#rm-150) · [GI#360](https://github.com/sproates/panackelty/issues/360) | Done for alpha.12 on `next` through merged PR#363; validation budgets remain exceeded under the accepted disposition | Slice 8 evidence; coordinate with GI#106 and GI#285 | Medium / 1–2 PRs |
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of PR#386, the final acceptance delivery; P8's separate clean-installed release gate remains | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on merge of [PR#404](https://github.com/sproates/panackelty/pull/404); API migration and source, test and documentation callers are complete on `next` | P1–P3 as needed | Medium / 1–2 PRs; delivered |
-| P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
+| P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started; libcurl selected as the replaceable client backend for the alpha.13 POC | P1–P3; bounded DNS/TLS transport | Large / 4–7 PRs; re-estimate from implementation evidence |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
 | P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
-| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | In progress: the local release-archive gate now exercises the installed toolchain with two apps sharing a library across package-tree relocation. Core validation passed locally; browser candidate PR#11 is validating the P4 `next` revision. Release promotion and cross-platform artifact acceptance remain open. | Language/local-package gate P1–P4; client gate after P5; final all including P6/P7 | Medium / 1–2 PRs, provisional; reassess across three gates |
+| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | In progress: the local installed-toolchain archive smoke exercises two apps sharing a library across package-tree relocation. This P1–P4 evidence does not require release promotion and does not block P5. Browser conformance and release artifact checks remain for final alpha.13 acceptance. | P1–P4 integration evidence; client gate after P5; final all including P6/P7 before alpha.13 release | Medium / 1–2 PRs, provisional; reassess across three checkpoints |
 
 <a id="rm-149"></a>
 
@@ -771,10 +793,11 @@ alpha.13 adoption after supporting artifacts are published and verified.
 
 The 2026-10-04 sequencing decision refines this checkpoint to the
 [language/local-package release gate in P8](#rm-112): complete P2, P3 and P4,
-then release before starting HTTP client work. A namespace-only internal slice
-is insufficient; clean installed two-application local-package use, relocation,
+then record clean installed two-application local-package use, relocation,
 coordinated stdlib/source migration and required native/browser baseline evidence
-must pass. P7 remains independent after P1/P3 and is not a release prerequisite.
+for final alpha.13 acceptance. This evidence does not require an intermediate
+release and does not block P5. P7 remains independent after P1/P3 and does not
+block the HTTP client.
 
 The 2026-10-03 decision originally selected coherent namespace migration as a
 release checkpoint. The intervening [RM#128: Alpha.11 release](#rm-128), selected
@@ -784,12 +807,12 @@ requirements; it makes local-package readiness and standard-library migration
 explicit before HTTP. Record before/after import, visibility and name-resolution
 migration notes and website adoption follow-ups, preserving truthful pinned claims.
 
-Choose the version under the release policy when this gate is ready. No version
-is allocated, no move beyond alpha is implied, and no future merge or publication
-is approved by this planning record. Scope and weights remain unchanged; P2 is
-partial and the formally accepted programme contribution remains 10 pp. Current
-estimated programme progress, including P2's partial 11 pp, is approximately
-21 pp as recorded in the programme register.
+Choose the version under the release policy when final SP1 acceptance is ready.
+No version is allocated, no move beyond alpha is implied, and no future merge or
+publication is approved by this planning record. Scope and weights remain
+unchanged; P2 is partial and the formally accepted programme contribution remains
+10 pp. Current estimated programme progress, including P2's partial 11 pp, is
+approximately 21 pp as recorded in the programme register.
 
 ## Programme pause and resumption checkpoint — 2026-10-03
 

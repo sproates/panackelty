@@ -100,13 +100,13 @@ implementation selection or completion of the first non-alpha milestone.
 | Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
-HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the P2 → P3 → P4
+HTTP retains P1–P3 and transport/DNS/TLS prerequisites and the P2 → P3 → P4
 implementation order. Owner decision, 2026-10-14: implement P6 before P5, using
-the existing bounded TCP server owner as the socket/lifecycle foundation; the
-current `tcp_serve` EOF-framed API needs an HTTP-compatible request-completion
-path. The P1–P4 language/local-package acceptance evidence is required for the
-eventual alpha.13 release, but no public release or core promotion is required
-before P5.
+the existing bounded TCP server owner as the socket/lifecycle foundation. Since
+`tcp_serve` waits for EOF, add bounded incremental reads so the Panackelty package
+can parse HTTP. Check P5-client interoperability after P5 is delivered. The
+P1–P4 language/local-package acceptance evidence is required for eventual alpha.13
+acceptance, but no intermediate release or core promotion is required before HTTP.
 Do not fold packages/HTTP into alpha.12's three gates. The planned alpha.13 HTTP
 scope does not complete reproducible dependencies or the whole GI#233 programme.
 
@@ -540,7 +540,7 @@ bootstrap, docs, independent review and explicit merge approval.
 | P3 | [RM#43: Local reusable packages](#rm-43) · [GI#199: Local reusable packages](https://github.com/sproates/panackelty/issues/199) | Done on merge of PR#386, the final acceptance delivery; P8's separate clean-installed release gate remains | P1; P2 boundaries; RM#149 and RM#150 complete | Large / 2–4 PRs |
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on merge of [PR#404](https://github.com/sproates/panackelty/pull/404); API migration and source, test and documentation callers are complete on `next` | P1–P3 as needed | Medium / 1–2 PRs; delivered |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started; libcurl selected as the replaceable client backend for the alpha.13 POC | P1–P3; bounded DNS/TLS transport | Large / 4–7 PRs; re-estimate from implementation evidence |
-| P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started; sequenced before P5 | P1–P3; current bounded TCP server plus HTTP-compatible request completion and shared HTTP types | Large / 2–4 PRs |
+| P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started; sequenced before P5; Panackelty package owns HTTP parsing | P1–P3; bounded incremental reads in current TCP server plus shared HTTP types | Large / 2–4 PRs |
 | P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
 | P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | In progress: the local installed-toolchain archive smoke exercises two apps sharing a library across package-tree relocation. This P1–P4 evidence does not require release promotion and does not block P5. Browser conformance and release artifact checks remain for final alpha.13 acceptance. | P1–P4 integration evidence; client gate after P5; final all including P6/P7 before alpha.13 release | Medium / 1–2 PRs, provisional; reassess across three checkpoints |
 
@@ -632,10 +632,12 @@ protocol/API contract. Native first; browser support is not implied.
 **RM#111: HTTP server package** — P6 in GI#237: importable handler/response
 API, bounded protocol/resource handling, tested lifecycle and graceful shutdown.
 Owner selected P6 before P5 on 2026-10-14. Reuse the existing bounded TCP
-server owner for sockets and lifecycle, but add an HTTP-compatible request
-completion path because current `tcp_serve` waits for peer EOF. P5 client
-interoperability is accepted after P5; server TLS remains outside the initial
-contract.
+server owner for sockets and lifecycle, but add bounded incremental per-client
+reads because current `tcp_serve` waits for peer EOF. The Panackelty HTTP package
+owns request framing and response serialization; the native owner scopes reads
+to the active child, enforces deadlines and writes the returned bounded response.
+P5-client interoperability is accepted after P5; server TLS remains outside the
+initial contract.
 
 <a id="rm-112"></a>
 

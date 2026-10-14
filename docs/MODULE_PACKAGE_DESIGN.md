@@ -485,10 +485,13 @@ P6 is sequenced before P5 by owner decision on 2026-10-14. The existing
 HTTP clients normally keep the connection open while waiting for the response.
 Therefore the existing API cannot serve HTTP unchanged, although its bounded
 listener, polling, child-execution and shutdown ownership are reusable. The P6
-host integration must either detect bounded HTTP request completion natively
-before dispatching the existing handler, or expose incremental per-client reads
-so the Panackelty package can parse the request. Keep P5 client interoperability
-as a later P8 check once P5 exists.
+owner-selected design exposes bounded incremental per-client reads through the
+existing server owner, so the Panackelty HTTP package parses request framing and
+constructs the public Request value. The handler's serialized response returns
+through the owner's bounded write path. The new read operation must be scoped to
+its active child execution, deadline and client; it must not expose a forgeable
+socket handle or permit reads outside a server handler. Keep P5 client
+interoperability as a later P8 check once P5 exists.
 
 ### Native prerequisite decisions and acceptance gates
 

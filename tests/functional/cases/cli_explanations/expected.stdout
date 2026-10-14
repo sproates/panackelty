@@ -64,6 +64,9 @@ PASS type-compatible value remains separately rejected for immutability
 PASS rejected assignment value explains type mismatch
 PASS unresolved assignment value is explicitly unavailable
 PASS array element join explains inferred collection type
+PASS array concatenation explains its element type join
+PASS rejected array concatenation join preserves checker diagnostic
+PASS unavailable array concatenation join reports unresolved type
 PASS rejected array element join preserves checker diagnostic
 PASS conditional result explains the combined type
 PASS match arms explain the combined type
@@ -133,4 +136,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 135, failures: 0
+tests: 138, failures: 0

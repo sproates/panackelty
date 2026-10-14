@@ -252,6 +252,15 @@ main(): Void {
       explain_write(source, "probe(): [Int] { [1, -2] }\nmain(): Void {}\n")
       results = append(results, explain_run("array element join explains inferred collection type", ["explain", source, "--function", "probe"], 0,
         ["checked type joins:", "checked type join: accepted", "context: array element type", "input types: Nat and Int", "resulting type: Int", "checker combined these input types"], [], ""))
+      explain_write(source, "probe(): [Nat] { concat([1], [2]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("array concatenation explains its element type join", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: array concatenation", "input types: Nat and Nat", "resulting type: Nat", "checker combined these input types"], [], ""))
+      explain_write(source, "probe(): [Nat] { concat([1], [\"wrong\"]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected array concatenation join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: array concatenation", "input types: Nat and Str", "resulting type: unavailable", "checker rejected these incompatible input types"], [], "cannot concatenate Array[Nat] and Array[Str]"))
+      explain_write(source, "probe(): [Nat] { concat([1], [missing]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unavailable array concatenation join reports unresolved type", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: array concatenation", "input types: Nat and unavailable", "resulting type: unavailable", "did not determine a complete join"], [], "unknown name missing"))
       explain_write(source, "probe(): [Nat] { [1, \"wrong\"] }\nmain(): Void {}\n")
       results = append(results, explain_run("rejected array element join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
         ["checked type join: rejected", "context: array element type", "input types: Nat and Str", "resulting type: unavailable", "checker rejected these incompatible input types"], [], "array elements have incompatible types Nat and Str"))

@@ -790,12 +790,14 @@ compatibility, separately from mutability diagnostics.
 ## U3 checked type-join explanations
 
 The compiler module-body suite verifies retained accepted and rejected array
-element joins, a conditional result join, an unresolved mixed `Nat`/`Rat` join,
-and empty join evidence during ordinary checking. The public CLI regression
-checks accepted array, conditional and match joins, a rejected array join with
-the original diagnostic intact, and an unavailable conditional join with the
-actual input types and source location. No coercion or checker acceptance rule
-changes. Source and bytecode execution both run the `cli_explanations` fixture.
+element joins, accepted, rejected and unavailable `concat` element joins, a
+conditional result join, an unresolved mixed `Nat`/`Rat` join, and empty join
+evidence during ordinary checking. The public CLI regression checks accepted
+array, concatenation, conditional and match joins, a rejected array join with
+the original diagnostic intact, and unavailable conditional and concatenation
+joins with their input types and source locations. No coercion or checker
+acceptance rule changes. Source and bytecode execution both run the
+`cli_explanations` fixture.
 
 ## Indexed compiler declaration lookup
 

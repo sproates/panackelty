@@ -823,7 +823,8 @@ pure render_type_check_evidence(
   context: Str = source_map_escape(evidence.context)
   expected: Str = source_map_escape(evidence.expected)
   result: Str = if evidence.context == "index position" ||
-    evidence.context == "if condition" || evidence.context == "while condition" {
+    evidence.context == "if condition" || evidence.context == "while condition" ||
+    evidence.context == "match variant" {
     "not applicable"
   } else {
     source_map_escape(render_inferred_type(evidence.result))

@@ -894,7 +894,7 @@ Project-wide contribution and validation expectations are documented in
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. The probes use fixed expectations;

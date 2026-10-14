@@ -29,16 +29,37 @@ pure confinement_text(path: Path): Str {
   std_result.value_or(std_path.to_text(path), "")
 }
 
+confinement_copy_file(source: Path, destination: Path): Bool {
+  match std_filesystem.read(source, 1048576) {
+    Error(error) => false,
+    Ok(contents) => match std_filesystem.write(destination, contents) {
+      Error(error) => false,
+      Ok(done) => true
+    }
+  }
+}
+
 main(): Void {
   match std_testing_files.workspace_create(confinement_path("/tmp")) {
     Error(error) => { std_host.stdout("workspace creation failed"); std_host.exit(1) },
     Ok(workspace) => {
       root_text: Str = confinement_text(workspace.root)
       project: Path = confinement_child(workspace.root, "project")
+      source: Path = confinement_child(project, "src")
+      compiler_source: Path = confinement_child(source, "compiler")
       entry: Path = confinement_child(project, "main.panack")
       link: Path = confinement_child(project, "link.panack")
       outside: Path = confinement_child(workspace.root, "outside.panack")
       std_filesystem.create_directory(project)
+      std_filesystem.create_directory(source)
+      std_filesystem.create_directory(compiler_source)
+      support_fixtures_ready: Bool = confinement_copy_file(
+        confinement_path("src/compiler/path_support.panack"),
+        confinement_child(compiler_source, "path_support.panack")
+      ) && confinement_copy_file(
+        confinement_path("src/compiler/filesystem_support.panack"),
+        confinement_child(compiler_source, "filesystem_support.panack")
+      )
       std_filesystem.write(outside, std_text.encode_utf8("pub pure answer(): Nat { 42 }\n"))
       std_filesystem.write(entry, std_text.encode_utf8("import \"link.panack\"\nmain(): Void {}\n"))
       setup: ProcessOutput = match std_process.run(
@@ -54,6 +75,11 @@ main(): Void {
         Ok(output) => output
       }
       mut results: [TestResult] = []
+      results = results.append(std_testing.expect(
+        "compiler path support fixture setup",
+        support_fixtures_ready,
+        "could not copy compiler path support modules into the temporary project"
+      ))
       results = results.append(std_testing.expect("symlink fixture setup", setup.exit_code == 0 && setup.signal == 0, "ln failed"))
       diagnostics = load_project_diagnostics(confinement_text(entry))
       results = results.append(std_testing.expect(
@@ -156,10 +182,19 @@ main(): Void {
           path_module_ready = path_module_ready && body.status == BodyIdentityChecked() && body.deferred.len() == 0
         }
       }
+      mut path_failure_detail: Str = ""
+      mut path_diagnostics_shown: Nat = 0
+      for diagnostic in path_project.diagnostics {
+        if path_diagnostics_shown < 4 &&
+          !starts_with_at(diagnostic.message, "namespace syntax is parsed but execution is not yet supported", 0) {
+          path_failure_detail = path_failure_detail + diagnostic.message + "; "
+          path_diagnostics_shown = path_diagnostics_shown + 1
+        } else {}
+      }
       results = results.append(std_testing.expect(
         "stdlib path and environment intrinsics are identity checked",
         path_project.identity_ready && path_module_ready,
-        "identity_ready=${path_project.identity_ready}"
+        "identity_ready=" + (if path_project.identity_ready { "true" } else { "false" }) + "; " + path_failure_detail
       ))
       std_filesystem.remove_file(path_entry)
       target: Path = confinement_child(project, "target.panack")
@@ -195,6 +230,10 @@ main(): Void {
       ))
       std_filesystem.remove_file(escape_entry)
       std_filesystem.remove_file(outside)
+      std_filesystem.remove_file(confinement_child(compiler_source, "path_support.panack"))
+      std_filesystem.remove_file(confinement_child(compiler_source, "filesystem_support.panack"))
+      std_filesystem.remove_directory(compiler_source)
+      std_filesystem.remove_directory(source)
       std_filesystem.remove_directory(project)
       match std_testing_files.workspace_remove_empty(workspace) {
         Error(error) => { results = results.append(std_testing.expect("workspace cleanup", false, "temporary files remain")) },

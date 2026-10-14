@@ -37,6 +37,12 @@ for experiment in source-mapping-experiment runtime-provenance-experiment source
     absent "$work/next-job" "$experiment"
 done
 pass
+case_name=expensive-validation-profile-is-manual-only
+contains .github/workflows/profile.yml 'workflow_dispatch:'
+absent .github/workflows/profile.yml 'pull_request:'
+absent .github/workflows/profile.yml 'push:'
+contains .github/workflows/profile.yml 'libcurl4-openssl-dev'
+pass
 case_name=nightly-package-workflow-targets-next
 contains .github/workflows/nightly-packages.yml 'schedule:'
 contains .github/workflows/nightly-packages.yml "ref: \${{ inputs.branch || 'next' }}"

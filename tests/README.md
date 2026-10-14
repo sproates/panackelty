@@ -398,11 +398,15 @@ No fault-injection controls enter production.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
-`make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
-rendering and source snapshots, loader/imports and driver commands, generics,
-inference, types and host boundaries. The probes use fixed expectations;
-their provenance is recorded in
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
+`make unit` and `make check-compiler`. The integration probe is prepared once,
+then runs its frontend (27), namespace (72), driver (33) and snapshot (1)
+groups through the bounded worker pool. Each group keeps its own temporary
+workspace; together they retain the full assertion set while allowing the
+independent driver and snapshot fixture compilations to overlap. They cover
+emitter instructions, diagnostic rendering and source snapshots, loader/imports
+and driver commands, generics, inference, types and host boundaries. The probes
+use fixed expectations; their provenance is recorded in
 `tests/ORACLE_REPLACEMENT.md`. Seed regeneration uses verified self-hosted stages.
 
 
@@ -478,11 +482,13 @@ Every Check packaging suite archives its clean suite profile,
 including failure rows, separately from budget records. Expected negative-control
 commands may have nonzero rows inside a successful harness group. `Validation profile`
 collects an initial focused run and an immediate cached repeat for each
-compiler/bytecode/VM target on both supported platforms when the profiler or
-probe helpers change, or by manual dispatch. The initial run starts with native
-prerequisites built; later components can reuse helpers built by earlier ones. It does not run on ordinary code or
-documentation PRs. Existing required checks, sanitizers and release gates remain
-in place. Findings and next investigations live in
+compiler/bytecode/VM target on both supported platforms when manually dispatched.
+It does not run automatically on PRs because the six hosted component checks can
+take a long time; regular PR validation remains in `Check`. The Linux profile
+installs the same libcurl development dependency as the Linux smoke workflow.
+The initial run starts with native prerequisites built; later components can
+reuse helpers built by earlier ones. Existing required checks, sanitizers and
+release gates remain in place. Findings and next investigations live in
 [`VALIDATION_PROFILE.md`](VALIDATION_PROFILE.md).
 
 

@@ -2643,6 +2643,18 @@ from 672.65s to 718.61s, so the elapsed-time gain uses more concurrent CPU. Cach
 state was uncontrolled and this is one pair; it is a promising local pilot, not
 a stable cross-host claim or GI#106 acceptance. Details and phase timings are in
 the [validation profile](tests/VALIDATION_PROFILE.md#local-full-check-phase-overlap-pilot--2026-10-13).
+**Cold compiler integration overlap pilot (2026-10-13):** the compiler-unit and
+compiler-check paths now prepare the integration runner once and schedule its
+four independent test groups through the bounded worker pool. All 133 assertions
+remain. On the same macOS arm64 host, three fresh-cache cold samples fell from a
+53s median to 31s (about 42% faster); all baseline and candidate runs passed.
+The warm whole-unit difference was only 16s to 14s at one-second granularity,
+so no broad-suite gain is claimed. The canonical `make check` passed locally in
+244s on the reused build tree (unit 161s, bootstrap 200s overlapped, functional
+14s, release smoke 4s, quick start under 1s); this is not a matched clean-check
+comparison. CPU use under the extra parallel work was not measured. GI#106
+remains open pending the user's explicit acceptance. See the
+[cold integration profile](tests/VALIDATION_PROFILE.md#cold-compiler-integration-probe-overlap--2026-10-13).
 **Earlier baseline evidence (2026-10-12):** on macOS arm64, a clean `make check`
 at two validation workers passed three times with a 608.81s median; the warm
 `check-compiler` collection took 114.44s at two workers and 105s at the default

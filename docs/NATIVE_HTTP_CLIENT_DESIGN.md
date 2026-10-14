@@ -85,5 +85,9 @@ headers, informational and chunked responses, close framing, malformed and
 oversized bodies, invalid URLs, deadlines, trusted HTTPS, host-name mismatch
 and rejection of an untrusted certificate. The fixture creates its own short
 lived certificate and uses `CURL_CA_BUNDLE` only for the trusted-certificate
-cases. Its final case installs the package into a temporary prefix and checks
-source and saved-bytecode execution through the installed CLI.
+cases. `tls-late` holds a real server TLS flight past the configured deadline
+and verifies timeout for both source and saved-bytecode execution before the
+fixture attempts to deliver the late flight. This does not exercise a resolver
+that completes after cancellation. The final case installs the package into a
+temporary prefix and checks source and saved-bytecode execution through the
+installed CLI.

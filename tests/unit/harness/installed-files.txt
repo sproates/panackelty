@@ -1,5 +1,10 @@
 bin/panack
 libexec/panackelty/panack-vm
+packages/http/panack.json
+packages/http/src/parser.panack
+packages/http/src/parser_test.panack
+packages/http/src/server.panack
+packages/http/src/types.panack
 share/doc/panackelty/CHANGELOG.md
 share/doc/panackelty/LICENSE
 share/doc/panackelty/RELEASE_POLICY.md

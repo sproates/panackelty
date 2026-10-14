@@ -308,7 +308,10 @@ library imports, and malformed-bytecode rejection without development tools.
 It also runs the two-application shared-library check against the packaged,
 relocated compiler, VM and standard library, then moves the application/library
 tree and repeats check, source execution and saved-bytecode execution from an
-unrelated working directory.
+unrelated working directory. The archive includes `packages/http` beside its
+example package; the gate checks and runs that example in source and bytecode
+against an independent loopback client with development tools absent from
+`PATH`.
 `tests/quick_start.sh` extracts its program and expected transcript from the
 README inside the final archive, installs that archive under an isolated home,
 runs the documented commands with development tools absent from `PATH`, then
@@ -630,10 +633,15 @@ reject the read service outside a server-owned streaming child.
 
 `http_package.sh` runs Panackelty-owned HTTP parser and serializer cases from both
 source and saved bytecode, then checks and compiles an application importing the
-packaged `http/server` facade. These parser/serializer cases do not start the
-native TCP server. They cover incremental input, GET/POST, Content-Length,
-chunked framing, malformed and ambiguous requests, method/version errors,
-header/body bounds and response framing/header injection.
+packaged `http/server` facade. Its independent C peer exercises the runnable
+`examples/network/http_server` package source and saved bytecode, then drives one
+finite server through GET/POST, handler errors, method and framing errors,
+partial and oversized requests, concurrent clients, disconnect recovery and
+orderly shutdown. A held loopback port verifies bind-conflict reporting.
+Parser/serializer cases remain independent of the native TCP server and cover
+incremental input, Content-Length, chunked framing, malformed and ambiguous
+requests, method/version errors, header/body bounds and response framing/header
+injection.
 
 ## Website validation ownership
 

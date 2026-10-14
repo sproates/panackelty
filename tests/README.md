@@ -482,11 +482,13 @@ Every Check packaging suite archives its clean suite profile,
 including failure rows, separately from budget records. Expected negative-control
 commands may have nonzero rows inside a successful harness group. `Validation profile`
 collects an initial focused run and an immediate cached repeat for each
-compiler/bytecode/VM target on both supported platforms when the profiler or
-probe helpers change, or by manual dispatch. The initial run starts with native
-prerequisites built; later components can reuse helpers built by earlier ones. It does not run on ordinary code or
-documentation PRs. Existing required checks, sanitizers and release gates remain
-in place. Findings and next investigations live in
+compiler/bytecode/VM target on both supported platforms when manually dispatched.
+It does not run automatically on PRs because the six hosted component checks can
+take a long time; regular PR validation remains in `Check`. The Linux profile
+installs the same libcurl development dependency as the Linux smoke workflow.
+The initial run starts with native prerequisites built; later components can
+reuse helpers built by earlier ones. Existing required checks, sanitizers and
+release gates remain in place. Findings and next investigations live in
 [`VALIDATION_PROFILE.md`](VALIDATION_PROFILE.md).
 
 

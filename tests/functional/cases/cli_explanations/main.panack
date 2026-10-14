@@ -279,6 +279,18 @@ main(): Void {
       explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, 3 / 2) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved generic inference join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: generic parameter T for combine", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "argument 2 to combine is Rat, expected Int"))
+      explain_write(source, "probe(): Int { 1 + -2 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted binary operator explains operand and result types", ["explain", source, "--function", "probe"], 0,
+        ["operator type checks:", "operator type check: accepted", "operator: +", "left operand type: Nat", "right operand type: Int", "resulting expression type: Int"], [], ""))
+      explain_write(source, "probe(): Int { -1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted unary operator marks right operand not applicable", ["explain", source, "--function", "probe"], 0,
+        ["operator type check: accepted", "operator: -", "left operand type: Nat", "right operand: not applicable", "resulting expression type: Int"], [], ""))
+      explain_write(source, "probe(): Nat { 1 + \"wrong\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected operator explains operand type mismatch", ["explain", source, "--function", "probe"], 1,
+        ["operator type check: rejected", "operator: +", "left operand type: Nat", "right operand type: Str", "resulting expression type: unavailable"], [], "operator + does not accept Nat and Str"))
+      explain_write(source, "probe(): Nat { missing + 1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved operator operand is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["operator type check: unavailable", "operator: +", "left operand type: unavailable", "right operand type: Nat", "resulting expression type: unavailable", "did not determine the required operand types"], [], "unknown name missing"))
       explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))
@@ -321,7 +333,7 @@ main(): Void {
         ["program: rejected", "subtraction: unproved", "does not establish a runtime failure"], ["left lower bound", "guard branch"], "Nat subtraction may underflow"))
       explain_write(source, "main(): Void { mut n: Nat = 3; if n >= 2 { n = 4; if n > 2 { print(n - 3); } } }")
       results = append(results, explain_run("fresh guard is cited", ["explain", source, "--function", "main"], 0,
-        ["subtraction: proved", "left lower bound: 3", "expression: n > 2"], ["expression: n >= 2"], ""))
+        ["subtraction: proved", "left lower bound: 3", "expression: n > 2"], ["left lower bound: 2"], ""))
       explain_write(source, "pure f(n: Nat): Nat { if n < 2 { 0 } else { n - 2 } } main(): Void {}")
       results = append(results, explain_run("false branch proof", ["explain", source, "--function", "f"], 0,
         ["subtraction: proved", "guard branch: false", "expression: n < 2"], [], ""))

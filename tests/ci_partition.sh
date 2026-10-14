@@ -154,6 +154,7 @@ for contract in \
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"
 done
 grep -F 'sh tests/http_client_package.sh dns-late' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted the focused HTTP DNS regression'
+grep -F 'sh tests/http_client_package.sh dns-failure' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted HTTP DNS failure mapping'
 for target in ci-bootstrap ci-conformance-bytecode; do
     make -n --no-print-directory "$target" CI_SKIP_PACKAGE=true > "$work/package-skipped"
     if grep -F 'quick-start' "$work/package-skipped" >/dev/null; then fail "next route packages from $target"; fi

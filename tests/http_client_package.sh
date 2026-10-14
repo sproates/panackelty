@@ -4,7 +4,7 @@ panack_bin=${PANACK_BIN:-./panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then
-    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted tls-late dns-late installed; do
+    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted tls-late dns-failure dns-late installed; do
         echo "HTTP client fixture: $case_name"
         sh "$0" "$case_name"
     done
@@ -87,7 +87,7 @@ fi
 
 cat > "$app/src/main.panack" <<SOURCE
 import http/client as http
-import http/client::{HttpError.InvalidUrl, HttpError.LimitExceeded, HttpError.ProtocolError,
+import http/client::{HttpError.DnsFailure, HttpError.InvalidUrl, HttpError.LimitExceeded, HttpError.ProtocolError,
   HttpError.TlsFailure, HttpError.Timeout, HttpError.UnsupportedHost}
 import stdlib/text as text
 
@@ -205,6 +205,13 @@ async main(): Unit {
       Ok(response) => response.status == 200 && response.body == text.encode_utf8("ok"),
       Error(error) => false
     })
+  } else if selected == "dns-failure" {
+    result = await http.get_with_limits("http://p5-unknown-dns.panackelty.invalid/",
+      http.ClientLimits(3000, 65536, 1024))
+    expect(match result {
+      Error(error) => error == DnsFailure(),
+      Ok(response) => false
+    })
   }
   ()
 }
@@ -212,7 +219,8 @@ SOURCE
 
 "$panack_bin" check --project "$app/panack.json" >/dev/null
 "$panack_bin" compile --project "$app/panack.json" -o "$work/client.bc" >/dev/null
-if [ "$selected_case" = dns-late ]; then
+case "$selected_case" in
+    dns-failure|dns-late)
     cc=${CC:-cc}
     case $(uname -s) in
         Darwin)
@@ -229,7 +237,7 @@ if [ "$selected_case" = dns-late ]; then
             ;;
     esac
     for mode in source bytecode; do
-        rm -f "$work/dns-started" "$work/dns-finished"
+        rm -f "$work/dns-started" "$work/dns-finished" "$work/dns-failure"
         if [ "$mode" = source ]; then
             set -- run "$(pwd -P)/bootstrap/compiler-v9.bc" run --project "$app/panack.json"
         else
@@ -239,6 +247,7 @@ if [ "$selected_case" = dns-late ]; then
             DYLD_INSERT_LIBRARIES="$preload_path" \
                 PANACK_HTTP_DNS_DELAY_STARTED="$work/dns-started" \
                 PANACK_HTTP_DNS_DELAY_FINISHED="$work/dns-finished" \
+                PANACK_HTTP_DNS_FAILURE="$work/dns-failure" \
                 PANACKELTY_BOOTSTRAP_ROOT="$(pwd -P)" PANACKELTY_STDLIB_PATH="$(pwd -P)/src/stdlib" \
                 PANACKELTY_VERSION="$version" PANACKELTY_COMPILER_PATH="$(pwd -P)/bootstrap/compiler-v9.bc" \
                 ./panack-vm "$@"
@@ -246,20 +255,31 @@ if [ "$selected_case" = dns-late ]; then
             LD_PRELOAD="$preload_path" \
                 PANACK_HTTP_DNS_DELAY_STARTED="$work/dns-started" \
                 PANACK_HTTP_DNS_DELAY_FINISHED="$work/dns-finished" \
+                PANACK_HTTP_DNS_FAILURE="$work/dns-failure" \
                 PANACKELTY_BOOTSTRAP_ROOT="$(pwd -P)" PANACKELTY_STDLIB_PATH="$(pwd -P)/src/stdlib" \
                 PANACKELTY_VERSION="$version" PANACKELTY_COMPILER_PATH="$(pwd -P)/bootstrap/compiler-v9.bc" \
                 ./panack-vm "$@"
         fi
-        test -f "$work/dns-started"
-        test -f "$work/dns-finished"
+        if [ "$selected_case" = dns-late ]; then
+            test -f "$work/dns-started"
+            test -f "$work/dns-finished"
+        else
+            test -f "$work/dns-failure"
+        fi
     done
-elif [ "$selected_case" = tls-untrusted ]; then
-    env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json"
-    env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc"
-else
-    env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run --project "$app/panack.json"
-    env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run "$work/client.bc"
-fi
+    ;;
+esac
+case "$selected_case" in
+    dns-failure|dns-late) ;;
+    tls-untrusted)
+        env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json"
+        env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc"
+        ;;
+    *)
+        env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run --project "$app/panack.json"
+        env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run "$work/client.bc"
+        ;;
+esac
 if [ "$selected_case" = tls-late ]; then
     wait "$tls_proxy_pid"
     tls_proxy_pid=

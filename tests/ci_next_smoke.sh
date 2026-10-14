@@ -30,4 +30,6 @@ cmp "$work/expected" "$work/bytecode.stdout"
 test ! -s "$work/bytecode.stderr"
 PANACK_BIN="$root/panack" PANACK_HTTP_FIXTURE="$root/build/vm/http_fixture" \
     sh tests/http_client_package.sh dns-late
+PANACK_BIN="$root/panack" PANACK_HTTP_FIXTURE="$root/build/vm/http_fixture" \
+    sh tests/http_client_package.sh dns-failure
 echo 'next compiler and runtime smoke passed.'

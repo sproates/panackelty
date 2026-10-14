@@ -35,6 +35,11 @@ static int delayed_getaddrinfo(const char *node, const char *service,
         mark("PANACK_HTTP_DNS_DELAY_FINISHED");
         return EAI_AGAIN;
     }
+    if (node && !strcmp(node, "p5-unknown-dns.panackelty.invalid")) {
+        if (result) *result = NULL;
+        mark("PANACK_HTTP_DNS_FAILURE");
+        return EAI_NONAME;
+    }
     if (node && result) {
         struct sockaddr_in address;
         memset(&address, 0, sizeof(address));

@@ -98,5 +98,7 @@ resolver for a reserved test hostname, delays completion beyond the 100 ms
 deadline, verifies timeout, then keeps the VM alive with a loopback request
 until the cancelled resolver returns. This covers both source and saved
 bytecode without external DNS. The final case installs the package into a
-temporary prefix and checks source and saved-bytecode execution through the
-installed CLI.
+bytecode without external DNS. `dns-failure` maps a deterministic resolver
+`EAI_NONAME` result to the public `DnsFailure` error in both execution modes.
+The final case installs the package into a temporary prefix and checks source
+and saved-bytecode execution through the installed CLI.

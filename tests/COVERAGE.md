@@ -430,7 +430,8 @@ The final 21 implementation-only methods retired with their implementation.
 `make policy` rejects source, shebang and command dependencies, with adversarial
 controls. The five clean `make check-no-interpreter CI_SUITE=…` partitions run
 on both platforms in the `next` nightly and every full `main` Check. A full PR
-to `next` runs a bounded Linux compiler/runtime smoke; the larger Linux
+to `next` runs a bounded Linux compiler/runtime smoke plus the P5 late-DNS
+timeout/cancellation case in source and saved-bytecode mode; the larger Linux
 validation, platform matrix and package jobs run nightly. The merge push skips
 the product smoke. `tests/ci_partition.sh` checks dispatch, the PR/nightly
 split, package-smoke selection, invalid suites, failure propagation and shared
@@ -591,9 +592,16 @@ The native unit suite deterministically exercises the deadline/readiness boundar
 readiness before the deadline is accepted, while readiness at or after the
 deadline times out. The `tls-late` fixture also delays a real TLS server flight
 past a 100 ms deadline and verifies `Timeout` for source and saved bytecode
-before attempting to deliver that flight. Late DNS completion remains open;
-this case does not test a resolver that completes after cancellation. Platform
-and sanitizer validation results belong in the implementation PR.
+before attempting to deliver that flight. The `dns-late` fixture interposes a
+local resolver for a reserved test hostname, delays completion past the 100 ms
+deadline, verifies `Timeout`, then keeps the VM alive with a separate loopback
+request until the cancelled resolver returns. It covers source and saved
+bytecode without external DNS. The paired `dns-failure` case returns a
+deterministic unknown-host result and checks the public `DnsFailure` mapping
+for source and saved bytecode. `connect-failure` reserves and closes a loopback
+port, then checks the public `ConnectFailure` mapping for source and saved
+bytecode. Platform and sanitizer validation results
+belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,

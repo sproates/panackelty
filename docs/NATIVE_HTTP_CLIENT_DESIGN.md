@@ -93,7 +93,14 @@ and rejection of an untrusted certificate. The fixture creates its own short
 lived certificate and uses `CURL_CA_BUNDLE` only for the trusted-certificate
 cases. `tls-late` holds a real server TLS flight past the configured deadline
 and verifies timeout for both source and saved-bytecode execution before the
-fixture attempts to deliver the late flight. This does not exercise a resolver
-that completes after cancellation. The final case installs the package into a
-temporary prefix and checks source and saved-bytecode execution through the
-installed CLI.
+fixture attempts to deliver the late flight. `dns-late` interposes a local
+resolver for a reserved test hostname, delays completion beyond the 100 ms
+deadline, verifies timeout, then keeps the VM alive with a loopback request
+until the cancelled resolver returns. This covers both source and saved
+bytecode without external DNS. The final case installs the package into a
+bytecode without external DNS. `dns-failure` maps a deterministic resolver
+`EAI_NONAME` result to the public `DnsFailure` error in both execution modes.
+`connect-failure` reserves and closes a loopback port, checking the public
+`ConnectFailure` mapping in both modes. The final case installs the package
+into a temporary prefix and checks source and saved-bytecode execution through
+the installed CLI.

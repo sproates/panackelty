@@ -140,7 +140,7 @@ for contract in \
     'sh tests/run_suites.sh $(MAKE) unit-runtime-native unit-runtime-probes' \
     'tests/check.sh $(MAKE) --no-print-directory ci-runtime-phases' \
     'ci-runtime-phases: unit-runtime functional' \
-    'ci-next-smoke: native $(STAGE2_COMPILER)' \
+    'ci-next-smoke: native $(STAGE2_COMPILER) $(BUILD_DIR)/vm/http_fixture' \
     'sh tests/ci_next_smoke.sh "$(abspath $(STAGE2_COMPILER))"' \
     'CI_PACKAGE_SMOKE_TARGETS := quick-start' \
     'ci-bootstrap: bootstrap-check $(CI_PACKAGE_SMOKE_TARGETS)' \
@@ -153,6 +153,9 @@ for contract in \
     'ci-conformance-bytecode: ci-conformance-bytecode-check $(CI_PACKAGE_SMOKE_TARGETS)'; do
     grep -F "$contract" Makefile >/dev/null || fail "missing shared coverage: $contract"
 done
+grep -F 'sh tests/http_client_package.sh dns-late' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted the focused HTTP DNS regression'
+grep -F 'sh tests/http_client_package.sh dns-failure' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted HTTP DNS failure mapping'
+grep -F 'sh tests/http_client_package.sh connect-failure' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted HTTP connect failure mapping'
 for target in ci-bootstrap ci-conformance-bytecode; do
     make -n --no-print-directory "$target" CI_SKIP_PACKAGE=true > "$work/package-skipped"
     if grep -F 'quick-start' "$work/package-skipped" >/dev/null; then fail "next route packages from $target"; fi

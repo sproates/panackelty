@@ -580,10 +580,16 @@ validation, deadlines, trusted TLS, host-name verification and untrusted
 certificate rejection. Its local CA is selected with `CURL_CA_BUNDLE`; peer and
 host verification stay enabled. It also installs into an isolated temporary
 prefix and checks the installed package in source and saved-bytecode mode. The
-script is part of the functional suite.
+script is part of the functional suite. `tests/unit/vm/http.c` rejects malformed
+native-service arguments before opening a connection and repeatedly destroys
+HTTP requests and HTTPS handshakes in progress, checking that the peer observes
+connection closure. The native fault sweep exercises project-owned transport
+allocations and result construction through connection failures.
 These cases do not establish redirects, proxy behavior, connection reuse,
 IPv6, arbitrary malformed-wire fuzzing or broad server interoperability.
-Platform and sanitizer validation results belong in the implementation PR.
+Deterministic late DNS/TLS completion and deadline-versus-readiness race coverage
+remain open. Platform and sanitizer validation results belong in the
+implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,

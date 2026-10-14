@@ -638,7 +638,9 @@ packaged `http/server` facade. Its independent C peer exercises the runnable
 `examples/network/http_server` package source and saved bytecode, then drives one
 finite server through GET/POST, handler errors, method and framing errors,
 partial and oversized requests, concurrent clients, disconnect recovery and
-orderly shutdown. A held loopback port verifies bind-conflict reporting.
+orderly shutdown. The Panackelty HTTP client also requests the example response
+from source and saved-bytecode server runs, using both client source and saved
+bytecode. A held loopback port verifies bind-conflict reporting.
 Parser/serializer cases remain independent of the native TCP server and cover
 incremental input, Content-Length, chunked framing, malformed and ambiguous
 requests, method/version errors, header/body bounds and response framing/header

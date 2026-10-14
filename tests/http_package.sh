@@ -111,6 +111,89 @@ for extension in panack bc; do
     test ! -s "$work/stdout" && test ! -s "$work/stderr"
 done
 
+cat > "$work/interop-server.panack" <<'SOURCE'
+import http/server as http
+import stdlib/text as text
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+async respond(request: http.Request): Result[http.Response,http.HttpError] {
+  Ok(http.Response(200,
+    [http.Header("Content-Type", "text/plain; charset=utf-8")],
+    text.encode_utf8("hello from Panackelty HTTP server\n")))
+}
+
+async main(): Unit {
+  result = await http.serve("127.0.0.1", PORT, @respond,
+    http.ServerLimits(3, 1, 4096, 4096, 3000, 10000, 1000))
+  match result {
+    Error(problem) => expect(false),
+    Ok(reports) => expect(reports.len() == 3)
+  }
+  ()
+}
+SOURCE
+
+mkdir -p "$work/client/src"
+cat > "$work/client/panack.json" <<MANIFEST
+{"schema":1,"package":"tests.http_client_interop","version":"0.1.0","language":"modules-v1","toolchain":"$version","source":"src","entry":"main.panack","exports":{},"dependencies":{"http":{"path":"../../../packages/http"}}}
+MANIFEST
+cat > "$work/client/main.template" <<'SOURCE'
+import http/client as http
+import stdlib/text as text
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+async main(): Unit {
+  result = await http.get("http://127.0.0.1:PORT/")
+  match result {
+    Error(problem) => expect(false),
+    Ok(response) => {
+      expect(response.status == 200)
+      expect(response.body == text.encode_utf8("hello from Panackelty HTTP server\n"))
+      expect(response.headers[0].name == "Content-Type" &&
+        response.headers[0].value == "text/plain; charset=utf-8")
+    }
+  }
+  ()
+}
+SOURCE
+
+for server_mode in source bytecode; do
+    port=$("$http_client" port)
+    sed "s/PORT/$port/g" "$work/interop-server.panack" > "$work/app/src/main.panack"
+    sed "s/PORT/$port/g" "$work/client/main.template" > "$work/client/src/main.panack"
+    ./panack check --project "$work/app/panack.json" > /dev/null
+    ./panack compile --project "$work/app/panack.json" -o "$work/interop-server.bc" > /dev/null
+    ./panack check --project "$work/client/panack.json" > /dev/null
+    ./panack compile --project "$work/client/panack.json" -o "$work/interop-client.bc" > /dev/null
+    if [ "$server_mode" = source ]; then
+        ./panack run --project "$work/app/panack.json" > "$work/server.stdout" 2> "$work/server.stderr" &
+    else
+        ./panack run "$work/interop-server.bc" > "$work/server.stdout" 2> "$work/server.stderr" &
+    fi
+    server_pid=$!
+    "$http_client" "$port" example || { cat "$work/server.stderr"; exit 1; }
+    ./panack run --project "$work/client/panack.json" > "$work/client.stdout" 2> "$work/client.stderr" || {
+        cat "$work/client.stderr" "$work/server.stderr"
+        exit 1
+    }
+    ./panack run "$work/interop-client.bc" > "$work/client.stdout" 2> "$work/client.stderr" || {
+        cat "$work/client.stderr" "$work/server.stderr"
+        exit 1
+    }
+    wait "$server_pid" || { cat "$work/server.stderr"; exit 1; }
+    server_pid=
+    test ! -s "$work/server.stdout" && test ! -s "$work/server.stderr"
+    test ! -s "$work/client.stdout" && test ! -s "$work/client.stderr"
+done
+
 cat > "$work/conflict.panack" <<'SOURCE'
 import http/server as http
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
@@ -147,4 +230,4 @@ wait "$holder_pid" 2>/dev/null || :
 holder_pid=
 test ! -s "$work/stdout" && test ! -s "$work/stderr"
 
-printf '%s\n' 'HTTP package parser/serializer and server interoperability: ok'
+printf '%s\n' 'HTTP package parser/serializer and C/P5-client server interoperability: ok'

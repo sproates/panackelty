@@ -73,6 +73,10 @@ PASS match arms explain the combined type
 PASS generic calls explain repeated type parameter joins
 PASS rejected generic inference join preserves checker diagnostic
 PASS unresolved generic inference join is explicit
+PASS accepted binary operator explains operand and result types
+PASS accepted unary operator marks right operand not applicable
+PASS rejected operator explains operand type mismatch
+PASS unresolved operator operand is explicitly unavailable
 PASS unresolved branch join is explicit
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
@@ -139,4 +143,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 141, failures: 0
+tests: 145, failures: 0

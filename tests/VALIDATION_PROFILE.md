@@ -6065,3 +6065,23 @@ the reused local build tree: unit took 196s, bootstrap 229s, functional 73s,
 release smoke 9s, and quick start under 1s. The command emitted historical
 budget warnings for unit, bootstrap and overall check; they do not affect its
 successful exit and do not change GI#106 scope.
+
+## GI#134 unary and binary operator explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS arm64 used
+`1 + -2` and selected `probe`. Each query included source loading, checking and
+explanation rendering with a warm filesystem cache. `real` times were 0.05s,
+0.04s, 0.04s, 0.05s and 0.04s (median 0.04s, range 0.04–0.05s). This is a local
+reference, not a paired before/after comparison or a general latency guarantee.
+Operator evidence is retained only for explanation queries; ordinary checking,
+diagnostics, acceptance and runtime behavior are unchanged. Operator type
+acceptance is reported separately from obligations such as Nat subtraction
+underflow.
+
+The module-binding suite passed 747 assertions and the explanation CLI fixture
+passed 145 cases. `make docs` and `git diff --check` passed. Full `make check`
+passed on the reused local build tree in 424s, including HTTP client/server
+fixtures, release smoke (8s) and quick start (1s). Unit took 315s and bootstrap
+235s; the command emitted historical budget warnings for those phases and the
+overall check. There were no test failures. These local timings are validation
+evidence, not a paired performance comparison, and do not expand GI#106 scope.

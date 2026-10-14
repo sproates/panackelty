@@ -6,10 +6,10 @@ type of an expression at a source location, function return checks, direct
 function-call argument checks, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks, plus retained array `map` and `reduce`
-callback contracts. It also
-reports retained proof-bearing guarded conversions, natural-number subtraction
-effect-boundary evidence, and array/conditional/match result type joins for one
-function. It reads source; it does not
+callback contracts and unary/binary operator type decisions. It also reports
+retained proof-bearing guarded conversions, natural-number subtraction and
+effect-boundary evidence, and array/conditional/match/generic parameter type
+joins for one function. It reads source; it does not
 execute the program, emit bytecode, write files, or consume a source-map sidecar. The
 command is implemented in unreleased core; existing published/browser versions
 do not acquire it automatically.
@@ -152,6 +152,17 @@ of generic inference. An unavailable join means the checker could not derive a
 complete result from the available types; it does not imply that the types are
 incompatible. Rejected joins keep the original diagnostic and exit status. This
 query does not add coercions or change type inference.
+
+## Unary and binary operator types
+
+For checked unary and binary expressions, the query reports the operator,
+operand types, resulting expression type, source range, and the existing
+operator type decision as accepted, rejected, or unavailable. This reports the
+type-checking decision only. In particular, an accepted `Nat` subtraction
+operator type does not mean its separate underflow proof succeeded; use the
+subtraction explanation for that proof. Ordinary diagnostics and program
+acceptance remain unchanged, and ordinary checking retains no operator
+explanation evidence.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

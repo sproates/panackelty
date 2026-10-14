@@ -129,7 +129,10 @@ schedules handlers and drains or cancels clients on shutdown. See the
 [server contract](SPEC.md#native-tcp-server-development-toolchain).
 The development toolchain also provides bounded incremental reads through
 `tcp_serve_stream` for protocol parsers that must respond before peer EOF; the
-HTTP package is still in development. DNS, TLS and general source spawning
+Panackelty HTTP server package is in active development. Run its
+[one-request example](examples/network/http_server/panack.json) from the
+repository root with `./panack run --project examples/network/http_server/panack.json`,
+then request `http://127.0.0.1:8080/`. DNS, TLS and general source spawning
 remain future work. These native
 networking operations were absent from alpha.10; the browser cannot open raw TCP sockets.
 

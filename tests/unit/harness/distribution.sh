@@ -17,7 +17,7 @@ cp "$root/panack-vm" "$work/shared-vm-bytes"
 case_name=checksum-from-spaced-checkout
 checkout=$work/'checkout with spaces (test)'
 mkdir "$checkout"
-for name in Makefile VERSION panack bootstrap src tests examples README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
+for name in Makefile VERSION panack bootstrap src tests examples packages README.md LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md; do
     ln -s "$root/$name" "$checkout/$name"
 done
 # Builds must own the executable they relink; a symlink shares the live root VM.

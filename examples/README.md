@@ -80,3 +80,9 @@ from source and saved bytecode by the functional suite:
 Each namespace example is self-contained in its directory. Run the trip planner
 from the repository root with `./panack run examples/namespaces/trip_planner/main.panack`;
 use the corresponding `main.panack` path for the other examples.
+
+## Networking
+
+The HTTP server example is a local package application. Run it from the
+repository root with `./panack run --project examples/network/http_server/panack.json`,
+then request `http://127.0.0.1:8080/`. It accepts one client and exits.

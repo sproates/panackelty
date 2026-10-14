@@ -4,6 +4,7 @@
 #include "builtins.h"
 #include "decode.h"
 #include "fault_injection.h"
+#include "http_transport.h"
 #include "numeric.h"
 #include "render.h"
 #include "tasks.h"
@@ -629,6 +630,27 @@ static void tcp_allocations(void)
     assert(fault_descriptors() == 0);
 }
 
+static void http_allocations(void)
+{
+    static const uint8_t request[] = "GET / HTTP/1.1\r\nHost: test\r\n\r\n";
+    Value *args[] = {
+        value_data(V_STR, (const uint8_t *)"127.0.0.1", 9),
+        value_size(1), value_bool(false),
+        value_data(V_BYTES, request, sizeof(request) - 1),
+        value_size(64), value_size(10),
+    };
+    bool valid = true;
+    for (size_t i = 0; i < 6; i++) if (!args[i]) valid = false;
+    if (valid) {
+        VMHttpTransport *transport = http_transport_start(args);
+        if (transport) {
+            for (size_t i = 0; i < 100 && !http_transport_poll(transport, 1); i++) {}
+            http_transport_destroy(transport);
+        }
+    }
+    for (size_t i = 0; i < 6; i++) release(args[i]);
+}
+
 /* Sweep through real admission, handler activation and final report ownership. */
 static size_t server_port;
 static int server_peer;
@@ -787,6 +809,7 @@ int main(int argc, char **argv)
         return 0;
     }
     sweep("TCP request and completion", tcp_allocations);
+    sweep("HTTP transport ownership", http_allocations);
     for (server_cancel = 0; server_cancel < 3; server_cancel++) {
         server_streaming = false;
         sweep("TCP server ownership", server_allocations);

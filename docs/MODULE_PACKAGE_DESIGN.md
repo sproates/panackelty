@@ -24,8 +24,9 @@ the root-replacement race acceptance reliable. The final integration fixture che
 unrelated working directory, moves their complete sibling tree and shared
 multi-file library, then rechecks/runs both and executes bytecode compiled before
 the move. PR#404 completes P4's standard-library API namespace migration on
-`next`; P5–P8 remain planned, with the separate clean-installed release
-acceptance retained in P8.
+`next`; PR#450 delivers the first end-to-end P5 client slice. Native transport
+lifecycle and dependency evidence remain in progress, with the separate
+clean-installed release acceptance retained in P8.
 ## Current implementation audit
 
 Audit baseline: core revision `b32267e` (2026-10-03). The table records the

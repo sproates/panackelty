@@ -38,10 +38,11 @@ TLS verifies both the certificate chain and host name using the platform
 libcurl trust configuration. `CURL_CA_BUNDLE`, when set, selects a PEM trust
 bundle through libcurl's CA-file option; this makes alternate trust stores and
 the local self-signed test authority work without disabling verification. A
-verification failure is returned as `TlsFailure`. The native adapter also
-requires libcurl's asynchronous DNS and thread-safe features and returns a
-bounded error when the linked library lacks either. WASI/browser execution is
-unavailable.
+verification failure is returned as `TlsFailure`. The native adapter requires
+libcurl's asynchronous DNS feature and returns a bounded error when the linked
+library lacks it. The VM owns native operations on one thread; libcurl is
+initialized once on that thread before HTTP operations begin. WASI/browser
+execution is unavailable.
 
 Native builds require libcurl development headers and libraries plus
 `curl-config` on `PATH` (or an explicitly configured `HTTP_CURL_CONFIG`).

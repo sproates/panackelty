@@ -164,5 +164,6 @@ grep -F 'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, san
 grep -F 'run: make check-no-interpreter CI_SUITE=${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing isolated suite dispatch'
 grep -F 'run: sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}' .github/workflows/check.yml >/dev/null || fail 'missing project suite dispatch'
 grep -F 'run: make check-no-interpreter CI_SUITE=next-smoke' .github/workflows/check.yml >/dev/null || fail 'next PR does not use the bounded smoke'
+grep -E '^for utility in .*curl-config' tests/without_interpreter.sh >/dev/null || fail 'isolated native build cannot discover libcurl linker flags'
 grep -F "needs.changes.outputs.next_integration != 'true' && !cancelled()" .github/workflows/check.yml >/dev/null || fail 'next runs full verification'
 echo 'CI partition dispatch, failure propagation and shared coverage passed.'

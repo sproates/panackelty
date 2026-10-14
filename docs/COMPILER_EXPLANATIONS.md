@@ -7,8 +7,8 @@ function-call argument checks, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks, plus retained array `map` and `reduce`
 callback contracts, unary/binary operator type decisions, indexing and
-iteration type checks, Boolean condition requirements for `if` and `while`,
-and `match` variant membership. It also reports retained proof-bearing guarded
+iteration and field access type checks, Boolean condition requirements for
+`if` and `while`, and `match` variant membership. It also reports retained proof-bearing guarded
 conversions, natural-number subtraction and effect-boundary evidence, and
 array/conditional/match/generic parameter type joins for one function. It reads
 source; it does not
@@ -173,8 +173,10 @@ the receiver is a supported indexable type (`Str`, `Bytes` or `Array[T]`), and
 whether the position has type `Nat`. The receiver check includes the resulting
 element type when available. For a `for` loop, it reports the iterable type,
 the accepted iterable forms (`Range`, `Bytes` or `Array[T]`), and the resulting
-item type when available. For `if` and `while`, it reports whether the condition
-has the required `Bool` type. For each `match` arm, it reports whether the
+item type when available. For field access, it reports whether the receiver
+is a record containing the requested field and the resulting field type when
+available. For `if` and `while`, it reports whether the condition has the
+required `Bool` type. For each `match` arm, it reports whether the
 resolved variant belongs to the matched enum. This membership result does not
 claim that a match is exhaustive, that arms are unique, or that pattern binding
 counts are correct; those checks remain separately diagnosed. Each decision has

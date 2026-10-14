@@ -6142,3 +6142,20 @@ points, release smoke (8s) and quick start (1s). Bootstrap took 232s and the
 overall check took 341s, so both emitted their existing timing-budget warnings.
 No tests failed. These measurements are validation evidence, not a paired
 performance comparison.
+
+## GI#134 record field access explanations — 2026-10-14
+
+Five warm stage-2 compiler VM queries for a generic record field access with
+explanation rendering took 0.05s, 0.04s, 0.05s, 0.05s and 0.04s (median 0.05s,
+range 0.04–0.05s). This is a local reference, not a paired before/after
+benchmark or general latency guarantee. The query reports record/field
+compatibility and the substituted field type; evidence remains explanation-only.
+
+The compiler module-binding suite passed 769 assertions, and the explanation
+CLI fixture passed 162 cases, including source and saved-bytecode execution.
+Documentation/link and whitespace checks passed. The full canonical validation
+route passed in 341s, including HTTP/TCP fixtures, compiler bootstrap fixed
+points, release smoke (8s) and quick start (1s). Bootstrap took 232s and the
+overall check took 341s, so both emitted their existing timing-budget warnings.
+No tests failed. These measurements are validation evidence, not a paired
+performance comparison.

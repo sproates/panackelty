@@ -111,10 +111,10 @@ coverage and execute selected tests; never reuse test outcomes as cache entries.
 GI#106 is complete only when the user says they are happy with the result.
 
 When alpha.13 was planned, GI#180's owner-requested pause remained in effect;
-that decision did not restart explanation implementation. The later Alpha.14
-direction selects compiler understanding and correctness for planning; see
-[RM#151](#rm-151). Alpha.13's U3/U4 acceptance remains subject to concrete slice
-selection and its existing release gates.
+that decision did not restart explanation implementation. On 2026-10-14 the
+owner included GI#180 in Alpha.14, with its release-specific scope still
+undefined; see [RM#151](#rm-151). Alpha.13's U3/U4 acceptance remains subject to
+concrete slice selection and its existing release gates.
 
 Release only after agreed outcomes and supporting prerequisites are accepted,
 required promotion/package/install checks pass and the owner approves publication.
@@ -129,16 +129,17 @@ work is shipped or describe this release as production-ready.
 **RM#151: Alpha.14 — compiler understanding and correctness focus.**
 
 Owner direction, 2026-10-13: Alpha.14 should include some work on compiler
-understanding and correctness, Panackelty's strongest novel area. This is a
-broad release direction only; the final release scope, amount of work, and
-release date remain undecided. Existing work in
-[GI#180](https://github.com/sproates/panackelty/issues/180) and the correctness
-backlog remains the candidate pool. [RM#152](#rm-152) selects a bounded
-standard-library dependency assessment for Alpha.14; it does not commit the
-release to a redesign or refactor. Detailed scope and sequencing need a later
-decision. This direction resumes GI#180 for planning and scope assessment only;
-it does not select or authorize implementation. Alpha.13's plan and gates remain
-separate.
+understanding and correctness, Panackelty's strongest novel area. On 2026-10-14
+the owner explicitly included [RM#9: Compiler understanding programme](#rm-9) /
+[GI#180](https://github.com/sproates/panackelty/issues/180) in Alpha.14. Its
+release-specific scope is intentionally undefined: no GI#180 workstream,
+deliverable, acceptance criterion, effort or timing has been selected for this
+release. Defining that scope remains a planning task; inclusion does not commit
+Alpha.14 to the programme's full existing scope or authorize implementation.
+The final release scope, amount of work and date remain undecided. [RM#152](#rm-152)
+separately selects a bounded standard-library dependency assessment; it does
+not commit the release to a redesign or refactor. Alpha.13's plan and gates
+remain separate.
 
 <a id="rm-152"></a>
 
@@ -184,7 +185,7 @@ percentage; do not double-count contributing programmes or call planning deliver
 
 | Required outcome | Existing work and remaining definition |
 | --- | --- |
-| Compiler work | Complete the agreed compiler-understanding scope in GI#180; confirm detailed release mapping and acceptance evidence. The pause is lifted for Alpha.14 planning and scope assessment only; implementation scope remains unselected. |
+| Compiler work | GI#180 is included in Alpha.14 (RM#151); its release-specific workstreams, scope and acceptance criteria remain undefined. Define a bounded scope before selecting implementation. |
 | Namespaces, packages and HTTP | Complete GI#233, including migration, reusable packages, HTTP client/server, reproducibility and integrated acceptance. |
 | Performance of a good standard | GI#263 supplies maintained measurements and explicit regression decisions. Agree representative compile/startup/run, resource and developer-feedback targets from repeatable evidence; no unmeasured performance claim. |
 | Expanded standard library | Define practical application coverage, consistent APIs, tests and examples. This is broader than GI#235's namespace migration; detailed scope is open. |
@@ -1326,17 +1327,19 @@ mandatory. Detailed implementation evidence belongs in #187.
 
 **RM#9: Compiler understanding programme** · [GI#180: Compiler understanding programme](https://github.com/sproates/panackelty/issues/180).
 
-**In progress:** the user authorised starting all five workstreams as one
-coordinated programme on 2026-10-01; #163 live acceptance is now verified. This
-expands the earlier #134-only selection. Work together on investigation, evidence design and delivery;
-retain independently testable stages and child acceptance, rather than five
-unrelated initiatives or one large implementation PR.
+**Included in Alpha.14; release-specific scope undefined.** Owner direction,
+2026-10-14: include GI#180 in Alpha.14, but leave the selected workstreams,
+deliverables and acceptance criteria for this release undefined. Resume planning
+to define a bounded scope; implementation remains unselected. The existing
+programme and its five workstreams remain recorded below, with their prior
+evidence and acceptance intact.
 
 <a id="compiler-and-runtime-understanding-programme"></a>
 
 Programme tracker: [#180](https://github.com/sproates/panackelty/issues/180).
-**Overall: In progress; 0 of 5 workstreams accepted.** This counts accepted
-workstreams, not an effort percentage. The initial shared investigation is
+**Overall: Alpha.14 scope definition planned; implementation paused; 0 of 5
+workstreams accepted.** This counts accepted workstreams, not an effort
+percentage. The initial shared investigation is
 recorded in [ARCHITECTURE.md](ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01)
 with [reproducible probes](tests/VALIDATION_PROFILE.md#compiler-understanding-probes-2026-10-01).
 The first U3 subtraction query is accepted through #219 (`f379c50`); the local effect query is delivered on this PR's merge as recorded above. Broader
@@ -1372,11 +1375,11 @@ live verification remain separately recorded in the website follow-up register.
 
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
-| [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Investigation in progress | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
-| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Investigation in progress | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
-| <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Investigation in progress | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
-| <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Investigation in progress | [RM#106: Semantic-impact experiment](#rm-106) establishes bounded direct predictions and positive local non-impact; one-change transitive acceptance and production remain open. |
-| [RM#68: Runtime value provenance](#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Investigation in progress | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
+| [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Open; Alpha.14 selection undefined | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
+| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Open; Alpha.14 selection undefined | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
+| <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Open; Alpha.14 selection undefined | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
+| <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Open; Alpha.14 selection undefined | [RM#106: Semantic-impact experiment](#rm-106) establishes bounded direct predictions and positive local non-impact; one-change transitive acceptance and production remain open. |
+| [RM#68: Runtime value provenance](#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Open; Alpha.14 selection undefined | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
 
 ### Programme delivery register
 

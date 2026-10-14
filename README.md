@@ -127,7 +127,10 @@ import `stdlib/tcp`, supply explicit `TcpServerLimits`, and await `tcp_serve`
 with a named async byte-request handler. The runtime owns accepted connections,
 schedules handlers and drains or cancels clients on shutdown. See the
 [server contract](SPEC.md#native-tcp-server-development-toolchain).
-DNS, TLS, HTTP and general source spawning remain future work. These native
+The development toolchain also provides bounded incremental reads through
+`tcp_serve_stream` for protocol parsers that must respond before peer EOF; the
+HTTP package is still in development. DNS, TLS and general source spawning
+remain future work. These native
 networking operations were absent from alpha.10; the browser cannot open raw TCP sockets.
 
 ## Start writing Panackelty

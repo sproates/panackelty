@@ -978,10 +978,10 @@ pure environment_type(environment: Map[Str, TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
-  if name == "tcp_serve" {
+  if name == "tcp_serve" || name == "tcp_serve_stream" {
     "Result[[Result[Unit,Str]],Str]"
   } else {
-    if name == "async_fake_read" || name == "tcp_exchange" {
+    if name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_server_read_chunk" {
       "Result[Bytes,Str]"
     } else {
       if name == "fs_directories_overlap" || name == "fs_read_beneath" || name == "fs_read" {
@@ -1167,6 +1167,18 @@ pure builtin_return(name: Str): Str {
 }
 
 pub pure builtin_arity(name: Str): Nat {
+  if name == "tcp_serve_stream" || name == "$tcp_serve_stream" {
+    5
+  } else {
+    if name == "tcp_server_read_chunk" || name == "$tcp_server_read_chunk" {
+      1
+    } else {
+      builtin_legacy_arity(name)
+    }
+  }
+}
+
+pure builtin_legacy_arity(name: Str): Nat {
   if name == "tcp_serve" || name == "$tcp_serve" {
     4
   } else {
@@ -1324,6 +1336,28 @@ pub pure builtin_arity(name: Str): Nat {
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "tcp_server_read_chunk" {
+    "Nat"
+  } else {
+    if name == "tcp_serve_stream" {
+      if index == 0 {
+        "Str"
+      } else {
+        if index == 1 {
+          "Nat"
+        } else {
+          if index == 2 { "Any" } else {
+            if index == 3 { "Any" } else { "TcpServerLimits" }
+          }
+        }
+      }
+    } else {
+      builtin_legacy_parameter(name, index)
+    }
+  }
+}
+
+pure builtin_legacy_parameter(name: Str, index: Nat): Str {
   if name == "tcp_serve" {
     if index == 0 {
       "Str"
@@ -2659,7 +2693,16 @@ pub pure check_expression_evidence(
                           } else {
                             mut fixed_index: Nat = 0
                             for actual in argument_infos {
-                              expected_type: Str = builtin_parameter(name, fixed_index)
+                              expected_type: Str = if name == "tcp_serve_stream" && fixed_index == 2 {
+                                context_type: Str = argument_infos[3].name
+                                if context_type == "Unknown" {
+                                  "Any"
+                                } else {
+                                  "AsyncFn[${context_type},Result[Bytes,Str]]"
+                                }
+                              } else {
+                                builtin_parameter(name, fixed_index)
+                              }
                               if expected_type != "Any" && !assignable(
                                 program,
                                 actual.name,

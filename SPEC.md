@@ -1126,7 +1126,7 @@ Each connection sends one request terminated by a write-half close. The owner
 reads until EOF, runs the named handler once, writes its returned bytes completely,
 then closes the socket. Binary and empty data are valid; an extra request byte
 fails before handler activation. An oversized response fails before sending.
-There are no added framing bytes, streaming handles, HTTP, DNS, TLS or IPv6.
+There are no added framing bytes, connection handles, HTTP, DNS, TLS or IPv6.
 `tcp_exchange` is a compatible client. A client that withholds EOF reaches its
 deadline. The [finite echo example](examples/network/tcp_serve.panack) pairs with
 [the client example](examples/network/tcp_exchange.panack).
@@ -1138,6 +1138,32 @@ including through an indirect call. Runtime ownership needs no source `spawn`
 syntax. Instruction budgets are not wall-clock preemption or a total memory cap.
 I/O payload capacity is bounded by concurrent request/response limits; VM values,
 transient copies and allocations performed by handlers are additional memory.
+
+### Native TCP streaming server prerequisite
+
+`tcp_serve` keeps its EOF-delimited contract above. `tcp_serve_stream` is an
+additive development-toolchain service for protocols whose peer waits for a
+response before closing its write side. It takes the same address, port and
+limits, plus `AsyncFn[Context,Result[Bytes,Str]]` and a value of that same
+`Context` type. The owner starts the named worker as soon as a client is accepted
+and passes that value to it. The operation returns the same ordered finite-server
+report as `tcp_serve`.
+
+Only an active worker started by `tcp_serve_stream` may await
+`tcp_server_read_chunk(max_bytes)`. The positive `Nat` limit is at most 16,384
+bytes. A completion contains up to that many currently available bytes; it may
+contain fewer. `Ok(empty_bytes)` means peer EOF, including on later reads after
+EOF. A socket failure or cumulative per-client `request_limit` breach returns
+`Error(Str)`. No bytes are automatically buffered for the worker before it asks
+to read. A call outside that active child traps; the API does not expose a socket
+or forgeable connection record. Existing per-client deadlines, admission,
+concurrency, cancellation and bounded response writes remain owned by the server.
+
+This primitive does not add HTTP framing. The Panackelty HTTP package owns
+incremental parsing and response serialization; P6 is the selected consumer.
+Native Linux/macOS support follows the server capability gate; WASI remains
+unavailable. The source-level limit is checked again at runtime for saved or
+forged bytecode.
 
 Admission stops on the total-client limit, admission deadline or a host stop
 request. The listener closes immediately. Existing clients drain until the

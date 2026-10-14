@@ -94,7 +94,7 @@ implementation selection or completion of the first non-alpha milestone.
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
 | Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors; libcurl is the initial replaceable native client backend for the alpha.13 proof of concept | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
-| Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; owner selected P6 before P5 on 2026-10-14 | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; P5 client interoperability follows when P5 is delivered; server TLS remains outside the initial contract |
+| Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), in progress: Slice 1 adds the bounded incremental TCP service; HTTP parsing remains Panackelty-package work | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; P5 client interoperability follows when P5 is delivered; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): bounded subtraction, local effects, guarded conversions, inferred locals, expression types, returns, call arguments, annotated locals and assignment compatibility through PR #423; selected text/byte builtins through PR #424, numeric builtins through PR #425, collection mutation/lookup through PR #426, path arguments through PR #427, environment arguments through PR #428, time arguments through PR #429, filesystem I/O through PR #430, filesystem query arguments through PR #432 and filesystem path operations through PR #433; broader checked type/effect/proof scope remains | Current slice explains `fs_read_beneath` arguments with source expressions; retain checker evidence, accepted/rejected/unavailable distinctions, diagnostic parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
 | Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
@@ -631,13 +631,15 @@ protocol/API contract. Native first; browser support is not implied.
 
 **RM#111: HTTP server package** — P6 in GI#237: importable handler/response
 API, bounded protocol/resource handling, tested lifecycle and graceful shutdown.
-Owner selected P6 before P5 on 2026-10-14. Reuse the existing bounded TCP
-server owner for sockets and lifecycle, but add bounded incremental per-client
-reads because current `tcp_serve` waits for peer EOF. The Panackelty HTTP package
-owns request framing and response serialization; the native owner scopes reads
-to the active child, enforces deadlines and writes the returned bounded response.
-P5-client interoperability is accepted after P5; server TLS remains outside the
-initial contract.
+Owner selected P6 before P5 on 2026-10-14. P6 is divided into three implementation
+slices in `docs/MODULE_PACKAGE_DESIGN.md`. Slice 1 adds a context-bearing streaming
+worker and capped per-child reads while preserving `tcp_serve` EOF behavior; its
+source/compiler/runtime work and regression coverage are in progress. The
+Panackelty HTTP package owns request framing and response serialization; the
+native owner scopes reads to the active child, enforces deadlines and writes the
+returned bounded response. Package parsing/serialization and independent-client
+acceptance remain. P5-client interoperability is accepted after P5; server TLS
+remains outside the initial contract.
 
 <a id="rm-112"></a>
 

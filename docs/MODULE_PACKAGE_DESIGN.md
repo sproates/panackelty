@@ -493,6 +493,28 @@ its active child execution, deadline and client; it must not expose a forgeable
 socket handle or permit reads outside a server handler. Keep P5 client
 interoperability as a later P8 check once P5 exists.
 
+P6 is planned as three implementation slices:
+
+1. **Incremental TCP service:** add an async server worker with a typed context
+   and a bounded read-chunk operation available only to that active child.
+   Preserve the existing EOF-delimited `tcp_serve` contract, listener ownership,
+   per-client deadlines, cumulative request limits, cancellation and bounded
+   response writes. Test source and saved bytecode with a client that leaves its
+   write side open, plus bounds and out-of-scope rejection.
+2. **Panackelty HTTP package:** define shared request/response/error types and
+   source-owned incremental HTTP/1.1 request parsing and response serialization.
+   Add the finite `http/server` handler facade, strict framing and header/body
+   limits, method/version failures, and handler/error mapping. Keep parser and
+   serializer tests independent of the native socket owner.
+3. **Interoperability and acceptance:** exercise the packaged source API with
+   independent clients, malformed/partial and oversized inputs, concurrency,
+   disconnect, shutdown and port-conflict cases. Add the runnable example and
+   installed-package/source/bytecode checks. P5-client interoperability is
+   added after P5 exists.
+
+These slices partition P6's existing scope; they do not add HTTP TLS, keepalive,
+pipelining, HTTP/2, a framework or P5/libcurl dependency.
+
 ### Native prerequisite decisions and acceptance gates
 
 P5 uses libcurl as the initial native client transport for the alpha.13 proof of

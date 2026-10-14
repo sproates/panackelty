@@ -71,6 +71,27 @@ static void exchange(int fd, const unsigned char *request, size_t length, int ex
     }
 }
 
+static void stream_exchange(unsigned port)
+{
+    static const unsigned char request[] = "GET /alpha HTTP/1.1\r\n";
+    int fd = connect_to(port);
+    assert(send(fd, request, sizeof(request) - 1, 0) == (ssize_t)(sizeof(request) - 1));
+    /* Keep the write side open while waiting, as an ordinary HTTP client does. */
+    unsigned char response[64];
+    size_t received = 0;
+    for (;;) {
+        struct pollfd ready = {.fd = fd, .events = POLLIN};
+        assert(poll(&ready, 1, 4000) == 1);
+        ssize_t n = recv(fd, response + received, sizeof(response) - received, 0);
+        if (!n) break;
+        assert(n > 0);
+        received += (size_t)n;
+        assert(received <= sizeof(response));
+    }
+    assert(received == sizeof(request) - 1 && !memcmp(response, request, received));
+    close(fd);
+}
+
 int main(int argc, char **argv)
 {
     signal(SIGPIPE, SIG_IGN);
@@ -88,6 +109,10 @@ int main(int argc, char **argv)
     }
     assert(argc == 3);
     unsigned port = (unsigned)strtoul(argv[1], NULL, 10);
+    if (!strcmp(argv[2], "stream")) {
+        stream_exchange(port);
+        return 0;
+    }
     unsigned char request[24576];
     for (size_t i = 0; i < sizeof(request); i++) {
         request[i] = (unsigned char)(i % 251);

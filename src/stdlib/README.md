@@ -57,7 +57,7 @@ testing, and TCP modules remain separate imports.
 | `testing` | `TestOutcome`, `TestResult`, `expect`, `equal_str`, `equal_nat`, `report` |
 | `testing_files` | `TestWorkspace`, `workspace_create`, `workspace_remove_empty`, `discover_fixtures` |
 | `testing_commands` | `TestCommand`, `command_output`, `command_result`, `harness_command`, `capture_report`, `run_command`, `expect_command_error` |
-| `tcp` | `TcpServerLimits` and the native TCP server API |
+| `tcp` | `TcpServerLimits`, EOF-delimited and bounded streaming native TCP servers |
 
 The function signatures and checked error behavior are documented in the
 [language specification](../../SPEC.md). `HostError` is defined by

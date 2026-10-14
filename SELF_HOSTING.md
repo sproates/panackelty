@@ -222,6 +222,12 @@ The subsequent TCP service refresh keeps format v9 and rebuilds the compiler
 seed with the additive builtin signature, effect checking and decoder validation.
 The seed refresh transaction checks compiler and stdlib fixed points.
 
+The bounded streaming-server prerequisite also keeps v9. It adds reserved
+async-only identities for the context-bearing server worker and scoped chunk
+reads; the seed refresh verifies identical stage-2/3/4 compiler and standard-
+library artifacts. Existing `tcp_serve` EOF behavior and bytecode layouts remain
+unchanged.
+
 ## Bootstrap status
 
 The self-hosting critical path is complete. The compiler is written in

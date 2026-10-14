@@ -14,6 +14,9 @@ typedef struct {
 
 VMTcpServer *tcp_server_start(const VM *vm, Function *handler, const Value *address, size_t port,
                               VMTcpServerLimits limits, bool outbound);
+VMTcpServer *tcp_server_start_stream(const VM *vm, Function *handler, const Value *context,
+                                     const Value *address, size_t port,
+                                     VMTcpServerLimits limits, bool outbound);
 /* Socket work only; no bytecode. A zero wait never blocks for readiness. */
 void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms);
 /* At most budget bytecode instructions, round robin; no blocking socket calls. */

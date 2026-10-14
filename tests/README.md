@@ -622,6 +622,12 @@ Finite TCP server coverage uses `unit/vm/tcp_server.c` for owner/host contracts,
 bytecode. These run through canonical unit/functional targets. Loopback binding
 must be permitted. Playground runtime tests assert explicit WASI rejection.
 
+The same integration script covers the additive streaming mode: a complete
+source program and its saved bytecode read one bounded chunk from an independent
+client that deliberately leaves its write side open while waiting for the
+response. The native owner unit tests also cover the cumulative request bound and
+reject the read service outside a server-owned streaming child.
+
 ## Website validation ownership
 
 Prepared browser environments and publication timings belong to the [website repository](https://github.com/sproates/panackelty-website).

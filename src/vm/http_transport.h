@@ -2,6 +2,19 @@
 #define PANACKELTY_HTTP_TRANSPORT_H
 
 #include "value.h"
+#include <stdint.h>
+
+typedef enum {
+    VM_HTTP_WAIT_PENDING,
+    VM_HTTP_WAIT_READY,
+    VM_HTTP_WAIT_TIMEOUT,
+    VM_HTTP_WAIT_INVALID
+} VMHttpWaitOutcome;
+
+/* Resolve the readiness/deadline boundary after a host poll. Kept in the
+ * private transport interface so the boundary can be tested deterministically. */
+VMHttpWaitOutcome http_transport_classify_wait(uint64_t now, uint64_t deadline,
+                                               int poll_result, short revents);
 
 /* A cancellable owner-thread HTTP transport operation. The adapter owns its
  * libcurl handles and buffers; it returns only raw response bytes or a stable

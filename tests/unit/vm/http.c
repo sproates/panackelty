@@ -171,8 +171,20 @@ static void cancel_incomplete_connection(bool tls)
     release_arguments(args);
 }
 
+static void deadline_readiness_race(void)
+{
+    const uint64_t deadline = 100;
+    assert(http_transport_classify_wait(99, deadline, 1, POLLIN) == VM_HTTP_WAIT_READY);
+    assert(http_transport_classify_wait(100, deadline, 1, POLLIN) == VM_HTTP_WAIT_TIMEOUT);
+    assert(http_transport_classify_wait(101, deadline, 1, POLLIN) == VM_HTTP_WAIT_TIMEOUT);
+    assert(http_transport_classify_wait(99, deadline, 0, 0) == VM_HTTP_WAIT_PENDING);
+    assert(http_transport_classify_wait(99, deadline, 1, POLLNVAL) == VM_HTTP_WAIT_INVALID);
+    assert(http_transport_classify_wait(100, deadline, 1, POLLNVAL) == VM_HTTP_WAIT_TIMEOUT);
+}
+
 void http_transport_contracts(void)
 {
+    deadline_readiness_race();
     malformed_arguments();
     for (size_t repeat = 0; repeat < 8; repeat++) {
         cancel_incomplete_connection(false);

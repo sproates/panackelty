@@ -587,9 +587,10 @@ connection closure. The native fault sweep exercises project-owned transport
 allocations and result construction through connection failures.
 These cases do not establish redirects, proxy behavior, connection reuse,
 IPv6, arbitrary malformed-wire fuzzing or broad server interoperability.
-Deterministic late DNS/TLS completion and deadline-versus-readiness race coverage
-remain open. Platform and sanitizer validation results belong in the
-implementation PR.
+The native unit suite deterministically exercises the deadline/readiness boundary:
+readiness before the deadline is accepted, while readiness at or after the
+deadline times out. Deterministic late DNS/TLS completion coverage remains open.
+Platform and sanitizer validation results belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,

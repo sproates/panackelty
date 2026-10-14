@@ -208,6 +208,15 @@ VMHttpTransport *http_transport_start(Value **arguments)
 }
 
 #ifndef __wasi__
+VMHttpWaitOutcome http_transport_classify_wait(uint64_t now, uint64_t deadline,
+                                               int poll_result, short revents)
+{
+    if (now >= deadline) return VM_HTTP_WAIT_TIMEOUT;
+    if (poll_result > 0 && (revents & POLLNVAL)) return VM_HTTP_WAIT_INVALID;
+    if (poll_result > 0) return VM_HTTP_WAIT_READY;
+    return VM_HTTP_WAIT_PENDING;
+}
+
 static bool wait_socket(VMHttpTransport *transport, short events, unsigned max_wait_ms)
 {
     uint64_t now;
@@ -229,9 +238,14 @@ static bool wait_socket(VMHttpTransport *transport, short events, unsigned max_w
         return false;
     }
     if (!monotonic_ms(&now)) finish(transport, "HTTP transport clock failed");
-    else if (now >= transport->deadline) finish(transport, "HTTP transport timed out");
-    else if (ready > 0 && (descriptor.revents & POLLNVAL)) finish(transport, "HTTP connection failed");
-    return ready > 0 && !transport->done;
+    else {
+        VMHttpWaitOutcome outcome = http_transport_classify_wait(
+            now, transport->deadline, ready, descriptor.revents);
+        if (outcome == VM_HTTP_WAIT_TIMEOUT) finish(transport, "HTTP transport timed out");
+        else if (outcome == VM_HTTP_WAIT_INVALID) finish(transport, "HTTP connection failed");
+        else return outcome == VM_HTTP_WAIT_READY;
+    }
+    return false;
 }
 
 static bool poll_connect(VMHttpTransport *transport, unsigned max_wait_ms)

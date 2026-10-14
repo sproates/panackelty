@@ -50,6 +50,35 @@ Native builds require libcurl development headers and libraries plus
 choice for alpha.13, not a commitment to make libcurl part of the language API;
 future evidence may justify replacing the adapter.
 
+## Dependency evidence snapshot
+
+Observed on 2026-10-14; these are environment snapshots, not version pins.
+`curl-config` reports build-time information, while `curl_version_info()`
+reports the library actually loaded at runtime ([upstream documentation](https://curl.se/libcurl/using/curl-config.html),
+[runtime API](https://curl.se/libcurl/c/curl_version_info.html)).
+
+| Environment | Verified libcurl evidence | Native dependency boundary |
+| --- | --- | --- |
+| Local macOS 26.5, arm64 | Runtime probe: libcurl 8.7.1; Secure Transport and LibreSSL 3.3.6; zlib 1.2.12; `AsynchDNS`, `SSL` and `threadsafe` features. `/usr/bin/curl-config --configure`: `--enable-threaded-resolver --with-gssapi --with-ssl=/usr/local/libressl --with-secure-transport`. | `panack-vm` links `/usr/lib/libcurl.4.dylib` and `/usr/lib/libSystem.B.dylib`. The system libcurl also links Apple Security, CoreFoundation and SystemConfiguration, nghttp2, zlib and libSystem; crypto, SSL, LDAP and Kerberos are weak-linked. These are OS-provided, not vendored by Panackelty. |
+| GitHub Actions `ubuntu-22.04` P5 smoke | The [#452 run](https://github.com/sproates/panackelty/actions/runs/38507500172) installed `libcurl4-openssl-dev:amd64` version `7.81.0-1ubuntu1.29`; this establishes the tested development package and OpenSSL flavour. The smoke passed. | Ubuntu's [matching Jammy `libcurl4` package record](https://packages.ubuntu.com/jammy-updates/amd64/libcurl4) lists runtime dependencies on Brotli, glibc, GSS-API/Kerberos, IDN2, LDAP, nghttp2, public-suffix data, RTMP, SSH, OpenSSL, zstd and zlib. The project does not vendor these libraries. |
+
+The curl project identifies libcurl's license as SPDX `curl`, a permissive
+license inspired by MIT/X but not identical to MIT ([license text and identifier](https://curl.se/docs/copyright.html)). The current executable links the host's dynamic libcurl; archives do not bundle it or its transitive libraries.
+
+The local macOS HTTP and installed-toolchain checks establish operation with
+that host library. The Ubuntu CI smoke establishes a native build with its
+installed development package, but does not run the HTTP fixture or installed
+archive on Linux. These results do not establish a self-contained or
+version-locked native package. A release artifact must have its supported host
+library prerequisite made explicit and checked on each target. No complete
+per-transitive-package license inventory has been produced yet.
+
+The Linux job currently installs from the live Jammy repository rather than a
+locked package snapshot. Its recorded package version is evidence for this run,
+not a reproducible pin. Keep dependency pinning, per-platform license inventory
+and clean-host archive acceptance as explicit follow-up evidence; do not infer
+them from a successful compile.
+
 The deterministic local fixture in `tests/http_client_package.sh` exercises
 source and saved-bytecode execution, normal and non-2xx responses, repeated
 headers, informational and chunked responses, close framing, malformed and

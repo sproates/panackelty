@@ -1,7 +1,7 @@
-import project/parser::{parse_request}
+import project/parser::{parse_request, parse_response}
 import project/server::{serialize_response}
 import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.LimitExceeded,
-  HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
+  HttpError.InvalidLimits, HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
   HttpError.UnsupportedVersion, Request, Response}
 import stdlib/bytes as byte_buffer
 import stdlib/text as text
@@ -46,6 +46,20 @@ pure serialized_response_matches(): Bool {
     Error(error) => false,
     Ok(wire) => text.decode_utf8(wire) ==
       "HTTP/1.1 201 Created\r\nX-First: one\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+  }
+}
+
+pure response_matches(data: Bytes, status: Nat, body: Str): Bool {
+  match parse_response(data, 65536, 1048576) {
+    Error(error) => false,
+    Ok(response) => response.status == status && response.body == text.encode_utf8(body)
+  }
+}
+
+pure response_has_error(data: Bytes, expected: HttpError): Bool {
+  match parse_response(data, 65536, 1048576) {
+    Error(error) => error == expected,
+    Ok(response) => false
   }
 }
 
@@ -105,6 +119,32 @@ main(): Unit {
   })
 
   expect(serialized_response_matches())
+
+  expect(response_matches(text.encode_utf8(
+    "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nX-Repeat: a\r\nX-Repeat: b\r\n\r\nok"), 200, "ok"))
+  expect(response_matches(text.encode_utf8(
+    "HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nok"), 200, "ok"))
+  expect(response_matches(text.encode_utf8(
+    "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 404 Missing\r\nContent-Length: 3\r\n\r\n404"), 404, "404"))
+  expect(response_matches(text.encode_utf8(
+    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
+    "4\r\nWiki\r\n5;name=value\r\npedia\r\n0\r\nX-Trace: yes\r\n\r\n"), 200, "Wikipedia"))
+  expect(response_matches(text.encode_utf8("HTTP/1.1 200 OK\r\n\r\nclose body"), 200, "close body"))
+  expect(response_matches(text.encode_utf8("HTTP/1.1 204 No Content\r\n\r\n"), 204, ""))
+  expect(response_has_error(text.encode_utf8("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx"),
+    ProtocolError("truncated HTTP response body")))
+  expect(response_has_error(text.encode_utf8(
+    "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nContent-Length: 1\r\n\r\nx"),
+    ProtocolError("duplicate Content-Length")))
+  expect(response_has_error(text.encode_utf8(
+    "HTTP/1.1 200 OK\r\nContent-Length: 1\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"),
+    ProtocolError("Transfer-Encoding conflicts with Content-Length")))
+  expect(response_has_error(text.encode_utf8("HTTP/2.0 200 OK\r\n\r\n"),
+    ProtocolError("invalid HTTP response status line")))
+  expect(match parse_response(text.encode_utf8("HTTP/1.1 200 OK\r\n\r\nbody"), 0, 1024) {
+    Error(error) => error == InvalidLimits(),
+    Ok(response) => false
+  })
   expect(match serialize_response(Response(200, [Header("X-Bad", "ok\r\nInjected: yes")],
       text.encode_utf8(""))) {
     Error(error) => error == InvalidResponse(),

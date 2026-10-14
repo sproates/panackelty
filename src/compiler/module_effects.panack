@@ -46,7 +46,7 @@ pure module_effect_mode(effect: Option[SignatureEffect]): Str {
 }
 
 pure module_async_builtin(name: Str): Bool {
-  name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
+  name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
     name == "tcp_serve_stream" || name == "tcp_server_read_chunk"
 }
 

@@ -1,6 +1,11 @@
 .PHONY: all browser-runtime-bundle check check-phases check-compiler check-compiler-impl check-bytecode check-bytecode-impl check-vm check-vm-impl test unit unit-impl functional functional-impl native native-check bootstrap bootstrap-check bootstrap-check-impl regenerate-seed install package package-archive package-checksum release-smoke quick-start clean identity-root-audit
 
 CFLAGS ?= -O2
+HTTP_CURL_CONFIG ?= curl-config
+HTTP_CURL_CFLAGS := $(shell $(HTTP_CURL_CONFIG) --cflags 2>/dev/null)
+HTTP_CURL_LIBS := $(shell $(HTTP_CURL_CONFIG) --libs 2>/dev/null)
+CPPFLAGS += $(HTTP_CURL_CFLAGS)
+LDLIBS += $(HTTP_CURL_LIBS)
 export PANACKELTY_STDLIB_PATH := $(abspath src/stdlib)
 
 CHECK_BUDGET_SECONDS ?= 120
@@ -188,10 +193,15 @@ $(BUILD_DIR)/vm/http_client: tests/http_client.c
 	@mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
-functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client
+$(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CFLAGS) $(VM_WARNINGS) $< -o $@
+
+functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(MAKE) --no-print-directory identity-root-audit
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
+	@PANACK_BIN="$(abspath panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"

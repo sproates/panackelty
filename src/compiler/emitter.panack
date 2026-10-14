@@ -873,7 +873,10 @@ pure emit_call(
           if retain_sources {
             sources = add_instruction_source(sources, origin, offset + len(instructions), false)
           }
-          instructions = append(instructions, CallInstruction(if name == "tcp_exchange" {
+          instructions = append(instructions, CallInstruction(if name == "http_transport_exchange" {
+              "$http_transport_exchange"
+            } else {
+              if name == "tcp_exchange" {
               "$tcp_exchange"
             } else {
               if name == "tcp_serve" {
@@ -889,7 +892,7 @@ pure emit_call(
                   }
                 }
               }
-            }, len(arguments)))
+            }}, len(arguments)))
         }
       }
       EmittedCode(instructions, emitted.next_temporary, sources, probes)

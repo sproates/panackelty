@@ -452,7 +452,7 @@ void tcp_server_poll(VMTcpServer *server, unsigned max_wait_ms)
         if (client->state == CLIENT_START) {
             wait = 0;
         } else if (client->state == CLIENT_RUN) {
-            vm_execution_poll_tcp(client->execution, 0);
+            vm_execution_poll_network(client->execution, 0);
             VMExecutionStatus status = vm_execution_advance(client->execution, 0);
             if (status != VM_WAITING || client->fake_pending) {
                 wait = 0;

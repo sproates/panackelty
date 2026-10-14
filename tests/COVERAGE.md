@@ -567,8 +567,22 @@ exercise context delivery, bounded incremental reads, cumulative request-limit
 failure and rejection outside an owner-enabled server child.
 
 Evidence covers finite EOF-framed TCP and its bounded streaming prerequisite;
-it does not establish HTTP framing/interoperability, TLS/IPv6, general source
+it does not establish server-side HTTP interoperability, TLS/IPv6, general source
 spawning, unbounded service operation or large-scale reactor performance claim.
+
+## Native HTTP client (P5 proof of concept)
+
+`tests/http_client_package.sh` drives a deterministic local HTTP and HTTPS
+fixture through both source execution and saved bytecode. It covers successful
+and non-2xx responses, repeated headers, informational responses, chunked and
+close framing, truncated and conflicting response framing, body limits, URL
+validation, deadlines, trusted TLS, host-name verification and untrusted
+certificate rejection. Its local CA is selected with `CURL_CA_BUNDLE`; peer and
+host verification stay enabled. It also installs into an isolated temporary
+prefix and checks the installed package in source and saved-bytecode mode. The
+script is part of the functional suite.
+These cases do not establish redirects, proxy behavior, connection reuse,
+IPv6, arbitrary malformed-wire fuzzing or broad server interoperability.
 Platform and sanitizer validation results belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:

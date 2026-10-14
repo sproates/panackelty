@@ -9,7 +9,7 @@ import project/src/compiler/lexer::{lex, lex_file}
 
 pub pure is_impure_builtin(name: Str): Bool {
   (name == "async_fake_read" ||
-    name == "tcp_exchange" ||
+    name == "tcp_exchange" || name == "http_transport_exchange" ||
     name == "tcp_serve" ||
     name == "tcp_serve_stream" ||
     name == "tcp_server_read_chunk") ||
@@ -170,7 +170,7 @@ pub pure check_effect_expression(
       await_call = true
       function: FunctionLookup = function_type(program, name)
       mut async_call: Bool = (name == "async_fake_read" ||
-        name == "tcp_exchange" ||
+        name == "tcp_exchange" || name == "http_transport_exchange" ||
         name == "tcp_serve" ||
         name == "tcp_serve_stream" ||
         name == "tcp_server_read_chunk") ||

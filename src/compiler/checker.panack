@@ -981,7 +981,8 @@ pure builtin_return(name: Str): Str {
   if name == "tcp_serve" || name == "tcp_serve_stream" {
     "Result[[Result[Unit,Str]],Str]"
   } else {
-    if name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_server_read_chunk" {
+    if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" ||
+      name == "tcp_server_read_chunk" {
       "Result[Bytes,Str]"
     } else {
       if name == "fs_directories_overlap" || name == "fs_read_beneath" || name == "fs_read" {
@@ -1167,6 +1168,9 @@ pure builtin_return(name: Str): Str {
 }
 
 pub pure builtin_arity(name: Str): Nat {
+  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+    6
+  } else {
   if name == "tcp_serve_stream" || name == "$tcp_serve_stream" {
     5
   } else {
@@ -1175,10 +1179,13 @@ pub pure builtin_arity(name: Str): Nat {
     } else {
       builtin_legacy_arity(name)
     }
-  }
+  }}
 }
 
 pure builtin_legacy_arity(name: Str): Nat {
+  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+    6
+  } else {
   if name == "tcp_serve" || name == "$tcp_serve" {
     4
   } else {
@@ -1332,10 +1339,15 @@ pure builtin_legacy_arity(name: Str): Nat {
       }
     }
 
-  }
+  }}
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+    if index == 0 { "Str" } else {
+      if index == 2 { "Bool" } else { if index == 3 { "Bytes" } else { "Nat" } }
+    }
+  } else {
   if name == "tcp_server_read_chunk" {
     "Nat"
   } else {
@@ -1354,7 +1366,7 @@ pure builtin_parameter(name: Str, index: Nat): Str {
     } else {
       builtin_legacy_parameter(name, index)
     }
-  }
+  }}
 }
 
 pure builtin_legacy_parameter(name: Str, index: Nat): Str {
@@ -1373,6 +1385,11 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
       }
     }
   } else {
+    if name == "http_transport_exchange" || name == "$http_transport_exchange" {
+      if index == 0 { "Str" } else {
+        if index == 2 { "Bool" } else { if index == 3 { "Bytes" } else { "Nat" } }
+      }
+    } else {
     if name == "async_fake_read" || name == "tcp_exchange" {
       if name == "async_fake_read" {
         "Bool"
@@ -1661,7 +1678,7 @@ pure builtin_legacy_parameter(name: Str, index: Nat): Str {
           }
         }
       }
-    }
+    }}
 
   }
 }

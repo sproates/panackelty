@@ -129,12 +129,17 @@ schedules handlers and drains or cancels clients on shutdown. See the
 [server contract](SPEC.md#native-tcp-server-development-toolchain).
 The development toolchain also provides bounded incremental reads through
 `tcp_serve_stream` for protocol parsers that must respond before peer EOF; the
-Panackelty HTTP server package is in active development. Run its
+Panackelty HTTP package is in active development. Its native client provides
+bounded HTTP/1.1 GET and verified HTTPS through `http/client`; the
+[P5 design and limits](docs/NATIVE_HTTP_CLIENT_DESIGN.md) describe its
+current proof-of-concept contract. The HTTP server package remains in
+development. Run its
 [one-request example](examples/network/http_server/panack.json) from the
 repository root with `./panack run --project examples/network/http_server/panack.json`,
-then request `http://127.0.0.1:8080/`. DNS, TLS and general source spawning
-remain future work. These native
-networking operations were absent from alpha.10; the browser cannot open raw TCP sockets.
+then request `http://127.0.0.1:8080/`. The HTTP client requires native libcurl
+and is unavailable in the browser. General source spawning remains future work.
+These native networking operations were absent from alpha.10; the browser
+cannot open raw TCP sockets.
 
 ## Start writing Panackelty
 

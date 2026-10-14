@@ -500,13 +500,13 @@ record FunctionCodeLookup {
 
 pure builtin_exists(name: Str): Bool {
   name != "tcp_exchange" && name != "tcp_serve" && name != "tcp_serve_stream" &&
-    name != "tcp_server_read_chunk" &&
-    (name == "$tcp_exchange" || name == "$tcp_serve" || name == "$tcp_serve_stream" ||
+    name != "tcp_server_read_chunk" && name != "http_transport_exchange" &&
+    (name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" || name == "$tcp_serve_stream" ||
       name == "$tcp_server_read_chunk" || is_builtin(name))
 }
 
 pure builtin_is_pure(name: Str): Bool {
-  name != "$tcp_exchange" && name != "$tcp_serve" && name != "$tcp_serve_stream" &&
+  name != "$tcp_exchange" && name != "$http_transport_exchange" && name != "$tcp_serve" && name != "$tcp_serve_stream" &&
     name != "$tcp_server_read_chunk" && !is_impure_builtin(name)
 }
 
@@ -560,7 +560,7 @@ pure verify_instruction(instruction: Instruction, function: FunctionCode, progra
         expected: Nat = if builtin_exists(name) { builtin_arity(name) } else { len(target.value.parameters) }
         target_pure: Bool = if builtin_exists(name) { builtin_is_pure(name) } else { target.value.is_pure }
         if (!builtin_exists(name) && target.found && target.value.is_async) ||
-          name == "async_fake_read" || name == "$tcp_exchange" || name == "$tcp_serve" ||
+          name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
           name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
           "ordinary call cannot enter async function"
         }
@@ -709,7 +709,7 @@ pub pure round_trip_bytecode(data: Bytes): Bytes {
 pure verify_await_call(name: Str, arity: Nat, function: FunctionCode, program: BytecodeProgram): Str {
   target: FunctionCodeLookup = bytecode_function(program, name)
   if !function.is_async { "await requires async function" }
-  else { if name == "async_fake_read" || name == "$tcp_exchange" || name == "$tcp_serve" ||
+  else { if name == "async_fake_read" || name == "$tcp_exchange" || name == "$http_transport_exchange" || name == "$tcp_serve" ||
     name == "$tcp_serve_stream" || name == "$tcp_server_read_chunk" {
     if arity == builtin_arity(name) { "" } else { "async service arity mismatch" }
   } else { if builtin_exists(name) || !target.found || !target.value.is_async { "await target must be async" }

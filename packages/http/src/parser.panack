@@ -1,13 +1,21 @@
-import project/types::{Header, HttpError.InvalidRequest, HttpError.LimitExceeded,
-  HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
-  HttpError.UnsupportedVersion}
-pub import project/types::{HttpError, Request}
+import project/types::{Header, HttpError.InvalidLimits, HttpError.InvalidRequest, HttpError.LimitExceeded,
+  HttpError.InvalidResponse, HttpError.ProtocolError, HttpError.UnsupportedMethod,
+  HttpError.UnsupportedTransferEncoding, HttpError.UnsupportedVersion}
+pub import project/types::{HttpError, Request, Response}
 import stdlib/bytes as byte_buffer
 import stdlib/text as text
 
 record RequestHead {
   method: Str,
   target: Str,
+  headers: [Header],
+  body_start: Nat,
+  content_length: Option[Nat],
+  chunked: Bool
+}
+
+record ResponseHead {
+  status: Nat,
   headers: [Header],
   body_start: Nat,
   content_length: Option[Nat],
@@ -559,5 +567,219 @@ pub pure parse_request(data: Bytes, eof: Bool, body_limit: Nat): Result[Option[R
         }
       }
     }
+  }
+}
+
+pure find_header_end_from(data: Bytes, start: Nat): Option[Nat] {
+  mut found: Option[Nat] = None()
+  mut cursor = start
+  while cursor + 3 < byte_length(data) && found == None() {
+    if byte_at(data, cursor) == 13 && byte_at(data, cursor + 1) == 10 &&
+        byte_at(data, cursor + 2) == 13 && byte_at(data, cursor + 3) == 10 {
+      found = Some(cursor)
+    } else { cursor = cursor + 1 }
+  }
+  found
+}
+
+pure parse_response_status(data: Bytes, start: Nat, end: Nat): Result[Nat,HttpError] {
+  supported_version: Bool = end >= start + 12 &&
+    byte_at(data, start + 6) == 46 &&
+    (byte_at(data, start + 7) == 48 || byte_at(data, start + 7) == 49)
+  valid_prefix: Bool = end >= start + 12 &&
+    byte_at(data, start) == 72 && byte_at(data, start + 1) == 84 &&
+    byte_at(data, start + 2) == 84 && byte_at(data, start + 3) == 80 &&
+    byte_at(data, start + 4) == 47 && byte_at(data, start + 5) == 49 &&
+    byte_at(data, start + 8) == 32
+  if !valid_prefix || !supported_version {
+    Error(ProtocolError("invalid HTTP response status line"))
+  } else {
+    first: Nat = byte_at(data, start + 9)
+    second: Nat = byte_at(data, start + 10)
+    third: Nat = byte_at(data, start + 11)
+    mut valid = first >= 48 && first <= 57 && second >= 48 && second <= 57 &&
+      third >= 48 && third <= 57
+    if end > start + 12 && byte_at(data, start + 12) != 32 { valid = false }
+    mut cursor = start + 12
+    while cursor < end {
+      byte: Nat = byte_at(data, cursor)
+      if byte != 9 && (byte < 32 || byte > 126) { valid = false }
+      cursor = cursor + 1
+    }
+    if !valid || first < 48 || first > 57 || second < 48 || second > 57 ||
+        third < 48 || third > 57 {
+      Error(ProtocolError("invalid HTTP response status line"))
+    } else {
+      first_digit: Nat = if first >= 48 { first - 48 } else { 0 }
+      second_digit: Nat = if second >= 48 { second - 48 } else { 0 }
+      third_digit: Nat = if third >= 48 { third - 48 } else { 0 }
+      status: Nat = first_digit * 100 + second_digit * 10 + third_digit
+      if status < 100 || status > 599 { Error(ProtocolError("invalid HTTP response status line")) }
+      else if status == 101 { Error(ProtocolError("protocol upgrades are unsupported")) }
+      else { Ok(status) }
+    }
+  }
+}
+
+pure parse_response_decimal(data: Bytes, start: Nat, end: Nat, limit: Nat): Result[Nat,HttpError] {
+  if start == end { Error(ProtocolError("empty Content-Length")) }
+  else {
+    mut value: Nat = 0
+    mut valid = true
+    mut too_large = false
+    mut cursor = start
+    while cursor < end {
+      byte: Nat = byte_at(data, cursor)
+      if byte >= 48 {
+        digit: Nat = byte - 48
+        if digit > 9 { valid = false }
+        else {
+          value = value * 10 + digit
+          if value > limit { too_large = true }
+        }
+      } else { valid = false }
+      cursor = cursor + 1
+    }
+    if !valid { Error(ProtocolError("invalid Content-Length")) }
+    else if too_large { Error(LimitExceeded("response body")) }
+    else { Ok(value) }
+  }
+}
+
+pure response_head(data: Bytes, offset: Nat, header_end: Nat, body_limit: Nat):
+    Result[ResponseHead,HttpError] {
+  match find_crlf(data, offset, header_end + 2) {
+    None() => Error(ProtocolError("invalid HTTP response status line")),
+    Some(status_end) => match parse_response_status(data, offset, status_end) {
+      Error(error) => Error(error),
+      Ok(status) => {
+        mut headers: [Header] = []
+        mut content_length: Option[Nat] = None()
+        mut saw_transfer_encoding = false
+        mut valid_transfer_encoding = false
+        mut failed: Option[HttpError] = None()
+        mut cursor = status_end + 2
+        while cursor < header_end && failed == None() {
+          match find_crlf(data, cursor, header_end + 2) {
+            None() => { failed = Some(ProtocolError("invalid HTTP header terminator")) },
+            Some(end) => match parse_header(data, cursor, end) {
+              Error(error) => { failed = Some(error) },
+              Ok(header) => {
+                name: Str = lower_ascii(header.name)
+                if name == "content-length" {
+                  if content_length != None() {
+                    failed = Some(ProtocolError("duplicate Content-Length"))
+                  } else {
+                    value: Bytes = text.encode_utf8(header.value)
+                    match parse_response_decimal(value, 0, byte_length(value), body_limit) {
+                      Error(error) => { failed = Some(error) },
+                      Ok(length) => { content_length = Some(length) }
+                    }
+                  }
+                } else if name == "transfer-encoding" {
+                  if saw_transfer_encoding { failed = Some(UnsupportedTransferEncoding()) }
+                  else {
+                    saw_transfer_encoding = true
+                    valid_transfer_encoding = lower_ascii(header.value) == "chunked"
+                  }
+                }
+                headers = headers.append(header)
+                cursor = end + 2
+              }
+            }
+          }
+        }
+        if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidResponse()) } }
+        else if saw_transfer_encoding && !valid_transfer_encoding { Error(UnsupportedTransferEncoding()) }
+        else if saw_transfer_encoding && content_length != None() {
+          Error(ProtocolError("Transfer-Encoding conflicts with Content-Length"))
+        } else {
+          Ok(ResponseHead(status, headers, header_end + 4, content_length, saw_transfer_encoding))
+        }
+      }
+    }
+  }
+}
+
+pub pure parse_response(data: Bytes, header_limit: Nat, body_limit: Nat): Result[Response,HttpError] {
+  if header_limit == 0 || header_limit > http_header_limit() || body_limit == 0 ||
+      body_limit > 1048576 {
+    Error(InvalidLimits())
+  } else {
+    mut cursor: Nat = 0
+    mut informationals: Nat = 0
+    mut header_bytes: Nat = 0
+    mut final_head: Option[ResponseHead] = None()
+    mut failed: Option[HttpError] = None()
+    mut seeking_final = true
+    while seeking_final && failed == None() {
+      match find_header_end_from(data, cursor) {
+        None() => { failed = Some(if byte_length(data) > header_limit {
+          LimitExceeded("response headers and trailers")
+        } else { ProtocolError("incomplete HTTP response headers") }) },
+        Some(header_end) => {
+          mut section_bytes: Nat = 0
+          mut section_cursor: Nat = cursor
+          while section_cursor < header_end + 4 {
+            section_bytes = section_bytes + 1
+            section_cursor = section_cursor + 1
+          }
+          header_bytes = header_bytes + section_bytes
+          if header_bytes > header_limit { failed = Some(LimitExceeded("response headers and trailers")) }
+          else {
+            match response_head(data, cursor, header_end, body_limit) {
+              Error(error) => { failed = Some(error) },
+              Ok(head) => if head.status < 200 {
+                informationals = informationals + 1
+                if informationals > 8 { failed = Some(LimitExceeded("informational responses")) }
+                else { cursor = head.body_start }
+              } else {
+                final_head = Some(head)
+                seeking_final = false
+              }
+            }
+          }
+        }
+      }
+    }
+    if failed != None() { match failed { Some(error) => Error(error), None() => Error(InvalidResponse()) } }
+    else { match final_head {
+      None() => Error(ProtocolError("missing final HTTP response")),
+      Some(head) => {
+        mut remaining: Nat = 0
+        mut body_cursor: Nat = head.body_start
+        while body_cursor < byte_length(data) {
+          remaining = remaining + 1
+          body_cursor = body_cursor + 1
+        }
+        if head.status == 204 || head.status == 205 || head.status == 304 {
+          if remaining != 0 { Error(ProtocolError("body forbidden for this HTTP status")) }
+          else { Ok(Response(head.status, head.headers, byte_buffer.empty())) }
+        } else {
+          match head.content_length {
+            Some(length) => if remaining < length {
+              Error(ProtocolError("truncated HTTP response body"))
+            } else if remaining > length {
+              Error(ProtocolError("extra bytes after HTTP response"))
+            } else {
+              Ok(Response(head.status, head.headers, copy_bytes(data, head.body_start, byte_length(data))))
+            },
+            None() => if head.chunked {
+              match decode_chunked(data, head.body_start, true, body_limit, header_bytes) {
+                Error(error) => Error(error),
+                Ok(decoded) => match decoded {
+                  None() => Error(ProtocolError("truncated chunked HTTP response body")),
+                  Some(body) => Ok(Response(head.status, head.headers, body.body))
+                }
+              }
+            } else if remaining > body_limit {
+              Error(LimitExceeded("response body"))
+            } else {
+              Ok(Response(head.status, head.headers, copy_bytes(data, head.body_start, byte_length(data))))
+            }
+          }
+        }
+      }
+    }}
   }
 }

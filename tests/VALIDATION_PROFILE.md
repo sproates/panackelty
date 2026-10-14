@@ -6009,3 +6009,22 @@ or a general latency guarantee. The new join evidence is retained only by
 explanation-mode body checking; ordinary checking keeps the collection empty.
 The compiler data layout changes, but emitted bytecode and runtime behavior do
 not.
+
+## GI#134 array callback contract explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+`[1].map(@format)` and selected `probe`. Each included source loading, checking
+and explanation rendering with a warm filesystem cache. `real` times were
+0.04s, 0.04s, 0.05s, 0.05s and 0.05s (median 0.05s, range 0.04–0.05s).
+This is a local reference, not a paired before/after comparison or a general
+latency guarantee. Callback evidence is retained only for explanation queries;
+ordinary checking retains none, and runtime and bytecode behavior are unchanged.
+
+`make check` completed successfully in 340s on the reused local build tree. The
+full unit, bootstrap, functional, release-smoke and quick-start checks reported
+no failures. The bootstrap phase took 227s against its emitted 60s warning
+budget; the overall check took 340s against the emitted 120s warning budget.
+The focused module-binding suite passed 733 assertions, the explanation unit
+suite passed 266 assertions, and the focused callback CLI fixture passed all
+four source, compile and bytecode checks. This is validation evidence for the
+slice, not a performance investigation or a change to GI#106 scope.

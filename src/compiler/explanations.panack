@@ -3,7 +3,7 @@ pub import project/src/compiler/loader::{LoadedProject}
 pub import project/src/compiler/source_maps::{SourceMapFunctionSelector}
 import project/src/compiler/source_maps::{source_identifier, source_map_escape, source_map_location, source_map_function_selector}
 import project/src/compiler/types::{SourceSpan}
-import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
+import project/src/compiler/module_bodies::{BoundBody, BodyNode.BodyBinding, BodyNode.BodyLiteral, BodyNode.BodyInterpolation, BodyNode.BodyLocalUse, BodyNode.BodyFunction, BodyNode.BodyCall, BodyNode.BodyArray, BodyNode.BodyUnary, BodyNode.BodyBinary, BodyNode.BodyField, BodyNode.BodyIndex, BodyNode.BodyIf, BodyNode.BodyBlock, BodyNode.BodyMatch, BodyNode.BodyAssignment, BodyNode.BodyWhile, BodyNode.BodyFor, BodyNode.BodyEmpty, GuardConversionEvidence, ReturnTypeEvidence, CallArgumentEvidence, BindingTypeEvidence, AssignmentTypeEvidence, TypeJoinEvidence, CollectionCallbackEvidence, body_call_argument_evidence, body_binding_type_evidence, body_assignment_type_evidence, body_type_join_evidence, body_collection_callback_evidence, body_type_text, body_type_complete, BodyCheckStatus.BodyDeferred, BodyCheckStatus.BodyIdentityChecked, BodyCheckStatus.BodyInvalid}
 import project/src/compiler/module_signatures::{SignatureType}
 import project/src/compiler/module_bindings::{DeclarationIdentity, source_module_identity}
 import project/src/compiler/checker::{Bounds}
@@ -754,6 +754,65 @@ pure render_type_join_explanations(
   output
 }
 
+pure render_collection_callback_evidence(
+  evidence: CollectionCallbackEvidence,
+  sources: Map[Str, Str],
+  root: Str,
+  stdlib_root: Str
+): Str {
+  operation: Str = evidence.operation
+  status: Str = match evidence.accepted {
+    Some(accepted) => if accepted { "accepted" } else { "rejected" },
+    None() => "unavailable"
+  }
+  callback: Str = source_map_escape(render_inferred_type(evidence.callback))
+  result: Str = source_map_escape(render_inferred_type(evidence.result))
+  mut parameters: Str = ""
+  for parameter in evidence.expected_parameters {
+    if parameters != "" { parameters = parameters + ", " }
+    parameters = parameters + source_map_escape(body_type_text(parameter))
+  }
+  expected_result: Str = match evidence.expected_result {
+    Some(type) => source_map_escape(body_type_text(type)),
+    None() => if operation == "array_map" { "any non-Void value" } else { "unavailable" }
+  }
+  "${operation} callback contract: ${status}\n" + explanation_location(
+    Some(evidence.span), sources, root, stdlib_root
+  ) + "\ncallback type: ${callback}\nexpected callback parameter types: [${parameters}]\ncallback result type: ${result}\nexpected callback result: ${expected_result}" + match evidence.accepted {
+    Some(accepted) => if accepted {
+      "\nreason: the checker accepted the callback's purity, arity, parameter types and result constraint"
+    } else {
+      "\nreason: the checker rejected at least one callback contract requirement"
+    },
+    None() => "\nreason: the checker did not determine a complete callback contract"
+  }
+}
+
+pure render_collection_callback_explanations(
+  project: LoadedProject,
+  selector: SourceMapFunctionSelector,
+  root: Str,
+  stdlib_root: Str
+): Str {
+  mut entries: [CollectionCallbackEvidence] = []
+  for function in project.module_bodies {
+    if function.signature.binding.identity == selector.identity {
+      entries = concat(entries, body_collection_callback_evidence(function.body))
+    }
+  }
+  mut output: Str = "collection callback contracts:"
+  if len(entries) == 0 {
+    output = output + " none (no retained array map or reduce callback checks)"
+  } else {
+    for entry in entries {
+      output = output + "\n\n" + render_collection_callback_evidence(
+        entry, project.sources, root, stdlib_root
+      )
+    }
+  }
+  output
+}
+
 pure render_inferred_local(
   body: BoundBody,
   sources: Map[Str, Str],
@@ -1002,6 +1061,9 @@ pub pure render_function_explanations(
     stdlib_root
   )
   output = output + "\n\n" + render_type_join_explanations(
+    project, selector, root, stdlib_root
+  )
+  output = output + "\n\n" + render_collection_callback_explanations(
     project,
     selector,
     root,

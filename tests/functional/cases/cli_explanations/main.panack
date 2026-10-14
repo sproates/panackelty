@@ -119,6 +119,18 @@ main(): Void {
       explain_write(source, "pure probe(): [Nat] { append([1], 2) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted collection append item cites checked type", ["explain", source, "--function", "probe"], 0,
         ["call argument 2 to append: accepted", "expression: 2", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure probe(): [Str] { [1].map(@format) }; pure format(value: Nat): Str { \"x\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted map callback contract explains purity, input and result", ["explain", source, "--function", "probe"], 0,
+        ["array_map callback contract: accepted", "callback type: PureFn[Nat,Str]", "expected callback parameter types: [Nat]", "callback result type: Str", "expected callback result: any non-Void value", "accepted the callback's purity, arity, parameter types and result constraint"], [], ""))
+      explain_write(source, "pure probe(): Nat { [1].reduce(0, @bad_sum) }; pure bad_sum(total: Nat, value: Nat): Str { \"bad\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected reduce callback explains result accumulator mismatch", ["explain", source, "--function", "probe"], 1,
+        ["array_reduce callback contract: rejected", "callback type: PureFn[Nat,Nat,Str]", "expected callback parameter types: [Nat, Nat]", "callback result type: Str", "expected callback result: Nat", "rejected at least one callback contract requirement"], [], "reduce callback must have type"))
+      explain_write(source, "pure probe(): [Nat] { [1].map(@ordinary) }; ordinary(value: Nat): Nat { value }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected map callback explains effect requirement", ["explain", source, "--function", "probe"], 1,
+        ["array_map callback contract: rejected", "callback type: Fn[Nat,Nat]", "expected callback parameter types: [Nat]", "checker rejected at least one callback contract requirement"], [], "requires a pure callable"))
+      explain_write(source, "pure probe(): [Nat] { [1].map(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unavailable map callback contract reports missing type", ["explain", source, "--function", "probe"], 1,
+        ["array_map callback contract: unavailable", "callback type: unavailable", "expected callback parameter types: [Nat]", "callback result type: unavailable", "did not determine a complete callback contract"], [], "unknown name missing"))
       explain_write(source, "pure probe(): [Nat] { append([1], \"wrong\") }\nmain(): Void {}\n")
       results = append(results, explain_run("rejected collection append item explains mismatch", ["explain", source, "--function", "probe"], 1,
         ["call argument 2 to append: rejected", "expression: \"wrong\"", "actual type: Str", "expected type: Nat", "incompatible with the expected type"], [], "cannot append Str to Array[Nat]"))

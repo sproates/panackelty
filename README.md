@@ -40,9 +40,10 @@ is also the name of this project's command-line tool.
   can prove the rule. Try the [guarded-types example](examples/guards.panack)
   or read the [specification](SPEC.md#guarded-types).
 - **Inspect selected compiler decisions.** `panack explain` exposes evidence
-  for supported `Nat` subtraction proofs, checked type joins, and local
-  call/await effect checks. Its explanations are bounded; they do not certify
-  whole-program validity or explain runtime behavior. See the
+  for supported `Nat` subtraction proofs, checked type joins, selected array
+  `map`/`reduce` callback contracts, and local call/await effect checks. Its
+  explanations are bounded; they do not certify whole-program validity or
+  explain runtime behavior. See the
   [explanation guide](docs/COMPILER_EXPLANATIONS.md).
 - **A compiler built with the language.** Panackelty's compiler is written in
   Panackelty, and reproducible bootstrap checks require successive builds to
@@ -630,10 +631,11 @@ panack explain example.panack --function remaining
 ```
 
 The explanation query shows inferred local types and their checked initializer
-evidence, proof-bearing conversions into guarded types, and why a `Nat`
-subtraction is proved or unproved, using the checker's actual constants or guard
-bounds and their source locations. It also explains how array elements,
-conditional results and match arms combine into a checked result type, and local
+evidence, proof-bearing conversions into guarded types, checked array
+`map`/`reduce` callback contracts, and why a `Nat` subtraction is proved or
+unproved, using the checker's actual constants or guard bounds and their source
+locations. It also explains how array elements, conditional results and match
+arms combine into a checked result type, and local
 call and await effect boundaries, including why pure or
 async code rejects a call, and reports whole-program acceptance separately. Unproved does not
 mean a runtime failure was demonstrated; unsupported explanations remain explicit.

@@ -1646,6 +1646,7 @@ pure body_check_existing_special_core_call(
   mut output: Option[SignatureType] = None()
   mut call_arguments: [CallArgumentEvidence] = []
   mut callback_contracts: [CollectionCallbackEvidence] = []
+  mut type_joins: [TypeJoinEvidence] = []
   name: Str = match target {
     BodyCore(value) => value,
     BodyDeclaration(binding) => ""
@@ -1871,6 +1872,7 @@ pure body_check_existing_special_core_call(
               output = checked.body.type;
               call_arguments = body_direct_call_argument_metadata(checked.body)
               callback_contracts = checked.body.callback_contracts
+              type_joins = checked.body.type_joins
             }
           }
         }
@@ -1889,7 +1891,7 @@ pure body_check_existing_special_core_call(
       output,
       body_collection_call_solutions(name, children),
       [],
-      [],
+      type_joins,
       callback_contracts
     ),
     diagnostics,
@@ -2653,6 +2655,17 @@ pure body_optional_type(type: Option[SignatureType]): SignatureType {
   }
 }
 
+pure body_concat_item_type(type: Option[SignatureType]): Option[SignatureType] {
+  match type {
+    None() => None(),
+    Some(collection) => if collection.identity == SignatureCore("Array") && len(collection.arguments) == 1 {
+      Some(collection.arguments[0])
+    } else {
+      None()
+    }
+  }
+}
+
 pure body_check_collection_core_call(
   context: BodyContext,
   name: Str,
@@ -2678,6 +2691,7 @@ pure body_check_collection_core_call(
   mut output: Option[SignatureType] = None()
   mut call_arguments: [CallArgumentEvidence] = []
   mut callback_contracts: [CollectionCallbackEvidence] = []
+  mut type_joins: [TypeJoinEvidence] = []
 
   if len(children) != expected_count {
     diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got ${len(children)}", span.start))
@@ -2687,6 +2701,16 @@ pure body_check_collection_core_call(
         operation != "map_has" && operation != "set_add" && operation != "set_has" &&
         operation != "has" && operation != "array_map") && children[1].type == None()) {
       deferred = append(deferred, span)
+      if operation == "concat" && context.retain_guard_conversions {
+        type_joins = append(type_joins, TypeJoinEvidence(
+          "array concatenation",
+          span,
+          body_concat_item_type(children[0].type),
+          body_concat_item_type(children[1].type),
+          None(),
+          None()
+        ))
+      }
     } else {
       collection: SignatureType = body_optional_type(children[0].type)
       value: SignatureType = body_optional_type(children[1].type)
@@ -2729,10 +2753,44 @@ pure body_check_collection_core_call(
             match body_join(context, collection.arguments[0], value.arguments[0]) {
               Error(message) => {
                 diagnostics = append(diagnostics, Diagnostic("cannot concatenate " + body_type_text(collection) + " and " + body_type_text(value), span.start))
+                if context.retain_guard_conversions {
+                  type_joins = append(type_joins, TypeJoinEvidence(
+                    "array concatenation",
+                    span,
+                    Some(collection.arguments[0]),
+                    Some(value.arguments[0]),
+                    None(),
+                    Some(false)
+                  ))
+                }
               },
               Ok(joined) => match joined {
-                None() => { deferred = append(deferred, span) },
-                Some(item) => { output = Some(SignatureType(SignatureCore("Array"), [item])) }
+                None() => {
+                  deferred = append(deferred, span)
+                  if context.retain_guard_conversions {
+                    type_joins = append(type_joins, TypeJoinEvidence(
+                      "array concatenation",
+                      span,
+                      Some(collection.arguments[0]),
+                      Some(value.arguments[0]),
+                      None(),
+                      None()
+                    ))
+                  }
+                },
+                Some(item) => {
+                  output = Some(SignatureType(SignatureCore("Array"), [item]))
+                  if context.retain_guard_conversions {
+                    type_joins = append(type_joins, TypeJoinEvidence(
+                      "array concatenation",
+                      span,
+                      Some(collection.arguments[0]),
+                      Some(value.arguments[0]),
+                      Some(item),
+                      Some(true)
+                    ))
+                  }
+                }
               }
             }
           }
@@ -2873,7 +2931,7 @@ pure body_check_collection_core_call(
   } else {
     BodyEmpty()
   }
-  BodyResult(BoundBody(node, span, [], output, [], [], [], callback_contracts), diagnostics, deferred)
+  BodyResult(BoundBody(node, span, [], output, [], [], type_joins, callback_contracts), diagnostics, deferred)
 }
 
 pure body_check_map_set_call(

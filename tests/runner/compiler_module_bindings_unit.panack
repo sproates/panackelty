@@ -1079,6 +1079,41 @@ pure namespace_body_tests(): [TestResult] {
       rejected_array_joins[0].right == Some(SignatureType(SignatureCore("Str"), [])),
     "incompatible array element types were not retained"
   ))
+  joined_concat: CheckedModuleBodies = body_test_module(
+    "pub pure joined(): [Nat] { concat([1], [2]) }"
+  )
+  concat_joins: [TypeJoinEvidence] = body_type_join_evidence(joined_concat.functions[0].body)
+  results = append(results, std_testing.expect(
+    "explanation checker retains accepted array concatenation join",
+    len(concat_joins) == 1 && concat_joins[0].context == "array concatenation" &&
+      concat_joins[0].accepted == Some(true) &&
+      concat_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      concat_joins[0].right == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      concat_joins[0].result == Some(SignatureType(SignatureCore("Nat"), [])),
+    "array concatenation join was not retained with its resulting type"
+  ))
+  rejected_concat: CheckedModuleBodies = body_test_module(
+    "pub pure bad(): [Nat] { concat([1], [\"wrong\"]) }"
+  )
+  rejected_concat_joins: [TypeJoinEvidence] = body_type_join_evidence(rejected_concat.functions[0].body)
+  results = append(results, std_testing.expect(
+    "explanation checker retains rejected array concatenation join",
+    len(rejected_concat_joins) == 1 && rejected_concat_joins[0].accepted == Some(false) &&
+      rejected_concat_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      rejected_concat_joins[0].right == Some(SignatureType(SignatureCore("Str"), [])),
+    "incompatible concatenated array types were not retained"
+  ))
+  unavailable_concat: CheckedModuleBodies = body_test_module(
+    "pub pure unresolved(): [Nat] { concat([1], [missing]) }"
+  )
+  unavailable_concat_joins: [TypeJoinEvidence] = body_type_join_evidence(unavailable_concat.functions[0].body)
+  results = append(results, std_testing.expect(
+    "explanation checker distinguishes unavailable array concatenation join",
+    len(unavailable_concat_joins) == 1 && unavailable_concat_joins[0].accepted == None() &&
+      unavailable_concat_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      unavailable_concat_joins[0].right == None() && unavailable_concat_joins[0].result == None(),
+    "unresolved concatenated array type was not marked unavailable"
+  ))
   joined_conditional: CheckedModuleBodies = body_test_module(
     "pub pure branch(flag: Bool): Int { if flag { 1 } else { -2 } }"
   )
@@ -1108,6 +1143,15 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_join.functions) == 1 &&
       len(body_type_join_evidence(ordinary_join.functions[0].body)) == 0,
     "ordinary checking retained explanation-only join evidence"
+  ))
+  ordinary_concat: CheckedModuleBodies = body_test_module_mode(
+    "pub pure ordinary(): [Nat] { concat([1], [2]) }", false
+  )
+  results = append(results, std_testing.expect(
+    "ordinary checker retains no concatenation join explanations",
+    len(ordinary_concat.functions) == 1 &&
+      len(body_type_join_evidence(ordinary_concat.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only concatenation evidence"
   ))
   ordinary_source: Str = "pure pick[T](items: [T], index: Nat): T { items[index] }; pure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }; main(): Void { print(pick[Nat]([7], 0)); print(choose(true)) }"
   ordinary: LoadedModule = signature_test_module(namespace_identity("ordinary"), ordinary_source)

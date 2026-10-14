@@ -6028,3 +6028,22 @@ The focused module-binding suite passed 733 assertions, the explanation unit
 suite passed 266 assertions, and the focused callback CLI fixture passed all
 four source, compile and bytecode checks. This is validation evidence for the
 slice, not a performance investigation or a change to GI#106 scope.
+
+## GI#134 array concatenation type-join explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+`concat([1], [2])` and selected `probe`. Each included source loading, checking
+and explanation rendering with a warm filesystem cache. `real` times were
+0.04s, 0.04s, 0.05s, 0.04s and 0.04s (median 0.04s, range 0.04–0.05s).
+This is a local reference, not a paired before/after comparison or a general
+latency guarantee. Join evidence is retained only for explanation queries;
+ordinary checking retains none, and runtime and bytecode behavior are unchanged.
+
+`make build/bootstrap/stage2/compiler.bc`, the 737-assertion module-binding
+suite, the four-check explanation CLI fixture, `make docs` and `git diff
+--check` passed. `make check` completed with no test failures in 395s on the
+reused local build tree, including release smoke and quick start. Bootstrap took
+230s against its emitted 60s warning budget; the full check took 395s against
+its emitted 120s warning budget. These local timings are recorded as validation
+evidence without a paired performance comparison; they do not start GI#106
+work.

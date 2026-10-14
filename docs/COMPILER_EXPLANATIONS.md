@@ -94,9 +94,9 @@ forms. Path checks cover the typed arguments to `path_from_text`,
 `path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
 `path_display`, `path_absolute`, `path_directory`, `path_filename`,
 `path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
-`path_with_suffix` and `path_resolve`. Generic collection-call joins, callback
-contracts for other operations, and other builtins remain outside these slices.
-The environment checks cover the
+`path_with_suffix` and `path_resolve`. Other generic collection-call joins,
+callback contracts for other operations, and other builtins remain outside
+these slices. The environment checks cover the
 string key arguments to `environment_get` and `environment_has`. Diagnostics and
 exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
@@ -141,8 +141,9 @@ and exit status remain unchanged.
 ## Checked type joins
 
 The query reports the checker's existing type-join decisions when it combines
-array element types, the two results of an `if` expression, or successive match
-arm results. Each entry identifies the join context and source location, the two
+array literal element types, the element types of the arrays passed to `concat`,
+the two results of an `if` expression, or successive match arm results. Each
+entry identifies the join context and source location, the two
 input types, the resulting type when determined, and whether the join was
 accepted, rejected or unavailable. An unavailable join means the checker could
 not derive a complete result from the available types; it does not imply that

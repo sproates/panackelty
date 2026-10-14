@@ -4197,13 +4197,15 @@ checks. PR #423 accepted local assignment-value compatibility, PR #424 accepted
 selected text and byte builtin argument checks, PR #425 accepted numeric builtin
 argument checks, and PR #426 accepted collection mutation and lookup argument
 checks, and PR #427 accepted typed path builtin argument checks. The current
-follow-up retains environment builtin argument checks. PR #457 adds explanations
-for checked joins across array elements, conditional results and match arms.
-The current implementation slice explains the existing `map` and `reduce`
-callback contract checks, including callback purity, arity, parameter types,
-result constraints, and accepted, rejected or unavailable outcomes. Each slice
-keeps ordinary diagnostics and runtime behavior unchanged and retains evidence
-only for explanation queries.
+follow-up retains environment builtin argument checks. PR #457 delivers checked
+joins for array elements, conditional results and match arms, including
+unavailable joins and unchanged checker diagnostics. PR #458 adds explanations
+for the existing `map` and `reduce` callback contract checks, including callback
+purity, arity, parameter types, result constraints, and accepted, rejected or
+unavailable outcomes. This implementation slice extends type-join evidence to
+the element-type join used by array `concat`, preserving accepted, rejected and
+unavailable outcomes. Each slice keeps ordinary diagnostics and runtime
+behavior unchanged and retains evidence only for explanation queries.
 Ordinary checking keeps this evidence empty. These
 remain bounded, unreleased CLI slices; broader checked type/proof scope remains
 open. The current website

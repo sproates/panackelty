@@ -153,7 +153,7 @@ VMHttpTransport *http_transport_start(Value **arguments)
         finish(transport, "HTTP asynchronous DNS is unavailable");
         return transport;
     }
-    uint64_t now;
+    uint64_t now = 0;
     if (!monotonic_ms(&now) || UINT64_MAX - now < timeout) {
         finish(transport, "HTTP transport clock failed");
         return transport;
@@ -242,7 +242,7 @@ static bool poll_connect(VMHttpTransport *transport, unsigned max_wait_ms)
         finish(transport, "HTTP connection failed");
         return transport->done;
     }
-    uint64_t now;
+    uint64_t now = 0;
     if (!monotonic_ms(&now)) finish(transport, "HTTP transport clock failed");
     else if (now >= transport->deadline) finish(transport, "HTTP transport timed out");
     if (transport->done) return true;

@@ -76,27 +76,22 @@ the repository-wide readability/test programme are not additional gates for
 this three-outcome release. Their existing scope and dependencies remain intact;
 further scope requires an explicit owner decision.
 
-### Alpha 13 — HTTP, explanations and non-empty string guards
+### Alpha 13 — HTTP and expanded explanations
 
 <a id="rm-144"></a>
 
-**RM#144: Planned alpha.13 — HTTP, explanations and non-empty string guards.**
+**RM#144: Planned alpha.13 — HTTP and expanded explanations.**
 
 Owner decision, 2026-10-06: plan a further alpha release after alpha.12 around
-HTTP and expanded explanations, using existing backlog scope. On 2026-10-13,
-the owner selected a first guarded-types implementation slice under GI#435:
-a non-empty string guard. Detailed semantics and acceptance remain for slice
-planning; other guard families are outside this Alpha.13 selection. **Planned,
-not released; no date selected.** This records release intent, not feature
-delivery or completion of the first non-alpha milestone.
+HTTP and expanded explanations, using existing backlog scope. **Planned, not
+released; no date selected.** This records release intent, not feature delivery
+or completion of the first non-alpha milestone.
 
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
 | Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
-| Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
-| Non-empty string guard | RM#153: Expand guarded types beyond numeric bounds / [GI#435](https://github.com/sproates/panackelty/issues/435): first implementation slice | Implement and validate the selected non-empty string guard; settle its detailed semantics and acceptance during slice planning; other guard families remain outside this scope |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
@@ -116,9 +111,9 @@ GI#106 is complete only when the user says they are happy with the result.
 
 When alpha.13 was planned, GI#180's owner-requested pause remained in effect;
 that decision did not restart explanation implementation. On 2026-10-14 the
-owner included GI#180 in Alpha.14, with its release-specific scope still
-undefined; see [RM#151](#rm-151). Alpha.13's U3/U4 acceptance remains subject to
-concrete slice selection and its existing release gates.
+owner included GI#180 in Alpha.14, with its release-specific scope recorded in
+[RM#151](#rm-151). Alpha.13's U3 acceptance remains subject to concrete slice
+selection and its existing release gates.
 
 Release only after agreed outcomes and supporting prerequisites are accepted,
 required promotion/package/install checks pass and the owner approves publication.
@@ -135,15 +130,18 @@ work is shipped or describe this release as production-ready.
 Owner direction, 2026-10-13: Alpha.14 should include some work on compiler
 understanding and correctness, Panackelty's strongest novel area. On 2026-10-14
 the owner explicitly included [RM#9: Compiler understanding programme](#rm-9) /
-[GI#180](https://github.com/sproates/panackelty/issues/180) in Alpha.14. Its
-release-specific scope is intentionally undefined: no GI#180 workstream,
-deliverable, acceptance criterion, effort or timing has been selected for this
-release. Defining that scope remains a planning task; inclusion does not commit
-Alpha.14 to the programme's full existing scope or authorize implementation.
-The final release scope, amount of work and date remain undecided. [RM#152](#rm-152)
-separately selects a bounded standard-library dependency assessment; it does
-not commit the release to a redesign or refactor. Alpha.13's plan and gates
-remain separate.
+[GI#180](https://github.com/sproates/panackelty/issues/180) in Alpha.14. The
+owner has now moved two bounded outcomes from Alpha.13 into this release:
+[RM#91: Compilation provenance](#rm-91) / [GI#173](https://github.com/sproates/panackelty/issues/173),
+and [RM#153: Expand guarded types beyond numeric bounds](#rm-153) /
+[GI#435](https://github.com/sproates/panackelty/issues/435), initially scoped
+to a non-empty string guard. GI#173 is one selected workstream within GI#180;
+no other GI#180 workstream is selected for Alpha.14. Detailed guard semantics
+and acceptance remain for slice planning. This records release scope, not
+implementation progress or authorization to begin. The final release scope,
+amount of work and date remain undecided. [RM#152](#rm-152) separately selects
+a bounded standard-library dependency assessment; it does not commit the release
+to a redesign or refactor. Alpha.13's plan and gates remain separate.
 
 <a id="rm-152"></a>
 
@@ -1380,7 +1378,7 @@ live verification remain separately recorded in the website follow-up register.
 | Workstream | State | Acceptance focus / progress |
 | --- | --- | --- |
 | [RM#48: Compiler explanations](#rm-48) · [GI#134: Compiler explanations](https://github.com/sproates/panackelty/issues/134) | Open; Alpha.14 selection undefined | First guarded-subtraction query accepted through #219; full types/effects/proof scope remains open. |
-| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Open; Alpha.14 selection undefined | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
+| <a id="rm-91"></a>**RM#91: Compilation provenance** · [GI#173: Compilation provenance](https://github.com/sproates/panackelty/issues/173) | Open; selected for Alpha.14 | U1 attribution and U2 production mapping accepted; U4 connections through checking/lowering remain open. No accepted workstream delivery yet. |
 | <a id="rm-92"></a>**RM#92: Counterfactual compilation** · [GI#174: Counterfactual compilation](https://github.com/sproates/panackelty/issues/174) | Open; Alpha.14 selection undefined | Derive sufficient requirements and validate them by actual compilation. No accepted delivery yet. |
 | <a id="rm-93"></a>**RM#93: Semantic change prediction** · [GI#175: Semantic change prediction](https://github.com/sproates/panackelty/issues/175) | Open; Alpha.14 selection undefined | [RM#106: Semantic-impact experiment](#rm-106) establishes bounded direct predictions and positive local non-impact; one-change transitive acceptance and production remain open. |
 | [RM#68: Runtime value provenance](#rm-68) · [GI#172: Runtime value provenance](https://github.com/sproates/panackelty/issues/172) | Open; Alpha.14 selection undefined | Explain opt-in computation/value derivations with bounded runtime overhead and retention. No accepted delivery yet. |
@@ -5192,8 +5190,8 @@ proof and explicit runtime validation, sound proof propagation and invalidation,
 diagnostics, and limits on guard expressions. Purity alone does not make
 arbitrary computation terminating, cheap or decidable.
 
-The first implementation slice is selected for Alpha.13 under
-[RM#144](#rm-144): a non-empty string guard. Its syntax, proof behavior,
+The first implementation slice is selected for Alpha.14 under
+[RM#151](#rm-151): a non-empty string guard. Its syntax, proof behavior,
 conversion and validation semantics, failure behavior, and tests remain for
 slice planning. Other non-numeric guards and broader validation semantics
 remain unscheduled.

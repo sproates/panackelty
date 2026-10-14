@@ -76,16 +76,19 @@ the repository-wide readability/test programme are not additional gates for
 this three-outcome release. Their existing scope and dependencies remain intact;
 further scope requires an explicit owner decision.
 
-### Alpha 13 — HTTP and expanded explanations
+### Alpha 13 — HTTP, explanations and non-empty string guards
 
 <a id="rm-144"></a>
 
-**RM#144: Planned alpha.13 — HTTP and expanded explanations.**
+**RM#144: Planned alpha.13 — HTTP, explanations and non-empty string guards.**
 
 Owner decision, 2026-10-06: plan a further alpha release after alpha.12 around
-HTTP and expanded explanations, using existing backlog scope. **Planned, not
-released; no date selected.** This records release intent, not feature delivery,
-implementation selection or completion of the first non-alpha milestone.
+HTTP and expanded explanations, using existing backlog scope. On 2026-10-13,
+the owner selected a first guarded-types implementation slice under GI#435:
+a non-empty string guard. Detailed semantics and acceptance remain for slice
+planning; other guard families are outside this Alpha.13 selection. **Planned,
+not released; no date selected.** This records release intent, not feature
+delivery or completion of the first non-alpha milestone.
 
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
@@ -93,6 +96,7 @@ implementation selection or completion of the first non-alpha milestone.
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
+| Non-empty string guard | RM#153: Expand guarded types beyond numeric bounds / [GI#435](https://github.com/sproates/panackelty/issues/435): first implementation slice | Implement and validate the selected non-empty string guard; settle its detailed semantics and acceptance during slice planning; other guard families remain outside this scope |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
@@ -5188,13 +5192,17 @@ proof and explicit runtime validation, sound proof propagation and invalidation,
 diagnostics, and limits on guard expressions. Purity alone does not make
 arbitrary computation terminating, cheap or decidable.
 
-Begin with a reviewed semantics proposal and staged implementation plan.
+The first implementation slice is selected for Alpha.13 under
+[RM#144](#rm-144): a non-empty string guard. Its syntax, proof behavior,
+conversion and validation semantics, failure behavior, and tests remain for
+slice planning. Other non-numeric guards and broader validation semantics
+remain unscheduled.
 Untrusted-input adapters remain coordinated with
 [RM#73: JSON support](#rm-73) and
 [RM#74: Type-driven input handling](#rm-74), avoiding duplicate scope.
-This is an unscheduled proposal and a candidate for future compiler/correctness
-work under [RM#151: Alpha.14 direction](#rm-151); it does not select a release
-scope or authorise implementation.
+Further guard families may remain candidates for future compiler/correctness
+work under [RM#151: Alpha.14 direction](#rm-151); this Alpha.13 slice does not
+preselect them.
 
 ### JSON data support — exploration
 

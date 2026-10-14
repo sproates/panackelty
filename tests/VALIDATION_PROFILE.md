@@ -6047,3 +6047,21 @@ reused local build tree, including release smoke and quick start. Bootstrap took
 its emitted 120s warning budget. These local timings are recorded as validation
 evidence without a paired performance comparison; they do not start GI#106
 work.
+
+## GI#134 generic type-parameter join explanation turnaround — 2026-10-14
+
+Five fresh-process queries of the stage-2 compiler VM on macOS 26.5 arm64 used
+`combine(1, -2)` to constrain one generic function type parameter from two
+arguments. Each query included source loading, checking and explanation rendering
+with a warm filesystem cache. `real` times were 0.05s, 0.04s, 0.05s, 0.05s and
+0.05s (median 0.05s, range 0.04–0.05s). This is a local reference, not a paired
+before/after comparison or a general latency guarantee. Generic join evidence is
+retained only for explanation queries; ordinary checking retains none, and
+inference results, diagnostics, runtime and bytecode behavior are unchanged.
+
+The module-binding suite passed 740 assertions and the explanation CLI fixture
+passed 141 cases. The final `make check` completed with no failures in 338s on
+the reused local build tree: unit took 196s, bootstrap 229s, functional 73s,
+release smoke 9s, and quick start under 1s. The command emitted historical
+budget warnings for unit, bootstrap and overall check; they do not affect its
+successful exit and do not change GI#106 scope.

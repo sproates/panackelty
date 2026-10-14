@@ -270,6 +270,15 @@ main(): Void {
       explain_write(source, "enum Choice { First, Second }\nprobe(value: Choice): Int { match value { First() => 1, Second() => -2 } }\nmain(): Void {}\n")
       results = append(results, explain_run("match arms explain the combined type", ["explain", source, "--function", "probe"], 0,
         ["checked type join: accepted", "context: match result", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, -2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("generic calls explain repeated type parameter joins", ["explain", source, "--function", "probe"], 0,
+        ["checked type join: accepted", "context: generic parameter T for combine", "input types: Nat and Int", "resulting type: Int"], [], ""))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Nat { combine(1, \"wrong\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected generic inference join preserves checker diagnostic", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: rejected", "context: generic parameter T for combine", "input types: Nat and Str", "resulting type: unavailable"], [], "incompatible type arguments to combine"))
+      explain_write(source, "pure combine[T](left: T, right: T): T { left }\nprobe(): Int { combine(1, 3 / 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved generic inference join is explicit", ["explain", source, "--function", "probe"], 1,
+        ["checked type join: unavailable", "context: generic parameter T for combine", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "argument 2 to combine is Rat, expected Int"))
       explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))

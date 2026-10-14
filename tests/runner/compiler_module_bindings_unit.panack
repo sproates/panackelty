@@ -1135,6 +1135,34 @@ pure namespace_body_tests(): [TestResult] {
       unresolved_joins[0].result == None(),
     "unresolved mixed numeric join was not marked unavailable"
   ))
+  inferred_generic: CheckedModuleBodies = body_test_module(
+    "pub pure combine[T](left: T, right: T): T { left }; pub pure probe(): Int { combine(1, -2) }"
+  )
+  generic_joins: [TypeJoinEvidence] = body_type_join_evidence(inferred_generic.functions[1].body)
+  results = append(results, std_testing.expect(
+    "explanation checker retains accepted generic parameter join",
+    len(generic_joins) == 1 &&
+      generic_joins[0].context == "generic parameter T for combine" &&
+      generic_joins[0].accepted == Some(true) &&
+      generic_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      generic_joins[0].right == Some(SignatureType(SignatureCore("Int"), [])) &&
+      generic_joins[0].result == Some(SignatureType(SignatureCore("Int"), [])),
+    "repeated generic argument constraints were not retained"
+  ))
+  rejected_generic: CheckedModuleBodies = body_test_module(
+    "pub pure combine[T](left: T, right: T): T { left }; pub pure probe(): Nat { combine(1, \"wrong\") }"
+  )
+  rejected_generic_joins: [TypeJoinEvidence] = body_type_join_evidence(rejected_generic.functions[1].body)
+  results = append(results, std_testing.expect(
+    "explanation checker retains rejected generic parameter join",
+    len(rejected_generic_joins) == 1 &&
+      rejected_generic_joins[0].context == "generic parameter T for combine" &&
+      rejected_generic_joins[0].accepted == Some(false) &&
+      rejected_generic_joins[0].left == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      rejected_generic_joins[0].right == Some(SignatureType(SignatureCore("Str"), [])) &&
+      rejected_generic_joins[0].result == None(),
+    "rejected generic argument constraints were lost with the inference diagnostic"
+  ))
   ordinary_join: CheckedModuleBodies = body_test_module_mode(
     "pub pure ordinary(flag: Bool): Int { if flag { 1 } else { -2 } }", false
   )
@@ -1152,6 +1180,16 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_concat.functions) == 1 &&
       len(body_type_join_evidence(ordinary_concat.functions[0].body)) == 0,
     "ordinary checking retained explanation-only concatenation evidence"
+  ))
+  ordinary_generic: CheckedModuleBodies = body_test_module_mode(
+    "pub pure combine[T](left: T, right: T): T { left }; pub pure probe(): Int { combine(1, -2) }",
+    false
+  )
+  results = append(results, std_testing.expect(
+    "ordinary generic inference retains no join explanations",
+    len(ordinary_generic.functions) == 2 &&
+      len(body_type_join_evidence(ordinary_generic.functions[1].body)) == 0,
+    "ordinary generic inference retained explanation-only join evidence"
   ))
   ordinary_source: Str = "pure pick[T](items: [T], index: Nat): T { items[index] }; pure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }; main(): Void { print(pick[Nat]([7], 0)); print(choose(true)) }"
   ordinary: LoadedModule = signature_test_module(namespace_identity("ordinary"), ordinary_source)

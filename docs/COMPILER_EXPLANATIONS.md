@@ -142,13 +142,16 @@ and exit status remain unchanged.
 
 The query reports the checker's existing type-join decisions when it combines
 array literal element types, the element types of the arrays passed to `concat`,
-the two results of an `if` expression, or successive match arm results. Each
-entry identifies the join context and source location, the two
-input types, the resulting type when determined, and whether the join was
-accepted, rejected or unavailable. An unavailable join means the checker could
-not derive a complete result from the available types; it does not imply that
-the types are incompatible. Rejected joins keep the original diagnostic and
-exit status. This query does not add coercions or change type inference.
+the two results of an `if` expression, successive match arm results, or repeated
+arguments that constrain one generic function type parameter. Each entry
+identifies the join context and source location, both input types, the resulting
+type when determined, and whether the join was accepted, rejected or
+unavailable. For generic calls, only repeated constraints
+that reach the checker's join operation are shown; this is not a complete trace
+of generic inference. An unavailable join means the checker could not derive a
+complete result from the available types; it does not imply that the types are
+incompatible. Rejected joins keep the original diagnostic and exit status. This
+query does not add coercions or change type inference.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

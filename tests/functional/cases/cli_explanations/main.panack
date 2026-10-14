@@ -324,6 +324,15 @@ main(): Void {
       explain_write(source, "probe(flag: Bool): Void { while flag {} }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted while condition explains its Bool requirement", ["explain", source, "--function", "probe"], 0,
         ["context: while condition", "checked type requirement: accepted", "actual type: Bool", "expected type: Bool", "resulting type: not applicable"], [], ""))
+      explain_write(source, "enum Choice { First, Second }; probe(value: Choice): Nat { match value { First() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("valid match variant remains accepted when match is non-exhaustive", ["explain", source, "--function", "probe"], 1,
+        ["program: rejected", "context: match variant", "checked type requirement: accepted", "expression: First()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice", "resulting type: not applicable"], [], "non-exhaustive match; missing Second"))
+      explain_write(source, "enum Choice { First }; enum Other { Second }; probe(value: Choice): Nat { match value { Second() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("wrong match variant explains enum membership rejection", ["explain", source, "--function", "probe"], 1,
+        ["context: match variant", "checked type requirement: rejected", "expression: Second()", "actual type: main.panack:Choice", "expected type: variant of main.panack:Choice"], [], "Second is not a variant of Choice"))
+      explain_write(source, "enum Choice { First }; probe(): Nat { match missing { First() => 1 } }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved match subject leaves variant membership unavailable", ["explain", source, "--function", "probe"], 1,
+        ["context: match variant", "checked type requirement: unavailable", "actual type: unavailable", "expected type: variant of the matched enum", "did not determine a complete type decision"], [], "unknown name missing"))
       explain_write(source, "probe(flag: Bool): Rat { if flag { 1 } else { 3 / 2 } }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved branch join is explicit", ["explain", source, "--function", "probe"], 1,
         ["checked type join: unavailable", "context: conditional result", "input types: Nat and Rat", "resulting type: unavailable", "did not determine a complete join"], [], "returns Int, expected Rat"))

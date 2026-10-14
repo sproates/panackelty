@@ -6124,3 +6124,21 @@ bootstrap fixed points, release smoke (8s) and quick start (0s). Bootstrap took
 231s and emitted its existing 60s budget warning; the overall check emitted its
 existing 120s budget warning. No tests failed. These measurements are validation
 evidence, not a paired performance comparison.
+
+## GI#134 matched-enum variant explanations — 2026-10-14
+
+Five warm stage-2 compiler VM queries for an exhaustive two-variant match with
+explanation rendering took 0.05s, 0.04s, 0.05s, 0.04s and 0.05s (median 0.05s,
+range 0.04–0.05s). This is a local reference, not a paired before/after
+benchmark or general latency guarantee. The query reports only whether each
+resolved pattern variant belongs to the subject enum; exhaustiveness, duplicate
+arms and binding counts remain separate checker decisions.
+
+The compiler module-binding suite passed 764 assertions, and the explanation
+CLI fixture passed 159 cases, including source and saved-bytecode execution.
+Documentation/link and whitespace checks passed. The full canonical validation
+route passed in 341s, including HTTP/TCP fixtures, compiler bootstrap fixed
+points, release smoke (8s) and quick start (1s). Bootstrap took 232s and the
+overall check took 341s, so both emitted their existing timing-budget warnings.
+No tests failed. These measurements are validation evidence, not a paired
+performance comparison.

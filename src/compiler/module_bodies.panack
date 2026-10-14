@@ -5680,6 +5680,7 @@ pure bind_body_match(
   }
   mut output: Option[SignatureType] = None()
   mut type_joins: [TypeJoinEvidence] = []
+  mut type_checks: [BodyTypeCheckEvidence] = []
   mut first: Bool = true
   mut seen: [DeclarationIdentity] = []
   mut index: Nat = 1
@@ -5717,6 +5718,24 @@ pure bind_body_match(
           if body_variant_identity(variant) == identity {
             found = true
           }
+        }
+        if context.retain_guard_conversions {
+          expected: Str = match subject_result.body.type {
+            None() => "variant of the matched enum",
+            Some(type) => "variant of " + body_type_text(type)
+          }
+          accepted: Option[Bool] = match subject_result.body.type {
+            None() => None(),
+            Some(type) => Some(is_variant && found)
+          }
+          type_checks = append(type_checks, BodyTypeCheckEvidence(
+            "match variant",
+            arm.pattern.span,
+            subject_result.body.type,
+            expected,
+            None(),
+            accepted
+          ))
         }
         if subject_result.body.type != None() && !found {
           diagnostics = append(
@@ -5902,6 +5921,6 @@ pure bind_body_match(
       }
     }
   }
-  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [], [], type_joins, [], [], [])
+  body: BoundBody = BoundBody(BodyMatch(targets, bindings, pattern_spans), span, children, output, [], [], type_joins, [], [], type_checks)
   body_apply_solutions(context, BodyResult(body, diagnostics, deferred), solutions)
 }

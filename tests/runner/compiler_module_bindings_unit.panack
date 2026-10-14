@@ -1387,6 +1387,39 @@ pure namespace_body_tests(): [TestResult] {
       while_condition_checks[0].accepted == Some(true),
     "accepted while-condition evidence was not retained"
   ))
+  checked_match: CheckedModuleBodies = body_test_module(
+    "pub enum Choice { First, Second }; pub pure pick(value: Choice): Nat { match value { First() => 1, Second() => 2 } }"
+  )
+  match_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(checked_match.functions[0].body)
+  results = append(results, std_testing.expect(
+    "explanation checker retains match variant membership decisions",
+    len(match_checks) == 2 && match_checks[0].context == "match variant" &&
+      match_checks[0].actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [])) &&
+      match_checks[0].expected == "variant of body.panack:Choice" && match_checks[0].result == None() &&
+      match_checks[0].accepted == Some(true) && match_checks[1].accepted == Some(true),
+    "accepted match variant membership evidence was not retained"
+  ))
+  rejected_match: CheckedModuleBodies = body_test_module(
+    "pub enum Choice { First }; pub enum Other { Second }; pub pure pick(value: Choice): Nat { match value { Second() => 1 } }"
+  )
+  rejected_match_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(rejected_match.functions[0].body)
+  results = append(results, std_testing.expect(
+    "explanation checker retains rejected match variant membership",
+    len(rejected_match_checks) == 1 && rejected_match_checks[0].context == "match variant" &&
+      rejected_match_checks[0].actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [])) &&
+      rejected_match_checks[0].accepted == Some(false),
+    "rejected match variant membership evidence was not retained"
+  ))
+  unavailable_match: CheckedModuleBodies = body_test_module(
+    "pub enum Choice { First }; pub pure pick(): Nat { match missing { First() => 1 } }"
+  )
+  unavailable_match_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(unavailable_match.functions[0].body)
+  results = append(results, std_testing.expect(
+    "explanation checker marks match variant membership unavailable without subject type",
+    len(unavailable_match_checks) == 1 && unavailable_match_checks[0].context == "match variant" &&
+      unavailable_match_checks[0].actual == None() && unavailable_match_checks[0].accepted == None(),
+    "unavailable match variant membership was not explicit"
+  ))
   ordinary_access: CheckedModuleBodies = body_test_module_mode(
     "pub pure at(values: [Nat], position: Nat): Nat { values[position] }", false
   )
@@ -1404,6 +1437,15 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_condition.functions) == 1 &&
       len(body_type_check_evidence(ordinary_condition.functions[0].body)) == 0,
     "ordinary condition checking retained explanation-only evidence"
+  ))
+  ordinary_match: CheckedModuleBodies = body_test_module_mode(
+    "pub enum Choice { First }; pub pure pick(value: Choice): Nat { match value { First() => 1 } }", false
+  )
+  results = append(results, std_testing.expect(
+    "ordinary match checking retains no explanation evidence",
+    len(ordinary_match.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_match.functions[0].body)) == 0,
+    "ordinary match checking retained explanation-only evidence"
   ))
   ordinary_source: Str = "pure pick[T](items: [T], index: Nat): T { items[index] }; pure choose(flag: Bool): Nat { if flag { 1 } else { 2 } }; main(): Void { print(pick[Nat]([7], 0)); print(choose(true)) }"
   ordinary: LoadedModule = signature_test_module(namespace_identity("ordinary"), ordinary_source)

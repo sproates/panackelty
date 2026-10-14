@@ -88,6 +88,9 @@ PASS accepted if condition explains its Bool requirement
 PASS rejected if condition preserves checker diagnostic
 PASS unresolved if condition is explicitly unavailable
 PASS accepted while condition explains its Bool requirement
+PASS valid match variant remains accepted when match is non-exhaustive
+PASS wrong match variant explains enum membership rejection
+PASS unresolved match subject leaves variant membership unavailable
 PASS unresolved branch join is explicit
 PASS incomplete inferred local is explicitly unavailable
 PASS type-at does not explain an invalid body
@@ -154,4 +157,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 156, failures: 0
+tests: 159, failures: 0

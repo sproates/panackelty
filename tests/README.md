@@ -628,6 +628,13 @@ client that deliberately leaves its write side open while waiting for the
 response. The native owner unit tests also cover the cumulative request bound and
 reject the read service outside a server-owned streaming child.
 
+`http_package.sh` runs Panackelty-owned HTTP parser and serializer cases from both
+source and saved bytecode, then checks and compiles an application importing the
+packaged `http/server` facade. These parser/serializer cases do not start the
+native TCP server. They cover incremental input, GET/POST, Content-Length,
+chunked framing, malformed and ambiguous requests, method/version errors,
+header/body bounds and response framing/header injection.
+
 ## Website validation ownership
 
 Prepared browser environments and publication timings belong to the [website repository](https://github.com/sproates/panackelty-website).

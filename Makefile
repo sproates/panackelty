@@ -187,6 +187,7 @@ $(BUILD_DIR)/vm/tcp_client: tests/tcp_client.c
 functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client
 	@$(MAKE) --no-print-directory identity-root-audit
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
+	@$(PROFILE) functional/http-package sh tests/http_package.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
 	@mkdir -p "$(BUILD_DIR)"

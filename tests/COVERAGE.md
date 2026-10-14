@@ -761,6 +761,12 @@ accepted, rejected and unavailable evidence plus unchanged diagnostics.
 Time argument cases cover `Duration` and `Instant` inputs, including accepted,
 rejected and unavailable evidence, unchanged diagnostics, and no evidence during
 ordinary checking.
+The collection callback slice covers accepted `map` and `reduce` contracts,
+including pure callable status, arity, expected input types, map's non-Void
+result rule, and reduce's accumulator result type. Unit tests verify retained
+evidence and its absence in ordinary checking. Public CLI cases cover accepted,
+rejected and unavailable map/reduce callback contracts while asserting original
+diagnostics and exit status.
 Filesystem I/O cases cover `fs_read` and `fs_write` input types, accepted and
 rejected sibling outcomes, unavailable values, unchanged diagnostics, and no
 evidence during ordinary checking.

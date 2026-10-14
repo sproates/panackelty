@@ -5,7 +5,8 @@ reports inferred local types with their checked initializer types, the checked
 type of an expression at a source location, function return checks, direct
 function-call argument checks, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
-initializer and assignment value checks. It also
+initializer and assignment value checks, plus retained array `map` and `reduce`
+callback contracts. It also
 reports retained proof-bearing guarded conversions, natural-number subtraction
 effect-boundary evidence, and array/conditional/match result type joins for one
 function. It reads source; it does not
@@ -93,12 +94,26 @@ forms. Path checks cover the typed arguments to `path_from_text`,
 `path_from_native`, `path_append`, `path_to_text`, `path_native_bytes`,
 `path_display`, `path_absolute`, `path_directory`, `path_filename`,
 `path_join`, `path_suffix`, `path_parent`, `path_is_absolute`,
-`path_with_suffix` and `path_resolve`. Generic collection-call joins, callback contracts and
-other builtins remain outside these slices. The environment checks cover the
+`path_with_suffix` and `path_resolve`. Generic collection-call joins, callback
+contracts for other operations, and other builtins remain outside these slices.
+The environment checks cover the
 string key arguments to `environment_get` and `environment_has`. Diagnostics and
 exit status remain unchanged. Time checks cover arguments to `duration_nanoseconds`,
 `duration_ticks`, `duration_from_seconds`, `instant_add`, `instant_difference` and
 `instant_before`.
+
+## Array callback contracts
+
+For receiver calls to `[T].map(callback)` and `[T].reduce(initial, callback)`,
+the explanation reports the callback's checked callable type, expected parameter
+types, result type and accepted, rejected or unavailable outcome. It reflects
+the existing checker requirements: callbacks must be pure and have the required
+arity; each supplied element or accumulator must be accepted by the matching
+callback parameter; `map` callbacks must return a value; and `reduce` callback
+results must be compatible with the initial accumulator type. The source
+location identifies the callback expression. Original diagnostics and type
+acceptance remain unchanged; ordinary checking retains no callback explanation
+evidence.
 The filesystem I/O checks cover the `Path` and byte-limit inputs to `fs_read`
 and the `Path` and `Bytes` inputs to `fs_write`. Rooted filesystem read checks
 cover the root and relative `Path` inputs and the `Nat` limit to

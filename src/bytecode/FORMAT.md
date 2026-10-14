@@ -298,3 +298,15 @@ Ordinary CALL, non-async AWAIT and wrong arity fail verification; runtime repeat
 call-effect checks. Source `tcp_serve` lowers to the reserved identity; previously
 saved user functions called `tcp_serve` keep their meaning. Older v9 runtimes
 reject the new intrinsic. No wire encoding or existing opcode changed.
+
+The streaming server uses `$tcp_serve_stream` (arity five) and
+`$tcp_server_read_chunk` (arity one), both async-only reserved builtins with
+`Result[Bytes,Str]` read completion and the existing finite-server completion
+schema. Source names lower to these identities; ordinary CALL, non-async AWAIT
+and incorrect arity are rejected by both verifiers. The stream owner resolves
+its one-argument async worker from the verified program, retains and passes the
+context value, and grants the chunk-read capability only to that child. Runtime
+checks enforce the positive 16 KiB chunk bound, server-child scope and cumulative
+request limit; source types and context parameter types are not serialized in v9.
+EOF is represented by `Ok(empty Bytes)`. This prerequisite is additive and does
+not change existing bytecode layouts or the EOF behavior of `$tcp_serve`.

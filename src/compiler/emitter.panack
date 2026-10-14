@@ -879,7 +879,15 @@ pure emit_call(
               if name == "tcp_serve" {
                 "$tcp_serve"
               } else {
-                name
+                if name == "tcp_serve_stream" {
+                  "$tcp_serve_stream"
+                } else {
+                  if name == "tcp_server_read_chunk" {
+                    "$tcp_server_read_chunk"
+                  } else {
+                    name
+                  }
+                }
               }
             }, len(arguments)))
         }

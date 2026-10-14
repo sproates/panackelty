@@ -634,6 +634,7 @@ static size_t server_port;
 static int server_peer;
 static size_t server_cancel;
 static const char *server_syscall;
+static bool server_streaming;
 
 static void server_allocations(void)
 {
@@ -641,11 +642,17 @@ static void server_allocations(void)
     Instruction code[] = {{.op = OP_LOAD, .name = "request"},
                           {.op = OP_MAKE_VARIANT, .name = "Result", .name2 = "Ok", .count = 1},
                           {.op = OP_RETURN}};
+    char *stream_params[] = {"max_bytes"};
+    Instruction stream_code[] = {{.op = OP_LOAD, .name = "max_bytes"},
+                                 {.op = OP_AWAIT_CALL,
+                                  .name = "$tcp_server_read_chunk",
+                                  .arity = 1},
+                                 {.op = OP_RETURN}};
     Function fn = {.name = "reply",
                    .is_async = true,
                    .param_count = 1,
-                   .params = params,
-                   .ins = code,
+                   .params = server_streaming ? stream_params : params,
+                   .ins = server_streaming ? stream_code : code,
                    .ins_count = 3};
     Program program = {.functions = &fn, .count = 1};
     VM vm = {.program = &program};
@@ -669,7 +676,16 @@ static void server_allocations(void)
         fault_syscall(server_syscall, 1, EIO);
     }
     VMTcpServerLimits limits = {1, 1, 64, 64, 100, 100, 100};
-    VMTcpServer *server = tcp_server_start(&vm, &fn, address, server_port, limits, false);
+    Value *context = server_streaming ? value_size(16) : NULL;
+    if (server_streaming && !context) {
+        release(address);
+        return;
+    }
+    VMTcpServer *server = server_streaming
+                              ? tcp_server_start_stream(&vm, &fn, context, address, server_port,
+                                                        limits, false)
+                              : tcp_server_start(&vm, &fn, address, server_port, limits, false);
+    release(context);
     release(address);
     if (server && !tcp_server_done(server)) {
         server_peer = socket(AF_INET, SOCK_STREAM, 0);
@@ -677,7 +693,9 @@ static void server_allocations(void)
         assert(!connect(server_peer, (struct sockaddr *)&peer_address, sizeof(peer_address)));
         /* use write, leaving injected send for the server response */
         assert(write(server_peer, "x", 1) == 1);
-        assert(!shutdown(server_peer, SHUT_WR));
+        if (!server_streaming) {
+            assert(!shutdown(server_peer, SHUT_WR));
+        }
         for (size_t i = 0; i < 500 && !tcp_server_done(server); i++) {
             tcp_server_poll(server, 1);
             if (server_cancel == 1) {
@@ -770,7 +788,10 @@ int main(int argc, char **argv)
     }
     sweep("TCP request and completion", tcp_allocations);
     for (server_cancel = 0; server_cancel < 3; server_cancel++) {
+        server_streaming = false;
         sweep("TCP server ownership", server_allocations);
+        server_streaming = true;
+        sweep("TCP streaming server ownership", server_allocations);
     }
     server_cancel = 0;
     const char *server_failures[] = {"socket", "bind", "listen", "accept",
@@ -778,10 +799,16 @@ int main(int argc, char **argv)
     for (size_t i = 0; i < sizeof(server_failures) / sizeof(*server_failures); i++) {
         fault_reset(0);
         server_syscall = server_failures[i];
+        server_streaming = false;
+        server_allocations();
+        assert(fault_live() == 0 && fault_descriptors() == 0);
+        fault_reset(0);
+        server_streaming = true;
         server_allocations();
         assert(fault_live() == 0 && fault_descriptors() == 0);
     }
     server_syscall = NULL;
+    server_streaming = false;
     fault_reset(0);
     sweep("decode", decode_program);
     sweep("coverage collection", coverage_allocations);

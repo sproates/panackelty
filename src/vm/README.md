@@ -298,3 +298,13 @@ External fake read/print completions cannot complete a server wait. Handler
 children inherit outbound opt-in but cannot listen recursively. The CLI uses
 this same pump. See the [architecture](../../ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
 and [source contract](../../SPEC.md#native-tcp-server-development-toolchain).
+
+`tcp_serve_stream` starts its worker with the retained caller-supplied context
+after acceptance rather than waiting for peer EOF. `tcp_server_read_chunk` is
+available only to that owner-created child. Its registration changes only that
+client's poll state; one readiness event completes a `Result[Bytes,Str]` capped
+at 16 KiB, with empty bytes for EOF. The owner counts bytes cumulatively against
+the existing request limit and keeps deadline, cancellation, scheduling and
+response-write ownership. `vm_execution_enable_server_reads` is the internal
+capability gate; fake task sessions and ordinary embedded executions cannot
+request socket reads.

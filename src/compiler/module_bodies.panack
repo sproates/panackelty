@@ -1413,6 +1413,7 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
       name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" ||
       name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
+      name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
       body_path_core_call(target)
   }
 }
@@ -1461,6 +1462,64 @@ pure body_tcp_serve_result_type(): SignatureType {
   ])
 }
 
+pure body_tcp_stream_worker_type(context_type: SignatureType): SignatureType {
+  SignatureType(SignatureCallable(SignatureAsync()), [
+    context_type,
+    body_tcp_bytes_result_type()
+  ])
+}
+
+pure body_tcp_stream_context_type(context: BodyContext, value: BoundBody): SignatureType {
+  match value.type {
+    None() => SignatureType(SignatureHole(context.owner, [], 0), []),
+    Some(type) => type
+  }
+}
+
+pure body_tcp_expected_argument(
+  name: Str,
+  index: Nat,
+  context_type: SignatureType
+): SignatureType {
+  if name == "async_fake_read" {
+    SignatureType(SignatureCore("Bool"), [])
+  } else {
+    if name == "tcp_server_read_chunk" {
+      SignatureType(SignatureCore("Nat"), [])
+    } else {
+      if index == 0 {
+        SignatureType(SignatureCore("Str"), [])
+      } else {
+        if name == "tcp_exchange" && index == 2 {
+          SignatureType(SignatureCore("Bytes"), [])
+        } else {
+          if name == "tcp_serve_stream" && index == 2 {
+            body_tcp_stream_worker_type(context_type)
+          } else {
+            if name == "tcp_serve_stream" && index == 3 {
+              context_type
+            } else {
+              if name == "tcp_serve" && index == 2 {
+                SignatureType(SignatureCallable(SignatureAsync()), [
+                  SignatureType(SignatureCore("Bytes"), []),
+                  body_tcp_bytes_result_type()
+                ])
+              } else {
+                if (name == "tcp_serve" && index == 3) ||
+                  (name == "tcp_serve_stream" && index == 4) {
+                  body_tcp_limits_type()
+                } else {
+                  SignatureType(SignatureCore("Nat"), [])
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 pure body_check_tcp_core_call(
   context: BodyContext,
   name: Str,
@@ -1470,7 +1529,9 @@ pure body_check_tcp_core_call(
   initial_deferred: [SourceSpan]
 ): BodyResult {
   expected_count: Nat = if name == "tcp_serve" { 4 } else {
-    if name == "tcp_exchange" { 5 } else { 1 }
+    if name == "tcp_serve_stream" { 5 } else {
+      if name == "tcp_exchange" { 5 } else { 1 }
+    }
   }
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
@@ -1484,30 +1545,12 @@ pure body_check_tcp_core_call(
   } else {
     mut index: Nat = 0
     while index < expected_count {
-      expected: SignatureType = if name == "async_fake_read" {
-        SignatureType(SignatureCore("Bool"), [])
+      context_type: SignatureType = if name == "tcp_serve_stream" {
+        body_tcp_stream_context_type(context, children[3])
       } else {
-        if index == 0 {
-          SignatureType(SignatureCore("Str"), [])
-        } else {
-          if (name == "tcp_exchange" && index == 2) {
-            SignatureType(SignatureCore("Bytes"), [])
-          } else {
-            if (name == "tcp_serve" && index == 2) {
-              SignatureType(SignatureCallable(SignatureAsync()), [
-                SignatureType(SignatureCore("Bytes"), []),
-                body_tcp_bytes_result_type()
-              ])
-            } else {
-              if (name == "tcp_serve" && index == 3) {
-                body_tcp_limits_type()
-              } else {
-                SignatureType(SignatureCore("Nat"), [])
-              }
-            }
-          }
-        }
+        SignatureType(SignatureCore("Void"), [])
       }
+      expected: SignatureType = body_tcp_expected_argument(name, index, context_type)
       number: Nat = index + 1
       required: BodyResult = body_require_value(
         context,
@@ -1520,7 +1563,7 @@ pure body_check_tcp_core_call(
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
-      output = if name == "tcp_serve" {
+      output = if name == "tcp_serve" || name == "tcp_serve_stream" {
         Some(body_tcp_serve_result_type())
       } else {
         Some(body_tcp_bytes_result_type())
@@ -2263,7 +2306,8 @@ pure body_check_special_core_call(
       )
     }
   } else {
-  if name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" {
+  if name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
+    name == "tcp_serve_stream" || name == "tcp_server_read_chunk" {
     if len(types) > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)
     } else {

@@ -1118,8 +1118,13 @@ checks validate record fields, integer ranges, actual handler ownership/kind and
 completion shapes, preserving old saved user functions with the public name.
 
 `tcp_server.c` owns a nonblocking listener and at most 32 reusable connection
-slots. It retains at most 256 outcomes in acceptance order. Each connection
-moves through read, handler-start, handler-run, write and free states. Poll
+slots. It retains at most 256 outcomes in acceptance order. `tcp_serve` moves
+each connection through EOF-read, handler-start, handler-run, write and free
+states. The additive streaming mode starts a worker on acceptance; only that
+child can register a bounded read, which moves the client into readiness polling
+until one chunk or EOF is completed. Per-client request bytes remain cumulative
+against the same hard limit, and the worker's typed context value is retained by
+the server owner for each accepted child. Poll
 snapshots include the unique admission index as well as the descriptor: an
 expired slot and reused descriptor cannot receive stale readiness. There are
 no externally queued server completions or native producer callbacks.

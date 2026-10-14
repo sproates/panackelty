@@ -27,6 +27,8 @@ static const Builtin BUILTINS[] = {
     {"async_fake_read", 1, false, async_service_only},
     {"$tcp_exchange", 5, false, async_service_only},
     {"$tcp_serve", 4, false, async_service_only},
+    {"$tcp_serve_stream", 5, false, async_service_only},
+    {"$tcp_server_read_chunk", 1, false, async_service_only},
     {"fs_read_beneath", 3, false, host_capability_call},
     {"fs_directories_overlap", 2, false, host_capability_call},
     {"fs_read", 2, false, host_capability_call},

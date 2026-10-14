@@ -46,9 +46,15 @@ execution is unavailable.
 
 Native builds require libcurl development headers and libraries plus
 `curl-config` on `PATH` (or an explicitly configured `HTTP_CURL_CONFIG`).
-`make native` checks that dependency at build time. This is an initial backend
-choice for alpha.13, not a commitment to make libcurl part of the language API;
-future evidence may justify replacing the adapter.
+`make native` checks that dependency at build time. The native VM dynamically
+links libcurl, so the host must also provide its runtime library even when a
+program does not use HTTP. On the tested Ubuntu 22.04 target, native builds use
+`libcurl4-openssl-dev` and installed toolchains need `libcurl4`; macOS uses its
+system libcurl. These are host prerequisites: Panackelty archives do not bundle
+libcurl or its transitive libraries, and the Ubuntu package version is not
+pinned. This is an initial backend choice for alpha.13, not a commitment to make
+libcurl part of the language API; future evidence may justify replacing the
+adapter.
 
 ## Dependency evidence snapshot
 

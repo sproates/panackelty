@@ -136,8 +136,12 @@ current proof-of-concept contract. The HTTP server package remains in
 development. Run its
 [one-request example](examples/network/http_server/panack.json) from the
 repository root with `./panack run --project examples/network/http_server/panack.json`,
-then request `http://127.0.0.1:8080/`. The HTTP client requires native libcurl
-and is unavailable in the browser. General source spawning remains future work.
+then request `http://127.0.0.1:8080/`. The native VM dynamically links the
+host's libcurl, so a Linux installation needs its distribution's libcurl runtime
+package; on Ubuntu 22.04 that package is `libcurl4`. Native builds also need
+libcurl development headers and `curl-config`; on Ubuntu 22.04 install
+`libcurl4-openssl-dev`. macOS uses its system libcurl. The browser does not
+provide the native HTTP client. General source spawning remains future work.
 These native networking operations were absent from alpha.10; the browser
 cannot open raw TCP sockets.
 

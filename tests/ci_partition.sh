@@ -155,6 +155,7 @@ for contract in \
 done
 grep -F 'sh tests/http_client_package.sh dns-late' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted the focused HTTP DNS regression'
 grep -F 'sh tests/http_client_package.sh dns-failure' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted HTTP DNS failure mapping'
+grep -F 'sh tests/http_client_package.sh connect-failure' tests/ci_next_smoke.sh >/dev/null || fail 'next smoke omitted HTTP connect failure mapping'
 for target in ci-bootstrap ci-conformance-bytecode; do
     make -n --no-print-directory "$target" CI_SKIP_PACKAGE=true > "$work/package-skipped"
     if grep -F 'quick-start' "$work/package-skipped" >/dev/null; then fail "next route packages from $target"; fi

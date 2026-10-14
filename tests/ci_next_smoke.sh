@@ -32,4 +32,6 @@ PANACK_BIN="$root/panack" PANACK_HTTP_FIXTURE="$root/build/vm/http_fixture" \
     sh tests/http_client_package.sh dns-late
 PANACK_BIN="$root/panack" PANACK_HTTP_FIXTURE="$root/build/vm/http_fixture" \
     sh tests/http_client_package.sh dns-failure
+PANACK_BIN="$root/panack" PANACK_HTTP_FIXTURE="$root/build/vm/http_fixture" \
+    sh tests/http_client_package.sh connect-failure
 echo 'next compiler and runtime smoke passed.'

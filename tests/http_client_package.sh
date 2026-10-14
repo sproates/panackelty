@@ -4,7 +4,7 @@ panack_bin=${PANACK_BIN:-./panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then
-    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted tls-late dns-failure dns-late installed; do
+    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout connect-failure tls-ok tls-wrong-host tls-untrusted tls-late dns-failure dns-late installed; do
         echo "HTTP client fixture: $case_name"
         sh "$0" "$case_name"
     done
@@ -43,6 +43,11 @@ for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
 done
 test -s "$work/http-port"
 http_port=$(cat "$work/http-port")
+refused_port=0
+if [ "$selected_case" = connect-failure ]; then
+    "$fixture" --reserve-port "$work/refused-port"
+    refused_port=$(cat "$work/refused-port")
+fi
 
 tls_port=0
 case "$selected_case" in
@@ -87,7 +92,7 @@ fi
 
 cat > "$app/src/main.panack" <<SOURCE
 import http/client as http
-import http/client::{HttpError.DnsFailure, HttpError.InvalidUrl, HttpError.LimitExceeded, HttpError.ProtocolError,
+import http/client::{HttpError.ConnectFailure, HttpError.DnsFailure, HttpError.InvalidUrl, HttpError.LimitExceeded, HttpError.ProtocolError,
   HttpError.TlsFailure, HttpError.Timeout, HttpError.UnsupportedHost}
 import stdlib/text as text
 
@@ -212,6 +217,12 @@ async main(): Unit {
       Error(error) => error == DnsFailure(),
       Ok(response) => false
     })
+  } else if selected == "connect-failure" {
+    result = await http.get("http://127.0.0.1:$refused_port/")
+    expect(match result {
+      Error(error) => error == ConnectFailure(),
+      Ok(response) => false
+    })
   }
   ()
 }
@@ -270,7 +281,7 @@ case "$selected_case" in
     ;;
 esac
 case "$selected_case" in
-    dns-failure|dns-late) ;;
+    connect-failure|dns-failure|dns-late) ;;
     tls-untrusted)
         env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json"
         env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc"

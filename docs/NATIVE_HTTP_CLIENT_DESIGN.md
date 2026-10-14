@@ -100,5 +100,7 @@ until the cancelled resolver returns. This covers both source and saved
 bytecode without external DNS. The final case installs the package into a
 bytecode without external DNS. `dns-failure` maps a deterministic resolver
 `EAI_NONAME` result to the public `DnsFailure` error in both execution modes.
-The final case installs the package into a temporary prefix and checks source
-and saved-bytecode execution through the installed CLI.
+`connect-failure` reserves and closes a loopback port, checking the public
+`ConnectFailure` mapping in both modes. The final case installs the package
+into a temporary prefix and checks source and saved-bytecode execution through
+the installed CLI.

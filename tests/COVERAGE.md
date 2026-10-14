@@ -598,7 +598,9 @@ deadline, verifies `Timeout`, then keeps the VM alive with a separate loopback
 request until the cancelled resolver returns. It covers source and saved
 bytecode without external DNS. The paired `dns-failure` case returns a
 deterministic unknown-host result and checks the public `DnsFailure` mapping
-for source and saved bytecode. Platform and sanitizer validation results
+for source and saved bytecode. `connect-failure` reserves and closes a loopback
+port, then checks the public `ConnectFailure` mapping for source and saved
+bytecode. Platform and sanitizer validation results
 belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:

@@ -591,9 +591,12 @@ The native unit suite deterministically exercises the deadline/readiness boundar
 readiness before the deadline is accepted, while readiness at or after the
 deadline times out. The `tls-late` fixture also delays a real TLS server flight
 past a 100 ms deadline and verifies `Timeout` for source and saved bytecode
-before attempting to deliver that flight. Late DNS completion remains open;
-this case does not test a resolver that completes after cancellation. Platform
-and sanitizer validation results belong in the implementation PR.
+before attempting to deliver that flight. The `dns-late` fixture interposes a
+local resolver for a reserved test hostname, delays completion past the 100 ms
+deadline, verifies `Timeout`, then keeps the VM alive with a separate loopback
+request until the cancelled resolver returns. It covers source and saved
+bytecode without external DNS. Platform and sanitizer validation results
+belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,

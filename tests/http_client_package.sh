@@ -4,7 +4,7 @@ panack_bin=${PANACK_BIN:-./panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then
-    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted tls-late installed; do
+    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted tls-late dns-late installed; do
         echo "HTTP client fixture: $case_name"
         sh "$0" "$case_name"
     done
@@ -188,6 +188,18 @@ async main(): Unit {
       Error(error) => error == Timeout(),
       Ok(response) => false
     })
+  } else if selected == "dns-late" {
+    result = await http.get_with_limits("http://p5-late-dns.panackelty.invalid/",
+      http.ClientLimits(100, 65536, 1024))
+    expect(match result {
+      Error(error) => error == Timeout(),
+      Ok(response) => false
+    })
+    late = await http.get("http://127.0.0.1:$http_port/delay")
+    expect(match late {
+      Ok(response) => response.status == 200 && response.body == text.encode_utf8("ok"),
+      Error(error) => false
+    })
   }
   ()
 }
@@ -195,7 +207,48 @@ SOURCE
 
 "$panack_bin" check --project "$app/panack.json" >/dev/null
 "$panack_bin" compile --project "$app/panack.json" -o "$work/client.bc" >/dev/null
-if [ "$selected_case" = tls-untrusted ]; then
+if [ "$selected_case" = dns-late ]; then
+    cc=${CC:-cc}
+    case $(uname -s) in
+        Darwin)
+            "$cc" -std=c11 -Wall -Wextra -Werror -dynamiclib \
+                tests/http_dns_delay.c -o "$work/http_dns_delay.dylib"
+            preload_name=DYLD_INSERT_LIBRARIES
+            preload_path="$(pwd -P)/$work/http_dns_delay.dylib"
+            ;;
+        *)
+            "$cc" -std=c11 -Wall -Wextra -Werror -fPIC -shared \
+                tests/http_dns_delay.c -o "$work/http_dns_delay.so" -ldl
+            preload_name=LD_PRELOAD
+            preload_path="$(pwd -P)/$work/http_dns_delay.so"
+            ;;
+    esac
+    for mode in source bytecode; do
+        rm -f "$work/dns-started" "$work/dns-finished"
+        if [ "$mode" = source ]; then
+            set -- run "$(pwd -P)/bootstrap/compiler-v9.bc" run --project "$app/panack.json"
+        else
+            set -- run "$work/client.bc"
+        fi
+        if [ "$preload_name" = DYLD_INSERT_LIBRARIES ]; then
+            DYLD_INSERT_LIBRARIES="$preload_path" \
+                PANACK_HTTP_DNS_DELAY_STARTED="$work/dns-started" \
+                PANACK_HTTP_DNS_DELAY_FINISHED="$work/dns-finished" \
+                PANACKELTY_BOOTSTRAP_ROOT="$(pwd -P)" PANACKELTY_STDLIB_PATH="$(pwd -P)/src/stdlib" \
+                PANACKELTY_VERSION="$version" PANACKELTY_COMPILER_PATH="$(pwd -P)/bootstrap/compiler-v9.bc" \
+                ./panack-vm "$@"
+        else
+            LD_PRELOAD="$preload_path" \
+                PANACK_HTTP_DNS_DELAY_STARTED="$work/dns-started" \
+                PANACK_HTTP_DNS_DELAY_FINISHED="$work/dns-finished" \
+                PANACKELTY_BOOTSTRAP_ROOT="$(pwd -P)" PANACKELTY_STDLIB_PATH="$(pwd -P)/src/stdlib" \
+                PANACKELTY_VERSION="$version" PANACKELTY_COMPILER_PATH="$(pwd -P)/bootstrap/compiler-v9.bc" \
+                ./panack-vm "$@"
+        fi
+        test -f "$work/dns-started"
+        test -f "$work/dns-finished"
+    done
+elif [ "$selected_case" = tls-untrusted ]; then
     env -u CURL_CA_BUNDLE "$panack_bin" run --project "$app/panack.json"
     env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc"
 else

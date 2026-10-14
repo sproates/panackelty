@@ -94,7 +94,7 @@ implementation selection or completion of the first non-alpha milestone.
 | Planned outcome | Backlog scope and current state | Release acceptance |
 | --- | --- | --- |
 | Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), first end-to-end client slice merged in [PR #450](https://github.com/sproates/panackelty/pull/450); deterministic deadline/readiness and late TLS server-flight timeout coverage merged in [PR #454](https://github.com/sproates/panackelty/pull/454); late DNS cancellation and typed DNS/connect failures in [PR #456](https://github.com/sproates/panackelty/pull/456). P5 acceptance completes on #456 merge; dependency reproducibility and license inventory remain P7, clean-host package acceptance remains P8 | Bounded HTTP/1.1 GET and verified HTTPS through a private replaceable libcurl transport; certificate/hostname verification, protocol errors, limits, timeouts, deterministic protocol/TLS/DNS tests and installed source/bytecode usage |
-| Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), Slice 3 acceptance is in the final delivery PR; P6 completes on merge | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests, independent C-client and P5-client interoperability, and runnable example; server TLS remains outside the initial contract |
+| Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), complete on `next` in [PR #467](https://github.com/sproates/panackelty/pull/467) | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests, independent C-client and P5-client interoperability, and runnable example; server TLS remains outside the initial contract. P8 final release acceptance remains |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): bounded subtraction, local effects, guarded conversions, inferred locals, expression types, returns, call arguments, annotated locals and assignment compatibility through PR #423; selected text/byte builtins through PR #424, numeric builtins through PR #425, collection mutation/lookup through PR #426, path arguments through PR #427, environment arguments through PR #428, time arguments through PR #429, filesystem I/O through PR #430, filesystem query arguments through PR #432, filesystem paths through PR #433, checked array/conditional/match joins through PR #457, array callback contracts through PR #458, array concatenation joins through PR #459, generic parameter joins through PR #461, unary/binary operator type decisions through PR #462, index/iteration type requirements through PR #463, Boolean condition requirements through PR #464, and matched-enum variant membership through PR #465; broader checked type/effect/proof scope remains | Current slice explains record field access compatibility and resulting field types; preserve diagnostics and ordinary checking |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
 | Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
@@ -637,12 +637,12 @@ slices in `docs/MODULE_PACKAGE_DESIGN.md`. Slice 1's context-bearing streaming
 worker and capped per-child reads merged in PR#447, preserving `tcp_serve` EOF
 behavior. Slice 2's Panackelty-owned HTTP/1.1 parser, response serializer, shared
 public types and finite `http/server` facade merged in PR#448; source and saved-
-bytecode parser/serializer regressions pass. Slice 3's final delivery adds
-P5-client interoperability to the existing C-peer, lifecycle, runnable-example
-and installed/source/bytecode acceptance. The P5 client runs from source and
-saved bytecode against servers running from source and saved bytecode. P6 remains
-in progress until that delivery merges; server TLS remains outside the initial
-contract.
+bytecode parser/serializer regressions pass. Slice 3 completed in [PR#467](https://github.com/sproates/panackelty/pull/467),
+merged to `next` as `0ee6694`. It adds P5-client interoperability to the existing
+C-peer, lifecycle, runnable-example and installed/source/bytecode acceptance.
+The P5 client runs from source and saved bytecode against servers running from
+source and saved bytecode. GI#237 is complete; P8 final release acceptance
+remains. Server TLS remains outside the initial contract.
 
 <a id="rm-112"></a>
 
@@ -712,10 +712,10 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P3 / [RM#43: Local reusable packages](#rm-43) | 15% | 100% on merge of PR#386; PR#372–#380, #382–#384 establish manifest, CLI, library, graph, confinement and race contracts; final acceptance moves the entire two-app/shared-library tree and verifies both consumers from an unrelated working directory through source and saved bytecode | 15 pp |
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 100% on merge of PR#404; selected flat domain modules and curated facade, removed superseded public APIs, retained `bytes()` through `prelude.byte_buffer`, and added focused positive/negative functional coverage | 5 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 100% on merge of PR#456; bounded HTTP/1.1 GET, verified HTTPS, cancellation and typed DNS/connect failures accepted | 20 pp |
-| P6 / [RM#111: HTTP server package](#rm-111) | 15% | Final P5-client interoperability acceptance is in this PR; 100% on merge | 0 pp now / 15 pp on merge |
+| P6 / [RM#111: HTTP server package](#rm-111) | 15% | 100% on merge of PR#467; P5-client interoperability and prior lifecycle/package acceptance delivered | 15 pp |
 | P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
-| **Total** | **100%** | P1–P5 contribute 70 accepted pp; P6's 15 pp is pending this PR's merge; P7 is not started and P8 remains in progress without completion credit | **70 pp accepted; 85 pp on P6 merge** |
+| **Total** | **100%** | P1–P6 contribute 85 accepted pp; P7 is not started and P8 remains in progress without completion credit | **85 pp; P1–P6 accepted** |
 
 P1 earned its design-task credit through merged PR#240. P2 is complete on `next`:
 its four foundations are PR#261, PR#262, PR#275 and PR#284; slice 1 is PR#297; slice 2

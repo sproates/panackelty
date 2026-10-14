@@ -587,7 +587,7 @@ HTTP requests and HTTPS handshakes in progress, checking that the peer observes
 connection closure. The native fault sweep exercises project-owned transport
 allocations and result construction through connection failures.
 These cases do not establish redirects, proxy behavior, connection reuse,
-IPv6, arbitrary malformed-wire fuzzing or broad server interoperability.
+IPv6 or arbitrary malformed-wire fuzzing.
 The native unit suite deterministically exercises the deadline/readiness boundary:
 readiness before the deadline is accepted, while readiness at or after the
 deadline times out. The `tls-late` fixture also delays a real TLS server flight
@@ -602,6 +602,19 @@ for source and saved bytecode. `connect-failure` reserves and closes a loopback
 port, then checks the public `ConnectFailure` mapping for source and saved
 bytecode. Platform and sanitizer validation results
 belong in the implementation PR.
+
+## Native HTTP server (P6)
+
+`tests/http_package.sh` exercises the finite `http/server` package with an
+independent C peer across source and saved-bytecode server runs. It covers GET,
+POST, handler failures, unsupported methods, malformed/partial and oversized
+requests, concurrent clients, disconnect recovery, orderly shutdown and bind
+conflicts. It also runs the Panackelty HTTP client against the server in both
+server modes, with the client itself run from source and saved bytecode. The
+release-archive smoke separately checks the packaged runnable example against
+the independent C peer. These tests establish the agreed bounded HTTP/1.1
+interoperability cases; they do not claim TLS, keepalive, pipelining, HTTP/2 or
+large-scale server performance.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,

@@ -26,7 +26,8 @@ multi-file library, then rechecks/runs both and executes bytecode compiled befor
 the move. PR#404 completes P4's standard-library API namespace migration on
 `next`; PR#450 delivers the first end-to-end P5 client slice. Native transport
 lifecycle evidence now includes deterministic deadline/readiness boundary and
-cancellation/cleanup tests; late DNS/TLS completion remains open. An initial
+cancellation/cleanup tests, plus a late TLS server-flight timeout fixture for
+source and saved bytecode; late DNS completion remains open. An initial
 libcurl version/build/license snapshot is recorded in
 [NATIVE_HTTP_CLIENT_DESIGN.md](NATIVE_HTTP_CLIENT_DESIGN.md); dependency pinning,
 complete transitive license inventory and clean-host archive acceptance remain

@@ -125,6 +125,98 @@ static int reserve_port(const char *path)
     return 0;
 }
 
+static int read_exact(int descriptor, unsigned char *bytes, size_t length)
+{
+    size_t received = 0;
+    while (received < length) {
+        ssize_t count = recv(descriptor, bytes + received, length - received, 0);
+        if (count < 0 && errno == EINTR) continue;
+        if (count <= 0) return -1;
+        received += (size_t)count;
+    }
+    return 0;
+}
+
+static int write_port_file(const char *path, struct sockaddr_in *address)
+{
+    FILE *port_file = fopen(path, "w");
+    if (!port_file) return -1;
+    fprintf(port_file, "%u\n", (unsigned)ntohs(address->sin_port));
+    return fclose(port_file);
+}
+
+/* Delay the TLS server flight until after the client's short deadline, then
+ * send it to the already-closed client connection. */
+static int delay_tls_flight(const char *port_path, const char *upstream_text,
+                           const char *delay_text, const char *log_path)
+{
+    char *end = NULL;
+    long upstream_port = strtol(upstream_text, &end, 10);
+    if (!end || *end || upstream_port < 1 || upstream_port > 65535) return 2;
+    long delay_ms = strtol(delay_text, &end, 10);
+    if (!end || *end || delay_ms < 1 || delay_ms > 10000) return 2;
+
+    signal(SIGPIPE, SIG_IGN);
+    int listener = socket(AF_INET, SOCK_STREAM, 0);
+    if (listener < 0) return 1;
+    struct sockaddr_in address = {0};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(UINT32_C(0x7f000001));
+    address.sin_port = 0;
+    if (bind(listener, (struct sockaddr *)&address, sizeof(address)) != 0 || listen(listener, 2) != 0) {
+        close(listener);
+        return 1;
+    }
+    socklen_t address_length = sizeof(address);
+    if (getsockname(listener, (struct sockaddr *)&address, &address_length) != 0 ||
+        write_port_file(port_path, &address) != 0) {
+        close(listener);
+        return 1;
+    }
+
+    for (size_t attempt = 0; attempt < 2; attempt++) {
+        int client = accept(listener, NULL, NULL);
+        if (client < 0) { close(listener); return 1; }
+        int server = socket(AF_INET, SOCK_STREAM, 0);
+        if (server < 0) { close(client); return 1; }
+        struct sockaddr_in upstream = {0};
+        upstream.sin_family = AF_INET;
+        upstream.sin_addr.s_addr = htonl(UINT32_C(0x7f000001));
+        upstream.sin_port = htons((uint16_t)upstream_port);
+        if (connect(server, (struct sockaddr *)&upstream, sizeof(upstream)) != 0) {
+            close(server); close(client); return 1;
+        }
+
+        unsigned char record[18437];
+        if (read_exact(client, record, 5) != 0) { close(server); close(client); return 1; }
+        size_t client_record_length = 5 + ((size_t)record[3] << 8) + record[4];
+        if (client_record_length > sizeof(record) ||
+            read_exact(client, record + 5, client_record_length - 5) != 0 ||
+            send_all(server, (const char *)record, client_record_length) != 0) {
+            close(server); close(client); return 1;
+        }
+
+        if (read_exact(server, record, 5) != 0) { close(server); close(client); return 1; }
+        size_t server_record_length = 5 + ((size_t)record[3] << 8) + record[4];
+        if (server_record_length > sizeof(record) ||
+            read_exact(server, record + 5, server_record_length - 5) != 0) {
+            close(server); close(client); return 1;
+        }
+        struct timespec delay = {.tv_sec = delay_ms / 1000,
+                                 .tv_nsec = (delay_ms % 1000) * 1000000};
+        while (nanosleep(&delay, &delay) != 0 && errno == EINTR) { }
+        int sent = send_all(client, (const char *)record, server_record_length);
+        FILE *log = fopen(log_path, attempt ? "a" : "w");
+        if (!log) { close(server); close(client); close(listener); return 1; }
+        fprintf(log, "late-server-flight-attempted; write=%s\n", sent == 0 ? "accepted" : "closed-peer");
+        fclose(log);
+        close(server);
+        close(client);
+    }
+    close(listener);
+    return 0;
+}
+
 static int probe_port(const char *text)
 {
     char *end = NULL;
@@ -145,6 +237,8 @@ int main(int argc, char **argv)
 {
     if (argc == 3 && strcmp(argv[1], "--reserve-port") == 0) return reserve_port(argv[2]);
     if (argc == 3 && strcmp(argv[1], "--probe") == 0) return probe_port(argv[2]);
+    if (argc == 6 && strcmp(argv[1], "--delay-tls-flight") == 0)
+        return delay_tls_flight(argv[2], argv[3], argv[4], argv[5]);
     if (argc != 2) return 2;
     int listener = socket(AF_INET, SOCK_STREAM, 0);
     if (listener < 0) return 1;

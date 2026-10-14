@@ -480,6 +480,19 @@ remaining work, then return ordered reports. Destroying the owner cancels immedi
 Each child owns its request/response buffers and nested client operation; no callback
 or resolver/TLS operation may retain freed execution state.
 
+P6 is sequenced before P5 by owner decision on 2026-10-14. The existing
+`tcp_serve` receives one byte buffer only after the peer closes its write side;
+HTTP clients normally keep the connection open while waiting for the response.
+Therefore the existing API cannot serve HTTP unchanged, although its bounded
+listener, polling, child-execution and shutdown ownership are reusable. The P6
+owner-selected design exposes bounded incremental per-client reads through the
+existing server owner, so the Panackelty HTTP package parses request framing and
+constructs the public Request value. The handler's serialized response returns
+through the owner's bounded write path. The new read operation must be scoped to
+its active child execution, deadline and client; it must not expose a forgeable
+socket handle or permit reads outside a server handler. Keep P5 client
+interoperability as a later P8 check once P5 exists.
+
 ### Native prerequisite decisions and acceptance gates
 
 P5 uses libcurl as the initial native client transport for the alpha.13 proof of
@@ -648,7 +661,7 @@ baseline change. A larger PR count is not a larger completion percentage.
 | P3 / RM#43 | Strict manifest/explicit CLI; physical root confinement/graph identity; two-app and relocated-install acceptance | Large; 2–4 PRs after P1/P2; host path identity/race safety is a prerequisite, not existing capability |
 | P4 / RM#42 | Public stdlib inventory/names; explicit exports/re-exports and prefix migration; remove bootstrap adapter with coordinated source migration verified | Medium; 1–2 PRs after P2/P3; preserve core identity and existing API behavior |
 | P5 / RM#110 | Libcurl-backed bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large; 4–7 PRs after P1–P3; re-estimate from implementation evidence |
-| P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3 and accepted transport mechanism; initial client does not wait for it |
+| P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3; P5 interoperability is checked when P5 is delivered |
 | P7 / RM#44 | Lock/digest model; bounded immutable Git restore; explicit vendor/offline workflow; corrupt/conflicting graph and cross-machine acceptance | Large; 3–5 PRs independently after P1/P3; remote acquisition/backend packaging add uncertainty |
 | P8 / RM#112 | Language/local-package acceptance checkpoint after P1–P4; HTTP-client checkpoint after P5; final all-outcomes acceptance including P6/P7 pinned/offline reproduction | Medium; 1–2 acceptance/release PRs, provisional and to be reassessed across three checkpoints; final closure waits for P2–P7 |
 

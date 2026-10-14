@@ -1,0 +1,133 @@
+import project/parser::{parse_request}
+import project/server::{serialize_response}
+import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.LimitExceeded,
+  HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
+  HttpError.UnsupportedVersion, Request, Response}
+import stdlib/bytes as byte_buffer
+import stdlib/text as text
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+pure parse_is_incomplete(data: Bytes): Bool {
+  match parse_request(data, false, 64) {
+    Error(error) => false,
+    Ok(value) => match value { None() => true, Some(request) => false }
+  }
+}
+
+pure parsed_request_matches(data: Bytes, expected_method: Str, expected_target: Str,
+    expected_body: Str): Bool {
+  match parse_request(data, false, 64) {
+    Error(error) => false,
+    Ok(value) => match value {
+      None() => false,
+      Some(request) => request.method == expected_method && request.target == expected_target &&
+        request.headers.len() >= 1 && request.headers[0].name == "Host" &&
+        request.body == text.encode_utf8(expected_body)
+    }
+  }
+}
+
+pure parse_has_error(data: Bytes, expected: HttpError): Bool {
+  match parse_request(data, false, 65536) {
+    Error(error) => error == expected,
+    Ok(value) => false
+  }
+}
+
+pure serialized_response_matches(): Bool {
+  response: Response = Response(201,
+    [Header("X-First", "one"), Header("Content-Length", "2"), Header("Connection", "close")],
+    text.encode_utf8("ok"))
+  match serialize_response(response) {
+    Error(error) => false,
+    Ok(wire) => text.decode_utf8(wire) ==
+      "HTTP/1.1 201 Created\r\nX-First: one\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+  }
+}
+
+main(): Unit {
+  get_head: Bytes = text.encode_utf8("GET /item?q=1 HTTP/1.1\r\nHost: example.test\r\n\r\n")
+  expect(parsed_request_matches(get_head, "GET", "/item?q=1", ""))
+
+  post_header: Bytes = text.encode_utf8(
+    "POST /echo HTTP/1.1\r\nHost: example.test\r\nContent-Length: 4\r\n\r\n")
+  post_partial: Bytes = byte_buffer.join(post_header, text.encode_utf8("wi"))
+  expect(parse_is_incomplete(post_partial))
+  post_full: Bytes = byte_buffer.join(post_partial, text.encode_utf8("ki"))
+  expect(parsed_request_matches(post_full, "POST", "/echo", "wiki"))
+
+  chunked: Bytes = text.encode_utf8(
+    "POST /chunks HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n" +
+    "4\r\nWiki\r\n5;name=value\r\npedia\r\n0\r\nX-Trace: yes\r\n\r\n")
+  expect(parsed_request_matches(chunked, "POST", "/chunks", "Wikipedia"))
+  bad_chunk_extension: Bytes = text.encode_utf8(
+    "POST /chunks HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n" +
+    "4;\r\nWiki\r\n0\r\n\r\n")
+  expect(parse_has_error(bad_chunk_extension, ProtocolError("invalid chunk size")))
+
+  unknown_method: Bytes = text.encode_utf8("PUT / HTTP/1.1\r\nHost: example.test\r\n\r\n")
+  expect(parse_has_error(unknown_method, UnsupportedMethod("PUT")))
+  old_version: Bytes = text.encode_utf8("GET / HTTP/1.0\r\nHost: example.test\r\n\r\n")
+  expect(parse_has_error(old_version, UnsupportedVersion("HTTP/1.0")))
+  malformed_version: Bytes = text.encode_utf8("GET / nonsense\r\nHost: example.test\r\n\r\n")
+  expect(parse_has_error(malformed_version, ProtocolError("invalid HTTP request line")))
+  bad_length: Bytes = text.encode_utf8(
+    "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: nope\r\n\r\n")
+  expect(parse_has_error(bad_length, ProtocolError("invalid Content-Length")))
+  ambiguous: Bytes = text.encode_utf8(
+    "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 0\r\n" +
+    "Transfer-Encoding: chunked\r\n\r\n0\r\n\r\n")
+  expect(parse_has_error(ambiguous, ProtocolError("Transfer-Encoding conflicts with Content-Length")))
+  duplicate_length: Bytes = text.encode_utf8(
+    "POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 0\r\n" +
+    "Content-Length: 0\r\n\r\n")
+  expect(parse_has_error(duplicate_length, ProtocolError("duplicate Content-Length")))
+  unsupported_coding: Bytes = text.encode_utf8(
+    "POST / HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: gzip\r\n\r\n")
+  expect(parse_has_error(unsupported_coding, UnsupportedTransferEncoding()))
+  extra: Bytes = byte_buffer.join(get_head, text.encode_utf8("x"))
+  expect(parse_has_error(extra, ProtocolError("request body has no framing")))
+  partial_body: Bytes = byte_buffer.join(post_header, text.encode_utf8("w"))
+  expect(match parse_request(partial_body, true, 64) {
+    Error(error) => error == ProtocolError("truncated HTTP request body"),
+    Ok(value) => false
+  })
+
+  mut large_headers: Bytes = byte_buffer.empty()
+  for index in 0..65537 { large_headers = byte_buffer.push(large_headers, 65) }
+  expect(match parse_request(large_headers, false, 65536) {
+    Error(error) => error == LimitExceeded("request headers"),
+    Ok(value) => false
+  })
+
+  expect(serialized_response_matches())
+  expect(match serialize_response(Response(200, [Header("X-Bad", "ok\r\nInjected: yes")],
+      text.encode_utf8(""))) {
+    Error(error) => error == InvalidResponse(),
+    Ok(wire) => false
+  })
+  expect(match serialize_response(Response(200, [Header("Content-Length", "3")],
+      text.encode_utf8("ok"))) {
+    Error(error) => error == InvalidResponse(),
+    Ok(wire) => false
+  })
+  expect(match serialize_response(Response(200, [Header("Transfer-Encoding", "chunked")],
+      byte_buffer.empty())) {
+    Error(error) => error == InvalidResponse(),
+    Ok(wire) => false
+  })
+  expect(match serialize_response(Response(204, [], byte_buffer.empty())) {
+    Error(error) => false,
+    Ok(wire) => text.decode_utf8(wire) ==
+      "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
+  })
+  expect(match serialize_response(Response(204, [], text.encode_utf8("body"))) {
+    Error(error) => error == InvalidResponse(),
+    Ok(wire) => false
+  })
+  ()
+}

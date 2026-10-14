@@ -44,28 +44,33 @@ done
 test -s "$work/http-port"
 http_port=$(cat "$work/http-port")
 
-openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/test.key" -out "$work/test.crt" \
-    -sha256 -days 2 -subj '/CN=localhost' \
-    -addext 'subjectAltName=DNS:localhost' \
-    -addext 'basicConstraints=critical,CA:TRUE' \
-    -addext 'keyUsage=critical,digitalSignature,keyCertSign,cRLSign' >/dev/null 2>&1
-"$fixture" --reserve-port "$work/tls-port"
-tls_port=$(cat "$work/tls-port")
-mkdir -p "$work/tls-root"
-printf ok >"$work/tls-root/ok"
-(
-    cd "$work/tls-root"
-    exec openssl s_server -accept "127.0.0.1:$tls_port" -quiet -WWW \
-        -cert "$repo/$work/test.crt" -key "$repo/$work/test.key" \
-        >"$repo/$work/tls-log" 2>&1
-) &
-tls_pid=$!
-ready=0
-for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-    if "$fixture" --probe "$tls_port" >/dev/null 2>&1; then ready=1; break; fi
-    sleep 0.05
-done
-test "$ready" -eq 1
+tls_port=0
+case "$selected_case" in
+    tls-*)
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/test.key" -out "$work/test.crt" \
+            -sha256 -days 2 -subj '/CN=localhost' \
+            -addext 'subjectAltName=DNS:localhost' \
+            -addext 'basicConstraints=critical,CA:TRUE' \
+            -addext 'keyUsage=critical,digitalSignature,keyCertSign,cRLSign' >/dev/null 2>&1
+        "$fixture" --reserve-port "$work/tls-port"
+        tls_port=$(cat "$work/tls-port")
+        mkdir -p "$work/tls-root"
+        printf ok >"$work/tls-root/ok"
+        (
+            cd "$work/tls-root"
+            exec openssl s_server -accept "127.0.0.1:$tls_port" -quiet -WWW \
+                -cert "$repo/$work/test.crt" -key "$repo/$work/test.key" \
+                >"$repo/$work/tls-log" 2>&1
+        ) &
+        tls_pid=$!
+        ready=0
+        for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+            if "$fixture" --probe "$tls_port" >/dev/null 2>&1; then ready=1; break; fi
+            sleep 0.05
+        done
+        test "$ready" -eq 1
+        ;;
+esac
 
 tls_proxy_port=$tls_port
 if [ "$selected_case" = tls-late ]; then

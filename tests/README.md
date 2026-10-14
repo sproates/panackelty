@@ -127,11 +127,12 @@ The Check workflow keeps the full seven-lane Linux validation and five-suite
 Linux/macOS matrix for pull requests and pushes to `main`. A full pull request
 to `next` runs one bounded Linux smoke: it builds the native VM and stage-2
 compiler, runs one source program, compiles it to bytecode, verifies the
-bytecode and runs it. It skips compiler experiments, the larger Linux suites,
-macOS jobs and package builds. A merge push to `next` skips that product smoke;
-the nightly run checks the complete branch. Documentation and workflow routes
-retain their short checks, and `main` validation is unchanged. Superseded PR
-runs are cancelled.
+bytecode and runs it, then exercises the P5 late-DNS timeout/cancellation case
+in source and saved-bytecode mode. It skips compiler experiments, the larger
+Linux suites, macOS jobs and package builds. A merge push to `next` skips that
+product smoke; the nightly run checks the complete branch. Documentation and
+workflow routes retain their short checks, and `main` validation is unchanged.
+Superseded PR runs are cancelled.
 
 The nightly workflow checks out the latest `next` branch and runs all five
 clean suite partitions on Linux and macOS plus all seven Linux validation

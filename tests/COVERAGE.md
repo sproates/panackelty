@@ -589,8 +589,11 @@ These cases do not establish redirects, proxy behavior, connection reuse,
 IPv6, arbitrary malformed-wire fuzzing or broad server interoperability.
 The native unit suite deterministically exercises the deadline/readiness boundary:
 readiness before the deadline is accepted, while readiness at or after the
-deadline times out. Deterministic late DNS/TLS completion coverage remains open.
-Platform and sanitizer validation results belong in the implementation PR.
+deadline times out. The `tls-late` fixture also delays a real TLS server flight
+past a 100 ms deadline and verifies `Timeout` for source and saved bytecode
+before attempting to deliver that flight. Late DNS completion remains open;
+this case does not test a resolver that completes after cancellation. Platform
+and sanitizer validation results belong in the implementation PR.
 
 Website publication conditions are regression-tested directly from the workflow:
 skipped browser ancestors must not suppress deployment after successful packaging,

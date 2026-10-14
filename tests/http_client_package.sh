@@ -4,7 +4,7 @@ panack_bin=${PANACK_BIN:-./panack}
 fixture=${PANACK_HTTP_FIXTURE:-build/vm/http_fixture}
 repo=$(pwd)
 if [ "$#" -eq 0 ]; then
-    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted installed; do
+    for case_name in ok missing chunked close truncated duplicate oversize bad-url ipv6 timeout tls-ok tls-wrong-host tls-untrusted tls-late installed; do
         echo "HTTP client fixture: $case_name"
         sh "$0" "$case_name"
     done
@@ -15,8 +15,10 @@ selected_case=$1
 work=$(mktemp -d tests/http-client.XXXXXX)
 http_pid=
 tls_pid=
+tls_proxy_pid=
 cleanup() {
     if [ -n "$http_pid" ]; then kill "$http_pid" 2>/dev/null || :; wait "$http_pid" 2>/dev/null || :; fi
+    if [ -n "$tls_proxy_pid" ]; then kill "$tls_proxy_pid" 2>/dev/null || :; wait "$tls_proxy_pid" 2>/dev/null || :; fi
     if [ -n "$tls_pid" ]; then kill "$tls_pid" 2>/dev/null || :; wait "$tls_pid" 2>/dev/null || :; fi
     rm -rf "$work"
 }
@@ -64,6 +66,19 @@ for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
     sleep 0.05
 done
 test "$ready" -eq 1
+
+tls_proxy_port=$tls_port
+if [ "$selected_case" = tls-late ]; then
+    "$fixture" --delay-tls-flight "$work/tls-proxy-port" "$tls_port" 400 "$work/tls-proxy-log" \
+        >"$work/tls-proxy-output" 2>&1 &
+    tls_proxy_pid=$!
+    for attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+        [ -s "$work/tls-proxy-port" ] && break
+        sleep 0.05
+    done
+    test -s "$work/tls-proxy-port"
+    tls_proxy_port=$(cat "$work/tls-proxy-port")
+fi
 
 cat > "$app/src/main.panack" <<SOURCE
 import http/client as http
@@ -166,6 +181,13 @@ async main(): Unit {
       Error(error) => error == TlsFailure(),
       Ok(response) => false
     })
+  } else if selected == "tls-late" {
+    result = await http.get_with_limits("https://localhost:$tls_proxy_port/ok",
+      http.ClientLimits(100, 65536, 1024))
+    expect(match result {
+      Error(error) => error == Timeout(),
+      Ok(response) => false
+    })
   }
   ()
 }
@@ -179,4 +201,9 @@ if [ "$selected_case" = tls-untrusted ]; then
 else
     env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run --project "$app/panack.json"
     env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run "$work/client.bc"
+fi
+if [ "$selected_case" = tls-late ]; then
+    wait "$tls_proxy_pid"
+    tls_proxy_pid=
+    test "$(grep -c '^late-server-flight-attempted;' "$work/tls-proxy-log")" -eq 2
 fi

@@ -774,6 +774,9 @@ compatibility. Ordinary checking retains no indirect call argument evidence.
 `len` argument cases cover accepted `Str`, `Bytes` and array inputs, rejected
 unsupported inputs, and unavailable input types; ordinary checking retains no
 new `len` requirement evidence.
+`print` and `eprint` argument cases cover accepted non-`Void` values and rejected
+`Void` results; unresolved `print` input remains explicitly unavailable, and
+ordinary checking retains no new value-requirement evidence.
 Explicit type-argument cases cover exact generic-function counts, missing and
 extra counts, and zero-count rejections for non-generic core calls, generic
 record constructors, and generic enum variant constructors; ordinary checking

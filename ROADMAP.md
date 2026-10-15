@@ -4255,12 +4255,14 @@ arity for resolved direct declarations and record/enum constructors. The
 PR #480 adds fixed-arity core calls, indirect callable arity with an explicit
 unavailable result when the callable type cannot be resolved, and explicit
 type-argument counts for generic functions plus zero-count rejections on
-non-generic core calls. The current slice adds accepted, rejected and unavailable
-indirect callable argument compatibility. Specialized core-call decisions,
-constructor restrictions and complete generic inference traces remain gaps to
-inventory. These are partial families within the owner-defined complete
-checker-decision target above. Each slice keeps ordinary diagnostics and runtime
-behavior unchanged and retains evidence only for explanation queries.
+non-generic core calls. PR #481 adds accepted, rejected and unavailable
+indirect callable argument compatibility. The current slice verifies zero-count
+rejections for explicit type arguments on generic record and enum variant
+constructors. Type-resolution failures, specialized core-call decisions and
+complete generic inference traces remain gaps to inventory. These are partial
+families within the owner-defined complete checker-decision target above. Each
+slice keeps ordinary diagnostics and runtime behavior unchanged and retains
+evidence only for explanation queries.
 Ordinary checking keeps this evidence empty. These
 remain bounded, unreleased CLI slices; the complete checker-decision inventory
 and any uncovered type/effect/proof families remain open. The current website

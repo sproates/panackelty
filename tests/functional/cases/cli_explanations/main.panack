@@ -131,6 +131,12 @@ main(): Void {
       explain_write(source, "pure probe(): Nat { len[Nat](\"x\") }\nmain(): Void {}\n")
       results = append(results, explain_run("explicit type argument on a core call is rejected with its count", ["explain", source, "--function", "probe"], 1,
         ["checked type argument arity: rejected", "type argument counts: expected 0; found 1", "rejected the supplied type argument count"], [], "explicit type arguments require a generic function"))
+      explain_write(source, "record Box[T] { value: T }; pure probe(): Box[Nat] { Box[Nat](1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("explicit type argument on a generic record constructor is rejected with its count", ["explain", source, "--function", "probe"], 1,
+        ["checked type argument arity: rejected", "context: type argument arity", "expression: Nat", "type argument counts: expected 0; found 1", "rejected the supplied type argument count"], [], "explicit type arguments require a generic function"))
+      explain_write(source, "enum Choice[T] { Pick(T) }; pure probe(): Choice[Nat] { Pick[Nat](1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("explicit type argument on a generic variant constructor is rejected with its count", ["explain", source, "--function", "probe"], 1,
+        ["checked type argument arity: rejected", "context: type argument arity", "expression: Nat", "type argument counts: expected 0; found 1", "rejected the supplied type argument count"], [], "explicit type arguments require a generic function"))
       explain_write(source, "record Box { value: Nat }; probe(): Box { Box(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted record constructor argument cites checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to Box: accepted", "expression: 1", "actual type: Nat", "expected type: Nat", "compatible with the expected type", "checked call arity: accepted", "argument counts: expected 1; found 1"], [], ""))

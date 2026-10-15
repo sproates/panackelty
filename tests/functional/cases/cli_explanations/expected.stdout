@@ -24,6 +24,8 @@ PASS accepted explicit type argument count is explained
 PASS missing explicit type argument explains count rejection
 PASS extra explicit type argument explains count rejection
 PASS explicit type argument on a core call is rejected with its count
+PASS explicit type argument on a generic record constructor is rejected with its count
+PASS explicit type argument on a generic variant constructor is rejected with its count
 PASS accepted record constructor argument cites checked types
 PASS rejected record constructor argument explains mismatch
 PASS unavailable record constructor argument is explicit
@@ -188,4 +190,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 190, failures: 0
+tests: 192, failures: 0

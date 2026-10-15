@@ -16,8 +16,9 @@ opt-in SC4 collector gathers counters during fresh execution sessions.
 tracked production `.panack` file under `src/` into measured and explicitly
 unmeasured sources. Its 45 measured files use 14 unit roots, 13 positive
 functional roots and three compiler paths: source check, disassembly and a
-byte-identical bootstrap fixed point. The three package-related sources are
-currently unmeasured and excluded from all denominators. A library-scope root
+byte-identical bootstrap fixed point. The three package-related sources and the
+async filesystem, async host and continuous TCP service sources are currently
+unmeasured and excluded from all denominators. A library-scope root
 retains declarations that the corpus never executes. New tracked production
 sources must be assigned to one side of the partition before report generation.
 Tests and generated inputs are identified but excluded from the production
@@ -72,12 +73,21 @@ Raw local evidence is retained in the printed temporary workspace for diagnosis.
 ## Report integrity and release gate
 
 `tests/source_coverage/policy.json` records the reviewed manifest and exclusions.
+The manifest's policy hash is checked before compilation or collection and by
+the fast policy tests. The policy must remain unchanged during collection.
 Generation validates report identity, complete sessions, source rows, exclusions
 and exact measured/unmeasured scope before writing or uploading. It does not
 enforce a minimum percentage, covered count or protected-outcome count. The
 checker consumes the locally validated SC2/SC4 report; it is not a substitute
 for the raw reader or the publisher's independent validation of downloaded
 artifacts.
+
+The alpha.13 refresh retains the 45 measured files and 31 execution roots. The
+reviewed six-file unmeasured list includes the three async/service files already
+added during GI#162. Its 410 compile-time exclusions were checked against current
+source declarations: 255 imports, 130 records and 25 enums. Updated identity and
+line-position hashes bind the accepted namespace/compiler source; this refresh
+does not remove measured files, execution roots or executable declarations.
 
 Coverage percentages and counts are report data for review; any amount, including
 zero, is valid and never blocks report acceptance or release. Unavailable items

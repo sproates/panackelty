@@ -51,7 +51,17 @@ in the roadmap; it is not an alpha.13 completion percentage.
    and all instruction/session budgets; rerun exact-candidate collection after
    validation. Final full validation passed in 576s; 37 coverage policy/reader tests
    and renderer parity (257 items for each branch outcome) passed. No source roots
-   or assertions are removed. The live report still
+   or assertions are removed. PR #500 merged as `a914d81`; run 38766967634
+   exported and decoded the formerly failing root, then exposed a remaining
+   16 MiB read in session-record hashing. Align that provenance-hashing path
+   with the reader's 32 MiB container bound and cover validation plus hashing
+   together, including oversized and linked-file rejection. All 31 local sessions
+   then completed, exposing stale policy hashes at final report validation.
+   Review the existing six-file unmeasured list and all 410 compile-time
+   exclusions; retain all 45 measured files and execution roots. Check the
+   manifest policy before collection and in fast CI tests. Revalidation of the
+   saved fresh sessions passes the corrected policy; a fresh hosted run remains
+   required for publication. The live report still
    measures `e5e353e261761e3eab14b7f040d9ce1fd2d0a8fa` from 11 October and predates
    the new HTTP/service code. Request a next push with `[source-coverage]`, wait
    for a successful exact-commit source artifact, dispatch Coverage Pages on its

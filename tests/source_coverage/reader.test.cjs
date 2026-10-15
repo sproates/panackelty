@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test'), assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
-const {Reader,readPlan,readRaw,readSession,zero,add,observations,union,totals,writeReport} = require('../../scripts/source_coverage.cjs');
+const {Reader,sha,sessionRecords,readPlan,readRaw,readSession,zero,add,observations,union,totals,writeReport} = require('../../scripts/source_coverage.cjs');
 const u32 = n=>{const b=Buffer.alloc(4);b.writeUInt32BE(n);return b;};
 const u64 = n=>{const b=Buffer.alloc(8);b.writeBigUInt64BE(BigInt(n));return b;};
 const blob = b=>Buffer.concat([u32(b.length),b]);
@@ -111,11 +111,24 @@ test('coverage containers above 16 MiB retain bounded identities and a 32 MiB ce
   const large={...plan,artifact:Buffer.alloc(8*1024*1024,97),inventory:Buffer.alloc(9*1024*1024,105)};
   session(root,large);
   assert.equal(readSession(root,[large],new Set()).executions,1);
+  const records=sessionRecords(root);
+  assert.deepEqual(records,fs.readdirSync(root).sort().map(name=>[name,sha(fs.readFileSync(path.join(root,name)))]));
   const registry=path.join(root,'registry'), saved=fs.readFileSync(registry);
   fs.truncateSync(registry,32*1024*1024+1);
   assert.throws(()=>readSession(root,[large],new Set()),/oversized/);
+  assert.throws(()=>sessionRecords(root),/oversized/);
   fs.writeFileSync(registry,saved);
   fs.truncateSync(path.join(root,'raw-0'),32*1024*1024+1);
   assert.throws(()=>readSession(root,[large],new Set()),/oversized/);
+  assert.throws(()=>sessionRecords(root),/oversized/);
   assert.throws(()=>new Reader(u32(16*1024*1024+1)).blob(),/Oversized coverage blob/);
+});
+test('session record hashes reject linked files and keep metadata bounded',t=>{
+  const root=fixture(t);session(root);
+  fs.unlinkSync(path.join(root,'raw-0'));
+  fs.symlinkSync(path.join(root,'registry'),path.join(root,'raw-0'));
+  assert.throws(()=>sessionRecords(root),/Unsafe/);
+  fs.unlinkSync(path.join(root,'raw-0'));
+  fs.truncateSync(path.join(root,'closed'),16*1024*1024+1);
+  assert.throws(()=>sessionRecords(root),/oversized/);
 });

@@ -822,21 +822,37 @@ pure render_type_check_evidence(
   actual: Str = source_map_escape(render_inferred_type(evidence.actual))
   context: Str = source_map_escape(evidence.context)
   expected: Str = source_map_escape(evidence.expected)
+  match_decision: Bool = evidence.context == "match subject" ||
+    evidence.context == "match arm uniqueness" ||
+    evidence.context == "match payload bindings" || evidence.context == "match exhaustiveness"
+  status_label: Str = if match_decision { "checked match decision" } else { "checked type requirement" }
+  actual_label: Str = if match_decision { "subject type" } else { "actual type" }
+  expected_label: Str = if match_decision { "decision rule" } else { "expected type" }
   result: Str = if evidence.context == "index position" ||
     evidence.context == "if condition" || evidence.context == "while condition" ||
-    evidence.context == "match variant" {
+    evidence.context == "match variant" || match_decision {
     "not applicable"
   } else {
     source_map_escape(render_inferred_type(evidence.result))
   }
-  "checked type requirement: ${status}\ncontext: ${context}\n" +
+  "${status_label}: ${status}\ncontext: ${context}\n" +
     explanation_location(Some(evidence.span), sources, root, stdlib_root) +
-    "\nactual type: ${actual}\nexpected type: ${expected}\nresulting type: ${result}" +
+    "\n${actual_label}: ${actual}" +
+    "\n${expected_label}: ${expected}" +
+    "\nresulting type: ${result}" +
     match evidence.accepted {
       Some(accepted) => if accepted {
-        "\nreason: the existing checker accepted this type for the requirement"
+        if match_decision {
+          "\nreason: the existing checker accepted this match rule"
+        } else {
+          "\nreason: the existing checker accepted this type for the requirement"
+        }
       } else {
-        "\nreason: the existing checker rejected this type for the requirement"
+        if match_decision {
+          "\nreason: the existing checker rejected this match rule"
+        } else {
+          "\nreason: the existing checker rejected this type for the requirement"
+        }
       },
       None() => "\nreason: the checker did not determine a complete type decision"
     }

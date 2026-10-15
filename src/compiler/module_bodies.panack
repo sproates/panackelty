@@ -5681,23 +5681,40 @@ pure bind_body_match(
   mut diagnostics: [Diagnostic] = subject_result.diagnostics
   mut deferred: [SourceSpan] = subject_result.deferred
   mut variants: [BodyTarget] = []
+  mut variants_available: Bool = false
+  mut type_checks: [BodyTypeCheckEvidence] = []
 
   match subject_result.body.type {
     None() => {
       deferred = append(deferred, span)
+      if context.retain_guard_conversions {
+        type_checks = append(type_checks, BodyTypeCheckEvidence(
+          "match subject", subject_result.body.span, None(), "enum type", None(), None()
+        ))
+      }
     },
     Some(type) => match body_enum_variants(context, type) {
       Error(message) => {
         diagnostics = append(diagnostics, Diagnostic(message, subject_result.body.span.start))
+        if context.retain_guard_conversions {
+          type_checks = append(type_checks, BodyTypeCheckEvidence(
+            "match subject", subject_result.body.span, Some(type), "enum type", None(), Some(false)
+          ))
+        }
       },
       Ok(values) => {
         variants = values
+        variants_available = true
+        if context.retain_guard_conversions {
+          type_checks = append(type_checks, BodyTypeCheckEvidence(
+            "match subject", subject_result.body.span, Some(type), "enum type", None(), Some(true)
+          ))
+        }
       }
     }
   }
   mut output: Option[SignatureType] = None()
   mut type_joins: [TypeJoinEvidence] = []
-  mut type_checks: [BodyTypeCheckEvidence] = []
   mut first: Bool = true
   mut seen: [DeclarationIdentity] = []
   mut index: Nat = 1
@@ -5771,6 +5788,22 @@ pure bind_body_match(
             )
           }
         }
+        if context.retain_guard_conversions {
+          mut unique: Bool = true
+          for previous in seen {
+            if previous == identity {
+              unique = false
+            }
+          }
+          type_checks = append(type_checks, BodyTypeCheckEvidence(
+            "match arm uniqueness",
+            arm.pattern.span,
+            subject_result.body.type,
+            "variant " + identity.name + " appears at most once in this match",
+            None(),
+            Some(unique)
+          ))
+        }
         seen = append(seen, identity)
         if is_variant {
           match body_contract(context, target) {
@@ -5791,6 +5824,19 @@ pure bind_body_match(
                     pattern_position
                   )
                   )
+                }
+                if context.retain_guard_conversions {
+                  expected_count: Nat = len(contract.inputs)
+                  actual_count: Nat = len(arm.pattern.bindings)
+                  type_checks = append(type_checks, BodyTypeCheckEvidence(
+                    "match payload bindings",
+                    arm.pattern.span,
+                    subject_result.body.type,
+                    "expected ${expected_count} binding(s) for variant " + identity.name +
+                      "; found ${actual_count}",
+                    None(),
+                    Some(actual_count == expected_count)
+                  ))
                 }
                 match subject_result.body.type {
                   None() => {},
@@ -5900,6 +5946,7 @@ pure bind_body_match(
     }
     index = index + 1
   }
+  mut missing_variants: [Str] = []
   for variant in variants {
     mut found: Bool = false
     for identity in seen {
@@ -5908,6 +5955,7 @@ pure bind_body_match(
       }
     }
     if !found {
+      missing_variants = append(missing_variants, body_variant_identity(variant).name)
       diagnostics = append(
         diagnostics,
         Diagnostic(
@@ -5916,6 +5964,38 @@ pure bind_body_match(
       )
       )
     }
+  }
+  if context.retain_guard_conversions {
+    mut expected_coverage: Str = "all variants of the matched enum are covered"
+    match subject_result.body.type {
+      None() => {},
+      Some(type) => {
+        expected_coverage = if variants_available {
+          "all variants of " + body_type_text(type) + " are covered"
+        } else {
+          "all variants of an enum subject are covered"
+        }
+        if len(missing_variants) > 0 {
+          expected_coverage = expected_coverage + "; missing "
+          mut missing_index: Nat = 0
+          for missing in missing_variants {
+            if missing_index > 0 {
+              expected_coverage = expected_coverage + ", "
+            }
+            expected_coverage = expected_coverage + missing
+            missing_index = missing_index + 1
+          }
+        }
+      }
+    }
+    type_checks = append(type_checks, BodyTypeCheckEvidence(
+      "match exhaustiveness",
+      span,
+      subject_result.body.type,
+      expected_coverage,
+      None(),
+      if !variants_available { None() } else { Some(len(missing_variants) == 0) }
+    ))
   }
   if output == None() {
     deferred = append(deferred, span)

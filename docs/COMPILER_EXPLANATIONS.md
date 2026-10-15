@@ -35,6 +35,31 @@ checking functions; it does not by itself expand ordinary diagnostic wording,
 change language semantics, or add parse/resolution or compilation-provenance
 explanations.
 
+## Function-checking decision inventory
+
+The normal project loader calls the module-body checker and the effect checker;
+Explain asks those same passes to retain evidence. The table maps those active
+decision families to the current output and known gaps. “Covered” means there is
+an explanation regression for accepted, rejected, and/or unavailable outcomes
+where that outcome is reachable; it does not mean every special case in the
+family is complete.
+
+| Checker decision family | Explain output and regression coverage | Remaining coverage gap |
+| --- | --- | --- |
+| Function result compatibility | `return type`; accepted, rejected, and unavailable results are exercised. | Check when the body or result type is deferred and which checker facts prevented completion need broader inventory. |
+| Argument and parameter compatibility | Direct call arguments, selected builtin arguments, callback contracts, annotated initializers, and assignment values. Tests cover accepted/rejected/unavailable cases across representative families. | Constructor arguments are not retained as call-argument evidence; call arity, explicit type-argument arity, and some specialized core-call checks are not exposed as decisions. |
+| Generic inference and constraints | Inferred locals, selected repeated type-parameter joins, call argument checks after substitution, and generic collection joins. | Failed inference reasons, unresolved constraint application, and every hole/unification decision are not yet retained as a complete trace. |
+| Type combination | Array literals and concatenation, conditional and match results, plus selected generic joins. Accepted, rejected, and unavailable joins have regressions. | Other constraints that refine a result or alter an inferred type need to be checked against the inventory; joins are not yet proven exhaustive. |
+| Operators and expression requirements | Unary/binary operand and result types; index receiver/position; `for` iterable; field receiver; `if`/`while` condition; match variant membership. | Special core operations may perform additional type checks outside these evidence families. |
+| Match rules | Enum subject type, variant membership, arm uniqueness, payload binding count, exhaustive coverage, and match-result joins. Regression cases cover accepted, rejected, and unavailable outcomes for the reported rules. | Variant-resolution failures remain ordinary name/diagnostic territory; verify generic payload substitution and malformed/deferred patterns against the complete match decision path. |
+| Proof obligations | Nat subtraction bounds and guarded conversions, including accepted and rejected proof cases and source facts. | Inventory other proof-producing checker paths and ensure no proof decision is hidden in a generic constraint or special builtin. |
+| Effects | Call and await boundaries, including accepted and rejected calls/awaits and unavailable effect analysis after earlier checking failures. | Inventory all effect decisions and their source/fact attribution, including declarations and inferred callable types. |
+
+This is a working inventory: the documented gaps are implementation work, not
+accepted omissions. Each new implementation slice should add evidence at the
+checker decision site, preserve ordinary checking behavior, and add regression
+coverage for the decision's reachable outcomes.
+
 For staged multi-module projects, qualify a query with the portable module
 identity, for example `--function project/library.panack:lookup`. A bare name
 continues to work when it selects one loaded function. When multiple modules
@@ -196,14 +221,17 @@ item type when available. For field access, it reports whether the receiver
 is a record containing the requested field and the resulting field type when
 available. For `if` and `while`, it reports whether the condition has the
 required `Bool` type. For each `match` arm, it reports whether the
-resolved variant belongs to the matched enum. This membership result does not
-claim that a match is exhaustive, that arms are unique, or that pattern binding
-counts are correct; those checks remain separately diagnosed. Each decision has
-its own source range and an accepted, rejected or unavailable status. These are
-local checked-body results;
+resolved variant belongs to the matched enum. It also reports whether each arm
+is unique, whether its pattern binds the variant's required payload count, and
+whether every enum variant is covered. Exhaustiveness results name any
+missing variants. The enum-subject decision is separate; when the subject is
+not an enum, exhaustiveness is reported as unavailable because there is no
+variant set to compare. These decisions include the subject type when
+available, the rule checked, their source range, and an accepted, rejected or
+unavailable status. These are local checked-body results;
 `program: accepted/rejected` remains the whole-project result. Original
 diagnostics and ordinary checking are unchanged, and ordinary checking retains
-no checked type requirement evidence.
+no checked type requirement or match decision evidence.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

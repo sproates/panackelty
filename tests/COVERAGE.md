@@ -621,6 +621,9 @@ when workers have quiesced; bookkeeping supports concurrent allocation.
 `tests/async_filesystem.sh` checks the public API through source and saved bytecode,
 including root identity for an empty directory and actual HTTP handlers awaiting
 file reads. Both clients in the concurrent exchange must receive the file bytes.
+These fixtures are outside the bounded source-coverage corpus. Its manifest lists
+`async_filesystem.panack` as unmeasured; this slice changes no measured denominator
+or protected coverage threshold and does not collect a new baseline.
 
 ## Native HTTP server (P6)
 

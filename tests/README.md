@@ -121,7 +121,10 @@ they are not performance targets. Promotion validation exposed the former
 enclosing limit on hosted runners.
 The isolated native-tool environment includes `openssl` for the independent
 TLS test server and certificate generation; a missing executable is reported
-explicitly by the TLS fixture. Expensive promotion source coverage waits for
+explicitly by the TLS fixture. The local certificate declares server-authentication
+extended key usage, and macOS additionally verifies it against Apple's SSL policy
+using the allowlisted `security` utility before starting the fixture server.
+Expensive promotion source coverage waits for
 the full compiler/runtime matrix, package and policy checks to pass; failures
 and cancellations prevent collection. Explicit next-push refreshes retain the
 existing marker route and require all applicable preceding checks to pass.

@@ -22,6 +22,14 @@ pub record ServerLimits {
   drain_ms: Nat
 }
 
+// Call from a concrete named worker; generic function references are not needed.
+pub record ConnectionContext[T] {
+  configuration: T,
+  handler: AsyncFn[T,Request,Result[Response,HttpError]],
+  request_limit: Nat,
+  response_limit: Nat
+}
+
 record ServeContext {
   handler: AsyncFn[Request,Result[Response,HttpError]],
   request_limit: Nat,
@@ -238,8 +246,22 @@ pure failed_report(problem: Str): Result[Unit,HttpError] {
   Error(TransportFailure(problem))
 }
 
-async serve_connection(
-  context: ServeContext
+async invoke_legacy_handler(
+  handler: AsyncFn[Request,Result[Response,HttpError]],
+  request: Request
+): Result[Response,HttpError] {
+  await handler.call(request)
+}
+
+async serve_connection(context: ServeContext): Result[Bytes,Str] {
+  configured: ConnectionContext[AsyncFn[Request,Result[Response,HttpError]]] =
+    ConnectionContext(context.handler, @invoke_legacy_handler,
+      context.request_limit, context.response_limit)
+  await serve_connection_with_context[AsyncFn[Request,Result[Response,HttpError]]](configured)
+}
+
+pub async serve_connection_with_context[T](
+  context: ConnectionContext[T]
 ): Result[Bytes,Str] {
   mut incoming: Bytes = byte_buffer.empty()
   mut outcome: Result[Bytes,Str] = Error("HTTP request failed")
@@ -267,7 +289,7 @@ async serve_connection(
           Ok(parsed) => match parsed {
             None() => { finished = false },
             Some(request) => {
-              match await context.handler.call(request) {
+              match await context.handler.call(context.configuration, request) {
                 Error(error) => {
                   outcome = Ok(simple_response(500, "Internal Server Error", head_only))
                   finished = true

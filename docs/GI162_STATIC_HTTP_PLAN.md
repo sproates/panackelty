@@ -1,9 +1,51 @@
 # GI#162: generic static HTTP service and website previews
 
-Status: implementation proposal, 15 October 2026. Investigation is based on
-`next` at `064f57a`. Implementation has started with HEAD support as an
-independent HTTP package prerequisite. HEAD is delivered in PR #495. The asynchronous filesystem prerequisite is in
-progress; the service lifecycle, generic tool and website adoption remain planned.
+Status: implementation checkpoint, 15 October 2026. HEAD support is delivered
+in PR #495; asynchronous confined reads are delivered in PR #496, both merged
+into `next`. Continuous serving and configured HTTP handlers are implemented on
+`feature/gi162-continuous-http-service`, but are not yet ready for a delivery PR.
+The static-file package, command-line tool and website adoption remain outstanding.
+
+## Resume checkpoint
+
+Implementation is paused at the user's request after focused lifecycle validation.
+The current branch contains:
+
+- Explicit continuous transport mode with bounded summary counters; existing
+  finite sessions preserve their contracts. Native tests exercise 300 requests.
+- Post-bind readiness callback before request admission; stop can cancel a
+  callback that never finishes. CLI SIGINT/SIGTERM requests a bounded drain.
+- Isolated `stdlib/tcp_service` and `stdlib/async_host` modules. Async arguments
+  read the invocation snapshot. Bounded console workers preserve cancellation
+  without blocking the execution owner; embedded access needs an explicit grant.
+- Generic HTTP connection context with a concrete named callback wrapper.
+  `http/service` composes that worker with the continuous transport.
+- Source/saved-bytecode service fixtures for concurrent HTTP requests, normal
+  stop, invalid limits, readiness failure and nonzero error exit.
+
+Focused checks passed before this checkpoint: native module contracts, allocation
+and syscall-failure contracts (including paused console-write cancellation),
+existing HTTP interoperability, and `tests/continuous_service.sh`. Compiler seed
+stages 2–4 agree at
+`9abb05684410344e9eed5ef9a2bc6dd30605be08eba38d6cb00aed71add3e3a5`.
+Final C formatting follows those checks; repeat owning native checks on resume.
+The lifecycle branch has **not** passed final full validation and has no PR.
+
+Resume in this order:
+
+1. Review lifecycle ownership, readiness failure/stop races, signal restoration,
+   console descriptor/error handling, explicit capabilities and resource bounds.
+   Add remaining boundary and failure assertions where the review finds gaps;
+   keep every functional wait bounded.
+2. Update SPEC, ARCHITECTURE, README, stdlib documentation and coverage evidence
+   for the new contracts. Review SELF_HOSTING, website impact and performance
+   evidence. Keep new source modules explicitly accounted for in the installed
+   file list and source-coverage inventory; no coverage collection is required
+   merely to check that inventory.
+3. Run focused checks, then `make check` after final edits. Open a lifecycle PR
+   targeting `next`; merge only once its exact head has passed applicable CI.
+4. Implement `packages/static_http` and `tools/http-server` using these APIs,
+   then adopt the tool in the website preview launcher and complete acceptance.
 
 ## Design decision
 

@@ -5,6 +5,7 @@ packages/http/src/client.panack
 packages/http/src/parser.panack
 packages/http/src/parser_test.panack
 packages/http/src/server.panack
+packages/http/src/service.panack
 packages/http/src/transport.panack
 packages/http/src/types.panack
 share/doc/panackelty/CHANGELOG.md
@@ -15,6 +16,7 @@ share/doc/panackelty/SPEC.md
 share/panackelty/VERSION
 share/panackelty/compiler-v9.bc
 share/panackelty/stdlib/async_filesystem.panack
+share/panackelty/stdlib/async_host.panack
 share/panackelty/stdlib/bytes.panack
 share/panackelty/stdlib/core.panack
 share/panackelty/stdlib/environment.panack
@@ -28,6 +30,7 @@ share/panackelty/stdlib/prelude.panack
 share/panackelty/stdlib/process.panack
 share/panackelty/stdlib/result.panack
 share/panackelty/stdlib/tcp.panack
+share/panackelty/stdlib/tcp_service.panack
 share/panackelty/stdlib/testing.panack
 share/panackelty/stdlib/testing_commands.panack
 share/panackelty/stdlib/testing_files.panack

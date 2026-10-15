@@ -20,6 +20,9 @@
 #include <unistd.h>
 
 void fault_reset(size_t allocation);
+void fault_pause_writes(bool pause);
+bool fault_write_paused(void);
+int fault_fcntl(int fd, int command, ...);
 void fault_pause_reads(bool pause);
 bool fault_read_paused(void);
 int fault_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,
@@ -55,6 +58,7 @@ int fault_ftruncate(int fd, off_t size);
 pid_t fault_waitpid(pid_t child, int *status, int options);
 
 #ifdef PANACK_TEST_INJECT
+#define fcntl fault_fcntl
 #define pthread_create fault_pthread_create
 #define malloc fault_malloc
 #define calloc fault_calloc

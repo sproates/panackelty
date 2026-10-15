@@ -2,6 +2,7 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
+#include "numeric.h"
 #include "tcp_server.h"
 #include "verify.h"
 
@@ -31,21 +32,31 @@ static Instruction stream_code[] = {{.op = OP_LOAD, .name = "max_bytes"},
                                      .name = "$tcp_server_read_chunk",
                                      .arity = 1},
                                     {.op = OP_RETURN}};
+static Instruction ready_code[] = {
+    {.op = OP_CALL, .name = "$unit", .arity = 0},
+    {.op = OP_MAKE_VARIANT, .name = "Result", .name2 = "Ok", .count = 1},
+    {.op = OP_RETURN}};
 static Function functions[] = {{.name = "main", .pure = true, .ins = main_code, .ins_count = 2},
                                {.name = "reply",
                                 .is_async = true,
                                 .param_count = 1,
                                 .params = parameters,
                                 .ins = echo_code,
-                                 .ins_count = 3},
-                                {.name = "stream_reply",
-                                 .is_async = true,
-                                 .param_count = 1,
-                                 .params = stream_parameters,
-                                 .ins = stream_code,
-                                 .ins_count = 3}};
+                                .ins_count = 3},
+                               {.name = "stream_reply",
+                                .is_async = true,
+                                .param_count = 1,
+                                .params = stream_parameters,
+                                .ins = stream_code,
+                                .ins_count = 3},
+                               {.name = "zz_ready",
+                                .is_async = true,
+                                .param_count = 1,
+                                .params = parameters,
+                                .ins = ready_code,
+                                .ins_count = 3}};
 #define echo_function functions[1]
-static Program program = {.functions = functions, .count = 3};
+static Program program = {.functions = functions, .count = 4};
 static VMTcpServerLimits limits = {4, 2, 32768, 32768, 2000, 2000, 1000};
 
 static size_t unused_port(void)
@@ -405,6 +416,58 @@ static void server_read_scope_contract(void)
     release(limit);
 }
 
+static void continuous_contracts(void)
+{
+    VM vm = {.program = &program};
+    Value *address = value_data(V_STR, (const uint8_t *)"127.0.0.1", 9);
+    Value *context = value_size(4);
+    VMTcpServiceLimits options = {2, 4096, 4096, 2000, 0};
+    size_t port = unused_port();
+    VMTcpServer *server =
+        tcp_server_start_service(&vm, &functions[2], context, address, port, options, false);
+    assert(server && !tcp_server_done(server));
+    assert(tcp_server_set_ready_handler(server, &functions[3], context, false));
+    for (size_t i = 0; i < 300; i++) {
+        int fd = connect_client(port);
+        assert(send(fd, "ok", 2, 0) == 2);
+        reply_is(server, fd, (const uint8_t *)"ok", 2);
+        close(fd);
+        assert(!tcp_server_done(server));
+    }
+    int waiting = connect_client(port);
+    pump(server);
+    tcp_server_stop(server);
+    assert(tcp_server_done(server) && !tcp_server_error(server));
+    Value *result = tcp_server_result(server);
+    assert(result && !strcmp(result->as.named.name, "Ok"));
+    Value *summary = result->as.named.values[0];
+    assert(!strcmp(summary->as.named.name, "TcpServiceSummary"));
+    size_t accepted, succeeded, failed;
+    assert(value_index(summary->as.named.values[0], &accepted) && accepted == 301);
+    assert(value_index(summary->as.named.values[1], &succeeded) && succeeded == 300);
+    assert(value_index(summary->as.named.values[2], &failed) && failed == 1);
+    close(waiting);
+    tcp_server_destroy(server);
+    // A readiness callback cannot postpone an explicit stop indefinitely.
+    Instruction endless[] = {{.op = OP_JUMP, .target = 0}, {.op = OP_RETURN}};
+    functions[3].ins = endless;
+    functions[3].ins_count = 2;
+    server = tcp_server_start_service(&vm, &functions[2], context, address, unused_port(), options,
+                                      false);
+    assert(tcp_server_set_ready_handler(server, &functions[3], context, false));
+    pump(server);
+    assert(!tcp_server_done(server));
+    tcp_server_stop(server);
+    assert(tcp_server_done(server) && !tcp_server_error(server));
+    summary = tcp_server_result(server)->as.named.values[0];
+    assert(value_index(summary->as.named.values[0], &accepted) && accepted == 0);
+    tcp_server_destroy(server);
+    functions[3].ins = ready_code;
+    functions[3].ins_count = 3;
+    release(context);
+    release(address);
+}
+
 void tcp_server_contracts(void)
 {
     const char *error;
@@ -552,4 +615,5 @@ void tcp_server_contracts(void)
     zero_grace_contract();
     streaming_contracts();
     server_read_scope_contract();
+    continuous_contracts();
 }

@@ -1750,11 +1750,13 @@ will provide a generic directory-serving HTTP package and a tool under `tools/`,
 with website preview supplying its configuration. Reuse the existing HTTP package
 and isolate necessary standard-library additions. Keep the existing website build.
 The [implementation proposal](docs/GI162_STATIC_HTTP_PLAN.md) records the design,
-verified prerequisites and delivery sequence. HEAD support is delivered by PR #495. The next slice adds isolated asynchronous
-confined reads, root identity and explicit filesystem permission. Persistent
-service lifecycle, the generic tool and website adoption remain outstanding. The
-current Node-based preview workflow remains available; this slice changes no
-production website behaviour or release claim.
+verified prerequisites and delivery sequence. HEAD support is delivered by PR #495
+and asynchronous confined reads by PR #496. Continuous service lifecycle work is
+checkpointed on `feature/gi162-continuous-http-service`; final validation and
+delivery remain pending. The plan records the resume checklist. The generic tool
+and website adoption remain outstanding. The current Node-based preview workflow
+remains available; this checkpoint changes no production website behaviour or
+release claim.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
 server contract PR #129 and server implementation PR #130. Both operations are included in the published alpha.11 native release and were

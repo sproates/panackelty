@@ -1532,14 +1532,15 @@ pure body_special_core_call(target: BodyTarget): Bool {
       name == "duration_nanoseconds" || name == "duration_ticks" ||
       name == "duration_from_seconds" || name == "instant_now" ||
       name == "instant_add" || name == "instant_difference" || name == "instant_before" ||
-      name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
+      name == "host_arguments_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" || name == "host_exit_async" || name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
       name == "process_run" || name == "host_sleep" || name == "host_decode_utf8" ||
       name == "fs_root_identity_async" || name == "fs_metadata" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_directories_overlap" || name == "fs_read" || name == "fs_write" ||
       name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
       name == "fs_remove_directory" || name == "fs_temp_file" || name == "fs_temp_directory" ||
       name == "read_file" || name == "file_exists" || name == "read_bytes" || name == "write_bytes" ||
       name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
-      name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
+      name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
       body_path_core_call(target)
   }
 }
@@ -1682,7 +1683,29 @@ pure body_tcp_stream_context_type(context: BodyContext, value: BoundBody): Signa
   }
 }
 
+pure body_tcp_service_type(name: Str): SignatureType {
+  SignatureType(SignatureNominal(DeclarationIdentity(
+    ModuleIdentity(ToolchainModulePackage(), "tcp_service.panack"), name
+  )), [])
+}
+
 pure body_tcp_expected_argument(
+  name: Str,
+  index: Nat,
+  context_type: SignatureType
+): SignatureType {
+  if name == "tcp_service" && index == 4 {
+    body_tcp_service_type("TcpServiceLimits")
+  } else if name == "tcp_service" && index == 5 {
+    SignatureType(SignatureCallable(SignatureAsync()), [
+      body_tcp_service_type("TcpServiceReady"),
+      body_intrinsic_result(SignatureType(SignatureCore("Unit"), []),
+        SignatureType(SignatureCore("Str"), []))
+    ])
+  } else { body_tcp_legacy_expected_argument(name, index, context_type) }
+}
+
+pure body_tcp_legacy_expected_argument(
   name: Str,
   index: Nat,
   context_type: SignatureType
@@ -1718,10 +1741,10 @@ pure body_tcp_expected_argument(
         if name == "tcp_exchange" && index == 2 {
           SignatureType(SignatureCore("Bytes"), [])
         } else {
-          if name == "tcp_serve_stream" && index == 2 {
+          if (name == "tcp_serve_stream" || name == "tcp_service") && index == 2 {
             body_tcp_stream_worker_type(context_type)
           } else {
-            if name == "tcp_serve_stream" && index == 3 {
+            if (name == "tcp_serve_stream" || name == "tcp_service") && index == 3 {
               context_type
             } else {
               if name == "tcp_serve" && index == 2 {
@@ -1731,7 +1754,7 @@ pure body_tcp_expected_argument(
                 ])
               } else {
                 if (name == "tcp_serve" && index == 3) ||
-                  (name == "tcp_serve_stream" && index == 4) {
+                  ((name == "tcp_serve_stream" || name == "tcp_service") && index == 4) {
                   body_tcp_limits_type()
                 } else {
                   SignatureType(SignatureCore("Nat"), [])
@@ -1753,12 +1776,13 @@ pure body_check_tcp_core_call(
   initial_diagnostics: [Diagnostic],
   initial_deferred: [SourceSpan]
 ): BodyResult {
-  expected_count: Nat = if name == "tcp_serve" { 4 } else {
+  expected_count: Nat = if name == "tcp_service" { 6 } else { if name == "tcp_serve" { 4 } else {
     if name == "tcp_serve_stream" { 5 } else {
       if name == "http_transport_exchange" { 6 } else {
         if name == "tcp_exchange" { 5 } else { 1 }
       }
     }
+  }
   }
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
@@ -1773,7 +1797,7 @@ pure body_check_tcp_core_call(
   } else {
     mut index: Nat = 0
     while index < expected_count {
-      context_type: SignatureType = if name == "tcp_serve_stream" {
+      context_type: SignatureType = if name == "tcp_serve_stream" || name == "tcp_service" {
         body_tcp_stream_context_type(context, children[3])
       } else {
         SignatureType(SignatureCore("Void"), [])
@@ -1806,7 +1830,10 @@ pure body_check_tcp_core_call(
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
-      output = if name == "tcp_serve" || name == "tcp_serve_stream" {
+      output = if name == "tcp_service" {
+        Some(body_intrinsic_result(body_tcp_service_type("TcpServiceSummary"),
+          SignatureType(SignatureCore("Str"), [])))
+      } else if name == "tcp_serve" || name == "tcp_serve_stream" {
         Some(body_tcp_serve_result_type())
       } else {
         Some(body_tcp_bytes_result_type())
@@ -2553,6 +2580,20 @@ pure body_check_host_filesystem_core_call(
   children: [BoundBody],
   span: SourceSpan
 ): BodyResult {
+  if name == "host_stdout_async" || name == "host_stderr_async" {
+    body_check_typed_intrinsic(context, name, children, span,
+      [body_intrinsic_type(context, "Str")],
+      body_intrinsic_result(body_intrinsic_type(context, "Unit"),
+        body_intrinsic_type(context, "HostError")))
+  } else { body_check_legacy_host_filesystem_core_call(context, name, children, span) }
+}
+
+pure body_check_legacy_host_filesystem_core_call(
+  context: BodyContext,
+  name: Str,
+  children: [BoundBody],
+  span: SourceSpan
+): BodyResult {
   path: SignatureType = body_intrinsic_type(context, "Path")
   duration: SignatureType = body_intrinsic_type(context, "Duration")
   bytes: SignatureType = body_intrinsic_type(context, "Bytes")
@@ -2565,11 +2606,12 @@ pure body_check_host_filesystem_core_call(
   if name == "run_bytecode_args" {
     inputs = [bytes, strings]
   } else {
-    if name == "command_args" {
+    if name == "command_args" || name == "host_arguments_async" {
       result = strings
     } else {
-      if name == "process_exit" {
+      if name == "process_exit" || name == "host_exit_async" {
         inputs = [natural]
+        if name == "host_exit_async" { result = unit }
       } else {
         if name == "process_run" {
           inputs = [path, strings, bytes, path, strings, duration, natural]
@@ -2680,7 +2722,8 @@ pure body_check_special_core_call(
       )
     }
   } else {
-  if name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
+  if name == "host_arguments_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" || name == "host_exit_async" || name == "run_bytecode_args" || name == "command_args" || name == "process_exit" ||
     name == "process_run" || name == "host_sleep" || name == "host_decode_utf8" ||
     name == "fs_root_identity_async" || name == "fs_metadata" || (name == "fs_read_beneath" || name == "fs_read_beneath_async") || name == "fs_directories_overlap" || name == "fs_read" || name == "fs_write" ||
     name == "fs_list" || name == "fs_create_directory" || name == "fs_remove_file" ||
@@ -2723,7 +2766,7 @@ pure body_check_special_core_call(
     }
   } else {
   if name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
-    name == "tcp_serve_stream" || name == "tcp_server_read_chunk" {
+    name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" {
     if len(types) > 0 {
       body_failure("explicit type arguments require a generic function", type_argument_span)
     } else {

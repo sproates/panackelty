@@ -978,6 +978,19 @@ pure environment_type(environment: Map[Str, TypeInfo], name: Str): TypeInfo {
 }
 
 pure builtin_return(name: Str): Str {
+  if name == "tcp_service" { "Result[TcpServiceSummary,Str]" }
+  else { builtin_host_return(name) }
+}
+
+pure builtin_host_return(name: Str): Str {
+  if name == "host_arguments_async" { "[Str]" }
+  else if name == "host_exit_async" { "Unit" }
+  else if name == "host_stdout_async" || name == "host_stderr_async" {
+    "Result[Unit,HostError]"
+  } else { builtin_filesystem_return(name) }
+}
+
+pure builtin_filesystem_return(name: Str): Str {
   if name == "fs_root_identity_async" {
     "Result[FilesystemRootIdentity,HostError]"
   } else {
@@ -1176,6 +1189,17 @@ pure builtin_legacy_return(name: Str): Str {
 }
 
 pub pure builtin_arity(name: Str): Nat {
+  if name == "tcp_service" { 6 } else { builtin_host_arity(name) }
+}
+
+pure builtin_host_arity(name: Str): Nat {
+  if name == "host_arguments_async" { 0 }
+  else if name == "host_exit_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" { 1 }
+  else { builtin_service_arity(name) }
+}
+
+pure builtin_service_arity(name: Str): Nat {
   if name == "http_transport_exchange" || name == "$http_transport_exchange" {
     6
   } else {
@@ -1351,6 +1375,22 @@ pure builtin_legacy_arity(name: Str): Nat {
 }
 
 pure builtin_parameter(name: Str, index: Nat): Str {
+  if name == "tcp_service" {
+    if index == 0 { "Str" }
+    else if index == 1 { "Nat" }
+    else if index == 4 { "TcpServiceLimits" }
+    else if index == 5 { "AsyncFn[TcpServiceReady,Result[Unit,Str]]" }
+    else { "Any" }
+  } else { builtin_host_parameter(name, index) }
+}
+
+pure builtin_host_parameter(name: Str, index: Nat): Str {
+  if name == "host_exit_async" { "Nat" }
+  else if name == "host_stdout_async" || name == "host_stderr_async" { "Str" }
+  else { builtin_filesystem_parameter(name, index) }
+}
+
+pure builtin_filesystem_parameter(name: Str, index: Nat): Str {
   if name == "fs_root_identity_async" {
     "Path"
   } else {
@@ -2726,7 +2766,7 @@ pub pure check_expression_evidence(
                           } else {
                             mut fixed_index: Nat = 0
                             for actual in argument_infos {
-                              expected_type: Str = if name == "tcp_serve_stream" && fixed_index == 2 {
+                              expected_type: Str = if (name == "tcp_serve_stream" || name == "tcp_service") && fixed_index == 2 {
                                 context_type: Str = argument_infos[3].name
                                 if context_type == "Unknown" {
                                   "Any"

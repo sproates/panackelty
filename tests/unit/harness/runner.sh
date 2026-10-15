@@ -23,7 +23,10 @@ contains "$work/stdout" 'tests: 210, failures: 0'
 pass
 for fixture in cli_environment_files cli_commands cli_check_disasm stdlib; do
     case_name=runner-$fixture
-    capture 0 45 env PANACKELTY_STDLIB_VALUE=ambient-test ./panack run "$runner" --case "$fixture"
+    fixture_timeout=45
+    # Enclose both source and bytecode CLI runs, each with a 120-second bound.
+    if [ "$fixture" = cli_commands ]; then fixture_timeout=300; fi
+    capture 0 "$fixture_timeout" env PANACKELTY_STDLIB_VALUE=ambient-test ./panack run "$runner" --case "$fixture"
     contains "$work/stdout" "PASS case/$fixture/source"
     contains "$work/stdout" "PASS case/$fixture/bytecode"
     contains "$work/stdout" 'tests: 4, failures: 0'

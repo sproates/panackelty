@@ -45,6 +45,17 @@ in the roadmap; it is not an alpha.13 completion percentage.
    The focused HTTP client suite and YAML/layout/routing contracts also passed.
    Hosted Linux/macOS and public-artifact evidence remain required; retain exact
    commit and archive identities with those results.
+   Promotion Check 38780595525 exposed a Linux-only missing `sys/time.h`
+   include in the independent HTTP test client and test-harness deadlines that
+   were too short for hosted workloads. The complete 370-assertion fixture
+   runner passed locally in 119.60s, while hosted executions reached the former
+   180s aggregate bound. The CLI fixture passed locally in 17.10s against a
+   former 20s per-execution bound; a cold driver probe took 34.16s locally and
+   reached 90s on a hosted runner. The repair retains the corpus and assertions,
+   gives these aggregate/compiler workloads separate bounded allowances, and
+   passed final local `make check` in 402s, including archive and relocation
+   smoke. All 41 focused coverage policy/reader tests passed. Fresh hosted
+   validation and coverage evidence remain required before promotion.
 4. **Source coverage refresh — published and verified.**
    Candidate `061212655bf90cc9aca56003b46aac68255a288c` passed
    [Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415).
@@ -71,12 +82,13 @@ in the roadmap; it is not an alpha.13 completion percentage.
    measurements; it does not claim complete percentages or whole-language
    coverage. Native coverage remains a separate main-channel report. Promotion
    checks and release input-freshness checks remain required.
-5. **Promotion — pending.** Prepare next-to-main PR with reconciled scope and P8
-   evidence, pass all required exact-head checks, obtain explicit owner approval.
-6. **Release — pending.** Obtain owner publication approval for the exact main SHA
-   and version; the Release workflow checks coverage freshness, full validation,
-   native archives/checksums and source provenance before publication. No tag or
-   release dispatch is authorised merely by completing preparation.
+5. **Promotion — authorised, checks pending.** The owner instructed “Finish the
+   release.” PR #504 promotes next to main after all required checks pass for
+   its exact current head. Repair the observed promotion failures first.
+6. **Release — authorised, publication pending.** After successful promotion,
+   dispatch the Release workflow for version 0.1.0-alpha.13 and the exact merged
+   main SHA. It checks coverage freshness, full validation, native archives,
+   checksums and source provenance before publication.
 7. **Public artifact acceptance — pending.** Verify published supported archives,
    checksums and clean installation before promoting installer defaults or website
    release/download claims. Website adoption is a separate reviewed publication.

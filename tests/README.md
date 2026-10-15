@@ -110,6 +110,15 @@ for the refresh contract.
 The compiler fixture allows 90 seconds for source execution and compilation,
 which can build the complete compiler. Ordinary fixture commands retain 20
 seconds; phase timing warnings remain independent of command timeouts.
+The CLI commands fixture runs nested package graph and race checks and permits
+120 seconds for each source/bytecode execution. Its enclosing harness permits
+300 seconds for both executions and compilation. Cold compiler-module probes
+permit 300 seconds to compile and execute; ordinary integration commands retain
+90 seconds. The complete 370-assertion fixture runner has a separate 600-second
+aggregate deadline. These bounds preserve every assertion and fresh execution;
+they are not performance targets. Promotion validation exposed the former
+180-second aggregate cutoff and a cold driver build reaching its 90-second
+enclosing limit on hosted runners.
 `make check` creates a fresh temporary report session. The oracle corpus runs
 `runner_smoke` on its selected VM; that smoke program executes the full fixture
 runner through the public CLI and captures its actual report only after checking

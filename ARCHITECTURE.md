@@ -240,6 +240,9 @@ structural branch/array joins, known iterable/index types, and return compatibil
 Record and variant construction, nominal fields and exhaustive matches use original
 declaration identities; payload bindings retain their lexical owners and types. Interpolated strings retain
 ordered lexical-local children and decoded text parts, including repeated uses.
+The explicit explanation load can retain the checker's proof-bearing conversions
+into guarded targets, including source types, guard expressions, available bounds
+and proof decisions; ordinary checking leaves this collection empty.
 `expression_contracts.panack` shares literal decoding and exact numeric result
 rules with the legacy checker/emitter; nominal identities never enter those
 scalar helpers. Nominals compare original
@@ -780,7 +783,7 @@ See `src/vm/README.md` for the complete file map and ownership conventions.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. The probes use fixed expectations;
@@ -1115,8 +1118,13 @@ checks validate record fields, integer ranges, actual handler ownership/kind and
 completion shapes, preserving old saved user functions with the public name.
 
 `tcp_server.c` owns a nonblocking listener and at most 32 reusable connection
-slots. It retains at most 256 outcomes in acceptance order. Each connection
-moves through read, handler-start, handler-run, write and free states. Poll
+slots. It retains at most 256 outcomes in acceptance order. `tcp_serve` moves
+each connection through EOF-read, handler-start, handler-run, write and free
+states. The additive streaming mode starts a worker on acceptance; only that
+child can register a bounded read, which moves the client into readiness polling
+until one chunk or EOF is completed. Per-client request bytes remain cumulative
+against the same hard limit, and the worker's typed context value is retained by
+the server owner for each accepted child. Poll
 snapshots include the unique admission index as well as the descriptor: an
 expired slot and reused descriptor cannot receive stale readiness. There are
 no externally queued server completions or native producer callbacks.
@@ -1140,11 +1148,98 @@ permission, so recursive server invocation traps. WASI returns unavailable.
 
 The CLI drives the same resumable dispatcher and owner pump. This does not
 extend the fake-host `VMTasks` experiment into a public source scheduler or add
-resource handles, general spawning, threads, indefinite servers, HTTP or TLS.
+resource handles or general source spawning. Continuous admission is a separate
+mode described below. HTTP framing
+and server behavior remain in the Panackelty package.
 The [roadmap](ROADMAP.md#bounded-async-tcp-server) owns delivery state and the
 subsequent broader grooming decision. Tests cover native ownership, source and
 saved-bytecode peers, allocation/descriptor faults, capabilities and browser
 rejection; [coverage evidence](tests/COVERAGE.md#bounded-tcp-server) records limits.
+
+## Continuous HTTP service and console adapters
+
+`tcp_server.c` reuses the finite transport's listener, reusable client slots,
+request deadlines and drain pump for continuous admission. Continuous mode retains
+three summary counters instead of per-client result history. It refuses sequence
+wrap, so stale poll identities cannot become valid again. A child execution runs
+the post-bind readiness callback before admission; readiness failure closes the
+listener, and stop cancels readiness without waiting for a blocked host operation.
+
+`execute.c` installs CLI signal handlers while a continuous service is active.
+Handlers only set a `sig_atomic_t` flag; the owner pump performs stop and restores
+previous dispositions when the service ends. Embedded executions retain explicit
+stop and separate listening, outbound, filesystem and console grants. Request
+children inherit the granted filesystem and console services, never listening.
+
+`packages/http/src/service.panack` supplies the protocol composition over the
+isolated `stdlib/tcp_service` module. A generic `ConnectionContext` passes typed
+configuration and a named request callback through a concrete connection worker.
+HTTP parsing and serialization stay in the package; existing finite entry points
+use the same configured connection path.
+
+`console_write.c` owns bounded asynchronous stdout/stderr workers for
+`stdlib/async_host`. Four retained operations, each at most 16 KiB plus newline,
+use copied input and duplicate descriptors. Workers suppress SIGPIPE using the host signal/descriptor mechanism, publish their
+owned result under a mutex, and never resume bytecode. Abandonment suppresses
+completion delivery; host I/O may continue until the descriptor operation returns.
+Arguments use the execution snapshot and exit uses the existing CLI/embedded exit
+boundary. Filesystem and console capacities are separate.
+
+## Static directory service and installed tool
+
+`packages/static_http` owns URL decoding, MIME selection, directory indexes,
+redirects, configured headers and file-to-response policy. Its only package
+dependency is `packages/http`; async file and console operations use the existing
+isolated adapters. `http/server.ConnectionPolicy` selects allowed methods and
+error headers without changing existing connection-context records or callers.
+
+```mermaid
+flowchart LR
+    Launcher[Website assembly and launcher] --> Tool[tools/http-server]
+    Tool --> Static[packages/static_http]
+    Static --> HTTP[packages/http service and server]
+    Static --> Files[stdlib/async_filesystem]
+    HTTP --> Transport[Existing continuous transport]
+```
+
+`tools/http-server/src/main.panack` owns CLI configuration and readiness output.
+Installation compiles it to `share/panackelty/http-server-v1.bc`; the installed
+`bin/panack-http-server` resolves the sibling runtime and bytecode relative to its
+own location. Source packages remain installed for library consumers. Moving the
+whole installation does not require recompilation or an adjacent source checkout.
+Website assembly and process orchestration remain in the website repository.
+
+## Asynchronous confined filesystem adapter
+
+`src/vm/root_read.c` provides native worker ownership for the isolated
+`stdlib/async_filesystem` module. It reuses the rooted resolver in
+`host_capabilities.c`; synchronous package-loading calls retain their existing
+contract. Root identity lookup supports startup validation of an empty directory.
+
+Workers own copied inputs and their result values. A mutex protects completion
+publication; only the execution owner resumes bytecode. Each execution has a
+separate pending filesystem operation and an explicit embedded filesystem grant.
+The native server passes that grant to children and polls pending operations
+through its existing bounded service loop. Network permission alone grants no
+filesystem access. The CLI's single-operation adapter can wait for completion
+without spinning.
+
+The process-wide bound is 32 retained operations. Cancelling an execution marks
+its operation abandoned and returns without waiting for host I/O. An abandoned
+worker frees its state and admission slot when its host call returns. No worker
+retains the VM, its program or coverage state. Cancellation therefore preserves
+VM lifetime safety even when a filesystem is slow; physical I/O completion and
+resource release can occur later. The fault harness protects concurrent allocation
+bookkeeping and can pause a read to prove this cancellation path deterministically.
+
+## Native HTTP client (P5 proof of concept)
+
+The [P5 design](docs/NATIVE_HTTP_CLIENT_DESIGN.md) keeps URL/request/response
+semantics in `packages/http` and uses a private native transport intrinsic only
+for DNS, connect, verified TLS and bounded raw duplex I/O. The current adapter
+uses libcurl multi connect-only mode; neither libcurl's HTTP parser nor its
+types and error strings cross the source boundary. The package owns response
+framing and typed errors. The backend is replaceable after alpha.13 evidence.
 
 ## Implicit core and standard methods
 
@@ -1461,12 +1556,20 @@ ordinary compilation runs purity only after successful type checking, while
 explanations can check separately type-valid functions with valid declarations. Resolver
 or loading errors yield no partial fabricated proofs. `explanations.panack`
 formats retained decisions against loaded source snapshots; `driver.panack`
-selects a function with `explain`. Whole-project validity, local proof status and
-unsupported evidence remain distinct. Generic evidence describes source
-function definitions. No runtime, emitter, serialization or v9 instruction changes
-are involved. The detailed [contract](docs/COMPILER_EXPLANATIONS.md) defines
-scope and source limits; U3 types/effects and the other programme queries remain
-open. The earlier investigation tables are historical inventories.
+selects a function with `explain`. It reports guarded conversions only when the
+checker consults facts for a guarded target; a compatible guarded source can
+now convert when its invariant proves the target, while a stricter target still
+needs additional facts. Guarded-to-base widening remains outside this proof
+query. It also reports inferred local types from the checked initializer and its
+source range, while annotated locals are omitted and incomplete results remain
+unavailable. Selected builtin argument checks, including path core calls, use
+retained actual/expected type decisions and source spans. Whole-project validity,
+local proof status and unsupported evidence remain distinct. Generic evidence
+describes source function definitions. No runtime, emitter, serialization or v9
+instruction changes are involved. The detailed
+[contract](docs/COMPILER_EXPLANATIONS.md) defines scope and source limits; U3
+types/effects and the other programme queries remain open. The earlier
+investigation tables are historical inventories.
 
 ## U3 local effect evidence
 
@@ -1529,3 +1632,12 @@ source roots and their closures without execution. Exact compiler/artifact/sourc
 envelopes are regenerated locally for validation; foreign metadata is never decoded.
 The dispatcher and bytecode format are unchanged. See
 [the inventory contract](docs/SOURCE_INVENTORY.md) for scope, anchors and limits.
+
+## Coverage container bounds
+
+Coverage plans, session registries and raw records have a 32 MiB container bound.
+Individual compiler/artifact/inventory identity blobs remain limited to 16 MiB;
+instruction-cell, execution-count and total-session budgets are unchanged.
+Synchronous filesystem reads/writes allow 32 MiB so the exporter and self-hosted
+reporter can exchange these bounded containers. Rooted/async filesystem, directory
+listing, process-output and HTTP limits retain their separate contracts.

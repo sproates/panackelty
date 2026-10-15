@@ -1,16 +1,9 @@
 name: Validation profile
 
-# Focused baselines are collected when profiling changes, or on manual request;
-# routine code PRs do not acquire an extra round of validation.
+# This profiling workflow runs six component checks across two platforms and
+# can take a long time. Run it on demand; PRs use the regular Check workflow.
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/profile.yml'
-      - 'tests/profile_command.sh'
-      - 'tests/check.sh'
-      - 'tests/run_probe.sh'
-      - 'tests/run_probes.sh'
 
 permissions:
   contents: read
@@ -34,6 +27,11 @@ jobs:
       VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv
     steps:
       - uses: actions/checkout@v6
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
       - name: Build ordinary native prerequisites
         env:
           VALIDATION_PROFILE_RUN: preparation

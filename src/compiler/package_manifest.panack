@@ -1,0 +1,885 @@
+import stdlib/text as std_text
+import stdlib/path as std_path
+import project/src/bytecode/decoder::{valid_utf8}
+import stdlib/bytes as byte_buffer
+
+// Keep manifest parsing independent of the compiler driver. The package loader
+// can consume this validated value once explicit project roots are wired in.
+pub record PackageManifestError {
+  message: Str,
+  offset: Nat
+}
+
+pub record PackageManifestExport {
+  module: Str,
+  path: Str
+}
+
+pub record PackageManifestDependency {
+  alias: Str,
+  path: Str
+}
+
+pub record PackageManifest {
+  package: Str,
+  version: Str,
+  language: Str,
+  toolchain: Str,
+  source: Str,
+  entry: Option[Str],
+  exports: [PackageManifestExport],
+  dependencies: [PackageManifestDependency]
+}
+
+enum ManifestJsonValue {
+  ManifestJsonNull,
+  ManifestJsonBool(Bool),
+  ManifestJsonNumber(Str),
+  ManifestJsonString(Str),
+  ManifestJsonArray([ManifestJsonValue]),
+  ManifestJsonObject([ManifestJsonMember])
+}
+
+record ManifestJsonMember {
+  key: Str,
+  value: ManifestJsonValue,
+  offset: Nat
+}
+
+record ParsedManifestJson {
+  value: ManifestJsonValue,
+  next: Nat
+}
+
+record ParsedManifestString {
+  value: Str,
+  next: Nat
+}
+
+record ParsedManifestHex {
+  value: Nat,
+  next: Nat
+}
+
+record ParsedManifestField {
+  value: ManifestJsonValue,
+  offset: Nat
+}
+
+pub pure package_manifest_byte_limit(): Nat {
+  65536
+}
+
+pure manifest_error(message: Str, offset: Nat): PackageManifestError {
+  PackageManifestError(message, offset)
+}
+
+pure manifest_json_whitespace(value: Nat): Bool {
+  value == 32 || value == 9 || value == 10 || value == 13
+}
+
+pure manifest_json_skip_whitespace(data: Bytes, cursor: Nat): Nat {
+  mut next = cursor
+  while next < byte_buffer.length(data) && manifest_json_whitespace(byte_buffer.at(data, next)) {
+    next = next + 1
+  }
+  next
+}
+
+pure manifest_json_digit(value: Nat): Bool {
+  value >= 48 && value <= 57
+}
+
+pure manifest_json_nonzero_digit(value: Nat): Bool {
+  value >= 49 && value <= 57
+}
+
+pure manifest_json_hex_digit(value: Nat): Option[Nat] {
+  if value >= 48 && value <= 57 { Some(value - 48) }
+  else if value >= 65 && value <= 70 { Some(value - 55) }
+  else if value >= 97 && value <= 102 { Some(value - 87) }
+  else { None() }
+}
+
+pure manifest_json_hex_quad(data: Bytes, cursor: Nat): Result[ParsedManifestHex, PackageManifestError] {
+  mut value: Nat = 0
+  mut next = cursor
+  mut failure: Option[PackageManifestError] = None()
+  while next < cursor + 4 && failure == None() {
+    if next >= byte_buffer.length(data) {
+      failure = Some(manifest_error("truncated JSON Unicode escape", next))
+    } else {
+      match manifest_json_hex_digit(byte_buffer.at(data, next)) {
+        Some(digit) => {
+          value = value * 16 + digit
+          next = next + 1
+        },
+        None() => { failure = Some(manifest_error("invalid JSON Unicode escape", next)) }
+      }
+    }
+  }
+  match failure {
+    Some(error) => Error(error),
+    None() => Ok(ParsedManifestHex(value, next))
+  }
+}
+
+pure manifest_json_append_code_point(output: Bytes, value: Nat): Bytes {
+  if value <= 127 {
+    byte_buffer.push(output, value)
+  } else if value <= 2047 {
+    byte_buffer.push(byte_buffer.push(output, 192 + quotient(value, 64)), 128 + value % 64)
+  } else if value <= 65535 {
+    byte_buffer.push(
+      byte_buffer.push(byte_buffer.push(output, 224 + quotient(value, 4096)),
+        128 + quotient(value, 64) % 64),
+      128 + value % 64)
+  } else {
+    byte_buffer.push(
+      byte_buffer.push(
+        byte_buffer.push(byte_buffer.push(output, 240 + quotient(value, 262144)),
+          128 + quotient(value, 4096) % 64),
+        128 + quotient(value, 64) % 64),
+      128 + value % 64)
+  }
+}
+
+pure manifest_nat_offset(value: Nat, base: Nat): Nat {
+  mut candidate = base
+  mut offset: Nat = 0
+  while candidate < value {
+    candidate = candidate + 1
+    offset = offset + 1
+  }
+  offset
+}
+
+pure parse_manifest_json_string(data: Bytes, cursor: Nat): Result[ParsedManifestString, PackageManifestError] {
+  if cursor >= byte_buffer.length(data) || byte_buffer.at(data, cursor) != 34 {
+    Error(manifest_error("expected JSON string", cursor))
+  } else {
+    mut output: Bytes = byte_buffer.empty()
+    mut next = cursor + 1
+    mut closed = false
+    mut failure: Option[PackageManifestError] = None()
+    while next < byte_buffer.length(data) && !closed && failure == None() {
+      value: Nat = byte_buffer.at(data, next)
+      if value == 34 {
+        next = next + 1
+        closed = true
+      } else if value < 32 {
+        failure = Some(manifest_error("unescaped control byte in JSON string", next))
+      } else if value == 92 {
+        if next + 1 >= byte_buffer.length(data) {
+          failure = Some(manifest_error("truncated JSON escape", next))
+        } else {
+          escaped: Nat = byte_buffer.at(data, next + 1)
+          if escaped == 34 || escaped == 92 || escaped == 47 {
+            output = byte_buffer.push(output, escaped)
+            next = next + 2
+          } else if escaped == 98 || escaped == 102 || escaped == 110 ||
+              escaped == 114 || escaped == 116 {
+            output = byte_buffer.push(output, if escaped == 98 { 8 } else {
+              if escaped == 102 { 12 } else { if escaped == 110 { 10 } else {
+                if escaped == 114 { 13 } else { 9 } } } })
+            next = next + 2
+          } else if escaped == 117 {
+            match manifest_json_hex_quad(data, next + 2) {
+              Error(error) => { failure = Some(error) },
+              Ok(first) => {
+                if first.value >= 55296 && first.value <= 56319 {
+                  if first.next + 2 > byte_buffer.length(data) ||
+                      byte_buffer.at(data, first.next) != 92 || byte_buffer.at(data, first.next + 1) != 117 {
+                    failure = Some(manifest_error("unpaired high surrogate in JSON string", next))
+                  } else {
+                    match manifest_json_hex_quad(data, first.next + 2) {
+                      Error(error) => { failure = Some(error) },
+                      Ok(second) => {
+                        if second.value < 56320 || second.value > 57343 {
+                          failure = Some(manifest_error("invalid low surrogate in JSON string", first.next))
+                        } else {
+                          high_offset: Nat = manifest_nat_offset(first.value, 55296)
+                          low_offset: Nat = manifest_nat_offset(second.value, 56320)
+                          code_point: Nat = 65536 + high_offset * 1024 + low_offset
+                          output = manifest_json_append_code_point(output, code_point)
+                          next = second.next
+                        }
+                      }
+                    }
+                  }
+                } else if first.value >= 56320 && first.value <= 57343 {
+                  failure = Some(manifest_error("unpaired low surrogate in JSON string", next))
+                } else {
+                  output = manifest_json_append_code_point(output, first.value)
+                  next = first.next
+                }
+              }
+            }
+          } else {
+            failure = Some(manifest_error("invalid JSON escape", next))
+          }
+        }
+      } else {
+        output = byte_buffer.push(output, value)
+        next = next + 1
+      }
+    }
+    if failure != None() { match failure { Some(error) => Error(error), None() => Error(manifest_error("invalid JSON string", next)) } }
+    else if !closed { Error(manifest_error("unterminated JSON string", cursor)) }
+    else { Ok(ParsedManifestString(std_text.decode_utf8(output), next)) }
+  }
+}
+
+pure manifest_json_literal_byte(character: Str): Nat {
+  if character == "t" { 116 }
+  else if character == "r" { 114 }
+  else if character == "u" { 117 }
+  else if character == "e" { 101 }
+  else if character == "f" { 102 }
+  else if character == "a" { 97 }
+  else if character == "l" { 108 }
+  else if character == "s" { 115 }
+  else if character == "n" { 110 }
+  else { 0 }
+}
+
+pure manifest_json_literal_matches(data: Bytes, cursor: Nat, literal: Str): Bool {
+  mut matches = cursor + len(literal) <= byte_buffer.length(data)
+  mut index: Nat = 0
+  while index < len(literal) && matches {
+    matches = byte_buffer.at(data, cursor + index) == manifest_json_literal_byte(literal[index])
+    index = index + 1
+  }
+  matches
+}
+
+pure parse_manifest_json_number(data: Bytes, cursor: Nat): Result[ParsedManifestJson, PackageManifestError] {
+  mut next = cursor
+  mut output: Bytes = byte_buffer.empty()
+  mut valid = true
+  if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 45 {
+    output = byte_buffer.push(output, 45)
+    next = next + 1
+  }
+  if next >= byte_buffer.length(data) {
+    valid = false
+  } else if byte_buffer.at(data, next) == 48 {
+    output = byte_buffer.push(output, 48)
+    next = next + 1
+    if next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
+      valid = false
+    }
+  } else if manifest_json_nonzero_digit(byte_buffer.at(data, next)) {
+    while next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
+      output = byte_buffer.push(output, byte_buffer.at(data, next))
+      next = next + 1
+    }
+  } else {
+    valid = false
+  }
+  if valid && next < byte_buffer.length(data) && byte_buffer.at(data, next) == 46 {
+    output = byte_buffer.push(output, 46)
+    next = next + 1
+    if next >= byte_buffer.length(data) || !manifest_json_digit(byte_buffer.at(data, next)) {
+      valid = false
+    } else {
+      while next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
+        output = byte_buffer.push(output, byte_buffer.at(data, next))
+        next = next + 1
+      }
+    }
+  }
+  if valid && next < byte_buffer.length(data) &&
+      (byte_buffer.at(data, next) == 69 || byte_buffer.at(data, next) == 101) {
+    output = byte_buffer.push(output, byte_buffer.at(data, next))
+    next = next + 1
+    if next < byte_buffer.length(data) && (byte_buffer.at(data, next) == 43 || byte_buffer.at(data, next) == 45) {
+      output = byte_buffer.push(output, byte_buffer.at(data, next))
+      next = next + 1
+    }
+    if next >= byte_buffer.length(data) || !manifest_json_digit(byte_buffer.at(data, next)) {
+      valid = false
+    } else {
+      while next < byte_buffer.length(data) && manifest_json_digit(byte_buffer.at(data, next)) {
+        output = byte_buffer.push(output, byte_buffer.at(data, next))
+        next = next + 1
+      }
+    }
+  }
+  if valid {
+    Ok(ParsedManifestJson(ManifestJsonNumber(std_text.decode_utf8(output)), next))
+  } else {
+    Error(manifest_error("invalid JSON number", cursor))
+  }
+}
+
+pure parse_manifest_json_array(data: Bytes, cursor: Nat, depth: Nat): Result[ParsedManifestJson, PackageManifestError] {
+  mut next = manifest_json_skip_whitespace(data, cursor + 1)
+  mut values: [ManifestJsonValue] = []
+  mut done = next < byte_buffer.length(data) && byte_buffer.at(data, next) == 93
+  mut failure: Option[PackageManifestError] = None()
+  if done { next = next + 1 }
+  while next < byte_buffer.length(data) && !done && failure == None() {
+    match parse_manifest_json_value(data, next, depth + 1) {
+      Error(error) => { failure = Some(error) },
+      Ok(parsed) => {
+        values = append(values, parsed.value)
+        next = manifest_json_skip_whitespace(data, parsed.next)
+        if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 44 {
+          next = manifest_json_skip_whitespace(data, next + 1)
+          if next >= byte_buffer.length(data) || byte_buffer.at(data, next) == 93 {
+            failure = Some(manifest_error("trailing comma in JSON array", next))
+          }
+        } else if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 93 {
+          next = next + 1
+          done = true
+        } else {
+          failure = Some(manifest_error("expected comma or closing bracket", next))
+        }
+      }
+    }
+  }
+  match failure {
+    Some(error) => Error(error),
+    None() => if done { Ok(ParsedManifestJson(ManifestJsonArray(values), next)) }
+      else { Error(manifest_error("unterminated JSON array", cursor)) }
+  }
+}
+
+pure parse_manifest_json_object(data: Bytes, cursor: Nat, depth: Nat): Result[ParsedManifestJson, PackageManifestError] {
+  mut next = manifest_json_skip_whitespace(data, cursor + 1)
+  mut members: [ManifestJsonMember] = []
+  mut seen: Map[Str, Bool] = map()
+  mut done = next < byte_buffer.length(data) && byte_buffer.at(data, next) == 125
+  mut failure: Option[PackageManifestError] = None()
+  if done { next = next + 1 }
+  while next < byte_buffer.length(data) && !done && failure == None() {
+    key_offset: Nat = next
+    match parse_manifest_json_string(data, next) {
+      Error(error) => { failure = Some(error) },
+      Ok(key) => {
+        if map_has(seen, key.value) {
+          failure = Some(manifest_error("duplicate JSON object key", key_offset))
+        } else {
+          next = manifest_json_skip_whitespace(data, key.next)
+          if next >= byte_buffer.length(data) || byte_buffer.at(data, next) != 58 {
+            failure = Some(manifest_error("expected colon after JSON object key", next))
+          } else {
+            next = manifest_json_skip_whitespace(data, next + 1)
+            match parse_manifest_json_value(data, next, depth + 1) {
+              Error(error) => { failure = Some(error) },
+              Ok(parsed) => {
+                members = append(members, ManifestJsonMember(key.value, parsed.value, key_offset))
+                seen = map_put(seen, key.value, true)
+                next = manifest_json_skip_whitespace(data, parsed.next)
+                if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 44 {
+                  next = manifest_json_skip_whitespace(data, next + 1)
+                  if next >= byte_buffer.length(data) || byte_buffer.at(data, next) == 125 {
+                    failure = Some(manifest_error("trailing comma in JSON object", next))
+                  }
+                } else if next < byte_buffer.length(data) && byte_buffer.at(data, next) == 125 {
+                  next = next + 1
+                  done = true
+                } else {
+                  failure = Some(manifest_error("expected comma or closing brace", next))
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  match failure {
+    Some(error) => Error(error),
+    None() => if done { Ok(ParsedManifestJson(ManifestJsonObject(members), next)) }
+      else { Error(manifest_error("unterminated JSON object", cursor)) }
+  }
+}
+
+pure parse_manifest_json_value(data: Bytes, cursor: Nat, depth: Nat): Result[ParsedManifestJson, PackageManifestError] {
+  next: Nat = manifest_json_skip_whitespace(data, cursor)
+  if depth > 32 {
+    Error(manifest_error("manifest JSON nesting exceeds 32 levels", next))
+  } else if next >= byte_buffer.length(data) {
+    Error(manifest_error("expected JSON value", next))
+  } else {
+    value: Nat = byte_buffer.at(data, next)
+    if value == 34 {
+      match parse_manifest_json_string(data, next) {
+        Error(error) => Error(error),
+        Ok(parsed) => Ok(ParsedManifestJson(ManifestJsonString(parsed.value), parsed.next))
+      }
+    } else if value == 123 {
+      parse_manifest_json_object(data, next, depth)
+    } else if value == 91 {
+      parse_manifest_json_array(data, next, depth)
+    } else if value == 116 && manifest_json_literal_matches(data, next, "true") {
+      Ok(ParsedManifestJson(ManifestJsonBool(true), next + 4))
+    } else if value == 102 && manifest_json_literal_matches(data, next, "false") {
+      Ok(ParsedManifestJson(ManifestJsonBool(false), next + 5))
+    } else if value == 110 && manifest_json_literal_matches(data, next, "null") {
+      Ok(ParsedManifestJson(ManifestJsonNull(), next + 4))
+    } else if value == 45 || manifest_json_digit(value) {
+      parse_manifest_json_number(data, next)
+    } else {
+      Error(manifest_error("expected JSON value", next))
+    }
+  }
+}
+
+pure parse_manifest_json(data: Bytes): Result[ManifestJsonValue, PackageManifestError] {
+  if byte_buffer.length(data) > package_manifest_byte_limit() {
+    Error(manifest_error("manifest exceeds 65536-byte limit", package_manifest_byte_limit()))
+  } else if !valid_utf8(data) {
+    Error(manifest_error("manifest is not valid UTF-8", 0))
+  } else {
+    match parse_manifest_json_value(data, 0, 0) {
+      Error(error) => Error(error),
+      Ok(parsed) => {
+        next: Nat = manifest_json_skip_whitespace(data, parsed.next)
+        if next == byte_buffer.length(data) { Ok(parsed.value) }
+        else { Error(manifest_error("trailing data after JSON value", next)) }
+      }
+    }
+  }
+}
+
+pure manifest_json_object_field(value: ManifestJsonValue, name: Str): Option[ParsedManifestField] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut result: Option[ParsedManifestField] = None()
+      for member in members {
+        if member.key == name { result = Some(ParsedManifestField(member.value, member.offset)) }
+      }
+      result
+    },
+    ManifestJsonNull() => None(),
+    ManifestJsonBool(flag) => None(),
+    ManifestJsonNumber(number) => None(),
+    ManifestJsonString(text) => None(),
+    ManifestJsonArray(values) => None()
+  }
+}
+
+pure manifest_json_string_field(value: ManifestJsonValue, name: Str): Result[Str, PackageManifestError] {
+  match manifest_json_object_field(value, name) {
+    None() => Error(manifest_error("missing required string field ${name}", 0)),
+    Some(field) => match field.value {
+      ManifestJsonString(text) => Ok(text),
+      ManifestJsonNull() => Error(manifest_error("manifest field ${name} must be a string", field.offset)),
+      ManifestJsonBool(flag) => Error(manifest_error("manifest field ${name} must be a string", field.offset)),
+      ManifestJsonNumber(number) => Error(manifest_error("manifest field ${name} must be a string", field.offset)),
+      ManifestJsonArray(values) => Error(manifest_error("manifest field ${name} must be a string", field.offset)),
+      ManifestJsonObject(members) => Error(manifest_error("manifest field ${name} must be a string", field.offset))
+    }
+  }
+}
+
+pure manifest_name_is_allowed(allowed: [Str], name: Str): Bool {
+  mut found = false
+  for candidate in allowed {
+    if candidate == name { found = true }
+  }
+  found
+}
+
+pure manifest_object_unknown_field(value: ManifestJsonValue, allowed: [Str]): Option[PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if !manifest_name_is_allowed(allowed, member.key) && failure == None() {
+          failure = Some(manifest_error("unknown manifest field ${member.key}", member.offset))
+        }
+      }
+      failure
+    },
+    ManifestJsonNull() => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonBool(flag) => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonNumber(number) => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonString(text) => Some(manifest_error("manifest must be a JSON object", 0)),
+    ManifestJsonArray(values) => Some(manifest_error("manifest must be a JSON object", 0))
+  }
+}
+
+pure manifest_ascii_letter(character: Str): Bool {
+  (character >= "a" && character <= "z") ||
+    (character >= "A" && character <= "Z")
+}
+
+pure manifest_ascii_digit(character: Str): Bool {
+  character >= "0" && character <= "9"
+}
+
+pure manifest_identifier(value: Str): Bool {
+  if len(value) == 0 { false }
+  else {
+    first: Str = value[0]
+    mut valid = manifest_ascii_letter(first) || first == "_"
+    mut cursor: Nat = 1
+    while cursor < len(value) && valid {
+      character: Str = value[cursor]
+      valid = manifest_ascii_letter(character) || manifest_ascii_digit(character) || character == "_"
+      cursor = cursor + 1
+    }
+    valid
+  }
+}
+
+pure manifest_package_name(value: Str): Bool {
+  if len(value) == 0 { false }
+  else {
+    mut segment_start: Nat = 0
+    mut cursor: Nat = 0
+    mut valid = true
+    while cursor <= len(value) && valid {
+      if cursor == len(value) || value[cursor] == "." {
+        segment: Str = slice(value, segment_start, cursor)
+        valid = manifest_identifier(segment)
+        segment_start = cursor + 1
+      } else {
+        character: Str = value[cursor]
+        valid = manifest_ascii_letter(character) || manifest_ascii_digit(character) || character == "_"
+      }
+      cursor = cursor + 1
+    }
+    valid
+  }
+}
+
+pure manifest_logical_path(value: Str): Bool {
+  if len(value) == 0 { false }
+  else {
+    mut segment_start: Nat = 0
+    mut cursor: Nat = 0
+    mut valid = true
+    while cursor <= len(value) && valid {
+      if cursor == len(value) || value[cursor] == "/" {
+        valid = manifest_identifier(slice(value, segment_start, cursor))
+        segment_start = cursor + 1
+      }
+      cursor = cursor + 1
+    }
+    valid
+  }
+}
+
+pure manifest_path_ends_with(path: Str, suffix: Str): Bool {
+  path.ends_with(suffix)
+}
+
+pure manifest_relative_path_error(
+  value: Str,
+  allow_parent: Bool,
+  require_source_suffix: Bool,
+  offset: Nat
+): Option[PackageManifestError] {
+  encoded: Bytes = std_text.encode_utf8(value)
+  mut failure: Option[PackageManifestError] = None()
+  mut byte_index: Nat = 0
+  while byte_index < byte_buffer.length(encoded) && failure == None() {
+    if byte_buffer.at(encoded, byte_index) == 0 {
+      failure = Some(manifest_error("manifest paths cannot contain NUL", offset))
+    }
+    byte_index = byte_index + 1
+  }
+  if failure != None() { failure }
+  else if len(value) == 0 {
+    Some(manifest_error("manifest paths cannot be empty", offset))
+  } else if value[0] == "/" || value[0] == "\\" ||
+      (len(value) >= 2 && manifest_ascii_letter(value[0]) && value[1] == ":") {
+    Some(manifest_error("manifest paths must be relative", offset))
+  } else {
+    mut cursor: Nat = 0
+    mut segment_start: Nat = 0
+    mut valid = true
+    while cursor <= len(value) && valid {
+      if cursor == len(value) || value[cursor] == "/" {
+        segment: Str = slice(value, segment_start, cursor)
+        valid = len(segment) > 0 && (allow_parent || (segment != "." && segment != ".."))
+        segment_start = cursor + 1
+      } else {
+        valid = value[cursor] != "\\"
+      }
+      cursor = cursor + 1
+    }
+    if !valid {
+      Some(manifest_error("manifest path has an empty, parent, or non-portable segment", offset))
+    } else if require_source_suffix && !manifest_path_ends_with(value, ".panack") {
+      Some(manifest_error("manifest source paths must end in .panack", offset))
+    } else {
+      None()
+    }
+  }
+}
+
+pure manifest_numeric_version_part(value: Str, start: Nat, end: Nat): Bool {
+  mut part_length: Nat = 0
+  mut cursor: Nat = start
+  while cursor < end {
+    part_length = part_length + 1
+    cursor = cursor + 1
+  }
+  first_character: Str = if start < len(value) { value[start] } else { "" }
+  if start >= end || (part_length > 1 && first_character == "0") { false }
+  else {
+    mut valid = true
+    cursor = start
+    while cursor < end && valid {
+      valid = manifest_ascii_digit(value[cursor])
+      cursor = cursor + 1
+    }
+    valid
+  }
+}
+
+pure manifest_prerelease_part(value: Str, start: Nat, end: Nat): Bool {
+  if start >= end { false }
+  else {
+    mut segment_start = start
+    mut cursor = start
+    mut valid = true
+    while cursor <= end && valid {
+      if cursor == end || value[cursor] == "." {
+        if cursor == segment_start {
+          valid = false
+        } else {
+          mut numeric = true
+          mut segment_cursor = segment_start
+          while segment_cursor < cursor {
+            numeric = numeric && manifest_ascii_digit(value[segment_cursor])
+            segment_cursor = segment_cursor + 1
+          }
+          mut part_length: Nat = 0
+          mut count_cursor = segment_start
+          while count_cursor < cursor {
+            part_length = part_length + 1
+            count_cursor = count_cursor + 1
+          }
+          first_character: Str = value[segment_start]
+          if numeric && part_length > 1 && first_character == "0" {
+            valid = false
+          }
+        }
+        segment_start = cursor + 1
+      } else {
+        character: Str = value[cursor]
+        valid = manifest_ascii_letter(character) || manifest_ascii_digit(character) || character == "-"
+      }
+      cursor = cursor + 1
+    }
+    valid
+  }
+}
+
+pure manifest_semver(value: Str): Bool {
+  mut dash: Option[Nat] = None()
+  mut cursor: Nat = 0
+  mut valid = true
+  while cursor < len(value) && dash == None() {
+    if value[cursor] == "+" { valid = false }
+    if value[cursor] == "-" { dash = Some(cursor) }
+    cursor = cursor + 1
+  }
+  core_end: Nat = match dash { Some(index) => index, None() => len(value) }
+  mut segment_start: Nat = 0
+  mut components: Nat = 0
+  cursor = 0
+  while cursor <= core_end && valid {
+    if cursor == core_end || value[cursor] == "." {
+      valid = manifest_numeric_version_part(value, segment_start, cursor)
+      components = components + 1
+      segment_start = cursor + 1
+    }
+    cursor = cursor + 1
+  }
+  valid = valid && components == 3
+  match dash {
+    Some(index) => valid && manifest_prerelease_part(value, index + 1, len(value)),
+    None() => valid
+  }
+}
+
+pure manifest_manifest_exports(value: ManifestJsonValue): Result[[PackageManifestExport], PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut exports: [PackageManifestExport] = []
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if !manifest_logical_path(member.key) && failure == None() {
+          failure = Some(manifest_error("export keys must be slash-separated identifiers", member.offset))
+        }
+        match member.value {
+          ManifestJsonString(path) => match manifest_relative_path_error(path, false, true, member.offset) {
+            Some(error) => if failure == None() { failure = Some(error) },
+            None() => { exports = append(exports, PackageManifestExport(member.key, path)) }
+          },
+          ManifestJsonNull() => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonBool(flag) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonNumber(number) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonArray(items) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) },
+          ManifestJsonObject(fields) => if failure == None() { failure = Some(manifest_error("export paths must be strings", member.offset)) }
+        }
+      }
+      match failure {
+        Some(error) => Error(error),
+        None() => Ok(exports)
+      }
+    },
+    ManifestJsonNull() => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonBool(flag) => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonNumber(number) => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonString(text) => Error(manifest_error("manifest exports must be an object", 0)),
+    ManifestJsonArray(items) => Error(manifest_error("manifest exports must be an object", 0))
+  }
+}
+
+pure manifest_manifest_dependencies(value: ManifestJsonValue): Result[[PackageManifestDependency], PackageManifestError] {
+  match value {
+    ManifestJsonObject(members) => {
+      mut dependencies: [PackageManifestDependency] = []
+      mut failure: Option[PackageManifestError] = None()
+      for member in members {
+        if (!manifest_identifier(member.key) || member.key == "project" || member.key == "stdlib") && failure == None() {
+          failure = Some(manifest_error("dependency aliases must be identifiers other than project or stdlib", member.offset))
+        }
+        if failure == None() {
+          match manifest_object_unknown_field(member.value, ["path"]) {
+            Some(error) => { failure = Some(error) },
+            None() => match manifest_json_string_field(member.value, "path") {
+              Error(error) => { failure = Some(error) },
+              Ok(path) => match manifest_json_object_field(member.value, "path") {
+                Some(path_field) => match manifest_relative_path_error(path, true, false, path_field.offset) {
+                  Some(error) => { failure = Some(error) },
+                  None() => { dependencies = append(dependencies, PackageManifestDependency(member.key, path)) }
+                },
+                None() => { failure = Some(manifest_error("dependency path is required", member.offset)) }
+              }
+            }
+          }
+        }
+      }
+      match failure {
+        Some(error) => Error(error),
+        None() => Ok(dependencies)
+      }
+    },
+    ManifestJsonNull() => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonBool(flag) => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonNumber(number) => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonString(text) => Error(manifest_error("manifest dependencies must be an object", 0)),
+    ManifestJsonArray(items) => Error(manifest_error("manifest dependencies must be an object", 0))
+  }
+}
+
+pure manifest_json_schema_is_one(value: ManifestJsonValue): Bool {
+  match value {
+    ManifestJsonNumber(number) => number == "1",
+    ManifestJsonNull() => false,
+    ManifestJsonBool(flag) => false,
+    ManifestJsonString(text) => false,
+    ManifestJsonArray(items) => false,
+    ManifestJsonObject(members) => false
+  }
+}
+
+pub pure parse_package_manifest(data: Bytes, supported_toolchain: Str): Result[PackageManifest, PackageManifestError] {
+  match parse_manifest_json(data) {
+    Error(error) => Error(error),
+    Ok(root) => match manifest_object_unknown_field(root,
+      ["schema", "package", "version", "language", "toolchain", "source", "entry", "exports", "dependencies"]) {
+      Some(error) => Error(error),
+      None() => {
+        schema_field: Option[ParsedManifestField] = manifest_json_object_field(root, "schema")
+        package_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "package")
+        version_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "version")
+        language_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "language")
+        toolchain_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "toolchain")
+        source_field: Result[Str, PackageManifestError] = manifest_json_string_field(root, "source")
+        exports_field: Option[ParsedManifestField] = manifest_json_object_field(root, "exports")
+        dependencies_field: Option[ParsedManifestField] = manifest_json_object_field(root, "dependencies")
+        entry_field: Option[ParsedManifestField] = manifest_json_object_field(root, "entry")
+        mut failure: Option[PackageManifestError] = None()
+        match schema_field {
+          None() => { failure = Some(manifest_error("missing required manifest field schema", 0)) },
+          Some(field) => if !manifest_json_schema_is_one(field.value) {
+            failure = Some(manifest_error("manifest schema must be the integer 1", field.offset))
+          }
+        }
+        package: Str = match package_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        version: Str = match version_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        language: Str = match language_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        toolchain: Str = match toolchain_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        source: Str = match source_field {
+          Error(error) => { if failure == None() { failure = Some(error) }; "" },
+          Ok(value) => value
+        }
+        if failure == None() && !manifest_package_name(package) {
+          failure = Some(manifest_error("package must be a dotted ASCII identifier", 0))
+        }
+        if failure == None() && !manifest_semver(version) {
+          failure = Some(manifest_error("package version must be exact major.minor.patch with an optional prerelease", 0))
+        }
+        if failure == None() && language != "modules-v1" {
+          failure = Some(manifest_error("unsupported manifest language; expected modules-v1", 0))
+        }
+        if failure == None() && (supported_toolchain == "" || toolchain != supported_toolchain) {
+          failure = Some(manifest_error("manifest toolchain must exactly match the supported release", 0))
+        }
+        match manifest_json_object_field(root, "source") {
+          Some(field) => match manifest_relative_path_error(source, false, false, field.offset) {
+            Some(error) => if failure == None() { failure = Some(error) },
+            None() => {}
+          },
+          None() => {}
+        }
+        mut entry: Option[Str] = None()
+        match entry_field {
+          None() => {},
+          Some(field) => match field.value {
+            ManifestJsonString(value) => match manifest_relative_path_error(value, false, true, field.offset) {
+              Some(error) => if failure == None() { failure = Some(error) },
+              None() => { entry = Some(value) }
+            },
+            ManifestJsonNull() => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonBool(flag) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonNumber(number) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonArray(items) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) },
+            ManifestJsonObject(members) => if failure == None() { failure = Some(manifest_error("entry must be a string", field.offset)) }
+          }
+        }
+        exports: [PackageManifestExport] = match exports_field {
+          None() => { if failure == None() { failure = Some(manifest_error("missing required manifest field exports", 0)) }; [] },
+          Some(field) => match manifest_manifest_exports(field.value) {
+            Error(error) => { if failure == None() { failure = Some(error) }; [] },
+            Ok(values) => values
+          }
+        }
+        dependencies: [PackageManifestDependency] = match dependencies_field {
+          None() => { if failure == None() { failure = Some(manifest_error("missing required manifest field dependencies", 0)) }; [] },
+          Some(field) => match manifest_manifest_dependencies(field.value) {
+            Error(error) => { if failure == None() { failure = Some(error) }; [] },
+            Ok(values) => values
+          }
+        }
+        match failure {
+          Some(error) => Error(error),
+          None() => Ok(PackageManifest(package, version, language, toolchain, source, entry, exports, dependencies))
+        }
+      }
+    }
+  }
+}

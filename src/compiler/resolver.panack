@@ -49,8 +49,10 @@ pure resolver_diagnostics_at(diagnostics: [Diagnostic], position: SourcePos): [D
 }
 
 pub pure is_builtin(name: Str): Bool {
-  name == "async_fake_read" || name == "tcp_exchange" || name == "tcp_serve" ||
-    name == "fs_read" ||
+  name == "async_fake_read" || name == "tcp_exchange" || name == "http_transport_exchange" || name == "tcp_serve" ||
+    name == "tcp_service" || name == "tcp_serve_stream" || name == "tcp_server_read_chunk" ||
+    (name == "fs_read_beneath" || name == "host_arguments_async" || name == "host_stdout_async" ||
+    name == "host_stderr_async" || name == "host_exit_async" || name == "fs_read_beneath_async" || name == "fs_root_identity_async") || name == "fs_directories_overlap" || name == "fs_read" ||
     name == "fs_write" ||
     name == "fs_metadata" ||
     name == "fs_list" ||

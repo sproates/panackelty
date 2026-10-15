@@ -96,7 +96,8 @@ named functions below; infix arithmetic and ordering are not overloaded.
 
 ### Native paths
 
-Import `stdlib/path` for `PathError`, `Result`, and `Option`. The initial native
+Import `stdlib/path` as a module, for example `import stdlib/path as path`.
+The initial native
 representation is POSIX bytes on the supported Linux and macOS targets. Text
 construction encodes UTF-8; native construction preserves arbitrary bytes.
 Both reject empty input (`EmptyPath`) and embedded NUL (`PathContainsNul`).
@@ -106,16 +107,16 @@ or containment within a directory.
 
 | Function | Result and behavior |
 | --- | --- |
-| `path_from_text(Str)` | `Result[Path,PathError]`; checked UTF-8 construction |
-| `path_from_native(Bytes)` | `Result[Path,PathError]`; checked native-byte construction |
-| `path_current()` | `Path` containing `.`; does not capture the working directory |
-| `path_native_bytes(Path)` | Exact native `Bytes` |
-| `path_to_text(Path)` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
-| `path_display(Path)` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
-| `path_absolute(Path)` | `Bool`; whether the first byte is `/` |
-| `path_append(Path, Path)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
-| `path_directory(Path)` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
-| `path_filename(Path)` | `Option[Path]`; last nonempty component, or `None` for a root |
+| `path.from_text(Str)` | `Result[Path,PathError]`; checked UTF-8 construction |
+| `path.from_native(Bytes)` | `Result[Path,PathError]`; checked native-byte construction |
+| `path.current()` | `Path` containing `.`; does not capture the working directory |
+| `path.native_bytes(Path)` | Exact native `Bytes` |
+| `path.to_text(Path)` | `Result[Str,PathError]`; `PathNotUtf8` on invalid UTF-8 |
+| `path.display(Path)` | ASCII `Str`; escapes backslash, controls, and non-ASCII bytes as lowercase `\xhh` |
+| `path.is_absolute(Path)` | `Bool`; whether the first byte is `/` |
+| `path.join(Path, Path)` | `Result[Path,PathError]`; rejects an absolute right operand with `AbsolutePathAppend` |
+| `path.directory(Path)` | Lexical parent `Path`; a bare component has parent `.` and a root is its own parent |
+| `path.filename(Path)` | `Option[Path]`; last nonempty component, or `None` for a root |
 
 Appending inserts `/` only when the left operand does not already end with it.
 No operation collapses `.` or `..`, resolves symbolic links, changes case, or
@@ -126,11 +127,13 @@ components remain literal components. Equality compares native bytes exactly:
 humans, not a serialization or shell-escaping format; printing an unconverted
 Path produces `<Path>`.
 
-The existing Str-based `path_parent`, `path_join`, `path_suffix`,
-`path_with_suffix`, `path_is_absolute`, `path_resolve`, and `file_exists` retain
-their bootstrap-compatible contracts. In particular, the old `path_join`
-normalizes its result; the typed `path_append` never does. Typed filesystem queries and I/O are specified below. Non-POSIX
-representations remain follow-up work.
+The standard-library
+`path` module exposes only the typed `Path` operations above. The older
+compiler-known Str path identities remain available for bootstrap internals;
+their string-based adapter functions are not re-exported by the standard
+library. In particular, the legacy `path_join` intrinsic normalizes its result,
+while `path.join` never does. Typed filesystem queries and I/O are specified
+below. Non-POSIX representations remain follow-up work.
 
 ### Exact durations
 
@@ -141,16 +144,16 @@ at their boundaries, as specified below.
 
 | Function | Result and behavior |
 | --- | --- |
-| `duration_nanoseconds(Int)` | Exact `Duration` |
-| `duration_milliseconds(Int)` / `duration_seconds(Int)` | Exact scaled `Duration` |
-| `duration_ticks(Duration)` | Signed `Int` nanoseconds |
-| `duration_from_seconds(Rat)` | `Result[Duration,DurationError]`; rejects fractional nanoseconds |
-| `duration_as_seconds(Duration)` | Exact `Rat`, without rounding |
-| `duration_add(Duration, Duration)` / `duration_subtract(Duration, Duration)` | Exact `Duration` |
-| `duration_scale(Duration, Int)` | Exact `Duration` |
-| `duration_divide(Duration, Int)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
-| `duration_ratio(Duration, Duration)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
-| `duration_before(Duration, Duration)` | `Bool`; signed less-than comparison |
+| `time.from_nanoseconds(Int)` | Exact `Duration` |
+| `time.milliseconds(Int)` / `time.seconds(Int)` | Exact scaled `Duration` |
+| `time.ticks(Duration)` | Signed `Int` nanoseconds |
+| `time.from_seconds(Rat)` | `Result[Duration,DurationError]`; rejects fractional nanoseconds |
+| `time.as_seconds(Duration)` | Exact `Rat`, without rounding |
+| `time.add(Duration, Duration)` / `time.subtract(Duration, Duration)` | Exact `Duration` |
+| `time.scale(Duration, Int)` | Exact `Duration` |
+| `time.divide(Duration, Int)` | `Result[Duration,DurationError]`; requires an exact integer number of nanoseconds |
+| `time.ratio(Duration, Duration)` | `Result[Rat,DurationError]`; exact dimensionless ratio |
+| `time.is_before(Duration, Duration)` | `Bool`; signed less-than comparison |
 
 `DurationError` is `FractionalNanosecond` or `ZeroDurationDivisor`.
 Construction from seconds accepts an explicitly rational expression such as
@@ -163,15 +166,15 @@ nanoseconds.
 
 ### Monotonic instants
 
-`instant_now(): Result[Instant,ClockError]` reads the host's `CLOCK_MONOTONIC`.
+`time.now(): Result[Instant,ClockError]` reads the host's `CLOCK_MONOTONIC`.
 It is effectful, including when used through other functions. Host read failure
 returns `Error(ClockUnavailable())`. All other operations here are pure:
 
 | Function | Result and behavior |
 | --- | --- |
-| `instant_add(Instant, Duration)` | A shifted `Instant`, including for negative durations |
-| `instant_difference(Instant, Instant)` | Signed `Duration`: first operand minus second |
-| `instant_before(Instant, Instant)` | `Bool`; strict less-than comparison |
+| `time.add_instant(Instant, Duration)` | A shifted `Instant`, including for negative durations |
+| `time.difference(Instant, Instant)` | Signed `Duration`: first operand minus second |
+| `time.is_before_instant(Instant, Instant)` | `Bool`; strict less-than comparison |
 
 All instants obtainable within one program execution share one monotonic clock
 domain. Repeated reads may be equal; later reads do not precede earlier reads.
@@ -460,10 +463,13 @@ A guarded type is a nominal refinement of a primitive scalar. `value` denotes
 the candidate value. The initial decidable guard language contains literals,
 `value`, comparisons, `&&`, `||`, and arithmetic.
 
-The checker accepts a conversion only when it can prove the guard from a
-literal or from facts introduced by a surrounding `if`. It does not silently
-insert a runtime check. A future `check<T>(expression): Result<T, GuardError>`
-operation will be the explicit boundary for untrusted values.
+The checker accepts a conversion only when it can prove the target guard from
+the value's literal, facts introduced by a surrounding `if`, or the invariant
+of a guarded source type with a compatible primitive base. A guarded source
+does not prove a stricter target unless its invariant entails that target
+guard. The checker does not silently insert a runtime check. A future
+`check<T>(expression): Result<T, GuardError>` operation will be the explicit
+boundary for untrusted values.
 
 This separation is important: arbitrary user code in guards would make type
 checking non-terminating. Guards therefore remain total, pure, and within a
@@ -538,27 +544,27 @@ and trap before any filesystem operation rather than being truncated.
 
 The standard library is an explicit module graph. Core `Option[T]` and
 `Result[T,E]` types, their constructors, and built-in text/collection methods
-are available in every source program. The compatibility module
-`stdlib/prelude` explicitly re-exports the option/result helpers, byte/text,
-path, environment, time, filesystem and process APIs listed in
-`src/stdlib/README.md`; host, testing and TCP APIs remain separate modules.
-Portable source wrappers provide the `bytes_*` and checked
-`environment(name): Option[Str]` APIs.
+are available in every source program. The curated `stdlib/prelude` re-exports
+the `option`, `result`, `byte_buffer`, `text`, `path`, `environment`, `time`,
+`filesystem`, and `process` modules. Host, testing, numeric,
+package-filesystem, and TCP APIs remain separate modules. Import domain modules
+and use short names within them, such as `path.from_text` or
+`byte_buffer.join`; the prelude uses `byte_buffer` to preserve the core
+`bytes()` constructor.
 
-Persistent array, map, and set operations and the `path_*` operations retain
-their compiler-known polymorphic signatures. They are part of the standard
-library surface: storage operations still execute as VM primitives, while array
-`map` and `reduce` retain their compiler lowering. Source generics provide
-`option_value_or[T]`, `result_value_or[T,E]`, and array `first[T]()` without new
-primitives. Host access remains limited to the ABI calls identified above.
+Persistent array, map, and set operations retain their compiler-known
+polymorphic signatures. Storage operations still execute as VM primitives,
+while array `map` and `reduce` retain their compiler lowering. The generic
+`option.value_or[T]` and `result.value_or[T,E]` helpers are ordinary source
+functions; array `first[T]()` remains a core method. Host access remains limited
+to the ABI calls identified above.
 
 `len` also accepts arrays and byte buffers.
 
-The separately imported `stdlib/testing` module supplies pure `TestResult`
-assertions for Boolean conditions and equality of `Str` and `Nat`. Its effectful
-`test_report` prints outcomes in caller-supplied order and returns the number
-of failures; it does not choose an exit status. Fixture discovery and command
-execution are not part of this initial module.
+The separately imported `stdlib/testing` module supplies pure `expect`,
+`equal_str`, and `equal_nat` assertions that return `TestResult`. Its effectful
+`report` prints outcomes in caller-supplied order and returns the number of
+failures; it does not choose an exit status.
 
 The separately imported `stdlib/testing_files` module discovers immediate
 directory children in the host's deterministic native-byte order and returns
@@ -568,14 +574,14 @@ an atomically created temporary directory. Callers remove its contents and
 explicitly remove the empty directory; nonempty removal fails. This API does
 not establish containment, a filesystem snapshot, or automatic cleanup.
 
-`stdlib/testing_commands` uses the existing bounded `process_run` contract.
-Its `TestCommand` holds the complete invocation, and `test_run_command`
-compares exit code, signal, and both byte streams against a `ProcessOutput`.
-The first mismatch is reported as a `TestResult`; host errors also become
-failed tests. `test_expect_command_error` instead checks a portable host-error
-category. A completed nonzero exit is distinct from a launch or collection
-failure. Pure helpers can check already captured outputs or results without
-running a command. No implicit shell, PATH search, decoding, or sandbox is added.
+`stdlib/testing_commands` uses the bounded `process.run` contract. Its
+`TestCommand` holds the complete invocation, and `run_command` compares exit
+code, signal, and both byte streams against a `ProcessOutput`. The first
+mismatch is reported as a `TestResult`; host errors also become failed tests.
+`expect_command_error` instead checks a portable host-error category. A
+completed nonzero exit is distinct from a launch or collection failure. Pure
+helpers can check already captured outputs or results without running a
+command. No implicit shell, PATH search, decoding, or sandbox is added.
 
 ## Strings
 
@@ -740,10 +746,12 @@ bounds checks in lexers and parsers.
 They are defined once in the bundled `core.panack`; redeclaring their names is
 an error. The loader requires a configured stdlib root containing this core,
 including when `PANACKELTY_STDLIB_PATH` is overridden. The public launcher
-configures the bundled root. No host, testing or value-or helpers are implicitly
-imported. `stdlib/option` and `stdlib/result` now contain only the explicitly
-imported `option_value_or` and `result_value_or` helpers. `stdlib/text` and
-`stdlib/collections` and their prefixed wrappers have been removed; use methods.
+configures the bundled root. No host, testing, or domain-module helper is
+implicitly imported. The explicit
+`stdlib/option` and `stdlib/result` modules provide their generic
+`value_or` helpers within their respective namespaces. Byte and text helpers
+live in `stdlib/bytes` and `stdlib/text`; core string and collection operations
+remain available as methods.
 
 Modules support quoted file-relative imports and logical imports:
 
@@ -806,7 +814,7 @@ program.bc` loads, verifies, and executes that artifact directly.
 
 The CLI drives ordinary main synchronously and async main through the same VM's
 suspend/complete loop. Async services include a deterministic fake read and a
-bounded native TCP exchange and finite concurrent TCP servers. There is no
+bounded native TCP exchange, finite concurrent TCP servers and continuous native services. There is no
 source task-spawning syntax.
 
 The compiler emits stack instructions with a named function table and purity
@@ -889,10 +897,11 @@ should be added when those programs demonstrate a concrete need.
 
 ## Typed filesystem, process, and sleep APIs
 
-Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; `stdlib/prelude`
-includes all three. These APIs use the existing opaque `Path` and `Duration`
-values. Host calls are effectful, including metadata, enumeration, and sleep.
-Only `host_decode_utf8` is pure.
+Import `stdlib/filesystem`, `stdlib/process`, or `stdlib/time`; the prelude
+re-exports these modules. These APIs use opaque `Path` and `Duration` values.
+Host calls are effectful, including metadata, enumeration, and sleep. The
+portable `text.decode_utf8` operation is pure and traps on invalid input;
+`host.decode_utf8` returns a checked result.
 
 Failures return `Result[T,HostError]`, where
 `HostError { operation: Str, code: Str, native_code: Nat }` identifies the service,
@@ -910,23 +919,24 @@ allocate an error value.
 
 | Function | Result |
 | --- | --- |
-| `fs_read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
-| `fs_write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
-| `fs_metadata(path: Path)` | `Result[FileMetadata,HostError]` |
-| `fs_list(path: Path)` | `Result[[Path],HostError]` |
-| `fs_create_directory(path: Path)` | `Result[Unit,HostError]` |
-| `fs_remove_file(path: Path)` | `Result[Unit,HostError]` |
-| `fs_remove_directory(path: Path)` | `Result[Unit,HostError]` |
-| `fs_temp_file(parent: Path)` | `Result[Path,HostError]` |
-| `fs_temp_directory(parent: Path)` | `Result[Path,HostError]` |
-| `host_decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
+| `package_filesystem.read_beneath(root: Path, relative: Path, limit: Nat)` | `Result[FilesystemRootRead,HostError]` |
+| `filesystem.read(path: Path, limit: Nat)` | `Result[Bytes,HostError]` |
+| `filesystem.write(path: Path, contents: Bytes)` | `Result[Unit,HostError]` |
+| `filesystem.metadata(path: Path)` | `Result[FileMetadata,HostError]` |
+| `filesystem.list_directory(path: Path)` | `Result[[Path],HostError]` |
+| `filesystem.create_directory(path: Path)` | `Result[Unit,HostError]` |
+| `filesystem.remove_file(path: Path)` | `Result[Unit,HostError]` |
+| `filesystem.remove_directory(path: Path)` | `Result[Unit,HostError]` |
+| `filesystem.temp_file(parent: Path)` | `Result[Path,HostError]` |
+| `filesystem.temp_directory(parent: Path)` | `Result[Path,HostError]` |
+| `host.decode_utf8(contents: Bytes)` | `Result[Str,HostError]` |
 
 Reads and writes accept regular files, follow symlinks, and preserve bytes.
 Reads fail without partial data when their explicit byte limit is exceeded.
 Writes create or truncate a file and may leave partial contents on failure;
 they promise neither atomic replacement nor durable storage. New ordinary file
 and directory permissions are 0666 and 0777 filtered by the caller's umask.
-File data and read limits are capped at 16 MiB. Special files are rejected after
+Synchronous file data and read limits are capped at 32 MiB. Special files are rejected after
 opening with nonblocking flags; these calls are not a general stream API.
 
 `FileMetadata { kind: FileKind, size: Nat }` describes the final directory entry
@@ -937,7 +947,7 @@ intermediate symlinks follow host path-resolution rules.
 
 Enumeration returns immediate relative child names, excluding `.` and `..`, in
 unsigned native-byte lexicographic order. Join a returned name with its parent
-using `path_append`. Names are never decoded implicitly; arbitrary native bytes
+using `path.join`. Names are never decoded implicitly; arbitrary native bytes
 round-trip where the host filesystem permits them. Enumeration is capped at
 65,536 entries and 16 MiB of names and fails without a partial list. Concurrent
 filesystem changes can affect results; enumeration is not a snapshot.
@@ -949,14 +959,67 @@ under the explicit parent, with permissions 0600 for files and 0700 for
 directories, subject to umask. The caller owns the returned path and must remove
 it explicitly. There is no automatic cleanup or lifetime tracking.
 
-Paths do not establish containment. Relative paths use the invocation's working
-directory; `..`, symlink traversal, and races remain POSIX host behavior. Recursive
-operations and secure descriptor-relative traversal remain separate follow-ups.
+Ordinary filesystem paths do not establish containment. Relative paths use the
+invocation's working directory; `..`, symlink traversal, and races remain POSIX
+host behavior. The package-loading helper `package_filesystem.read_beneath` opens the
+root directory and resolves the requested regular file relative to that held
+descriptor. Relative symlinks are followed only when their target stays under
+the root. Absolute symlinks and attempts to traverse above the root return
+`invalid_argument`; loops return `symlink_loop`. The relative path is limited to
+4096 bytes, a 256-level directory walk counting the opened root, and 40 symlink
+expansions. Each read is limited to 16 MiB and returns the physical root's
+`(device, inode)` identity with its bytes, allowing a loader to reject a root that
+changes between reads. Each operation confines one individual read; it does not
+snapshot files that may be edited concurrently. Recursive writes and general
+descriptor-relative operations remain separate follow-ups.
+
+### Asynchronous confined filesystem reads
+
+`stdlib/async_filesystem` is an isolated native asynchronous API. It re-exports
+`FilesystemRootIdentity`, `FilesystemRootRead` and `HostError` with the same
+identities as the existing synchronous modules:
+
+```panack
+await async_filesystem.root_identity(root)
+await async_filesystem.read_beneath(root, relative, limit)
+```
+
+`root_identity(Path)` returns `Result[FilesystemRootIdentity,HostError]`, validating
+an existing directory without requiring an index or any other file. A caller can
+compare that identity with each successful confined read and reject a replaced
+root. It does not keep a descriptor open between calls.
+
+`read_beneath(Path, Path, Nat)` returns `Result[FilesystemRootRead,HostError]` and
+uses the same confined resolver and symlink policy as `package_filesystem`.
+Both supplied paths are limited to 4096 bytes; each read is limited to 16 MiB.
+The resolver opens only regular files for data reads. Root identity and read
+failures identify `fs_root_identity` and `fs_read_beneath` respectively in
+`HostError.operation`. Unsupported hosts return `unsupported_host`.
+
+Native operations run on independently owned workers. At most 32 operations can
+be retained process-wide, including completed results awaiting consumption and
+abandoned operations whose host reads have not returned. Exhaustion or inability
+to create a worker returns `resource_limit`. Arguments are copied before dispatch;
+workers retain no VM, execution, program or shared reference-counted values.
+The owning thread alone receives completion and resumes bytecode.
+
+Cancellation discards delivery immediately without joining a potentially blocked
+filesystem syscall. The worker releases its files and buffers when that syscall
+returns, and retains its admission slot until cleanup is finished. Thus a stuck
+filesystem can exhaust the bounded worker capacity but cannot hold a cancelled
+VM alive or create unlimited background operations. Process exit releases any
+remaining host resources. This is logical cancellation, not a promise that the
+operating system interrupts an in-progress disk read.
+
+Embedded executions must explicitly enable filesystem service independently of
+network or listener permission. Native CLI execution permits these operations;
+server children inherit the parent's filesystem grant, but never its listener
+grant. Existing synchronous filesystem calls remain unavailable in async bodies.
 
 ### Process execution
 
 ```panack
-process_run(
+process.run(
   executable: Path, arguments: [Str], stdin: Bytes, working_directory: Path,
   environment: [Str], timeout: Duration, output_limit: Nat
 ): Result[ProcessOutput,HostError]
@@ -967,7 +1030,7 @@ represents completed execution. A normal exit has `signal == 0`, including a
 nonzero exit code. Signal termination has a nonzero signal number and
 `exit_code == 0`. Failure before execution returns `launch_failed`, with errno;
 timeout and output exhaustion return their own error categories, without partial
-output. There is no implicit UTF-8 decoding: use `host_decode_utf8` explicitly.
+output. There is no implicit UTF-8 decoding: use `host.decode_utf8` explicitly.
 
 The executable is an exact path, resolved relative to the requested child
 working directory when relative. There is no PATH search or implicit shell.
@@ -995,7 +1058,7 @@ add latency.
 
 ### Sleep and timing bounds
 
-`host_sleep(duration: Duration): Result[Unit,HostError]` waits for a nonnegative
+`host.sleep(duration: Duration): Result[Unit,HostError]` waits for a nonnegative
 duration, retries interrupted sleeps, and accepts zero. Sleep and process timeout
 accept at most 31,536,000 seconds (365 days), expressed as exact nanoseconds;
 negative or larger values return `negative_duration` or `out_of_range` before any
@@ -1106,7 +1169,7 @@ Each connection sends one request terminated by a write-half close. The owner
 reads until EOF, runs the named handler once, writes its returned bytes completely,
 then closes the socket. Binary and empty data are valid; an extra request byte
 fails before handler activation. An oversized response fails before sending.
-There are no added framing bytes, streaming handles, HTTP, DNS, TLS or IPv6.
+There are no added framing bytes, connection handles, HTTP, DNS, TLS or IPv6.
 `tcp_exchange` is a compatible client. A client that withholds EOF reaches its
 deadline. The [finite echo example](examples/network/tcp_serve.panack) pairs with
 [the client example](examples/network/tcp_exchange.panack).
@@ -1118,6 +1181,37 @@ including through an indirect call. Runtime ownership needs no source `spawn`
 syntax. Instruction budgets are not wall-clock preemption or a total memory cap.
 I/O payload capacity is bounded by concurrent request/response limits; VM values,
 transient copies and allocations performed by handlers are additional memory.
+
+### Native TCP streaming server prerequisite
+
+`tcp_serve` keeps its EOF-delimited contract above. `tcp_serve_stream` is an
+additive development-toolchain service for protocols whose peer waits for a
+response before closing its write side. It takes the same address, port and
+limits, plus `AsyncFn[Context,Result[Bytes,Str]]` and a value of that same
+`Context` type. The owner starts the named worker as soon as a client is accepted
+and passes that value to it. The operation returns the same ordered finite-server
+report as `tcp_serve`.
+
+Only an active worker started by `tcp_serve_stream` may await
+`tcp_server_read_chunk(max_bytes)`. The positive `Nat` limit is at most 16,384
+bytes. A completion contains up to that many currently available bytes; it may
+contain fewer. `Ok(empty_bytes)` means peer EOF, including on later reads after
+EOF. A socket failure or cumulative per-client `request_limit` breach returns
+`Error(Str)`. No bytes are automatically buffered for the worker before it asks
+to read. A call outside that active child traps; the API does not expose a socket
+or forgeable connection record. Existing per-client deadlines, admission,
+concurrency, cancellation and bounded response writes remain owned by the server.
+
+This primitive does not add HTTP framing. The Panackelty HTTP package owns
+incremental parsing and response serialization; P6 is the selected consumer.
+Its server accepts GET, HEAD and POST. HEAD preserves the corresponding
+representation headers, including Content-Length, and sends no body. Handlers
+supply the representation body as usual, subject to existing response limits.
+Parser failures with a recognised HEAD method and handler failures also omit
+response bodies. See `docs/MODULE_PACKAGE_DESIGN.md` for the package contract.
+Native Linux/macOS support follows the server capability gate; WASI remains
+unavailable. The source-level limit is checked again at runtime for saved or
+forged bytecode.
 
 Admission stops on the total-client limit, admission deadline or a host stop
 request. The listener closes immediately. Existing clients drain until the
@@ -1152,6 +1246,142 @@ its own native opt-in, separate from outbound TCP. Handler children inherit the
 outbound permission, never listening permission. These internal host APIs are
 experimental, not a stable embedding ABI.
 
+### Continuous native services (development toolchain)
+
+`stdlib/tcp_service` adds a continuous mode to the existing transport. Its generic
+`serve[T]` accepts an IPv4 address, port, concrete named async worker, typed context,
+`TcpServiceLimits` and a named async readiness callback. Limits contain
+`concurrency`, `request_limit`, `response_limit`, `client_timeout_ms` and `drain_ms`.
+Concurrency is 1–32, request/response limits are 0–1,048,576 bytes, client timeout
+is 1–60,000 ms, drain is 0–60,000 ms, and port is 1–65,535. Finite server APIs
+retain their existing client-count and admission-deadline contracts.
+
+The listener binds before calling readiness with `TcpServiceReady(address, port)`.
+Admission starts only when readiness returns `Ok(())`; `Error(Str)` closes the
+listener and fails the service. Readiness is cancellable. There is no admission
+deadline or fixed total client limit. Normal stop returns
+`TcpServiceSummary(accepted, succeeded, failed)`, counting completed response writes
+as successes and client errors/cancellations as failures. Per-client reports are
+not retained. Counters are bounded by the host `size_t`; the service fails before
+its acceptance sequence can wrap. Listener failures discard the summary.
+
+While the native CLI owns an active continuous service, SIGINT and SIGTERM request
+stop: close admission, allow existing clients to finish within `drain_ms`, then
+cancel remaining clients. Previous signal dispositions are restored on service
+completion or execution destruction. Only one CLI service owns these handlers at
+a time. Embedded services use explicit host stop and do not install signal handlers.
+Drain is enforced by the existing polling/instruction-budget scheduler, not a hard
+wall-clock guarantee around individual instructions or destructors.
+
+`http/service` composes this transport with the HTTP parser and serializer. Its
+`ServiceLimits` has the same five fields. A `server.ConnectionContext[T]` carries
+configuration, a named `AsyncFn[T,Request,Result[Response,HttpError]]`, and parser/
+serializer limits. Supply a concrete named worker calling
+`server.serve_connection_with_context[T]`; captured closures and generic function
+references are not required. Context and transport limits are independent: either
+can impose a stricter bound. Existing finite `http/server.serve` remains supported.
+
+`server.ConnectionPolicy(methods, error_headers)` and
+`serve_connection_with_policy[T]` allow a caller to select accepted methods and
+headers on connection-generated error responses. The parser's
+`parse_request_for_methods` uses the supplied method list; `parse_request` and
+ordinary connection helpers retain GET/HEAD/POST. A 405 response reports the
+selected methods in Allow. Applications own normal response headers. Header
+serialization validation still applies; callers must supply valid policies.
+
+### Static directory service (development toolchain)
+
+`packages/static_http` exports `service.Config(root, address, port, limits, headers)`
+and asynchronous `serve(config, ready)`. It composes existing HTTP and confined
+filesystem operations without extending the standard library. It validates the
+root and extra headers before binding, pins the root device/inode and rejects
+contents returned from a replacement root. The executable under `tools/http-server`
+is installed as `panack-http-server`; installation compiles its bytecode once.
+
+GET and HEAD serve regular files and `index.html`. A directory with an index and
+no trailing slash redirects with 308, preserving the query. Missing indexes and
+inaccessible paths return 404; no directory listing or SPA fallback is supplied.
+Other methods return 405 with Allow: GET, HEAD. Percent decoding occurs once;
+paths must be UTF-8, with no traversal, encoded separators, repeated separators,
+NUL or control bytes. Query strings do not become filenames. Relative symlinks
+are allowed only under the existing confined resolver policy.
+
+Extra headers cannot override framing, Content-Type, Location or Allow, and their
+serialized form must leave 512 bytes of response budget. They apply to errors and
+redirects as well as files. The full serialized GET representation must fit the
+response limit, including headers; oversize files return 503 with a diagnostic.
+HEAD uses the same bounded read and representation length but emits no body.
+Unexpected read failures return 500; resource exhaustion/root replacement returns
+503. Per-request reads expose edits without a snapshot guarantee. Ranges, TLS,
+compression, watch/rebuild and automatic reload are outside this contract.
+
+Tool defaults are four clients, 16 KiB requests, 1 MiB responses, ten seconds per
+client and one second of signal-driven drain. The [tool guide](tools/http-server/README.md)
+defines arguments, readiness and exit codes; the [package guide](packages/static_http/README.md)
+defines library configuration and cancellation limits.
+
+### Asynchronous command-line host operations
+
+`stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and
+`await stderr(Str)` returning `Result[Unit,HostError]`, and `await exit(Nat): Unit`.
+Arguments use the invocation snapshot. Output appends one newline to the supplied
+bytes, including embedded NUL bytes. Each message is limited to 16,384 bytes;
+there are at most four retained output operations process-wide. Oversize output
+returns `out_of_range`, exhausted capacity returns `resource_limit`, and native
+write/descriptor failures return `io_error` with a native code. Closed pipes return
+an error without terminating the process with SIGPIPE. Ordering across concurrent
+writes and atomic whole-line output are not guaranteed.
+
+Output workers own copied bytes and duplicate descriptors. Cancellation suppresses
+result delivery immediately but cannot retract output; a blocked worker retains
+its slot and descriptor until the host write finishes. No VM or program state is
+borrowed by the worker. Output is unavailable on unsupported hosts.
+
+Exit requires a status in 0–255 and does not return normally: the CLI exits, while
+an embedded execution reports `VM_EXITED`. Embedded arguments/output require an
+explicit console grant, independent of filesystem and network permissions. Server
+request children inherit the parent's console grant; the readiness callback receives
+only its explicit console grant. These host grants remain experimental embedding APIs.
+
+### Native HTTP client (P5 proof of concept)
+
+Import the package namespace `http/client` and call:
+
+```panack
+import http/client as http
+
+async fetch(): Result[http.Response,http.HttpError] {
+  await http.get("https://example.test/status")
+}
+```
+
+`get(url)` performs one HTTP/1.1 GET and returns a typed `Response` containing
+the status, ordered headers (including repeated fields) and raw `Bytes` body.
+Non-2xx status codes are returned normally. `get_with_limits(url, limits)` uses
+the same operation with a caller-selected timeout and response bounds. Defaults
+are 10 seconds, 64 KiB of response headers and 1 MiB of body. Hard limits are
+60 seconds, 64 KiB and 1 MiB respectively. The transport also caps total raw
+response bytes at 16 MiB.
+
+The package accepts HTTP and HTTPS URLs with ASCII DNS names or dotted IPv4
+addresses. It rejects IPv6, user information, fragments, non-ASCII hosts,
+control characters and unsupported schemes. Requests use origin-form paths and
+close the connection after one response. Fixed-length, chunked and close-delimited
+responses are supported. Invalid or ambiguous framing is a typed protocol error.
+Redirects, request bodies, cookies, connection reuse and proxy use are not
+supported.
+
+The native runtime uses libcurl multi connect-only mode for asynchronous DNS,
+connection establishment and TLS; the Panackelty package constructs and parses
+HTTP bytes. Certificate-chain and hostname verification stay enabled and use
+the platform trust store. `CURL_CA_BUNDLE` may select a PEM trust bundle.
+Native builds need libcurl development files and `curl-config`; linked libcurl
+must include asynchronous DNS and thread-safe features. WASI/browser execution
+is unavailable.
+This is the replaceable libcurl backend selected for the alpha.13 proof of
+concept. See the [P5 design](docs/NATIVE_HTTP_CLIENT_DESIGN.md) for the package
+boundary, exact limits, error categories and fixture coverage.
+
 ## Optional instruction source lookup
 
 `panack compile SOURCE.panack -o ARTIFACT.bc --source-map MAP` emits an optional
@@ -1167,8 +1397,12 @@ closure, compatibility, I/O bounds, output safety and source disclosure.
 ## Compiler explanations
 
 `panack explain SOURCE.panack --function NAME` performs the ordinary frontend
-checks with opt-in evidence retention and reports binary `Nat` subtraction
-obligations and local call/await effect boundaries from the named function.
+checks with opt-in evidence retention and reports proof-bearing conversions
+into guarded types, binary `Nat` subtraction obligations, and local call/await
+effect boundaries from the named function. It also reports inferred local types
+with their checked initializer type and source expression; annotated locals are
+omitted, and incomplete types are explicitly unavailable. This query does not
+change inference rules or claim runtime values or call-site specialisations.
 Effect output retains existing pure/ordinary/async decisions and callable-type
 classification without inferring transitive or runtime effects. Effect evidence is
 unavailable for type-invalid functions. The query can retain boundaries for
@@ -1177,8 +1411,11 @@ signature or declaration type errors suppress all recovery. Ordinary compilation
 original diagnostics remain unchanged; recovered effect violations appear only in
 the local explanation. An allowed boundary does not imply that a callee body or
 the whole program is valid.
-The command exposes existing constant/lower-bound
-proof decisions without adding proof rules or changing acceptance. A local
+The command exposes constant/lower-bound proof decisions and proof-bearing
+conversions into guarded targets, including source facts and unresolved
+results. The checker accepts conversion from a compatible guarded source when
+its invariant proves the target guard; stricter guards still require sufficient
+facts. Other unsupported proof rules remain unchanged. A local
 proved obligation does not imply whole-program validity; unproved does not imply
 a runtime counterexample. Unsupported/invalid operands and unavailable evidence
 are explicit. Generic results describe definitions, not specialisations. No user

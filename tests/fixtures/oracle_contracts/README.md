@@ -22,7 +22,7 @@ Python; the captured data retains the independence of its original calculation.
 - `rational.panack/stdout`: Seed 812; 24 original pairs, a in [−10^25,10^25],
   b,d in [1,10^12], c in [1,10^25], four operations each. Fraction gives the
   exact reduced numerator/denominator for all 96 expectations.
-- `builtin.names/stdout`: All 82 stage-0 builtin names, arities and purity flags.
+- `builtin.names/stdout`: All 84 stage-0 builtin names, arities and purity flags.
   The native C lookup must also find a non-null handler for each name.
 - `driver-*.hex`, `stdlib.hex`, `euler001.hex`: Bytes produced by the independent
   stage-0 compiler; original sources are listed in the inventory.

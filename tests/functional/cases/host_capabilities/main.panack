@@ -1,75 +1,79 @@
-import stdlib/result::{result_value_or}
-import stdlib/time::{duration_seconds, duration_milliseconds, duration_value_nanoseconds}
-import stdlib/path::{path_value_from_text, path_value_current, path_value_append, path_value_from_native, path_value_display, path_value_native_bytes}
-import stdlib/host::{HostError, ProcessOutput, host_sleep_value, host_decode_utf8_value, host_process_run}
-import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileKind.SymbolicLink, filesystem_metadata, filesystem_read_bytes, filesystem_write_bytes, filesystem_list_directory, filesystem_create_directory, filesystem_remove_directory, filesystem_remove_file, filesystem_temp_directory, filesystem_temp_file}
-import stdlib/bytes::{bytes_empty, bytes_push, text_encode_utf8}
+import stdlib/text as std_text
+import stdlib/filesystem as std_filesystem
+import stdlib/host as std_host
+import stdlib/process as std_process
+import stdlib/result as std_result
+import stdlib/time as std_time
+import stdlib/path as std_path
+import stdlib/host::{HostError}
+import stdlib/filesystem::{FileKind, FileKind.RegularFile, FileKind.SymbolicLink}
+import stdlib/bytes as byte_buffer
 
-pure path(text: Str): Path { result_value_or(path_value_from_text(text), path_value_current()) }
+pure path(text: Str): Path { std_result.value_or(std_path.from_text(text), std_path.current()) }
 pure outcome[T](result: Result[T,HostError]): Str {
   match result { Ok(value) => "ok", Error(error) => error.code }
 }
 main(): Void {
-  print(outcome(host_sleep_value(duration_value_nanoseconds(-1))))
-  print(outcome(host_sleep_value(duration_seconds(31536001))))
-  print(outcome(host_sleep_value(duration_value_nanoseconds(0))))
-  print(outcome(host_decode_utf8_value(bytes_push(bytes_empty(), 255))))
-  print(result_value_or(host_decode_utf8_value(text_encode_utf8("hello λ")), "bad"))
-  match filesystem_temp_directory(path("/tmp")) {
+  print(outcome(std_host.sleep(std_time.from_nanoseconds(-1))))
+  print(outcome(std_host.sleep(std_time.seconds(31536001))))
+  print(outcome(std_host.sleep(std_time.from_nanoseconds(0))))
+  print(outcome(std_host.decode_utf8(byte_buffer.push(byte_buffer.empty(), 255))))
+  print(std_result.value_or(std_host.decode_utf8(std_text.encode_utf8("hello λ")), "bad"))
+  match std_filesystem.temp_directory(path("/tmp")) {
     Error(error) => { print(error.code) },
     Ok(directory) => {
-      file = result_value_or(path_value_append(directory, path("data")), directory)
-      print(outcome(filesystem_write_bytes(file, text_encode_utf8("hello"))))
-      print(result_value_or(filesystem_read_bytes(file, 5), bytes_empty()) == text_encode_utf8("hello"))
-      print(outcome(filesystem_read_bytes(file, 4)))
-      match filesystem_metadata(file) { Error(error) => { print(error.code) }, Ok(info) => {
+      file = std_result.value_or(std_path.join(directory, path("data")), directory)
+      print(outcome(std_filesystem.write(file, std_text.encode_utf8("hello"))))
+      print(std_result.value_or(std_filesystem.read(file, 5), byte_buffer.empty()) == std_text.encode_utf8("hello"))
+      print(outcome(std_filesystem.read(file, 4)))
+      match std_filesystem.metadata(file) { Error(error) => { print(error.code) }, Ok(info) => {
         print(info.kind == RegularFile())
         print(info.size)
       } }
-      print(outcome(filesystem_create_directory(file)))
-      print(outcome(filesystem_remove_directory(directory)))
-      raw = result_value_or(path_value_from_native(bytes_push(bytes_empty(), 122)), path("bad"))
-      native_file = result_value_or(path_value_append(directory, raw), directory)
-      print(outcome(filesystem_write_bytes(native_file, bytes_empty())))
-      entries = result_value_or(filesystem_list_directory(directory), [path("bad")])
+      print(outcome(std_filesystem.create_directory(file)))
+      print(outcome(std_filesystem.remove_directory(directory)))
+      raw = std_result.value_or(std_path.from_native(byte_buffer.push(byte_buffer.empty(), 122)), path("bad"))
+      native_file = std_result.value_or(std_path.join(directory, raw), directory)
+      print(outcome(std_filesystem.write(native_file, byte_buffer.empty())))
+      entries = std_result.value_or(std_filesystem.list_directory(directory), [path("bad")])
       print(len(entries))
-      print(path_value_display(entries[0]))
-      print(path_value_native_bytes(entries[1]) == path_value_native_bytes(raw))
-      print(outcome(filesystem_remove_file(native_file)))
-      print(outcome(filesystem_remove_file(file)))
-      print(outcome(filesystem_read_bytes(file, 1)))
-      match filesystem_temp_file(directory) {
+      print(std_path.display(entries[0]))
+      print(std_path.native_bytes(entries[1]) == std_path.native_bytes(raw))
+      print(outcome(std_filesystem.remove_file(native_file)))
+      print(outcome(std_filesystem.remove_file(file)))
+      print(outcome(std_filesystem.read(file, 1)))
+      match std_filesystem.temp_file(directory) {
         Error(error) => { print(error.code) },
-        Ok(temporary) => { print(outcome(filesystem_remove_file(temporary))) }
+        Ok(temporary) => { print(outcome(std_filesystem.remove_file(temporary))) }
       }
-      match host_process_run(path("/bin/sh"), ["-c", "printf child > child-output; ln -s child-output child-link"], bytes_empty(), directory, [], duration_seconds(3), 10) {
+      match std_process.run(path("/bin/sh"), ["-c", "printf child > child-output; ln -s child-output child-link"], byte_buffer.empty(), directory, [], std_time.seconds(3), 10) {
         Error(error) => { print(error.code) }, Ok(output) => { print(output.exit_code) }
       }
-      child_output = result_value_or(path_value_append(directory, path("child-output")), directory)
-      child_link = result_value_or(path_value_append(directory, path("child-link")), directory)
-      print(result_value_or(filesystem_read_bytes(child_link, 5), bytes_empty()) == text_encode_utf8("child"))
-      match filesystem_metadata(child_link) {
+      child_output = std_result.value_or(std_path.join(directory, path("child-output")), directory)
+      child_link = std_result.value_or(std_path.join(directory, path("child-link")), directory)
+      print(std_result.value_or(std_filesystem.read(child_link, 5), byte_buffer.empty()) == std_text.encode_utf8("child"))
+      match std_filesystem.metadata(child_link) {
         Error(error) => { print(error.code) }, Ok(info) => { print(info.kind == SymbolicLink()) }
       }
-      print(outcome(filesystem_remove_file(child_link)))
-      print(outcome(filesystem_remove_file(child_output)))
-      child = result_value_or(path_value_append(directory, path("child")), directory)
-      print(outcome(filesystem_create_directory(child)))
-      print(outcome(filesystem_remove_directory(child)))
-      print(outcome(filesystem_remove_directory(directory)))
+      print(outcome(std_filesystem.remove_file(child_link)))
+      print(outcome(std_filesystem.remove_file(child_output)))
+      child = std_result.value_or(std_path.join(directory, path("child")), directory)
+      print(outcome(std_filesystem.create_directory(child)))
+      print(outcome(std_filesystem.remove_directory(child)))
+      print(outcome(std_filesystem.remove_directory(directory)))
     }
   }
-  match host_process_run(path("/bin/sh"), ["-c", "cat; printf err >&2; exit 7"], text_encode_utf8("in"), path_value_current(), [], duration_seconds(3), 100) {
+  match std_process.run(path("/bin/sh"), ["-c", "cat; printf err >&2; exit 7"], std_text.encode_utf8("in"), std_path.current(), [], std_time.seconds(3), 100) {
     Error(error) => { print(error.code) },
     Ok(output) => {
       print(output.exit_code)
       print(output.signal)
-      print(result_value_or(host_decode_utf8_value(output.stdout), "bad"))
-      print(result_value_or(host_decode_utf8_value(output.stderr), "bad"))
+      print(std_result.value_or(std_host.decode_utf8(output.stdout), "bad"))
+      print(std_result.value_or(std_host.decode_utf8(output.stderr), "bad"))
     }
   }
-  print(outcome(host_process_run(path("/does-not-exist"), [], bytes_empty(), path_value_current(), [], duration_seconds(1), 10)))
-  print(outcome(host_process_run(path("/bin/sh"), ["-c", "sleep 5"], bytes_empty(), path_value_current(), [], duration_milliseconds(20), 10)))
-  print(outcome(host_process_run(path("/bin/sh"), ["-c", "printf too-long"], bytes_empty(), path_value_current(), [], duration_seconds(1), 1)))
-  print(outcome(host_process_run(path("/bin/sh"), [], bytes_empty(), path_value_current(), ["INVALID"], duration_seconds(1), 10)))
+  print(outcome(std_process.run(path("/does-not-exist"), [], byte_buffer.empty(), std_path.current(), [], std_time.seconds(1), 10)))
+  print(outcome(std_process.run(path("/bin/sh"), ["-c", "sleep 5"], byte_buffer.empty(), std_path.current(), [], std_time.milliseconds(20), 10)))
+  print(outcome(std_process.run(path("/bin/sh"), ["-c", "printf too-long"], byte_buffer.empty(), std_path.current(), [], std_time.seconds(1), 1)))
+  print(outcome(std_process.run(path("/bin/sh"), [], byte_buffer.empty(), std_path.current(), ["INVALID"], std_time.seconds(1), 10)))
 }

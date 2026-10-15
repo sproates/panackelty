@@ -298,3 +298,27 @@ External fake read/print completions cannot complete a server wait. Handler
 children inherit outbound opt-in but cannot listen recursively. The CLI uses
 this same pump. See the [architecture](../../ARCHITECTURE.md#bounded-tcp-server-contract--proposed-implementation)
 and [source contract](../../SPEC.md#native-tcp-server-development-toolchain).
+
+`tcp_serve_stream` starts its worker with the retained caller-supplied context
+after acceptance rather than waiting for peer EOF. `tcp_server_read_chunk` is
+available only to that owner-created child. Its registration changes only that
+client's poll state; one readiness event completes a `Result[Bytes,Str]` capped
+at 16 KiB, with empty bytes for EOF. The owner counts bytes cumulatively against
+the existing request limit and keeps deadline, cancellation, scheduling and
+response-write ownership. `vm_execution_enable_server_reads` is the internal
+capability gate; fake task sessions and ordinary embedded executions cannot
+request socket reads.
+
+## Continuous service ownership
+
+Continuous transport shares the finite server pump but keeps bounded summary
+counters instead of report history. Readiness runs before admission. The CLI
+installs stop-only signal handlers for the service lifetime; embedded callers use
+explicit stop. Filesystem and console grants propagate independently to request
+children; outbound permission does not grant either.
+
+`console_write.c` owns copied messages and duplicate descriptors in at most four
+retained workers. Cancellation abandons delivery without waiting for host output.
+Workers retain no VM/program pointers and suppress SIGPIPE without changing the
+process-wide signal disposition. See the
+[async host contract](../../SPEC.md#asynchronous-command-line-host-operations).

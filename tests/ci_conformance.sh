@@ -70,6 +70,12 @@ for mode in source bytecode; do
         CI_CONFORMANCE_FAIL=$fault; export CI_CONFORMANCE_FAIL
         run "$mode"
         [ "$result" != 0 ] || fail "accepted $fault"
+        if [ "$fault" = bytecode-output ]; then
+            grep -F 'native conformance: captured stdout (case-one):' "$work/output" >/dev/null ||
+                fail 'bytecode output mismatch hid its captured stdout'
+            grep -F 'wrong' "$work/output" >/dev/null ||
+                fail 'bytecode output mismatch hid the differing output'
+        fi
     done
 done
 for fault in compile compile-stderr accepted; do

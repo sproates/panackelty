@@ -4,27 +4,39 @@ Design outcome for [RM#109: Module and package design](../ROADMAP.md#rm-109)
 and [GI#234: Module and package design](https://github.com/sproates/panackelty/issues/234),
 within [RM#108: Modules programme](../ROADMAP.md#rm-108).
 
-This document records the P1 design accepted in PR#240. It is a design contract,
-not executable feature evidence. All syntax, manifests, commands and HTTP APIs below
-are proposed future contracts, not runnable examples for the current toolchain.
-[SPEC.md](../SPEC.md) remains the current language contract. Implementation,
-release and website adoption require their own selected deliveries. P1 closes
-only the design investigation. P2 is in progress with fail-closed raw qualified
-syntax, cross-module binding resolution and checked declaration/signature
-identities built on its merged module foundation. The checked-signature slice
-merged in PR#275 as `0bcf092`. The next proposed P2 delivery retains identity-bound
-function bodies in the loader and checks annotated locals, direct call contracts,
-explicit generic substitution and returns against the same tagged signatures.
-Unknown inference/proofs remain explicitly deferred; effect checking, emission,
-tooling and coordinated migration remain pending. This intermediate slice does
-not enable namespaces or complete P2.
-P3–P8 remain planned. The [programme register](../ROADMAP.md#rm-108)
-owns current implementation and acceptance status.
+This document records the P1 design accepted in PR#240 and the follow-on programme
+decisions. Its tables remain design contracts rather than general feature evidence.
+Most HTTP APIs and reproducible-package features remain proposed and are not
+available in the current release. [SPEC.md](../SPEC.md) remains the current
+language contract. Implementation, release and website adoption require their own
+selected deliveries. P1 design is complete. P2's checked namespace implementation
+and coordinated migration merged in PR#358; alpha.12 promotion and release
+acceptance remain under RM#143.
 
+PR#386 is the final acceptance delivery, effective on merge, completing P3 local-package
+scope. PR#372 adds confined package-root reads. PR#374 wires strict manifests to
+explicit `check`, `compile` and `run --project` commands with relocation-stable
+module identity. PR#375 adds exported-library checking; PR#376 adds direct local
+library dependencies and two-app acceptance; PR#377–#382 establish physical-root
+identity, overlap rejection, bounded graph resolution, conflict rejection and
+exact graph limits; PR#383 covers source-count and byte boundaries; PR#384 makes
+the root-replacement race acceptance reliable. The final integration fixture checks, runs and compiles two applications from an
+unrelated working directory, moves their complete sibling tree and shared
+multi-file library, then rechecks/runs both and executes bytecode compiled before
+the move. PR#404 completes P4's standard-library API namespace migration on
+`next`; PR#450 delivers the first end-to-end P5 client slice. Native transport
+lifecycle evidence now includes deterministic deadline/readiness boundary and
+cancellation/cleanup tests, plus a late TLS server-flight timeout fixture for
+source and saved bytecode; late DNS completion remains open. An initial
+libcurl version/build/license snapshot is recorded in
+[NATIVE_HTTP_CLIENT_DESIGN.md](NATIVE_HTTP_CLIENT_DESIGN.md); dependency pinning,
+complete transitive license inventory and clean-host archive acceptance remain
+open. The separate clean-installed release acceptance remains in P8.
 ## Current implementation audit
 
-Audit baseline: core revision `b32267e` (2026-10-03). This is source inspection,
-not evidence that the proposed behavior passes tests.
+Audit baseline: core revision `b32267e` (2026-10-03). The table records the
+pre-P3 implementation audit; it is historical source inspection, not current
+acceptance evidence.
 
 | Boundary | Observed behavior and evidence | Consequence |
 | --- | --- | --- |
@@ -153,7 +165,7 @@ and indirect callable contracts retain all existing effect restrictions.
 Select a strict JSON manifest named `panack.json`, schema version 1. JSON avoids an
 additional configuration language; implement its bounded parser in the project
 language/toolchain, without an interpreter dependency or executing package code.
-P3 must specify byte limits and test malformed inputs before enabling loading.
+P3 sets explicit limits before enabling loading: manifests up to 65,536 bytes, each source module up to 1 MiB, and one loaded source closure up to 256 files and 8 MiB. The closure bounds include the automatically loaded toolchain core. The loader boundaries must be tested at their exact limits; the package CLI must also prove oversized source files fail closed before parsing.
 The concrete schema below is the P1 baseline, not today's CLI format:
 
 ```json
@@ -185,6 +197,13 @@ the same module, preserving its identity. `dependencies` maps a local import ali
 to `{"path": "../http"}` in P3; the path points to a directory containing a manifest
 and resolves relative to the declaring manifest. External local dependencies must
 therefore be declared explicitly, never reached by source import traversal.
+Nested local dependencies use the same rule: an alias is visible only while
+loading modules owned by the package whose manifest declares it. Repeated edges
+to the same physical package reuse one package identity. Reject dependency cycles,
+conflicting package identities/versions and physically overlapping source roots
+throughout the resolved graph. Bound a graph to 64 package manifests including
+the application, 256 dependency edges and 32 package levels including the
+application.
 
 Reject duplicate JSON keys, unknown keys/schema/language, non-string path values,
 empty identities, conflicting aliases, absolute paths, NULs, invalid UTF-8 and
@@ -417,7 +436,7 @@ termination is deliberately excluded; reverse proxies are an optional deployment
 choice, not acceptance evidence for native server TLS. This differs from the
 mandatory verified HTTPS client. Each connection accepts one bounded request and
 returns one response with `Connection: close`; no pipelining or keepalive.
-Support GET and POST, headers and bounded bodies with strict Content-Length or
+Support GET, HEAD and POST, headers and bounded bodies with strict Content-Length or
 chunked framing. Parse incrementally without requiring EOF; reject ambiguous
 framing, unsupported transfer codings and oversize input before handler activation.
 Unknown valid methods produce 405; unsupported protocol versions produce an
@@ -428,6 +447,15 @@ method, raw target, ordered headers and body bytes; it performs no implicit URL
 routing/decoding or filesystem access. The server serializer owns wire framing and
 rejects handler-supplied framing contradictions or header injection. Do not expose
 internal connection state as constructible records.
+
+For HEAD, handlers return the same representation as for GET. The server validates
+its headers and bounded body, preserves the representation Content-Length, and
+omits the body on the wire. This also applies to parser errors once the exact
+`HEAD ` method token is available, handler failures and invalid handler responses.
+`serialize_head_response` exposes that serializer behaviour for package consumers;
+`serialize_response` retains its existing full-response behaviour. The serialized
+GET representation must still fit the 1 MiB package limit. The configured transport
+response limit applies to the bytes actually sent.
 
 Proposed facade shape (future APIs):
 
@@ -447,9 +475,9 @@ example:
 
 ```panackelty
 import http/server as http
-import stdlib/bytes as byte_api
+import stdlib/text as text
 async handle(request: http.Request): Result[http.Response,http.HttpError] {
-  Ok(http.Response(200, [], byte_api.text_encode_utf8("ok")))
+  Ok(http.Response(200, [], text.encode_utf8("ok")))
 }
 async main(): Unit {
   report = await http.serve("127.0.0.1", 8080, @handle,
@@ -467,18 +495,52 @@ remaining work, then return ordered reports. Destroying the owner cancels immedi
 Each child owns its request/response buffers and nested client operation; no callback
 or resolver/TLS operation may retain freed execution state.
 
+P6 is sequenced before P5 by owner decision on 2026-10-14. The existing
+`tcp_serve` receives one byte buffer only after the peer closes its write side;
+HTTP clients normally keep the connection open while waiting for the response.
+Therefore the existing API cannot serve HTTP unchanged, although its bounded
+listener, polling, child-execution and shutdown ownership are reusable. The P6
+owner-selected design exposes bounded incremental per-client reads through the
+existing server owner, so the Panackelty HTTP package parses request framing and
+constructs the public Request value. The handler's serialized response returns
+through the owner's bounded write path. The new read operation must be scoped to
+its active child execution, deadline and client; it must not expose a forgeable
+socket handle or permit reads outside a server handler. Keep P5 client
+interoperability as a later P8 check once P5 exists.
+
+P6 is planned as three implementation slices:
+
+1. **Incremental TCP service:** add an async server worker with a typed context
+   and a bounded read-chunk operation available only to that active child.
+   Preserve the existing EOF-delimited `tcp_serve` contract, listener ownership,
+   per-client deadlines, cumulative request limits, cancellation and bounded
+   response writes. Test source and saved bytecode with a client that leaves its
+   write side open, plus bounds and out-of-scope rejection.
+2. **Panackelty HTTP package:** define shared request/response/error types and
+   source-owned incremental HTTP/1.1 request parsing and response serialization.
+   Add the finite `http/server` handler facade, strict framing and header/body
+   limits, method/version failures, and handler/error mapping. Keep parser and
+   serializer tests independent of the native socket owner.
+3. **Interoperability and acceptance:** exercise the packaged source API with
+   independent clients, malformed/partial and oversized inputs, concurrency,
+   disconnect, shutdown and port-conflict cases. Add the runnable example and
+   installed-package/source/bytecode checks. P5-client interoperability is
+   added after P5 exists.
+
+These slices partition P6's existing scope; they do not add HTTP TLS, keepalive,
+pipelining, HTTP/2, a framework or P5/libcurl dependency.
+
 ### Native prerequisite decisions and acceptance gates
 
-P5 begins with a bounded transport/backend decision PR, not an assumption that
-wrapping `tcp_exchange` suffices. Compare a maintained native HTTP/TLS transport
-backend with lower-level duplex/TLS integration against Linux/macOS availability,
-license/redistribution, deterministic fixtures, cancellation, byte framing control,
-DNS behavior, trust stores, packaging and interpreter-free builds. Record the
-selected dependency/version and primary-source evidence before implementation;
-this design does not claim that an unresearched external library satisfies them.
-Retaining the source parser is required: if a proposed backend owns HTTP framing,
-it must instead be justified as an explicit design amendment, not hidden below
-this contract. Do not implement cryptography or certificate validation in Panackelty.
+P5 uses libcurl as the initial native client transport for the alpha.13 proof of
+concept. Fold the needed feasibility checks into the first implementation layer;
+do not create a separate backend bake-off before implementation. Keep the HTTP
+package and host adapter independent of libcurl so the proof can be replaced if
+implementation reveals a concrete incompatibility. This choice does not commit
+future releases to libcurl. Retaining the source parser is required: a backend
+that owns HTTP framing would need an explicit design amendment, not a hidden
+change to this contract. Do not implement cryptography or certificate validation
+in Panackelty.
 
 DNS must be bounded by the operation deadline and cancellable without blocking the
 VM event loop. A worker/resolver must be joined/quiesced or detached from execution
@@ -489,15 +551,55 @@ operations in embedded/browser hosts; no silent browser fetch substitution. Audi
 malformed bytecode arguments before allocation/I/O, fault-inject cleanup paths,
 and test resolver/TLS late completion and deadline-versus-readiness races.
 
-If the required backend cannot meet these gates, report the blocker and revise P5
-scope with the user. Do not downgrade hostname HTTPS to numeric-address HTTP and
-call the first milestone done. P6 reuses the accepted bounded stream/ownership
-mechanism but does not block initial client acceptance. Public package facade,
+If libcurl cannot meet these gates in the supported builds, stop and revisit the
+backend choice; do not downgrade hostname HTTPS to numeric-address HTTP and call
+the first milestone done. Record the tested libcurl version, build configuration,
+license and transitive dependencies with the implementation evidence. P6 reuses
+the accepted bounded stream/ownership mechanism but does not use libcurl as a
+server backend or block initial client acceptance. Public package facade,
 transport contract and installed release support must be tested together.
+
+#### Libcurl proof-of-concept boundary
+
+Owner decision, 2026-10-14: use libcurl as the initial P5 client backend for the
+alpha.13 proof of concept. This is an implementation choice for the proof, not a
+permanent dependency commitment. Keep it behind a replaceable internal adapter;
+revisit the choice if implementation evidence shows a hard incompatibility with
+the security, lifecycle, packaging or platform requirements below.
+
+Use libcurl only for hostname resolution, connection setup and verified TLS in
+connect-only mode. Panackelty sends and receives raw connection bytes through
+libcurl's raw I/O operations; the source package continues to construct requests,
+parse HTTP framing and enforce response limits. Do not use libcurl's HTTP transfer
+API for this design. Do not expose libcurl types, option names or error strings in
+Panackelty source APIs, bytecode contracts or public error variants.
+
+The runtime adapter owns opaque libcurl handles and exposes only the transport
+operations needed by the VM. With the multi interface, an easy handle remains
+attached while raw I/O is active; non-ready sends and receives return to the
+cooperative runtime for readiness polling and retry. Cleanup must remove and
+destroy handles before releasing operation state. Prove that connection setup,
+including DNS, does not block the VM event loop, and that cancellation and late
+completion cannot retain or access freed execution state. The chosen asynchronous
+resolver configuration is part of the tested build, not an ambient system
+assumption.
+
+Keep the HTTP parser and public package contract independent of the adapter. Add
+a transport conformance suite for connect, raw duplex I/O, verified hostname TLS,
+timeouts, cancellation and cleanup; retain separate backend-free parser tests.
+This allows a later native transport to replace libcurl without exposing a
+libcurl migration to Panackelty programs. Replacement still requires rerunning the
+same conformance and package acceptance tests. Pin and test the TLS backend and
+trust configuration on Linux and macOS, and make proxy behavior explicit rather
+than inheriting unexpected environment settings. The implementation must show
+that the dependency can be reproducibly built and included in interpreter-free
+native packages.
 
 ## Positive and negative acceptance plan
 
-These are required future tests, not tests added or claimed passing in this PR.
+This matrix records intended positive and negative evidence across P2–P7; it is
+not a claim that every row is complete. P3's scoped local-package acceptance is
+summarized above. HTTP, ownership and P7 reproducibility rows remain future work.
 Use focused frontend/host tests and complete programs through `panack`; compare
 source and bytecode results, bootstrap stages and packaged/relocated toolchains.
 
@@ -508,12 +610,12 @@ source and bytecode results, bootstrap stages and packaged/relocated toolchains.
 | Types/generics | Qualified records/enums/guarded types, constructors/patterns, generic calls and re-export identity | Same-spelled distinct nominal types mismatch; nested generic arguments containing same-spelled distinct types and wrong generic arity retain useful qualified diagnostics |
 | Methods/effects | Explicitly selected callable supports receiver syntax; qualified pure/async calls and references preserve contracts | Namespace alias never becomes value receiver; missing unqualified method, pure-to-impure call and bare async call fail |
 | Graph identity | Diamond dependency shares one module/core; lexical and physical aliases load once | Module cycle, dependency cycle, two roots claiming same package, version conflict and fake core reject deterministically |
-| Root resolution | Two apps share local library; relocate sibling tree/install; run from unrelated working directory | Missing manifest/module, export miss, absolute/parent/NUL paths, symlink escape and source-root overlap cannot bypass confinement |
+| Root resolution | Two apps share local library; relocate sibling tree/install; run from unrelated working directory | Missing manifest/module, export miss, absolute/parent/NUL paths, symlink escape, atomic package-root replacement, and physically overlapping source roots across packages reject |
 | Manifest | Minimal library/application and deliberate multiple exports round-trip through parsed representation | Duplicate/unknown keys, malformed JSON, wrong schema/version/language, graph/depth/byte limits and incompatible toolchain fail before compilation |
 | Migration | Migrated fixtures/compiler/stdlib/examples pass under one namespace model; public CLI stays stable; new seed reaches fixed point | Old flat/transitive assumptions fail clearly rather than silently resolve; no nearest-manifest surprise or shipped dual semantics |
 | Tooling/bootstrap | Qualified explain/locate, precise spans, fresh fixed points and relocated deterministic executable bytes | Ambiguous selector, stale source map, wrong package identity and old runtime capability reject rather than misattribute |
 | HTTP client | Hostname HTTP/HTTPS, trusted certificate, status/header/body, repeated headers, chunked/length/close bodies | Unknown host, certificate chain/hostname/expiry rejection, truncation, framing ambiguity, timeout, limits and unsupported URL fail explicitly |
-| HTTP server | Real client sends complete HTTP request without write-half-close; GET/POST handler, ordered reports, finite shutdown | Request smuggling/framing ambiguity, header injection, admission/response bounds and handler failure; invalid requests never invoke handler |
+| HTTP server | Real client sends complete HTTP request without write-half-close; GET/HEAD/POST handler, ordered reports, finite shutdown | Request smuggling/framing ambiguity, header injection, admission/response bounds and handler failure; invalid requests never invoke handler |
 | Ownership | Repeated success/failure, cancellation, concurrent server/nested client and relocation of installed package | Fault-injected allocation/I/O, DNS/TLS late completion and cancellation during each phase leave no live sockets/children/callback references |
 | P7 reproducibility | Locked clean and offline vendored graph reproduces source identities/output | Missing/stale lock, changed digest, corrupt source, unavailable uncached artifact and conflicting package identity fail closed |
 
@@ -528,13 +630,13 @@ code. Existing host capability controls still apply.
 > **Historical implementation proposal; superseded for Alpha.13 by the owner
 > decision recorded in `ROADMAP.md` and GI#200.** The Git, lockfile, vendor,
 > integrity and offline requirements below are not an accepted P7 specification.
-> Alpha.13 covers discussion and refinement followed by an owner-reviewed
-> design document. Do not draft that document until the owner says the discussion
-> is ready to record. Remote package implementation may be deferred. Treat this
+> The 2026-10-15 decision moves GI#200 to Alpha.14, including discussion and
+> refinement before any owner-reviewed design document. Do not draft that document
+> until the owner says the discussion is ready to record. Treat this
 > section and its acceptance matrix as historical input for that discussion.
 
 Keep local paths as the baseline. P7 is independently schedulable after P1/P3;
-remote retrieval is not required for the language/local-package release or
+remote retrieval is not required for the language/local-package checkpoint or
 first-client acceptance. P7 first adds a committed `panack.lock.json` containing exact graph
 identities, toolchain/language version, normalized source locations and SHA-256
 content digests, plus explicit immutable Git acquisition and a vendor directory for offline use. Define the
@@ -603,31 +705,39 @@ baseline change. A larger PR count is not a larger completion percentage.
 | P2 / RM#41 | AST/bindings and diagnostics; qualified type/effect/emission identity; stdlib adapter/bootstrap/tooling conformance | Large; original 3–5 PR estimate requires reassessment; remaining count unquantified pending effect/emission, guard/general inference, migration and acceptance decomposition |
 | P3 / RM#43 | Strict manifest/explicit CLI; physical root confinement/graph identity; two-app and relocated-install acceptance | Large; 2–4 PRs after P1/P2; host path identity/race safety is a prerequisite, not existing capability |
 | P4 / RM#42 | Public stdlib inventory/names; explicit exports/re-exports and prefix migration; remove bootstrap adapter with coordinated source migration verified | Medium; 1–2 PRs after P2/P3; preserve core identity and existing API behavior |
-| P5 / RM#110 | Backend decision; bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large, uncertain; 4–7 PRs after P1–P3; DNS/TLS packaging and cancellation may require re-estimation before coding |
-| P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3 and accepted transport mechanism; initial client does not wait for it |
+| P5 / RM#110 | Libcurl-backed bounded DNS/TLS/duplex host mechanism; source protocol/facade; independent HTTP/HTTPS client acceptance | Large; 4–7 PRs after P1–P3; re-estimate from implementation evidence |
+| P6 / RM#111 | Request parser/serializer; finite async handler integration; adversarial lifecycle and packaged walkthrough | Large; 2–4 PRs after P1–P3; P5 interoperability is checked when P5 is delivered |
 | P7 / RM#44 | Lock/digest model; bounded immutable Git restore; explicit vendor/offline workflow; corrupt/conflicting graph and cross-machine acceptance | Large; 3–5 PRs independently after P1/P3; remote acquisition/backend packaging add uncertainty |
-| P8 / RM#112 | Language/local-package release gate after P1–P4; HTTP-client gate after P5; final all-outcomes gate including P6/P7 pinned/offline reproduction | Medium; 1–2 acceptance/release PRs, provisional and to be reassessed across three gates; final closure waits for P2–P7 |
+| P8 / RM#112 | Language/local-package acceptance checkpoint after P1–P4; HTTP-client checkpoint after P5; final all-outcomes acceptance including P6/P7 pinned/offline reproduction | Medium; 1–2 acceptance/release PRs, provisional and to be reassessed across three checkpoints; final closure waits for P2–P7 |
 
-The selected sequence, agreed on 2026-10-04, is P2 → P3 → P4 → release before
-HTTP client work. P8 has three distinct acceptance gates:
+The sequence selected on 2026-10-04 placed a language/local-package release
+after P4 and before HTTP. The owner superseded that release ordering on
+2026-10-14: no public release or core promotion occurs before SP1 implementation
+is complete. The P1–P4 installed-package checks remain final release-acceptance
+evidence and do not block P5. P8 retains three acceptance checkpoints:
 
-1. **Language/local-package release after P1–P4:** a clean installed toolchain
+1. **Language/local-package checkpoint after P1–P4:** a clean installed toolchain
    builds and runs two independent applications consuming one local library;
    relocated toolchain/package trees, namespace/stdlib migration, executed docs,
-   fresh bootstrap and required native/browser baseline conformance pass. Use the
-   normal release review/publication process. Neither HTTP nor P7 is required.
+   fresh bootstrap and required native/browser baseline conformance pass. This
+   may use a locally or CI-built release archive; it does not promote core or
+   publish a release, and it does not block P5. Complete this evidence before
+   final alpha.13 release acceptance. Neither HTTP nor P7 is required for this
+   checkpoint.
 2. **HTTP-client gate after P5:** validate the independent local-package client
    against the bounded HTTP/HTTPS, TLS rejection, timeout, malformed-response and
    cleanup contracts. The server (P6) and dependency reproduction (P7) may follow.
-3. **Final all-outcomes gate:** accept every task, including P6's server
+3. **Final all-outcomes checkpoint:** accept every task, including P6's server
    lifecycle/walkthrough and P7's pinned remote restore and verified offline
-   reproduction, with clean/relocated workflows, executed docs and supporting
-   releases. Earlier gates do not close P8 or the programme as a whole.
+   reproduction, with clean/relocated workflows, executed docs and release
+   candidate evidence. Publish alpha.13 only after all scoped SP1 outcomes and
+   final release acceptance pass. Earlier checkpoints do not close P8 or the
+   programme as a whole.
 
-These gates partition existing P8 acceptance without changing scope or weights.
-P7 is independent once P1/P3 are accepted, not a prerequisite for the first release
-or client. No version is allocated and the checkpoint does not imply leaving
-alpha. Revisit transport/backend feasibility before fixing P5's detailed size.
+These checkpoints partition existing P8 acceptance without changing scope or
+weights. P7 is independent once P1/P3 are accepted, not a prerequisite for P5.
+No version is allocated and the final release does not imply leaving alpha.
+Reassess P5's estimate as implementation evidence accumulates.
 Browser namespace conformance belongs to P2/P4; browser HTTP support is not
 implied. GI#166 typed service exchange and GI#162 preview-server replacement
 remain separate work. The [roadmap checkpoint](../ROADMAP.md#namespace-release-checkpoint)

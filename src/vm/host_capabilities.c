@@ -21,6 +21,10 @@
 extern char **environ;
 #define HC_MAX_NS UINT64_C(31536000000000000)
 #define HC_MAX_BYTES (16u * 1024u * 1024u)
+#define HC_MAX_FILE_BYTES (32u * 1024u * 1024u)
+#define HC_ROOTED_PATH_MAX 4096u
+#define HC_ROOTED_DEPTH_MAX 256u
+#define HC_ROOTED_SYMLINK_MAX 40u
 
 /* Typed POSIX services. Each call owns its descriptors and child-process cleanup. */
 
@@ -95,6 +99,401 @@ static bool hc_clock(uint64_t *ns)
 static bool hc_string(Value *v, ValueKind kind)
 {
     return v->kind == kind && !memchr(v->as.bytes.data, 0, v->as.bytes.length);
+}
+
+static Value *hc_identity_value(const struct stat *info)
+{
+    if ((uintmax_t)info->st_dev > SIZE_MAX || (uintmax_t)info->st_ino > SIZE_MAX) {
+        return NULL;
+    }
+    char *names[] = {"device", "inode"};
+    Value *values[] = {value_size((size_t)info->st_dev), value_size((size_t)info->st_ino)};
+    Value *identity = values[0] && values[1]
+                          ? named_value(V_RECORD, "FilesystemRootIdentity", names, values, 2)
+                          : NULL;
+    release(values[0]);
+    release(values[1]);
+    return identity;
+}
+
+/* Internal backend for the isolated asynchronous root-identity operation. */
+static Value *hc_root_identity(VM *vm, Value **a)
+{
+    REQUIRE(hc_string(a[0], V_PATH), "VM trap: root identity requires Path");
+    int root = open((char *)a[0]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (root < 0) {
+        return hc_error("fs_root_identity", NULL, errno);
+    }
+    struct stat info;
+    int status = fstat(root, &info);
+    int error = errno;
+    close(root);
+    if (status) {
+        return hc_error("fs_root_identity", NULL, error);
+    }
+    if ((uintmax_t)info.st_dev > SIZE_MAX || (uintmax_t)info.st_ino > SIZE_MAX) {
+        return hc_error("fs_root_identity", "out_of_range", 0);
+    }
+    Value *identity = hc_identity_value(&info);
+    return identity ? host_variant("Ok", identity) : NULL;
+}
+
+/* Resolve one relative file from a held directory descriptor. Symlink targets
+ * are expanded relative to their parent and restarted from the held root; every
+ * ordinary component is opened with O_NOFOLLOW before it can become a parent. */
+static Value *hc_read_beneath(VM *vm, Value **a)
+{
+    REQUIRE(hc_string(a[0], V_PATH) && hc_string(a[1], V_PATH) && a[2]->kind == V_NAT,
+            "VM trap: rooted read requires Path, Path, Nat");
+    size_t path_length = a[1]->as.bytes.length, limit = 0;
+    if (!path_length || a[1]->as.bytes.data[0] == '/') {
+        return hc_error("fs_read_beneath", "invalid_argument", 0);
+    }
+    if (path_length > HC_ROOTED_PATH_MAX ||
+        !pn_big_fits_size(&a[2]->as.integer, &limit) || limit > HC_MAX_BYTES) {
+        return hc_error("fs_read_beneath", "out_of_range", 0);
+    }
+
+    int root = open((char *)a[0]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (root < 0) {
+        return hc_error("fs_read_beneath", NULL, errno);
+    }
+    struct stat root_info;
+    if (fstat(root, &root_info)) {
+        int e = errno;
+        close(root);
+        return hc_error("fs_read_beneath", NULL, e);
+    }
+    if (!S_ISDIR(root_info.st_mode)) {
+        close(root);
+        return hc_error("fs_read_beneath", "not_directory", 0);
+    }
+    if ((uintmax_t)root_info.st_dev > SIZE_MAX || (uintmax_t)root_info.st_ino > SIZE_MAX) {
+        close(root);
+        return hc_error("fs_read_beneath", "out_of_range", 0);
+    }
+
+    char *pending = malloc(path_length + 1);
+    if (!pending) {
+        close(root);
+        return hc_error("fs_read_beneath", "out_of_memory", 0);
+    }
+    memcpy(pending, a[1]->as.bytes.data, path_length);
+    pending[path_length] = 0;
+
+    char resolved[HC_ROOTED_PATH_MAX + 1] = {0};
+    size_t resolved_length = 0, prefix_lengths[HC_ROOTED_DEPTH_MAX] = {0};
+    size_t depth = 1, symlinks = 0;
+    int directories[HC_ROOTED_DEPTH_MAX];
+    directories[0] = dup(root);
+    if (directories[0] < 0) {
+        int e = errno;
+        free(pending);
+        close(root);
+        return hc_error("fs_read_beneath", NULL, e);
+    }
+
+    Value *result = NULL;
+    for (;;) {
+        bool restart = false;
+        size_t pending_length = strlen(pending), cursor = 0;
+        while (cursor < pending_length) {
+            while (cursor < pending_length && pending[cursor] == '/') {
+                cursor++;
+            }
+            if (cursor == pending_length) {
+                break;
+            }
+            size_t start = cursor;
+            while (cursor < pending_length && pending[cursor] != '/') {
+                cursor++;
+            }
+            size_t end = cursor, component_length = end - start;
+            if (component_length == 1 && pending[start] == '.') {
+                continue;
+            }
+            if (component_length == 2 && pending[start] == '.' && pending[start + 1] == '.') {
+                if (depth == 1) {
+                    result = hc_error("fs_read_beneath", "invalid_argument", 0);
+                    goto rooted_read_done;
+                }
+                close(directories[--depth]);
+                resolved_length = prefix_lengths[depth - 1];
+                resolved[resolved_length] = 0;
+                continue;
+            }
+
+            char *component = malloc(component_length + 1);
+            if (!component) {
+                result = hc_error("fs_read_beneath", "out_of_memory", 0);
+                goto rooted_read_done;
+            }
+            memcpy(component, pending + start, component_length);
+            component[component_length] = 0;
+
+            struct stat entry_info;
+            if (fstatat(directories[depth - 1], component, &entry_info, AT_SYMLINK_NOFOLLOW)) {
+                int e = errno;
+                free(component);
+                result = hc_error("fs_read_beneath", NULL, e);
+                goto rooted_read_done;
+            }
+            if (S_ISLNK(entry_info.st_mode)) {
+                if (++symlinks > HC_ROOTED_SYMLINK_MAX) {
+                    free(component);
+                    result = hc_error("fs_read_beneath", NULL, ELOOP);
+                    goto rooted_read_done;
+                }
+                char target[HC_ROOTED_PATH_MAX + 1];
+                ssize_t target_length = readlinkat(directories[depth - 1], component,
+                                                   target, HC_ROOTED_PATH_MAX);
+                int e = errno;
+                free(component);
+                if (target_length < 0) {
+                    result = hc_error("fs_read_beneath", NULL, e);
+                    goto rooted_read_done;
+                }
+                if ((size_t)target_length == HC_ROOTED_PATH_MAX) {
+                    result = hc_error("fs_read_beneath", "out_of_range", 0);
+                    goto rooted_read_done;
+                }
+                if (!target_length || target[0] == '/') {
+                    result = hc_error("fs_read_beneath", "invalid_argument", 0);
+                    goto rooted_read_done;
+                }
+                target[target_length] = 0;
+                size_t remaining = pending_length - end;
+                size_t separator = resolved_length ? 1 : 0;
+                size_t needed = resolved_length + separator + (size_t)target_length +
+                                (remaining ? 1 : 0) + remaining;
+                if (needed > HC_ROOTED_PATH_MAX) {
+                    result = hc_error("fs_read_beneath", "out_of_range", 0);
+                    goto rooted_read_done;
+                }
+                char *expanded = malloc(needed + 1);
+                if (!expanded) {
+                    result = hc_error("fs_read_beneath", "out_of_memory", 0);
+                    goto rooted_read_done;
+                }
+                size_t at = 0;
+                if (resolved_length) {
+                    memcpy(expanded, resolved, resolved_length);
+                    at += resolved_length;
+                    expanded[at++] = '/';
+                }
+                memcpy(expanded + at, target, (size_t)target_length);
+                at += (size_t)target_length;
+                if (remaining) {
+                    expanded[at++] = '/';
+                    memcpy(expanded + at, pending + end, remaining);
+                    at += remaining;
+                }
+                expanded[at] = 0;
+                free(pending);
+                pending = expanded;
+                while (depth > 1) {
+                    close(directories[--depth]);
+                }
+                resolved_length = 0;
+                resolved[0] = 0;
+                restart = true;
+                break;
+            }
+
+            bool final = end == pending_length;
+            int flags = O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK;
+            if (!final) {
+                flags |= O_DIRECTORY;
+            }
+            int opened = openat(directories[depth - 1], component, flags);
+            if (opened < 0) {
+                int e = errno;
+                free(component);
+                result = hc_error("fs_read_beneath", NULL, e);
+                goto rooted_read_done;
+            }
+            struct stat opened_info;
+            if (fstat(opened, &opened_info)) {
+                int e = errno;
+                close(opened);
+                free(component);
+                result = hc_error("fs_read_beneath", NULL, e);
+                goto rooted_read_done;
+            }
+            if (final) {
+                free(component);
+                if (!S_ISREG(opened_info.st_mode)) {
+                    close(opened);
+                    result = hc_error("fs_read_beneath", "not_regular_file", 0);
+                    goto rooted_read_done;
+                }
+                Buffer data = {0};
+                const char *problem = NULL;
+                int e = 0;
+                for (;;) {
+                    char chunk[8192];
+                    ssize_t n = read(opened, chunk, sizeof(chunk));
+                    if (!n) {
+                        break;
+                    }
+                    if (n < 0) {
+                        if (errno == EINTR) {
+                            continue;
+                        }
+                        e = errno;
+                        break;
+                    }
+                    if ((size_t)n > limit - data.length) {
+                        problem = "output_limit";
+                        break;
+                    }
+                    if (!buffer_add(&data, chunk, (size_t)n)) {
+                        problem = "out_of_memory";
+                        break;
+                    }
+                }
+                if (close(opened) && !e) {
+                    e = errno;
+                }
+                if (e || problem) {
+                    result = hc_error("fs_read_beneath", problem, e);
+                    free(data.data);
+                    goto rooted_read_done;
+                }
+                Value *identity = hc_identity_value(&root_info);
+                Value *contents = value_data(V_BYTES, (const uint8_t *)data.data, data.length);
+                free(data.data);
+                char *read_fields[] = {"identity", "contents"};
+                Value *read_values[] = {identity, contents};
+                Value *rooted = identity && contents
+                                    ? named_value(V_RECORD, "FilesystemRootRead", read_fields,
+                                                  read_values, 2)
+                                    : NULL;
+                release(identity);
+                release(contents);
+                result = rooted ? host_variant("Ok", rooted) : NULL;
+                goto rooted_read_done;
+            }
+            free(component);
+            if (!S_ISDIR(opened_info.st_mode) || depth == HC_ROOTED_DEPTH_MAX) {
+                close(opened);
+                result = hc_error("fs_read_beneath", depth == HC_ROOTED_DEPTH_MAX
+                                                             ? "out_of_range"
+                                                             : "not_directory",
+                                  0);
+                goto rooted_read_done;
+            }
+            size_t next_length = resolved_length + (resolved_length ? 1 : 0) + component_length;
+            if (next_length > HC_ROOTED_PATH_MAX) {
+                close(opened);
+                result = hc_error("fs_read_beneath", "out_of_range", 0);
+                goto rooted_read_done;
+            }
+            if (resolved_length) {
+                resolved[resolved_length++] = '/';
+            }
+            memcpy(resolved + resolved_length, pending + start, component_length);
+            resolved_length = next_length;
+            resolved[resolved_length] = 0;
+            directories[depth] = opened;
+            prefix_lengths[depth] = resolved_length;
+            depth++;
+        }
+        if (!restart) {
+            result = hc_error("fs_read_beneath", "not_regular_file", 0);
+            goto rooted_read_done;
+        }
+    }
+
+rooted_read_done:
+    while (depth) {
+        close(directories[--depth]);
+    }
+    free(pending);
+    close(root);
+    return result;
+}
+
+/* Walk parent descriptors rather than comparing path spellings: symlinked
+ * paths and multiple names for one directory still describe the same tree. */
+static int hc_directory_contains(int ancestor, int descendant, bool *contains)
+{
+    struct stat ancestor_info;
+    if (fstat(ancestor, &ancestor_info)) {
+        return errno;
+    }
+    int current = dup(descendant);
+    if (current < 0) {
+        return errno;
+    }
+    for (size_t depth = 0; depth <= HC_ROOTED_DEPTH_MAX; depth++) {
+        struct stat current_info;
+        if (fstat(current, &current_info)) {
+            int e = errno;
+            close(current);
+            return e;
+        }
+        if (current_info.st_dev == ancestor_info.st_dev &&
+            current_info.st_ino == ancestor_info.st_ino) {
+            close(current);
+            *contains = true;
+            return 0;
+        }
+        int parent = openat(current, "..", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+        if (parent < 0) {
+            int e = errno;
+            close(current);
+            return e;
+        }
+        struct stat parent_info;
+        if (fstat(parent, &parent_info)) {
+            int e = errno;
+            close(parent);
+            close(current);
+            return e;
+        }
+        if (current_info.st_dev == parent_info.st_dev &&
+            current_info.st_ino == parent_info.st_ino) {
+            close(parent);
+            close(current);
+            *contains = false;
+            return 0;
+        }
+        close(current);
+        current = parent;
+    }
+    close(current);
+    return EOVERFLOW;
+}
+
+static Value *hc_directories_overlap(VM *vm, Value **a)
+{
+    REQUIRE(hc_string(a[0], V_PATH) && hc_string(a[1], V_PATH),
+            "VM trap: directory overlap requires Path, Path");
+    int left = open((char *)a[0]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (left < 0) {
+        return hc_error("fs_directories_overlap", NULL, errno);
+    }
+    int right = open((char *)a[1]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (right < 0) {
+        int e = errno;
+        close(left);
+        return hc_error("fs_directories_overlap", NULL, e);
+    }
+    bool overlaps = false, contains = false;
+    int e = hc_directory_contains(left, right, &contains);
+    overlaps = contains;
+    if (!e && !overlaps) {
+        e = hc_directory_contains(right, left, &contains);
+        overlaps = contains;
+    }
+    close(right);
+    close(left);
+    if (e == EOVERFLOW) {
+        return hc_error("fs_directories_overlap", "out_of_range", 0);
+    }
+    return e ? hc_error("fs_directories_overlap", NULL, e)
+             : host_variant("Ok", value_bool(overlaps));
 }
 
 static int hc_path_compare(const void *left, const void *right)
@@ -441,6 +840,15 @@ finish:
 
 Value *host_capability_call(VM *vm, const char *name, Value **a)
 {
+    if (!strcmp(name, "fs_root_identity")) {
+        return hc_root_identity(vm, a);
+    }
+    if (!strcmp(name, "fs_read_beneath")) {
+        return hc_read_beneath(vm, a);
+    }
+    if (!strcmp(name, "fs_directories_overlap")) {
+        return hc_directories_overlap(vm, a);
+    }
     if (!strcmp(name, "process_run")) {
         return hc_process(vm, a);
     }
@@ -471,7 +879,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
     if (!strcmp(name, "fs_read")) {
         REQUIRE(a[1]->kind == V_NAT, "VM trap: read limit requires Nat");
         size_t limit;
-        if (!pn_big_fits_size(&a[1]->as.integer, &limit) || limit > HC_MAX_BYTES) {
+        if (!pn_big_fits_size(&a[1]->as.integer, &limit) || limit > HC_MAX_FILE_BYTES) {
             return hc_error(name, "out_of_range", 0);
         }
         int fd = open(path, O_RDONLY | O_NONBLOCK);
@@ -525,7 +933,7 @@ Value *host_capability_call(VM *vm, const char *name, Value **a)
     }
     if (!strcmp(name, "fs_write")) {
         REQUIRE(a[1]->kind == V_BYTES, "VM trap: write requires Bytes");
-        if (a[1]->as.bytes.length > HC_MAX_BYTES) {
+        if (a[1]->as.bytes.length > HC_MAX_FILE_BYTES) {
             return hc_error(name, "out_of_range", 0);
         }
         int fd = open(path, O_WRONLY | O_CREAT | O_NONBLOCK, 0666);

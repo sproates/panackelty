@@ -5,9 +5,10 @@ import project/src/compiler/resolver::{is_builtin}
 // Source spelling, visibility and semantic identity remain separate.
 
 // Tags keep semantic identities separate from source spelling and inference
-// placeholders. P3 will add manifest package identities to this sum type.
+// placeholders. Manifest packages include their declared package and version.
 pub enum ModulePackageIdentity {
   StandaloneModulePackage,
+  ManifestModulePackage(Str, Str),
   ToolchainModulePackage
 }
 
@@ -271,6 +272,23 @@ pub pure source_module_identity(path: Str, project_root: Str, stdlib_root: Str):
     ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
   } else {
     ModuleIdentity(StandaloneModulePackage(), module_relative_path(path, project_root))
+  }
+}
+
+pub pure source_package_module_identity(
+  path: Str,
+  package_root: Str,
+  stdlib_root: Str,
+  package_name: Str,
+  package_version: Str
+): ModuleIdentity {
+  if starts_with_at(path, stdlib_root + "/", 0) {
+    ModuleIdentity(ToolchainModulePackage(), module_relative_path(path, stdlib_root))
+  } else {
+    ModuleIdentity(
+      ManifestModulePackage(package_name, package_version),
+      module_relative_path(path, package_root)
+    )
   }
 }
 

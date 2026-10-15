@@ -1,4 +1,164 @@
+PASS inferred locals report initializer evidence
+PASS accepted interpolation explains local scalar type
+PASS rejected interpolation explains non-scalar local type
+PASS unresolved interpolation local is explicitly unavailable
+PASS guarded interpolation type is explicitly deferred
+PASS type-at selects the smallest checked expression
+PASS type-at reports the containing generic call type
+PASS type-at reports no expression at unrelated location
+PASS type-at rejects a zero line
+PASS accepted function return type cites checked result
+PASS rejected function return explains actual and expected types
+PASS unresolved function return is explicitly unavailable
+PASS accepted direct call argument cites checked types
+PASS rejected direct call argument explains type mismatch
+PASS unresolved direct call argument is explicitly unavailable
+PASS accepted direct call arity explains exact argument count
+PASS missing direct call argument explains arity rejection
+PASS extra direct call argument explains arity rejection
+PASS accepted core call arity reports exact argument count
+PASS len accepts Bytes and explains its type requirement
+PASS len accepts arrays and explains its type requirement
+PASS len rejects unsupported argument types
+PASS len reports unavailable argument type
+PASS print explains accepted non-Void arguments
+PASS eprint explains accepted non-Void arguments
+PASS print explains rejected Void arguments
+PASS eprint explains rejected Void arguments
+PASS explain rejected Void binding storage
+PASS explain rejected Void array element
+PASS print reports unavailable argument types
+PASS rejected core call arity reports exact argument count
+PASS accepted indirect call arity reports exact argument count
+PASS rejected indirect call arity reports exact argument count
+PASS unresolved indirect call arity is explicitly unavailable
+PASS rejected indirect call target explains non-callable type
+PASS indirect call target type parameter is explicitly unavailable
+PASS native HTTP transport explains accepted argument requirements
+PASS native HTTP transport explains rejected argument requirement
+PASS native HTTP transport explains unavailable argument requirement
+PASS accepted indirect call argument cites checked type
+PASS rejected indirect call argument explains mismatch
+PASS unresolved indirect call argument is explicitly unavailable
+PASS accepted explicit type argument count is explained
+PASS missing explicit type argument explains count rejection
+PASS extra explicit type argument explains count rejection
+PASS explicit type argument on a core call is rejected with its count
+PASS explicit type argument on a generic record constructor is rejected with its count
+PASS explicit type argument on a generic variant constructor is rejected with its count
+PASS accepted record constructor argument cites checked types
+PASS rejected record constructor argument explains mismatch
+PASS unavailable record constructor argument is explicit
+PASS enum variant constructor argument is explained
+PASS generic record constructor argument uses the checked type
+PASS missing record constructor argument explains arity rejection
+PASS accepted text builtin argument cites checked types
+PASS rejected text builtin argument explains type mismatch
+PASS unresolved bytes builtin argument is explicitly unavailable
+PASS rejected bytes builtin argument explains type mismatch
+PASS accepted bytes builtin arguments cite checked types
+PASS accepted rational conversion argument cites checked types
+PASS rejected rational conversion argument explains mismatch
+PASS accepted numeric parser argument cites checked types
+PASS unresolved quotient argument is explicitly unavailable
+PASS accepted quotient arguments cite checked types
+PASS accepted collection append item cites checked type
+PASS rejected collection receiver explains required shape
+PASS unavailable collection receiver explains missing shape
+PASS accepted map callback contract explains purity, input and result
+PASS rejected reduce callback explains result accumulator mismatch
+PASS rejected map callback explains effect requirement
+PASS rejected map callback explains required arity
+PASS unavailable map callback contract reports missing type
+PASS rejected collection append item explains mismatch
+PASS map method reports key and value checks
+PASS rejected map value retains independent key check
+PASS accepted map lookup cites checked key type
+PASS accepted map get cites checked key type
+PASS rejected set method lookup explains item mismatch
+PASS accepted set lookup cites checked item type
+PASS unresolved set item is explicitly unavailable
+PASS accepted path arguments cite checked types
+PASS rejected path argument preserves its accepted sibling
+PASS unresolved path argument is unavailable while its sibling is accepted
+PASS accepted native path conversion reports byte argument
+PASS accepted typed path append reports Path arguments
+PASS imported generic path argument keeps definition source
+PASS accepted environment arguments cite checked types
+PASS rejected environment argument explains mismatch
+PASS unresolved environment argument is explicitly unavailable
+PASS accepted time arguments cite checked types
+PASS rejected time argument explains mismatch
+PASS unresolved time argument is explicitly unavailable
+PASS accepted filesystem IO arguments cite checked types
+PASS rejected filesystem IO argument preserves sibling
+PASS unresolved filesystem IO argument is explicitly unavailable
+PASS accepted rooted filesystem read arguments cite checked types
+PASS rejected rooted filesystem read argument preserves siblings
+PASS unresolved rooted filesystem read argument is explicitly unavailable
+PASS accepted filesystem query arguments cite checked types
+PASS rejected filesystem query argument explains mismatch
+PASS unresolved filesystem query argument is explicitly unavailable
+PASS accepted filesystem path arguments cite checked types
+PASS rejected filesystem path argument preserves sibling
+PASS unresolved filesystem path argument is explicitly unavailable
+PASS accepted annotated local cites checked types
+PASS rejected annotated local explains type mismatch
+PASS unresolved annotated local is explicitly unavailable
+PASS accepted assignment value cites checked types
+PASS type-compatible value remains separately rejected for immutability
+PASS rejected assignment value explains type mismatch
+PASS unresolved assignment value is explicitly unavailable
+PASS array element join explains inferred collection type
+PASS array concatenation explains its element type join
+PASS rejected array concatenation join preserves checker diagnostic
+PASS unavailable array concatenation join reports unresolved type
+PASS rejected array element join preserves checker diagnostic
+PASS conditional result explains the combined type
+PASS match arms explain the combined type
+PASS generic calls explain repeated type parameter joins
+PASS rejected generic inference join preserves checker diagnostic
+PASS unresolved generic inference join is explicit
+PASS accepted binary operator explains operand and result types
+PASS accepted unary operator marks right operand not applicable
+PASS rejected operator explains operand type mismatch
+PASS unresolved operator operand is explicitly unavailable
+PASS accepted index explains receiver and position types
+PASS rejected index receiver preserves checker diagnostic
+PASS rejected index position preserves checker diagnostic
+PASS unresolved index receiver is explicitly unavailable
+PASS accepted array iteration explains its item type
+PASS rejected iteration source preserves checker diagnostic
+PASS unresolved iteration source is explicitly unavailable
+PASS accepted if condition explains its Bool requirement
+PASS rejected if condition preserves checker diagnostic
+PASS unresolved if condition is explicitly unavailable
+PASS accepted while condition explains its Bool requirement
+PASS valid match variant remains accepted when match is non-exhaustive
+PASS wrong match variant explains enum membership rejection
+PASS unresolved match subject leaves variant membership unavailable
+PASS unresolved match subject leaves exhaustiveness unavailable
+PASS exhaustive match explains complete variant coverage
+PASS non-enum match subject explains rejection
+PASS non-exhaustive match explains missing variants
+PASS duplicate match arm explains uniqueness rejection
+PASS match payload binding count explains rejection
+PASS accepted match payload binding count explains arity
+PASS generic match payload explains substituted binding type
+PASS unresolved generic match payload type is explicitly unavailable
+PASS accepted generic record field explains receiver and result types
+PASS rejected non-record field receiver preserves diagnostic
+PASS unresolved field receiver is explicitly unavailable
+PASS unresolved branch join is explicit
+PASS incomplete inferred local is explicitly unavailable
+PASS type-at does not explain an invalid body
 PASS imported generic proof
+PASS type-at preserves imported generic expression source
+PASS imported generic guarded conversion attribution
+PASS guarded conversion cites local branch facts
+PASS guarded source proves a broader guarded target
+PASS rejected guarded conversion explains missing proof
+PASS guarded to base widening has no proof conversion
 PASS query does not execute main
 PASS unknown function
 PASS ordinary source executes
@@ -27,6 +187,7 @@ PASS missing embedded stdlib configuration
 PASS imported generic effect rejection
 PASS allowed effect boundaries
 PASS no calls has no invented evidence
+PASS deferred function retains its checked effect boundaries
 PASS callable declared effect
 PASS allowed async await
 PASS async blocking rejection
@@ -55,4 +216,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 57, failures: 0
+tests: 218, failures: 0

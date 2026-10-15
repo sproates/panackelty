@@ -1,21 +1,32 @@
 'use strict';
 // Generation stays in core. The publisher receives static reports, never executable plans.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
-const {spawnSync} = require('node:child_process');
-const {regular,sha,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
+const childProcess = require('node:child_process');
+const {regular,sha,sessionRecords,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
+const {validateManifest} = require('./source_coverage_manifest.cjs');
+const {checkManifestPolicy,checkPolicy} = require('./source_coverage_policy.cjs');
 const checkout = path.resolve(__dirname,'..');
 function command(args, timeout = 180000, extraEnv = {}) {
-  const result = spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
+  const started = Date.now();
+  const result = childProcess.spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
     env:{...process.env,PANACKELTY_STDLIB_PATH:path.join(checkout,'src/stdlib'),...extraEnv,
       PANACK_TEST_RUNNER_REPORT:'',PANACK_COVERAGE_TICKET:''}});
-  if (result.error || result.status !== 0 || result.signal) throw new Error(`${args.slice(0,3).join(' ')} failed: ${result.error?.message || result.stderr || result.stdout}`);
+  if (result.error || result.status !== 0 || result.signal) throw new Error(`${args.join(' ')} failed after ${Date.now()-started} ms (limit ${timeout} ms): ${result.error?.message || result.stderr || result.stdout}`);
   return result.stdout;
+}
+function exportPlan(tool,entry,prefix) {
+  // Large plans completed in 141s on one hosted runner; another needed 179s
+  // for the smaller compiler plan alone. Allow bounded runner variation.
+  if (command(['./panack','run',tool,entry,prefix],300000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error(`Unexpected export response: ${entry}`);
 }
 function baseline(output, allowDirty = false) {
   const manifestBytes = regular(path.join(checkout,'tests/source_coverage/manifest.json'));
   const manifest = JSON.parse(manifestBytes);
   const tracked = command(['git','ls-files','src']).trim().split('\n').filter(p=>p.endsWith('.panack')).sort();
-  if (JSON.stringify(tracked) !== JSON.stringify([...manifest.eligible].sort())) throw Error('Eligible source manifest differs from tracked src/**/*.panack');
+  validateManifest(manifest,tracked);
+  const policyBytes = regular(path.join(checkout,'tests/source_coverage/policy.json'));
+  const policy = JSON.parse(policyBytes);
+  const manifestHash = checkManifestPolicy(manifest,policy);
   const commit = command(['git','rev-parse','HEAD']).trim();
   const clean = !allowDirty && !command(['git','status','--porcelain','--untracked-files=all']).trim();
   if (!clean && !allowDirty) throw Error('Dirty tracked source; commit first or use --allow-dirty for a non-publishable development report');
@@ -31,7 +42,7 @@ function baseline(output, allowDirty = false) {
     if (!plans.has(entry)) {
       console.log(`Plan: ${entry}`);
       const prefix = path.join(work,`plan-${plans.size}`);
-      if (command(['./panack','run',tool,entry,prefix],180000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error('Unexpected export response');
+      exportPlan(tool,entry,prefix);
       plans.set(entry,readPlan(prefix,entry,checkout,compiler));
     }
     return plans.get(entry);
@@ -44,7 +55,7 @@ function baseline(output, allowDirty = false) {
     check(stdout);
     const session = readSession(directory,[p],seen);
     groups.push(observations(p,session.totals[0]));
-    const records = fs.readdirSync(directory).sort().map(name=>[name,sha(regular(path.join(directory,name)))]);
+    const records = sessionRecords(directory);
     sessions.push({id,entry:p.entry,arguments:args.map(a=>a.startsWith(work)?'<workspace>/'+path.basename(a):a),
       artifact:sha(p.artifact),inventory:sha(p.inventory),stdoutHash:sha(Buffer.from(stdout)),nonce:session.nonce,executions:session.executions,records});
   }
@@ -79,22 +90,21 @@ function baseline(output, allowDirty = false) {
   for (const p of plans.values()) for (const s of p.sources) if (sha(regular(path.join(checkout,s.path))) !== s.hash) throw Error('Source changed during collection');
   if (!compiler.equals(regular(path.join(checkout,'bootstrap/compiler-v9.bc'))) || !vm.equals(regular(path.join(checkout,'panack-vm')))) throw Error('Toolchain changed during collection');
   if (command(['git','rev-parse','HEAD']).trim() !== commit || !manifestBytes.equals(regular(path.join(checkout,'tests/source_coverage/manifest.json')))) throw Error('Checkout or manifest changed during collection');
+  if (!policyBytes.equals(regular(path.join(checkout,'tests/source_coverage/policy.json')))) throw Error('Coverage policy changed during collection');
   if (clean && command(['git','status','--porcelain','--untracked-files=all']).trim()) throw Error('Checkout became dirty during collection');
   const files = union(groups,manifest.eligible);
   const report = {schema:1,repository:'sproates/panackelty',branch:'next',commit,clean,generatedAt:new Date().toISOString(),
-    compiler:sha(compiler),vm:sha(vm),manifestHash:sha(Buffer.from(JSON.stringify(manifest))),manifest,sessions,
+    compiler:sha(compiler),vm:sha(vm),manifestHash,manifest,sessions,
     metrics:totals(files),components:Object.fromEntries(['compiler','bytecode','stdlib'].map(c=>[c,totals(files.filter(f=>f.path.startsWith(`src/${c}/`)))])),files};
-  const {checkPolicy}=require('./source_coverage_policy.cjs');
   console.log(`Policy candidate counts: ${JSON.stringify({metrics:report.metrics,components:report.components})}`);
-  const policy=JSON.parse(regular(path.join(checkout,'tests/source_coverage/policy.json')));
   const result=checkPolicy(report,policy,{commit,manifestHash:report.manifestHash,allowDirty});
-  console.log(`Coverage policy: ${result.status}; ${result.protected} protected items`);
+  console.log(`Coverage report integrity: ${result.status}`);
   writeReport(output,report);
   console.log(JSON.stringify({output,clean,sessions:sessions.length,executions:sessions.reduce((n,s)=>n+s.executions,0),metrics:report.metrics},null,2));
   // Keep raw evidence locally for diagnosis; CI publishes only the bounded static report.
   return report;
 }
-module.exports = {baseline};
+module.exports = {baseline,exportPlan};
 if (require.main === module) {
   const args = process.argv.slice(2), allowDirty = args.includes('--allow-dirty');
   const positional = args.filter(a=>a!=='--allow-dirty');

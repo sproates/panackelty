@@ -172,9 +172,17 @@ fixed point. Program declaration indexes are internal compiler data, not a new
 bytecode ABI or an unchecked compilation mode. See the indexed-lookup measurements
 in [the validation profile](tests/VALIDATION_PROFILE.md).
 
-The first U3 query refreshes the v9 seed with opt-in checker evidence and
-`panack explain SOURCE.panack --function NAME`. Ordinary proof rules and emitted
-program bytes are unchanged. Fresh stage-2/3/4 compiler and standard-library
+The U3 query refreshes the v9 seed with opt-in checker evidence and
+`panack explain SOURCE.panack --function NAME`. Follow-up slices add retained
+explanations for proof-bearing conversions into guarded types and inferred local
+types with checked initializer evidence, followed by selected builtin argument
+checks including path APIs. The current extension records array, conditional and
+match type joins with accepted, rejected and unavailable results. These records
+remain opt-in to `explain`; ordinary
+checking keeps their evidence empty. The checker now accepts a guarded source
+for a compatible guarded target when the
+source invariant proves the target; ordinary checks still retain no explanation
+evidence. Fresh stage-2/3/4 compiler and standard-library
 fixed points validate the refresh; see the [query contract](docs/COMPILER_EXPLANATIONS.md)
 and validation profile. This is a bounded subtraction query, not full compiler
 or runtime explanations.
@@ -215,6 +223,12 @@ The historical milestones below retain their original version numbers.
 The subsequent TCP service refresh keeps format v9 and rebuilds the compiler
 seed with the additive builtin signature, effect checking and decoder validation.
 The seed refresh transaction checks compiler and stdlib fixed points.
+
+The bounded streaming-server prerequisite also keeps v9. It adds reserved
+async-only identities for the context-bearing server worker and scoped chunk
+reads; the seed refresh verifies identical stage-2/3/4 compiler and standard-
+library artifacts. Existing `tcp_serve` EOF behavior and bytecode layouts remain
+unchanged.
 
 ## Bootstrap status
 
@@ -468,7 +482,7 @@ suites and their validation commands.
 
 The remaining direct compiler contracts now run in
 `tests/runner/compiler_contracts_unit.panack` (201 assertions) and
-`tests/runner/compiler_integration_unit.panack` (51 assertions), under both
+`tests/runner/compiler_integration_unit.panack` (133 assertions), under both
 `make unit` and `make check-compiler`. They cover emitter instructions, diagnostic
 rendering and source snapshots, loader/imports and driver commands, generics,
 inference, types and host boundaries. The probes use fixed expectations;
@@ -536,3 +550,8 @@ is refreshed through the existing staged fixed-point procedure to expose the
 commands through `panack`; generated application bytecode and bootstrap semantics
 remain unchanged. No instrumentation is added to the seed or VM. See
 [the inventory contract](docs/SOURCE_INVENTORY.md).
+
+The alpha.13 coverage-capacity correction refreshes the v9 seed through the
+standard stages 2–4 fixed-point proof. The self-hosted raw/session readers accept
+32 MiB containers while identity blobs remain bounded at 16 MiB. Compiler digest:
+`206a9dc17af2ca4d7d85af6759729aa35a7e9cb5dc53593b038d473cfbcf4403`.

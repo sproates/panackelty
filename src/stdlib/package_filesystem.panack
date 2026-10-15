@@ -1,0 +1,17 @@
+pub import stdlib/host::{HostError}
+
+// Package loading needs a physical root identity and a confined source read.
+pub record FilesystemRootIdentity { device: Nat, inode: Nat }
+pub record FilesystemRootRead { identity: FilesystemRootIdentity, contents: Bytes }
+
+pub directories_overlap(left: Path, right: Path): Result[Bool, HostError] {
+  fs_directories_overlap(left, right)
+}
+
+pub read_beneath(
+  root: Path,
+  relative: Path,
+  limit: Nat
+): Result[FilesystemRootRead, HostError] {
+  fs_read_beneath(root, relative, limit)
+}

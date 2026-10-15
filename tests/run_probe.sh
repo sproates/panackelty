@@ -20,10 +20,18 @@ export PANACKELTY_STDLIB_PATH="$stdlib"
 case "$source" in
     compiler.panack|src/compiler/*|tests/experiments/semantic_impact/*) probe_root=$(pwd -P) ;;
     tests/runner/*)
-        if grep -q '^import project/' "$source"; then probe_root=$(pwd -P); else probe_root=; fi
+        if grep -Eq '^[[:space:]]*(pub[[:space:]]+)?import[[:space:]]+project/' "$source"; then
+            probe_root=$(pwd -P)
+        else
+            probe_root=
+        fi
         ;;
     tests/fixtures/compiler_contracts/*)
-        if grep -q '^import project/' "$source"; then probe_root=$(pwd -P); else probe_root=; fi
+        if grep -Eq '^[[:space:]]*(pub[[:space:]]+)?import[[:space:]]+project/' "$source"; then
+            probe_root=$(pwd -P)
+        else
+            probe_root=
+        fi
         ;;
     *) probe_root= ;;
 esac
@@ -42,16 +50,32 @@ fi
 fingerprint() {
     # Include names as well as bytes: additions, deletions, restored timestamps,
     # checkout relocation and different instrumented VMs must invalidate reuse.
-    { pwd -P; printf '%s\n' "$source" "$stdlib"; } > "$work/inputs"
-    hash "$0" "$vm" "$seed" "$source" >> "$work/inputs"
-    if [ "$hasher" = sha256sum ]; then
-        find -L src tests examples "$stdlib" -type f -name '*.panack' \
-            -exec sha256sum {} + > "$work/sources"
+    { pwd -P; printf '%s\n' "$source" "$stdlib" "$probe_root"; } > "$work/inputs"
+    hash "$0" tests/probe_dependencies.awk tests/profile_command.sh \
+        "$vm" "$seed" "$source" >> "$work/inputs"
+    if ! awk -v cwd="$(pwd -P)" -v source="$source" \
+        -v stdlib_root="$stdlib" -v project_root="$probe_root" \
+        -f tests/probe_dependencies.awk > "$work/dependencies"; then
+        # Never risk a stale artifact if the dependency graph is unfamiliar.
+        if [ "$hasher" = sha256sum ]; then
+            find -L src tests examples "$stdlib" -type f -name '*.panack' \
+                -exec sha256sum {} + > "$work/sources"
+        else
+            find -L src tests examples "$stdlib" -type f -name '*.panack' \
+                -exec shasum -a 256 {} + > "$work/sources"
+        fi
+        LC_ALL=C sort "$work/sources" >> "$work/inputs"
     else
-        find -L src tests examples "$stdlib" -type f -name '*.panack' \
-            -exec shasum -a 256 {} + > "$work/sources"
+        LC_ALL=C sort "$work/dependencies" > "$work/dependencies.sorted"
+        if [ "$hasher" = sha256sum ]; then
+            awk '{ printf "%s%c", $0, 0 }' "$work/dependencies.sorted" |
+                xargs -0 sha256sum > "$work/sources"
+        else
+            awk '{ printf "%s%c", $0, 0 }' "$work/dependencies.sorted" |
+                xargs -0 shasum -a 256 > "$work/sources"
+        fi
+        cat "$work/sources" >> "$work/inputs"
     fi
-    LC_ALL=C sort "$work/sources" >> "$work/inputs"
     hash "$work/inputs" | awk '{print $1}'
 }
 key=$(fingerprint)

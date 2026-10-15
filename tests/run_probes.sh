@@ -7,20 +7,43 @@ if [ "$jobs" -lt 1 ] || [ "$jobs" -gt 32 ]; then
     echo 'VALIDATION_JOBS must be an integer from 1 to 32' >&2
     exit 2
 fi
+for source in "$@"; do
+    case "$source" in
+        *::*)
+            source_file=${source%%::*}
+            group=${source#*::}
+            case "$source_file" in ''|*::* ) echo "invalid grouped probe: $source" >&2; exit 2 ;; esac
+            case "$group" in ''|*[!A-Za-z0-9_-]*) echo "invalid grouped probe: $source" >&2; exit 2 ;; esac
+            ;;
+    esac
+done
 work=$(mktemp -d "${TMPDIR:-/tmp}/panack-probes.XXXXXX")
 trap 'rm -rf "$work"' 0
 # Let outstanding probes finish before removing their output files.
 trap 'wait; exit 1' HUP INT TERM
 worker() {
     index=0
-    for source do
+    for spec do
         index=$((index + 1))
         # Claims remain until cleanup, so every probe executes exactly once.
         if mkdir "$work/$index.claim" 2>/dev/null; then
+            source=$spec
+            group=
+            case "$spec" in
+                *::*) source=${spec%%::*}; group=${spec#*::} ;;
+            esac
             name=${source##*/}
+            name=${name%.panack}
+            label=$name
+            if [ -n "$group" ]; then label="$label/$group"; fi
             result=0
-            sh tests/profile_command.sh "probe/${name%.panack}" sh tests/run_probe.sh "$source" \
-                > "$work/$index.out" 2> "$work/$index.err" || result=$?
+            if [ -n "$group" ]; then
+                PANACK_PROBE_GROUP=$group sh tests/profile_command.sh "probe/$label" sh tests/run_probe.sh "$source" \
+                    > "$work/$index.out" 2> "$work/$index.err" || result=$?
+            else
+                sh tests/profile_command.sh "probe/$label" sh tests/run_probe.sh "$source" \
+                    > "$work/$index.out" 2> "$work/$index.err" || result=$?
+            fi
             printf '%s\n' "$result" > "$work/$index.status"
         fi
     done
@@ -37,7 +60,7 @@ for pid in $pids; do
     if ! wait "$pid"; then status=1; fi
 done
 index=0
-for source do
+for source in "$@"; do
     index=$((index + 1))
     if [ ! -f "$work/$index.status" ]; then
         echo "probe did not complete: $source" >&2

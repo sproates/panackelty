@@ -70,6 +70,67 @@ server_pid=$!
 wait "$server_pid" || { cat "$work/stderr"; exit 1; }
 server_pid=
 test ! -s "$work/stdout" && test ! -s "$work/stderr"
+# A streaming worker starts before request EOF and reads a bounded chunk while
+# the independent client keeps its write side open.
+for extension in panack bc; do
+    port=$("$client" port)
+    cat > "$work/stream.panack" <<SOURCE
+import stdlib/tcp::{TcpServerLimits}
+async receive(max_bytes: Nat): Result[Bytes,Str] {
+  await tcp_server_read_chunk(max_bytes)
+}
+async main(): Unit {
+  result = await tcp_serve_stream(
+    "127.0.0.1",
+    $port,
+    @receive,
+    64,
+    TcpServerLimits(1, 1, 256, 256, 3000, 10000, 1000)
+  )
+  match result {
+    Ok(reports) => expect(reports.len() == 1),
+    Error(problem) => expect(false)
+  }
+  ()
+}
+pure expect(value: Bool): Unit { checked = [0][if value { 0 } else { 1 }]; () }
+SOURCE
+    ./panack check "$work/stream.panack" > /dev/null
+    ./panack compile "$work/stream.panack" -o "$work/stream.bc" > /dev/null
+    ./panack run "$work/stream.$extension" > "$work/stdout" 2> "$work/stderr" &
+    server_pid=$!
+    "$client" "$port" stream
+    wait "$server_pid" || { cat "$work/stderr"; exit 1; }
+    server_pid=
+    test ! -s "$work/stdout" && test ! -s "$work/stderr"
+done
+# The incremental read service is not available to ordinary async execution.
+cat > "$work/outside.panack" <<'SOURCE'
+async main(): Unit {
+  result = await tcp_server_read_chunk(64)
+  ()
+}
+SOURCE
+if ./panack run "$work/outside.panack" > "$work/stdout" 2> "$work/stderr"; then
+    echo 'server read unexpectedly succeeded outside a server child' >&2; exit 1
+fi
+grep -F 'TCP server read is unavailable in this execution' "$work/stderr" > /dev/null
+# Source checking ties the streaming worker parameter to its context value.
+cat > "$work/stream-mismatch.panack" <<'SOURCE'
+import stdlib/tcp::{TcpServerLimits}
+async receive(max_bytes: Bytes): Result[Bytes,Str] {
+  await tcp_server_read_chunk(64)
+}
+async main(): Unit {
+  result = await tcp_serve_stream("127.0.0.1", 12345, @receive, 64,
+    TcpServerLimits(1, 1, 256, 256, 3000, 10000, 1000))
+  ()
+}
+SOURCE
+if ./panack check "$work/stream-mismatch.panack" > "$work/stdout" 2> "$work/stderr"; then
+    echo 'mismatched streaming context unexpectedly passed' >&2; exit 1
+fi
+grep -F 'expected AsyncFn[Nat,Result[Bytes,Str]]' "$work/stderr" > /dev/null
 # Source-level effect and handler typing failures, before any network operation.
 for mode in bare ordinary handler limits; do
     call='await tcp_serve("127.0.0.1", 9000, @reply, TcpServerLimits(1, 1, 8, 8, 100, 100, 100))'

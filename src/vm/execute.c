@@ -1,8 +1,14 @@
+#include "platform.h"
+
 #include "buffer.h"
 #include "builtins.h"
+#include "console_write.h"
+#include "host.h"
+#include "http_transport.h"
 #include "numeric.h"
 #include "program.h"
 #include "render.h"
+#include "root_read.h"
 #include "tcp.h"
 #include "tcp_server.h"
 #include "utf8.h"
@@ -12,6 +18,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#ifndef __wasi__
+#include <signal.h>
+#endif
 
 /* Stack-machine execution. Frames own stack slots and local references. */
 
@@ -39,9 +48,18 @@ struct VMExecution {
     bool running, embedded;
     VMHostCall host_call;
     VMServiceWait print_wait, read_wait;
-    bool waiting_read, fake_fail, network_enabled;
+    bool waiting_read, fake_fail, network_enabled, server_read_enabled;
     VMTcpExchange *tcp;
+    VMHttpTransport *http;
     VMTcpServer *server;
+    VMRootRead *root_read;
+    VMConsoleWrite *console_write;
+    bool console_enabled;
+#ifndef __wasi__
+    bool owns_stop_signals;
+    struct sigaction previous_interrupt, previous_terminate;
+#endif
+    bool filesystem_enabled;
     bool server_enabled;
     void *host_context;
 };
@@ -215,9 +233,140 @@ static void frames_clear(VMExecution *execution)
     }
 }
 
+#ifndef __wasi__
+static volatile sig_atomic_t service_stop_requested;
+static bool service_signal_owner;
+
+static void request_service_stop(int signal_number)
+{
+    (void)signal_number;
+    service_stop_requested = 1;
+}
+
+static bool install_stop_signals(VMExecution *execution)
+{
+    if (service_signal_owner) {
+        return false;
+    }
+    struct sigaction action = {0};
+    action.sa_handler = request_service_stop;
+    sigemptyset(&action.sa_mask);
+    service_stop_requested = 0;
+    if (sigaction(SIGINT, &action, &execution->previous_interrupt)) {
+        return false;
+    }
+    if (sigaction(SIGTERM, &action, &execution->previous_terminate)) {
+        sigaction(SIGINT, &execution->previous_interrupt, NULL);
+        return false;
+    }
+    service_signal_owner = true;
+    execution->owns_stop_signals = true;
+    return true;
+}
+#endif
+
+static void restore_stop_signals(VMExecution *execution)
+{
+#ifndef __wasi__
+    if (execution->owns_stop_signals) {
+        sigaction(SIGINT, &execution->previous_interrupt, NULL);
+        sigaction(SIGTERM, &execution->previous_terminate, NULL);
+        execution->owns_stop_signals = false;
+        service_signal_owner = false;
+        service_stop_requested = 0;
+    }
+#else
+    (void)execution;
+#endif
+}
+
+static Function *execution_handler(VM *vm, const Value *callable)
+{
+    if (callable->kind != V_STR) {
+        return NULL;
+    }
+    for (size_t i = 0; i < vm->program->count; i++) {
+        Function *candidate = &vm->program->functions[i];
+        if (!builtin(candidate->name) && strlen(candidate->name) == callable->as.bytes.length &&
+            !memcmp(candidate->name, callable->as.bytes.data, callable->as.bytes.length)) {
+            return candidate;
+        }
+    }
+    return NULL;
+}
+
+static Value *service_call(VMExecution *execution, Value **arguments)
+{
+    VM *vm = execution->vm;
+    if (execution->embedded && !execution->server_enabled) {
+        vm->error = "VM trap: TCP service is unavailable in this execution";
+        return NULL;
+    }
+    Value *record = arguments[4];
+    const char *fields[] = {"concurrency", "request_limit", "response_limit", "client_timeout_ms",
+                            "drain_ms"};
+    size_t values[5], port;
+    if (arguments[0]->kind != V_STR || arguments[1]->kind != V_NAT ||
+        !value_index(arguments[1], &port) || record->kind != V_RECORD ||
+        strcmp(record->as.named.name, "TcpServiceLimits") || record->as.named.count != 5) {
+        vm->error = "VM trap: invalid TCP service arguments";
+        return NULL;
+    }
+    for (size_t i = 0; i < 5; i++) {
+        Value *value = record->as.named.values[i];
+        if (strcmp(record->as.named.names[i], fields[i]) || value->kind != V_NAT ||
+            !value_index(value, &values[i])) {
+            vm->error = "VM trap: invalid TCP service limits";
+            return NULL;
+        }
+    }
+    Function *handler = execution_handler(vm, arguments[2]);
+    Function *ready = execution_handler(vm, arguments[5]);
+    if (!ready || !ready->is_async || ready->pure || ready->param_count != 1) {
+        vm->error = "VM trap: invalid service readiness callback";
+        return NULL;
+    }
+    VMTcpServiceLimits limits = {values[0], values[1], values[2], values[3], values[4]};
+    execution->server =
+        tcp_server_start_service(vm, handler, arguments[3], arguments[0], port, limits,
+                                 !execution->embedded || execution->network_enabled);
+    if (!execution->server) {
+        vm->error = "native VM out of memory";
+        return NULL;
+    }
+    if (!execution->embedded || execution->filesystem_enabled) {
+        tcp_server_enable_filesystem(execution->server);
+    }
+    if (!execution->embedded || execution->console_enabled) {
+        tcp_server_enable_console(execution->server);
+    }
+    if (!tcp_server_done(execution->server)) {
+        char *names[] = {"address", "port"};
+        Value *fields[] = {arguments[0], arguments[1]};
+        Value *context = named_value(V_RECORD, "TcpServiceReady", names, fields, 2);
+        bool configured = context && tcp_server_set_ready_handler(execution->server, ready, context,
+                                                                  !execution->embedded ||
+                                                                      execution->console_enabled);
+        release(context);
+#ifndef __wasi__
+        if (configured && !execution->embedded) {
+            configured = install_stop_signals(execution);
+        }
+#endif
+        if (!configured) {
+            tcp_server_destroy(execution->server);
+            execution->server = NULL;
+            vm->error = "VM trap: service readiness setup failed";
+            return NULL;
+        }
+    }
+    execution->status = VM_WAITING;
+    return NULL;
+}
+
 /* Source types do not survive in v9; check the full limits schema and resolve
  * the actual named handler against this execution's verified program. */
-static Value *server_call(VMExecution *execution, Value **arguments)
+static Value *server_call_mode(VMExecution *execution, Value **arguments, bool streaming)
 {
     VM *vm = execution->vm;
     if (execution->embedded && !execution->server_enabled) {
@@ -227,7 +376,8 @@ static Value *server_call(VMExecution *execution, Value **arguments)
     const char *fields[] = {"clients",        "concurrency",       "request_limit",
                             "response_limit", "client_timeout_ms", "admission_timeout_ms",
                             "drain_ms"};
-    Value *record = arguments[3];
+    size_t record_index = streaming ? 4 : 3;
+    Value *record = arguments[record_index];
     size_t values[7], port;
     if (arguments[0]->kind != V_STR || arguments[1]->kind != V_NAT ||
         !value_index(arguments[1], &port) || record->kind != V_RECORD ||
@@ -256,8 +406,18 @@ static Value *server_call(VMExecution *execution, Value **arguments)
     }
     VMTcpServerLimits limits = {values[0], values[1], values[2], values[3],
                                 values[4], values[5], values[6]};
-    execution->server = tcp_server_start(vm, handler, arguments[0], port, limits,
-                                         !execution->embedded || execution->network_enabled);
+    execution->server = streaming
+                            ? tcp_server_start_stream(vm, handler, arguments[3], arguments[0], port,
+                                                      limits,
+                                                      !execution->embedded || execution->network_enabled)
+                            : tcp_server_start(vm, handler, arguments[0], port, limits,
+                                               !execution->embedded || execution->network_enabled);
+    if (execution->server && (!execution->embedded || execution->filesystem_enabled)) {
+        tcp_server_enable_filesystem(execution->server);
+    }
+    if (execution->server && (!execution->embedded || execution->console_enabled)) {
+        tcp_server_enable_console(execution->server);
+    }
     if (!execution->server) {
         vm->error = "native VM out of memory";
     } else {
@@ -266,15 +426,91 @@ static Value *server_call(VMExecution *execution, Value **arguments)
     return NULL;
 }
 
+static Value *server_call(VMExecution *execution, Value **arguments)
+{
+    return server_call_mode(execution, arguments, false);
+}
+
 static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Value **arguments)
 {
     VM *vm = execution->vm;
-    if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "process_run") ||
+    if (vm->coverage && !vm->coverage_run && (!strcmp(entry->name, "$http_transport_exchange") ||
+        !strcmp(entry->name, "$tcp_serve") || !strcmp(entry->name, "tcp_service") ||
+        !strcmp(entry->name, "$tcp_serve_stream") || !strcmp(entry->name, "process_run") ||
         !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
         vm_coverage_gap(vm->coverage);
     }
+    if (!strcmp(entry->name, "tcp_service")) {
+        return service_call(execution, arguments);
+    }
+    if (!strcmp(entry->name, "host_arguments_async")) {
+        if (execution->embedded && !execution->console_enabled) {
+            vm->error = "VM trap: invocation service is unavailable in this execution";
+            return NULL;
+        }
+        return host_call(vm, "command_args", NULL);
+    }
+    if (!strcmp(entry->name, "host_exit_async")) {
+        if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &execution->exit_status) ||
+            execution->exit_status > 255) {
+            vm->error = "VM trap: invalid process status";
+        } else if (execution->embedded) {
+            execution->status = VM_EXITED;
+        } else {
+            return host_call(vm, "process_exit", arguments);
+        }
+        return NULL;
+    }
+    if (!strcmp(entry->name, "host_stdout_async") || !strcmp(entry->name, "host_stderr_async")) {
+        if (execution->embedded && !execution->console_enabled) {
+            vm->error = "VM trap: console service is unavailable in this execution";
+        } else {
+            execution->console_write =
+                console_write_start(vm, arguments[0], !strcmp(entry->name, "host_stderr_async"));
+            if (!execution->console_write && !vm->error) {
+                vm->error = "native VM out of memory";
+            }
+            if (execution->console_write) {
+                execution->status = VM_WAITING;
+            }
+        }
+        return NULL;
+    }
+    if (!strcmp(entry->name, "fs_read_beneath_async") ||
+        !strcmp(entry->name, "fs_root_identity_async")) {
+        if (execution->embedded && !execution->filesystem_enabled) {
+            vm->error = "VM trap: filesystem service is unavailable in this execution";
+        } else {
+            execution->root_read =
+                root_read_start(vm, arguments, !strcmp(entry->name, "fs_root_identity_async"));
+            if (!execution->root_read && !vm->error) {
+                vm->error = "native VM out of memory";
+            }
+            if (execution->root_read) {
+                execution->status = VM_WAITING;
+            }
+        }
+        return NULL;
+    }
     if (!strcmp(entry->name, "$tcp_serve")) {
         return server_call(execution, arguments);
+    }
+    if (!strcmp(entry->name, "$tcp_serve_stream")) {
+        return server_call_mode(execution, arguments, true);
+    }
+    if (!strcmp(entry->name, "$tcp_server_read_chunk")) {
+        size_t limit;
+        if (arguments[0]->kind != V_NAT || !value_index(arguments[0], &limit) || !limit ||
+            limit > 16384 || !execution->embedded || !execution->read_wait ||
+            !execution->server_read_enabled) {
+            vm->error = "VM trap: TCP server read is unavailable in this execution";
+        } else if (execution->read_wait(execution->host_context, arguments[0], &vm->error)) {
+            execution->waiting_read = true;
+            execution->status = VM_WAITING;
+        } else if (!vm->error) {
+            vm->error = "VM trap: TCP server read registration failed";
+        }
+        return NULL;
     }
     if (!strcmp(entry->name, "$tcp_exchange")) {
         if (execution->embedded && !execution->network_enabled) {
@@ -282,6 +518,19 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         } else {
             execution->tcp = tcp_exchange_start(arguments);
             if (!execution->tcp) vm->error = "native VM out of memory";
+            else {
+                execution->waiting_read = true;
+                execution->status = VM_WAITING;
+            }
+        }
+        return NULL;
+    }
+    if (!strcmp(entry->name, "$http_transport_exchange")) {
+        if (execution->embedded && !execution->network_enabled) {
+            vm->error = "VM trap: HTTP transport is unavailable in this execution";
+        } else {
+            execution->http = http_transport_start(arguments);
+            if (!execution->http) vm->error = "native VM out of memory";
             else {
                 execution->waiting_read = true;
                 execution->status = VM_WAITING;
@@ -965,7 +1214,11 @@ bool vm_execution_destroy(VMExecution *execution)
         return false;
     }
     tcp_exchange_destroy(execution->tcp);
+    http_transport_destroy(execution->http);
+    root_read_destroy(execution->root_read);
+    console_write_destroy(execution->console_write);
     tcp_server_destroy(execution->server);
+    restore_stop_signals(execution);
     frames_clear(execution);
     free(execution->frames);
     release(execution->result);
@@ -995,11 +1248,21 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_pump_server(&execution, 1024, 10);
                 continue;
             }
+            if (status == VM_WAITING && execution.console_write) {
+                console_write_wait(execution.console_write);
+                vm_execution_poll_console(&execution);
+                continue;
+            }
+            if (status == VM_WAITING && execution.root_read) {
+                root_read_wait(execution.root_read);
+                vm_execution_poll_filesystem(&execution);
+                continue;
+            }
             if (status != VM_WAITING || !execution.waiting_read) {
                 break;
             }
-            if (execution.tcp) {
-                vm_execution_poll_tcp(&execution, 1000);
+            if (execution.tcp || execution.http) {
+                vm_execution_poll_network(&execution, 1000);
                 continue;
             }
             Value *result = vm_fake_read_result(execution.fake_fail);
@@ -1009,7 +1272,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     }
     if (vm->error) vm_coverage_terminal(vm->coverage, 2);
     tcp_exchange_destroy(execution.tcp);
+    http_transport_destroy(execution.http);
+    root_read_destroy(execution.root_read);
+    console_write_destroy(execution.console_write);
     tcp_server_destroy(execution.server);
+    restore_stop_signals(&execution);
     frames_clear(&execution);
     free(execution.frames);
     vm->execution = NULL;
@@ -1024,6 +1291,16 @@ VMExecution *vm_execution_create_async(VM *vm, Function *fn, Value **arguments,
         execution->read_wait = wait;
     }
     return execution;
+}
+
+bool vm_execution_enable_server_reads(VMExecution *execution)
+{
+    if (!execution || execution->running || execution->status != VM_YIELDED ||
+        !execution->embedded || !execution->read_wait) {
+        return false;
+    }
+    execution->server_read_enabled = true;
+    return true;
 }
 
 bool vm_fake_read_result_valid(const Value *result)
@@ -1051,7 +1328,8 @@ Value *vm_fake_read_result(bool fail)
 
 bool vm_execution_complete_read(VMExecution *execution, Value *result)
 {
-    if (execution->running || execution->status != VM_WAITING || !execution->waiting_read || execution->tcp) {
+    if (execution->running || execution->status != VM_WAITING || !execution->waiting_read ||
+        execution->tcp || execution->http) {
         return false;
     }
     execution->waiting_read = false;
@@ -1090,6 +1368,101 @@ bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms)
     return true;
 }
 
+bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->http) return false;
+    if (http_transport_poll(execution->http, max_wait_ms)) {
+        VMHttpTransport *http = execution->http;
+        execution->http = NULL;
+        vm_execution_complete_read(execution, http_transport_result(http));
+        http_transport_destroy(http);
+    }
+    return true;
+}
+
+bool vm_execution_enable_console(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) {
+        return false;
+    }
+    execution->console_enabled = true;
+    return true;
+}
+
+bool vm_execution_poll_console(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->console_write) {
+        return false;
+    }
+    if (!console_write_poll(execution->console_write)) {
+        return true;
+    }
+    Value *result = console_write_result(execution->console_write);
+    if (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result))) {
+        execution->vm->error = "native VM out of memory";
+    }
+    console_write_destroy(execution->console_write);
+    execution->console_write = NULL;
+    execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (execution->vm->error) {
+        vm_coverage_terminal(execution->vm->coverage, 2);
+        frames_clear(execution);
+    } else {
+        coverage_complete_pending(execution);
+    }
+    return true;
+}
+
+bool vm_execution_enable_filesystem(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) {
+        return false;
+    }
+    execution->filesystem_enabled = true;
+    return true;
+}
+
+bool vm_execution_poll_filesystem(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->root_read) {
+        return false;
+    }
+    if (!root_read_poll(execution->root_read)) {
+        return true;
+    }
+    /* The native adapter constructs this typed result. Fake/network completion
+     * entry points cannot inject a filesystem result into this wait. */
+    Value *result = root_read_result(execution->root_read);
+    execution->vm->error = root_read_error(execution->root_read);
+    if (!execution->vm->error &&
+        (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result)))) {
+        execution->vm->error = "native VM out of memory";
+    }
+    root_read_destroy(execution->root_read);
+    execution->root_read = NULL;
+    execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (execution->vm->error) {
+        vm_coverage_terminal(execution->vm->coverage, 2);
+        frames_clear(execution);
+    } else {
+        coverage_complete_pending(execution);
+    }
+    return true;
+}
+
+bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
+{
+    if (execution->console_write) {
+        return vm_execution_poll_console(execution);
+    }
+    if (execution->root_read) {
+        return vm_execution_poll_filesystem(execution);
+    }
+    if (execution->tcp) return vm_execution_poll_tcp(execution, max_wait_ms);
+    if (execution->http) return vm_execution_poll_http(execution, max_wait_ms);
+    return false;
+}
+
 /* Server pumping is separate from socket-only TCP polling because it dispatches
  * bounded child bytecode. No nested synchronous interpreter is used. */
 bool vm_execution_enable_server(VMExecution *execution)
@@ -1116,6 +1489,11 @@ bool vm_execution_pump_server(VMExecution *execution, size_t budget, unsigned ma
         return false;
     }
     execution->running = true;
+#ifndef __wasi__
+    if (execution->owns_stop_signals && service_stop_requested) {
+        tcp_server_stop(execution->server);
+    }
+#endif
     tcp_server_poll(execution->server, max_wait_ms);
     tcp_server_advance(execution->server, budget);
     if (tcp_server_done(execution->server)) {
@@ -1129,6 +1507,7 @@ bool vm_execution_pump_server(VMExecution *execution, size_t budget, unsigned ma
         }
         tcp_server_destroy(execution->server);
         execution->server = NULL;
+        restore_stop_signals(execution);
         execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
         if (!execution->vm->error) coverage_complete_pending(execution);
         else vm_coverage_terminal(execution->vm->coverage, 2);

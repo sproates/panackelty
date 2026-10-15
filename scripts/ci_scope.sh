@@ -8,6 +8,21 @@ format=route
 if [[ "${1-}" == --plan ]]; then format=plan; shift; fi
 route=docs
 components=' '
+workflow_change=0
+ci_static_validation_path() {
+    # Retain the retired release gate path while its deletion crosses next/main;
+    # deleting CI-only code must not select product validation.
+    case "$1" in
+        .github/workflows/*.yml|.github/workflows/*.yaml|\
+        scripts/ci_scope.sh|scripts/validate_change.sh|scripts/ci_gate.sh|scripts/ci_package_gate.sh|\
+        scripts/ci_next_integration.sh|scripts/source_coverage_route.cjs|scripts/release_source_coverage.cjs|\
+        scripts/validation_components.sh|scripts/ci_docs.sh|scripts/check_docs.sh|\
+        tests/ci_scope.sh|tests/ci_partition.sh|tests/ci_conformance.sh|\
+        tests/source_coverage/route.test.cjs|tests/source_coverage/release_gate.test.cjs|tests/unit/harness/layout.sh|tests/workflow_yaml.sh)
+            return 0 ;;
+        *) return 1 ;;
+    esac
+}
 add_component() {
     case "$components" in *" $1 "*) ;; *) components="$components$1 " ;; esac
 }
@@ -19,6 +34,8 @@ emit() {
         printf 'components=%s\n' "${components:1:${#components}-2}"
         if [[ "$route" == docs ]]; then
             printf 'checks=documents,links,whitespace\n'
+        elif [[ "$route" == workflow ]]; then
+            printf 'checks=workflow-syntax,workflow-contracts,documents,links,whitespace\n'
         else
             printf 'checks=documents,links,whitespace,compiler,runtime,tcp,bootstrap,conformance,sanitizers,coverage,packages'
             printf '\n'
@@ -59,13 +76,19 @@ count=0
 position_mode=commit
 [[ "$worktree" == 1 ]] && position_mode=worktree
 while IFS= read -r -d '' path; do
-    if [[ "$path" == README.md ]] && ci_readme_positioning_only "$base" "$head" "$position_mode"; then
+    if [[ "$path" == README.md ]] && ci_readme_informational_only "$base" "$head" "$position_mode"; then
         component=documentation
+    elif ci_static_validation_path "$path"; then
+        # CI definitions and their narrow routing-contract suite do not change
+        # product inputs. Their dedicated checks still validate the complete
+        # CI contract; any mixed product/shared input keeps full validation.
+        component=workflow
+        workflow_change=1
     else
         component=$(validation_component "$path")
     fi
     add_component "$component"
-    case "$component" in documentation|process) ;; *) route=full ;; esac
+    case "$component" in documentation|process|workflow) ;; *) route=full ;; esac
     for revision in "$base" "$head"; do
         entry=$(git --literal-pathspecs ls-tree "$revision" -- "$path") || full
         mode=${entry%% *}
@@ -82,4 +105,5 @@ while IFS= read -r -d '' path; do
     count=$((count + 1))
 done < "$files"
 [[ "$count" -gt 0 ]] || full
+if [[ "$route" == docs && "$workflow_change" == 1 ]]; then route=workflow; fi
 emit

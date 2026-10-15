@@ -1,5 +1,6 @@
 pub import project/src/compiler/loader::{LoadedProject}
-import project/src/compiler/loader::{loaded_binding_graph}
+import project/src/compiler/loader::{loaded_package_binding_graph}
+pub import project/src/compiler/package_project::{ManifestDependencyProject, FilesystemRootIdentity}
 import project/src/compiler/module_emission::{ModuleBindingGraph, ModuleEmissionResult, module_emission_program}
 pub import project/src/compiler/module_bindings::{ModuleIdentity}
 pub import project/src/compiler/parser::{Program}
@@ -19,6 +20,20 @@ pub pure prepare_project_program(
   stdlib_root: Str,
   entry: ModuleIdentity
 ): Result[Program, [Diagnostic]] {
+  prepare_project_program_with_dependencies(
+    project, project_root, stdlib_root, entry, false, FilesystemRootIdentity(0, 0), []
+  )
+}
+
+pub pure prepare_project_program_with_dependencies(
+  project: LoadedProject,
+  project_root: Str,
+  stdlib_root: Str,
+  entry: ModuleIdentity,
+  package_confined: Bool,
+  package_root_identity: FilesystemRootIdentity,
+  dependencies: [ManifestDependencyProject]
+): Result[Program, [Diagnostic]] {
   mut diagnostics: [Diagnostic] = []
   for diagnostic in project.diagnostics {
     if !namespace_gate_diagnostic(diagnostic) {
@@ -28,7 +43,14 @@ pub pure prepare_project_program(
   if len(diagnostics) > 0 {
     Error(diagnostics)
   } else {
-    graph: ModuleBindingGraph = loaded_binding_graph(project.modules, project_root, stdlib_root)
+    graph: ModuleBindingGraph = loaded_package_binding_graph(
+      project.modules,
+      project_root,
+      stdlib_root,
+      package_confined,
+      package_root_identity,
+      dependencies
+    )
     emitted: ModuleEmissionResult = module_emission_program(
       graph,
       project.modules,

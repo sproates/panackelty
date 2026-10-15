@@ -58,8 +58,8 @@ if [ "$mode" = all ] || [ "$mode" = without-runner ]; then
     rows decimal.stdin 422
     rows decimal.stdout 422
     rows rational.stdout 96
-    rows builtin.names 83
-    rows builtin.stdout 83
+    rows builtin.names 84
+    rows builtin.stdout 84
 
     compile tests/runner/oracle_command.panack
     cp "$temporary/program.bc" "$temporary/command.bc"

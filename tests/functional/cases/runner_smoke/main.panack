@@ -1,27 +1,37 @@
-import stdlib/result::{result_value_or}
+import stdlib/text as std_text
+import stdlib/environment as std_environment
+import stdlib/result as std_result
 import stdlib/testing_commands::{TestCommand, ProcessOutput}
-import stdlib/environment::{environment, environment_has_value}
-import stdlib/testing_commands::{capture_test_report}
-import stdlib/testing::{test_expect, test_report}
-import stdlib/time::{duration_seconds}
-import stdlib/path::{path_value_from_text, path_value_current}
-import stdlib/host::{host_exit, host_stderr_text}
-import stdlib/bytes::{bytes_empty, text_encode_utf8}
-import stdlib/filesystem::{filesystem_read_bytes}
+import stdlib/testing_commands as std_testing_commands
+import stdlib/testing as std_testing
+import stdlib/time as std_time
+import stdlib/path as std_path
+import stdlib/host as std_host
+import stdlib/bytes as byte_buffer
+import stdlib/filesystem as std_filesystem
 
 pure runner_path(text: Str): Path {
-  result_value_or(path_value_from_text(text), path_value_current())
+  std_result.value_or(std_path.from_text(text), std_path.current())
+}
+
+runner_test_environment(): [Str] {
+  mut environment: [Str] = ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"]
+  match std_environment.get("PANACK_TEST_COMPILER") {
+    None() => {},
+    Some(compiler) => { environment = append(environment, "PANACK_TEST_COMPILER=${compiler}") }
+  }
+  environment
 }
 
 main(): Void {
-  if environment_has_value("PANACK_COVERAGE_ACTIVE") && environment_has_value("PANACK_TEST_RUNNER_REPORT") {
-    host_stderr_text("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
-    host_exit(1)
+  if (std_environment.get("PANACK_COVERAGE_ACTIVE") != None()) && (std_environment.get("PANACK_TEST_RUNNER_REPORT") != None()) {
+    std_host.stderr("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
+    std_host.exit(1)
   }
   names = ["async_await", "callables", "cli_check_disasm", "cli_commands", "cli_diagnostic_display", "cli_environment_files", "cli_explanations", "cli_rational_failures", "collections", "compiler_lexer", "compiler_skeleton", "core_methods", "guard_fact_refresh", "hello_world",
     "host_capabilities", "host_process", "host_types", "local_inference",
     "modules", "optional_else", "rational_unit", "records_and_enums",
-    "semicolonless", "stdlib", "string_boundaries", "testing_commands",
+    "semicolonless", "stdlib", "stdlib_module_api", "string_boundaries", "testing_commands",
     "testing_fixtures", "testing_library",
     "vm_numeric_boundaries"]
   mut expected_text: Str = ""
@@ -55,6 +65,7 @@ main(): Void {
     "main_parameters", "method_collection_receiver", "missing_import",
     "missing_main", "negative_natural", "non_exhaustive_match", "opaque_path",
     "pure_clock", "pure_io", "same_line_without_separator",
+    "stdlib_legacy_api_removed",
     "trailing_semicolon_value", "unexpected_character", "unknown_name",
     "unknown_type", "while_condition_type"]
   for name in failure_names {
@@ -67,29 +78,31 @@ main(): Void {
     }
     expected_text = "${expected_text}PASS failure/${name}/no artifact\n"
   }
-  expected = text_encode_utf8("${expected_text}PASS selected failure count\ntests: 364, failures: 0\n")
+  expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 370, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
-    ["run", "tests/runner/main.panack"], bytes_empty(), path_value_current(),
-    ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"],
-    duration_seconds(180), 1048576)
-  result = match environment("PANACK_TEST_RUNNER_REPORT") {
+    ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
+    runner_test_environment(),
+    // This deadline encloses the entire 370-assertion corpus, including nested
+    // compiler and package checks; individual commands keep their own bounds.
+    std_time.seconds(600), 1048576)
+  result = match std_environment.get("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {
-      match filesystem_read_bytes(runner_path(report_path), 1048576) {
-        Error(error) => test_expect("Panackelty fixture runner", false,
+      match std_filesystem.read(runner_path(report_path), 1048576) {
+        Error(error) => std_testing.expect("Panackelty fixture runner", false,
           "runner report read failed"),
-        Ok(actual) => test_expect("Panackelty fixture runner", actual == expected,
+        Ok(actual) => std_testing.expect("Panackelty fixture runner", actual == expected,
           "runner report differed")
       }
     },
     None() => {
-      destination = match environment("PANACK_TEST_CAPTURE_RUNNER_REPORT") {
+      destination = match std_environment.get("PANACK_TEST_CAPTURE_RUNNER_REPORT") {
         Some(file) => Some(runner_path(file)),
         None() => None()
       }
-      capture_test_report("Panackelty fixture runner", command,
-        ProcessOutput(0, 0, expected, bytes_empty()), destination)
+      std_testing_commands.capture_report("Panackelty fixture runner", command,
+        ProcessOutput(0, 0, expected, byte_buffer.empty()), destination)
     }
   }
-  failures = test_report([result])
-  if failures > 0 { host_exit(1) }
+  failures = std_testing.report([result])
+  if failures > 0 { std_host.exit(1) }
 }

@@ -1,0 +1,17 @@
+pub import stdlib/host::{HostError}
+pub import stdlib/package_filesystem::{FilesystemRootIdentity, FilesystemRootRead}
+
+// Read one regular file beneath root without blocking the execution owner.
+// Cancellation discards the result; the host read may finish afterwards.
+pub async read_beneath(
+  root: Path,
+  relative: Path,
+  limit: Nat
+): Result[FilesystemRootRead, HostError] {
+  await fs_read_beneath_async(root, relative, limit)
+}
+
+// Validate a root and obtain the identity to compare with subsequent reads.
+pub async root_identity(root: Path): Result[FilesystemRootIdentity, HostError] {
+  await fs_root_identity_async(root)
+}

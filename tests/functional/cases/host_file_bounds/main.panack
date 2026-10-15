@@ -1,0 +1,27 @@
+import stdlib/bytes as buffer
+import stdlib/filesystem as filesystem
+import stdlib/path as path
+import stdlib/result as result
+import stdlib/host::{HostError}
+
+pure outcome[T](value: Result[T,HostError]): Str {
+  match value { Ok(found) => "ok", Error(error) => error.code }
+}
+main(): Void {
+  directory = result.value_or(path.from_text("/tmp"), path.current())
+  match filesystem.temp_file(directory) {
+    Error(error) => print(error.code),
+    Ok(file) => {
+      mut data = buffer.push(buffer.empty(), 97)
+      for index in 0..25 { data = buffer.join(data, data) }
+      print(buffer.length(data))
+      print(outcome(filesystem.write(file, data)))
+      print(result.value_or(filesystem.read(file, 33554432), buffer.empty()) == data)
+      print(outcome(filesystem.read(file, 33554431)))
+      print(outcome(filesystem.read(file, 33554433)))
+      print(outcome(filesystem.write(file, buffer.push(data, 98))))
+      print(result.value_or(filesystem.read(file, 33554432), buffer.empty()) == data)
+      print(outcome(filesystem.remove_file(file)))
+    }
+  }
+}

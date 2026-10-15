@@ -5,11 +5,11 @@
     "src/bytecode/codec.panack", "src/bytecode/decoder.panack",
     "src/compiler/checker.panack", "src/compiler/coverage.panack", "src/compiler/coverage_session.panack",
     "src/compiler/diagnostics.panack", "src/compiler/driver.panack", "src/compiler/emitter.panack",
-    "src/compiler/explanations.panack", "src/compiler/expression_contracts.panack", "src/compiler/lexer.panack",
+    "src/compiler/explanations.panack", "src/compiler/expression_contracts.panack", "src/compiler/filesystem_support.panack", "src/compiler/lexer.panack",
     "src/compiler/loader.panack", "src/compiler/main.panack", "src/compiler/module_bindings.panack",
     "src/compiler/module_bodies.panack", "src/compiler/module_effects.panack", "src/compiler/module_emission.panack",
     "src/compiler/module_resolution.panack", "src/compiler/module_signatures.panack",
-    "src/compiler/parser.panack", "src/compiler/purity.panack", "src/compiler/project_frontend.panack",
+    "src/compiler/parser.panack", "src/compiler/path_support.panack", "src/compiler/purity.panack", "src/compiler/project_frontend.panack",
     "src/compiler/resolver.panack",
     "src/compiler/source_inventory.panack", "src/compiler/source_maps.panack", "src/compiler/types.panack",
     "src/stdlib/bytes.panack", "src/stdlib/core.panack", "src/stdlib/environment.panack", "src/stdlib/filesystem.panack",
@@ -18,6 +18,14 @@
     "src/stdlib/process.panack", "src/stdlib/result.panack", "src/stdlib/tcp.panack", "src/stdlib/testing.panack",
     "src/stdlib/testing_commands.panack", "src/stdlib/testing_files.panack", "src/stdlib/text.panack",
     "src/stdlib/time.panack"
+  ],
+  "unmeasured": [
+    {"path": "src/compiler/package_manifest.panack", "reason": "Package manifest support is not included in the bounded native source-execution corpus."},
+    {"path": "src/compiler/package_project.panack", "reason": "Package project support is not included in the bounded native source-execution corpus."},
+    {"path": "src/stdlib/async_filesystem.panack", "reason": "Asynchronous filesystem support is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
+    {"path": "src/stdlib/async_host.panack", "reason": "Async CLI adapters are tested by native and source/bytecode service fixtures outside the bounded source-coverage corpus."},
+    {"path": "src/stdlib/tcp_service.panack", "reason": "Continuous service lifecycle is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
+    {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."}
   ],
   "units": [
     "compiler_lexer", "compiler_parser", "compiler_resolver", "compiler_purity", "compiler_contracts",
@@ -31,7 +39,7 @@
   "compiler": ["bootstrap-fixed-point", "check-hello-world", "disasm-hello-world"],
   "omitted": [
     {"paths": ["tests/runner/compiler_checker_unit.panack"], "reason": "Dynamically executes more distinct generated artifacts than SC4's 16-identity registry; needs separately registered batches."},
-    {"paths": ["tests/runner/compiler_integration_unit.panack", "tests/runner/host_runtime_unit.panack", "tests/runner/vm_unit.panack", "tests/runner/bytecode_native_unit.panack", "tests/runner/report_capture_unit.panack", "tests/runner/compiler_coverage_session_cli.panack", "tests/runner/compiler_coverage_session_records_cli.panack", "tests/runner/compiler_coverage_session_integrity_cli.panack", "tests/runner/compiler_coverage_session_process_cli.panack"], "reason": "External processes, death/failure fixtures or independently created coverage sessions need dedicated measured manifests; not claimed by this baseline."},
+    {"paths": ["tests/runner/compiler_integration_unit.panack", "tests/runner/host_runtime_unit.panack", "tests/runner/package_filesystem_unit.panack", "tests/runner/vm_unit.panack", "tests/runner/bytecode_native_unit.panack", "tests/runner/report_capture_unit.panack", "tests/runner/compiler_coverage_session_cli.panack", "tests/runner/compiler_coverage_session_records_cli.panack", "tests/runner/compiler_coverage_session_integrity_cli.panack", "tests/runner/compiler_coverage_session_process_cli.panack"], "reason": "External processes, death/failure fixtures or independently created coverage sessions need dedicated measured manifests; not claimed by this baseline."},
     {"paths": ["other tests/functional cases", "tests/native_*", "tests/tcp.sh", "package/release/install checks", "browser/WASI suites"], "reason": "Outside this explicitly bounded initial source corpus. Native C coverage remains a separate report."},
     {"paths": ["tests/**", "generated source"], "reason": "Test code is executed and identified but is outside the production src/** denominator."}
   ],

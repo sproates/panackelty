@@ -6,19 +6,27 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
 void fault_reset(size_t allocation);
+void fault_pause_writes(bool pause);
+bool fault_write_paused(void);
+int fault_fcntl(int fd, int command, ...);
+void fault_pause_reads(bool pause);
+bool fault_read_paused(void);
+int fault_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,
+                         void *(*start)(void *), void *argument);
 size_t fault_attempts(void);
 size_t fault_live(void);
 bool fault_triggered(void);
@@ -50,6 +58,8 @@ int fault_ftruncate(int fd, off_t size);
 pid_t fault_waitpid(pid_t child, int *status, int options);
 
 #ifdef PANACK_TEST_INJECT
+#define fcntl fault_fcntl
+#define pthread_create fault_pthread_create
 #define malloc fault_malloc
 #define calloc fault_calloc
 #define realloc fault_realloc

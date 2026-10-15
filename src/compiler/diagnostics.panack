@@ -1,5 +1,6 @@
-import stdlib/numeric::{nat_quotient}
-import stdlib/bytes::{bytes_length, bytes_at, text_encode_utf8}
+import stdlib/text as std_text
+import stdlib/numeric as std_numeric
+import stdlib/bytes as byte_buffer
 pub import project/src/compiler/types::{Diagnostic}
 import project/src/compiler/types::{SourcePos, diagnostic_text}
 
@@ -22,18 +23,18 @@ pure diagnostic_hex(value: Nat): Str {
   if value < 16 {
     digits[value]
   } else {
-    diagnostic_hex(nat_quotient(value, 16)) + digits[value % 16]
+    diagnostic_hex(std_numeric.divide(value, 16)) + digits[value % 16]
   }
 }
 
 pub pure diagnostic_character(character: Str): Str {
-  encoded: Bytes = text_encode_utf8(character)
-  count: Nat = bytes_length(encoded)
+  encoded: Bytes = std_text.encode_utf8(character)
+  count: Nat = byte_buffer.length(encoded)
 
   if count == 0 {
     ""
   } else {
-    mut value: Nat = bytes_at(encoded, 0)
+    mut value: Nat = byte_buffer.at(encoded, 0)
     if count == 1 && value >= 32 && value < 127 {
       if character == "\\" {
         "\\\\"
@@ -53,7 +54,7 @@ pub pure diagnostic_character(character: Str): Str {
         value = value % leading_modulus
         mut index: Nat = 1
         while index < count {
-          value = value * 64 + bytes_at(encoded, index) % 64
+          value = value * 64 + byte_buffer.at(encoded, index) % 64
           index = index + 1
         }
       }

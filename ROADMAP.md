@@ -4252,14 +4252,15 @@ the match subject enum type, arm uniqueness, payload binding arity and
 exhaustiveness decisions. PR #478 adds accepted, rejected and unavailable
 constructor-argument compatibility. PR #479 adds accepted and rejected call
 arity for resolved direct declarations and record/enum constructors. The
-current slice adds fixed-arity core calls and indirect callable calls, with an
-explicit unavailable result when the callable type cannot be resolved. It also
-explains explicit type-argument counts for generic functions and zero-count
-rejections on non-generic core calls. Constructor restrictions and complete
-generic inference traces remain gaps to inventory. These are partial families within
-the owner-defined complete checker-decision target above. Each slice keeps
-ordinary diagnostics and runtime behavior unchanged and retains evidence only
-for explanation queries.
+PR #480 adds fixed-arity core calls, indirect callable arity with an explicit
+unavailable result when the callable type cannot be resolved, and explicit
+type-argument counts for generic functions plus zero-count rejections on
+non-generic core calls. The current slice adds accepted, rejected and unavailable
+indirect callable argument compatibility. Specialized core-call decisions,
+constructor restrictions and complete generic inference traces remain gaps to
+inventory. These are partial families within the owner-defined complete
+checker-decision target above. Each slice keeps ordinary diagnostics and runtime
+behavior unchanged and retains evidence only for explanation queries.
 Ordinary checking keeps this evidence empty. These
 remain bounded, unreleased CLI slices; the complete checker-decision inventory
 and any uncovered type/effect/proof families remain open. The current website

@@ -769,7 +769,8 @@ accepted and rejected exact argument counts for direct function and constructor
 calls, including missing and extra arguments. Module-body tests verify accepted,
 missing, extra and ordinary-no-evidence function-call cases. Core-call cases
 cover accepted and rejected fixed arity; indirect callable cases cover accepted,
-rejected and unavailable arity when the callable type cannot be resolved.
+rejected and unavailable arity and accepted, rejected and unavailable argument
+compatibility. Ordinary checking retains no indirect call argument evidence.
 Explicit type-argument cases cover exact generic-function counts, missing and
 extra counts, and the zero-count rejection for a non-generic core call;
 ordinary checking retains no new type-argument evidence. Constructor-specific

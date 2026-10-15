@@ -17,6 +17,11 @@ PASS len accepts Bytes and explains its type requirement
 PASS len accepts arrays and explains its type requirement
 PASS len rejects unsupported argument types
 PASS len reports unavailable argument type
+PASS print explains accepted non-Void arguments
+PASS eprint explains accepted non-Void arguments
+PASS print explains rejected Void arguments
+PASS eprint explains rejected Void arguments
+PASS print reports unavailable argument types
 PASS rejected core call arity reports exact argument count
 PASS accepted indirect call arity reports exact argument count
 PASS rejected indirect call arity reports exact argument count
@@ -194,4 +199,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 196, failures: 0
+tests: 201, failures: 0

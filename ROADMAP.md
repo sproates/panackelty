@@ -4259,12 +4259,13 @@ non-generic core calls. PR #481 adds accepted, rejected and unavailable
 indirect callable argument compatibility. PR #482 verifies zero-count
 rejections for explicit type arguments on generic record and enum variant
 constructors. The current slice exposes the accepted, rejected and unavailable
-input-type requirement for `len` (`Str`, `Bytes` or array). Type-resolution
-failures, other specialized core-call decisions and complete generic inference
-traces remain gaps to inventory. These are partial families within the
-owner-defined complete checker-decision target above. Each slice keeps ordinary
-diagnostics and runtime behavior unchanged and retains evidence only for
-explanation queries.
+input-type requirement for `len` (`Str`, `Bytes` or array). PR #483 adds that
+`len` evidence. This slice adds accepted, rejected and unavailable input
+requirements for `print`/`eprint`, including rejection of `Void`. Other
+specialized core-call decisions and complete generic inference traces remain
+gaps to inventory. These are partial families within the owner-defined complete
+checker-decision target above. Each slice keeps ordinary diagnostics and runtime
+behavior unchanged and retains evidence only for explanation queries.
 Ordinary checking keeps this evidence empty. These
 remain bounded, unreleased CLI slices; the complete checker-decision inventory
 and any uncovered type/effect/proof families remain open. The current website

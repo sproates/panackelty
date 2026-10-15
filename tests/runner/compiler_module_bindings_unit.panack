@@ -2118,6 +2118,26 @@ pure namespace_body_tests(): [TestResult] {
     "pure caller(): Nat { len(missing) }",
     true
   )
+  accepted_print_argument: CheckedModuleBodies = body_test_module_mode(
+    "caller(): Void { print(1) }",
+    true
+  )
+  accepted_eprint_argument: CheckedModuleBodies = body_test_module_mode(
+    "caller(): Void { eprint(\"x\") }",
+    true
+  )
+  rejected_print_void_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure noop(): Void {}; caller(): Void { print(noop()) }",
+    true
+  )
+  rejected_eprint_void_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure noop(): Void {}; caller(): Void { eprint(noop()) }",
+    true
+  )
+  unavailable_print_argument: CheckedModuleBodies = body_test_module_mode(
+    "caller(): Void { print(missing) }",
+    true
+  )
   rejected_core_call_arity: CheckedModuleBodies = body_test_module_mode(
     "pure caller(): Nat { len() }",
     true
@@ -2148,6 +2168,10 @@ pure namespace_body_tests(): [TestResult] {
   )
   ordinary_len_argument: CheckedModuleBodies = body_test_module_mode(
     "pure caller(): Nat { len(\"x\") }",
+    false
+  )
+  ordinary_print_argument: CheckedModuleBodies = body_test_module_mode(
+    "caller(): Void { print(1) }",
     false
   )
   ordinary_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
@@ -2654,6 +2678,60 @@ pure namespace_body_tests(): [TestResult] {
     len(ordinary_len_argument.functions) == 1 &&
       len(body_type_check_evidence(ordinary_len_argument.functions[0].body)) == 0,
     "ordinary checking retained explanation-only len argument evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "print accepts and explains non-Void values",
+    len(accepted_print_argument.functions) == 1 &&
+      match body_type_check_for_context(accepted_print_argument.functions[0].body, "print argument") {
+        None() => false,
+        Some(evidence) => evidence.expected == "any non-Void value" && evidence.accepted == Some(true)
+      },
+    "print did not retain its accepted value requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "eprint accepts and explains non-Void values",
+    len(accepted_eprint_argument.functions) == 1 &&
+      match body_type_check_for_context(accepted_eprint_argument.functions[0].body, "eprint argument") {
+        None() => false,
+        Some(evidence) => evidence.expected == "any non-Void value" && evidence.accepted == Some(true)
+      },
+    "eprint did not retain its accepted value requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "print rejects and explains Void values",
+    len(rejected_print_void_argument.functions) == 2 &&
+      match body_type_check_for_context(rejected_print_void_argument.functions[1].body, "print argument") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Void"), [])) &&
+          evidence.expected == "any non-Void value" && evidence.accepted == Some(false)
+      },
+    "print did not retain its rejected Void requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "eprint rejects and explains Void values",
+    len(rejected_eprint_void_argument.functions) == 2 &&
+      match body_type_check_for_context(rejected_eprint_void_argument.functions[1].body, "eprint argument") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Void"), [])) &&
+          evidence.expected == "any non-Void value" && evidence.accepted == Some(false)
+      },
+    "eprint did not retain its rejected Void requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "print reports unavailable argument types",
+    len(unavailable_print_argument.functions) == 1 &&
+      match body_type_check_for_context(unavailable_print_argument.functions[0].body, "print argument") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() &&
+          evidence.expected == "any non-Void value" && evidence.accepted == None()
+      },
+    "print did not retain its unavailable value requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no print value requirement evidence",
+    len(ordinary_print_argument.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_print_argument.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only print value requirement"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted indirect call arity",

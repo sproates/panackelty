@@ -110,6 +110,21 @@ main(): Void {
       explain_write(source, "pure probe(): Nat { len(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("len reports unavailable argument type", ["explain", source, "--function", "probe"], 1,
         ["checked type requirement: unavailable", "context: len argument", "expression: missing", "actual type: unavailable", "expected type: Str, Bytes, or array", "did not determine a complete type decision"], [], "unknown name missing"))
+      explain_write(source, "caller(): Void { print(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("print explains accepted non-Void arguments", ["explain", source, "--function", "caller"], 0,
+        ["checked type requirement: accepted", "context: print argument", "expression: 1", "actual type: Nat", "expected type: any non-Void value", "accepted this type for the requirement"], [], ""))
+      explain_write(source, "caller(): Void { eprint(\"x\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("eprint explains accepted non-Void arguments", ["explain", source, "--function", "caller"], 0,
+        ["checked type requirement: accepted", "context: eprint argument", "expression: \"x\"", "actual type: Str", "expected type: any non-Void value"], [], ""))
+      explain_write(source, "pure noop(): Void {}; caller(): Void { print(noop()) }\nmain(): Void {}\n")
+      results = append(results, explain_run("print explains rejected Void arguments", ["explain", source, "--function", "caller"], 1,
+        ["checked type requirement: rejected", "context: print argument", "expression: noop()", "actual type: Void", "expected type: any non-Void value", "rejected this type for the requirement"], [], "Void is not a value and cannot be passed as an argument"))
+      explain_write(source, "pure noop(): Void {}; caller(): Void { eprint(noop()) }\nmain(): Void {}\n")
+      results = append(results, explain_run("eprint explains rejected Void arguments", ["explain", source, "--function", "caller"], 1,
+        ["checked type requirement: rejected", "context: eprint argument", "expression: noop()", "actual type: Void", "expected type: any non-Void value", "rejected this type for the requirement"], [], "Void is not a value and cannot be passed as an argument"))
+      explain_write(source, "caller(): Void { print(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("print reports unavailable argument types", ["explain", source, "--function", "caller"], 1,
+        ["checked type requirement: unavailable", "context: print argument", "expression: missing", "actual type: unavailable", "expected type: any non-Void value", "did not determine a complete type decision"], [], "unknown name missing"))
       explain_write(source, "pure probe(): Nat { len() }\nmain(): Void {}\n")
       results = append(results, explain_run("rejected core call arity reports exact argument count", ["explain", source, "--function", "probe"], 1,
         ["checked call arity: rejected", "context: core call arity", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "len expects 1 arguments, got 0"))

@@ -176,14 +176,22 @@ follow-ups; public-artifact verification is now satisfied.
 
 ## Repository follow-up
 
-The separate post-merge Check 38806194377 failed its macOS runtime partition:
-`native module contracts` reached its 20-second bound after the last recorded
-`host_builtin_types` group, before the filesystem checkpoint. This is distinct
-from the TLS failure. The cause is not established. The successful promotion
-matrix and Release workflow, including native archive smoke on both platforms,
-remain the release evidence; this post-merge result is not described as green.
-Retain focused filesystem-group diagnosis as follow-up without overwriting the
-published artifacts or weakening the assertions.
+The separate post-merge Check 38806194377 and completion Check 38813133570
+hit the native-module process's former 20-second bound on macOS. Focused
+Linux/macOS isolation retained every assertion and measured substantial runner
+variation: the same macOS filesystem group took 2.965s and 13.817s. PR #513
+keeps all 500 raced reads and 20,000 symlink replacement cycles, adds checkpoints
+around the static reads, raced reads and child join, and allows 60 seconds for
+the complete native-module process. Product deadlines are unchanged. Final local
+validation passed in 432s and focused hosted validation passed on both platforms;
+this completion PR's full matrix remains the final combined acceptance gate.
+This is a fixture allowance, not a claimed product performance improvement.
+
+The immutable alpha.13 browser dependency archive omitted HTTP transport files.
+PR #514 repairs the source bundle and portable compilation guards; native
+preprocessed transport code is identical. Browser PR #11 pins that corrected
+source for version 0.1.3. Native release archives remain unchanged and retain
+the acceptance evidence above. Website consumption is a separate pin update.
 
 ## Performance and limitations
 

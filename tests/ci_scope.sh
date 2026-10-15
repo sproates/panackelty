@@ -81,6 +81,14 @@ fixture
 printf '# Bootstrap\n' > SELF_HOSTING.md
 commit; route docs
 fixture
+mkdir docs
+printf '# Package design\n' > docs/MODULE_PACKAGE_DESIGN.md
+commit; route docs
+fixture
+mkdir docs
+printf '# New documentation\n' > docs/new.md
+commit; route docs
+fixture
 git rm -q ROADMAP.md
 commit; route docs
 reject_docs 'missing local link: README.md -> ROADMAP.md'
@@ -104,13 +112,18 @@ commit; route full
 reject_docs 'symlink document'
 # Unknown, packaged, executable, specification and policy changes stay full.
 for path in README.md SPEC.md VERSION CHANGELOG.md RELEASE_POLICY.md \
-    .github/workflows/check.yml tests/functional/input.md docs/new.md \
+    .github/workflows/check.yml tests/functional/input.md \
     'notes with spaces.md' $'notes\nnewline.md'; do
     fixture
     mkdir -p "$(dirname "$path")"
     printf '\nchange\n' >> "$path"
     commit; route full
 done
+# Markdown documentation in nested docs folders is covered by the same glob.
+fixture
+mkdir -p docs/nested
+printf '# Nested documentation\n' > docs/nested/new.md
+commit; route docs
 # Reviewed process prose is not consumed by builds, packages or fixtures.
 for path in CONTRIBUTING.md docs/ROADMAP_PROCESS.md .github/pull_request_template.md; do
     fixture

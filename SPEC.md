@@ -1161,6 +1161,11 @@ concurrency, cancellation and bounded response writes remain owned by the server
 
 This primitive does not add HTTP framing. The Panackelty HTTP package owns
 incremental parsing and response serialization; P6 is the selected consumer.
+Its server accepts GET, HEAD and POST. HEAD preserves the corresponding
+representation headers, including Content-Length, and sends no body. Handlers
+supply the representation body as usual, subject to existing response limits.
+Parser failures with a recognised HEAD method and handler failures also omit
+response bodies. See `docs/MODULE_PACKAGE_DESIGN.md` for the package contract.
 Native Linux/macOS support follows the server capability gate; WASI remains
 unavailable. The source-level limit is checked again at runtime for saved or
 forged bytecode.

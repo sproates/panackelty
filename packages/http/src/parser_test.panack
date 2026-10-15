@@ -1,5 +1,5 @@
 import project/parser::{parse_request, parse_response}
-import project/server::{serialize_response}
+import project/server::{serialize_response, serialize_head_response}
 import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.LimitExceeded,
   HttpError.InvalidLimits, HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
   HttpError.UnsupportedVersion, Request, Response}
@@ -119,6 +119,36 @@ main(): Unit {
   })
 
   expect(serialized_response_matches())
+
+  expect(parsed_request_matches(text.encode_utf8(
+    "HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n"), "HEAD", "/", ""))
+  expect(parsed_request_matches(text.encode_utf8(
+    "HEAD / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 2\r\n\r\nhi"), "HEAD", "/", "hi"))
+  expect(parsed_request_matches(text.encode_utf8(
+    "HEAD / HTTP/1.1\r\nHost: example.test\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nhi\r\n0\r\n\r\n"),
+    "HEAD", "/", "hi"))
+  expect(parse_has_error(text.encode_utf8(
+    "HEADERS / HTTP/1.1\r\nHost: example.test\r\n\r\n"), UnsupportedMethod("HEADERS")))
+  expect(match serialize_head_response(Response(200,
+      [Header("Content-Type", "text/plain"), Header("Content-Length", "2")], text.encode_utf8("ok"))) {
+    Error(error) => false,
+    Ok(wire) => text.decode_utf8(wire) ==
+      "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\n"
+  })
+  expect(match serialize_head_response(Response(404, [], text.encode_utf8("missing"))) {
+    Error(error) => false,
+    Ok(wire) => text.decode_utf8(wire) ==
+      "HTTP/1.1 404 Not Found\r\nContent-Length: 7\r\nConnection: close\r\n\r\n"
+  })
+  expect(match serialize_head_response(Response(204, [], byte_buffer.empty())) {
+    Error(error) => false,
+    Ok(wire) => text.decode_utf8(wire) == "HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
+  })
+  expect(match serialize_head_response(Response(200, [Header("Content-Length", "3")], text.encode_utf8("ok"))) {
+    Error(error) => error == InvalidResponse(),
+    Ok(wire) => false
+  })
+
 
   expect(response_matches(text.encode_utf8(
     "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nX-Repeat: a\r\nX-Repeat: b\r\n\r\nok"), 200, "ok"))

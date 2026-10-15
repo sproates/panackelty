@@ -1745,10 +1745,16 @@ No acceptance remains for the agreed #160 scope.
 
 **RM#101: Panackelty preview server** · [GI#162: Panackelty preview server](https://github.com/sproates/panackelty/issues/162).
 
-Backlog **Idea, unscheduled**: [#162](https://github.com/sproates/panackelty/issues/162)
-would replace the serving component with a Panackelty-written local HTTP server.
-Assess HTTP, file-I/O and long-running lifecycle needs first; this dogfooding
-follow-up does not block the current Node-based workflow.
+**In progress, 2026-10-15**: [#162](https://github.com/sproates/panackelty/issues/162)
+will provide a generic directory-serving HTTP package and a tool under `tools/`,
+with website preview supplying its configuration. Reuse the existing HTTP package
+and isolate necessary standard-library additions. Keep the existing website build.
+The [implementation proposal](docs/GI162_STATIC_HTTP_PLAN.md) records the design,
+verified prerequisites and delivery sequence. The first implementation slice adds
+HEAD support to the existing HTTP package. Asynchronous confined reads, persistent
+service lifecycle, generic tool and website adoption remain outstanding. The
+current Node-based preview workflow remains available; this slice changes no
+production website behaviour or release claim.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
 server contract PR #129 and server implementation PR #130. Both operations are included in the published alpha.11 native release and were

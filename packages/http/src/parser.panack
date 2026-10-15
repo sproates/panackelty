@@ -536,7 +536,7 @@ pub pure parse_request(data: Bytes, eof: Bool, body_limit: Nat): Result[Option[R
                 if eof { Error(ProtocolError("truncated HTTP request body")) } else { Ok(None()) }
               } else if byte_length(data) > head.body_start + length {
                 Error(ProtocolError("extra bytes after HTTP request"))
-              } else if head.method != "GET" && head.method != "POST" {
+              } else if head.method != "GET" && head.method != "HEAD" && head.method != "POST" {
                 Error(UnsupportedMethod(head.method))
               } else {
                 Ok(Some(Request(head.method, head.target, head.headers,
@@ -549,7 +549,7 @@ pub pure parse_request(data: Bytes, eof: Bool, body_limit: Nat): Result[Option[R
                 Error(error) => Error(error),
                 Ok(decoded) => match decoded {
                   None() => Ok(None()),
-                  Some(chunked) => if head.method != "GET" && head.method != "POST" {
+                  Some(chunked) => if head.method != "GET" && head.method != "HEAD" && head.method != "POST" {
                     Error(UnsupportedMethod(head.method))
                   } else {
                     Ok(Some(Request(head.method, head.target, head.headers, chunked.body)))
@@ -558,7 +558,7 @@ pub pure parse_request(data: Bytes, eof: Bool, body_limit: Nat): Result[Option[R
               }
             } else if byte_length(data) > head.body_start {
               Error(ProtocolError("request body has no framing"))
-            } else if head.method != "GET" && head.method != "POST" {
+            } else if head.method != "GET" && head.method != "HEAD" && head.method != "POST" {
               Error(UnsupportedMethod(head.method))
             } else {
               Ok(Some(Request(head.method, head.target, head.headers, byte_buffer.empty())))

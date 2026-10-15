@@ -1941,10 +1941,32 @@ pure body_check_existing_special_core_call(
           diagnostics = append(diagnostics, Diagnostic("len expects 1 arguments, got ${len(children)}", span.start))
         } else {
           match children[0].type {
-            None() => { deferred = append(deferred, span) },
+            None() => {
+              deferred = append(deferred, span)
+              if context.retain_guard_conversions {
+                type_checks = append(type_checks, BodyTypeCheckEvidence(
+                  "len argument",
+                  children[0].span,
+                  None(),
+                  "Str, Bytes, or array",
+                  None(),
+                  None()
+                ))
+              }
+            },
             Some(type) => {
               valid: Bool = type.identity == SignatureCore("Str") ||
                 type.identity == SignatureCore("Bytes") || type.identity == SignatureCore("Array")
+              if context.retain_guard_conversions {
+                type_checks = append(type_checks, BodyTypeCheckEvidence(
+                  "len argument",
+                  children[0].span,
+                  Some(type),
+                  "Str, Bytes, or array",
+                  None(),
+                  Some(valid)
+                ))
+              }
               if valid {
                 output = body_core_type("Nat")
               } else {
@@ -2111,12 +2133,19 @@ pure body_check_existing_special_core_call(
     if name == "$unit" {
       type_checks = body_call_arity_evidence(context, "core", span, Some(0), len(children))
     } else {
-      if name == "print" || name == "eprint" || name == "len" || name == "nat_from_str" {
+      if name == "len" {
+        type_checks = concat(
+          type_checks,
+          body_call_arity_evidence(context, "core", span, Some(1), len(children))
+        )
+      } else {
+      if name == "print" || name == "eprint" || name == "nat_from_str" {
         type_checks = body_call_arity_evidence(context, "core", span, Some(1), len(children))
       } else {
         if name == "quotient" {
           type_checks = body_call_arity_evidence(context, "core", span, Some(2), len(children))
         }
+      }
       }
     }
   }

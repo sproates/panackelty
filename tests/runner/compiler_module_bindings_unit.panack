@@ -2098,6 +2098,26 @@ pure namespace_body_tests(): [TestResult] {
     "pure caller(): Nat { len(\"x\") }",
     true
   )
+  accepted_len_text_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(\"x\") }",
+    true
+  )
+  accepted_len_bytes_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(bytes()) }",
+    true
+  )
+  accepted_len_array_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len([1]) }",
+    true
+  )
+  rejected_len_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(1) }",
+    true
+  )
+  unavailable_len_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(missing) }",
+    true
+  )
   rejected_core_call_arity: CheckedModuleBodies = body_test_module_mode(
     "pure caller(): Nat { len() }",
     true
@@ -2123,6 +2143,10 @@ pure namespace_body_tests(): [TestResult] {
     true
   )
   ordinary_core_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure caller(): Nat { len(\"x\") }",
+    false
+  )
+  ordinary_len_argument: CheckedModuleBodies = body_test_module_mode(
     "pure caller(): Nat { len(\"x\") }",
     false
   )
@@ -2565,8 +2589,10 @@ pure namespace_body_tests(): [TestResult] {
   results = append(results, std_testing.expect(
     "explanation checking retains accepted core call arity",
     len(accepted_core_call_arity.functions) == 1 &&
-      body_type_check_evidence(accepted_core_call_arity.functions[0].body)[0].context == "core call arity" &&
-      body_type_check_evidence(accepted_core_call_arity.functions[0].body)[0].accepted == Some(true),
+      match body_type_check_for_context(accepted_core_call_arity.functions[0].body, "core call arity") {
+        None() => false,
+        Some(evidence) => evidence.accepted == Some(true)
+      },
     "accepted core call arity was not retained"
   ))
   results = append(results, std_testing.expect(
@@ -2575,6 +2601,59 @@ pure namespace_body_tests(): [TestResult] {
       body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].expected == "expected 1; found 0" &&
       body_type_check_evidence(rejected_core_call_arity.functions[0].body)[0].accepted == Some(false),
     "rejected core call arity was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "len argument decision accepts Str",
+    len(accepted_len_text_argument.functions) == 1 &&
+      match body_type_check_for_context(accepted_len_text_argument.functions[0].body, "len argument") {
+        None() => false,
+        Some(evidence) => evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(true)
+      },
+    "len did not retain its accepted Str requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "len argument decision accepts Bytes",
+    len(accepted_len_bytes_argument.functions) == 1 &&
+      match body_type_check_for_context(accepted_len_bytes_argument.functions[0].body, "len argument") {
+        None() => false,
+        Some(evidence) => evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(true)
+      },
+    "len did not retain its accepted Bytes requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "len argument decision accepts arrays",
+    len(accepted_len_array_argument.functions) == 1 &&
+      match body_type_check_for_context(accepted_len_array_argument.functions[0].body, "len argument") {
+        None() => false,
+        Some(evidence) => evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(true)
+      },
+    "len did not retain its accepted array requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "len argument decision rejects unsupported types",
+    len(rejected_len_argument.functions) == 1 &&
+      match body_type_check_for_context(rejected_len_argument.functions[0].body, "len argument") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
+          evidence.expected == "Str, Bytes, or array" && evidence.accepted == Some(false)
+      },
+    "len did not retain its rejected input requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "len argument decision is unavailable for unresolved types",
+    len(unavailable_len_argument.functions) == 1 &&
+      match body_type_check_for_context(unavailable_len_argument.functions[0].body, "len argument") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() &&
+          evidence.expected == "Str, Bytes, or array" && evidence.accepted == None()
+      },
+    "len did not retain its unavailable input requirement"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no len argument evidence",
+    len(ordinary_len_argument.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_len_argument.functions[0].body)) == 0,
+    "ordinary checking retained explanation-only len argument evidence"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted indirect call arity",

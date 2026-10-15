@@ -28,6 +28,13 @@ function regular(file, limit = MAX) {
   if (!s.isFile() || s.size > limit) fail('Unsafe or oversized coverage file');
   return fs.readFileSync(file);
 }
+// Hash only after readSession has validated the complete session. Container
+// bounds must match decoding; individual identities retain their smaller limit.
+function sessionRecords(directory) {
+  return fs.readdirSync(directory).sort().map(name => [name, sha(regular(
+    path.join(directory,name), name === 'registry' || name.startsWith('raw-') ? MAX_CONTAINER : MAX
+  ))]);
+}
 function sourcePath(name, entry, checkout) {
   // Canonicalize the checkout first. macOS commonly exposes temporary paths
   // through both /var and /private/var; comparing a child realpath against
@@ -251,4 +258,4 @@ function writeReport(output, report) {
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(summary,null,2)+'\n');
   fs.writeFileSync(path.join(output,'summary.txt'),`Panackelty .panack source coverage (next)\nCommit: ${report.commit}\nGenerated: ${report.generatedAt}\nCoverage amounts are informational; no minimum threshold is enforced.\n\nMeasured files:\n`+report.files.map(f=>`${f.path}\t${['lines','functions','branches'].map(k=>metricText(f.metrics[k])).join('\t')}`).join('\n')+'\n\nUnmeasured production files (excluded from denominators):\n'+(report.manifest?.unmeasured || []).map(f=>`${f.path}\t${f.reason}`).join('\n')+'\n');
 }
-module.exports = {Reader,regular,sha,readPlan,readRaw,readSession,zero,add,observations,union,totals,writeReport};
+module.exports = {Reader,regular,sha,sessionRecords,readPlan,readRaw,readSession,zero,add,observations,union,totals,writeReport};

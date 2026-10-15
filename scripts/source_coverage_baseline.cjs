@@ -2,8 +2,9 @@
 // Generation stays in core. The publisher receives static reports, never executable plans.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const {spawnSync} = require('node:child_process');
-const {regular,sha,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
+const {regular,sha,sessionRecords,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
 const {validateManifest} = require('./source_coverage_manifest.cjs');
+const {checkManifestPolicy,checkPolicy} = require('./source_coverage_policy.cjs');
 const checkout = path.resolve(__dirname,'..');
 function command(args, timeout = 180000, extraEnv = {}) {
   const result = spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
@@ -17,6 +18,9 @@ function baseline(output, allowDirty = false) {
   const manifest = JSON.parse(manifestBytes);
   const tracked = command(['git','ls-files','src']).trim().split('\n').filter(p=>p.endsWith('.panack')).sort();
   validateManifest(manifest,tracked);
+  const policyBytes = regular(path.join(checkout,'tests/source_coverage/policy.json'));
+  const policy = JSON.parse(policyBytes);
+  const manifestHash = checkManifestPolicy(manifest,policy);
   const commit = command(['git','rev-parse','HEAD']).trim();
   const clean = !allowDirty && !command(['git','status','--porcelain','--untracked-files=all']).trim();
   if (!clean && !allowDirty) throw Error('Dirty tracked source; commit first or use --allow-dirty for a non-publishable development report');
@@ -45,7 +49,7 @@ function baseline(output, allowDirty = false) {
     check(stdout);
     const session = readSession(directory,[p],seen);
     groups.push(observations(p,session.totals[0]));
-    const records = fs.readdirSync(directory).sort().map(name=>[name,sha(regular(path.join(directory,name)))]);
+    const records = sessionRecords(directory);
     sessions.push({id,entry:p.entry,arguments:args.map(a=>a.startsWith(work)?'<workspace>/'+path.basename(a):a),
       artifact:sha(p.artifact),inventory:sha(p.inventory),stdoutHash:sha(Buffer.from(stdout)),nonce:session.nonce,executions:session.executions,records});
   }
@@ -80,14 +84,13 @@ function baseline(output, allowDirty = false) {
   for (const p of plans.values()) for (const s of p.sources) if (sha(regular(path.join(checkout,s.path))) !== s.hash) throw Error('Source changed during collection');
   if (!compiler.equals(regular(path.join(checkout,'bootstrap/compiler-v9.bc'))) || !vm.equals(regular(path.join(checkout,'panack-vm')))) throw Error('Toolchain changed during collection');
   if (command(['git','rev-parse','HEAD']).trim() !== commit || !manifestBytes.equals(regular(path.join(checkout,'tests/source_coverage/manifest.json')))) throw Error('Checkout or manifest changed during collection');
+  if (!policyBytes.equals(regular(path.join(checkout,'tests/source_coverage/policy.json')))) throw Error('Coverage policy changed during collection');
   if (clean && command(['git','status','--porcelain','--untracked-files=all']).trim()) throw Error('Checkout became dirty during collection');
   const files = union(groups,manifest.eligible);
   const report = {schema:1,repository:'sproates/panackelty',branch:'next',commit,clean,generatedAt:new Date().toISOString(),
-    compiler:sha(compiler),vm:sha(vm),manifestHash:sha(Buffer.from(JSON.stringify(manifest))),manifest,sessions,
+    compiler:sha(compiler),vm:sha(vm),manifestHash,manifest,sessions,
     metrics:totals(files),components:Object.fromEntries(['compiler','bytecode','stdlib'].map(c=>[c,totals(files.filter(f=>f.path.startsWith(`src/${c}/`)))])),files};
-  const {checkPolicy}=require('./source_coverage_policy.cjs');
   console.log(`Policy candidate counts: ${JSON.stringify({metrics:report.metrics,components:report.components})}`);
-  const policy=JSON.parse(regular(path.join(checkout,'tests/source_coverage/policy.json')));
   const result=checkPolicy(report,policy,{commit,manifestHash:report.manifestHash,allowDirty});
   console.log(`Coverage report integrity: ${result.status}`);
   writeReport(output,report);

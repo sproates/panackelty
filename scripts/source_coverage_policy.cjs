@@ -3,6 +3,12 @@
 const {sha,totals}=require('./source_coverage.cjs');
 const kinds=['lines','functions','branches'];
 function requireThat(condition,message) { if(!condition) throw Error(`Coverage policy: ${message}`); }
+function checkManifestPolicy(manifest,policy) {
+  requireThat(policy?.schema===2 && typeof policy.review?.reason==='string' && policy.review.reason.trim().length>0,'missing reviewed policy');
+  const manifestHash=sha(Buffer.from(JSON.stringify(manifest)));
+  requireThat(policy.manifestHash===manifestHash,'scope changed; review the policy');
+  return manifestHash;
+}
 function metric(states) {
   requireThat(states.every(s=>['covered','zero','unavailable'].includes(s)),'invalid item state');
   return {total:states.length,covered:states.filter(s=>s==='covered').length,
@@ -20,7 +26,7 @@ function checkPolicy(report,policy,{commit,manifestHash,allowDirty=false}={}) {
   requireThat(report.clean===true || (allowDirty && report.clean===false),'non-publishable report');
   requireThat(/^[a-f0-9]{64}$/.test(manifestHash||'') && report.manifestHash===manifestHash &&
     sha(Buffer.from(JSON.stringify(report.manifest)))===manifestHash,'stale manifest');
-  requireThat(policy.manifestHash===manifestHash,'scope changed; review the policy');
+  checkManifestPolicy(report.manifest,policy);
   requireThat(Array.isArray(report.manifest.eligible) && Array.isArray(report.manifest.unmeasured) &&
     report.manifest.unmeasured.every(entry=>typeof entry?.path==='string' && typeof entry.reason==='string' && entry.reason.trim()),
     'invalid measured/unmeasured manifest');
@@ -50,4 +56,4 @@ function checkPolicy(report,policy,{commit,manifestHash,allowDirty=false}={}) {
   }
   return {status:'valid',components:report.components};
 }
-module.exports={checkPolicy};
+module.exports={checkManifestPolicy,checkPolicy};

@@ -1,7 +1,30 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {sha,totals}=require('../../scripts/source_coverage.cjs');
-const {checkPolicy}=require('../../scripts/source_coverage_policy.cjs');
+const {checkManifestPolicy,checkPolicy}=require('../../scripts/source_coverage_policy.cjs');
+const fs=require('node:fs');
+test('checked-in manifest policy is current before expensive collection',()=>{
+  const manifest=JSON.parse(fs.readFileSync('tests/source_coverage/manifest.json'));
+  const policy=JSON.parse(fs.readFileSync('tests/source_coverage/policy.json'));
+  assert.equal(checkManifestPolicy(manifest,policy),sha(Buffer.from(JSON.stringify(manifest))));
+  assert.throws(()=>checkManifestPolicy(manifest,{...policy,manifestHash:'0'.repeat(64)}),/scope changed/);
+  assert.throws(()=>checkManifestPolicy(manifest,{...policy,review:{reason:''}}),/missing reviewed policy/);
+});
+test('collector rejects stale scope before creating a workspace or compiling',t=>{
+  const read=fs.readFileSync;
+  t.mock.method(fs,'readFileSync',function(file,...args) {
+    const data=read.call(this,file,...args);
+    if(String(file).endsWith('/tests/source_coverage/policy.json')) {
+      const policy=JSON.parse(data);policy.manifestHash='0'.repeat(64);
+      return Buffer.from(JSON.stringify(policy));
+    }
+    return data;
+  });
+  const workspace=t.mock.method(fs,'mkdtempSync',()=>{throw Error('Unexpected collection workspace');});
+  const {baseline}=require('../../scripts/source_coverage_baseline.cjs');
+  assert.throws(()=>baseline('unused',true),/scope changed/);
+  assert.equal(workspace.mock.callCount(),0);
+});
 function refresh(r) {
   for(const f of r.files) for(const kind of ['lines','functions','branches']) {
     const states=kind==='lines'?Object.values(f.lines):f[kind].map(i=>i.state);

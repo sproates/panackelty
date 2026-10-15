@@ -458,7 +458,7 @@ awk '
 /^  workflow_validation:$/ { gate=0; heavy=0; workflow=1; next }
 /^  [a-z_]+:$/ { gate=0; heavy=0; workflow=0 }
 gate && name=="package:" && /^    needs: \[changes, package_build, workflow_validation\]$/ { dependencies++ }
-gate && name=="test:" && /^    needs: \[changes, test_run, next_smoke, source_policy_tests, source_coverage, workflow_validation\]$/ { dependencies++ }
+gate && name=="test:" && /^    needs: \[changes, test_run, next_smoke, source_policy_tests, workflow_validation\]$/ { dependencies++ }
 gate && /^    if: always\(\)$/ { guards++ }
 gate && /^    timeout-minutes: 2$/ { bounds++ }
 heavy && /^    needs: changes$/ { work_dependencies++ }
@@ -471,7 +471,7 @@ END { exit bad || dependencies!=2 || guards!=2 || bounds!=2 || work_dependencies
 grep -F 'CI_WORKFLOW_RESULT: ${{ needs.workflow_validation.result }}' .github/workflows/check.yml >/dev/null || fail 'missing workflow validation result gate'
 grep -F 'run: sh tests/workflow_yaml.sh' .github/workflows/check.yml >/dev/null || fail 'workflow route omitted YAML validation'
 grep -F 'run: sh tests/unit/harness/layout.sh' .github/workflows/check.yml >/dev/null || fail 'workflow route omitted workflow contracts'
-awk '/^  workflow_validation:$/ { selected=1 } /^  source_coverage:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/workflow-job"
+awk '/^  workflow_validation:$/ { selected=1 } /^  changes:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/workflow-job"
 grep -F 'timeout-minutes: 5' "$work/workflow-job" >/dev/null || fail 'workflow validation has no bounded timeout'
 test "$(grep -c 'run: sh scripts/ci_gate.sh' .github/workflows/check.yml)" = 1 || fail 'missing test result script'
 grep -F 'run: sh scripts/ci_package_gate.sh' .github/workflows/check.yml >/dev/null || fail 'missing package result script'

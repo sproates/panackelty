@@ -10,6 +10,8 @@ route=docs
 components=' '
 workflow_change=0
 ci_static_validation_path() {
+    # Retain the retired release gate path while its deletion crosses next/main;
+    # deleting CI-only code must not select product validation.
     case "$1" in
         .github/workflows/*.yml|.github/workflows/*.yaml|\
         scripts/ci_scope.sh|scripts/validate_change.sh|scripts/ci_gate.sh|scripts/ci_package_gate.sh|\

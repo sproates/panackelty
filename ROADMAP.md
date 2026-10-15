@@ -91,9 +91,18 @@ or completion of the first non-alpha milestone.
 | --- | --- | --- |
 | Native HTTP client | P5 / RM#110 / [GI#236](https://github.com/sproates/panackelty/issues/236), planned, not started: bounded HTTP/1.1 GET and verified HTTPS, typed status/headers/body and errors | Accepted namespace/local-package prerequisites; certificate and hostname verification, limits, timeouts/cancellation, deterministic protocol/TLS tests and installed source/bytecode usage |
 | Native HTTP server | P6 / RM#111 / [GI#237](https://github.com/sproates/panackelty/issues/237), planned, not started: finite cleartext HTTP/1.1 GET/POST server; follows client milestone | Typed handlers/responses, framing/limits, disconnect/shutdown/concurrency tests and independent interoperability; server TLS remains outside the initial contract |
+| Remote Panack package management | P7 / RM#44 / [GI#200](https://github.com/sproates/panackelty/issues/200), design only for Alpha.13; discussion and refinement come before drafting the design document | Produce a detailed, owner-reviewed package-management design. Remote package implementation is not an Alpha.13 requirement and may be deferred |
 | Panackelty-written local website preview server | [GI#162](https://github.com/sproates/panackelty/issues/162), added to Alpha.13 by owner direction on 2026-10-14; planned, not started. Replace the Node local-serving component while retaining the existing website build; decide whether the server belongs in this repository or a separate independently usable project before implementation | Serve the built site over loopback with correct HTML/JavaScript/Wasm MIME types; support GET/HEAD, directory indexes, missing files, clear startup and port-conflict errors, clean shutdown, and reject traversal/symlink escapes. Exercise assembled-site browser tests against it and document launch/rebuild/stop |
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): existing bounded subtraction/local-effect queries delivered; broader checked type/effect/proof scope remains | Select concrete supported cases during slice planning; retain actual checker evidence, source facts, accepted/rejected/unavailable distinctions, diagnostic/artifact parity and measured cost |
 | Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
+
+Owner decision, 2026-10-15: Alpha.13's P7 scope is discussion, refinement and a
+detailed package-management design. Do not begin implementation, and do not
+draft the design document until the owner says the discussion is ready to
+record. Implementation is not required for Alpha.13 and may be deferred. This
+supersedes the earlier P7 implementation acceptance; Git, archives, URL handling,
+version selection, lockfiles, fetching, integrity and offline behavior remain
+design questions unless separately agreed.
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites, the agreed P2 → P3 → P4
 language/local-package checkpoint before HTTP, and client-before-server sequencing.
@@ -456,9 +465,10 @@ namespaces (P4 / GI#235), the clean-installed language/local-package release
 gate (the first gate in P8 / GI#238), then the HTTP client (P5 / GI#236) and
 HTTP server (P6 / GI#237). P3 completed on `next` in PR#386 and P4 completed
 there in PR#404; the release gate is still outstanding. HTTP work must not start
-before that gate passes. Reproducible dependencies (P7 / GI#200) are not a
-prerequisite for the release gate or initial HTTP milestones, but remain part
-of final P8 acceptance.
+before that gate passes. P7 / GI#200 is not a prerequisite for the release gate
+or initial HTTP milestones. Owner decision, 2026-10-15: its Alpha.13 outcome is
+an owner-reviewed package-management design after discussion; implementation is
+not part of current P8 acceptance and may be deferred.
 
 SP1 uses these implementation layers:
 
@@ -526,8 +536,8 @@ bootstrap, docs, independent review and explicit merge approval.
 | P4 | [RM#42: Standard library namespaces](#rm-42) · [GI#235: Standard library namespaces](https://github.com/sproates/panackelty/issues/235) | Done on `next` in PR#404; release adoption remains | P1–P3 as needed | Medium / 1–2 PRs |
 | P5 | [RM#110: HTTP client package](#rm-110) · [GI#236: HTTP client package](https://github.com/sproates/panackelty/issues/236) | Planned; not started | P1–P3; transport/DNS/TLS | Large, uncertain / 4–7 PRs |
 | P6 | [RM#111: HTTP server package](#rm-111) · [GI#237: HTTP server package](https://github.com/sproates/panackelty/issues/237) | Planned; not started | P1–P3; transport/lifecycle | Large / 2–4 PRs |
-| P7 | [RM#44: Reproducible dependencies](#rm-44) · [GI#200: Reproducible dependencies](https://github.com/sproates/panackelty/issues/200) | Planned; not started | P1, P3 | Large, uncertain / 3–5 PRs |
-| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Language/local-package gate P1–P4; client gate after P5; final all including P6/P7 | Medium / 1–2 PRs, provisional; reassess across three gates |
+| P7 | [RM#44: Remote Panack package-management design](#rm-44) · [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200) | Design only for Alpha.13; discussion in progress and implementation may be deferred | P1, P3 inform the design | Former implementation estimate is historical; re-estimate after design |
+| P8 | [RM#112: Package and HTTP acceptance](#rm-112) · [GI#238: Package and HTTP acceptance](https://github.com/sproates/panackelty/issues/238) | Planned; not started | Language/local-package gate P1–P4; client gate after P5; final P6 plus accepted P7 design | Medium / 1–2 PRs, provisional; reassess across three gates |
 
 <a id="rm-149"></a>
 
@@ -620,23 +630,29 @@ Agree server TLS scope during design; first client acceptance need not wait.
 
 <a id="rm-112"></a>
 
-**RM#112: Package and HTTP acceptance** — P8 in GI#238 has three gates:
+**RM#112: Package and HTTP acceptance** — P8 in GI#238 has three gates.
+
+Owner decision, 2026-10-15: the P7 acceptance described in the original design
+predates the Alpha.13 scope change. P7 now requires an owner-reviewed design
+document after discussion; implementation and pinned/offline restore are not
+Alpha.13 acceptance requirements. Revisit P8's completion evidence after the
+design is accepted.
 
 1. **Language/local-package release after P1–P4.** A clean installed toolchain
    builds and runs two independent applications consuming the same local library;
    relocated installations and package trees work. Namespace/stdlib migration,
    executed documentation, fresh bootstrap and the required native/browser
    baseline pass. Publish the supporting release through the normal reviewed
-   release process. HTTP, server support and P7 remote/offline dependency
-   reproduction are not prerequisites for this gate.
+   release process. HTTP, server support and P7 package-management design are
+   outside this first gate.
 2. **HTTP-client acceptance after P5.** Verify the independently consumed client
    with local packages, including the bounded hostname HTTP/HTTPS, TLS rejection,
    failure and cleanup evidence above. P6/P7 do not block this gate.
-3. **Final programme acceptance.** Verify all outcomes, including P6 server
-   lifecycle/walkthroughs and P7 pinned remote restore plus verified offline
-   reproduction, with clean/relocated workflows, executed documentation and
-   supporting release availability. All eight outcomes must be accepted before
-   closing the programme; neither earlier gate closes P8 as a whole.
+3. **Final programme acceptance.** Verify the scoped implementation outcomes,
+   including P6 server lifecycle/walkthroughs, and the owner-accepted P7 design,
+   with clean/relocated workflows, executed documentation and supporting release
+   availability. Any later package-management implementation is outside the
+   current Alpha.13 scope and does not block its release acceptance.
 
 The gates partition P8's existing scope and weight; they do not create three new
 tasks or award completion merely for announcing a checkpoint. GI#166 typed service exchange and GI#162 preview-server
@@ -661,7 +677,7 @@ Provisional scope/effort baseline recorded on 2026-10-03 in
 | P4 / [RM#42: Standard library namespaces](#rm-42) | 5% | 100% on `next` in PR#404; release adoption remains | 5 pp |
 | P5 / [RM#110: HTTP client package](#rm-110) | 20% | 0% | 0 pp |
 | P6 / [RM#111: HTTP server package](#rm-111) | 15% | 0% | 0 pp |
-| P7 / [RM#44: Reproducible dependencies](#rm-44) | 10% | 0% | 0 pp |
+| P7 / [RM#44: Remote Panack package-management design](#rm-44) | 10% (former implementation baseline; rebaseline after design) | 0%; design discussion not yet ready for documentation | 0 pp |
 | P8 / [RM#112: Package and HTTP acceptance](#rm-112) | 5% | 0% | 0 pp |
 | **Total** | **100%** | 50% delivered on `next`: P1 contributes 10 pp, P2 20 pp, P3 15 pp and P4 5 pp; P5–P8 remain planned | **50 pp; P1–P4 complete on `next`** |
 
@@ -3635,32 +3651,39 @@ No registry, separate compiler/linker or package format is selected.
 **RM#44: Dependency management** · [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200).
 
 Work record: [GI#200: Dependency management](https://github.com/sproates/panackelty/issues/200).
-Current state: Planned as P7 in the [programme register](#rm-108).
-The [P1 shared design](docs/MODULE_PACKAGE_DESIGN.md) supersedes the historical
-assessment-only scope below; production acceptance remains open.
+Current Alpha.13 state: **design only; scope discussion in progress**. P7's
+outcome is a detailed package-management design, produced only after the owner
+says discussion and refinement are ready to record. Remote package-management
+implementation is not committed to Alpha.13 and may be deferred. Revisit any
+implementation plan after owner acceptance of the design.
 
-Design how applications declare, obtain, update and reproduce direct/transitive
-and development dependencies. Third-party packages remain pending in the current
-specification. Compare local paths/vendoring, immutable Git revisions and versioned
-archives before deciding whether a registry is useful. Define manifest/lockfile
-roles, version and toolchain compatibility, conflict/diamond resolution, duplicate
-versions, cycles and package-to-import identity.
+The immutable-Git, lockfile, cache/vendor, integrity and offline requirements in
+the P1 shared design were recorded in PR #240 but are not confirmed owner
+requirements. They are historical design input, not the current P7 specification.
+Current local package support uses explicitly declared relative paths to source
+packages; absolute paths are rejected. Remote Panack source packages, their
+distribution, and version selection remain under discussion.
 
-Smallest outcome: a reviewed design and bounded prototype plan for an application,
-library and transitive dependency. Specify explicit updates, locked clean/CI and
-offline restores, integrity/provenance, caching, unavailable sources, conflicting
-versions, corrupt artifacts and mismatched locks. Address untrusted package
-contents, credentials/private sources and install/build-script policy. A public
-registry is not a prerequisite; any service needs an ownership/maintenance plan.
-Coordinate #198, #199 and #106's dependency-aware cache work. Assessment is
-provisionally medium / one design PR; implementation/operations may be large.
-Supply-chain trust, reproducibility and surprising upgrades are principal risks.
-No implementation priority, version policy, network service or ecosystem chosen.
+The design discussion will define how application authors declare Panack source
+packages and how developers obtain and select versions. It will cover both
+`panack` commands and direct edits to `panack.json`. Compare local paths, remote
+URLs, published source archives, manually downloaded archives and any other
+relevant distribution choices without assuming Git or a registry. Define how
+authors publish versions, how importers select them, and whether locking,
+integrity checks, caching and offline use belong in the initial product scope.
 
-These linked investigations informed P1, while their production outcomes remain
-independently scoped and unstarted. Historical sizes and idea headings above are
-retained for context; current state, estimates and priority come from the
-[programme register](#rm-108), not the original assessment notes.
+Current outcome: an owner-reviewed detailed design document. It is not an
+implementation authorization. Before drafting the document, discuss and refine
+the product model, expected workflows, versioning and security assumptions with
+the owner. The design must distinguish Panack source-package dependencies from
+native libraries such as libcurl, the compiler/toolchain and bytecode artifacts.
+Implementation scope, effort and acceptance remain for a later owner decision;
+the former implementation estimate is not a current estimate for the design-only
+Alpha.13 outcome.
+
+These linked investigations informed P1 but do not settle P7's product scope.
+Their original implementation assumptions remain historical context; current
+P7 acceptance is the design-only scope above.
 
 ## Review GitHub repository settings and tooling — idea
 

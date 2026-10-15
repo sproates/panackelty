@@ -1,0 +1,34 @@
+name: Native filesystem fixtures
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/native-filesystem.yml'
+      - 'tests/unit/vm/native_modules.c'
+      - 'tests/runner/vm_unit.panack'
+permissions:
+  contents: read
+concurrency:
+  group: native-filesystem-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  filesystem:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Install native dependency
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes libcurl4-openssl-dev
+      - run: make native-module-build
+      - name: Measure isolated filesystem and complete native contracts
+        run: |
+          time build/vm/test_modules filesystem-root
+          time build/vm/test_modules
+      - name: Exercise the normal timed native-module harness
+        run: make native-vm-contracts

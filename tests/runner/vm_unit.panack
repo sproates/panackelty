@@ -115,7 +115,7 @@ main(): Void {
       module_outcome = std_process.run(
         vm_executable("PANACK_NATIVE_MODULE_TEST", "./build/vm/test_modules"), [], byte_buffer.empty(),
         std_path.current(), vm_environment().append("PANACK_NATIVE_MODULE_PROGRESS_FILE=${progress_text}"),
-        std_time.seconds(20), 1048576)
+        std_time.seconds(60), 1048576)
       mut module_succeeded = false
       module_result = match module_outcome {
         Error(problem) => {

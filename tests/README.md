@@ -880,3 +880,17 @@ The compiler/unit routes include `runner/compiler_source_inventory_unit.panack`
 and `runner/compiler_source_inventory_cli.panack`: literal original-syntax
 expectations plus public command, identity, failure and bytecode-equivalence tests.
 See [source inventory](../docs/SOURCE_INVENTORY.md).
+
+### Native filesystem race fixture timing
+
+The complete native-module process has a 60-second deadline. Its confinement
+fixture retains 500 asserted reads against 20,000 symlink replacement cycles.
+Focused macOS runners measured the same filesystem group at 2.965s and 13.817s;
+full runtime runs exceeded the former 20-second process deadline. This allowance
+accommodates observed filesystem scheduling variability without reducing the
+race workload or changing product deadlines. Other native commands retain their
+existing bounds. Progress checkpoints distinguish static reads, completion of
+raced reads, and joining the replacement process; they survive a timeout.
+The focused Linux/macOS workflow runs both the isolated group and the normal
+timed process harness before a full integration run. The longer allowance is
+fixture robustness, not evidence of a product performance improvement.

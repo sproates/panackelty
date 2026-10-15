@@ -1,5 +1,11 @@
 #!/bin/sh
 . tests/unit/harness/common.sh
+case_name=native-module-filesystem-race-bound
+contains tests/runner/vm_unit.panack 'std_time.seconds(60), 1048576)'
+contains tests/unit/vm/native_modules.c 'i < 20000'
+contains tests/unit/vm/native_modules.c 'i < 500'
+contains tests/unit/vm/native_modules.c 'record_module_progress("filesystem_root_race_reads")'
+pass
 case_name=large-cli-fixture-compilation-bound
 contains tests/runner/main.panack 'compile_timeout = if execution_timeout == 120 { 60 } else { 20 }'
 contains tests/runner/main.panack 'label == "case/stdlib", compile_timeout)'

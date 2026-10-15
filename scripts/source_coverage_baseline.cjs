@@ -1,17 +1,23 @@
 'use strict';
 // Generation stays in core. The publisher receives static reports, never executable plans.
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
-const {spawnSync} = require('node:child_process');
+const childProcess = require('node:child_process');
 const {regular,sha,sessionRecords,readPlan,readSession,observations,union,totals,writeReport} = require('./source_coverage.cjs');
 const {validateManifest} = require('./source_coverage_manifest.cjs');
 const {checkManifestPolicy,checkPolicy} = require('./source_coverage_policy.cjs');
 const checkout = path.resolve(__dirname,'..');
 function command(args, timeout = 180000, extraEnv = {}) {
-  const result = spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
+  const started = Date.now();
+  const result = childProcess.spawnSync(args[0],args.slice(1),{cwd:checkout,encoding:'utf8',timeout,maxBuffer:16*1024*1024,
     env:{...process.env,PANACKELTY_STDLIB_PATH:path.join(checkout,'src/stdlib'),...extraEnv,
       PANACK_TEST_RUNNER_REPORT:'',PANACK_COVERAGE_TICKET:''}});
-  if (result.error || result.status !== 0 || result.signal) throw new Error(`${args.slice(0,3).join(' ')} failed: ${result.error?.message || result.stderr || result.stdout}`);
+  if (result.error || result.status !== 0 || result.signal) throw new Error(`${args.join(' ')} failed after ${Date.now()-started} ms (limit ${timeout} ms): ${result.error?.message || result.stderr || result.stdout}`);
   return result.stdout;
+}
+function exportPlan(tool,entry,prefix) {
+  // Large plans completed in 141s on one hosted runner; another needed 179s
+  // for the smaller compiler plan alone. Allow bounded runner variation.
+  if (command(['./panack','run',tool,entry,prefix],300000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error(`Unexpected export response: ${entry}`);
 }
 function baseline(output, allowDirty = false) {
   const manifestBytes = regular(path.join(checkout,'tests/source_coverage/manifest.json'));
@@ -36,7 +42,7 @@ function baseline(output, allowDirty = false) {
     if (!plans.has(entry)) {
       console.log(`Plan: ${entry}`);
       const prefix = path.join(work,`plan-${plans.size}`);
-      if (command(['./panack','run',tool,entry,prefix],180000,{PANACKELTY_BOOTSTRAP_ROOT:checkout}) !== 'plan: wrote\n') throw Error('Unexpected export response');
+      exportPlan(tool,entry,prefix);
       plans.set(entry,readPlan(prefix,entry,checkout,compiler));
     }
     return plans.get(entry);
@@ -98,7 +104,7 @@ function baseline(output, allowDirty = false) {
   // Keep raw evidence locally for diagnosis; CI publishes only the bounded static report.
   return report;
 }
-module.exports = {baseline};
+module.exports = {baseline,exportPlan};
 if (require.main === module) {
   const args = process.argv.slice(2), allowDirty = args.includes('--allow-dirty');
   const positional = args.filter(a=>a!=='--allow-dirty');

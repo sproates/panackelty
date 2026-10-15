@@ -3,6 +3,21 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {sha,totals}=require('../../scripts/source_coverage.cjs');
 const {checkManifestPolicy,checkPolicy}=require('../../scripts/source_coverage_policy.cjs');
 const fs=require('node:fs');
+test('plan export allows five minutes and preserves exact response validation',t=>{
+  const spawn=t.mock.method(require('node:child_process'),'spawnSync',()=>({status:0,stdout:'plan: wrote\n'}));
+  const {exportPlan}=require('../../scripts/source_coverage_baseline.cjs');
+  exportPlan('/tmp/export.bc','tests/runner/compiler_module_bindings_unit.panack','/tmp/plan');
+  const [binary,args,options]=spawn.mock.calls[0].arguments;
+  assert.equal(binary,'./panack');
+  assert.deepEqual(args,['run','/tmp/export.bc','tests/runner/compiler_module_bindings_unit.panack','/tmp/plan']);
+  assert.equal(options.timeout,300000);
+  assert.equal(options.maxBuffer,16*1024*1024);
+  assert.equal(options.env.PANACKELTY_BOOTSTRAP_ROOT,process.cwd());
+  spawn.mock.mockImplementation(()=>({status:0,stdout:'unexpected'}));
+  assert.throws(()=>exportPlan('tool','entry','prefix'),/Unexpected export response: entry/);
+  spawn.mock.mockImplementation(()=>({error:new Error('ETIMEDOUT'),status:null}));
+  assert.throws(()=>exportPlan('tool','entry','prefix'),/entry prefix failed after \d+ ms \(limit 300000 ms\): ETIMEDOUT/);
+});
 test('checked-in manifest policy is current before expensive collection',()=>{
   const manifest=JSON.parse(fs.readFileSync('tests/source_coverage/manifest.json'));
   const policy=JSON.parse(fs.readFileSync('tests/source_coverage/policy.json'));

@@ -4249,8 +4249,10 @@ PR #464 explains `Bool` requirements for `if` and `while` conditions, and PR
 independently of exhaustiveness, duplicates and binding counts; PR #466 explains
 record-field access compatibility and the resulting field type. PR #477 adds
 the match subject enum type, arm uniqueness, payload binding arity and
-exhaustiveness decisions. Constructor argument compatibility is the current
-follow-up slice; call arity, explicit type-argument arity and complete generic
+exhaustiveness decisions. PR #478 adds accepted, rejected and unavailable
+constructor-argument compatibility. PR #479 adds accepted and rejected call
+arity for resolved direct declarations and record/enum constructors.
+Core/indirect call arity, explicit type-argument arity and complete generic
 inference traces remain gaps to inventory. These are partial families within
 the owner-defined complete checker-decision target above. Each slice keeps
 ordinary diagnostics and runtime behavior unchanged and retains evidence only

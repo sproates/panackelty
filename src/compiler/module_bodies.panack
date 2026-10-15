@@ -1236,6 +1236,7 @@ pure body_call(
   }
   mut resolved_types: [SignatureType] = []
   mut call_arguments: [CallArgumentEvidence] = []
+  mut type_checks: [BodyTypeCheckEvidence] = []
   mut type_joins: [TypeJoinEvidence] = []
   mut type_index: Nat = 0
   for type in types {
@@ -1272,6 +1273,16 @@ pure body_call(
         if len(children) != len(contract.inputs) {
           expected_count: Nat = len(contract.inputs)
           actual_count: Nat = len(children)
+          if context.retain_guard_conversions {
+            type_checks = append(type_checks, BodyTypeCheckEvidence(
+              "direct call arity",
+              span,
+              None(),
+              "expected ${expected_count}; found ${actual_count}",
+              None(),
+              Some(false)
+            ))
+          }
           diagnostics = append(
             diagnostics,
             Diagnostic(
@@ -1279,6 +1290,19 @@ pure body_call(
             span.start
           )
           )
+        } else {
+          if context.retain_guard_conversions {
+            expected_count: Nat = len(contract.inputs)
+            actual_count: Nat = len(children)
+            type_checks = append(type_checks, BodyTypeCheckEvidence(
+              "direct call arity",
+              span,
+              None(),
+              "expected ${expected_count}; found ${actual_count}",
+              None(),
+              Some(true)
+            ))
+          }
         }
         if len(types) > 0 && (contract.constructor || len(contract.parameters) == 0) {
           type_span: SourceSpan = body_type_argument_span(type_argument_spans, 0, span)
@@ -1464,7 +1488,7 @@ pure body_call(
     )
   } else {
     BodyResult(
-      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], [], type_joins, [], [], []),
+      BoundBody(BodyCall(target, resolved_types, call_arguments), span, children, output, [], [], type_joins, [], [], type_checks),
       diagnostics,
       deferred
     )

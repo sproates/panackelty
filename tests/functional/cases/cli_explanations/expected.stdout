@@ -9,11 +9,15 @@ PASS unresolved function return is explicitly unavailable
 PASS accepted direct call argument cites checked types
 PASS rejected direct call argument explains type mismatch
 PASS unresolved direct call argument is explicitly unavailable
+PASS accepted direct call arity explains exact argument count
+PASS missing direct call argument explains arity rejection
+PASS extra direct call argument explains arity rejection
 PASS accepted record constructor argument cites checked types
 PASS rejected record constructor argument explains mismatch
 PASS unavailable record constructor argument is explicit
 PASS enum variant constructor argument is explained
 PASS generic record constructor argument uses the checked type
+PASS missing record constructor argument explains arity rejection
 PASS accepted text builtin argument cites checked types
 PASS rejected text builtin argument explains type mismatch
 PASS unresolved bytes builtin argument is explicitly unavailable
@@ -172,4 +176,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 174, failures: 0
+tests: 178, failures: 0

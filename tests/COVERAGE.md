@@ -765,6 +765,10 @@ accepted/rejected/unavailable parameter compatibility and source spans; ordinary
 checking retains no argument explanation metadata. Record and enum constructor
 argument cases exercise accepted/rejected/unavailable payload compatibility;
 ordinary checking retains no constructor argument metadata. The CLI slice also covers
+accepted and rejected exact argument counts for direct function and constructor
+calls, including missing and extra arguments. Module-body tests verify accepted,
+missing, extra and ordinary-no-evidence function-call cases. Core and
+indirect-call arity and explicit type-argument counts remain uncovered.
 text, byte, rational-conversion, numeric-parser, quotient and collection
 mutation/lookup argument contracts, including accepted, rejected and
 unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,

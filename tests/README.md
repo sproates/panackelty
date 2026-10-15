@@ -123,7 +123,9 @@ enclosing limit on hosted runners.
 The isolated native-tool environment includes `openssl` for the independent
 TLS test server and certificate generation; a missing executable is reported
 explicitly by the TLS fixture. A private CA signs a separate server certificate
-with server-authentication extended key usage; OpenSSL checks its server purpose,
+with server-authentication extended key usage. Explicit request configuration
+prevents host defaults from duplicating extensions on OpenSSL 1.1.1.
+OpenSSL checks its server purpose,
 and macOS additionally verifies the chain against Apple's SSL policy
 using the allowlisted `security` utility before starting the fixture server.
 Source coverage collection runs separately each Monday at 03:23 UTC, or through

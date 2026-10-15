@@ -11,6 +11,8 @@ contains tests/without_interpreter.sh 'openssl security'
 contains tests/http_client_package.sh 'extendedKeyUsage=serverAuth'
 contains tests/http_client_package.sh 'basicConstraints=critical,CA:FALSE'
 contains tests/http_client_package.sh 'openssl verify -CAfile'
+contains tests/http_client_package.sh 'openssl req -config "$work/request.cnf" -extensions ca'
+contains tests/http_client_package.sh 'openssl req -config "$work/request.cnf" -new'
 contains tests/http_client_package.sh 'security verify-cert -c'
 contains tests/http_client_package.sh 'HTTP client TLS fixture requires openssl on PATH'
 pass

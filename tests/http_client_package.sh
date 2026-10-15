@@ -68,11 +68,22 @@ case "$selected_case" in
         }
         # Use a private CA and a distinct server leaf. A CA certificate serving
         # as its own TLS leaf is not accepted consistently by host trust engines.
-        openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/ca.key" -out "$work/ca.crt" \
-            -sha256 -days 2 -subj '/CN=Panackelty test CA' \
-            -addext 'basicConstraints=critical,CA:TRUE' \
-            -addext 'keyUsage=critical,keyCertSign,cRLSign' >"$work/certificate-generation.log" 2>&1
-        openssl req -new -newkey rsa:2048 -nodes -keyout "$work/test.key" -out "$work/test.csr" \
+        # Do not inherit host req extensions: OpenSSL 1.1.1 appends -addext
+        # to configured extensions, producing duplicate basicConstraints.
+        cat > "$work/request.cnf" <<'REQUEST'
+[req]
+distinguished_name=subject
+[subject]
+[ca]
+basicConstraints=critical,CA:TRUE
+keyUsage=critical,keyCertSign,cRLSign
+subjectKeyIdentifier=hash
+REQUEST
+        openssl req -config "$work/request.cnf" -extensions ca -x509 -newkey rsa:2048 -nodes \
+            -keyout "$work/ca.key" -out "$work/ca.crt" \
+            -sha256 -days 2 -subj '/CN=Panackelty test CA' >"$work/certificate-generation.log" 2>&1
+        openssl req -config "$work/request.cnf" -new -newkey rsa:2048 -nodes \
+            -keyout "$work/test.key" -out "$work/test.csr" \
             -subj '/CN=localhost' >>"$work/certificate-generation.log" 2>&1
         cat > "$work/server.ext" <<'EXTENSIONS'
 subjectAltName=DNS:localhost

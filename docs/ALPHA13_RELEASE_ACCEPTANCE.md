@@ -93,6 +93,12 @@ in the roadmap; it is not an alpha.13 completion percentage.
    after all implementation edits in 429s, including release/relocation smoke.
    The known 120s aggregate validation budget remains exceeded; this repair
    preserves correctness checks and does not claim a performance improvement.
+   Focused macOS run 38801463792 then failed OpenSSL chain verification in
+   under a minute. Reproducing with OpenSSL 1.1.1w isolated duplicate CA
+   `basicConstraints`: `req -addext` appended to the host configuration's
+   extensions. An explicit fixture request configuration removes that host
+   dependency. The previously failing case now passes with 1.1.1w locally;
+   final validation and hosted confirmation of this revision remain pending.
    The owner subsequently selected weekly coverage reporting instead of a
    release gate. Full product and package validation remain required; source
    collection and published-report freshness no longer block this release.

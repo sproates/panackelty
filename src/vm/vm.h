@@ -78,6 +78,9 @@ bool vm_execution_enable_tcp(VMExecution *execution);
 /* Filesystem permission is independent of network/listener permissions.
  * Poll is nonblocking. Destroy discards completion without joining a host read. */
 bool vm_execution_enable_filesystem(VMExecution *execution);
+/* Console output and invocation snapshot, independently granted by embedders. */
+bool vm_execution_enable_console(VMExecution *execution);
+bool vm_execution_poll_console(VMExecution *execution);
 bool vm_execution_poll_filesystem(VMExecution *execution);
 bool vm_execution_poll_tcp(VMExecution *execution, unsigned max_wait_ms);
 bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms);

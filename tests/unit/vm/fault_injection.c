@@ -21,7 +21,7 @@ static atomic_size_t syscall_at, syscall_seen;
 static atomic_int syscall_error;
 static atomic_bool descriptors[4096];
 static atomic_size_t descriptor_count, child_count;
-static atomic_bool pause_reads, read_paused;
+static atomic_bool pause_reads, read_paused, pause_writes, write_paused;
 
 static pthread_once_t fork_lock_once = PTHREAD_ONCE_INIT;
 
@@ -249,8 +249,26 @@ ssize_t fault_read(int fd, void *buffer, size_t count)
     return syscall_fails("read") ? -1 : read(fd, buffer, count);
 }
 
+void fault_pause_writes(bool pause)
+{
+    atomic_store(&pause_writes, pause);
+}
+
+bool fault_write_paused(void)
+{
+    return atomic_load(&write_paused);
+}
+
 ssize_t fault_write(int fd, const void *buffer, size_t count)
 {
+    if (atomic_load(&pause_writes)) {
+        atomic_store(&write_paused, true);
+        struct timespec delay = {.tv_nsec = 1000000};
+        while (atomic_load(&pause_writes)) {
+            nanosleep(&delay, NULL);
+        }
+        atomic_store(&write_paused, false);
+    }
     return syscall_fails("write") ? -1 : write(fd, buffer, count);
 }
 
@@ -374,4 +392,29 @@ int fault_pthread_create(pthread_t *thread, const pthread_attr_t *attributes,
 {
     return syscall_fails("pthread_create") ? errno
                                            : pthread_create(thread, attributes, start, argument);
+}
+
+int fault_fcntl(int fd, int command, ...)
+{
+    if (syscall_fails("fcntl")) {
+        return -1;
+    }
+    va_list arguments;
+    va_start(arguments, command);
+    int result;
+    if (command == F_SETLKW || command == F_SETLK || command == F_GETLK) {
+        result = fcntl(fd, command, va_arg(arguments, struct flock *));
+    } else if (command == F_GETFL || command == F_GETFD) {
+        result = fcntl(fd, command);
+    } else {
+        result = fcntl(fd, command, va_arg(arguments, int));
+    }
+    va_end(arguments);
+    if (result >= 0 && (command == F_DUPFD || command == F_DUPFD_CLOEXEC)) {
+        assert((size_t)result < sizeof(descriptors) / sizeof(descriptors[0]) &&
+               !descriptors[result]);
+        descriptors[result] = true;
+        descriptor_count++;
+    }
+    return result;
 }

@@ -1,0 +1,15 @@
+pub import stdlib/host::{HostError}
+
+pub async arguments(): [Str] { await host_arguments_async() }
+
+// Write the message bytes and one newline, with a 16 KiB message limit.
+// Cancellation cannot retract bytes already written.
+pub async stdout(message: Str): Result[Unit,HostError] {
+  await host_stdout_async(message)
+}
+
+pub async stderr(message: Str): Result[Unit,HostError] {
+  await host_stderr_async(message)
+}
+
+pub async exit(status: Nat): Unit { await host_exit_async(status) }

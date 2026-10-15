@@ -23,6 +23,8 @@
     {"path": "src/compiler/package_manifest.panack", "reason": "Package manifest support is not included in the bounded native source-execution corpus."},
     {"path": "src/compiler/package_project.panack", "reason": "Package project support is not included in the bounded native source-execution corpus."},
     {"path": "src/stdlib/async_filesystem.panack", "reason": "Asynchronous filesystem support is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
+    {"path": "src/stdlib/async_host.panack", "reason": "Async CLI adapters are tested by native and source/bytecode service fixtures outside the bounded source-coverage corpus."},
+    {"path": "src/stdlib/tcp_service.panack", "reason": "Continuous service lifecycle is tested by native and source/bytecode HTTP fixtures outside the bounded source-coverage corpus."},
     {"path": "src/stdlib/package_filesystem.panack", "reason": "Package filesystem support is not included in the bounded native source-execution corpus."}
   ],
   "units": [

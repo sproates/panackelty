@@ -1117,3 +1117,21 @@ assertion-quality limitations above still apply.
 | Bytecode | 587 / 601 (97.67%) | 60 / 60 (100%) | 517 / 588 (87.93%) |
 | Standard library | 108 / 221 (48.87%) | 57 / 85 (67.06%) | 35 / 86 (40.70%) |
 | Total | 10,654 / 13,187 (80.79%) | 612 / 682 (89.74%) | 7,315 / 9,471 (77.24%) |
+
+## Continuous service and asynchronous console
+
+`unit/vm/tcp_server.c` exercises 300 sequential clients beyond the finite-session
+ceiling, summary accounting, zero-grace cancellation and cancellation of an
+unfinished readiness callback. `unit/vm/console_write.c` asserts explicit console
+capabilities, binary output, rejected fake completions, the message limit and
+closed-pipe errors. `unit/vm/coverage.c` preserves the finite server's observation-gap
+contract for a continuous service with a single collector. `unit/vm/console_write_faults.c` covers allocation/syscall
+failures, retained-worker capacity and paused-write cancellation ownership.
+
+`tests/continuous_service.sh` runs complete configured HTTP programs through the
+public source and saved-bytecode commands. It checks concurrent responses,
+readiness output, request-handler diagnostics, SIGTERM/SIGINT shutdown summaries,
+invalid limits, readiness failure and exit status. Process waits have a five-second
+failure bound. Existing finite HTTP interoperability remains in `http_package.sh`.
+The source inventory lists the new stdlib modules as unmeasured; these behavioural
+assertions do not claim source-execution coverage or a throughput benchmark.

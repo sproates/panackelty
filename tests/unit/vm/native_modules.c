@@ -26,6 +26,7 @@
 
 void http_transport_contracts(void);
 void root_read_contracts(void);
+void console_write_contracts(void);
 void resumable_contracts(void);
 void coverage_contracts(void);
 void coverage_session_contracts(void);
@@ -990,6 +991,7 @@ int main(int argc, char **argv)
     record_module_progress("tcp");
     http_transport_contracts();
     root_read_contracts();
+    console_write_contracts();
     record_module_progress("http_transport");
     tcp_server_contracts();
     record_module_progress("tcp_server");

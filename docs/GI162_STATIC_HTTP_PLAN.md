@@ -1,9 +1,57 @@
 # GI#162: generic static HTTP service and website previews
 
-Status: implementation proposal, 15 October 2026. Investigation is based on
-`next` at `064f57a`. Implementation has started with HEAD support as an
-independent HTTP package prerequisite. HEAD is delivered in PR #495. The asynchronous filesystem prerequisite is in
-progress; the service lifecycle, generic tool and website adoption remain planned.
+Status: implementation checkpoint, 15 October 2026. HEAD support is delivered
+in PR #495; asynchronous confined reads are delivered in PR #496, both merged
+into `next`. Continuous serving and configured HTTP handlers are implemented on
+`feature/gi162-continuous-http-service`, validated and ready for the lifecycle delivery PR.
+The static-file package, command-line tool and website adoption remain outstanding.
+
+## Lifecycle implementation checkpoint
+
+Implementation resumed on 15 October at the user's request.
+The current branch contains:
+
+- Explicit continuous transport mode with bounded summary counters; existing
+  finite sessions preserve their contracts. Native tests exercise 300 requests.
+- Post-bind readiness callback before request admission; stop can cancel a
+  callback that never finishes. CLI SIGINT/SIGTERM requests a bounded drain.
+- Isolated `stdlib/tcp_service` and `stdlib/async_host` modules. Async arguments
+  read the invocation snapshot. Bounded console workers preserve cancellation
+  without blocking the execution owner; embedded access needs an explicit grant.
+- Generic HTTP connection context with a concrete named callback wrapper.
+  `http/service` composes that worker with the continuous transport.
+- Source/saved-bytecode service fixtures for concurrent HTTP requests, normal
+  stop, invalid limits, readiness failure and nonzero error exit.
+
+Focused checks passed before this checkpoint: native module contracts, allocation
+and syscall-failure contracts (including paused console-write cancellation),
+existing HTTP interoperability, and `tests/continuous_service.sh`. Compiler seed
+stages 2–4 agree at
+`9abb05684410344e9eed5ef9a2bc6dd30605be08eba38d6cb00aed71add3e3a5`.
+Resume review added explicit console grants for request handlers, bounded fixture
+waits, SIGINT coverage and closed-pipe output assertions. The closed-pipe test
+exposed macOS process termination despite a worker signal mask; descriptor-local
+SIGPIPE suppression fixes it. Native module and fault contracts pass after that
+fix. Final `make check` passed after the final runtime edit in 523 seconds, including
+unit, functional, bootstrap and distribution checks. The preceding review run
+also passed in 582 seconds. A regression assertion now preserves the existing
+single-collector observation-gap contract for service child execution.
+
+Remaining delivery sequence:
+
+1. Review lifecycle ownership, readiness failure/stop races, signal restoration,
+   console descriptor/error handling, explicit capabilities and resource bounds.
+   Add remaining boundary and failure assertions where the review finds gaps;
+   keep every functional wait bounded.
+2. Update SPEC, ARCHITECTURE, README, stdlib documentation and coverage evidence
+   for the new contracts. Review SELF_HOSTING, website impact and performance
+   evidence. Keep new source modules explicitly accounted for in the installed
+   file list and source-coverage inventory; no coverage collection is required
+   merely to check that inventory.
+3. Focused and final `make check` validation are complete. Open a lifecycle PR
+   targeting `next`; merge only once its exact head has passed applicable CI.
+4. Implement `packages/static_http` and `tools/http-server` using these APIs,
+   then adopt the tool in the website preview launcher and complete acceptance.
 
 ## Design decision
 
@@ -375,6 +423,28 @@ few milliseconds per 100 reads. These short runs include process startup noise
 and establish neither cold-disk performance nor HTTP serving throughput. Retain
 the asynchronous design for request responsiveness and cancellation; remeasure
 whole-server behaviour when the generic service is available.
+
+### Lifecycle resource assessment, 15 October
+
+The continuous mode uses the existing fixed 32-client transport storage and
+bounded counters rather than retaining a result per accepted client. The native
+300-request assertion crosses the old 256-client session limit and verifies the
+summary; it is a correctness check, not a throughput or retained-memory benchmark.
+Console output adds at most four retained workers, each holding a copied message
+of at most 16 KiB plus newline and one descriptor. Abandoned host writes retain
+those resources until completion. Existing finite HTTP interoperability passes.
+The final full check took 523 seconds; the previous review run took 582 seconds.
+These are local wall times with concurrent draft investigation, not isolated
+performance comparisons. Historical validation budgets are being reassessed under
+GI#106. Complete runtime diff review before starting broad validation on subsequent
+slices to avoid repeating the full run for a late compatibility fix.
+Whole-server startup, latency and memory measurements remain part of static-tool
+acceptance against the assembled website.
+
+Documentation review: SELF_HOSTING needs no milestone change; the refreshed seed
+has the same bytecode version and verified fixed point. No current website claims
+or release pins change in this intermediate slice. Website launcher adoption
+remains the final GI#162 step.
 
 ## Scope and remaining decisions
 

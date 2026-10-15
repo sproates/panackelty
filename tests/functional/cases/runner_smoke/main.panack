@@ -14,6 +14,15 @@ pure runner_path(text: Str): Path {
   std_result.value_or(std_path.from_text(text), std_path.current())
 }
 
+runner_test_environment(): [Str] {
+  mut environment: [Str] = ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"]
+  match std_environment.get("PANACK_TEST_COMPILER") {
+    None() => {},
+    Some(compiler) => { environment = append(environment, "PANACK_TEST_COMPILER=${compiler}") }
+  }
+  environment
+}
+
 main(): Void {
   if (std_environment.get("PANACK_COVERAGE_ACTIVE") != None()) && (std_environment.get("PANACK_TEST_RUNNER_REPORT") != None()) {
     std_host.stderr("error: cached runner transcript cannot establish fresh coverage; unset PANACK_TEST_RUNNER_REPORT")
@@ -72,7 +81,7 @@ main(): Void {
   expected = std_text.encode_utf8("${expected_text}PASS selected failure count\ntests: 370, failures: 0\n")
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
-    ["PANACKELTY_BOOTSTRAP_ROOT=.", "PANACKELTY_STDLIB_VALUE=ambient-test"],
+    runner_test_environment(),
     std_time.seconds(180), 1048576)
   result = match std_environment.get("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {

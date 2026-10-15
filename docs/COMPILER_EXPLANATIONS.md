@@ -58,7 +58,7 @@ family is complete.
 | Specialized core calls and callbacks | `body_check_special_core_call` dispatches to the text, bytes, path, filesystem, time, environment, TCP/HTTP, collection, rational-conversion, and typed-intrinsic checkers. `body_check_collection_core_call` checks callback effect, arity, parameter, and result contracts. | Argument and callback evidence is rendered by `explanations.panack`; `tests/runner/compiler_module_bindings_unit.panack`, `tests/runner/compiler_explanations_unit.panack`, and the CLI fixture cover selected families. | `body_check_typed_intrinsic` retains argument evidence for `fs_read`, `fs_read_beneath`, `fs_write`, `fs_metadata`, `fs_list`, `fs_directories_overlap`, `fs_create_directory`, `fs_remove_file`, `fs_remove_directory`, `fs_temp_file`, and `fs_temp_directory`. Decisions for `run_bytecode_args`, `process_exit`, `process_run`, `host_sleep`, `host_decode_utf8`, `read_file`, `file_exists`, `read_bytes`, and `write_bytes` lack it. Collection receiver-shape rejection and every callback constraint path also need case-by-case coverage. |
 | Match rules and payload bindings | `bind_body_match` checks subject, variant membership, duplicate arms, payload binding count/type, exhaustiveness, and arm-result joins. | `BodyTypeCheckEvidence` and `TypeJoinEvidence`; compiler-module and CLI regressions include generic payload substitution and unresolved subject types. | Name-resolution failures are outside scope. Deferred/malformed body patterns and every variant/payload decision branch still need exhaustive outcome mapping. |
 | Proof obligations | `body_guard_conversion`, `body_proves_nat_subtraction`, and the condition-fact helpers in `module_bodies.panack`. | `GuardConversionEvidence` and subtraction proof records rendered by `explanations.panack`; proof unit tests and CLI cases cover guarded conversions and Nat subtraction facts. | The proof-producing source paths need a complete audit to ensure no type/proof obligation is embedded in a specialized operation or generic constraint without its own explanation evidence. |
-| Effects | `module_effect_call`, `module_effect_expression`, and `check_module_effects` in `module_effects.panack`. | `EffectEvidence`; compiler explanation unit and CLI regressions cover call/await boundaries, invalid-body availability, and representative effects. | Declaration-level effect decisions and effects carried through inferred callable/generic types are not yet mapped exhaustively to evidence and source facts. An unresolved indirect-call effect retains no boundary record, so output can incorrectly say no boundary was retained even though the checker saw a call. |
+| Effects | `module_effect_call`, `module_effect_expression`, and `check_module_effects` in `module_effects.panack`. | `EffectEvidence`; compiler explanation unit and CLI regressions cover call/await boundaries, invalid-body availability, deferred-body retained boundaries, and representative effects. An indirect call with an unresolved callable effect is retained as an unavailable boundary with its source. | Declaration-level effect decisions and effects carried through inferred callable/generic types are not yet mapped exhaustively to evidence and source facts. |
 
 The source-site inventory exposed checker decisions that currently have no
 dedicated explanation evidence:
@@ -69,21 +69,20 @@ dedicated explanation evidence:
 - `body_check_typed_intrinsic` checks argument types for process, host and
   legacy file operations, but currently retains argument evidence only for the
   enumerated `fs_*` subset in the table above.
-- `module_effect_call` sees indirect calls with unresolved callable effects but
-  does not retain an unavailable effect-boundary record. The renderer can then
-  report that no boundary was retained, which loses the reason this call's
-  effect is unknown.
-
 These are confirmed gaps because the checker already makes and diagnoses the
 decision; they must not be represented as acceptable “unavailable” outcomes.
 Separately, several evidence renderers use a generic unavailable reason instead
 of the specific unresolved fact, and generic inference retains only selected
 joins rather than the complete hole/constraint history.
-The interpolation decision is covered by the current implementation slice,
+The interpolation decision is covered by the implementation slice,
 including unresolved and guarded local types, with ordinary diagnostics and
 checking behavior unchanged.
 The separate rejection of `Void` in inferred local storage and array elements
 is also covered, with the existing diagnostic behavior unchanged.
+The current effect slice retains unresolved indirect-call boundaries as
+unavailable and reports retained boundaries from deferred function bodies with
+their partial-check status. It does not claim completeness for callable effect
+inference or declaration-level effect decisions.
 
 This inventory maps the active function-body type/effect decision families to
 their checker sites, explanation record families, regression suites, and known

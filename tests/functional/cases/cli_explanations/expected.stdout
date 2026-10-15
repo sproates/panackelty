@@ -184,6 +184,7 @@ PASS missing embedded stdlib configuration
 PASS imported generic effect rejection
 PASS allowed effect boundaries
 PASS no calls has no invented evidence
+PASS deferred function retains its checked effect boundaries
 PASS callable declared effect
 PASS allowed async await
 PASS async blocking rejection
@@ -212,4 +213,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 214, failures: 0
+tests: 215, failures: 0

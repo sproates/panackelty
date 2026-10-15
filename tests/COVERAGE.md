@@ -845,6 +845,9 @@ coverage. It verifies accepted, rejected and unavailable outcomes, includes
 missing variant names and expected-versus-found payload counts, and preserves
 the ordinary diagnostics. A module-body unit test confirms ordinary match
 checking retains none of this evidence.
+Generic enum payload cases verify the substituted type assigned to a pattern
+binding and an unavailable result when the matched subject type is unresolved;
+ordinary checking retains no payload-type evidence.
 The `make check-compiler` compiler and CLI paths are the owning validation.
 
 ## Indexed compiler declaration lookup

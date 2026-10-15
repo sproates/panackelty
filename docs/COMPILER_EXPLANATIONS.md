@@ -55,7 +55,7 @@ family is complete.
 | Generic inference and constraints | Inferred locals, selected repeated type-parameter joins, call argument checks after substitution, and generic collection joins. | Failed inference reasons, unresolved constraint application, and every hole/unification decision are not yet retained as a complete trace. |
 | Type combination | Array literals and concatenation, conditional and match results, plus selected generic joins. Accepted, rejected, and unavailable joins have regressions. | Other constraints that refine a result or alter an inferred type need to be checked against the inventory; joins are not yet proven exhaustive. |
 | Operators and expression requirements | Unary/binary operand and result types; index receiver/position; `for` iterable; field receiver; `if`/`while` condition; match variant membership; and the `len` argument requirement. | Special core operations may perform additional type checks outside these evidence families. |
-| Match rules | Enum subject type, variant membership, arm uniqueness, payload binding count, exhaustive coverage, and match-result joins. Regression cases cover accepted, rejected, and unavailable outcomes for the reported rules. | Variant-resolution failures remain ordinary name/diagnostic territory; verify generic payload substitution and malformed/deferred patterns against the complete match decision path. |
+| Match rules | Enum subject type, variant membership, arm uniqueness, payload binding count and substituted payload binding types, exhaustive coverage, and match-result joins. Regression cases cover accepted, rejected, and unavailable outcomes for the reported rules. | Variant-resolution failures remain ordinary name/diagnostic territory; malformed/deferred patterns and remaining generic payload substitution paths still need checking against the complete match decision path. |
 | Proof obligations | Nat subtraction bounds and guarded conversions, including accepted and rejected proof cases and source facts. | Inventory other proof-producing checker paths and ensure no proof decision is hidden in a generic constraint or special builtin. |
 | Effects | Call and await boundaries, including accepted and rejected calls/awaits and unavailable effect analysis after earlier checking failures. | Inventory all effect decisions and their source/fact attribution, including declarations and inferred callable types. |
 
@@ -241,6 +241,10 @@ unavailable status. These are local checked-body results;
 `program: accepted/rejected` remains the whole-project result. Original
 diagnostics and ordinary checking are unchanged, and ordinary checking retains
 no checked type requirement or match decision evidence.
+For a generic enum payload binding, the explanation shows the matched enum type,
+the variant payload assigned to the binding, and the substituted binding type.
+Its source range is the full match-arm pattern, because the parsed pattern does
+not retain a separate range for each binding name.
 
 Add `--type-at LINE COLUMN` to query the checked expression covering a
 one-based line and Unicode code-point column in the selected function's source

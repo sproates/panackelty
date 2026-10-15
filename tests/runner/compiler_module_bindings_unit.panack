@@ -1458,8 +1458,36 @@ pure namespace_body_tests(): [TestResult] {
       unavailable_match_checks[4].accepted == None(),
     "unavailable match variant membership was not explicit"
   ))
+  generic_payload: CheckedModuleBodies = body_test_module(
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure pick(value: Choice[Nat]): Nat { match value { Pick(item) => item, Empty() => 0 } }"
+  )
+  results = append(results, std_testing.expect(
+    "explanation checker retains substituted generic match payload type",
+    len(generic_payload.functions) == 1 &&
+      match body_type_check_for_context(generic_payload.functions[0].body, "match payload type") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureNominal(DeclarationIdentity(namespace_identity("body.panack"), "Choice")), [SignatureType(SignatureCore("Nat"), [])])) &&
+          evidence.expected == "binding item receives payload 1 of Pick" &&
+          evidence.result == Some(SignatureType(SignatureCore("Nat"), [])) && evidence.accepted == Some(true)
+      },
+    "generic enum payload substitution was not retained for its binding"
+  ))
+  unavailable_payload: CheckedModuleBodies = body_test_module(
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure pick(): Nat { match missing { Pick(item) => 1, Empty() => 0 } }"
+  )
+  results = append(results, std_testing.expect(
+    "explanation checker marks generic match payload type unavailable with unresolved subject",
+    len(unavailable_payload.functions) == 1 &&
+      match body_type_check_for_context(unavailable_payload.functions[0].body, "match payload type") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() &&
+          evidence.expected == "binding item receives payload 1 of Pick" &&
+          evidence.result == None() && evidence.accepted == None()
+      },
+    "unresolved generic payload binding was not marked unavailable"
+  ))
   ordinary_match_retention: CheckedModuleBodies = body_test_module_mode(
-    "pub enum Choice { First }; pub pure pick(value: Choice): Nat { match value { First() => 1 } }",
+    "pub enum Choice[T] { Pick(T), Empty }; pub pure pick(value: Choice[Nat]): Nat { match value { Pick(item) => item, Empty() => 0 } }",
     false
   )
   results = append(results, std_testing.expect(

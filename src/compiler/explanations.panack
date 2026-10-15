@@ -822,6 +822,7 @@ pure render_type_check_evidence(
   actual: Str = source_map_escape(render_inferred_type(evidence.actual))
   context: Str = source_map_escape(evidence.context)
   expected: Str = source_map_escape(evidence.expected)
+  match_payload_type: Bool = evidence.context == "match payload type"
   match_decision: Bool = evidence.context == "match subject" ||
     evidence.context == "match arm uniqueness" ||
     evidence.context == "match payload bindings" || evidence.context == "match exhaustiveness"
@@ -831,13 +832,19 @@ pure render_type_check_evidence(
   count_decision: Bool = call_arity || type_argument_arity
   status_label: Str = if call_arity { "checked call arity" } else {
     if type_argument_arity { "checked type argument arity" } else {
-      if match_decision { "checked match decision" } else { "checked type requirement" }
+      if match_payload_type { "checked match payload type" } else {
+        if match_decision { "checked match decision" } else { "checked type requirement" }
+      }
     }
   }
-  actual_label: Str = if match_decision { "subject type" } else { "actual type" }
+  actual_label: Str = if match_payload_type { "matched enum type" } else {
+    if match_decision { "subject type" } else { "actual type" }
+  }
   expected_label: Str = if call_arity { "argument counts" } else {
     if type_argument_arity { "type argument counts" } else {
-      if match_decision { "decision rule" } else { "expected type" }
+      if match_payload_type { "payload source" } else {
+        if match_decision { "decision rule" } else { "expected type" }
+      }
     }
   }
   result: Str = if evidence.context == "index position" ||
@@ -860,10 +867,14 @@ pure render_type_check_evidence(
           if type_argument_arity {
             "\nreason: the existing checker accepted the supplied type argument count"
           } else {
+            if match_payload_type {
+              "\nreason: the checker substituted this variant payload type for the pattern binding"
+            } else {
             if match_decision {
               "\nreason: the existing checker accepted this match rule"
             } else {
               "\nreason: the existing checker accepted this type for the requirement"
+            }
             }
           }
         }
@@ -874,18 +885,26 @@ pure render_type_check_evidence(
           if type_argument_arity {
             "\nreason: the existing checker rejected the supplied type argument count"
           } else {
+            if match_payload_type {
+              "\nreason: the checker could not substitute this variant payload type for the pattern binding"
+            } else {
             if match_decision {
               "\nreason: the existing checker rejected this match rule"
             } else {
               "\nreason: the existing checker rejected this type for the requirement"
             }
+            }
           }
         }
       },
-      None() => if evidence.context == "indirect call arity" {
-        "\nreason: the callable type is unresolved, so the checker could not determine the expected argument count"
+      None() => if match_payload_type {
+        "\nreason: the checker could not determine the matched enum type needed for payload substitution"
       } else {
-        "\nreason: the checker did not determine a complete type decision"
+        if evidence.context == "indirect call arity" {
+          "\nreason: the callable type is unresolved, so the checker could not determine the expected argument count"
+        } else {
+          "\nreason: the checker did not determine a complete type decision"
+        }
       }
     }
 }

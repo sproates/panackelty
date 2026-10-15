@@ -3,7 +3,8 @@
 `panack explain SOURCE.panack --function NAME` checks the complete project and
 reports inferred local types with their checked initializer types, the checked
 type of an expression at a source location, function return checks, direct,
-core and indirect call argument and arity checks, explicit type-argument counts,
+core and indirect call argument and arity checks, native TCP/HTTP transport
+argument requirements, explicit type-argument counts,
 the `len` input-type requirement, selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks, plus retained array `map` and `reduce`
@@ -48,7 +49,7 @@ family is complete.
 | Checker decision family | Explain output and regression coverage | Remaining coverage gap |
 | --- | --- | --- |
 | Function result compatibility | `return type`; accepted, rejected, and unavailable results are exercised. | Check when the body or result type is deferred and which checker facts prevented completion need broader inventory. |
-| Argument and parameter compatibility | Direct function, constructor, and indirect callable arguments; indirect callable-target requirements; the `len` requirement (`Str`, `Bytes`, or array); non-`Void` requirements for `print`/`eprint`; selected builtin arguments; callback contracts; annotated initializers; and assignment values. Indirect callable arguments, targets, and specialized core requirements report accepted, rejected, and unavailable results with source locations. Tests cover accepted/rejected/unavailable cases across representative families. | Other specialized core-call compatibility checks are not exposed as decisions; callable effects and generic parameter substitution still need full source-family coverage. |
+| Argument and parameter compatibility | Direct function, constructor, and indirect callable arguments; indirect callable-target requirements; native TCP/HTTP transport argument contracts; the `len` requirement (`Str`, `Bytes`, or array); non-`Void` requirements for `print`/`eprint`; selected builtin arguments; callback contracts; annotated initializers; and assignment values. These specialized requirements report accepted, rejected, and unavailable results with source locations. Tests cover accepted/rejected/unavailable outcomes across representative families. | Other specialized core-call compatibility checks are not exposed as decisions; callable effects and generic parameter substitution still need full source-family coverage. |
 | Call arity | Direct resolved function and record/enum constructor calls, core calls and indirect callable calls report accepted or rejected exact argument counts, with source locations. An unresolved indirect callable reports unavailable. CLI regressions cover accepted/rejected examples and missing/extra arguments. | Verify every call family against checker sites; no source-family mapping is yet proven exhaustive. |
 | Explicit type-argument arity | Generic function calls report accepted or rejected supplied type-argument counts; non-generic core calls, generic record constructors, and generic enum variant constructors report rejection against an expected count of zero. | Type-resolution failures and all type-argument-bearing call families still need a full source map; generic inference constraints remain a separate gap. |
 | Generic inference and constraints | Inferred locals, selected repeated type-parameter joins, call argument checks after substitution, and generic collection joins. | Failed inference reasons, unresolved constraint application, and every hole/unification decision are not yet retained as a complete trace. |

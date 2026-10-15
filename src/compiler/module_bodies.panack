@@ -1763,6 +1763,7 @@ pure body_check_tcp_core_call(
   mut diagnostics: [Diagnostic] = initial_diagnostics
   mut deferred: [SourceSpan] = initial_deferred
   mut output: Option[SignatureType] = None()
+  mut type_checks: [BodyTypeCheckEvidence] = []
 
   if len(children) != expected_count {
     diagnostics = append(
@@ -1787,6 +1788,21 @@ pure body_check_tcp_core_call(
       )
       diagnostics = concat(diagnostics, required.diagnostics)
       deferred = concat(deferred, required.deferred)
+      if context.retain_guard_conversions {
+        accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+          Some(false)
+        } else {
+          if len(required.deferred) > 0 { None() } else { Some(true) }
+        }
+        type_checks = append(type_checks, BodyTypeCheckEvidence(
+          "argument ${number} to " + name,
+          children[index].span,
+          children[index].type,
+          body_type_text(expected),
+          None(),
+          accepted
+        ))
+      }
       index = index + 1
     }
     if len(diagnostics) == 0 && len(deferred) == 0 {
@@ -1799,7 +1815,10 @@ pure body_check_tcp_core_call(
   }
   BodyResult(BoundBody(
     BodyCall(BodyCore(name), [], []), span, children, output, [], [], [], [], [],
-    body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+    concat(
+      type_checks,
+      body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+    )
   ), diagnostics, deferred)
 }
 

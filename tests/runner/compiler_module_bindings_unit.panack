@@ -1924,6 +1924,86 @@ pure namespace_body_tests(): [TestResult] {
       len(body_collection_callback_evidence(ordinary_callbacks.functions[0].body)) == 0,
     "ordinary checking retained explanation evidence"
   ))
+  retained_receivers: CheckedModuleBodies = body_test_module_mode(
+    "pub pure accepted_array(): [Nat] { append([1], 2) }; " +
+      "pub pure accepted_map(): Bool { map_has(map(), \"key\") }; " +
+      "pub pure accepted_set(): Set[Nat] { set_add(set(), 2) }; " +
+      "pub pure rejected_array(): [Nat] { append(1, 2) }; " +
+      "pub pure rejected_concat(): [Nat] { concat([1], 2) }; " +
+      "pub pure rejected_map(): Bool { map_has(1, \"key\") }; " +
+      "pub pure rejected_set(): Set[Nat] { set_add(1, 2) }; " +
+      "pub pure rejected_has(): Bool { value: Nat = 1; value.has(\"key\") }; " +
+      "pub pure unavailable_array(): [Nat] { append(missing, 2) }",
+    true
+  )
+  if len(retained_receivers.functions) == 9 {
+    accepted_array_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[0].body, "collection receiver")
+    accepted_map_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[1].body, "collection receiver")
+    accepted_set_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[2].body, "collection receiver")
+    rejected_array_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[3].body, "collection receiver")
+    mut rejected_concat_receivers: [BodyTypeCheckEvidence] = []
+    for evidence in body_type_check_evidence(retained_receivers.functions[4].body) {
+      if evidence.context == "collection receiver" { rejected_concat_receivers = append(rejected_concat_receivers, evidence) }
+    }
+    rejected_map_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[5].body, "collection receiver")
+    rejected_set_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[6].body, "collection receiver")
+    rejected_has_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[7].body, "collection receiver")
+    unavailable_array_receiver: Option[BodyTypeCheckEvidence] = body_type_check_for_context(retained_receivers.functions[8].body, "collection receiver")
+    results = append(results, std_testing.expect(
+      "collection receiver evidence reports accepted Array, Map and Set shapes",
+      match accepted_array_receiver { Some(evidence) => evidence.accepted == Some(true), None() => false } &&
+        match accepted_map_receiver { Some(evidence) => evidence.accepted == Some(true), None() => false } &&
+        match accepted_set_receiver { Some(evidence) => evidence.accepted == Some(true), None() => false },
+      "accepted collection receiver shape evidence was lost"
+    ))
+    results = append(results, std_testing.expect(
+      "collection receiver evidence reports rejected Array shape",
+      match rejected_array_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      "rejected Array receiver shape evidence was lost"
+    ))
+    results = append(results, std_testing.expect(
+      "concat receiver evidence reports each operand separately",
+      len(rejected_concat_receivers) == 2 && rejected_concat_receivers[0].accepted == Some(true) &&
+        rejected_concat_receivers[1].accepted == Some(false),
+      "concat receiver operand evidence was lost or inaccurate"
+    ))
+    results = append(results, std_testing.expect(
+      "collection receiver evidence reports rejected Map shape",
+      match rejected_map_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      "rejected Map receiver shape evidence was lost"
+    ))
+    results = append(results, std_testing.expect(
+      "collection receiver evidence reports rejected Set shape",
+      match rejected_set_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      "rejected Set receiver shape evidence was lost"
+    ))
+    results = append(results, std_testing.expect(
+      "collection receiver evidence reports rejected Map-or-Set shape",
+      match rejected_has_receiver { Some(evidence) => evidence.accepted == Some(false), None() => false },
+      "rejected Map-or-Set receiver shape evidence was lost"
+    ))
+    results = append(results, std_testing.expect(
+      "collection receiver evidence reports unavailable unresolved type",
+      match unavailable_array_receiver {
+        Some(evidence) => evidence.accepted == None() && evidence.actual == None(),
+        None() => false
+      },
+      "unresolved collection receiver was reported as decided"
+    ))
+  } else {
+    results = append(results, std_testing.expect("collection receiver evidence fixtures bind", false,
+      "expected nine collection receiver fixtures, got ${len(retained_receivers.functions)}"))
+  }
+  ordinary_receivers: CheckedModuleBodies = body_test_module_mode(
+    "pub pure f(): [Nat] { append([1], 2) }",
+    false
+  )
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no collection receiver evidence",
+    len(ordinary_receivers.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_receivers.functions[0].body)) == 0,
+    "ordinary checking retained collection receiver explanation evidence"
+  ))
   wrong_sort_app: LoadedModule = signature_test_module(namespace_identity("wrong_sort"),
     "pub pure f(): [Nat] { [1].sort_by(@wrong_sort) }; pure wrong_sort(left: Str, right: Str): Bool { true }")
   wrong_sort_graph: ModuleBindingGraph = ModuleBindingGraph([wrong_sort_app.bindings, core_method_library.bindings], [ModuleImportEdge(wrong_sort_app.bindings.identity, 0, core_method_library.bindings.identity)])

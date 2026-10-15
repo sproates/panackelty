@@ -248,7 +248,13 @@ main(): Void {
         ["call argument 1 to quotient: accepted", "expression: 7", "actual type: Nat", "expected type: Nat", "call argument 2 to quotient: accepted", "expression: 2", "actual type: Nat", "expected type: Nat"], [], ""))
       explain_write(source, "pure probe(): [Nat] { append([1], 2) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted collection append item cites checked type", ["explain", source, "--function", "probe"], 0,
-        ["call argument 2 to append: accepted", "expression: 2", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))
+        ["checked collection receiver: accepted", "context: collection receiver", "expression: [1]", "actual type: Array[Nat]", "expected type: Array", "call argument 2 to append: accepted", "expression: 2", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))
+      explain_write(source, "pure probe(): [Nat] { append(1, 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected collection receiver explains required shape", ["explain", source, "--function", "probe"], 1,
+        ["checked collection receiver: rejected", "context: collection receiver", "expression: 1", "actual type: Nat", "expected type: Array", "rejected this type for the requirement"], [], "append expects an array, got Nat"))
+      explain_write(source, "pure probe(): [Nat] { append(missing, 2) }\nmain(): Void {}\n")
+      results = append(results, explain_run("unavailable collection receiver explains missing shape", ["explain", source, "--function", "probe"], 1,
+        ["checked collection receiver: unavailable", "context: collection receiver", "expression: missing", "actual type: unavailable", "expected type: Array", "receiver type was unavailable"], [], "unknown name missing"))
       explain_write(source, "pure probe(): [Str] { [1].map(@format) }; pure format(value: Nat): Str { \"x\" }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted map callback contract explains purity, input and result", ["explain", source, "--function", "probe"], 0,
         ["array_map callback contract: accepted", "callback type: PureFn[Nat,Str]", "expected callback parameter types: [Nat]", "callback result type: Str", "expected callback result: any non-Void value", "accepted the callback's purity, arity, parameter types and result constraint"], [], ""))
@@ -258,6 +264,9 @@ main(): Void {
       explain_write(source, "pure probe(): [Nat] { [1].map(@ordinary) }; ordinary(value: Nat): Nat { value }\nmain(): Void {}\n")
       results = append(results, explain_run("rejected map callback explains effect requirement", ["explain", source, "--function", "probe"], 1,
         ["array_map callback contract: rejected", "callback type: Fn[Nat,Nat]", "expected callback parameter types: [Nat]", "checker rejected at least one callback contract requirement"], [], "requires a pure callable"))
+      explain_write(source, "pure probe(): [Nat] { [1].map(@wrong_arity) }; pure wrong_arity(): Nat { 1 }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected map callback explains required arity", ["explain", source, "--function", "probe"], 1,
+        ["array_map callback contract: rejected", "callback type: PureFn[Nat]", "expected callback parameter types: [Nat]", "rejected at least one callback contract requirement"], [], "map callback must accept Nat"))
       explain_write(source, "pure probe(): [Nat] { [1].map(missing) }\nmain(): Void {}\n")
       results = append(results, explain_run("unavailable map callback contract reports missing type", ["explain", source, "--function", "probe"], 1,
         ["array_map callback contract: unavailable", "callback type: unavailable", "expected callback parameter types: [Nat]", "callback result type: unavailable", "did not determine a complete callback contract"], [], "unknown name missing"))

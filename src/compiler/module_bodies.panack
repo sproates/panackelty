@@ -3057,6 +3057,26 @@ pure body_check_collection_core_call(
   if len(children) != expected_count {
     diagnostics = append(diagnostics, Diagnostic(operation + " expects ${expected_count} arguments, got ${len(children)}", span.start))
   } else {
+    if context.retain_guard_conversions {
+      type_checks = append(type_checks, BodyTypeCheckEvidence(
+        "collection receiver",
+        children[0].span,
+        children[0].type,
+        body_collection_receiver_requirement(operation),
+        None(),
+        body_collection_receiver_acceptance(operation, children[0].type)
+      ))
+      if operation == "concat" {
+        type_checks = append(type_checks, BodyTypeCheckEvidence(
+          "collection receiver",
+          children[1].span,
+          children[1].type,
+          body_collection_receiver_requirement(operation),
+          None(),
+          body_collection_receiver_acceptance(operation, children[1].type)
+        ))
+      }
+    }
     if children[0].type == None() ||
       ((operation != "append" && operation != "map_put" && operation != "map_get" &&
         operation != "map_has" && operation != "set_add" && operation != "set_has" &&
@@ -3283,17 +3303,57 @@ pure body_check_collection_core_call(
           deferred = checked.deferred
           output = checked.body.type;
           call_arguments = body_direct_call_argument_metadata(checked.body)
+          type_checks = concat(type_checks, body_type_check_evidence(checked.body))
         }
       }
     }
   }
-  type_checks = body_call_arity_evidence(context, "core", span, Some(expected_count), len(children))
+  type_checks = concat(type_checks, body_call_arity_evidence(context, "core", span, Some(expected_count), len(children)))
   node: BodyNode = if context.retain_guard_conversions {
     BodyCall(BodyCore(operation), [], call_arguments)
   } else {
     BodyEmpty()
   }
   BodyResult(BoundBody(node, span, [], output, [], [], type_joins, callback_contracts, [], type_checks), diagnostics, deferred)
+}
+
+pure body_collection_receiver_requirement(operation: Str): Str {
+  if operation == "append" || operation == "concat" || operation == "array_map" || operation == "array_reduce" {
+    "Array"
+  } else {
+    if operation == "map_put" || operation == "map_get" || operation == "map_has" {
+      "Map"
+    } else {
+      if operation == "set_add" || operation == "set_has" {
+        "Set"
+      } else {
+        "Map or Set"
+      }
+    }
+  }
+}
+
+pure body_collection_receiver_acceptance(
+  operation: Str,
+  actual: Option[SignatureType]
+): Option[Bool] {
+  match actual {
+    None() => None(),
+    Some(type) => if operation == "append" || operation == "concat" || operation == "array_map" || operation == "array_reduce" {
+      Some(type.identity == SignatureCore("Array") && len(type.arguments) == 1)
+    } else {
+      if operation == "map_put" || operation == "map_get" || operation == "map_has" {
+        Some(type.identity == SignatureCore("Map") && len(type.arguments) == 2)
+      } else {
+        if operation == "set_add" || operation == "set_has" {
+          Some(type.identity == SignatureCore("Set") && len(type.arguments) == 1)
+        } else {
+          Some((type.identity == SignatureCore("Map") && len(type.arguments) == 2) ||
+            (type.identity == SignatureCore("Set") && len(type.arguments) == 1))
+        }
+      }
+    }
+  }
 }
 
 pure body_check_map_set_call(

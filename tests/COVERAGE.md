@@ -771,6 +771,9 @@ missing, extra and ordinary-no-evidence function-call cases. Core-call cases
 cover accepted and rejected fixed arity; indirect callable cases cover accepted,
 rejected and unavailable arity and accepted, rejected and unavailable argument
 compatibility. Ordinary checking retains no indirect call argument evidence.
+`len` argument cases cover accepted `Str`, `Bytes` and array inputs, rejected
+unsupported inputs, and unavailable input types; ordinary checking retains no
+new `len` requirement evidence.
 Explicit type-argument cases cover exact generic-function counts, missing and
 extra counts, and zero-count rejections for non-generic core calls, generic
 record constructors, and generic enum variant constructors; ordinary checking

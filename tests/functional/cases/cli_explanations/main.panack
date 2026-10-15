@@ -97,7 +97,19 @@ main(): Void {
         ["checked call arity: rejected", "argument counts: expected 1; found 2", "rejected the supplied argument count"], [], "take expects 1 arguments, got 2"))
       explain_write(source, "pure probe(): Nat { len(\"hello\") }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted core call arity reports exact argument count", ["explain", source, "--function", "probe"], 0,
-        ["call arity checks:", "checked call arity: accepted", "context: core call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count"], [], ""))
+        ["call arity checks:", "checked call arity: accepted", "context: core call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count", "checked type requirement: accepted", "context: len argument", "expression: \"hello\"", "actual type: Str", "expected type: Str, Bytes, or array"], [], ""))
+      explain_write(source, "pure probe(): Nat { len(bytes()) }\nmain(): Void {}\n")
+      results = append(results, explain_run("len accepts Bytes and explains its type requirement", ["explain", source, "--function", "probe"], 0,
+        ["checked type requirement: accepted", "context: len argument", "expression: bytes()", "actual type: Bytes", "expected type: Str, Bytes, or array"], [], ""))
+      explain_write(source, "pure probe(): Nat { len([1]) }\nmain(): Void {}\n")
+      results = append(results, explain_run("len accepts arrays and explains its type requirement", ["explain", source, "--function", "probe"], 0,
+        ["checked type requirement: accepted", "context: len argument", "expression: [1]", "actual type: Array[Nat]", "expected type: Str, Bytes, or array"], [], ""))
+      explain_write(source, "pure probe(): Nat { len(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("len rejects unsupported argument types", ["explain", source, "--function", "probe"], 1,
+        ["checked type requirement: rejected", "context: len argument", "expression: 1", "actual type: Nat", "expected type: Str, Bytes, or array", "rejected this type for the requirement"], [], "len expects Str, Bytes, or array, got Nat"))
+      explain_write(source, "pure probe(): Nat { len(missing) }\nmain(): Void {}\n")
+      results = append(results, explain_run("len reports unavailable argument type", ["explain", source, "--function", "probe"], 1,
+        ["checked type requirement: unavailable", "context: len argument", "expression: missing", "actual type: unavailable", "expected type: Str, Bytes, or array", "did not determine a complete type decision"], [], "unknown name missing"))
       explain_write(source, "pure probe(): Nat { len() }\nmain(): Void {}\n")
       results = append(results, explain_run("rejected core call arity reports exact argument count", ["explain", source, "--function", "probe"], 1,
         ["checked call arity: rejected", "context: core call arity", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "len expects 1 arguments, got 0"))

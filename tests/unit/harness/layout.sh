@@ -2,6 +2,9 @@
 . tests/unit/harness/common.sh
 case_name=isolated-environment-retains-tls-fixture-tool
 contains tests/without_interpreter.sh 'curl-config openssl'
+contains tests/without_interpreter.sh 'openssl security'
+contains tests/http_client_package.sh 'extendedKeyUsage=serverAuth'
+contains tests/http_client_package.sh 'security verify-cert -q'
 contains tests/http_client_package.sh 'HTTP client TLS fixture requires openssl on PATH'
 pass
 # Literal contracts migrated from RepositoryLayoutTests; structural checks follow.

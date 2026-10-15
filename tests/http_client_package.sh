@@ -60,7 +60,17 @@ case "$selected_case" in
             -sha256 -days 2 -subj '/CN=localhost' \
             -addext 'subjectAltName=DNS:localhost' \
             -addext 'basicConstraints=critical,CA:TRUE' \
-            -addext 'keyUsage=critical,digitalSignature,keyCertSign,cRLSign' >/dev/null 2>&1
+            -addext 'keyUsage=critical,digitalSignature,keyCertSign,cRLSign' \
+            -addext 'extendedKeyUsage=serverAuth' >/dev/null 2>&1
+        # Apple TLS policy requires explicit server authentication usage even
+        # when the test certificate is supplied as its own trust anchor.
+        if [ "$(uname -s)" = Darwin ]; then
+            security verify-cert -q -c "$work/test.crt" -r "$work/test.crt" \
+                -p ssl -s localhost >"$work/certificate-policy.log" 2>&1 || {
+                cat "$work/certificate-policy.log" >&2
+                exit 1
+            }
+        fi
         "$fixture" --reserve-port "$work/tls-port"
         tls_port=$(cat "$work/tls-port")
         mkdir -p "$work/tls-root"

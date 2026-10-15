@@ -66,6 +66,15 @@ in the roadmap; it is not an alpha.13 completion percentage.
    `make check` after all edits passed in 426s. All 42 focused coverage/routing
    tests, YAML/layout contracts and CI routing checks passed. Fresh hosted
    validation and a trusted source report remain required.
+   Check 38791263247 passed the full compiler/runtime/sanitizer/native-coverage
+   matrix and nine package partitions, but the macOS runtime partition rejected
+   the successful-TLS fixture. Apple's certificate verifier reproduces the
+   missing extended-key-usage failure locally; adding `serverAuth` passes the
+   same SSL-policy check. The fixture now declares that usage and verifies the
+   generated certificate against Apple's SSL policy before serving it on macOS.
+   All four focused TLS cases passed in source and bytecode form; final
+   `make check` passed in 427s, including release smoke, and layout contracts
+   passed. Hosted confirmation of this correction remains pending.
    At the owner’s direction, expensive promotion coverage now waits for the
    full compiler/runtime matrix, package checks and policy checks to succeed.
    A trusted next-push refresh is requested only after the repaired matrix passes;

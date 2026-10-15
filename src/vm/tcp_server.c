@@ -39,6 +39,7 @@ typedef struct {
 } ServerClient;
 
 struct VMTcpServer {
+    bool filesystem_enabled;
     VM template_vm;
     Function *handler;
     Value *context;
@@ -578,6 +579,9 @@ static void start_handler(VMTcpServer *server, ServerClient *client)
             trap(server, "VM trap: TCP server read capability setup failed");
             return;
         }
+        if (server->filesystem_enabled) {
+            vm_execution_enable_filesystem(client->execution);
+        }
         if (server->outbound) {
             vm_execution_enable_tcp(client->execution);
         }
@@ -653,6 +657,11 @@ void tcp_server_advance(VMTcpServer *server, size_t budget)
     (void)server;
     (void)budget;
 #endif
+}
+
+void tcp_server_enable_filesystem(VMTcpServer *server)
+{
+    server->filesystem_enabled = true;
 }
 
 void tcp_server_stop(VMTcpServer *server)

@@ -100,6 +100,43 @@ static bool hc_string(Value *v, ValueKind kind)
     return v->kind == kind && !memchr(v->as.bytes.data, 0, v->as.bytes.length);
 }
 
+static Value *hc_identity_value(const struct stat *info)
+{
+    if ((uintmax_t)info->st_dev > SIZE_MAX || (uintmax_t)info->st_ino > SIZE_MAX) {
+        return NULL;
+    }
+    char *names[] = {"device", "inode"};
+    Value *values[] = {value_size((size_t)info->st_dev), value_size((size_t)info->st_ino)};
+    Value *identity = values[0] && values[1]
+                          ? named_value(V_RECORD, "FilesystemRootIdentity", names, values, 2)
+                          : NULL;
+    release(values[0]);
+    release(values[1]);
+    return identity;
+}
+
+/* Internal backend for the isolated asynchronous root-identity operation. */
+static Value *hc_root_identity(VM *vm, Value **a)
+{
+    REQUIRE(hc_string(a[0], V_PATH), "VM trap: root identity requires Path");
+    int root = open((char *)a[0]->as.bytes.data, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (root < 0) {
+        return hc_error("fs_root_identity", NULL, errno);
+    }
+    struct stat info;
+    int status = fstat(root, &info);
+    int error = errno;
+    close(root);
+    if (status) {
+        return hc_error("fs_root_identity", NULL, error);
+    }
+    if ((uintmax_t)info.st_dev > SIZE_MAX || (uintmax_t)info.st_ino > SIZE_MAX) {
+        return hc_error("fs_root_identity", "out_of_range", 0);
+    }
+    Value *identity = hc_identity_value(&info);
+    return identity ? host_variant("Ok", identity) : NULL;
+}
+
 /* Resolve one relative file from a held directory descriptor. Symlink targets
  * are expanded relative to their parent and restarted from the held root; every
  * ordinary component is opened with O_NOFOLLOW before it can become a parent. */
@@ -322,15 +359,7 @@ static Value *hc_read_beneath(VM *vm, Value **a)
                     free(data.data);
                     goto rooted_read_done;
                 }
-                Value *identity_values[] = {value_size((size_t)root_info.st_dev),
-                                            value_size((size_t)root_info.st_ino)};
-                char *identity_fields[] = {"device", "inode"};
-                Value *identity = identity_values[0] && identity_values[1]
-                                      ? named_value(V_RECORD, "FilesystemRootIdentity",
-                                                    identity_fields, identity_values, 2)
-                                      : NULL;
-                release(identity_values[0]);
-                release(identity_values[1]);
+                Value *identity = hc_identity_value(&root_info);
                 Value *contents = value_data(V_BYTES, (const uint8_t *)data.data, data.length);
                 free(data.data);
                 char *read_fields[] = {"identity", "contents"};
@@ -810,6 +839,9 @@ finish:
 
 Value *host_capability_call(VM *vm, const char *name, Value **a)
 {
+    if (!strcmp(name, "fs_root_identity")) {
+        return hc_root_identity(vm, a);
+    }
     if (!strcmp(name, "fs_read_beneath")) {
         return hc_read_beneath(vm, a);
     }

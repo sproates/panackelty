@@ -2,7 +2,8 @@
 
 Status: implementation proposal, 15 October 2026. Investigation is based on
 `next` at `064f57a`. Implementation has started with HEAD support as an
-independent HTTP package prerequisite. The remaining slices are still planned.
+independent HTTP package prerequisite. HEAD is delivered in PR #495. The asynchronous filesystem prerequisite is in
+progress; the service lifecycle, generic tool and website adoption remain planned.
 
 ## Design decision
 
@@ -208,6 +209,18 @@ Preloading an entire directory is unsuitable as the default: it changes edit
 visibility and makes memory scale with the whole site. Repeatedly restarting a
 finite server would introduce port gaps and doesn't solve file access.
 
+Implementation decision, 15 October: retain asynchronous reads, as confirmed by
+the user after the cancellation/harness scope checkpoint. The isolated adapter
+uses bounded independently owned native workers and an explicit filesystem grant.
+Logical cancellation drops result delivery immediately; physical read cleanup
+may finish later while retaining its worker slot. Add root-identity lookup so an
+empty directory can be validated without requiring an index file. Keep the
+synchronous package-loading API intact.
+
+The generic callback investigation also confirms that the language supports a
+concrete worker wrapper calling a generic connection helper with explicit state.
+Use that pattern rather than adding generic function references.
+
 ### Continuous serving and clean stop
 
 Extend the current server engine with an explicit continuous mode. Keep finite
@@ -350,6 +363,18 @@ peak memory under configured concurrency and retained memory over a long request
 sequence. Compare with the existing launcher using the same assembled directory.
 Record observations and explain material regressions; don't invent timing budgets
 before measuring the baseline.
+
+### Filesystem adapter measurement, 15 October
+
+A local warm-cache comparison on macOS 26.5 arm64 used the same native runtime
+and separately compiled programs, each reading a 706,607-byte file 100 times.
+Compilation was excluded and each mode had one warm-up followed by three runs.
+Synchronous confined reads took 0.0111, 0.0120 and 0.0114 seconds; asynchronous
+reads took 0.0132, 0.0129 and 0.0134 seconds. The measured additional time was a
+few milliseconds per 100 reads. These short runs include process startup noise
+and establish neither cold-disk performance nor HTTP serving throughput. Retain
+the asynchronous design for request responsiveness and cancellation; remeasure
+whole-server behaviour when the generic service is available.
 
 ## Scope and remaining decisions
 

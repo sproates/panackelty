@@ -4,6 +4,7 @@
 #include "numeric.h"
 #include "program.h"
 #include "render.h"
+#include "root_read.h"
 #include "tcp.h"
 #include "tcp_server.h"
 #include "utf8.h"
@@ -44,6 +45,8 @@ struct VMExecution {
     VMTcpExchange *tcp;
     VMHttpTransport *http;
     VMTcpServer *server;
+    VMRootRead *root_read;
+    bool filesystem_enabled;
     bool server_enabled;
     void *host_context;
 };
@@ -265,6 +268,9 @@ static Value *server_call_mode(VMExecution *execution, Value **arguments, bool s
                                                       !execution->embedded || execution->network_enabled)
                             : tcp_server_start(vm, handler, arguments[0], port, limits,
                                                !execution->embedded || execution->network_enabled);
+    if (execution->server && (!execution->embedded || execution->filesystem_enabled)) {
+        tcp_server_enable_filesystem(execution->server);
+    }
     if (!execution->server) {
         vm->error = "native VM out of memory";
     } else {
@@ -286,6 +292,22 @@ static Value *execution_builtin(VMExecution *execution, const Builtin *entry, Va
         !strcmp(entry->name, "$tcp_serve_stream") || !strcmp(entry->name, "process_run") ||
         !strcmp(entry->name, "run_bytecode") || !strcmp(entry->name, "run_bytecode_args"))) {
         vm_coverage_gap(vm->coverage);
+    }
+    if (!strcmp(entry->name, "fs_read_beneath_async") ||
+        !strcmp(entry->name, "fs_root_identity_async")) {
+        if (execution->embedded && !execution->filesystem_enabled) {
+            vm->error = "VM trap: filesystem service is unavailable in this execution";
+        } else {
+            execution->root_read =
+                root_read_start(vm, arguments, !strcmp(entry->name, "fs_root_identity_async"));
+            if (!execution->root_read && !vm->error) {
+                vm->error = "native VM out of memory";
+            }
+            if (execution->root_read) {
+                execution->status = VM_WAITING;
+            }
+        }
+        return NULL;
     }
     if (!strcmp(entry->name, "$tcp_serve")) {
         return server_call(execution, arguments);
@@ -1010,6 +1032,7 @@ bool vm_execution_destroy(VMExecution *execution)
     }
     tcp_exchange_destroy(execution->tcp);
     http_transport_destroy(execution->http);
+    root_read_destroy(execution->root_read);
     tcp_server_destroy(execution->server);
     frames_clear(execution);
     free(execution->frames);
@@ -1040,6 +1063,11 @@ Value *execute(VM *vm, Function *function, Value **arguments)
                 vm_execution_pump_server(&execution, 1024, 10);
                 continue;
             }
+            if (status == VM_WAITING && execution.root_read) {
+                root_read_wait(execution.root_read);
+                vm_execution_poll_filesystem(&execution);
+                continue;
+            }
             if (status != VM_WAITING || !execution.waiting_read) {
                 break;
             }
@@ -1055,6 +1083,7 @@ Value *execute(VM *vm, Function *function, Value **arguments)
     if (vm->error) vm_coverage_terminal(vm->coverage, 2);
     tcp_exchange_destroy(execution.tcp);
     http_transport_destroy(execution.http);
+    root_read_destroy(execution.root_read);
     tcp_server_destroy(execution.server);
     frames_clear(&execution);
     free(execution.frames);
@@ -1159,8 +1188,48 @@ bool vm_execution_poll_http(VMExecution *execution, unsigned max_wait_ms)
     return true;
 }
 
+bool vm_execution_enable_filesystem(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_YIELDED) {
+        return false;
+    }
+    execution->filesystem_enabled = true;
+    return true;
+}
+
+bool vm_execution_poll_filesystem(VMExecution *execution)
+{
+    if (execution->running || execution->status != VM_WAITING || !execution->root_read) {
+        return false;
+    }
+    if (!root_read_poll(execution->root_read)) {
+        return true;
+    }
+    /* The native adapter constructs this typed result. Fake/network completion
+     * entry points cannot inject a filesystem result into this wait. */
+    Value *result = root_read_result(execution->root_read);
+    execution->vm->error = root_read_error(execution->root_read);
+    if (!execution->vm->error &&
+        (!result || !stack_push(&execution->frames[execution->frame_count - 1], retain(result)))) {
+        execution->vm->error = "native VM out of memory";
+    }
+    root_read_destroy(execution->root_read);
+    execution->root_read = NULL;
+    execution->status = execution->vm->error ? VM_TRAPPED : VM_YIELDED;
+    if (execution->vm->error) {
+        vm_coverage_terminal(execution->vm->coverage, 2);
+        frames_clear(execution);
+    } else {
+        coverage_complete_pending(execution);
+    }
+    return true;
+}
+
 bool vm_execution_poll_network(VMExecution *execution, unsigned max_wait_ms)
 {
+    if (execution->root_read) {
+        return vm_execution_poll_filesystem(execution);
+    }
     if (execution->tcp) return vm_execution_poll_tcp(execution, max_wait_ms);
     if (execution->http) return vm_execution_poll_http(execution, max_wait_ms);
     return false;

@@ -1750,9 +1750,9 @@ will provide a generic directory-serving HTTP package and a tool under `tools/`,
 with website preview supplying its configuration. Reuse the existing HTTP package
 and isolate necessary standard-library additions. Keep the existing website build.
 The [implementation proposal](docs/GI162_STATIC_HTTP_PLAN.md) records the design,
-verified prerequisites and delivery sequence. The first implementation slice adds
-HEAD support to the existing HTTP package. Asynchronous confined reads, persistent
-service lifecycle, generic tool and website adoption remain outstanding. The
+verified prerequisites and delivery sequence. HEAD support is delivered by PR #495. The next slice adds isolated asynchronous
+confined reads, root identity and explicit filesystem permission. Persistent
+service lifecycle, the generic tool and website adoption remain outstanding. The
 current Node-based preview workflow remains available; this slice changes no
 production website behaviour or release claim.
 

@@ -603,6 +603,25 @@ port, then checks the public `ConnectFailure` mapping for source and saved
 bytecode. Platform and sanitizer validation results
 belong in the implementation PR.
 
+## Asynchronous confined filesystem operations
+
+`tests/unit/vm/root_read.c` covers copied-input lifetime, root identity, file bytes,
+oversize reads, missing paths, traversal and absolute-symlink rejection, process-wide
+worker exhaustion, completion/cancellation ordering, and explicit embedded
+filesystem permission independent of network permission. Fake completion cannot
+complete a filesystem wait. Existing rooted-resolver tests remain the shared
+symlink/race conformance evidence.
+
+`tests/unit/vm/root_read_faults.c` walks allocation failures and injects file-open,
+metadata, read and worker-creation errors. A paused host read proves that destroying
+the operation returns before the read completes, retains its admission slot, and
+releases its tracked resources after resumption. Fault controls are changed only
+when workers have quiesced; bookkeeping supports concurrent allocation.
+
+`tests/async_filesystem.sh` checks the public API through source and saved bytecode,
+including root identity for an empty directory and actual HTTP handlers awaiting
+file reads. Both clients in the concurrent exchange must receive the file bytes.
+
 ## Native HTTP server (P6)
 
 `tests/http_package.sh` exercises the finite `http/server` package with an

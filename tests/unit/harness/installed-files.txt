@@ -14,6 +14,7 @@ share/doc/panackelty/SECURITY.md
 share/doc/panackelty/SPEC.md
 share/panackelty/VERSION
 share/panackelty/compiler-v9.bc
+share/panackelty/stdlib/async_filesystem.panack
 share/panackelty/stdlib/bytes.panack
 share/panackelty/stdlib/core.panack
 share/panackelty/stdlib/environment.panack

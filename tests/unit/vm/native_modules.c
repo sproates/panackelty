@@ -977,6 +977,12 @@ static void artifact_returns_void(const char *path)
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && !strcmp(argv[1], "filesystem-root")) {
+        filesystem_data_limits_are_independent_of_process_limits();
+        filesystem_root_reads_stay_beneath_the_open_root();
+        puts("native filesystem contracts: ok");
+        return 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "tasks")) {
         task_artifact(argv[2]);
         return 0;
@@ -1047,6 +1053,7 @@ int main(int argc, char **argv)
     host_builtins_reject_wrong_operand_types();
     record_module_progress("host_builtin_types");
     filesystem_data_limits_are_independent_of_process_limits();
+    record_module_progress("filesystem_data_limits");
     filesystem_root_reads_stay_beneath_the_open_root();
     record_module_progress("filesystem_root");
     filesystem_directory_overlap_uses_physical_ancestry();

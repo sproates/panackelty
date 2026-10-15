@@ -4867,6 +4867,7 @@ pure bind_body_string(
     mut children: [BoundBody] = []
     mut diagnostics: [Diagnostic] = []
     mut deferred: [SourceSpan] = []
+    mut type_checks: [BodyTypeCheckEvidence] = []
     for name in interpolation.variables {
       if !locals.has(name) {
         diagnostics = append(
@@ -4875,6 +4876,7 @@ pure bind_body_string(
         )
       } else {
         local: BodyLocal = locals.get(name)
+        mut accepted: Option[Bool] = None()
         children = append(
           children,
           BoundBody(BodyLocalUse(local.identity), span, [], local.type, [], [], [], [], [], [])
@@ -4888,10 +4890,12 @@ pure bind_body_string(
               deferred = append(deferred, span)
             } else {
               scalar: Str = body_scalar(type)
-              if !(scalar_numeric(scalar) ||
+              valid: Bool = scalar_numeric(scalar) ||
                 scalar == "Str" ||
                 scalar == "Bool" ||
-                scalar == "Unit") {
+                scalar == "Unit"
+              accepted = Some(valid)
+              if !valid {
                 diagnostics = append(
                   diagnostics,
                   Diagnostic(
@@ -4903,10 +4907,20 @@ pure bind_body_string(
             }
           }
         }
+        if context.retain_guard_conversions {
+          type_checks = append(type_checks, BodyTypeCheckEvidence(
+            "string interpolation",
+            span,
+            local.type,
+            "scalar type (Nat, Int, Dec, Rat, Str, Bool or Unit)",
+            None(),
+            accepted
+          ))
+        }
       }
     }
     result = BodyResult(
-      BoundBody(BodyInterpolation(interpolation.parts), span, children, body_core_type("Str"), [], [], [], [], [], []),
+      BoundBody(BodyInterpolation(interpolation.parts), span, children, body_core_type("Str"), [], [], [], [], [], type_checks),
       diagnostics,
       deferred
     )

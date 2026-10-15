@@ -1,4 +1,8 @@
 PASS inferred locals report initializer evidence
+PASS accepted interpolation explains local scalar type
+PASS rejected interpolation explains non-scalar local type
+PASS unresolved interpolation local is explicitly unavailable
+PASS guarded interpolation type is explicitly deferred
 PASS type-at selects the smallest checked expression
 PASS type-at reports the containing generic call type
 PASS type-at reports no expression at unrelated location
@@ -206,4 +210,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 208, failures: 0
+tests: 212, failures: 0

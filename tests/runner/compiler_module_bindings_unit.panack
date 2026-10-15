@@ -3747,7 +3747,61 @@ pure namespace_expression_tests(): [TestResult] {
     results = append(results, std_testing.expect("repeated interpolation preserves ordered local IDs", len(node.children) == 2 && node.children[0].node == BodyLocalUse(function.parameters[0].identity) && node.children[1].node == node.children[0].node, "local interpolation identity/order lost"))
     results = append(results, std_testing.expect("interpolation owns original literal span", node.span.start.line == 1 && node.children[0].span == node.span, "interpolation source ownership changed"))
     results = append(results, std_testing.expect("known interpolation is identity checked", function.status == BodyIdentityChecked(), "valid interpolation deferred"))
+    interpolation_checks: [BodyTypeCheckEvidence] = body_type_check_evidence(node)
+    results = append(results, std_testing.expect(
+      "explanation checker retains each accepted interpolation local",
+      len(interpolation_checks) == 2 && interpolation_checks[0].context == "string interpolation" &&
+        interpolation_checks[0].actual == Some(SignatureType(SignatureCore("Str"), [])) &&
+        interpolation_checks[0].expected == "scalar type (Nat, Int, Dec, Rat, Str, Bool or Unit)" &&
+        interpolation_checks[0].accepted == Some(true) && interpolation_checks[0].span == node.span &&
+        interpolation_checks[1].accepted == Some(true),
+      "interpolation type evidence was missing or did not retain the source span"
+    ))
   }
+  for scalar_type in ["Int", "Dec", "Rat", "Bool", "Unit"] {
+    scalar_interpolation: CheckedModuleBodies = body_test_module(
+      "pub pure f(name: " + scalar_type + "): Str { \"" + interpolation + "\" }"
+    )
+    results = append(results, std_testing.expect(
+      "explanation checker accepts scalar interpolation type " + scalar_type,
+      len(scalar_interpolation.functions) == 1 &&
+        match body_type_check_for_context(scalar_interpolation.functions[0].body, "string interpolation") {
+          None() => false,
+          Some(evidence) => evidence.accepted == Some(true)
+        },
+      "scalar interpolation type was not accepted: " + scalar_type
+    ))
+  }
+  guarded_interpolation: CheckedModuleBodies = body_test_module(
+    "pub type Positive = Nat where value > 0; pub pure f(name: Positive): Str { \"" + interpolation + "\" }"
+  )
+  guarded_evidence: Option[BodyTypeCheckEvidence] = if len(guarded_interpolation.functions) == 1 {
+    body_type_check_for_context(guarded_interpolation.functions[0].body, "string interpolation")
+  } else {
+    None()
+  }
+  results = append(results, std_testing.expect(
+    "explanation checker retains guarded interpolation decision",
+    match guarded_evidence {
+      None() => false,
+      Some(evidence) => evidence.accepted == None()
+    },
+    "guarded interpolation decision was not marked unavailable"
+  ))
+  results = append(results, std_testing.expect(
+    "guarded interpolation decision retains the local type",
+    match guarded_evidence {
+      None() => false,
+      Some(evidence) => evidence.actual != None()
+    },
+    "guarded interpolation local type was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "guarded interpolation leaves body checking deferred",
+    len(guarded_interpolation.functions) == 1 &&
+      guarded_interpolation.functions[0].status == BodyDeferred(),
+    "guarded interpolation did not preserve the deferred checker result"
+  ))
   for source in [
     "pub pure f(): Str { \"" + interpolation + "\" }",
     "pub pure f(): Str { value = \"" + interpolation + "\"; name = \"late\"; value }",
@@ -3757,6 +3811,38 @@ pure namespace_expression_tests(): [TestResult] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = append(results, std_testing.expect("invalid interpolation rejects/" + source, len(checked.diagnostics) > 0 && len(checked.functions) == 1 && checked.functions[0].status == BodyInvalid(), "invalid interpolation accepted"))
   }
+  rejected_interpolation: CheckedModuleBodies = body_test_module("pub pure f(name: [Nat]): Str { \"" + interpolation + "\" }")
+  results = append(results, std_testing.expect(
+    "explanation checker retains rejected non-scalar interpolation type",
+    len(rejected_interpolation.functions) == 1 &&
+      match body_type_check_for_context(rejected_interpolation.functions[0].body, "string interpolation") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Array"), [SignatureType(SignatureCore("Nat"), [])])) && evidence.accepted == Some(false)
+      },
+    "rejected interpolation type evidence was missing"
+  ))
+  unavailable_interpolation: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Str { name = missing; \"" + interpolation + "\" }"
+  )
+  results = append(results, std_testing.expect(
+    "explanation checker marks unresolved interpolation local unavailable",
+    len(unavailable_interpolation.functions) == 1 &&
+      match body_type_check_for_context(unavailable_interpolation.functions[0].body, "string interpolation") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() && evidence.accepted == None()
+      },
+    "unresolved interpolation type was not marked unavailable"
+  ))
+  ordinary_interpolation: CheckedModuleBodies = body_test_module_mode(
+    "pub pure f(name: Str): Str { \"" + interpolation + "\" }",
+    false
+  )
+  results = append(results, std_testing.expect(
+    "ordinary interpolation checking retains no explanation evidence",
+    len(ordinary_interpolation.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_interpolation.functions[0].body)) == 0,
+    "ordinary interpolation checking retained explanation evidence"
+  ))
   for source in ["pub pure f(): Str { \"plain\\ntext\" }", "pub pure f(name: Nat): Str { if true { \"" + interpolation + "\" } else { \"none\" } }"] {
     checked: CheckedModuleBodies = body_test_module(source)
     results = append(results, std_testing.expect("plain/nested interpolation accepted/" + source, len(checked.diagnostics) == 0 && len(checked.functions) == 1 && checked.functions[0].status == BodyIdentityChecked(), "literal or nested interpolation failed"))

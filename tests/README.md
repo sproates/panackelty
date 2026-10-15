@@ -110,8 +110,8 @@ for the refresh contract.
 The compiler fixture allows 90 seconds for source execution and compilation,
 which can build the complete compiler. Ordinary fixture commands retain 20
 seconds; phase timing warnings remain independent of command timeouts.
-The CLI commands fixture runs nested package graph and race checks and permits
-120 seconds for each source/bytecode execution. Its enclosing harness permits
+The CLI commands and explanation fixtures run many nested checks and permit
+120 seconds for each source/bytecode execution. Their enclosing harness permits
 300 seconds for both executions and compilation. Cold compiler-module probes
 permit 300 seconds to compile and execute; ordinary integration commands retain
 90 seconds. The complete 370-assertion fixture runner has a separate 600-second
@@ -119,6 +119,14 @@ aggregate deadline. These bounds preserve every assertion and fresh execution;
 they are not performance targets. Promotion validation exposed the former
 180-second aggregate cutoff and a cold driver build reaching its 90-second
 enclosing limit on hosted runners.
+The isolated native-tool environment includes `openssl` for the independent
+TLS test server and certificate generation; a missing executable is reported
+explicitly by the TLS fixture. Expensive promotion source coverage waits for
+the full compiler/runtime matrix, package and policy checks to pass; failures
+and cancellations prevent collection. Explicit next-push refreshes retain the
+existing marker route and require all applicable preceding checks to pass.
+The harness exercises explanation fixtures in
+both source and saved-bytecode forms under the same aggregate deadline.
 `make check` creates a fresh temporary report session. The oracle corpus runs
 `runner_smoke` on its selected VM; that smoke program executes the full fixture
 runner through the public CLI and captures its actual report only after checking

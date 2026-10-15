@@ -56,6 +56,20 @@ in the roadmap; it is not an alpha.13 completion percentage.
    passed final local `make check` in 402s, including archive and relocation
    smoke. All 41 focused coverage policy/reader tests passed. Fresh hosted
    validation and coverage evidence remain required before promotion.
+   Check 38784969830 then exposed the same portable header omission in the
+   static-server test peer, missing `openssl` in the isolated native-tool PATH,
+   and explanation-corpus source/bytecode aggregate deadlines. The follow-up
+   audits both timeval users, retains OpenSSL for independent TLS fixtures,
+   and shares the 120s aggregate allowance between both forms of the explanation
+   fixture. Its individual child commands retain their 15s bound. The complete isolated
+   development/package workflow passed (its full check took 577s), and the final
+   `make check` after all edits passed in 426s. All 42 focused coverage/routing
+   tests, YAML/layout contracts and CI routing checks passed. Fresh hosted
+   validation and a trusted source report remain required.
+   At the owner’s direction, expensive promotion coverage now waits for the
+   full compiler/runtime matrix, package checks and policy checks to succeed.
+   A trusted next-push refresh is requested only after the repaired matrix passes;
+   required coverage remains a promotion and publication gate.
 4. **Source coverage refresh — prior report verified; repaired candidate refresh pending.**
    PR #506 changed test inputs, so its candidate requires a fresh trusted
    next-push report before publication. Request collection with the existing

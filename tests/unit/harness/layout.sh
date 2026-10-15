@@ -1,5 +1,9 @@
 #!/bin/sh
 . tests/unit/harness/common.sh
+case_name=isolated-environment-retains-tls-fixture-tool
+contains tests/without_interpreter.sh 'curl-config openssl'
+contains tests/http_client_package.sh 'HTTP client TLS fixture requires openssl on PATH'
+pass
 # Literal contracts migrated from RepositoryLayoutTests; structural checks follow.
 case_name=public-launcher-has-no-python-dependency
 contains panack panack-vm

@@ -51,13 +51,13 @@ SOURCE
     if [ "$mode" = example ]; then
         sed "s/9000/$port/g" examples/network/tcp_exchange.panack > "$work/main.panack"
     fi
-    ./panack check "$work/main.panack" > "$work/check"
+    ./bin/panack check "$work/main.panack" > "$work/check"
     printf 'ok\n' > "$work/expected"
     cmp "$work/expected" "$work/check"
-    ./panack run "$work/main.panack" > "$work/stdout" 2> "$work/stderr" || { cat "$work/stderr"; exit 1; }
+    ./bin/panack run "$work/main.panack" > "$work/stdout" 2> "$work/stderr" || { cat "$work/stderr"; exit 1; }
     test ! -s "$work/stdout" && test ! -s "$work/stderr"
-    ./panack compile "$work/main.panack" -o "$work/main.bc" > /dev/null
-    ./panack run "$work/main.bc" > "$work/stdout" 2> "$work/stderr" || { cat "$work/stderr"; exit 1; }
+    ./bin/panack compile "$work/main.panack" -o "$work/main.bc" > /dev/null
+    ./bin/panack run "$work/main.bc" > "$work/stdout" 2> "$work/stderr" || { cat "$work/stderr"; exit 1; }
     test ! -s "$work/stdout" && test ! -s "$work/stderr"
     if [ "$mode" = echo ] || [ "$mode" = empty ] || [ "$mode" = example ]; then wait "$server_pid"; else kill "$server_pid" 2>/dev/null || :; wait "$server_pid" 2>/dev/null || :; fi
     server_pid=
@@ -74,7 +74,7 @@ for mode in bare ordinary pure type; do
         type) source='async main(): Unit { result = await tcp_exchange(42, 80, bytes(), 10, 10); () }'; diagnostic='expected Str' ;;
     esac
     printf '%s\n' "$source" > "$work/invalid.panack"
-    if ./panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
+    if ./bin/panack check "$work/invalid.panack" > "$work/stdout" 2> "$work/stderr"; then
         echo "TCP negative case unexpectedly passed: $mode" >&2; exit 1
     fi
     grep -F "$diagnostic" "$work/stderr" > /dev/null || { cat "$work/stderr"; exit 1; }

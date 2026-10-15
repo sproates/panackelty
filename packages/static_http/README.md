@@ -2,8 +2,7 @@
 
 A generic read-only directory server built on `http/service` and
 `stdlib/async_filesystem`. Website builds and preview assembly belong to callers.
-This package is available in the development toolchain; published alpha.11 does
-not contain it.
+This package ships in the native alpha.13 release.
 
 Use the executable in [`tools/http-server`](../../tools/http-server/README.md) for
 ordinary directory serving. Applications can depend on this package, import
@@ -48,4 +47,4 @@ TLS, watch/rebuild and automatic reload are outside this tool's scope.
 
 Asynchronous reads and diagnostics can be logically cancelled at a client deadline
 or shutdown. A blocked host operation may retain its worker slot until it finishes;
-it cannot resume a destroyed request. See the [runtime contracts](../../SPEC.md).
+it cannot resume a destroyed request. See the [runtime contracts](../../docs/reference/SPEC.md).

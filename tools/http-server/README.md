@@ -1,18 +1,24 @@
-# Directory-serving tool
+# Static HTTP server
 
-Serve any directory with the development toolchain:
+Serve any directory over HTTP. Native alpha.13 includes the installed
+`panack-http-server` command:
 
 ```sh
-./panack run --project tools/http-server/panack.json --root ./site --port 8000
+panack-http-server --root ./site --port 8000
+```
+
+From a built source checkout, run the same tool with:
+
+```sh
+./bin/panack run --project tools/http-server/panack.json --root ./site --port 8000
 ```
 
 `make install PREFIX=/your/installation` installs `bin/panack-http-server` together
 with its runtime and packages. The command resolves those files from its own
 installation, works from any directory, and survives moving the whole installation.
 It does not require an adjacent source checkout. Install/build once before use;
-installation compiles the tool once and launching executes its saved bytecode. Published alpha.11
-archives do not include this tool; use an installation of the implementation
-revision until a release explicitly includes it.
+installation compiles the tool once and launching executes its saved bytecode. Native alpha.13 archives include this tool. See the
+[installation guide](../../docs/guides/INSTALLATION.md).
 
 ```sh
 /your/installation/bin/panack-http-server --root ./site --port 4173 --no-cache --noindex

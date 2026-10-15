@@ -1,0 +1,8 @@
+import project/src/compiler/lexer::{lex, render}
+
+// Lexer smoke entry. Run with PANACKELTY_BOOTSTRAP_ROOT set to the checkout
+// so imports share the compiler project identity.
+main(): Void {
+  print(render(lex("// skipped\nitem_1 42 2.5 \"text\" => +")))
+  print(render(lex("valid\n#")))
+}

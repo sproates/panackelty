@@ -4,7 +4,7 @@ This directory is the single home for user-facing Panackelty example programs.
 Run any example from a repository checkout with:
 
 ```sh
-./panack run examples/fizzbuzz.panack
+./bin/panack run examples/fizzbuzz.panack
 ```
 
 The same directory is included in release archives. From the extracted
@@ -21,7 +21,7 @@ through their example entry. Expected output is kept separately under
 
 ## VM walkthroughs
 
-The [VM execution guide](../docs/VM_GUIDE.md) includes disassembly and recorded
+The [VM execution guide](../docs/guides/VM_GUIDE.md) includes disassembly and recorded
 execution states for these small programs:
 
 | Program | Demonstrates |
@@ -78,11 +78,11 @@ from source and saved bytecode by the functional suite:
 | `namespaces/public_api/main.panack` | A consumer using a public API facade that re-exports a declaration backed by a private helper |
 
 Each namespace example is self-contained in its directory. Run the trip planner
-from the repository root with `./panack run examples/namespaces/trip_planner/main.panack`;
+from the repository root with `./bin/panack run examples/namespaces/trip_planner/main.panack`;
 use the corresponding `main.panack` path for the other examples.
 
 ## Networking
 
-The HTTP server example is a local package application. Run it from the
-repository root with `./panack run --project examples/network/http_server/panack.json`,
-then request `http://127.0.0.1:8080/`. It accepts one client and exits.
+See the [network examples guide](network/README.md) for TCP exchanges and finite
+HTTP sessions. For serving a directory, use the [static HTTP server](../tools/http-server/README.md).
+The one-client HTTP example is a regression fixture, not a long-running application template.

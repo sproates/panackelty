@@ -21,12 +21,12 @@ function compile(name,mode='map',directory=corpus) {
   const file=path.join(directory,name+'.panack');
   const artifact=path.join(work,`${name}-${serial++}.bc`), sidecar=artifact+'.pmap';
   const start=performance.now();
-  command('./panack',['compile',file,'-o',artifact,...(mode==='map'?['--source-map',sidecar]:[])]);
+  command('./bin/panack',['compile',file,'-o',artifact,...(mode==='map'?['--source-map',sidecar]:[])]);
   return {file,artifact,sidecar,bytes:fs.readFileSync(artifact),
     map:mode==='map'?fs.readFileSync(sidecar):null,milliseconds:performance.now()-start};
 }
 function locate(built,point,source=built.file) {
-  return command('./panack',['locate',built.artifact,'--source',source,'--source-map',built.sidecar,
+  return command('./bin/panack',['locate',built.artifact,'--source',source,'--source-map',built.sidecar,
     '--function',point.function,'--instruction',String(point.pc)]).stdout;
 }
 function trap(artifact) {
@@ -68,9 +68,9 @@ try {
   for(const [name,fn,file,start,end,line,pc=2,expression='items[index]'] of cases) {
     const built=compile(name),plain=compile(name,'plain');
     check(built.bytes.equals(plain.bytes),'mapping leaves v9 bytes unchanged');
-    const error=command('./panack',['run',built.file],1).stderr;
+    const error=command('./bin/panack',['run',built.file],1).stderr;
     check(error.includes('VM trap: index is out of bounds'),'public source execution trap retained');
-    check(command('./panack',['run',built.artifact],1).stderr===error,'source and artifact failure agree');
+    check(command('./bin/panack',['run',built.artifact],1).stderr===error,'source and artifact failure agree');
     const point=trap(built.artifact);
     const runtimeFunction=`$module1_${fn}`;
     check(point.function===runtimeFunction && point.pc===pc,
@@ -82,7 +82,7 @@ try {
     check(built.bytes.equals(repeated.bytes) && built.map.equals(repeated.map),'deterministic pair');
     const extension=path.join(work,name+'-extension.bc');
     fs.writeFileSync(extension,Buffer.concat([built.bytes,built.map]));
-    command('./panack',['check',extension],1);assertions++;
+    command('./bin/panack',['check',extension],1);assertions++;
     measurements.push({name,bytecode_bytes:built.bytes.length,sidecar_bytes:built.map.length,compile_ms:built.milliseconds});
     if(name==='local') baseline={...built,point:mappedPoint};
   }
@@ -139,7 +139,7 @@ try {
   check(innerPoint.pc===3 && locate(inner,{...innerPoint,function:'nested'}).includes('expression: indices[index]\n'),'inner trap retains smallest expression');
   fs.writeFileSync(nestedFile,nested);
   fs.writeFileSync(b.file,original.toString().replace('pick([7], 2)','pick([7], 0)'));
-  const good=compile('local');command('./panack',['run',good.artifact]);
+  const good=compile('local');command('./bin/panack',['run',good.artifact]);
   check(command(observer,[good.artifact]).stdout.trim()==='completed','valid index has no fabricated trap');
   unavailable({...b,artifact:good.artifact});unavailable({...b,sidecar:good.sidecar});
   fs.writeFileSync(b.file,original);

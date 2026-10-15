@@ -19,7 +19,7 @@ extract() {
     $0 == "<!-- " marker "-end -->" { capture = 0; ends++; next }
     capture && !/^```/ { print }
     END { if (starts != 1 || ends != 1 || capture) exit 1 }
-  ' "$root/README.md" > "$2"
+  ' "$root/docs/guides/INSTALLATION.md" > "$2"
   test -s "$2"
 }
 

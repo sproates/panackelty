@@ -4,20 +4,20 @@ runner=$work/runner.bc
 sh tests/run_probe.sh --compile tests/runner/main.panack "$runner"
 case_name=smoke-missing-and-mismatched-report
 printf 'wrong runner output\n' > "$work/report"
-capture 1 30 env -u PANACKELTY_BOOTSTRAP_ROOT PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack
+capture 1 30 env -u PANACKELTY_BOOTSTRAP_ROOT PANACK_TEST_RUNNER_REPORT="$work/report" ./bin/panack run tests/functional/cases/runner_smoke/main.panack
 contains "$work/stdout" 'FAIL Panackelty fixture runner: runner report differed'
 rm "$work/report"
-capture 1 30 env -u PANACKELTY_BOOTSTRAP_ROOT PANACK_TEST_RUNNER_REPORT="$work/report" ./panack run tests/functional/cases/runner_smoke/main.panack
+capture 1 30 env -u PANACKELTY_BOOTSTRAP_ROOT PANACK_TEST_RUNNER_REPORT="$work/report" ./bin/panack run tests/functional/cases/runner_smoke/main.panack
 contains "$work/stdout" 'FAIL Panackelty fixture runner: runner report read failed'
 pass
 case_name=failure-commands
-capture 0 30 ./panack run "$runner" --failure unknown_name
+capture 0 30 ./bin/panack run "$runner" --failure unknown_name
 for command in check compile run disasm; do contains "$work/stdout" "PASS failure/unknown_name/$command"; done
 contains "$work/stdout" 'PASS failure/unknown_name/no artifact'
 contains "$work/stdout" 'tests: 7, failures: 0'
 pass
 case_name=incremental-failure-corpus
-capture 0 45 ./panack run "$runner" --failures-only
+capture 0 45 ./bin/panack run "$runner" --failures-only
 contains "$work/stdout" 'PASS failure/while_condition_type/no artifact'
 contains "$work/stdout" 'tests: 210, failures: 0'
 pass
@@ -26,7 +26,7 @@ for fixture in cli_environment_files cli_commands cli_explanations cli_check_dis
     fixture_timeout=45
     # Enclose two 120-second executions, a 60-second build and runner overhead.
     case "$fixture" in cli_commands|cli_explanations) fixture_timeout=360 ;; esac
-    capture 0 "$fixture_timeout" env PANACKELTY_STDLIB_VALUE=ambient-test ./panack run "$runner" --case "$fixture"
+    capture 0 "$fixture_timeout" env PANACKELTY_STDLIB_VALUE=ambient-test ./bin/panack run "$runner" --case "$fixture"
     contains "$work/stdout" "PASS case/$fixture/source"
     contains "$work/stdout" "PASS case/$fixture/bytecode"
     contains "$work/stdout" 'tests: 4, failures: 0'
@@ -37,25 +37,25 @@ checkout=$work/cli-diagnostics-checkout
 mkdir -p "$checkout"
 git -C "$root" archive HEAD | tar -x -C "$checkout"
 ln -s "$root/build" "$checkout/build"
-cat > "$checkout/panack" <<EOF
+cat > "$checkout/bin/panack" <<EOF
 #!/bin/sh
 if [ "\${1:-}" = run ] && [ "\${2:-}" = tests/functional/cases/cli_commands/main.panack ]; then
     printf 'controlled-marker\\n' >&2
     exit 7
 fi
-exec "$root/panack" "\$@"
+exec "$root/bin/panack" "\$@"
 EOF
-chmod +x "$checkout/panack"
+chmod +x "$checkout/bin/panack"
 (
     cd "$checkout"
     capture 1 60 env PANACKELTY_STDLIB_PATH="$checkout/src/stdlib" \
-        PANACKELTY_STDLIB_VALUE=ambient-test "$root/panack" run "$runner" --case cli_commands
+        PANACKELTY_STDLIB_VALUE=ambient-test "$root/bin/panack" run "$runner" --case cli_commands
 )
 contains "$work/stdout" 'FAIL case/cli_commands/source: expected exit 0, got 7; exit=7; signal=0; stdout_bytes=0; stdout_prefix=; stderr_bytes=18; stderr_prefix=controlled-marker'
 pass
 case_name=nonempty-workspace-recovery
 mkdir "$work/cleanup"
-capture 1 45 ./panack run "$runner" --test-cleanup-failure "$work/cleanup" --case hello_world
+capture 1 45 ./bin/panack run "$runner" --test-cleanup-failure "$work/cleanup" --case hello_world
 contains "$work/stdout" 'FAIL workspace cleanup'
 contains "$work/stdout" 'tests: 5, failures: 1'
 absent "$work/stdout" 'FAIL cleanup recovery'
@@ -64,8 +64,8 @@ test -z "$(find "$work/cleanup" -mindepth 1 -print)" || fail 'workspace was not 
 pass
 # Isolated writable fixture checkout; never mutate repository fixtures.
 checkout=$work/'checkout with spaces (test)'
-mkdir -p "$checkout/tests/functional/cases"
-ln -s "$root/panack" "$checkout/panack"
+mkdir -p "$checkout/tests/functional/cases" "$checkout/bin"
+ln -s "$root/bin/panack" "$checkout/bin/panack"
 ln -s "$root/src" "$checkout/src"
 cd "$checkout"
 fixture=tests/functional/failures/imported_unknown_name
@@ -74,19 +74,19 @@ for name in main.panack dependency.panack expected.stderr; do
     cp "$root/$fixture/$name" "$fixture/$name"
 done
 case_name=failure-diagnostic-and-artifact-cleanup
-capture 0 30 ./panack run "$runner" --failure imported_unknown_name
+capture 0 30 ./bin/panack run "$runner" --failure imported_unknown_name
 for command in check compile 'no artifact'; do contains "$work/stdout" "PASS failure/imported_unknown_name/$command"; done
 printf 'wrong diagnostic\n' > "$fixture/expected.stderr"
-capture 1 30 ./panack run "$runner" --failure imported_unknown_name
+capture 1 30 ./bin/panack run "$runner" --failure imported_unknown_name
 for command in check compile; do contains "$work/stdout" "FAIL failure/imported_unknown_name/$command"; done
 contains "$work/stdout" 'PASS failure/imported_unknown_name/no artifact'
 absent "$work/stdout" 'FAIL workspace cleanup'
 printf 'main(): Void { print(42) }\n' > "$fixture/main.panack"
-capture 1 30 ./panack run "$runner" --failure imported_unknown_name
+capture 1 30 ./bin/panack run "$runner" --failure imported_unknown_name
 contains "$work/stdout" 'FAIL failure/imported_unknown_name/no artifact'
 absent "$work/stdout" 'FAIL workspace cleanup'
 rm "$fixture/expected.stderr"
-capture 1 30 ./panack run "$runner" --failure imported_unknown_name
+capture 1 30 ./bin/panack run "$runner" --failure imported_unknown_name
 contains "$work/stdout" 'FAIL failure/imported_unknown_name/fixture'
 pass
 case_name=example-mismatch-and-missing-pairs
@@ -94,22 +94,22 @@ mkdir -p examples tests/functional/expected/examples
 cp "$root/examples/vm_loop.panack" examples/
 expected=tests/functional/expected/examples/vm_loop.stdout
 printf 'wrong output\n' > "$expected"
-capture 1 30 ./panack run "$runner" --example vm_loop
+capture 1 30 ./bin/panack run "$runner" --example vm_loop
 for mode in source bytecode; do contains "$work/stdout" "FAIL example/vm_loop/$mode"; done
 contains "$work/stdout" 'PASS selected example count'
 absent "$work/stdout" 'FAIL workspace cleanup'
 rm "$expected"
-capture 1 30 ./panack run "$runner" --example vm_loop
+capture 1 30 ./bin/panack run "$runner" --example vm_loop
 contains "$work/stdout" 'FAIL example/vm_loop/fixture: missing expected stdout'
 printf 'stale\n' > tests/functional/expected/examples/orphan.stdout
-capture 1 30 ./panack run "$runner" --example orphan
+capture 1 30 ./bin/panack run "$runner" --example orphan
 contains "$work/stdout" 'FAIL example/orphan/fixture: missing example source'
 pass
 case_name=case-output-mismatch
 mkdir tests/functional/cases/hello_world
 cp "$root/tests/functional/cases/hello_world/main.panack" tests/functional/cases/hello_world/
 printf 'wrong output\n' > tests/functional/cases/hello_world/expected.stdout
-capture 1 45 ./panack run "$runner" --case hello_world
+capture 1 45 ./bin/panack run "$runner" --case hello_world
 for mode in source bytecode; do contains "$work/stdout" "FAIL case/hello_world/$mode"; done
 contains "$work/stdout" 'PASS selected fixture count'
 absent "$work/stdout" 'FAIL workspace cleanup'
@@ -121,7 +121,7 @@ printf 'main(): Void { print(42) }\n' > "$work/outside.panack"
 ln -s "$work/outside.panack" "$fixture/outside.panack"
 for target in ../outside.panack "$work/outside.panack" "$fixture/outside.panack"; do
     printf '%s\n' "$target" > "$fixture/source.path"
-    capture 1 20 ./panack run "$runner" --case compiler_skeleton
+    capture 1 20 ./bin/panack run "$runner" --case compiler_skeleton
     contains "$work/stdout" 'FAIL case/compiler_skeleton/fixture'
     absent "$work/stdout" 'PASS case/compiler_skeleton/source'
 done

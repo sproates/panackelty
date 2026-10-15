@@ -2,7 +2,7 @@
 
 Notable changes to Panackelty are recorded here. Preview releases may change
 source syntax, checking behavior, standard-library APIs, and bytecode as described
-in `RELEASE_POLICY.md`.
+in `docs/releases/RELEASE_POLICY.md`.
 
 ## Unreleased
 
@@ -332,7 +332,7 @@ No unreleased changes.
   return types, and record fields still require annotations. Incomplete local
   types cannot be resolved from later assignments or uses.
 - Bytecode remains version 7. This is an experimental preview for Linux x86-64
-  and macOS arm64 under the compatibility policy in `RELEASE_POLICY.md`.
+  and macOS arm64 under the compatibility policy in `docs/releases/RELEASE_POLICY.md`.
 
 ## 0.1.0-alpha.2 — 2026-09-15
 
@@ -353,7 +353,7 @@ No unreleased changes.
 - Diagnostic output now includes source lines and carets after positioned
   headers. Tools that consume compiler stderr should allow these extra lines.
 - This remains an experimental preview for Linux x86-64 and macOS arm64,
-  subject to the compatibility policy in `RELEASE_POLICY.md`.
+  subject to the compatibility policy in `docs/releases/RELEASE_POLICY.md`.
 
 ## 0.1.0-alpha.1 — 2026-09-04
 
@@ -387,7 +387,7 @@ The first public developer preview.
 - Diagnostics outside the primary lexer, parser, name, and type failures do not
   yet consistently include source locations; source excerpts are not rendered
 
-See `RELEASE_POLICY.md`, `SPEC.md`, and `ROADMAP.md` for the complete preview
+See `docs/releases/RELEASE_POLICY.md`, `docs/reference/SPEC.md`, and `ROADMAP.md` for the complete preview
 contract and remaining work.
 
 ### Release verification

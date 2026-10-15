@@ -2,7 +2,7 @@
 
 This directory contains the compiler being implemented in Panackelty:
 
-The [Readable Panackelty compiler batch](../../docs/READABLE_COMPILER.md) records
+The [Readable Panackelty compiler batch](../../docs/internals/READABLE_COMPILER.md) records
 the source-wide readability pass, behavioural protection and measurement limits.
 
 - `types.panack` defines file-aware source positions and half-open expression spans, tokens, diagnostics, and
@@ -26,7 +26,7 @@ Its sparse entries identify function-local instruction indices and distinguish
 expression operations from lowered machinery. Missing entries mean unavailable;
 there is no nearest-instruction fallback. Ordinary `compile_program` retains no
 entries. Production sidecar serialization and validated public CLI lookup are
-documented in `../../docs/SOURCE_MAPS.md`.
+documented in `../../docs/guides/SOURCE_MAPS.md`.
 
 - `parser.panack` contains the recursive expression AST and parser for literals,
   operators, calls, explicit named function references, receiver-first
@@ -199,13 +199,13 @@ documented in `../../docs/SOURCE_MAPS.md`.
   validation, portable identifiers, identity-qualified function selection,
   bounded file comparison and location rendering.
   It never decodes foreign map paths or lengths. See the
-  [source-map contract](../../docs/SOURCE_MAPS.md).
+  [source-map contract](../../docs/guides/SOURCE_MAPS.md).
 - `explanations.panack` presents opt-in inferred-local types, array/conditional/
   match type joins, subtraction decisions, guarded-conversion proofs and effect boundaries retained by the
   checker, using loaded source snapshots. Inferred locals show the checked
   initializer type and source expression; incomplete types remain unavailable.
   See the
-  [explanation contract](../../docs/COMPILER_EXPLANATIONS.md).
+  [explanation contract](../../docs/guides/COMPILER_EXPLANATIONS.md).
 - `driver.panack` implements `check`, `compile`, `run`, `disasm`, `locate` and
   `explain` for source and version-9 bytecode. Staged checked programs use
   identity emission for check/run/compile, validated `locate` and identity-
@@ -298,7 +298,7 @@ type diagnostics, exposing recovered violations only as local evidence. Function
 at definition boundaries; type guards retain diagnostics without function evidence.
 The explanation renderer consumes these decisions and loaded source spans, never
 reconstructing effects from diagnostic text. See
-[the explanation contract](../../docs/COMPILER_EXPLANATIONS.md) for local-versus-global
+[the explanation contract](../../docs/guides/COMPILER_EXPLANATIONS.md) for local-versus-global
 status, declared callable effects and unsupported transitive/runtime questions.
 
 ### Executable-source inventory
@@ -306,4 +306,4 @@ status, declared callable effects and unsupported transitive/runtime questions.
 `source_inventory.panack` walks retained original syntax and serializes versioned
 source eligibility independently of emitted instructions. `inventory` and
 `inventory-check` use explicit roots, exact compiler/artifact/source identities
-and local replay. See [the contract](../../docs/SOURCE_INVENTORY.md).
+and local replay. See [the contract](../../docs/reference/SOURCE_INVENTORY.md).

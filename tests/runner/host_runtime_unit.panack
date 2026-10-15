@@ -60,7 +60,7 @@ host_impure(name: Str, workspace: TestWorkspace): TestResult {
   match std_filesystem.write(target, data) {
     Error(problem) => std_testing.expect("pure ${name}", false, problem.code),
     Ok(written) => {
-      result = std_testing_commands.run_command("pure ${name}", TestCommand(host_path("./panack"),
+      result = std_testing_commands.run_command("pure ${name}", TestCommand(host_path("./bin/panack"),
         ["check", host_text(target)], byte_buffer.empty(), std_path.current(), [],
         std_time.seconds(10), 1048576),
         ProcessOutput(1, 0, byte_buffer.empty(), utf8_encode("error: pure function calls impure function\n")))
@@ -74,13 +74,13 @@ host_impure(name: Str, workspace: TestWorkspace): TestResult {
 
 host_fixture(name: Str, filename: Str, args: [Str], environment: [Str],
              expected: ProcessOutput): TestResult {
-  std_testing_commands.run_command(name, TestCommand(host_path("./panack"),
+  std_testing_commands.run_command(name, TestCommand(host_path("./bin/panack"),
     ["run", "tests/fixtures/host_runtime/${filename}.panack"].concat(args),
     byte_buffer.empty(), std_path.current(), environment, std_time.seconds(20), 1048576), expected)
 }
 
 host_fixture_error(name: Str, filename: Str, expected: Str): TestResult {
-  match std_process.run(host_path("./panack"),
+  match std_process.run(host_path("./bin/panack"),
       ["run", "tests/fixtures/host_runtime/${filename}.panack"], byte_buffer.empty(),
       std_path.current(), [], std_time.seconds(20), 1048576) {
     Error(problem) => std_testing.expect(name, false, problem.code),
@@ -98,7 +98,7 @@ host_nested(workspace: TestWorkspace, source: Str, args: Bool): [TestResult] {
   source_file = "tests/fixtures/host_runtime/${source}.panack"
   artifact_file = host_text(artifact)
   results = results.append(std_testing_commands.run_command("compile nested ${source}",
-    TestCommand(host_path("./panack"), ["compile", source_file, "-o", artifact_file],
+    TestCommand(host_path("./bin/panack"), ["compile", source_file, "-o", artifact_file],
       byte_buffer.empty(), std_path.current(), [], std_time.seconds(20), 1048576),
     ProcessOutput(0, 0, utf8_encode("wrote ${artifact_file}\n"), byte_buffer.empty())))
   script = if args {
@@ -119,7 +119,7 @@ host_nested(workspace: TestWorkspace, source: Str, args: Bool): [TestResult] {
     host_error(std_filesystem.write(program, utf8_encode(script))), "ok"))
   expected = if args { "1\nchild\n" } else { ".bc\ntrue\nnested\n" }
   results = results.append(std_testing_commands.run_command("execute nested ${source}",
-    TestCommand(host_path("./panack"), ["run", host_text(program)], byte_buffer.empty(),
+    TestCommand(host_path("./bin/panack"), ["run", host_text(program)], byte_buffer.empty(),
       std_path.current(), [], std_time.seconds(20), 1048576),
     ProcessOutput(0, 0, utf8_encode(expected), byte_buffer.empty())))
   results = results.append(std_testing.equal_str("remove nested wrapper ${source}",
@@ -338,7 +338,7 @@ main(): Void {
         ProcessOutput(0, 0, utf8_encode("2\nalpha\n"), byte_buffer.empty())))
       results = results.append(host_fixture("environment snapshot", "environment_snapshot", [], ["PANACK_PRESENT=configured"],
         ProcessOutput(0, 0, utf8_encode("true\nconfigured\nfalse\n"), byte_buffer.empty())))
-      missing = std_process.run(host_path("/bin/sh"), ["-c", "unset PANACK_MISSING; exec ./panack \"$@\"",
+      missing = std_process.run(host_path("/bin/sh"), ["-c", "unset PANACK_MISSING; exec ./bin/panack \"$@\"",
         "host-missing", "run", "tests/fixtures/host_runtime/environment_missing.panack"], byte_buffer.empty(),
         std_path.current(), [], std_time.seconds(20), 1048576)
       match missing {
@@ -368,7 +368,7 @@ main(): Void {
       }
       results = results.append(std_testing_commands.run_command("ignored inherited SIGPIPE",
         TestCommand(host_path("/bin/sh"),
-          ["-c", "trap '' PIPE; exec ./panack run tests/functional/cases/host_process/main.panack"],
+          ["-c", "trap '' PIPE; exec ./bin/panack run tests/functional/cases/host_process/main.panack"],
           byte_buffer.empty(), std_path.current(), [], std_time.seconds(20), 1048576),
         ProcessOutput(0, 0, filesystem_support.read_file_bytes("tests/functional/cases/host_process/expected.stdout"), byte_buffer.empty())))
       workspace_name = host_text(workspace.root)

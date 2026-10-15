@@ -248,7 +248,7 @@ promotion PRs or an explicitly requested release-candidate refresh; ordinary
 GitHub token to read public artifacts; it needs no new credential. Production
 publication is on demand through **Coverage Pages → Run workflow** on the
 coverage repository's `main` branch; schedules and push-triggered publishing are
-disabled. See [release preparation](../RELEASE_POLICY.md#release-gate).
+disabled. See [release preparation](../docs/releases/RELEASE_POLICY.md#release-gate).
 
 The publisher selects completed successful trusted native `main` push reports
 and source `next` push reports. It validates source ancestry, artifact identity and
@@ -558,8 +558,8 @@ without building the compiler, and remains part of `make check` through policy.
 | Changes | Check workflow |
 | --- | --- |
 | `README.md` changes confined to the marked positioning-copy region before `## Exact fractions and Unit` | Document, local-link and whitespace checks; quick-start, examples, installation and packaged README content remain full-validation inputs |
-| Only `ROADMAP.md`, `ARCHITECTURE.md`, `SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
-| Only `CONTRIBUTING.md`, `docs/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
+| Only `ROADMAP.md`, `docs/internals/ARCHITECTURE.md`, `docs/internals/SELF_HOSTING.md`, `tests/README.md`, `tests/COVERAGE.md`, `tests/VALIDATION_PROFILE.md` | Document, local-link and whitespace checks |
+| Only `CONTRIBUTING.md`, `docs/roadmap/ROADMAP_PROCESS.md`, `.github/pull_request_template.md`, optionally mixed with the preceding row | Same document route; these instructions are reviewed prose, not consumed by build recipes, package installation or executable fixture extraction |
 | Only GitHub Actions workflow files and the explicit CI routing, gate and contract files listed by `scripts/ci_scope.sh` | Workflow YAML syntax/structure, CI routing, result-gate and repository layout contracts; product compiler, package and platform suites are not applicable to this configuration-only route |
 | Any other `README.md` change, or a mixture of positioning copy with any full-validation input | Full native validation and both platform packages |
 | Any component, shared contract, unlisted path or mixture with product code | Full native validation and both platform packages |
@@ -582,7 +582,7 @@ other non-document, non-CI inputs retain full validation. The classifier
 compares the complete PR diff from its merge base. Renames expand into old-path deletion/new-path
 addition; symlinks, executable Markdown and unmerged local indexes cannot use
 the fast path. `scripts/ci_docs.sh` owns the explicit document allowlist and
-positioning boundary. Other README content remains a packaged input, `SPEC.md`
+positioning boundary. Other README content remains a packaged input, `docs/reference/SPEC.md`
 defines executable behavior, and workflow files control execution; those retain
 full checks.
 
@@ -749,7 +749,7 @@ generic definitions. It compares diagnostic arrays with ordinary checking and
 verifies ordinary checking retains no evidence. It runs in `make unit` and
 `make check-compiler`.
 
-The `cli_explanations` functional case runs complete projects through `./panack`,
+The `cli_explanations` functional case runs complete projects through `./bin/panack`,
 asserting imported generic source locations, accepted/rejected/unavailable
 results, ordinary source/bytecode behavior, absence of execution, whole-program
 purity failure, parser/resolver failures and argument errors. The canonical
@@ -775,7 +775,7 @@ Retention-on/off diagnostics and empty ordinary evidence are compared. Public CL
 coverage adds imported generic rejection, allowed ordinary/async calls, callable
 classification, discarded await and explicit unavailability after frontend errors.
 No tests are removed; existing subtraction cases remain. The contract is
-[documented here](../docs/COMPILER_EXPLANATIONS.md).
+[documented here](../docs/guides/COMPILER_EXPLANATIONS.md).
 
 Validation: 196 explanation unit assertions, 36 explanation CLI assertions and
 343 functional cases pass through canonical `make check` (150s). Existing
@@ -804,7 +804,8 @@ module. The existing diagnostic functional case runs qualified default-import,
 type, function-reference and pattern sources through `panack check`, `compile`
 and `run`, asserting the migration diagnostic and absence of bytecode output.
 These tests exercise an internal, fail-closed resolution slice; checked namespace
-execution and coordinated source migration remain pending.
+execution and coordinated source migration subsequently completed in PR#358;
+this earlier checkpoint is retained as historical test evidence.
 
 ## Reproducible build and validation baseline
 
@@ -894,7 +895,7 @@ These regression tests do not substitute for real-toolchain baseline trials.
 The compiler/unit routes include `runner/compiler_source_inventory_unit.panack`
 and `runner/compiler_source_inventory_cli.panack`: literal original-syntax
 expectations plus public command, identity, failure and bytecode-equivalence tests.
-See [source inventory](../docs/SOURCE_INVENTORY.md).
+See [source inventory](../docs/reference/SOURCE_INVENTORY.md).
 
 ### Portable dependency bundle completeness
 

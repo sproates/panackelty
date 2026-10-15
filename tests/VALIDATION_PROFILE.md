@@ -2,7 +2,7 @@
 > [`sproates/panackelty-coverage`](https://github.com/sproates/panackelty-coverage),
 > verified live in run `36933404078`. The combined-site coverage attachment and
 > refresh design below is historical and superseded. Website cutover is verified;
-> remaining schedule/core-only and cold/warm timing acceptance are tracked in [#187's current roadmap state](../ROADMAP.md#next-fast-website-ci-and-prepared-browser-test-environments).
+> remaining schedule/core-only and cold/warm timing acceptance are tracked in [#187's current roadmap state](../docs/roadmap/records/current-status-and-grooming-2026-10-01.md#next-fast-website-ci-and-prepared-browser-test-environments).
 
 # Validation profiling baseline
 
@@ -195,7 +195,7 @@ comparisons. This was not a controlled clean before/after timing experiment and
 does not establish a full-check speedup.
 
 The design-only candidate is in the
-[separate-compilation sketch](../docs/GI106_SEPARATE_COMPILATION_DESIGN.md).
+[separate-compilation sketch](../docs/design/GI106_SEPARATE_COMPILATION_DESIGN.md).
 
 ### Findings
 
@@ -581,7 +581,7 @@ than PR lifecycle timestamps.
 
 This map was checked against the current Make targets, Check workflow,
 [`tests/README.md`](README.md), [`tests/COVERAGE.md`](COVERAGE.md), and the
-compiler/VM boundaries in [`ARCHITECTURE.md`](../ARCHITECTURE.md). It relates a
+compiler/VM boundaries in [`docs/internals/ARCHITECTURE.md`](../docs/internals/ARCHITECTURE.md). It relates a
 plausible regression to focused local evidence and the wider acceptance that
 crosses its callers or artifact boundaries. A shared fixture does not make two
 test paths equivalent: source execution, saved-bytecode execution, native
@@ -743,7 +743,7 @@ Ranked by evidence from this bounded investigation:
 
 1. **Repeated declaration-signature lookup:** confirmed by phase instrumentation
    and source inspection; a per-module declaration index reduced the median
-   `check compiler.panack` time by 3.5% across three paired samples. The measured
+   `check src/compiler/main.panack` time by 3.5% across three paired samples. The measured
    workload and emitted bytecode comparison are recorded below.
 2. **Independent coverage-session scenarios:** confirmed as a costly focused
    test workload. Splitting it into four isolated probes retained all 41
@@ -775,7 +775,7 @@ when comparable evidence shows a material change.
 
 ## Namespace declaration lookup index — 2026-10-10
 
-Phase timing on `check compiler.panack` attributed most of the 24.40s instrumented
+Phase timing on `check src/compiler/main.panack` attributed most of the 24.40s instrumented
 baseline to declaration-signature resolution (8.85s) and body/effect checking
 (10.45s); loading the project module closure took 3.58s. Review found that each
 nominal type lookup rescanned every declaration in its owning module. The
@@ -788,7 +788,7 @@ seed and source tree on the same macOS arm64 host. The native VM and all inputs
 were held constant; timings alternated baseline and indexed binaries, without
 phase instrumentation:
 
-| Pair | Baseline `check compiler.panack` | Indexed candidate |
+| Pair | Baseline `check src/compiler/main.panack` | Indexed candidate |
 | --- | ---: | ---: |
 | 1 | 25.16s | 23.16s |
 | 2 | 24.13s | 23.49s |
@@ -1918,7 +1918,7 @@ do not compare different revisions' input programs.
 ## Compiler understanding probes, 2026-10-01
 
 Initial evidence for [programme #180](https://github.com/sproates/panackelty/issues/180)
-and the [architecture investigation](../ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01).
+and the [architecture investigation](../docs/internals/ARCHITECTURE.md#compiler-and-runtime-understanding-initial-investigation-2026-10-01).
 Baseline: `2952dd27bd8f48eedb09f173a60eab9f023d6aa6`, Darwin arm64, native
 `make -j2` build. These are exploratory probes, not feature acceptance or a new
 regression suite. No compiler/VM implementation was changed in this investigation.
@@ -1928,14 +1928,14 @@ Build and verify the current compiler independently of its driver seed:
 ```sh
 make -j2
 mkdir -p /tmp/panackelty-180-probes
-./panack compile src/compiler/main.panack -o /tmp/panackelty-180-probes/current-compiler.bc
+./bin/panack compile src/compiler/main.panack -o /tmp/panackelty-180-probes/current-compiler.bc
 shasum -a 256 bootstrap/compiler-v9.bc /tmp/panackelty-180-probes/current-compiler.bc
 ```
 
 Both SHA-256 values were
 `b8df915137e1e33355dd8baaa9219e2a3aa8dac28e0dc9d3442678dbacccc6b9`.
-For each program below, run both `./panack check FILE` and
-`./panack run /tmp/panackelty-180-probes/current-compiler.bc check FILE`.
+For each program below, run both `./bin/panack check FILE` and
+`./bin/panack run /tmp/panackelty-180-probes/current-compiler.bc check FILE`.
 For accepted programs, repeat with `run` instead of `check`.
 Both compiler paths produced the same outcomes.
 
@@ -2055,7 +2055,7 @@ process launch, with no claim of controlled hardware or cross-machine performanc
 | --- | --- | ---: |
 | Fresh-source compiler checking `order.panack` | 0.0321, 0.0325, 0.0320, 0.0325, 0.0336 | 0.0325 |
 | Fresh-source compiler checking `examples/euler001_iterative.panack` | 0.0335, 0.0297, 0.0300, 0.0308, 0.0305 | 0.0305 |
-| `./panack check src/compiler/main.panack` | 6.073, 6.012, 6.064 | 6.064 |
+| `./bin/panack check src/compiler/main.panack` | 6.073, 6.012, 6.064 | 6.064 |
 
 The small programs are dominated by fixed costs and cannot justify an overhead
 budget. Use repeated compiler-as-input and practical-program samples when adding
@@ -2328,7 +2328,7 @@ A clean development `make check` sample completed in 103s (unit 69s), below the
 120s full-check budget but above the unit target of 15s. This sample preceded the
 last focused admission/nested-call test refinements; final canonical validation is
 required after those edits and recorded in the PR. The unit warning remains in
-[the non-blocking backlog](../ROADMAP.md#keep-validation-within-development-budgets--non-blocking-backlog).
+[the non-blocking backlog](../ROADMAP.md#rm-123).
 No earlier Linux measurement is directly comparable to this macOS sample.
 
 Reproduce with `make clean && make check`, `make native-fault` and
@@ -2496,7 +2496,7 @@ expected usage output; each compiled runner execution passed all 273 tests.
 
 | Component | Elapsed seconds, three runs | Median user / system CPU seconds |
 | --- | --- | --- |
-| `./panack run src/compiler/main.panack` | 7.627 / 7.621 / 7.651 | 7.471 / 0.142 |
+| `./bin/panack run src/compiler/main.panack` | 7.627 / 7.621 / 7.651 | 7.471 / 0.142 |
 | Compile `tests/runner/main.panack` | 0.305 / 0.314 / 0.317 | 0.297 / 0.008 |
 | Execute that runner bytecode | 17.139 / 16.950 / 17.580 | 13.373 / 1.288 |
 
@@ -2558,7 +2558,7 @@ Use an otherwise idle checkout at the measured revision. Unset inherited
    runs, append a distinct comment to the original bytes. Restore the backup
    even if a check fails. Retain every timing and failure rather than retrying
    away slower observations.
-4. Time `./panack run src/compiler/main.panack` separately. Compile
+4. Time `./bin/panack run src/compiler/main.panack` separately. Compile
    `tests/runner/main.panack` to a temporary `.bc` path, then time its execution
    with `PANACK_TEST_COMPILER` set to the absolute prepared stage-2 compiler.
    Keep report-reuse variables unset and check status, stderr and expected output.
@@ -3116,7 +3116,7 @@ observation retained and an identical native coverage summary. See
       Five follow-up cold runs pass in 88/106/107/103/97 seconds (103s median),
       with identical native coverage. This sample does not establish a hard
       upper bound on hosted-runner scheduling or completion delays. See
-      [the reliability follow-up](VALIDATION_PROFILE.md#pipeline-scheduling-and-coverage-setup--2026-09-28).
+      [the reliability follow-up](#pipeline-scheduling-and-coverage-setup--2026-09-28).
 
 The focused VM investigation at merged PR #76 records a 26.219-second local
 cached median and 36.338-second median after a test-source edit. Hosted cached
@@ -3125,7 +3125,7 @@ The nested functional runner dominates, and a short compiler CPU sample points
 to collection copying and release work. Prioritize persistent array append
 allocation/copying while preserving aliases and failure behavior; keep the
 broad probe fingerprint intact until dependency completeness can be proved.
-See [the focused investigation](VALIDATION_PROFILE.md#focused-vm-check-investigation--2026-09-28)
+See [the focused investigation](#focused-vm-check-investigation--2026-09-28)
 for all trials, measurement limits and the optimisation PR acceptance criteria.
 
 - [x] Refresh the focused VM baseline with repeated unchanged and source-edit
@@ -3210,7 +3210,7 @@ The persistent-array append optimisation reduces the measured local cached VM
 median from 26.219s to 25.598s and the test-source-edit median from 36.338s to
 32.993s. A clean full check passes in 107s. The focused 15-second target remains
 open; these measurements do not establish a hosted-runner target. See
-[the append experiment](VALIDATION_PROFILE.md#persistent-array-append-experiment--2026-09-28)
+[the append experiment](#persistent-array-append-experiment--2026-09-28)
 for every trial, the ownership tradeoff and the unchanged validation corpus.
 
 Prioritize unit and bootstrap costs during this follow-up.
@@ -3383,7 +3383,7 @@ fixed-point evidence skipped.
 
 Issue [#110](https://github.com/sproates/panackelty/issues/110), native baseline
 `a35e4e11da9412a7ede03d0c12e826d9428cb2ff`. See the
-[architecture and reproduction record](../ARCHITECTURE.md#browser-playground-feasibility--2026-09-30)
+[architecture and reproduction record](../docs/internals/ARCHITECTURE.md#browser-playground-feasibility--2026-09-30)
 for the pinned toolchain, adapter and exact build flags.
 This is an isolated research profile; the repository's build/test targets,
 compiler seed, VM sources and fixed fixtures are unchanged.
@@ -3573,7 +3573,7 @@ the `de26483` seed and refreshed seed with the same native VM and source files:
 | `src/compiler/main.panack` | 7.093, 7.045, 7.110 | 7.426, 7.195, 7.282 | 272798 |
 | `tests/functional/cases/callables/main.panack` | 0.034, 0.033, 0.034 | 0.036, 0.035, 0.036 | 800 |
 
-Every paired artifact was byte-identical. Each sample runs `./panack run SEED
+Every paired artifact was byte-identical. Each sample runs `./bin/panack run SEED
 compile INPUT -o OUTPUT` in a fresh process with stdout redirected. The compiler
 input is the candidate compiler source in both cases. Its median rose by 0.189s
 (about 2.7%); the tiny callable case differs by 2ms and includes process startup.
@@ -3691,7 +3691,7 @@ Documentation/link and diff checks pass.
 Base: `cbae41b` (merged #218). Candidate branch:
 `feat/guarded-subtraction-explanations`. The query retains the actual checker
 subtraction decision and bound origin; normal checking omits evidence. The
-[contract](../docs/COMPILER_EXPLANATIONS.md) defines scope and honest unavailable
+[contract](../docs/guides/COMPILER_EXPLANATIONS.md) defines scope and honest unavailable
 results. This is the first U3 query, not acceptance of all #134 or #180.
 
 Focused acceptance passed: 96 self-hosted unit assertions, including expected
@@ -3789,7 +3789,7 @@ priority change. The inspected baseline is
 [`8b9c45c478b93d111807a0d6d7f6a20458b0aa5d`](https://github.com/sproates/panackelty/tree/8b9c45c478b93d111807a0d6d7f6a20458b0aa5d).
 Pinned source links below refer to that revision. The current work record remains
 [#141](https://github.com/sproates/panackelty/issues/141), **Idea; unscheduled**,
-as recorded in [the roadmap](../ROADMAP.md#performance-and-benchmarking).
+as recorded in [the roadmap](../docs/roadmap/records/groomed-development-and-engineering-work.md#performance-and-benchmarking).
 
 ### Assessment and limits of the criticism
 
@@ -3970,7 +3970,7 @@ checked with `make docs`.
 
 ## Platform installation instructions — 2026-10-03
 
-[RM#117: Platform-specific installation instructions](../ROADMAP.md#rm-117) /
+[RM#117: Platform-specific installation instructions](../docs/roadmap/records/platform-specific-installation-instructions.md#rm-117) /
 [GI#249: Platform-specific installation instructions](https://github.com/sproates/panackelty/issues/249)
 implements download and extraction improvements. This is author verification,
 not a usability study.
@@ -4007,11 +4007,11 @@ and [macOS arm64](https://github.com/sproates/panackelty/actions/runs/3716052573
 This online check is deliberately separate
 from the offline canonical `make check`.
 
-README minimum OS versions agree with `RELEASE_POLICY.md`; alpha.10 migration,
+README minimum OS versions agree with `docs/releases/RELEASE_POLICY.md`; alpha.10 migration,
 archive layout and upgrade/removal guidance remain applicable. Website inspection
 found truthful alpha.10 links, separate platform extraction and local check/run
 paths. Optional direct-download/fail-fast parity is recorded as unscheduled
-[RM#118: Website installation command parity](../ROADMAP.md#rm-118), without
+[RM#118: Website installation command parity](../docs/roadmap/records/independent-website-publishing.md#rm-118), without
 changing the live site, release pins.
 
 Canonical `make check` passed after the README harness assertion was updated to
@@ -4024,7 +4024,7 @@ coverage was removed to resolve it. The successful run reused that build.
 
 ## Website installation command parity — 2026-10-04
 
-[RM#118: Website installation command parity](../ROADMAP.md#rm-118) /
+[RM#118: Website installation command parity](../docs/roadmap/records/independent-website-publishing.md#rm-118) /
 [GI#250: Website installation command parity](https://github.com/sproates/panackelty/issues/250)
 updates `site/index.html#start` to match the README delivered by
 [PR#251: Platform-specific installation instructions](https://github.com/sproates/panackelty/pull/251).
@@ -4151,7 +4151,7 @@ installation remains supported. No executable or website source changes here.
 
 ## Namespace module/binding foundation — 2026-10-04
 
-P2 / [RM#41: Language namespaces](../ROADMAP.md#rm-41) first intermediate
+P2 / [RM#41: Language namespaces](../docs/roadmap/records/language-namespaces--idea.md#rm-41) first intermediate
 slice; executable namespace semantics and source migration remain pending.
 On this Linux x86-64 development workspace, the existing v9 seed compiled the
 new frontend. `make regenerate-seed` independently verified identical fresh
@@ -4241,7 +4241,7 @@ seed validation; they are informational allowlist files validated with `make doc
 
 The bounded [baseline harness](README.md#reproducible-build-and-validation-baseline)
 implements the first measurement step under
-[RM#28: Incremental and modular builds](../ROADMAP.md#rm-28) /
+[RM#28: Incremental and modular builds](../docs/roadmap/records/independent-website-publishing.md#rm-28) /
 [GI#106: Incremental and modular builds](https://github.com/sproates/panackelty/issues/106).
 It changes measurement tooling, not compilation, caching or test selection.
 Three clean full validations, three unchanged warm compiler checks and three
@@ -4574,7 +4574,7 @@ comparison or evidence that website retirement caused the budget overrun.
 
 Disposition: preserve every remaining native/package gate and accept this
 bounded retirement change without claiming a performance improvement. The
-existing [RM#123 performance record](../ROADMAP.md#rm-123) and
+existing [RM#123 performance record](../docs/roadmap/records/standing-performance-engineering--ongoing.md#rm-123) and
 [GI#106 validation work](https://github.com/sproates/panackelty/issues/106)
 retain the core validation maintainer as owner; the next controlled baseline
 comparison should investigate the budget exceedance before asserting timing
@@ -4891,7 +4891,7 @@ registries and local compiler/source/inventory replay prevent mixed identities;
 missing/killed/cancelled/nonparticipating collectors block a complete report.
 Registered task and server contexts own their counters; async completion remains
 inside its original execution. The fixture runner refuses cached transcripts
-when session collection is active. See `docs/SOURCE_COVERAGE.md` for supported
+when session collection is active. See `docs/reference/SOURCE_COVERAGE.md` for supported
 native scope, ownership and bounded failure states.
 
 Focused acceptance includes 37 raw-reader/indexed-source/aggregation checks and
@@ -5721,7 +5721,7 @@ at one-second granularity. That small difference is not strong evidence of a
 whole-unit-suite speedup. The experiment is from one host, and CPU use under
 overlap was not measured. With an entirely empty probe cache, three additional
 end-to-end invocations took 57.89s, 58.01s and 57.39s; all 133 assertions
-passed. Their profiles show about 27s rebuilding `compiler.panack` as the
+passed. Their profiles show about 27s rebuilding `src/compiler/main.panack` as the
 stage-2 seed before the integration checks. This seed build is a prerequisite
 of both layouts. Those totals are not compared with the original 52–55s samples,
 which began with stage 2 already built. The required canonical `make check` and

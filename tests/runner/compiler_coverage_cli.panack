@@ -25,7 +25,7 @@ pure coverage_contains(text: Str, needle: Str): Bool {
   found
 }
 coverage_test_command(args: [Str]): ProcessOutput {
-  match std_process.run(coverage_test_path("./panack"), args, bytes(), std_path.current(), [], std_time.seconds(90), 1048576) {
+  match std_process.run(coverage_test_path("./bin/panack"), args, bytes(), std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => { std_host.stderr("coverage command failed"); std_host.exit(1); ProcessOutput(1, 0, bytes(), bytes()) },
     Ok(actual) => actual
   }

@@ -18,7 +18,7 @@ inventory_write(path: Str, data: Bytes): Void {
   }
 }
 inventory_command(name: Str, args: [Str], status: Nat, stdout: Str): TestResult {
-  match std_process.run(inventory_path("./panack"), args, bytes(), std_path.current(), [], std_time.seconds(90), 1048576) {
+  match std_process.run(inventory_path("./bin/panack"), args, bytes(), std_path.current(), [], std_time.seconds(90), 1048576) {
     Error(error) => std_testing.expect(name, false, "command failed"),
     Ok(actual) => std_testing.expect(name, actual.exit_code == status && actual.signal == 0 &&
       actual.stdout == std_text.encode_utf8(stdout) && (if status == 0 { actual.stderr == bytes() } else { byte_buffer.length(actual.stderr) > 0 }),

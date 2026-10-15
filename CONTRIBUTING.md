@@ -5,13 +5,13 @@ improvements, and implementation changes that advance the current roadmap.
 
 ## Before contributing
 
-Read `README.md` for the source-build requirements, `SPEC.md` for accepted
-language behavior, `ARCHITECTURE.md` for component boundaries, and `ROADMAP.md`
+Read `README.md` for the source-build requirements, `docs/reference/SPEC.md` for accepted
+language behavior, `docs/internals/ARCHITECTURE.md` for component boundaries, and `ROADMAP.md`
 for current priorities. Security-sensitive reports must follow `SECURITY.md`
 instead of using a public issue.
 
 The developer preview has shipped; implementation priorities are being assessed.
-Follow the [roadmap decision process](docs/ROADMAP_PROCESS.md) and discuss
+Follow the [roadmap decision process](docs/roadmap/ROADMAP_PROCESS.md) and discuss
 substantial features before implementing them. Use the **Roadmap proposal** issue
 form for ideas or bounded investigations; an open issue is not a commitment.
 The repository records agreed direction and priorities, with Issues providing
@@ -21,7 +21,7 @@ linked work details and discussion.
 
 These conventions apply to new and substantially changed work. Preserve existing
 public names and keep unrelated formatting or renaming out of focused changes.
-Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
+Language syntax and semantics remain defined by [SPEC.md](docs/reference/SPEC.md).
 
 ### Branches, commits and pull requests
 
@@ -39,16 +39,16 @@ Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
 - Give PRs a descriptive title and explain the problem, resulting behavior,
   scope, validation and material limitations. Link related issues and roadmap
   items; reserve automatic issue-closing links for work completed on merge.
-- Include a proportionate [performance assessment](docs/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions)
+- Include a proportionate [performance assessment](docs/roadmap/ROADMAP_PROCESS.md#performance-impact-and-regression-decisions)
   for substantive deliveries: relevant evidence and comparability limits, or a
   reasoned no-impact statement. Present unresolved regressions and their explicit
   disposition; passing correctness checks alone do not establish performance acceptance.
 - Keep each PR reviewable around one coherent outcome. Update affected docs,
   report actual test results and preserve unrelated work. Follow the
-  [roadmap process](docs/ROADMAP_PROCESS.md) for priorities and decisions.
+  [roadmap process](docs/roadmap/ROADMAP_PROCESS.md) for priorities and decisions.
 - Obtain independent review of substantive delivery revisions before merge approval;
   record the reviewed commit or tree, findings and resolution under the
-  [review rules](docs/ROADMAP_PROCESS.md#independent-review).
+  [review rules](docs/roadmap/ROADMAP_PROCESS.md#independent-review).
 - Never push directly to `main` or `next`; integrate through PRs and required
   checks. Maintainers merge agreed-scope core work into `next` under the active
   integration workflow. Do not enable auto-merge. Promotions to `main` require
@@ -58,10 +58,10 @@ Language syntax and semantics remain defined by [SPEC.md](SPEC.md).
 
 This section is the authoritative coding standard for hand-written `.panack`
 source. It applies to compiler, tools, libraries, tests and examples. The
-[specification](SPEC.md) defines legal syntax and behaviour; this standard defines
+[specification](docs/reference/SPEC.md) defines legal syntax and behaviour; this standard defines
 how we present that syntax for readers. Examples below target the current `next`
 compiler using bytecode v9. Namespace execution is supported for the checked
-subset described in the Modules section of `SPEC.md`; release promotion remains
+subset described in the Modules section of `docs/reference/SPEC.md`; release promotion remains
 gated by the roadmap acceptance checkpoint.
 
 **Required** rules are review requirements for new code and deliberate readability
@@ -175,7 +175,7 @@ Required:
 - Keep imports together at the start, followed by types and cohesive groups of
   functions. Put an application's `main` after its supporting declarations.
 - Place code by responsibility using the component READMEs and
-  [repository layout](ARCHITECTURE.md#repository-layout). User-facing runnable
+  [repository layout](docs/internals/ARCHITECTURE.md#repository-layout). User-facing runnable
   programs belong in `examples/`; expected outputs belong in the test tree.
 
 Preferred: name values by their meaning (`denominator`, `source_path`,
@@ -190,7 +190,7 @@ improves discovery; language-required declaration ordering takes precedence.
 
 Required: use logical `stdlib/...` imports for public standard-library modules
 and quoted relative imports for local source dependencies. Namespace examples
-may use the supported `project/...` imports described in `SPEC.md`. Preserve
+may use the supported `project/...` imports described in `docs/reference/SPEC.md`. Preserve
 import order when loader identity, diagnostics or fixtures depend on it; do not
 mechanically sort or deduplicate imports without validation. Namespace execution
 is limited to the documented checked subset; do not imply package behavior or
@@ -316,13 +316,13 @@ may change only through a documented, reviewed baseline update.
   and `src/vm/.clang-format` for C: four spaces, braces, descriptive names and
   explicit ownership contracts. Format changed C code and inspect the diff;
   keep unrelated formatting out of the PR.
-- Follow [ARCHITECTURE.md](ARCHITECTURE.md#repository-layout) and component READMEs
+- Follow [ARCHITECTURE.md](docs/internals/ARCHITECTURE.md#repository-layout) and component READMEs
   for file placement and responsibility boundaries. Keep implementation in
   `src/`, user examples in `examples/`, and tests in the documented test layout.
 - Follow [tests/README.md](tests/README.md) for fixtures, runners and assertions,
   and the validation requirements below for meaningful coverage and cleanup.
   Test names should describe the behavior or failure being checked.
-- Follow [RELEASE_POLICY.md](RELEASE_POLICY.md) for versions, tags, compatibility
+- Follow [RELEASE_POLICY.md](docs/releases/RELEASE_POLICY.md) for versions, tags, compatibility
   and release gates rather than defining a separate release naming scheme here.
 
 These are review conventions, not a claim of automated enforcement. Existing
@@ -363,9 +363,9 @@ package workflow with an allowlisted command environment. See
 
 ### Documentation and cleanup
 
-Update the documents affected by a change: language contracts in `SPEC.md`,
-component boundaries in `ARCHITECTURE.md`, user workflows in `README.md`, bootstrap
-progress in `SELF_HOSTING.md`, delivery state in `ROADMAP.md`, and test evidence in
+Update the documents affected by a change: language contracts in `docs/reference/SPEC.md`,
+component boundaries in `docs/internals/ARCHITECTURE.md`, user workflows in `README.md`, bootstrap
+progress in `docs/internals/SELF_HOSTING.md`, delivery state in `ROADMAP.md`, and test evidence in
 `tests/COVERAGE.md`. Keep component READMEs accurate. Explain when documentation
 was reviewed and no update was needed.
 

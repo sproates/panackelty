@@ -46,13 +46,13 @@ make_root() {
     ln -s loop "$work/root/loop"
     mkfifo "$work/root/pipe"
 }
-./panack run packages/static_http/src/paths_test.panack
-./panack compile packages/static_http/src/paths_test.panack -o "$work/paths.bc" > /dev/null
-./panack run "$work/paths.bc"
-./panack run --project packages/static_http/tests/panack.json
-./panack compile --project packages/static_http/tests/panack.json -o "$work/config.bc" > /dev/null
-./panack run "$work/config.bc"
-./panack compile --project tools/http-server/panack.json -o "$work/server.bc" > /dev/null
+./bin/panack run packages/static_http/src/paths_test.panack
+./bin/panack compile packages/static_http/src/paths_test.panack -o "$work/paths.bc" > /dev/null
+./bin/panack run "$work/paths.bc"
+./bin/panack run --project packages/static_http/tests/panack.json
+./bin/panack compile --project packages/static_http/tests/panack.json -o "$work/config.bc" > /dev/null
+./bin/panack run "$work/config.bc"
+./bin/panack compile --project tools/http-server/panack.json -o "$work/server.bc" > /dev/null
 make --no-print-directory install "PREFIX=$PWD/$work/installation with spaces" > "$work/install.log" 2>&1
 mv "$work/installation with spaces" "$work/relocated installation"
 installed=$PWD/$work/relocated\ installation/bin/panack-http-server
@@ -64,9 +64,9 @@ for mode in source bytecode installed; do
     port=$("$port_client" port)
     root_path=$PWD/$work/root
     if [ "$mode" = source ]; then
-        ./panack run --project tools/http-server/panack.json --root "$PWD/$work/root" --port "$port" --no-cache --noindex > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run --project tools/http-server/panack.json --root "$PWD/$work/root" --port "$port" --no-cache --noindex > "$work/stdout" 2> "$work/stderr" &
     elif [ "$mode" = bytecode ]; then
-        ./panack run "$work/server.bc" --root "$PWD/$work/root" --port "$port" --no-cache --noindex > "$work/stdout" 2> "$work/stderr" &
+        ./bin/panack run "$work/server.bc" --root "$PWD/$work/root" --port "$port" --no-cache --noindex > "$work/stdout" 2> "$work/stderr" &
     else
         (cd /tmp && exec "$installed" --root "$root_path" --port "$port" --no-cache --noindex) > "$work/stdout" 2> "$work/stderr" &
     fi
@@ -88,7 +88,7 @@ done
 # Empty roots still become ready, and SIGINT follows the normal stop path.
 mkdir "$work/root"
 port=$("$port_client" port)
-./panack run "$work/server.bc" --root "$PWD/$work/root" --port "$port" --no-cache --noindex > "$work/stdout" 2> "$work/stderr" &
+./bin/panack run "$work/server.bc" --root "$PWD/$work/root" --port "$port" --no-cache --noindex > "$work/stdout" 2> "$work/stderr" &
 server_pid=$!
 "$client" "$port" empty
 kill -INT "$server_pid"
@@ -103,7 +103,7 @@ for mode in missing-root invalid-host invalid-port missing-value unknown; do
         missing-value) set -- --root; expected=2 ;;
         unknown) set -- --unknown; expected=2 ;;
     esac
-    ./panack run "$work/server.bc" "$@" > "$work/stdout" 2> "$work/stderr" &
+    ./bin/panack run "$work/server.bc" "$@" > "$work/stdout" 2> "$work/stderr" &
     server_pid=$!
     result=0
     wait_for_exit || result=$?
@@ -122,7 +122,7 @@ while [ ! -s "$work/port" ]; do
     sleep 0.05
 done
 port=$(cat "$work/port")
-./panack run "$work/server.bc" --root "$PWD/$work/root" --port "$port" > "$work/stdout" 2> "$work/stderr" &
+./bin/panack run "$work/server.bc" --root "$PWD/$work/root" --port "$port" > "$work/stdout" 2> "$work/stderr" &
 server_pid=$!
 result=0
 wait_for_exit || result=$?

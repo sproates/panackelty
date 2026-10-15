@@ -18,7 +18,7 @@ stdlib=${PANACKELTY_STDLIB_PATH:-src/stdlib}
 export PANACKELTY_STDLIB_PATH="$stdlib"
 # Compiler and unit-test sources import through repository-root project paths.
 case "$source" in
-    compiler.panack|src/compiler/*|tests/experiments/semantic_impact/*) probe_root=$(pwd -P) ;;
+    src/compiler/*|tests/experiments/semantic_impact/*) probe_root=$(pwd -P) ;;
     tests/runner/*)
         if grep -Eq '^[[:space:]]*(pub[[:space:]]+)?import[[:space:]]+project/' "$source"; then
             probe_root=$(pwd -P)

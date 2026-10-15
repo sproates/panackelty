@@ -24,10 +24,10 @@ contains tests/http_client_package.sh 'HTTP client TLS fixture requires openssl 
 pass
 # Literal contracts migrated from RepositoryLayoutTests; structural checks follow.
 case_name=public-launcher-has-no-python-dependency
-contains panack panack-vm
+contains bin/panack panack-vm
 pass
 case_name=release-version-has-one-canonical-source
-contains panack 'read -r release_version < "$version_file"'
+contains bin/panack 'read -r release_version < "$version_file"'
 pass
 case_name=ci-packages-every-supported-release-target
 contains .github/workflows/check.yml 'target: linux-x86_64
@@ -110,15 +110,15 @@ contains CONTRIBUTING.md 'choose
 contains CONTRIBUTING.md 'private reporting channel'
 pass
 case_name=readme-quick-start-is-an-executable-release-gate
-contains README.md './panackelty/bin/panack --version
+contains docs/guides/INSTALLATION.md './panackelty/bin/panack --version
 ./panackelty/bin/panack check hello.panack
 ./panackelty/bin/panack run hello.panack
 ./panackelty/bin/panack compile hello.panack
 ./panackelty/bin/panack run hello.bc'
-contains README.md '<!-- quick-start-program-begin -->'
-contains README.md '<!-- quick-start-program-end -->'
-contains README.md '<!-- quick-start-output-begin -->'
-contains README.md '<!-- quick-start-output-end -->'
+contains docs/guides/INSTALLATION.md '<!-- quick-start-program-begin -->'
+contains docs/guides/INSTALLATION.md '<!-- quick-start-program-end -->'
+contains docs/guides/INSTALLATION.md '<!-- quick-start-output-begin -->'
+contains docs/guides/INSTALLATION.md '<!-- quick-start-output-end -->'
 contains Makefile 'check-phases: policy'
 contains Makefile 'sh tests/run_check_phases.sh'
 contains Makefile '@$(MAKE) --no-print-directory functional'
@@ -133,7 +133,7 @@ awk 'NR!=1 || !/^[0-9]+\.[0-9]+\.[0-9]+-[a-z]+\.[0-9]+$/ { bad=1 } END { exit ba
 version=$(cat VERSION)
 printf '%s\n' "$version" > "$work/version"
 equal_files VERSION "$work/version"
-absent panack "$version"
+absent bin/panack "$version"
 pass
 case_name=ci-event-and-command-contracts
 contains .github/workflows/check.yml 'run: make check-no-interpreter'
@@ -198,8 +198,8 @@ printf 'blank_issues_enabled: false\n' > "$work/expected"
 equal_files .github/ISSUE_TEMPLATE/config.yml "$work/expected"
 pass
 case_name=tour-example-and-specification-links
-awk '/^## A quick language tour$/ { active=1; next } /^## Language highlights/ { active=0 } active' README.md > "$work/tour"
-grep -o '(examples/[^)]*\.panack)' "$work/tour" | sed 's/^(examples\///;s/)$//' | sort -u > "$work/examples"
+awk '/^## A quick language tour$/ { active=1; next } /^## Language highlights/ { active=0 } active' docs/guides/LANGUAGE_TOUR.md > "$work/tour"
+grep -o '(../../examples/[^)]*\.panack)' "$work/tour" | sed 's|^(../../examples/||;s/)$//' | sort -u > "$work/examples"
 cat > "$work/expected" <<'EXAMPLES'
 callables.panack
 collections_and_bytes.panack
@@ -217,9 +217,9 @@ while IFS= read -r example; do
     test -f "examples/$example" || fail "missing example $example"
     test -f "tests/functional/expected/examples/${example%.panack}.stdout" || fail "missing expected output $example"
 done < "$work/examples"
-grep -o '(SPEC.md#[^)]*)' "$work/tour" | sed 's/^(SPEC.md#//;s/)$//' | sort -u > "$work/links"
+grep -o '(../reference/SPEC.md#[^)]*)' "$work/tour" | sed 's|^(../reference/SPEC.md#||;s/)$//' | sort -u > "$work/links"
 test -s "$work/links" || fail 'tour has no specification links'
-sed -n 's/^## //p' SPEC.md | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 -]//g;s/ /-/g' | sort -u > "$work/anchors"
+sed -n 's/^## //p' docs/reference/SPEC.md | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9 -]//g;s/ /-/g' | sort -u > "$work/anchors"
 comm -23 "$work/links" "$work/anchors" > "$work/missing"
 test ! -s "$work/missing" || fail 'tour links nonexistent specification anchors'
 pass

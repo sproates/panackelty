@@ -1,6 +1,7 @@
 bin/panack
 bin/panack-http-server
 libexec/panackelty/panack-vm
+packages/http/README.md
 packages/http/panack.json
 packages/http/src/client.panack
 packages/http/src/parser.panack

@@ -7,7 +7,7 @@ const checkout=path.resolve(__dirname,'../..'),work=fs.mkdtempSync(path.join(os.
 const testCompiler=process.env.PANACK_TEST_COMPILER;
 const run=(args,env)=>{
   const childEnv=testCompiler?{...process.env,...env,PANACKELTY_COMPILER_PATH:testCompiler}:env;
-  const executable=testCompiler?'./panack-vm':'./panack';
+  const executable=testCompiler?'./panack-vm':'./bin/panack';
   const command=testCompiler?(args[0]==='coverage-session'?args:['run',testCompiler,...args]):args;
   return execFileSync(executable,command,{cwd:checkout,env:childEnv,encoding:'utf8',timeout:180000,maxBuffer:16*1024*1024});
 };

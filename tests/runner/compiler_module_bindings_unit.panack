@@ -2110,11 +2110,27 @@ pure namespace_body_tests(): [TestResult] {
     "pure caller(): Nat { f = missing; f.call(1) }",
     true
   )
+  accepted_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    true
+  )
+  rejected_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(\"wrong\") }",
+    true
+  )
+  unavailable_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(missing) }",
+    true
+  )
   ordinary_core_call_arity: CheckedModuleBodies = body_test_module_mode(
     "pure caller(): Nat { len(\"x\") }",
     false
   )
   ordinary_indirect_call_arity: CheckedModuleBodies = body_test_module_mode(
+    "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
+    false
+  )
+  ordinary_indirect_call_argument: CheckedModuleBodies = body_test_module_mode(
     "pure identity(value: Nat): Nat { value }; pure caller(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }",
     false
   )
@@ -2564,12 +2580,46 @@ pure namespace_body_tests(): [TestResult] {
     "unavailable indirect call arity reason was not retained"
   ))
   results = append(results, std_testing.expect(
+    "explanation checking retains accepted indirect call argument",
+    len(accepted_indirect_call_argument.functions) == 2 &&
+      len(body_call_argument_evidence(accepted_indirect_call_argument.functions[1].body)) == 1 &&
+      body_call_argument_evidence(accepted_indirect_call_argument.functions[1].body)[0].label == "indirect call argument 1" &&
+      body_call_argument_evidence(accepted_indirect_call_argument.functions[1].body)[0].actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
+      body_call_argument_evidence(accepted_indirect_call_argument.functions[1].body)[0].expected == SignatureType(SignatureCore("Nat"), []) &&
+      body_call_argument_evidence(accepted_indirect_call_argument.functions[1].body)[0].accepted == Some(true),
+    "accepted indirect call argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains rejected indirect call argument",
+    len(rejected_indirect_call_argument.functions) == 2 &&
+      len(body_call_argument_evidence(rejected_indirect_call_argument.functions[1].body)) == 1 &&
+      body_call_argument_evidence(rejected_indirect_call_argument.functions[1].body)[0].actual == Some(SignatureType(SignatureCore("Str"), [])) &&
+      body_call_argument_evidence(rejected_indirect_call_argument.functions[1].body)[0].expected == SignatureType(SignatureCore("Nat"), []) &&
+      body_call_argument_evidence(rejected_indirect_call_argument.functions[1].body)[0].accepted == Some(false),
+    "rejected indirect call argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
+    "explanation checking retains unavailable indirect call argument",
+    len(unavailable_indirect_call_argument.functions) == 2 &&
+      len(body_call_argument_evidence(unavailable_indirect_call_argument.functions[1].body)) == 1 &&
+      body_call_argument_evidence(unavailable_indirect_call_argument.functions[1].body)[0].actual == None() &&
+      body_call_argument_evidence(unavailable_indirect_call_argument.functions[1].body)[0].expected == SignatureType(SignatureCore("Nat"), []) &&
+      body_call_argument_evidence(unavailable_indirect_call_argument.functions[1].body)[0].accepted == None(),
+    "unavailable indirect call argument was not retained"
+  ))
+  results = append(results, std_testing.expect(
     "ordinary checking retains no core or indirect call arity",
     len(ordinary_core_call_arity.functions) == 1 &&
       len(body_type_check_evidence(ordinary_core_call_arity.functions[0].body)) == 0 &&
       len(ordinary_indirect_call_arity.functions) == 2 &&
       len(body_type_check_evidence(ordinary_indirect_call_arity.functions[1].body)) == 0,
     "ordinary checking retained explanation-only call arity evidence"
+  ))
+  results = append(results, std_testing.expect(
+    "ordinary checking retains no indirect call argument evidence",
+    len(ordinary_indirect_call_argument.functions) == 2 &&
+      len(body_call_argument_evidence(ordinary_indirect_call_argument.functions[1].body)) == 0,
+    "ordinary checking retained explanation-only indirect call argument evidence"
   ))
   results = append(results, std_testing.expect(
     "explanation checking retains accepted explicit type argument arity",

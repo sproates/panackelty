@@ -575,7 +575,7 @@ pure render_call_argument_explanations(
   }
   mut output: Str = "call argument checks:"
   if len(entries) == 0 {
-    output = output + " none (no retained direct function call arguments)"
+    output = output + " none (no retained call argument checks)"
   } else {
     for entry in entries {
       output = output + "\n\n" + render_call_argument_evidence(

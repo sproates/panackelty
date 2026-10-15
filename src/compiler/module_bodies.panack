@@ -1881,6 +1881,20 @@ pure body_check_existing_special_core_call(
             )
             diagnostics = concat(diagnostics, required.diagnostics)
             deferred = concat(deferred, required.deferred)
+            if context.retain_guard_conversions {
+              accepted: Option[Bool] = if len(required.diagnostics) > 0 {
+                Some(false)
+              } else {
+                if len(required.deferred) > 0 { None() } else { Some(true) }
+              }
+              call_arguments = append(call_arguments, CallArgumentEvidence(
+                "indirect call argument ${number}",
+                children[index + 1].span,
+                children[index + 1].type,
+                callable.arguments[index],
+                accepted
+              ))
+            }
             index = index + 1
           }
           output = Some(callable.arguments[expected_count])

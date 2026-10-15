@@ -98,7 +98,7 @@ implementation selection or completion of the first non-alpha milestone.
 | Expanded checker explanations | U3 / RM#48 / [GI#134](https://github.com/sproates/panackelty/issues/134): bounded subtraction, local effects, guarded conversions, inferred locals, expression types, returns, call arguments, annotated locals and assignment compatibility through PR #423; selected text/byte builtins through PR #424, numeric builtins through PR #425, collection mutation/lookup through PR #426, path arguments through PR #427, environment arguments through PR #428, time arguments through PR #429, filesystem I/O through PR #430, filesystem query arguments through PR #432, filesystem paths through PR #433, checked array/conditional/match joins through PR #457, array callback contracts through PR #458, array concatenation joins through PR #459, generic parameter joins through PR #461, unary/binary operator type decisions through PR #462, index/iteration type requirements through PR #463, Boolean condition requirements through PR #464, and matched-enum variant membership through PR #465; broader checked type/effect/proof scope remains | Current slice explains record field access compatibility and resulting field types; preserve diagnostics and ordinary checking |
 | Compilation explanations | U4 / RM#91 / [GI#173](https://github.com/sproates/panackelty/issues/173), production not started: bounded source-to-bytecode journey | Explain a selected construct through checking/lowering/actual emission, including imported/generic/generated cases and honest absent/many-to-many mappings; preserve bootstrap and compatibility and measure retention cost |
 | Standard-library API namespaces | P4 / [RM#42](#rm-42) / [GI#235](https://github.com/sproates/panackelty/issues/235), Done on `next` in [PR#404](https://github.com/sproates/panackelty/pull/404); alpha.13 release adoption remains | Document the selected module names and curated `prelude`, including `prelude.byte_buffer`, and the removed legacy API; verify examples and native/browser artifacts before separate website publication |
-| Developer build and validation workflow — mandatory alpha.13 gate | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). Owner direction on 2026-10-12: reassess old timing requirements and inspect the whole workflow and its regression boundaries. | **Only acceptance criterion: the user explicitly says they are happy with the result.** Measurements, recommendations, passing checks and implementation support that decision but do not substitute for it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
+| Developer build and validation workflow — Alpha.13 gate accepted | RM#28 / [GI#106](https://github.com/sproates/panackelty/issues/106). On 2026-10-15, the user said the current workflow is acceptable for now and no further work is needed for Alpha.13. | **Accepted by the user on 2026-10-15.** GI#106 remains open as a broader tracker; no further work is active. Revisit only if the user explicitly raises it. Former 120s/15s/75s/60s timing values are historical evidence, not current gates. |
 
 HTTP retains P1–P3 and transport/DNS/TLS prerequisites and the P2 → P3 → P4
 implementation order. Owner decision, 2026-10-14: implement P6 before P5, using
@@ -2594,6 +2594,14 @@ is governed by the 2026-10-12 owner direction under GI#106 below.
 <a id="future-candidate-incremental-and-modular-builds"></a>
 
 Work record: [issue #106](https://github.com/sproates/panackelty/issues/106).
+
+**Current Alpha.13 disposition — accepted by the user on 2026-10-15:** the user
+said the current workflow is acceptable for now and no further work is needed for
+Alpha.13. This satisfies the user-defined Alpha.13 acceptance criterion. Keep
+GI#106 open as a broader tracker, with no active follow-up; resume only if the
+user explicitly raises it. Statements below that say acceptance is pending are
+historical snapshots and are superseded for Alpha.13 by this disposition.
+
 The VM/compiler boundary audit completed in PR #109. The bounded validation
 slice is **Done**, effective on its delivery PR merge; see the
 [completion record](#completed-modular-validation-and-component-boundaries).

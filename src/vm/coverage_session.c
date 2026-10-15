@@ -43,7 +43,7 @@ static bool read_number(FILE *f, size_t *v)
 }
 static bool read_blob(FILE *f, uint8_t **data, size_t *size)
 {
-    if (!read_number(f, size) || *size > VM_COVERAGE_MAX_RAW) return false;
+    if (!read_number(f, size) || *size > VM_COVERAGE_MAX_IDENTITY) return false;
     *data = malloc(*size ? *size : 1);
     return *data && fread(*data, 1, *size, f) == *size;
 }
@@ -54,7 +54,7 @@ static bool read_path(const char *path, uint8_t **data, size_t *size)
     if (!f) return false;
     bool ok = !fseek(f, 0, SEEK_END);
     long end = ok ? ftell(f) : -1;
-    ok = end >= 0 && (unsigned long)end <= VM_COVERAGE_MAX_RAW && !fseek(f, 0, SEEK_SET);
+    ok = end >= 0 && (unsigned long)end <= VM_COVERAGE_MAX_IDENTITY && !fseek(f, 0, SEEK_SET);
     if (ok) {
         *size = (size_t)end;
         *data = malloc(*size ? *size : 1);

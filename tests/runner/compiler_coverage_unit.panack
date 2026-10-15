@@ -49,6 +49,20 @@ main(): Void {
   program: BytecodeProgram = BytecodeProgram([FunctionCode("main", [], false, false, [JumpFalseInstruction(1)])])
   good: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, 0)
   results = append(results, std_testing.expect("coverage valid literal raw", decode_coverage(good, utf8_encode("a"), utf8_encode("i"), program).valid, "rejected"))
+  // Combined identities exceed 16 MiB although each identity stays bounded.
+  mut large_identity: Bytes = utf8_encode("x")
+  for index in 0..23 { large_identity = bytes_concat(large_identity, large_identity) }
+  large_raw: Bytes = source_map_join([utf8_encode("PANACKCOV1\n"), source_map_blob(large_identity), source_map_blob(large_identity),
+    encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), utf8_encode("END\n"),
+    byte_append(byte_append(bytes(), 1), 0)], 0, 9)
+  results = append(results, std_testing.expect("coverage accepts combined identities above 16 MiB",
+    decode_coverage(large_raw, large_identity, large_identity, program).valid, "rejected"))
+  doubled_identity: Bytes = bytes_concat(large_identity, large_identity)
+  oversized_raw: Bytes = source_map_join([utf8_encode("PANACKCOV1\n"), source_map_blob(doubled_identity), source_map_blob(doubled_identity),
+    encode_u32(1), coverage_test_u64(1), encode_u32(1), coverage_test_cell(1, 1, 0, 1), utf8_encode("END\n"),
+    byte_append(byte_append(bytes(), 1), 0)], 0, 9)
+  results = append(results, std_testing.expect("coverage rejects containers above 32 MiB",
+    !decode_coverage(oversized_raw, doubled_identity, doubled_identity, program).valid, "accepted"))
   for flags in [1, 2, 3, 255] {
     raw: Bytes = coverage_test_raw(coverage_test_cell(1, 1, 0, 1), 1, flags)
     results = append(results, std_testing.expect("reject gap overflow unknown flags", !decode_coverage(raw, utf8_encode("a"), utf8_encode("i"), program).valid, "accepted"))

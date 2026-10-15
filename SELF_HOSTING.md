@@ -550,3 +550,8 @@ is refreshed through the existing staged fixed-point procedure to expose the
 commands through `panack`; generated application bytecode and bootstrap semantics
 remain unchanged. No instrumentation is added to the seed or VM. See
 [the inventory contract](docs/SOURCE_INVENTORY.md).
+
+The alpha.13 coverage-capacity correction refreshes the v9 seed through the
+standard stages 2–4 fixed-point proof. The self-hosted raw/session readers accept
+32 MiB containers while identity blobs remain bounded at 16 MiB. Compiler digest:
+`206a9dc17af2ca4d7d85af6759729aa35a7e9cb5dc53593b038d473cfbcf4403`.

@@ -100,7 +100,7 @@ pub pure decode_coverage_at(
   for function in sort_functions(program.functions) {
     size = size + 12 + len(function.instructions) * 32
   }
-  mut valid: Bool = size <= 16777216 && byte_buffer.length(data) == size + offset && coverage_prefix(
+  mut valid: Bool = size <= 33554432 && byte_buffer.length(data) == size + offset && coverage_prefix(
     data,
     prefix,
     offset
@@ -632,7 +632,7 @@ pub run_coverage_report(values: [Str]): Nat {
           eprint("error: coverage unavailable: invalid, changed or incompatible local inventory")
           1
         } else {
-          match source_map_read(values[5], 16777216) {
+          match source_map_read(values[5], 33554432) {
             Error(error) => {
               eprint("error: coverage raw record unavailable")
               1

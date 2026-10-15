@@ -3,7 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const MAX = 16 * 1024 * 1024;
+const MAX = 16 * 1024 * 1024; // Individual compiler/artifact/inventory identities.
+const MAX_CONTAINER = 32 * 1024 * 1024;
 const U64 = (1n << 64n) - 1n;
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const fail = message => { throw new Error(message); };
@@ -40,7 +41,7 @@ function sourcePath(name, entry, checkout) {
   return {file, relative};
 }
 function readPlan(prefix, entry, checkout, compiler) {
-  let r = new Reader(regular(prefix + '.plan'));
+  let r = new Reader(regular(prefix + '.plan', MAX_CONTAINER));
   r.magic('PANACKPLAN1\n');
   const compilerBytes = r.blob(), artifact = r.blob(), inventory = r.blob();
   if (!compilerBytes.equals(compiler) || !artifact.equals(regular(prefix + '.bc')) || !inventory.equals(regular(prefix + '.inv'))) fail('Plan identity mismatch');
@@ -100,6 +101,7 @@ function readPlan(prefix, entry, checkout, compiler) {
   return {entry, prefix, artifact, inventory, functions, sources};
 }
 function readRaw(data, plan) {
+  if (data.length > MAX_CONTAINER) fail('Oversized coverage record');
   const r = new Reader(data); r.magic('PANACKCOV1\n');
   if (!r.blob().equals(plan.artifact) || !r.blob().equals(plan.inventory) || r.u32() !== plan.functions.length) fail('Raw identity mismatch');
   const result = [];
@@ -135,7 +137,7 @@ function readSession(directory, plans, seen) {
   if (fs.lstatSync(directory).isSymbolicLink()) fail('Linked session');
   const names = fs.readdirSync(directory), expected = new Set(['registry','budget','closed']);
   if (names.length > 12291) fail('Session member limit');
-  const reg = new Reader(regular(path.join(directory,'registry'))); reg.magic('PANACKSESSION1\n');
+  const reg = new Reader(regular(path.join(directory,'registry'), MAX_CONTAINER)); reg.magic('PANACKSESSION1\n');
   const nonce = reg.bytes(16).toString('hex');
   if (seen.has(nonce)) fail('Duplicate session'); seen.add(nonce);
   if (reg.count(16) !== plans.length) fail('Registry count mismatch');
@@ -152,7 +154,7 @@ function readSession(directory, plans, seen) {
     const kind = regular(path.join(directory,'expect-'+id),16).toString();
     if (id === '0' ? kind !== 'root\n' : !['nested\n','task\n','server\n','process\n'].includes(kind)) fail('Invalid admission kind');
     if (!regular(path.join(directory,'claim-'+id),16).equals(Buffer.from('claimed\n'))) fail('Missing claim');
-    const data = regular(path.join(directory,'raw-'+id)); bytes += data.length;
+    const data = regular(path.join(directory,'raw-'+id), MAX_CONTAINER); bytes += data.length;
     const r = new Reader(data); r.magic('PANACKEXEC1\n');
     if (r.bytes(16).toString('hex') !== nonce || r.text() !== id) fail('Cached or renamed execution');
     const index = r.u32(), count = r.count(4096); children += count;

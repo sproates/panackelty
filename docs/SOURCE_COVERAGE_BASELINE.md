@@ -39,7 +39,9 @@ is not accepted as a successful collection.
 ## Source identities and figures
 
 The self-hosted local exporter reproduces SC2 inventory and emission probes.
-Each file-sized plan segment stays within existing native host file bounds;
+Plan headers, session registries and raw records are bounded at 32 MiB;
+individual compiler/artifact/inventory blobs and source segments remain 16 MiB.
+These containers fit the synchronous filesystem read/write bound;
 compiler/artifact/inventory bytes and exact source items are checked by the
 bounded Node reader. Plans are never downloaded or executed by the publisher.
 Golden parity compares every source item with the accepted SC4 renderer on

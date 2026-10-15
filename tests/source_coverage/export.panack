@@ -105,7 +105,12 @@ coverage_plan(
   graph = loaded_binding_graph(project.modules, project_root, stdlib)
   entry_identity = source_module_identity(entry, project_root, stdlib)
   chunks = chunks.append(encode_u32(len(snapshots)))
-  if !source_map_write(args[1] + ".plan", source_map_join(chunks, 0, len(chunks))) { eprint("coverage plan: header output failure"); std_host.exit(1); }
+  header = source_map_join(chunks, 0, len(chunks))
+  if !source_map_write(args[1] + ".plan", header) {
+    size = byte_buffer.length(header)
+    eprint("coverage plan: header output failure (${size} bytes)")
+    std_host.exit(1)
+  }
   mut source_number: Nat = 0
   for snapshot in snapshots {
     for module in project.modules {

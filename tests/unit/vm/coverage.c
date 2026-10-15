@@ -82,7 +82,13 @@ static void branches_and_overflow(void)
         vm_coverage_start(coverage, &program);
         assert(vm_coverage_flags(coverage) == 3);
         size_t size;
-        assert(!vm_coverage_raw_size(coverage, VM_COVERAGE_MAX_RAW, 1, &size));
+        size_t overhead = 29 + 12 + 4 * 32;
+        size_t inventory = VM_COVERAGE_MAX_RAW - VM_COVERAGE_MAX_IDENTITY - overhead;
+        assert(vm_coverage_raw_size(coverage, VM_COVERAGE_MAX_IDENTITY, inventory, &size));
+        assert(size == VM_COVERAGE_MAX_RAW);
+        assert(!vm_coverage_raw_size(coverage, VM_COVERAGE_MAX_IDENTITY, inventory + 1, &size));
+        assert(!vm_coverage_raw_size(coverage, VM_COVERAGE_MAX_IDENTITY + 1, 1, &size));
+        assert(!vm_coverage_raw_size(coverage, 1, VM_COVERAGE_MAX_IDENTITY + 1, &size));
         vm_coverage_destroy(coverage);
     }
 }

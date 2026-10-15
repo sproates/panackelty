@@ -12,7 +12,7 @@ has been published. Current published core release: alpha.12.
 | HTTP server | P6 complete in PR #467; framing, lifecycle and independent interoperability |
 | Checker explanations | Owner accepted the alpha.13 outcome through PR #492; broader GI#134 work moves to alpha.14 |
 | Developer workflow | Owner accepted GI#106 for alpha.13; no additional optimisation selected |
-| Website preview server | Core PRs #495–#498 merged; website PR #42 implemented and locally accepted, hosted checks and merge pending |
+| Website preview server | Core PRs #495–#498 merged; website PR #42 merged as `18b4cd5` with owner approval and passing post-merge checks |
 
 GI#200 package management and GI#173 compilation provenance are alpha.14 work.
 They are not alpha.13 gates. The broader SP1 original weight baseline is retained
@@ -28,20 +28,30 @@ in the roadmap; it is not an alpha.13 completion percentage.
    website CI exposed that the runner does not supply these headers by default.
    Use the string protocol restriction on libcurl 7.85+ and retain the older API
    on older supported systems; Ubuntu 24 CI rejected the deprecated option.
-2. **Website adoption — merge pending.** Website PR #42 passed 30 local automation
+2. **Website adoption — complete.** Website PR #42 passed 30 local automation
    tests plus assembly checks, all 81 fresh preview files matched their served
    bytes (largest 706,607), and 24 execution/resource plus nine editorial/navigation
    tests passed across three engines including phone widths. The owner inspected
-   the running preview positively. Explicit website merge approval remains required.
+   the running preview positively and approved PR #42. It merged as `18b4cd5`;
+   post-merge website Check run 38760731372 passed.
 3. **P8 candidate acceptance — local checks passed; hosted/artifact acceptance pending.**
-   Final `make check` passed in 555s on macOS arm64 after the libcurl fix. This
+   The libcurl candidate passed `make check` in 555s; the coverage-capacity
+   correction and refreshed seed passed the final full check in 576s on macOS arm64. This
    includes unit/functional suites, the bootstrap fixed point, HTTP/TLS failure
    and cleanup cases, installed/relocated static serving, archive smoke and the
    two independent applications sharing a relocated library in source and bytecode.
    The focused HTTP client suite and YAML/layout/routing contracts also passed.
    Hosted Linux/macOS and public-artifact evidence remain required; retain exact
    commit and archive identities with those results.
-4. **Source coverage refresh — pending settled inputs.** The current live report
+4. **Source coverage refresh — capacity correction in progress.** The requested
+   refresh of candidate `2ca92cb` failed in run 38760436718: the module-bindings
+   unit plan was 19,201,113 bytes, its registry 17,569,591 and wrapped raw record
+   20,810,250, exceeding the former 16 MiB container bound. Align container and
+   synchronous file-I/O limits at 32 MiB while preserving 16 MiB identity blobs
+   and all instruction/session budgets; rerun exact-candidate collection after
+   validation. Final full validation passed in 576s; 37 coverage policy/reader tests
+   and renderer parity (257 items for each branch outcome) passed. No source roots
+   or assertions are removed. The live report still
    measures `e5e353e261761e3eab14b7f040d9ce1fd2d0a8fa` from 11 October and predates
    the new HTTP/service code. Request a next push with `[source-coverage]`, wait
    for a successful exact-commit source artifact, dispatch Coverage Pages on its

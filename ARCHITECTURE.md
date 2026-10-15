@@ -1632,3 +1632,12 @@ source roots and their closures without execution. Exact compiler/artifact/sourc
 envelopes are regenerated locally for validation; foreign metadata is never decoded.
 The dispatcher and bytecode format are unchanged. See
 [the inventory contract](docs/SOURCE_INVENTORY.md) for scope, anchors and limits.
+
+## Coverage container bounds
+
+Coverage plans, session registries and raw records have a 32 MiB container bound.
+Individual compiler/artifact/inventory identity blobs remain limited to 16 MiB;
+instruction-cell, execution-count and total-session budgets are unchanged.
+Synchronous filesystem reads/writes allow 32 MiB so the exporter and self-hosted
+reporter can exchange these bounded containers. Rooted/async filesystem, directory
+listing, process-output and HTTP limits retain their separate contracts.

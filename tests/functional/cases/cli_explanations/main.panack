@@ -33,7 +33,7 @@ explain_run(name: Str, arguments: [Str], status: Nat, required: [Str], forbidden
     for argument in arguments { command_arguments = command_arguments.append(argument) }
   }
   match std_process.run(explain_path(command), command_arguments, byte_buffer.empty(), std_path.current(), [], std_time.seconds(15), 1048576) {
-    Error(error) => std_testing.expect(name, false, "command failed"),
+    Error(error) => std_testing.expect(name, false, "command failed: " + error.code),
     Ok(actual) => {
       text: Str = std_text.decode_utf8(actual.stdout)
       mut valid: Bool = actual.exit_code == status && actual.signal == 0
@@ -591,6 +591,9 @@ main(): Void {
         ["effect boundary: allowed", "callee: print", "ordinary function permits", "callee: silent", "pure call is permitted"], ["effect boundary: rejected"], ""))
       results = append(results, explain_run("no calls has no invented evidence", ["explain", source, "--function", "silent"], 0,
         ["effects: unavailable", "no call or await boundary"], ["effect boundary:"], ""))
+      explain_write(source, "type Positive = Nat where value > 0\nprobe(name: Positive): Str { print(name); \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("deferred function retains its checked effect boundaries", ["explain", source, "--function", "probe"], 1,
+        ["effect boundary: allowed", "callee: print", "function status: type checking is deferred; these are the effect boundaries the checker retained"], ["effects: unavailable", "no call or await boundary"], "function is not completely checked for identity emission: probe"))
       explain_write(source, "pure answer(): Nat { 42 } pure probe(): Nat { f: Fn[Nat] = @answer; f.call() } main(): Void {}")
       results = append(results, explain_run("callable declared effect", ["explain", source, "--function", "probe"], 1,
         ["effect boundary: rejected", "expression: f.call()", "classification basis: callable type", "callee effect: ordinary"], [], "pure function cannot call impure function call"))

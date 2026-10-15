@@ -185,6 +185,24 @@ pure module_effect_call(
         diagnostics = append(diagnostics, Diagnostic(reason, expression.span.start))
         violations = append(violations, reason)
       }
+      mut indirect_call: Bool = false
+      match target {
+        BodyCore(name) => { indirect_call = name == "$method_call" },
+        BodyDeclaration(binding) => {}
+      }
+      if retain && indirect_call {
+        evidence = append(evidence, EffectEvidence(
+          context.function_name,
+          Some(expression.span),
+          "call",
+          context.mode,
+          target_name,
+          "indirect call; effect unavailable",
+          "unavailable",
+          awaited,
+          violations
+        ))
+      }
     },
     Some(target_effect) => {
       async_call: Bool = target_effect == SignatureAsync()

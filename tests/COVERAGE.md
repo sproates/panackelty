@@ -869,6 +869,15 @@ source span at the rejected expression; the ordinary diagnostic remains
 unchanged. The `make check-compiler` compiler and CLI paths are the owning
 validation.
 
+## U3 deferred and unresolved effect explanations
+
+The compiler module suite verifies that an indirect call whose callable effect
+is unresolved retains an `unavailable` effect boundary, while ordinary
+checking retains no evidence. The public `cli_explanations` fixture verifies
+that a deferred function still reports the effect boundaries retained by the
+effect pass and labels the function's deferred type-check status. The
+`make check-compiler` compiler and CLI paths are the owning validation.
+
 ## Indexed compiler declaration lookup
 
 The existing compiler-contract unit suite adds 19 fixed assertions for declaration

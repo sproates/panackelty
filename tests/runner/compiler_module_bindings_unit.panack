@@ -1081,6 +1081,58 @@ pure namespace_effect_tests(): [TestResult] {
   results = append(results, std_testing.equal_str("identity effects accept awaited async indirect call", if len(indirect.diagnostics) == 0 { "ok" } else { indirect.diagnostics[0].message }, "ok"))
   indirect_bare: CheckedModuleEffects = body_test_effects("pub async f(callback: AsyncFn[Nat]): Unit { callback.call(); () }", false)
   results = append(results, std_testing.equal_str("identity effects reject bare async indirect call", if len(indirect_bare.diagnostics) == 0 { "ok" } else { indirect_bare.diagnostics[0].message }, "async call requires await inside an async function"))
+  unresolved_module: LoadedModule = signature_test_module(
+    namespace_identity("effect_unresolved"),
+    "pub pure f(): Void {}"
+  )
+  unresolved_graph: ModuleBindingGraph = ModuleBindingGraph([unresolved_module.bindings], [])
+  unresolved_signatures: CheckedModuleSignatures = check_module_signatures(
+    unresolved_graph, [unresolved_module], unresolved_module
+  )
+  unresolved_bodies: CheckedModuleBodies = check_module_bodies_explained(
+    unresolved_graph, [unresolved_module], unresolved_signatures.declarations,
+    unresolved_module, true
+  )
+  unresolved_function: BoundFunctionBody = unresolved_bodies.functions[0]
+  unresolved_span: SourceSpan = unresolved_function.body.span
+  unresolved_receiver: BoundBody = BoundBody(
+    BodyLocalUse(BodyLocalIdentity(unresolved_function.signature.binding.identity, [0], "callback")),
+    unresolved_span, [], None(), [], [], [], [], [], []
+  )
+  unresolved_call: BoundBody = BoundBody(
+    BodyCall(BodyCore("$method_call"), [], []), unresolved_span,
+    [unresolved_receiver], None(), [], [], [], [], [], []
+  )
+  unresolved_body: BoundBody = BoundBody(
+    BodyBlock(false), unresolved_span, [unresolved_call],
+    Some(SignatureType(SignatureCore("Void"), [])), [], [], [], [], [], []
+  )
+  unresolved_deferred_function: BoundFunctionBody = BoundFunctionBody(
+    unresolved_function.signature, unresolved_function.parameters,
+    unresolved_body, [], BodyDeferred(), None()
+  )
+  unresolved_call_effects: CheckedModuleEffects = check_module_effects(
+    unresolved_graph, [unresolved_module], unresolved_signatures.declarations,
+    [unresolved_deferred_function], true
+  )
+  results = append(results, std_testing.expect(
+    "unresolved indirect call retains unavailable effect boundary",
+    len(unresolved_call_effects.evidence) == 1 &&
+      unresolved_call_effects.evidence[0].kind == "call" &&
+      unresolved_call_effects.evidence[0].target == "call" &&
+      unresolved_call_effects.evidence[0].basis == "indirect call; effect unavailable" &&
+      unresolved_call_effects.evidence[0].target_effect == "unavailable" &&
+      unresolved_call_effects.evidence[0].violations == [],
+    "unresolved indirect effect boundary was omitted or misclassified"
+  ))
+  ordinary_unresolved_call_effects: CheckedModuleEffects = check_module_effects(
+    unresolved_graph, [unresolved_module], unresolved_signatures.declarations,
+    [unresolved_deferred_function], false
+  )
+  results = append(results, std_testing.equal_nat(
+    "ordinary unresolved indirect call retains no effect explanation",
+    len(ordinary_unresolved_call_effects.evidence), 0
+  ))
   imported: LoadedModule = signature_test_module(namespace_identity("effect_imported"), "pub async identity[T](value: T): T { value }; pub pure ordinary(): Nat { 1 }; pub ordinary_blocking(): Nat { 2 }")
   app: LoadedModule = signature_test_module(namespace_identity("effect_app"), "import project/effect_imported as api; pub async f(): Nat { await api.identity[Nat](1) }; pub pure g(): Nat { api.ordinary() }; pub pure h(): Nat { api.ordinary_blocking() }")
   graph: ModuleBindingGraph = ModuleBindingGraph([app.bindings, imported.bindings], [ModuleImportEdge(app.bindings.identity, 0, imported.bindings.identity)])

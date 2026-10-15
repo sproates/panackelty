@@ -171,24 +171,21 @@ pub explanation_function_selector(
   }
 }
 
-pure explanation_function_valid(
+pure explanation_function_effect_status(
   project: LoadedProject,
   selector: SourceMapFunctionSelector
-): Bool {
-  mut found: Option[Bool] = None()
+): Str {
+  mut found: Str = "unavailable"
   for body in project.module_bodies {
     if body.signature.binding.identity == selector.identity {
       match body.status {
-        BodyIdentityChecked() => { found = Some(true) },
-        BodyDeferred() => { found = Some(false) },
-        BodyInvalid() => { found = Some(false) }
+        BodyIdentityChecked() => { found = "checked" },
+        BodyDeferred() => { found = "deferred" },
+        BodyInvalid() => { found = "unavailable" }
       }
     }
   }
-  match found {
-    None() => false,
-    Some(valid) => valid
-  }
+  found
 }
 
 pure render_subtraction_explanations(
@@ -252,10 +249,10 @@ pure render_effect_evidence(
   root: Str,
   stdlib_root: Str
 ): Str {
-  status: Str = if len(entry.violations) == 0 {
-    "allowed"
-  } else {
+  status: Str = if len(entry.violations) > 0 {
     "rejected"
+  } else {
+    if entry.target_effect == "unavailable" { "unavailable" } else { "allowed" }
   }
   mut output: Str = "effect boundary: ${status}\n" + explanation_location(
     entry.span,
@@ -283,10 +280,14 @@ pure render_effect_evidence(
       if entry.target_effect == "async" {
         "\nreason: async call is awaited inside an async function"
       } else {
-        if entry.target_effect == "pure" {
-          "\nreason: pure call is permitted in this context"
+        if entry.target_effect == "unavailable" {
+          "\nreason: the indirect call was checked, but its callable effect could not be determined"
         } else {
-          "\nreason: ordinary function permits this effectful call"
+          if entry.target_effect == "pure" {
+            "\nreason: pure call is permitted in this context"
+          } else {
+            "\nreason: ordinary function permits this effectful call"
+          }
         }
       }
     }
@@ -1369,7 +1370,8 @@ pub pure render_function_explanations(
   if !project.effects_checked {
     output = output + "\neffects: unavailable\nreason: loading, resolution or global declaration checking prevented the effect pass"
   } else {
-      if !explanation_function_valid(project, selector) {
+    function_effect_status: Str = explanation_function_effect_status(project, selector)
+    if function_effect_status == "unavailable" {
       output = output + "\neffects: unavailable\nreason: function body type checking prevented the effect pass for this function"
     } else {
       mut count: Nat = 0
@@ -1387,6 +1389,10 @@ pub pure render_function_explanations(
       }
       if count == 0 {
         output = output + "\neffects: unavailable\nreason: no call or await boundary was retained for this function"
+      } else {
+        if function_effect_status == "deferred" {
+          output = output + "\n\nfunction status: type checking is deferred; these are the effect boundaries the checker retained"
+        }
       }
     }
   }

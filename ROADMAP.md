@@ -4272,9 +4272,9 @@ unresolved subject type; PR #487 adds this evidence. The current bounded review
 maps checker decision families to their source sites, explanation records,
 regression suites and known evidence gaps in
 `docs/COMPILER_EXPLANATIONS.md`. Known gaps include specialized core-call
-arguments, collection receiver requirements, unresolved indirect-call effects
-and complete generic
-inference traces. These are partial families within the owner-defined complete
+arguments, collection receiver requirements, declaration-level and inferred
+callable effect decisions, and complete generic inference traces. These are
+partial families within the owner-defined complete
 checker-decision target above. Each implementation slice keeps ordinary
 diagnostics and runtime behavior unchanged and retains evidence only for
 explanation queries.
@@ -4284,6 +4284,9 @@ the full string literal because interpolation identifiers have no individual
 retained spans.
 This slice records why `Void` is rejected as local storage or an array element,
 preserving the existing diagnostics and source locations.
+The current effect slice retains unresolved indirect-call boundaries as
+unavailable and renders boundaries the effect pass retained for deferred
+functions, labelled with the function's deferred type-check status.
 Ordinary checking keeps this evidence empty. These
 remain bounded, unreleased CLI slices; the source-to-evidence inventory and any
 uncovered type/effect/proof families remain open. The current website

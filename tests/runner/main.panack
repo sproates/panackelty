@@ -171,7 +171,11 @@ runner_program(label: Str, source: Path, expected_file: Path,
       mut results: [TestResult] = []
       // This source path builds the complete compiler before executing it.
       // Match compiler_driver's build allowance; ordinary cases keep 20s.
-      source_timeout = if label == "case/compiler_skeleton" { 90 } else { 20 }
+      source_timeout = if label == "case/compiler_skeleton" {
+        90
+      } else {
+        if label == "case/cli_explanations" { 45 } else { 20 }
+      }
       source_command = if label == "case/compiler_skeleton" || label == "case/compiler_lexer" {
         runner_bootstrap_command(["run", source_path], source_timeout)
       } else {

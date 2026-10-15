@@ -35,3 +35,5 @@ jobs:
               subprocess.run(['build/vm/test_modules', *args], check=True, timeout=120)
               print(f'{args or ["all"]}: {time.monotonic() - start:.3f}s', flush=True)
           PY
+      - name: Exercise the normal timed native-module harness
+        run: make native-vm-contracts

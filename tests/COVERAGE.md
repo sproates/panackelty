@@ -770,7 +770,10 @@ calls, including missing and extra arguments. Module-body tests verify accepted,
 missing, extra and ordinary-no-evidence function-call cases. Core-call cases
 cover accepted and rejected fixed arity; indirect callable cases cover accepted,
 rejected and unavailable arity when the callable type cannot be resolved.
-Explicit type-argument counts remain uncovered.
+Explicit type-argument cases cover exact generic-function counts, missing and
+extra counts, and the zero-count rejection for a non-generic core call;
+ordinary checking retains no new type-argument evidence. Constructor-specific
+explicit-type restrictions and type-resolution failures remain to map.
 text, byte, rational-conversion, numeric-parser, quotient and collection
 mutation/lookup argument contracts, including accepted, rejected and
 unavailable values. Path argument cases cover `Path`, `Str` and `Bytes` types,

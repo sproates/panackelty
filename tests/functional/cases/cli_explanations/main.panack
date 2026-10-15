@@ -110,6 +110,18 @@ main(): Void {
       explain_write(source, "pure probe(): Nat { f = missing; f.call(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved indirect call arity is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["checked call arity: unavailable", "context: indirect call arity", "callable type is unresolved", "found 1", "could not determine the expected argument count"], [], "unknown name missing"))
+      explain_write(source, "pure identity[T](value: T): T { value }; pure probe(): Nat { identity[Nat](1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted explicit type argument count is explained", ["explain", source, "--function", "probe"], 0,
+        ["explicit type argument arity checks:", "checked type argument arity: accepted", "context: type argument arity", "type argument counts: expected 1; found 1", "accepted the supplied type argument count"], [], ""))
+      explain_write(source, "pure pair[A,B](first: A, second: B): A { first }; pure probe(): Nat { pair[Nat](1, \"x\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("missing explicit type argument explains count rejection", ["explain", source, "--function", "probe"], 1,
+        ["checked type argument arity: rejected", "type argument counts: expected 2; found 1", "rejected the supplied type argument count"], [], "expects 2 type arguments"))
+      explain_write(source, "pure identity[T](value: T): T { value }; pure probe(): Nat { identity[Nat,Str](1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("extra explicit type argument explains count rejection", ["explain", source, "--function", "probe"], 1,
+        ["checked type argument arity: rejected", "type argument counts: expected 1; found 2", "rejected the supplied type argument count"], [], "expects 1 type arguments"))
+      explain_write(source, "pure probe(): Nat { len[Nat](\"x\") }\nmain(): Void {}\n")
+      results = append(results, explain_run("explicit type argument on a core call is rejected with its count", ["explain", source, "--function", "probe"], 1,
+        ["checked type argument arity: rejected", "type argument counts: expected 0; found 1", "rejected the supplied type argument count"], [], "explicit type arguments require a generic function"))
       explain_write(source, "record Box { value: Nat }; probe(): Box { Box(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted record constructor argument cites checked types", ["explain", source, "--function", "probe"], 0,
         ["call argument 1 to Box: accepted", "expression: 1", "actual type: Nat", "expected type: Nat", "compatible with the expected type", "checked call arity: accepted", "argument counts: expected 1; found 1"], [], ""))

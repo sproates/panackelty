@@ -3,7 +3,8 @@
 `panack explain SOURCE.panack --function NAME` checks the complete project and
 reports inferred local types with their checked initializer types, the checked
 type of an expression at a source location, function return checks, direct,
-core and indirect call argument and arity checks, selected text/byte/numeric/collection/path,
+core and indirect call argument and arity checks, explicit type-argument counts,
+selected text/byte/numeric/collection/path,
 environment, time and filesystem builtin argument checks, and annotated local
 initializer and assignment value checks, plus retained array `map` and `reduce`
 callback contracts, unary/binary operator type decisions, indexing and
@@ -48,7 +49,8 @@ family is complete.
 | --- | --- | --- |
 | Function result compatibility | `return type`; accepted, rejected, and unavailable results are exercised. | Check when the body or result type is deferred and which checker facts prevented completion need broader inventory. |
 | Argument and parameter compatibility | Direct function and constructor arguments, selected builtin arguments, callback contracts, annotated initializers, and assignment values. Tests cover accepted/rejected/unavailable cases across representative families. | Some specialized core-call compatibility checks are not exposed as decisions. |
-| Call arity | Direct resolved function and record/enum constructor calls, core calls and indirect callable calls report accepted or rejected exact argument counts, with source locations. An unresolved indirect callable reports unavailable. CLI regressions cover accepted/rejected examples and missing/extra arguments. | Explicit type-argument arity remains uncovered. |
+| Call arity | Direct resolved function and record/enum constructor calls, core calls and indirect callable calls report accepted or rejected exact argument counts, with source locations. An unresolved indirect callable reports unavailable. CLI regressions cover accepted/rejected examples and missing/extra arguments. | Verify every call family against checker sites; no source-family mapping is yet proven exhaustive. |
+| Explicit type-argument arity | Generic function calls report accepted or rejected supplied type-argument counts; non-generic core calls report rejection against an expected count of zero. | Constructor restrictions and type resolution failures need full matrix coverage; generic inference constraints remain a separate gap. |
 | Generic inference and constraints | Inferred locals, selected repeated type-parameter joins, call argument checks after substitution, and generic collection joins. | Failed inference reasons, unresolved constraint application, and every hole/unification decision are not yet retained as a complete trace. |
 | Type combination | Array literals and concatenation, conditional and match results, plus selected generic joins. Accepted, rejected, and unavailable joins have regressions. | Other constraints that refine a result or alter an inferred type need to be checked against the inventory; joins are not yet proven exhaustive. |
 | Operators and expression requirements | Unary/binary operand and result types; index receiver/position; `for` iterable; field receiver; `if`/`while` condition; match variant membership. | Special core operations may perform additional type checks outside these evidence families. |

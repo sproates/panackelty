@@ -1306,6 +1306,10 @@ pure body_call(
         }
         if len(types) > 0 && (contract.constructor || len(contract.parameters) == 0) {
           type_span: SourceSpan = body_type_argument_span(type_argument_spans, 0, span)
+          type_checks = concat(
+            type_checks,
+            body_explicit_type_argument_arity_evidence(context, type_span, 0, len(types))
+          )
           diagnostics = append(
             diagnostics,
             Diagnostic("explicit type arguments require a generic function", type_span.start)
@@ -1319,12 +1323,23 @@ pure body_call(
         }
         mut inference_deferred: Bool = false
         if len(types) > 0 {
-          if len(types) != len(contract.parameters) {
-            type_span: SourceSpan = body_type_argument_count_span(
-              type_argument_spans,
-              len(contract.parameters),
-              span
+          type_span: SourceSpan = body_type_argument_count_span(
+            type_argument_spans,
+            len(contract.parameters),
+            span
+          )
+          if !contract.constructor && len(contract.parameters) > 0 {
+            type_checks = concat(
+              type_checks,
+              body_explicit_type_argument_arity_evidence(
+                context,
+                type_span,
+                len(contract.parameters),
+                len(types)
+              )
             )
+          }
+          if len(types) != len(contract.parameters) {
             diagnostics = append(
               diagnostics,
               Diagnostic("call " + contract.name + " has incorrect type argument count", type_span.start)
@@ -1476,15 +1491,20 @@ pure body_call(
     }
   }
   if body_special_core_call(target) {
-    body_check_special_core_call(
+    body_retain_rejected_type_argument_arity(
       context,
-      target,
-      children,
-      resolved_types,
-      body_type_argument_span(type_argument_spans, 0, span),
-      span,
-      diagnostics,
-      deferred
+      body_check_special_core_call(
+        context,
+        target,
+        children,
+        resolved_types,
+        body_type_argument_span(type_argument_spans, 0, span),
+        span,
+        diagnostics,
+        deferred
+      ),
+      len(types),
+      body_type_argument_span(type_argument_spans, 0, span)
     )
   } else {
     BodyResult(
@@ -1564,6 +1584,59 @@ pure body_call_arity_evidence(
         None() => None()
       }
     )]
+  }
+}
+
+pure body_explicit_type_argument_arity_evidence(
+  context: BodyContext,
+  span: SourceSpan,
+  expected_count: Nat,
+  actual_count: Nat
+): [BodyTypeCheckEvidence] {
+  if !context.retain_guard_conversions {
+    []
+  } else {
+    [BodyTypeCheckEvidence(
+      "type argument arity",
+      span,
+      None(),
+      "expected ${expected_count}; found ${actual_count}",
+      None(),
+      Some(expected_count == actual_count)
+    )]
+  }
+}
+
+pure body_retain_rejected_type_argument_arity(
+  context: BodyContext,
+  checked: BodyResult,
+  type_count: Nat,
+  span: SourceSpan
+): BodyResult {
+  if type_count == 0 || !context.retain_guard_conversions {
+    checked
+  } else {
+    body: BoundBody = checked.body
+    type_checks: [BodyTypeCheckEvidence] = concat(
+      body.type_checks,
+      body_explicit_type_argument_arity_evidence(context, span, 0, type_count)
+    )
+    BodyResult(
+      BoundBody(
+        body.node,
+        body.span,
+        body.children,
+        body.type,
+        body.constraints,
+        body.guard_conversions,
+        body.type_joins,
+        body.callback_contracts,
+        body.operator_checks,
+        type_checks
+      ),
+      checked.diagnostics,
+      checked.deferred
+    )
   }
 }
 

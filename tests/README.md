@@ -468,6 +468,21 @@ GitHub CLI boundary to verify real annotated-tag creation, same-tag retries, and
 rejection of lightweight or wrong-commit tags before publication. Development
 validation therefore requires Git; downloaded toolchains are unaffected.
 
+### Native filesystem race fixture timing
+
+The complete native-module process has a 60-second deadline. Its confinement
+fixture retains 500 asserted reads against 20,000 symlink replacement cycles.
+Focused macOS runners measured the same filesystem group at 2.965s and 13.817s;
+full runtime runs exceeded the former 20-second process deadline. This allowance
+accommodates observed filesystem scheduling variability without reducing the
+race workload or changing product deadlines. Other native commands retain their
+existing bounds. Progress checkpoints distinguish static reads, completion of
+raced reads, and joining the replacement process; they survive a timeout.
+The focused Linux/macOS workflow runs both the isolated group and the normal
+timed process harness before a full integration run. The longer allowance is
+fixture robustness, not evidence of a product performance improvement.
+
+
 ## Detailed validation profiling
 
 Set `VALIDATION_PROFILE_FILE` to an **absolute** path outside `build/` to

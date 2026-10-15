@@ -1,7 +1,7 @@
 # Panackelty release policy
 
-Panackelty `0.1.0-alpha.12` is the latest published developer preview.
-`0.1.0-alpha.13` is a release candidate until publication completes. It is intended for learning,
+Panackelty `0.1.0-alpha.13` is the latest published developer preview. Its public
+native archives passed release acceptance on 15 October 2026. It is intended for learning,
 experimentation, feedback, and non-critical terminal programs. It is not yet
 recommended for production systems or irreplaceable data.
 

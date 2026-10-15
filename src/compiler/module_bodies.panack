@@ -3797,6 +3797,7 @@ pure bind_body_block(
           )
         }
         checked = bind_body_expression(current_context, value, span, visible, append(statement_path, 0))
+        mut value_type_checks: [BodyTypeCheckEvidence] = []
         if checked.body.type == body_core_type("Void") {
           diagnostics = append(
             diagnostics,
@@ -3805,6 +3806,16 @@ pure bind_body_block(
             checked.body.span.start
           )
           )
+          if current_context.retain_guard_conversions {
+            value_type_checks = append(value_type_checks, BodyTypeCheckEvidence(
+              "binding storage",
+              checked.body.span,
+              checked.body.type,
+              "non-Void stored value",
+              None(),
+              Some(false)
+            ))
+          }
         }
         mut type: Option[SignatureType] = checked.body.type;
         mut type_evidence: Option[BindingTypeEvidence] = None()
@@ -3896,7 +3907,7 @@ pure bind_body_block(
 
           [],
           [],
-          [], []
+            [], value_type_checks
           ),
           checked.diagnostics,
           checked.deferred
@@ -3906,6 +3917,7 @@ pure bind_body_block(
         checked = bind_body_expression(current_context, value, span, visible, append(statement_path, 0))
         if !visible.has(name) {
           diagnostics = concat(diagnostics, body_incomplete_local(name, checked))
+          mut value_type_checks: [BodyTypeCheckEvidence] = []
           if checked.body.type == body_core_type("Void") {
             diagnostics = append(
               diagnostics,
@@ -3914,6 +3926,16 @@ pure bind_body_block(
               checked.body.span.start
             )
             )
+            if current_context.retain_guard_conversions {
+              value_type_checks = append(value_type_checks, BodyTypeCheckEvidence(
+                "binding storage",
+                checked.body.span,
+                checked.body.type,
+                "non-Void stored value",
+                None(),
+                Some(false)
+              ))
+            }
           }
           local: BodyLocalIdentity = BodyLocalIdentity(current_context.owner, statement_path, name)
           visible = visible.put(name, BodyLocal(local, checked.body.type, false))
@@ -3934,7 +3956,7 @@ pure bind_body_block(
 
             [],
             [],
-            [], []
+            [], value_type_checks
             ),
             checked.diagnostics,
             checked.deferred
@@ -5728,6 +5750,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
   mut deferred: [SourceSpan] = body_child_obligations(checked)
   mut item: Option[SignatureType] = Some(SignatureType(SignatureHole(context.owner, path, 0), []))
   mut type_joins: [TypeJoinEvidence] = []
+  mut type_checks: [BodyTypeCheckEvidence] = checked.body.type_checks
   mut seen_element: Bool = false
 
   for child in checked.body.children {
@@ -5737,6 +5760,16 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
         diagnostics,
         Diagnostic("Void is not an array element", child.span.start)
       )
+      if context.retain_guard_conversions {
+        type_checks = append(type_checks, BodyTypeCheckEvidence(
+          "array element",
+          child.span,
+          child.type,
+          "non-Void array element",
+          None(),
+          Some(false)
+        ))
+      }
     }
     match child.type {
       None() => {
@@ -5823,7 +5856,7 @@ pure check_body_array(context: BodyContext, checked: BodyResult, path: [Nat]): B
     concat(checked.body.type_joins, type_joins),
     checked.body.callback_contracts,
     checked.body.operator_checks,
-    checked.body.type_checks
+    type_checks
   ),
     diagnostics,
     deferred

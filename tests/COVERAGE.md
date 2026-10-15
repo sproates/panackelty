@@ -860,6 +860,15 @@ type alternatives, and empty evidence in ordinary checking. Existing
 diagnostics and interpolation acceptance rules remain unchanged.
 The `make check-compiler` compiler and CLI paths are the owning validation.
 
+## U3 non-value storage explanations
+
+The compiler module suite and `cli_explanations` fixture verify the existing
+rejection of `Void` as a local value and as an array element. The
+explanation reports the known `Void` type, the non-`Void` requirement, and the
+source span at the rejected expression; the ordinary diagnostic remains
+unchanged. The `make check-compiler` compiler and CLI paths are the owning
+validation.
+
 ## Indexed compiler declaration lookup
 
 The existing compiler-contract unit suite adds 19 fixed assertions for declaration

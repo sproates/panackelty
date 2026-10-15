@@ -823,6 +823,8 @@ pure render_type_check_evidence(
   context: Str = source_map_escape(evidence.context)
   expected: Str = source_map_escape(evidence.expected)
   string_interpolation: Bool = evidence.context == "string interpolation"
+  void_value_requirement: Bool = evidence.context == "binding storage" ||
+    evidence.context == "array element"
   match_payload_type: Bool = evidence.context == "match payload type"
   match_decision: Bool = evidence.context == "match subject" ||
     evidence.context == "match arm uniqueness" ||
@@ -834,8 +836,10 @@ pure render_type_check_evidence(
   status_label: Str = if call_arity { "checked call arity" } else {
     if type_argument_arity { "checked type argument arity" } else {
       if string_interpolation { "checked interpolation type" } else {
-        if match_payload_type { "checked match payload type" } else {
-          if match_decision { "checked match decision" } else { "checked type requirement" }
+        if void_value_requirement { "checked value requirement" } else {
+          if match_payload_type { "checked match payload type" } else {
+            if match_decision { "checked match decision" } else { "checked type requirement" }
+          }
         }
       }
     }
@@ -848,13 +852,16 @@ pure render_type_check_evidence(
   expected_label: Str = if call_arity { "argument counts" } else {
     if type_argument_arity { "type argument counts" } else {
       if string_interpolation { "allowed interpolation types" } else {
-        if match_payload_type { "payload source" } else {
-          if match_decision { "decision rule" } else { "expected type" }
+        if void_value_requirement { "required value" } else {
+          if match_payload_type { "payload source" } else {
+            if match_decision { "decision rule" } else { "expected type" }
+          }
         }
       }
     }
   }
-  result: Str = if string_interpolation || evidence.context == "index position" ||
+  result: Str = if string_interpolation || void_value_requirement ||
+    evidence.context == "index position" ||
     evidence.context == "if condition" || evidence.context == "while condition" ||
     evidence.context == "match variant" || match_decision {
     "not applicable"
@@ -899,13 +906,21 @@ pure render_type_check_evidence(
             if string_interpolation {
               "\nreason: the checker rejected a non-scalar local for interpolation"
             } else {
-              if match_payload_type {
-                "\nreason: the checker could not substitute this variant payload type for the pattern binding"
-              } else {
-                if match_decision {
-                  "\nreason: the existing checker rejected this match rule"
+              if void_value_requirement {
+                if evidence.context == "binding storage" {
+                  "\nreason: Void produces no value and cannot be stored in a binding"
                 } else {
-                  "\nreason: the existing checker rejected this type for the requirement"
+                  "\nreason: Void produces no element value and cannot be placed in an array"
+                }
+              } else {
+                if match_payload_type {
+                  "\nreason: the checker could not substitute this variant payload type for the pattern binding"
+                } else {
+                  if match_decision {
+                    "\nreason: the existing checker rejected this match rule"
+                  } else {
+                    "\nreason: the existing checker rejected this type for the requirement"
+                  }
                 }
               }
             }

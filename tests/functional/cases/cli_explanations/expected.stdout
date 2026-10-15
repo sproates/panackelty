@@ -25,6 +25,8 @@ PASS print explains accepted non-Void arguments
 PASS eprint explains accepted non-Void arguments
 PASS print explains rejected Void arguments
 PASS eprint explains rejected Void arguments
+PASS explain rejected Void binding storage
+PASS explain rejected Void array element
 PASS print reports unavailable argument types
 PASS rejected core call arity reports exact argument count
 PASS accepted indirect call arity reports exact argument count
@@ -210,4 +212,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 212, failures: 0
+tests: 214, failures: 0

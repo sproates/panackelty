@@ -3584,6 +3584,50 @@ pure namespace_body_tests(): [TestResult] {
   for binding in ["local = nothing()", "mut local = nothing()"] {
     results = append(results, std_testing.equal_str("Void cannot become inferred local/" + binding, body_test_error("pub pure f(): Nat { " + binding + "; 1 }; pure nothing(): Void {}"), "Void is not a value and cannot be stored in binding local"))
   }
+  void_binding: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { local = nothing(); 1 }; pure nothing(): Void {}"
+  )
+  void_binding_evidence: Option[BodyTypeCheckEvidence] = if len(void_binding.functions) > 0 {
+    body_type_check_for_context(void_binding.functions[0].body, "binding storage")
+  } else {
+    None()
+  }
+  results = append(results, std_testing.expect(
+    "explanation checker retains Void binding storage rejection",
+    match void_binding_evidence { None() => false, Some(evidence) => evidence.accepted == Some(false) },
+    "Void binding storage evidence was missing or incomplete"
+  ))
+  results = append(results, std_testing.expect(
+    "Void binding storage evidence identifies type and requirement",
+    match void_binding_evidence {
+      None() => false,
+      Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Void"), [])) &&
+        evidence.expected == "non-Void stored value"
+    },
+    "Void binding storage evidence did not identify the type and requirement"
+  ))
+  void_array: CheckedModuleBodies = body_test_module(
+    "pub pure f(): Nat { values = [nothing()]; 1 }; pure nothing(): Void {}"
+  )
+  void_array_evidence: Option[BodyTypeCheckEvidence] = if len(void_array.functions) > 0 {
+    body_type_check_for_context(void_array.functions[0].body, "array element")
+  } else {
+    None()
+  }
+  results = append(results, std_testing.expect(
+    "explanation checker retains Void array element rejection",
+    match void_array_evidence { None() => false, Some(evidence) => evidence.accepted == Some(false) },
+    "Void array element evidence was missing"
+  ))
+  results = append(results, std_testing.expect(
+    "Void array element evidence identifies type and requirement",
+    match void_array_evidence {
+      None() => false,
+      Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Void"), [])) &&
+        evidence.expected == "non-Void array element"
+    },
+    "Void array element evidence did not identify the type and requirement"
+  ))
   results = append(results, std_testing.equal_str("annotated local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { value: Nat = 1; value }"), "local value shadows an existing binding"))
   results = append(results, std_testing.equal_str("loop local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { for value in [1] {}; value }"), "loop variable value shadows an existing binding"))
   results = append(results, std_testing.equal_str("pattern local cannot shadow parameter", body_test_error("pub pure f(value: Nat): Nat { match Some(1) { Some(value) => value, None() => 0 } }"), "pattern binding value shadows an existing binding"))

@@ -56,7 +56,12 @@ in the roadmap; it is not an alpha.13 completion percentage.
    passed final local `make check` in 402s, including archive and relocation
    smoke. All 41 focused coverage policy/reader tests passed. Fresh hosted
    validation and coverage evidence remain required before promotion.
-4. **Source coverage refresh — published and verified.**
+4. **Source coverage refresh — prior report verified; repaired candidate refresh pending.**
+   PR #506 changed test inputs, so its candidate requires a fresh trusted
+   next-push report before publication. Request collection with the existing
+   `[source-coverage]` commit marker; promotion-run artifacts do not substitute
+   for the publisher’s trusted next-push provenance. The evidence below records
+   the previous successful report, not freshness for the repaired candidate.
    Candidate `061212655bf90cc9aca56003b46aac68255a288c` passed
    [Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415).
    Collection took 29m48s and produced artifact `11995430565`: 31 fresh sessions

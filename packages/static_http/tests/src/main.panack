@@ -1,0 +1,47 @@
+import static_http/service as service
+import stdlib/path as path
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+async unexpected_ready(endpoint: service.TcpServiceReady): Result[Unit,Str] {
+  Error("unexpected readiness")
+}
+
+async rejected_headers(headers: [service.Header]): Unit {
+  configuration = service.Config(path.current(), "127.0.0.1", 0,
+    service.ServiceLimits(4, 16384, 1048576, 10000, 1000), headers)
+  outcome = await service.serve(configuration, @unexpected_ready)
+  expect(match outcome {
+    Ok(summary) => false,
+    Error(message) => message == "invalid headers or response budget"
+  })
+}
+
+async main(): Unit {
+  for name in ["Content-Length", "TRANSFER-ENCODING", "Connection", "Content-Type", "Location", "Allow"] {
+    await rejected_headers([service.Header(name, "override")])
+  }
+  await rejected_headers([service.Header("Invalid Name", "value")])
+  await rejected_headers([service.Header("X-Test", "value\r\nInjected: yes")])
+  small = service.Config(path.current(), "127.0.0.1", 0,
+    service.ServiceLimits(4, 16384, 512, 10000, 1000), [])
+  expect(match await service.serve(small, @unexpected_ready) {
+    Ok(summary) => false,
+    Error(message) => message == "invalid headers or response budget"
+  })
+  match path.from_text("/dev/null") {
+    Error(problem) => expect(false),
+    Ok(root) => {
+      invalid = service.Config(root, "127.0.0.1", 0,
+        service.ServiceLimits(4, 16384, 1048576, 10000, 1000), [])
+      expect(match await service.serve(invalid, @unexpected_ready) {
+        Ok(summary) => false,
+        Error(message) => message == "invalid document root: not_directory"
+      })
+    }
+  }
+  ()
+}

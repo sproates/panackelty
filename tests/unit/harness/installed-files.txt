@@ -1,4 +1,5 @@
 bin/panack
+bin/panack-http-server
 libexec/panackelty/panack-vm
 packages/http/panack.json
 packages/http/src/client.panack
@@ -8,6 +9,14 @@ packages/http/src/server.panack
 packages/http/src/service.panack
 packages/http/src/transport.panack
 packages/http/src/types.panack
+packages/static_http/README.md
+packages/static_http/panack.json
+packages/static_http/src/mime.panack
+packages/static_http/src/paths.panack
+packages/static_http/src/paths_test.panack
+packages/static_http/src/service.panack
+packages/static_http/tests/panack.json
+packages/static_http/tests/src/main.panack
 share/doc/panackelty/CHANGELOG.md
 share/doc/panackelty/LICENSE
 share/doc/panackelty/RELEASE_POLICY.md
@@ -15,6 +24,7 @@ share/doc/panackelty/SECURITY.md
 share/doc/panackelty/SPEC.md
 share/panackelty/VERSION
 share/panackelty/compiler-v9.bc
+share/panackelty/http-server-v1.bc
 share/panackelty/stdlib/async_filesystem.panack
 share/panackelty/stdlib/async_host.panack
 share/panackelty/stdlib/bytes.panack
@@ -36,3 +46,6 @@ share/panackelty/stdlib/testing_commands.panack
 share/panackelty/stdlib/testing_files.panack
 share/panackelty/stdlib/text.panack
 share/panackelty/stdlib/time.panack
+tools/http-server/README.md
+tools/http-server/panack.json
+tools/http-server/src/main.panack

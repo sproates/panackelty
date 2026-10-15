@@ -1,0 +1,43 @@
+import project/paths as paths
+import project/mime as mime
+
+pure expect(value: Bool): Unit {
+  checked = [0][if value { 0 } else { 1 }]
+  ()
+}
+
+pure valid(target: Str, relative: Str, slash: Bool, redirect: Str): Bool {
+  match paths.parse(target) {
+    Error(problem) => false,
+    Ok(parsed) => parsed.relative == relative && parsed.slash == slash && parsed.redirect == redirect
+  }
+}
+
+pure invalid(target: Str): Bool {
+  match paths.parse(target) {
+    Error(problem) => true,
+    Ok(parsed) => false
+  }
+}
+
+main(): Unit {
+  expect(valid("/", "", true, "/"))
+  expect(valid("/docs?x=1", "docs", false, "/docs/?x=1"))
+  expect(valid("/docs/?x=1", "docs/", true, "/docs/?x=1"))
+  expect(valid("/a%20b", "a b", false, "/a%20b/"))
+  expect(valid("/%C3%A9.txt", "é.txt", false, "/%C3%A9.txt/"))
+  expect(valid("/%252e%252e", "%2e%2e", false, "/%252e%252e/"))
+  for target in ["", "relative", "//remote/path", "/../outside", "/./x", "/a//b",
+    "/%2e%2e/x", "/a/%2E/b", "/a%2Fb", "/a%5cb", "/a\\b", "/%00", "/%0a",
+    "/%", "/%1", "/%gg", "/%ff", "/%c0%af", "/%ed%a0%80", "/%f4%90%80%80",
+    "/x#fragment", "/x?bad\r\nHeader: injected"] {
+    expect(invalid(target))
+  }
+  expect(mime.content_type("index.html") == "text/html; charset=utf-8")
+  expect(mime.content_type("style.css") == "text/css; charset=utf-8")
+  expect(mime.content_type("script.mjs") == "text/javascript; charset=utf-8")
+  expect(mime.content_type("font.woff2") == "font/woff2")
+  expect(mime.content_type("picture.webp") == "image/webp")
+  expect(mime.content_type("unknown.bin") == "application/octet-stream")
+  ()
+}

@@ -1,57 +1,63 @@
 # GI#162: generic static HTTP service and website previews
 
-Status: implementation checkpoint, 15 October 2026. HEAD support is delivered
-in PR #495; asynchronous confined reads are delivered in PR #496, both merged
-into `next`. Continuous serving and configured HTTP handlers are implemented on
-`feature/gi162-continuous-http-service`, validated and ready for the lifecycle delivery PR.
-The static-file package, command-line tool and website adoption remain outstanding.
+Status: implementation checkpoint, 15 October 2026. HEAD support (PR #495),
+asynchronous confined reads (PR #496), and continuous HTTP service lifecycle
+(PR #497, merge `745ec02`) are delivered into `next`.
 
-## Lifecycle implementation checkpoint
+## Directory service implementation checkpoint
 
-Implementation resumed on 15 October at the user's request.
-The current branch contains:
+`packages/static_http` and `tools/http-server` now implement the generic service
+and executable. No additional runtime or standard-library changes are needed in
+this slice. HTTP connection policy selects GET/HEAD and carries configured headers
+on connection-generated errors; existing HTTP callers retain GET/HEAD/POST.
 
-- Explicit continuous transport mode with bounded summary counters; existing
-  finite sessions preserve their contracts. Native tests exercise 300 requests.
-- Post-bind readiness callback before request admission; stop can cancel a
-  callback that never finishes. CLI SIGINT/SIGTERM requests a bounded drain.
-- Isolated `stdlib/tcp_service` and `stdlib/async_host` modules. Async arguments
-  read the invocation snapshot. Bounded console workers preserve cancellation
-  without blocking the execution owner; embedded access needs an explicit grant.
-- Generic HTTP connection context with a concrete named callback wrapper.
-  `http/service` composes that worker with the continuous transport.
-- Source/saved-bytecode service fixtures for concurrent HTTP requests, normal
-  stop, invalid limits, readiness failure and nonzero error exit.
+Focused source, saved-bytecode and relocated-installation checks pass, including
+URL decoding, confinement, redirects, HEAD, MIME, response limits, root replacement,
+argument failures, occupied ports and signal-driven stop. Installation compiles the
+tool once; launching the installed command runs saved bytecode from that installation.
+The installed command needs neither an adjacent checkout nor the original location.
+A separate lifetime probe served 64 requests over 63.99 seconds and stopped
+normally, confirming operation beyond the old 60-second admission limit. Final
+`make check` passed after the final product edit in 413 seconds, including unit,
+functional, bootstrap, relocated distribution and release smoke checks. Package
+PR delivery and website adoption remain pending at this checkpoint.
 
-Focused checks passed before this checkpoint: native module contracts, allocation
-and syscall-failure contracts (including paused console-write cancellation),
-existing HTTP interoperability, and `tests/continuous_service.sh`. Compiler seed
-stages 2–4 agree at
+The lifecycle slice passed final `make check` in 523 seconds. Compiler seed stages
+2–4 remain identical at
 `9abb05684410344e9eed5ef9a2bc6dd30605be08eba38d6cb00aed71add3e3a5`.
-Resume review added explicit console grants for request handlers, bounded fixture
-waits, SIGINT coverage and closed-pipe output assertions. The closed-pipe test
-exposed macOS process termination despite a worker signal mask; descriptor-local
-SIGPIPE suppression fixes it. Native module and fault contracts pass after that
-fix. Final `make check` passed after the final runtime edit in 523 seconds, including
-unit, functional, bootstrap and distribution checks. The preceding review run
-also passed in 582 seconds. A regression assertion now preserves the existing
-single-collector observation-gap contract for service child execution.
+This package slice changes neither compiler sources nor the seed.
+
+### Performance evidence and proposed disposition
+
+On the macOS arm64 development host, the existing assembled website contained 52
+files, with a largest file of 706,607 bytes. Every file was fetched and compared
+byte-for-byte through Node, source execution and saved-bytecode execution. Each
+mode then ran 100 or 1,000 small requests, 20 largest-file requests sequentially,
+and 20 with four concurrent clients. These are two local observations per mode,
+not an isolated statistical benchmark or a general memory-growth proof.
+
+| Mode | Readiness | Small-file median | Largest-file median | Four-client largest-file median | Peak process memory |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Existing Node server | 52–59 ms | 0.15–0.21 ms | 0.27–0.34 ms | 0.71–0.82 ms | 75–105 MiB |
+| Panackelty saved bytecode | 16–18 ms | 7.0–7.9 ms | 11.1–12.9 ms | 26.4–34.9 ms | 17–24 MiB |
+| Panackelty source | 1.34–1.35 s | 6.8–7.1 ms | 11.1–12.6 ms | 25.7–30.7 ms | 53–60 MiB |
+
+The relative request-latency regression is material. Proposed disposition: accept
+for the bounded development-preview workload because measured requests still
+complete in milliseconds, use compiled installation to remove repeated source
+startup cost, and retain the regression explicitly for website acceptance. The
+GI#162 delivery maintainer owns the next action: check responsiveness of the actual
+website assembly during adoption and revisit the disposition if it obstructs use.
+This does not establish production-serving suitability or select general VM
+optimisation. The roadmap performance scorecard tracks this concern.
 
 Remaining delivery sequence:
 
-1. Review lifecycle ownership, readiness failure/stop races, signal restoration,
-   console descriptor/error handling, explicit capabilities and resource bounds.
-   Add remaining boundary and failure assertions where the review finds gaps;
-   keep every functional wait bounded.
-2. Update SPEC, ARCHITECTURE, README, stdlib documentation and coverage evidence
-   for the new contracts. Review SELF_HOSTING, website impact and performance
-   evidence. Keep new source modules explicitly accounted for in the installed
-   file list and source-coverage inventory; no coverage collection is required
-   merely to check that inventory.
-3. Focused and final `make check` validation are complete. Open a lifecycle PR
-   targeting `next`; merge only once its exact head has passed applicable CI.
-4. Implement `packages/static_http` and `tools/http-server` using these APIs,
-   then adopt the tool in the website preview launcher and complete acceptance.
+1. Finish package review and final full validation, then open its PR to `next`.
+2. Merge only after applicable checks pass for the exact PR head.
+3. Adopt the installed tool in the website launcher, pin its implementation revision,
+   retain assembly/provenance, and verify readiness, process cleanup and real pages.
+4. Keep GI#162 open until website adoption and acceptance are complete.
 
 ## Design decision
 
@@ -64,10 +70,10 @@ general service first, keep the executable under `tools/`, and isolate any
 standard-library additions. HTTP parsing and transport already exist. We don't
 need another HTTP stack.
 
-The design meets the preview requirement, but the existing server has finite
-session limits and cannot yet perform the file reads the service needs. Those
-are explicit prerequisites below. The proposed API names and defaults remain
-implementation choices, rather than promises that these APIs already exist.
+The original investigation identified finite session limits and asynchronous file
+reads as prerequisites. Those prerequisites are now delivered. The historical
+findings below explain the implementation choices; current contracts are in SPEC
+and the package/tool READMEs.
 
 ## Package structure
 
@@ -81,7 +87,6 @@ packages/
     src/service.panack          public configuration and serve entry point
     src/paths.panack            URL decoding and confined path selection
     src/mime.panack             content types
-    src/responses.panack        file and error responses
     tests/                     separate application manifest and fixtures
 tools/
   http-server/
@@ -98,9 +103,9 @@ just to make them testable. The tool will use the existing project invocation fo
 ./panack run --project tools/http-server/panack.json
 ```
 
-How application arguments follow that command must be checked against the CLI
-before documenting a complete invocation. The intended tool arguments are
-`--root`, `--host`, `--port`, `--no-cache` and `--noindex`.
+Application arguments follow the project path directly, for example
+`--root ./site --port 4173 --no-cache --noindex`. `make install` also installs
+`panack-http-server`; see the [tool guide](../tools/http-server/README.md).
 
 ```mermaid
 flowchart TD
@@ -120,7 +125,7 @@ about website routes, release metadata, preview banners or build commands.
 The HTTP client remains available for consumers and integration checks; serving
 files doesn't require an outbound request.
 
-## Findings that affect implementation
+## Original investigation findings
 
 | Existing behaviour | Consequence | Proposed response |
 | --- | --- | --- |
@@ -148,7 +153,7 @@ Source references: [HTTP server](../packages/http/src/server.panack),
 
 ## Public service contract
 
-The proposed `StaticHttpConfig` contains:
+The implemented `static_http/service.Config` contains:
 
 - Root directory, validated before readiness.
 - Bind address and port. Defaults: `127.0.0.1:8000`; website preview supplies 4173.
@@ -161,9 +166,9 @@ There is no implicit single-page-app fallback: a missing route returns 404.
 The tool defaults to loopback; an explicit IPv4 host can support another local
 use case. Network exposure and hosting are outside website-preview acceptance.
 
-Provisional resource defaults are four concurrent clients, 16 KiB request
+Tool resource defaults are four concurrent clients, 16 KiB request
 budget, 1 MiB total response budget, ten seconds per client and one second of
-shutdown grace. Confirm these against actual page loading before freezing them.
+shutdown grace. Recheck these against the actual website during adoption.
 Keep the existing finite server contract and defaults intact.
 
 The generic service reads files per request, so edits become visible on the next
@@ -388,7 +393,8 @@ report the revised scope before proceeding.
 
 ## Validation plan
 
-These are planned checks; none were run as part of this investigation.
+The original validation matrix follows; delivery evidence is recorded in the
+implementation checkpoints above and the coverage document.
 
 | Area | Cases |
 | --- | --- |
@@ -438,8 +444,8 @@ These are local wall times with concurrent draft investigation, not isolated
 performance comparisons. Historical validation budgets are being reassessed under
 GI#106. Complete runtime diff review before starting broad validation on subsequent
 slices to avoid repeating the full run for a late compatibility fix.
-Whole-server startup, latency and memory measurements remain part of static-tool
-acceptance against the assembled website.
+Whole-server startup, latency and peak-memory observations are recorded above;
+final website assembly acceptance remains part of adoption.
 
 Documentation review: SELF_HOSTING needs no milestone change; the refreshed seed
 has the same bytecode version and verified fixed point. No current website claims

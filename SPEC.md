@@ -1281,6 +1281,45 @@ serializer limits. Supply a concrete named worker calling
 references are not required. Context and transport limits are independent: either
 can impose a stricter bound. Existing finite `http/server.serve` remains supported.
 
+`server.ConnectionPolicy(methods, error_headers)` and
+`serve_connection_with_policy[T]` allow a caller to select accepted methods and
+headers on connection-generated error responses. The parser's
+`parse_request_for_methods` uses the supplied method list; `parse_request` and
+ordinary connection helpers retain GET/HEAD/POST. A 405 response reports the
+selected methods in Allow. Applications own normal response headers. Header
+serialization validation still applies; callers must supply valid policies.
+
+### Static directory service (development toolchain)
+
+`packages/static_http` exports `service.Config(root, address, port, limits, headers)`
+and asynchronous `serve(config, ready)`. It composes existing HTTP and confined
+filesystem operations without extending the standard library. It validates the
+root and extra headers before binding, pins the root device/inode and rejects
+contents returned from a replacement root. The executable under `tools/http-server`
+is installed as `panack-http-server`; installation compiles its bytecode once.
+
+GET and HEAD serve regular files and `index.html`. A directory with an index and
+no trailing slash redirects with 308, preserving the query. Missing indexes and
+inaccessible paths return 404; no directory listing or SPA fallback is supplied.
+Other methods return 405 with Allow: GET, HEAD. Percent decoding occurs once;
+paths must be UTF-8, with no traversal, encoded separators, repeated separators,
+NUL or control bytes. Query strings do not become filenames. Relative symlinks
+are allowed only under the existing confined resolver policy.
+
+Extra headers cannot override framing, Content-Type, Location or Allow, and their
+serialized form must leave 512 bytes of response budget. They apply to errors and
+redirects as well as files. The full serialized GET representation must fit the
+response limit, including headers; oversize files return 503 with a diagnostic.
+HEAD uses the same bounded read and representation length but emits no body.
+Unexpected read failures return 500; resource exhaustion/root replacement returns
+503. Per-request reads expose edits without a snapshot guarantee. Ranges, TLS,
+compression, watch/rebuild and automatic reload are outside this contract.
+
+Tool defaults are four clients, 16 KiB requests, 1 MiB responses, ten seconds per
+client and one second of signal-driven drain. The [tool guide](tools/http-server/README.md)
+defines arguments, readiness and exit codes; the [package guide](packages/static_http/README.md)
+defines library configuration and cancellation limits.
+
 ### Asynchronous command-line host operations
 
 `stdlib/async_host` provides `await arguments(): [Str]`, `await stdout(Str)` and

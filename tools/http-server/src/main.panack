@@ -1,0 +1,101 @@
+import static_http/service as service
+import stdlib/async_host as host
+import stdlib/bytes as buffer
+import stdlib/path as path
+import stdlib/text as text
+
+pure port_number(value: Str): Result[Nat, Str] {
+  input = text.encode_utf8(value)
+  mut valid = buffer.length(input) > 0 && buffer.length(input) <= 5
+  mut port: Nat = 0
+  for index in 0..buffer.length(input) {
+    digit = buffer.at(input, index)
+    if digit < 48 || digit > 57 { valid = false }
+    else if valid {
+      digit_value = digit - 48
+      port = port * 10 + digit_value
+    }
+  }
+  if valid && port > 0 && port <= 65535 { Ok(port) }
+  else { Error("port must be an integer from 1 to 65535") }
+}
+
+pure configuration(arguments: [Str]): Result[service.Config, Str] {
+  mut root = path.current()
+  mut address = "127.0.0.1"
+  mut port: Nat = 8000
+  mut headers: [service.Header] = []
+  mut problem = ""
+  mut cursor: Nat = 0
+  while cursor < len(arguments) && problem == "" {
+    argument = arguments[cursor]
+    if argument == "--no-cache" {
+      headers = headers.append(service.Header("Cache-Control", "no-store"))
+      cursor = cursor + 1
+    } else if argument == "--noindex" {
+      headers = headers.append(service.Header("X-Robots-Tag", "noindex"))
+      cursor = cursor + 1
+    } else if argument == "--root" || argument == "--host" || argument == "--port" {
+      if cursor + 1 >= len(arguments) {
+        problem = "missing value for " + argument
+      } else {
+        value = arguments[cursor + 1]
+        if argument == "--root" {
+          match path.from_text(value) {
+            Error(error) => { problem = "invalid root path" },
+            Ok(selected) => { root = selected }
+          }
+        } else if argument == "--host" {
+          address = value
+        } else {
+          match port_number(value) {
+            Error(error) => { problem = error },
+            Ok(selected) => { port = selected }
+          }
+        }
+      }
+      cursor = cursor + 2
+    } else {
+      problem = "unknown argument: " + argument
+    }
+  }
+  if problem != "" { Error(problem) }
+  else {
+    Ok(service.Config(root, address, port, service.ServiceLimits(4, 16384, 1048576, 10000, 1000), headers))
+  }
+}
+
+async ready(endpoint: service.TcpServiceReady): Result[Unit, Str] {
+  address = endpoint.address
+  port = endpoint.port
+  match await host.stdout("Serving http://${address}:${port}/") {
+    Ok(done) => Ok(()),
+    Error(problem) => Error("cannot write readiness output")
+  }
+}
+
+async main(): Unit {
+  arguments = await host.arguments()
+  if len(arguments) == 1 && arguments[0] == "--help" {
+    ignored = await host.stdout("Usage: panack-http-server [--root DIRECTORY] [--host IPV4] [--port PORT] [--no-cache] [--noindex]\nDefaults: current directory, 127.0.0.1:8000. Stop with Ctrl-C.")
+    ()
+  } else if len(arguments) == 1 && arguments[0] == "--version" {
+    ignored = await host.stdout("panackelty-http-server 1")
+    ()
+  } else {
+    match configuration(arguments) {
+      Error(problem) => {
+        ignored = await host.stderr("http-server: " + problem)
+        await host.exit(2)
+      },
+      Ok(selected) => match await service.serve(selected, @ready) {
+        Error(problem) => {
+          ignored = await host.stderr("http-server: " + problem)
+          await host.exit(1)
+        },
+        Ok(summary) => { () }
+      }
+    }
+  }
+  ()
+}

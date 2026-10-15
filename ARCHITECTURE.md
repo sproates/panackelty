@@ -1185,6 +1185,30 @@ completion delivery; host I/O may continue until the descriptor operation return
 Arguments use the execution snapshot and exit uses the existing CLI/embedded exit
 boundary. Filesystem and console capacities are separate.
 
+## Static directory service and installed tool
+
+`packages/static_http` owns URL decoding, MIME selection, directory indexes,
+redirects, configured headers and file-to-response policy. Its only package
+dependency is `packages/http`; async file and console operations use the existing
+isolated adapters. `http/server.ConnectionPolicy` selects allowed methods and
+error headers without changing existing connection-context records or callers.
+
+```mermaid
+flowchart LR
+    Launcher[Website assembly and launcher] --> Tool[tools/http-server]
+    Tool --> Static[packages/static_http]
+    Static --> HTTP[packages/http service and server]
+    Static --> Files[stdlib/async_filesystem]
+    HTTP --> Transport[Existing continuous transport]
+```
+
+`tools/http-server/src/main.panack` owns CLI configuration and readiness output.
+Installation compiles it to `share/panackelty/http-server-v1.bc`; the installed
+`bin/panack-http-server` resolves the sibling runtime and bytecode relative to its
+own location. Source packages remain installed for library consumers. Moving the
+whole installation does not require recompilation or an adjacent source checkout.
+Website assembly and process orchestration remain in the website repository.
+
 ## Asynchronous confined filesystem adapter
 
 `src/vm/root_read.c` provides native worker ownership for the isolated

@@ -39,8 +39,19 @@ jobs:
 
   source_coverage:
     name: Source coverage baseline (next)
-    needs: changes
-    if: needs.changes.result == 'success' && needs.changes.outputs.source_coverage == 'true' && (needs.changes.outputs.route == 'full' || needs.changes.outputs.source_coverage_refresh == 'true') && !cancelled()
+    # Expensive collection starts only after the applicable validation passes.
+    # Explicit next refreshes may have skipped matrix jobs on the docs route.
+    needs: [changes, test_run, package, source_policy_tests, next_smoke, workflow_validation]
+    if: >-
+      !cancelled() && !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      needs.changes.result == 'success' &&
+      needs.package.result == 'success' &&
+      needs.changes.outputs.source_coverage == 'true' &&
+      ((needs.changes.outputs.route == 'full' &&
+        needs.test_run.result == 'success' &&
+        needs.source_policy_tests.result == 'success') ||
+       needs.changes.outputs.source_coverage_refresh == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:

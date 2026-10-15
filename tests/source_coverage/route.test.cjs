@@ -48,3 +48,36 @@ test('only an explicit next push refresh can opt in',()=>{
   for(const event of ['schedule','workflow_dispatch','unknown'])
     assert.equal(collect({event,base:'main',ref:'refs/heads/next',message:'[source-coverage]'}),false);
 });
+
+test('workflow delays collection until applicable validation succeeds',()=>{
+  const fs=require('node:fs');
+  const workflow=fs.readFileSync('.github/workflows/check.yml','utf8');
+  const job=workflow.split('\n  source_coverage:\n')[1].split('\n  changes:\n')[0];
+  assert.match(job,/needs: \[changes, test_run, package, source_policy_tests, next_smoke, workflow_validation\]/);
+  const expression=job.split('    if: >-\n')[1].split('    runs-on:')[0].trim()
+    .replaceAll('needs.*.result','Object.values(needs).map(job=>job.result)');
+  // Exercise the actual checked-in expression, not a duplicate routing model.
+  const eligible=new Function('needs','cancelled','contains',`return (${expression});`);
+  const accepts=(needs,cancelled=false)=>eligible(needs,()=>cancelled,(values,item)=>values.includes(item));
+  const promotion=()=>({
+    changes:{result:'success',outputs:{route:'full',source_coverage:'true',source_coverage_refresh:'false'}},
+    test_run:{result:'success'},package:{result:'success'},source_policy_tests:{result:'success'},
+    next_smoke:{result:'skipped'},workflow_validation:{result:'skipped'},
+  });
+  assert.equal(accepts(promotion()),true);
+  assert.equal(accepts(promotion(),true),false);
+  for(const dependency of Object.keys(promotion())) for(const result of ['failure','cancelled']) {
+    const needs=promotion();needs[dependency].result=result;
+    assert.equal(accepts(needs),false,`${dependency}: ${result}`);
+  }
+  for(const dependency of ['test_run','package','source_policy_tests']) {
+    const needs=promotion();needs[dependency].result='skipped';
+    assert.equal(accepts(needs),false,`${dependency} cannot skip promotion validation`);
+  }
+  const refresh=promotion();
+  refresh.changes.outputs={route:'docs',source_coverage:'true',source_coverage_refresh:'true'};
+  refresh.test_run.result='skipped';refresh.source_policy_tests.result='skipped';
+  assert.equal(accepts(refresh),true);
+  refresh.changes.outputs.source_coverage_refresh='false';
+  assert.equal(accepts(refresh),false);
+});

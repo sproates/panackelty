@@ -52,6 +52,10 @@ fi
 tls_port=0
 case "$selected_case" in
     tls-*)
+        command -v openssl >/dev/null 2>&1 || {
+            echo 'HTTP client TLS fixture requires openssl on PATH' >&2
+            exit 1
+        }
         openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/test.key" -out "$work/test.crt" \
             -sha256 -days 2 -subj '/CN=localhost' \
             -addext 'subjectAltName=DNS:localhost' \

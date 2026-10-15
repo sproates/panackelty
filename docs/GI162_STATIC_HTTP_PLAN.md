@@ -1,7 +1,8 @@
 # GI#162: generic static HTTP service and website previews
 
 Status: implementation proposal, 15 October 2026. Investigation is based on
-`next` at `064f57a`. No product implementation has started.
+`next` at `064f57a`. Implementation has started with HEAD support as an
+independent HTTP package prerequisite. The remaining slices are still planned.
 
 ## Design decision
 
@@ -319,7 +320,7 @@ service acceptance depends on both. Slice 5 can be folded into slice 4 if all
 cross-repository prerequisites are available. Do not mark the issue complete
 when only the generic tool exists.
 
-Before implementation, settle three engineering details in small source-level
+Before the runtime slices, settle three engineering details in small source-level
 prototypes: async filesystem cancellation, the typed context signature, and the
 host stop/readiness boundary. If these require broader language or runtime work,
 report the revised scope before proceeding.

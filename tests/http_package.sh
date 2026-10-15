@@ -67,6 +67,8 @@ import stdlib/text as text
 async respond(request: http.Request): Result[http.Response,http.HttpError] {
   if request.target == "/fail" {
     Error(http.HttpError.InvalidRequest())
+  } else if request.target == "/invalid" {
+    Ok(http.Response(200, [http.Header("Content-Length", "3")], text.encode_utf8("ok")))
   } else if request.target == "/echo" {
     Ok(http.Response(200, [], request.body))
   } else {
@@ -81,10 +83,10 @@ pure expect(value: Bool): Unit {
 
 async main(): Unit {
   result = await http.serve("127.0.0.1", PORT, @respond,
-    http.ServerLimits(12, 2, 131072, 4096, 3000, 10000, 1000))
+    http.ServerLimits(18, 2, 131072, 4096, 3000, 10000, 1000))
   match result {
     Error(problem) => expect(false),
-    Ok(reports) => expect(reports.len() == 12)
+    Ok(reports) => expect(reports.len() == 18)
   }
   ()
 }
@@ -100,7 +102,7 @@ for extension in panack bc; do
         ./panack run "$work/run.bc" > "$work/stdout" 2> "$work/stderr" &
     fi
     server_pid=$!
-    for mode in get post handler-error method malformed partial body-limit header-limit; do
+    for mode in get post handler-error method malformed partial body-limit header-limit head head-body head-chunked head-error head-invalid-response head-malformed; do
         "$http_client" "$port" "$mode" || { cat "$work/stderr"; exit 1; }
     done
     "$http_client" "$port" concurrent || { cat "$work/stderr"; exit 1; }

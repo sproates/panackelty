@@ -136,8 +136,8 @@ The development toolchain also provides bounded incremental reads through
 Panackelty HTTP package is in active development. Its native client provides
 bounded HTTP/1.1 GET and verified HTTPS through `http/client`; the
 [P5 design and limits](docs/NATIVE_HTTP_CLIENT_DESIGN.md) describe its
-current proof-of-concept contract. The HTTP server package remains in
-development. Run its
+current proof-of-concept contract. The HTTP server package supports GET, HEAD and POST in finite sessions. HEAD
+keeps representation headers and omits the response body. Run its
 [one-request example](examples/network/http_server/panack.json) from the
 repository root with `./panack run --project examples/network/http_server/panack.json`,
 then request `http://127.0.0.1:8080/`. The native VM dynamically links the

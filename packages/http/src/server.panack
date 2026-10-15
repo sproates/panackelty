@@ -122,7 +122,16 @@ pure response_headers_valid(response: Response): Bool {
   valid
 }
 
+// HEAD validates the same representation as GET, but sends only its headers.
+pub pure serialize_head_response(response: Response): Result[Bytes,HttpError] {
+  serialize_response_mode(response, true)
+}
+
 pub pure serialize_response(response: Response): Result[Bytes,HttpError] {
+  serialize_response_mode(response, false)
+}
+
+pure serialize_response_mode(response: Response, head_only: Bool): Result[Bytes,HttpError] {
   if !response_headers_valid(response) {
     Error(InvalidResponse())
   } else if byte_buffer.length(response.body) > 1048576 {
@@ -163,7 +172,7 @@ pub pure serialize_response(response: Response): Result[Bytes,HttpError] {
       Error(LimitExceeded("response"))
     } else {
       output = byte_buffer.join(output, closing)
-      Ok(byte_buffer.join(output, response.body))
+      Ok(if head_only { output } else { byte_buffer.join(output, response.body) })
     }
   }
 }
@@ -189,31 +198,39 @@ pure error_status(error: HttpError): Nat {
   }
 }
 
-pure simple_response(status: Nat, message: Str): Bytes {
+pure simple_response(status: Nat, message: Str, head_only: Bool): Bytes {
   body: Bytes = text.encode_utf8(message)
   response: Response = Response(status, [Header("Content-Type", "text/plain; charset=utf-8")], body)
-  result.value_or(serialize_response(response), text.encode_utf8(
+  result.value_or(serialize_response_mode(response, head_only), text.encode_utf8(
     "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"))
 }
 
-pure response_for_error(error: HttpError): Bytes {
+pure response_for_error(error: HttpError, head_only: Bool): Bytes {
   status: Nat = error_status(error)
   if status == 405 {
     body: Bytes = text.encode_utf8("Method Not Allowed")
     response: Response = Response(status,
-      [Header("Allow", "GET, POST"), Header("Content-Type", "text/plain; charset=utf-8")], body)
-    result.value_or(serialize_response(response), simple_response(500, "Internal Server Error"))
+      [Header("Allow", "GET, HEAD, POST"), Header("Content-Type", "text/plain; charset=utf-8")], body)
+    result.value_or(serialize_response_mode(response, head_only), simple_response(500, "Internal Server Error", head_only))
   } else if status == 501 {
-    simple_response(status, "Not Implemented")
+    simple_response(status, "Not Implemented", head_only)
   } else if status == 505 {
-    simple_response(status, "HTTP Version Not Supported")
+    simple_response(status, "HTTP Version Not Supported", head_only)
   } else if status == 413 {
-    simple_response(status, "Content Too Large")
+    simple_response(status, "Content Too Large", head_only)
   } else if status == 431 {
-    simple_response(status, "Request Header Fields Too Large")
+    simple_response(status, "Request Header Fields Too Large", head_only)
   } else {
-    simple_response(status, if status == 500 { "Internal Server Error" } else { "Bad Request" })
+    simple_response(status, if status == 500 { "Internal Server Error" } else { "Bad Request" }, head_only)
   }
+}
+
+// Recognise the exact method token even when later request framing is invalid.
+// This lets parser errors obey HEAD's no-body rule too.
+pure is_head_request(incoming: Bytes): Bool {
+  byte_buffer.length(incoming) >= 5 && byte_buffer.at(incoming, 0) == 72 &&
+    byte_buffer.at(incoming, 1) == 69 && byte_buffer.at(incoming, 2) == 65 &&
+    byte_buffer.at(incoming, 3) == 68 && byte_buffer.at(incoming, 4) == 32
 }
 
 pure successful_report(): Result[Unit,HttpError] { Ok(()) }
@@ -227,11 +244,12 @@ async serve_connection(
   mut incoming: Bytes = byte_buffer.empty()
   mut outcome: Result[Bytes,Str] = Error("HTTP request failed")
   mut finished = false
+  mut head_only = false
   while !finished {
     match await tcp_server_read_chunk(16384) {
       Error(problem) => {
         if problem == "TCP request limit exceeded" {
-          outcome = Ok(simple_response(413, "Content Too Large"))
+          outcome = Ok(simple_response(413, "Content Too Large", head_only))
         } else {
           outcome = Error(problem)
         }
@@ -239,10 +257,11 @@ async serve_connection(
       },
       Ok(chunk) => {
         incoming = byte_buffer.join(incoming, chunk)
+        head_only = is_head_request(incoming)
         eof: Bool = byte_buffer.length(chunk) == 0
         match parse_request(incoming, eof, context.request_limit) {
           Error(error) => {
-            outcome = Ok(response_for_error(error))
+            outcome = Ok(response_for_error(error, head_only))
             finished = true
           },
           Ok(parsed) => match parsed {
@@ -250,12 +269,12 @@ async serve_connection(
             Some(request) => {
               match await context.handler.call(request) {
                 Error(error) => {
-                  outcome = Ok(simple_response(500, "Internal Server Error"))
+                  outcome = Ok(simple_response(500, "Internal Server Error", head_only))
                   finished = true
                 },
-                Ok(response) => match serialize_response(response) {
+                Ok(response) => match serialize_response_mode(response, head_only) {
                   Error(error) => {
-                    outcome = Ok(simple_response(500, "Internal Server Error"))
+                    outcome = Ok(simple_response(500, "Internal Server Error", head_only))
                     finished = true
                   },
                   Ok(wire) => if byte_buffer.length(wire) > context.response_limit {

@@ -436,7 +436,7 @@ termination is deliberately excluded; reverse proxies are an optional deployment
 choice, not acceptance evidence for native server TLS. This differs from the
 mandatory verified HTTPS client. Each connection accepts one bounded request and
 returns one response with `Connection: close`; no pipelining or keepalive.
-Support GET and POST, headers and bounded bodies with strict Content-Length or
+Support GET, HEAD and POST, headers and bounded bodies with strict Content-Length or
 chunked framing. Parse incrementally without requiring EOF; reject ambiguous
 framing, unsupported transfer codings and oversize input before handler activation.
 Unknown valid methods produce 405; unsupported protocol versions produce an
@@ -447,6 +447,15 @@ method, raw target, ordered headers and body bytes; it performs no implicit URL
 routing/decoding or filesystem access. The server serializer owns wire framing and
 rejects handler-supplied framing contradictions or header injection. Do not expose
 internal connection state as constructible records.
+
+For HEAD, handlers return the same representation as for GET. The server validates
+its headers and bounded body, preserves the representation Content-Length, and
+omits the body on the wire. This also applies to parser errors once the exact
+`HEAD ` method token is available, handler failures and invalid handler responses.
+`serialize_head_response` exposes that serializer behaviour for package consumers;
+`serialize_response` retains its existing full-response behaviour. The serialized
+GET representation must still fit the 1 MiB package limit. The configured transport
+response limit applies to the bytes actually sent.
 
 Proposed facade shape (future APIs):
 
@@ -606,7 +615,7 @@ source and bytecode results, bootstrap stages and packaged/relocated toolchains.
 | Migration | Migrated fixtures/compiler/stdlib/examples pass under one namespace model; public CLI stays stable; new seed reaches fixed point | Old flat/transitive assumptions fail clearly rather than silently resolve; no nearest-manifest surprise or shipped dual semantics |
 | Tooling/bootstrap | Qualified explain/locate, precise spans, fresh fixed points and relocated deterministic executable bytes | Ambiguous selector, stale source map, wrong package identity and old runtime capability reject rather than misattribute |
 | HTTP client | Hostname HTTP/HTTPS, trusted certificate, status/header/body, repeated headers, chunked/length/close bodies | Unknown host, certificate chain/hostname/expiry rejection, truncation, framing ambiguity, timeout, limits and unsupported URL fail explicitly |
-| HTTP server | Real client sends complete HTTP request without write-half-close; GET/POST handler, ordered reports, finite shutdown | Request smuggling/framing ambiguity, header injection, admission/response bounds and handler failure; invalid requests never invoke handler |
+| HTTP server | Real client sends complete HTTP request without write-half-close; GET/HEAD/POST handler, ordered reports, finite shutdown | Request smuggling/framing ambiguity, header injection, admission/response bounds and handler failure; invalid requests never invoke handler |
 | Ownership | Repeated success/failure, cancellation, concurrent server/nested client and relocation of installed package | Fault-injected allocation/I/O, DNS/TLS late completion and cancellation during each phase leave no live sockets/children/callback references |
 | P7 reproducibility | Locked clean and offline vendored graph reproduces source identities/output | Missing/stale lock, changed digest, corrupt source, unavailable uncached artifact and conflicting package identity fail closed |
 

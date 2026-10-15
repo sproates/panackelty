@@ -607,9 +607,13 @@ belong in the implementation PR.
 
 `tests/http_package.sh` exercises the finite `http/server` package with an
 independent C peer across source and saved-bytecode server runs. It covers GET,
-POST, handler failures, unsupported methods, malformed/partial and oversized
+HEAD, POST, handler failures, unsupported methods, malformed/partial and oversized
 requests, concurrent clients, disconnect recovery, orderly shutdown and bind
-conflicts. It also runs the Panackelty HTTP client against the server in both
+conflicts. HEAD checks cover empty, Content-Length and chunked request framing,
+representation lengths, handler failures, invalid handler responses and parser
+errors, asserting that no response body is sent. The package parser suite also
+checks HEAD serialization, 404/204 responses and framing validation.
+It also runs the Panackelty HTTP client against the server in both
 server modes, with the client itself run from source and saved bytecode. The
 release-archive smoke separately checks the packaged runnable example against
 the independent C peer. These tests establish the agreed bounded HTTP/1.1

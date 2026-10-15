@@ -68,7 +68,7 @@ static int send_all(int fd, const void *data, size_t length)
     return 0;
 }
 
-static int response_contains(int fd, const char *status, const char *body)
+static int response_contains(int fd, const char *status, const char *body, int head_only)
 {
     char response[32768];
     size_t total = 0;
@@ -84,7 +84,9 @@ static int response_contains(int fd, const char *status, const char *body)
         if (total == sizeof(response) - 1) return -1;
     }
     response[total] = '\0';
-    if (strstr(response, status) && strstr(response, body)) return 0;
+    const char *header_end = strstr(response, "\r\n\r\n");
+    if (strstr(response, status) && strstr(response, body) &&
+        (!head_only || (header_end && header_end[4] == '\0'))) return 0;
     fprintf(stderr, "unexpected HTTP response; expected %s and body %s\n%s\n",
             status, body, response);
     return -1;
@@ -97,7 +99,7 @@ static int exchange(const char *port, const char *request, const char *status,
     if (fd < 0) return -1;
     int result = send_all(fd, request, strlen(request));
     if (!result && close_write && shutdown(fd, SHUT_WR)) result = -1;
-    if (!result) result = response_contains(fd, status, body);
+    if (!result) result = response_contains(fd, status, body, !strncmp(request, "HEAD ", 5));
     close(fd);
     return result;
 }
@@ -110,8 +112,8 @@ static int concurrent_exchange(const char *port)
     if (first < 0 || second < 0) return -1;
     int result = send_all(first, request, strlen(request));
     if (!result) result = send_all(second, request, strlen(request));
-    if (!result) result = response_contains(first, "HTTP/1.1 200 OK", "\r\n\r\nok");
-    if (!result) result = response_contains(second, "HTTP/1.1 200 OK", "\r\n\r\nok");
+    if (!result) result = response_contains(first, "HTTP/1.1 200 OK", "\r\n\r\nok", 0);
+    if (!result) result = response_contains(second, "HTTP/1.1 200 OK", "\r\n\r\nok", 0);
     close(first);
     close(second);
     return result;
@@ -137,13 +139,34 @@ int main(int argc, char **argv)
     if (!strcmp(mode, "example"))
         return exchange(port, "GET / HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 200 OK", "hello from Panackelty HTTP server", 0) ? 1 : 0;
+    if (!strcmp(mode, "head"))
+        return exchange(port, "HEAD / HTTP/1.1\r\nHost: example.test\r\n\r\n",
+                        "HTTP/1.1 200 OK", "Content-Length: 2\r\n", 0) ? 1 : 0;
+    if (!strcmp(mode, "head-body"))
+        return exchange(port, "HEAD /echo HTTP/1.1\r\nHost: example.test\r\n"
+                        "Content-Length: 2\r\n\r\nhi", "HTTP/1.1 200 OK",
+                        "Content-Length: 2\r\n", 0) ? 1 : 0;
+    if (!strcmp(mode, "head-chunked"))
+        return exchange(port, "HEAD /echo HTTP/1.1\r\nHost: example.test\r\n"
+                        "Transfer-Encoding: chunked\r\n\r\n2\r\nhi\r\n0\r\n\r\n",
+                        "HTTP/1.1 200 OK", "Content-Length: 2\r\n", 0) ? 1 : 0;
+    if (!strcmp(mode, "head-error"))
+        return exchange(port, "HEAD /fail HTTP/1.1\r\nHost: example.test\r\n\r\n",
+                        "HTTP/1.1 500 Internal Server Error", "Content-Length: 21\r\n", 0) ? 1 : 0;
+    if (!strcmp(mode, "head-invalid-response"))
+        return exchange(port, "HEAD /invalid HTTP/1.1\r\nHost: example.test\r\n\r\n",
+                        "HTTP/1.1 500 Internal Server Error", "Content-Length: 21\r\n", 0) ? 1 : 0;
+    if (!strcmp(mode, "head-malformed"))
+        return exchange(port, "HEAD / HTTP/1.1\r\nHost: example.test\r\n"
+                        "Content-Length: 0\r\nContent-Length: 0\r\n\r\n",
+                        "HTTP/1.1 400 Bad Request", "Content-Length: 11\r\n", 0) ? 1 : 0;
     if (!strcmp(mode, "post"))
         return exchange(port, "POST /echo HTTP/1.1\r\nHost: example.test\r\n"
                         "Content-Length: 2\r\n\r\nhi", "HTTP/1.1 200 OK",
                         "\r\n\r\nhi", 0) ? 1 : 0;
     if (!strcmp(mode, "method"))
         return exchange(port, "PUT / HTTP/1.1\r\nHost: example.test\r\n\r\n",
-                        "HTTP/1.1 405 Method Not Allowed", "Allow: GET, POST", 0) ? 1 : 0;
+                        "HTTP/1.1 405 Method Not Allowed", "Allow: GET, HEAD, POST", 0) ? 1 : 0;
     if (!strcmp(mode, "handler-error"))
         return exchange(port, "GET /fail HTTP/1.1\r\nHost: example.test\r\n\r\n",
                         "HTTP/1.1 500 Internal Server Error", "Internal Server Error", 0) ? 1 : 0;
@@ -175,7 +198,7 @@ int main(int argc, char **argv)
             if (!result) nanosleep(&throttle, NULL);
         }
         if (!result) result = response_contains(fd, "HTTP/1.1 431 Request Header Fields Too Large",
-                                                  "Request Header Fields Too Large");
+                                                  "Request Header Fields Too Large", 0);
         close(fd);
         return result ? 1 : 0;
     }

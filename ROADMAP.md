@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#155.**
+The initial allocation contains **105 identities**. **Next available: RM#156.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -172,7 +172,9 @@ from Alpha.13 into Alpha.14. Its product model remains under discussion; this
 selection does not choose a distribution mechanism or automatically commit to
 implementation. Alpha.13's plan and gates remain separate. On 2026-10-15, the
 owner also required faster code coverage in Alpha.14;
-[RM#154: Incremental coverage collection](#rm-154) records that outcome.
+[RM#154: Incremental coverage collection](#rm-154) records that outcome. The
+owner also selected [RM#155: Authoring-friction improvements](#rm-155) for
+Alpha.14: address prioritised items from recorded development experience.
 
 <a id="rm-152"></a>
 
@@ -222,6 +224,34 @@ This is a bounded follow-up to [RM#28: Incremental and modular builds](#rm-28) /
 Alpha.13 workflow remains accepted. Initial effort is medium, provisional on cache
 trust and invalidation requirements. Implementation is not started by this roadmap
 addition, and it does not add a new gate to the ongoing Alpha.13 release.
+
+
+<a id="rm-155"></a>
+
+**RM#155: Authoring-friction improvements — Alpha.14.**
+
+**Planned by owner direction, 2026-10-15.** Address selected items from the
+recorded authoring-friction log during Alpha.14. Review the evidence, identify
+recurring or costly obstacles, and prioritise a bounded set of improvements to
+language/compiler behaviour, diagnostics, API discoverability, documentation,
+examples or development tooling as appropriate. Distinguish confirmed defects
+from confusing intended behaviour and unverified suggestions; reproduce each
+selected case before choosing its remedy.
+
+Acceptance requires an explicit list of selected items and their intended
+outcomes, a demonstrated before/after improvement for each, appropriate regression
+tests for behaviour changes, and updated guidance where discovery or explanation
+is the problem. Record resolved, deferred and still-unverified cases with evidence.
+Coordinate overlapping work with [RM#64: Inference and diagnostics](#rm-64),
+[RM#48: Compiler explanations](#rm-48) and [RM#154: Incremental coverage
+collection](#rm-154) rather than counting the same delivery twice.
+
+The release commitment is to address prioritised friction, not automatically
+implement every logged suggestion. Select the concrete items and estimate their
+combined effort during Alpha.14 planning; scope and effort remain provisional
+until that review. Preserve existing correctness and compatibility contracts,
+and document any deliberately selected changes. This roadmap addition starts no
+implementation and adds no gate to the ongoing Alpha.13 release.
 
 ### Else-if chains
 

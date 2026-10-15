@@ -48,6 +48,12 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
+
       - name: Build native source collector
         run: make native
       - name: Validate bounded reader and SC4 source parity
@@ -132,6 +138,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux' && needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
 
       - name: Validate and package with an isolated command environment
         if: needs.changes.result == 'success' && needs.changes.outputs.route == 'full' && !cancelled()
@@ -237,6 +249,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
 
       - name: Run project checks
         if: contains(fromJSON('["compiler", "runtime"]'), matrix.suite)

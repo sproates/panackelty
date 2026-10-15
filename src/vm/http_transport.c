@@ -194,7 +194,11 @@ VMHttpTransport *http_transport_start(Value **arguments)
     SETOPT(CURLOPT_NOPROXY, "*");
     SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
     SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
+#if LIBCURL_VERSION_NUM >= 0x075500
+    SETOPT(CURLOPT_PROTOCOLS_STR, "http,https");
+#else
     SETOPT(CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
     const char *ca_bundle = getenv("CURL_CA_BUNDLE");
     if (ca_bundle && *ca_bundle) SETOPT(CURLOPT_CAINFO, ca_bundle);
 #undef SETOPT

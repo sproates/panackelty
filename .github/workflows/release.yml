@@ -69,6 +69,12 @@ jobs:
           sh scripts/release_request.sh "$GITHUB_EVENT_NAME" "$GITHUB_REF" \
             "$GITHUB_SHA" "$REQUESTED_VERSION" "$REQUESTED_COMMIT" > "$RUNNER_TEMP/release-notes.md"
 
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
+
       - name: Run the complete project validation
         run: make check
 
@@ -90,6 +96,12 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ github.sha }}
+
+      - name: Install native HTTP client dependency
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libcurl4-openssl-dev
 
       - name: Build and verify the native release package
         run: make package

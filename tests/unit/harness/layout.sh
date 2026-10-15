@@ -154,6 +154,7 @@ contains scripts/validate_change.sh 'node --test tests/source_coverage/route.tes
 awk '/^  test_run:$/ { selected=1; next } /^  package:$/ { selected=0 } selected { print }' .github/workflows/check.yml > "$work/test-job"
 sed -n 's/^        run: //p' "$work/test-job" > "$work/commands"
 cat > "$work/expected" <<'COMMANDS'
+|
 sh tests/profile_command.sh ci/${{ matrix.suite }} make ci-${{ matrix.suite }}
 make native-sanitize CC=clang SANITIZE_SUITE="${SANITIZE_JOB#sanitize-}"
 |
@@ -165,7 +166,11 @@ contains "$work/test-job" 'runs-on: ubuntu-24.04'
 for tool in clang-18 llvm-cov-18 llvm-profdata-18; do
     contains "$work/test-job" "/usr/bin/$tool --version"
 done
-absent "$work/test-job" 'apt-get'
+contains "$work/test-job" 'sudo apt-get install --yes libcurl4-openssl-dev'
+contains "$work/source-job" 'sudo apt-get install --yes libcurl4-openssl-dev'
+for workflow in .github/workflows/nightly-packages.yml .github/workflows/release.yml; do
+    contains "$workflow" 'sudo apt-get install --yes libcurl4-openssl-dev'
+done
 for text in build/coverage/summary.txt build/coverage/html/ 'VALIDATION_TIMINGS_FILE: ${{ github.workspace }}/validation-timings.tsv' \
     'suite: [compiler, runtime, bootstrap, sanitize-vm, sanitize-oracle, sanitize-runner, coverage]' \
     "if: startsWith(matrix.suite, 'sanitize-')" "if: matrix.suite == 'coverage'"; do contains "$work/test-job" "$text"; done

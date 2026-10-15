@@ -170,6 +170,16 @@ It serves confined files with GET/HEAD, directory indexes and bounded asynchrono
 reads. See the [tool guide](tools/http-server/README.md) for preview headers,
 readiness, shutdown and limits. Published alpha.11 downloads do not include it.
 
+## Alpha.13 release candidate
+
+The source tree now identifies as `0.1.0-alpha.13`; publication and public-archive
+acceptance are still pending. Local packages, the migrated standard-library APIs,
+native HTTP client/server, expanded checker explanations and the directory-serving
+tool are described in the [candidate release notes](CHANGELOG.md).
+Package manifests must use the exact toolchain version `0.1.0-alpha.13`.
+Existing download and installer examples continue to name published artifacts
+until the new archives are publicly verified.
+
 ## Start writing Panackelty
 
 The developer preview is designed to be downloaded and run directly. The

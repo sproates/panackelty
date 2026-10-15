@@ -6,6 +6,16 @@
 
 # Validation profiling baseline
 
+## Owner direction on validation requirements — 2026-10-12
+
+The 120-second clean-check, 15-second focused-check, 75-second functional and
+60-second bootstrap figures, along with other timing-warning values in older
+samples, are historical
+comparisons. The owner directed GI#106 to reassess the whole build/test workflow
+and its NFRs; no replacement numeric target is set here. Measurements and
+recommendations support the owner's decision, but they do not define completion.
+GI#106 remains open until the user explicitly says they are happy with the result.
+
 <a id="gi106-findings-and-options"></a>
 
 ## GI#106 findings and options: 2026-10-12

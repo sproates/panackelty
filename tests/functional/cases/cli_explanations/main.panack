@@ -53,12 +53,25 @@ main(): Void {
       library: Str = root + "/library.panack"
       other: Str = root + "/right.panack"
       artifact: Str = root + "/main.bc"
+      interpolation: Str = "$" + "{name}"
       mut results: [TestResult] = []
       original: Str = "import project/library as library\nmain(): Void { print(library.remaining[Str](\"x\", 5)); print(library.remaining[Nat](7, 4)); }\n"
       explain_write(source, original)
       explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void { greeting = \"hello\"; echoed = identity(\"generic\"); explicit: Str = \"annotated\"; }\nmain(): Void {}\n")
       results = append(results, explain_run("inferred locals report initializer evidence", ["explain", source, "--function", "probe"], 0,
         ["inferred locals:", "inferred local: greeting", "expression: \"hello\"", "initializer type: Str", "inferred type: Str", "inferred local: echoed", "expression: identity(\"generic\")", "checked initializer type determines this local type"], ["inferred local: explicit"], ""))
+      explain_write(source, "pub pure probe(name: Nat): Str { \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("accepted interpolation explains local scalar type", ["explain", source, "--function", "probe"], 0,
+        ["checked interpolation type: accepted", "context: string interpolation", "local type: Nat", "allowed interpolation types: scalar type (Nat, Int, Dec, Rat, Str, Bool or Unit)", "accepted this scalar local for interpolation"], [], ""))
+      explain_write(source, "pub pure probe(name: [Nat]): Str { \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected interpolation explains non-scalar local type", ["explain", source, "--function", "probe"], 1,
+        ["checked interpolation type: rejected", "context: string interpolation", "local type: Array[Nat]", "rejected a non-scalar local for interpolation"], [], "interpolation requires a scalar local, got Array[Nat]"))
+      explain_write(source, "pub pure probe(): Str { name = missing; \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("unresolved interpolation local is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["checked interpolation type: unavailable", "context: string interpolation", "local type: unavailable", "local type needed for interpolation"], [], "unknown local value missing"))
+      explain_write(source, "pub type Positive = Nat where value > 0\npub pure probe(name: Positive): Str { \"hello " + interpolation + "\" }\nmain(): Void {}\n")
+      results = append(results, explain_run("guarded interpolation type is explicitly deferred", ["explain", source, "--function", "probe"], 1,
+        ["checked interpolation type: unavailable", "context: string interpolation", "local type: main.panack:Positive", "deferred interpolation of a guarded local type"], [], "function is not completely checked for identity emission: probe"))
       explain_write(source, "pure identity[T](value: T): T { value }\nprobe(): Void {\n  answer = identity(\"typed\");\n}\nmain(): Void {}\n")
       results = append(results, explain_run("type-at selects the smallest checked expression", ["explain", source, "--function", "probe", "--type-at", "3", "23"], 0,
         ["checked expression type: Str", "source: project/main.panack:3:21-3:28\nexpression: \"typed\"", "type retained from the checked expression"], [], ""))

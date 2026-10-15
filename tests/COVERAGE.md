@@ -850,6 +850,16 @@ binding and an unavailable result when the matched subject type is unresolved;
 ordinary checking retains no payload-type evidence.
 The `make check-compiler` compiler and CLI paths are the owning validation.
 
+## U3 string interpolation type explanations
+
+The `cli_explanations` fixture verifies accepted scalar interpolation,
+rejected non-scalar interpolation, unresolved local types, and the deferred
+guarded-local case. Module-body unit assertions check one evidence entry per
+interpolation occurrence, the existing full-literal source span, the scalar
+type alternatives, and empty evidence in ordinary checking. Existing
+diagnostics and interpolation acceptance rules remain unchanged.
+The `make check-compiler` compiler and CLI paths are the owning validation.
+
 ## Indexed compiler declaration lookup
 
 The existing compiler-contract unit suite adds 19 fixed assertions for declaration

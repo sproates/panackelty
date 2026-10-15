@@ -174,7 +174,10 @@ runner_program(label: Str, source: Path, expected_file: Path,
       source_timeout = if label == "case/compiler_skeleton" {
         90
       } else {
-        if label == "case/cli_explanations" { 45 } else { 20 }
+        // CLI commands includes several package graph and race subprocesses.
+        if label == "case/cli_commands" { 120 } else {
+          if label == "case/cli_explanations" { 45 } else { 20 }
+        }
       }
       source_command = if label == "case/compiler_skeleton" || label == "case/compiler_lexer" {
         runner_bootstrap_command(["run", source_path], source_timeout)
@@ -205,7 +208,8 @@ runner_program(label: Str, source: Path, expected_file: Path,
       match compile_result.outcome {
         TestPassed() => {
           results = results.append(runner_test_command("${label}/bytecode",
-            runner_command(["run", expected_path], label == "case/stdlib"),
+            runner_timed_command(["run", expected_path], label == "case/stdlib",
+              if label == "case/cli_commands" { 120 } else { 20 }),
             ProcessOutput(0, 0, expected, byte_buffer.empty()), label == "case/cli_commands"))
         },
         TestFailed(reason) => {}

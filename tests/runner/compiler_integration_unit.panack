@@ -40,7 +40,9 @@ integration_output(name: Str, args: [Str], expected: Str): TestResult {
 integration_probe(name: Str, args: [Str], expected: Str): TestResult {
   command = TestCommand(contract_path("/bin/sh"),
     ["tests/run_probe.sh"].concat(args), byte_buffer.empty(), std_path.current(), ["PANACKELTY_BOOTSTRAP_ROOT=."],
-    std_time.seconds(90), 1048576)
+    // These probes compile compiler modules on a cold cache. The hosted driver
+    // build alone reached 90 seconds before its enclosing command timed out.
+    std_time.seconds(300), 1048576)
   std_testing_commands.run_command(name, command, ProcessOutput(0, 0, std_text.encode_utf8(expected), byte_buffer.empty()))
 }
 integration_error(name: Str, args: [Str], status: Nat, output: Str, expected: Str): TestResult {

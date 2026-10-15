@@ -82,7 +82,9 @@ main(): Void {
   command = TestCommand(runner_path("./panack"),
     ["run", "tests/runner/main.panack"], byte_buffer.empty(), std_path.current(),
     runner_test_environment(),
-    std_time.seconds(180), 1048576)
+    // This deadline encloses the entire 370-assertion corpus, including nested
+    // compiler and package checks; individual commands keep their own bounds.
+    std_time.seconds(600), 1048576)
   result = match std_environment.get("PANACK_TEST_RUNNER_REPORT") {
     Some(report_path) => {
       match std_filesystem.read(runner_path(report_path), 1048576) {

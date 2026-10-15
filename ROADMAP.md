@@ -4268,14 +4268,19 @@ evidence. The current slice retains the native TCP/HTTP transport argument
 requirements, including accepted, rejected and unavailable results; PR #486 adds
 this evidence. The current slice explains the substituted type assigned to a
 generic enum match payload binding, including unavailable output for an
-unresolved subject type. Other specialized core-call decisions and complete
-generic inference traces remain gaps to inventory. These are partial families
-within the owner-defined complete
-checker-decision target above. Each slice keeps ordinary diagnostics and runtime
-behavior unchanged and retains evidence only for explanation queries.
+unresolved subject type; PR #487 adds this evidence. The current bounded review
+maps checker decision families to their source sites, explanation records,
+regression suites and known evidence gaps in
+`docs/COMPILER_EXPLANATIONS.md`. Known gaps include specialized core-call
+arguments, collection receiver requirements, scalar interpolation, some
+`Void` rejections, unresolved indirect-call effects and complete generic
+inference traces. These are partial families within the owner-defined complete
+checker-decision target above. Each implementation slice keeps ordinary
+diagnostics and runtime behavior unchanged and retains evidence only for
+explanation queries.
 Ordinary checking keeps this evidence empty. These
-remain bounded, unreleased CLI slices; the complete checker-decision inventory
-and any uncovered type/effect/proof families remain open. The current website
+remain bounded, unreleased CLI slices; the source-to-evidence inventory and any
+uncovered type/effect/proof families remain open. The current website
 stays accurate for its published versions; review website promotion at the next
 supporting release. Runtime value provenance is its own linked workstream #172;
 automatic fixes remain outside #134.

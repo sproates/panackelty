@@ -61,7 +61,11 @@ in the roadmap; it is not an alpha.13 completion percentage.
    exclusions; retain all 45 measured files and execution roots. Check the
    manifest policy before collection and in fast CI tests. Revalidation of the
    saved fresh sessions passes the corrected policy; a fresh hosted run remains
-   required for publication. The live report still
+   required for publication. PR #501 merged as `3443733`; Check 38772101122
+   hit the plan export's three-minute timeout on a slower runner (the compiler
+   plan took 179s versus 107s in the preceding run). Allow five minutes for plan
+   export only, retaining execution limits and the overall 35-minute job bound.
+   The live report still
    measures `e5e353e261761e3eab14b7f040d9ce1fd2d0a8fa` from 11 October and predates
    the new HTTP/service code. Request a next push with `[source-coverage]`, wait
    for a successful exact-commit source artifact, dispatch Coverage Pages on its

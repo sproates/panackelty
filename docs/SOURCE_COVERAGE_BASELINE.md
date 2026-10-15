@@ -69,6 +69,10 @@ hashes, session evidence, timestamp and metrics. HTML shows covered/zero/unknown
 source lines, functions, outcomes and exclusions. Development `--allow-dirty`
 reports are non-publishable; hosted generation uses a clean committed checkout.
 Raw local evidence is retained in the printed temporary workspace for diagnosis.
+Each plan export has a five-minute timeout to accommodate hosted runner variation;
+compiler-tool compilation and individual execution sessions retain three-minute
+limits. Command failures report the full entry arguments, elapsed time and limit.
+The hosted source-coverage job retains its overall 35-minute bound.
 
 ## Report integrity and release gate
 

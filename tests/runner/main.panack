@@ -176,6 +176,9 @@ runner_program(label: Str, source: Path, expected_file: Path,
       execution_timeout = if label == "case/cli_commands" || label == "case/cli_explanations" {
         120
       } else { 20 }
+      // The large CLI corpora also need a bounded compilation allowance;
+      // execution limits do not cover the separate saved-bytecode build.
+      compile_timeout = if execution_timeout == 120 { 60 } else { 20 }
       source_timeout = if label == "case/compiler_skeleton" {
         90
       } else {
@@ -201,7 +204,8 @@ runner_program(label: Str, source: Path, expected_file: Path,
       } else if label == "case/compiler_lexer" {
         runner_bootstrap_command(["compile", source_path, "-o", expected_path], source_timeout)
       } else {
-        runner_command(["compile", source_path, "-o", expected_path], label == "case/stdlib")
+        runner_timed_command(["compile", source_path, "-o", expected_path],
+          label == "case/stdlib", compile_timeout)
       }
       compile_result = runner_test_command("${label}/compile", compile_command,
         ProcessOutput(0, 0, std_text.encode_utf8("wrote ${expected_path}\n"), byte_buffer.empty()),

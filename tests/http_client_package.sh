@@ -17,6 +17,16 @@ http_pid=
 tls_pid=
 tls_proxy_pid=
 cleanup() {
+    result=$?
+    if [ "$result" -ne 0 ]; then
+        echo "HTTP client fixture failed: $selected_case (exit $result)" >&2
+        for diagnostic in certificate-generation.log certificate-policy.log tls-log http-log; do
+            if [ -f "$work/$diagnostic" ]; then
+                echo "--- $diagnostic ---" >&2
+                cat "$work/$diagnostic" >&2
+            fi
+        done
+    fi
     if [ -n "$http_pid" ]; then kill "$http_pid" 2>/dev/null || :; wait "$http_pid" 2>/dev/null || :; fi
     if [ -n "$tls_proxy_pid" ]; then kill "$tls_proxy_pid" 2>/dev/null || :; wait "$tls_proxy_pid" 2>/dev/null || :; fi
     if [ -n "$tls_pid" ]; then kill "$tls_pid" 2>/dev/null || :; wait "$tls_pid" 2>/dev/null || :; fi
@@ -56,20 +66,39 @@ case "$selected_case" in
             echo 'HTTP client TLS fixture requires openssl on PATH' >&2
             exit 1
         }
-        openssl req -x509 -newkey rsa:2048 -nodes -keyout "$work/test.key" -out "$work/test.crt" \
-            -sha256 -days 2 -subj '/CN=localhost' \
-            -addext 'subjectAltName=DNS:localhost' \
-            -addext 'basicConstraints=critical,CA:TRUE' \
-            -addext 'keyUsage=critical,digitalSignature,keyCertSign,cRLSign' \
-            -addext 'extendedKeyUsage=serverAuth' >/dev/null 2>&1
-        # Apple TLS policy requires explicit server authentication usage even
-        # when the test certificate is supplied as its own trust anchor.
+        # Use a private CA and a distinct server leaf. A CA certificate serving
+        # as its own TLS leaf is not accepted consistently by host trust engines.
+        # Do not inherit host req extensions: OpenSSL 1.1.1 appends -addext
+        # to configured extensions, producing duplicate basicConstraints.
+        cat > "$work/request.cnf" <<'REQUEST'
+[req]
+distinguished_name=subject
+[subject]
+[ca]
+basicConstraints=critical,CA:TRUE
+keyUsage=critical,keyCertSign,cRLSign
+subjectKeyIdentifier=hash
+REQUEST
+        openssl req -config "$work/request.cnf" -extensions ca -x509 -newkey rsa:2048 -nodes \
+            -keyout "$work/ca.key" -out "$work/ca.crt" \
+            -sha256 -days 2 -subj '/CN=Panackelty test CA' >"$work/certificate-generation.log" 2>&1
+        openssl req -config "$work/request.cnf" -new -newkey rsa:2048 -nodes \
+            -keyout "$work/test.key" -out "$work/test.csr" \
+            -subj '/CN=localhost' >>"$work/certificate-generation.log" 2>&1
+        cat > "$work/server.ext" <<'EXTENSIONS'
+subjectAltName=DNS:localhost
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+EXTENSIONS
+        openssl x509 -req -in "$work/test.csr" -CA "$work/ca.crt" -CAkey "$work/ca.key" \
+            -set_serial 2 -sha256 -days 2 -extfile "$work/server.ext" -out "$work/test.crt" \
+            >>"$work/certificate-generation.log" 2>&1
+        openssl verify -CAfile "$work/ca.crt" -purpose sslserver "$work/test.crt" \
+            >"$work/certificate-policy.log" 2>&1
         if [ "$(uname -s)" = Darwin ]; then
-            security verify-cert -q -c "$work/test.crt" -r "$work/test.crt" \
-                -p ssl -s localhost >"$work/certificate-policy.log" 2>&1 || {
-                cat "$work/certificate-policy.log" >&2
-                exit 1
-            }
+            security verify-cert -c "$work/test.crt" -r "$work/ca.crt" \
+                -p ssl -s localhost >>"$work/certificate-policy.log" 2>&1
         fi
         "$fixture" --reserve-port "$work/tls-port"
         tls_port=$(cat "$work/tls-port")
@@ -301,8 +330,8 @@ case "$selected_case" in
         env -u CURL_CA_BUNDLE "$panack_bin" run "$work/client.bc"
         ;;
     *)
-        env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run --project "$app/panack.json"
-        env CURL_CA_BUNDLE="$work/test.crt" "$panack_bin" run "$work/client.bc"
+        env CURL_CA_BUNDLE="$work/ca.crt" "$panack_bin" run --project "$app/panack.json"
+        env CURL_CA_BUNDLE="$work/ca.crt" "$panack_bin" run "$work/client.bc"
         ;;
 esac
 if [ "$selected_case" = tls-late ]; then

@@ -75,7 +75,33 @@ in the roadmap; it is not an alpha.13 completion percentage.
    generated certificate against Apple's SSL policy before serving it on macOS.
    All four focused TLS cases passed in source and bytecode form; final
    `make check` passed in 427s, including release smoke, and layout contracts
-   passed. Hosted confirmation of this correction remains pending.
+   passed. Check 38796517337 then rejected the certificate in macOS SSL-policy
+   preflight before the request. The follow-up uses a separate private CA and
+   server leaf, retains purpose/hostname verification, and prints certificate
+   setup/policy/server diagnostics on failure. A focused Linux/macOS TLS workflow
+   checks all four source/bytecode fixtures before integration; hosted acceptance
+   of this follow-up remains pending. The same hosted run
+   timed out compiling the explanation fixture under its ordinary 20s bound,
+   after source execution passed. Large CLI compilation now has a 60s bound,
+   with 360s around two 120s executions plus compilation and runner overhead;
+   individual explanation child commands and all assertions remain unchanged.
+   Final local validation additionally caught an intermittent native TCP shutdown
+   fixture admission race: crash frames identify the expected-one-outcome check
+   after a zero-wait poll. The fixture now waits up to 1s for listener readiness
+   before stopping; its admission, error and descriptor-close assertions remain.
+   Ten consecutive native module runs passed, followed by final `make check`
+   after all implementation edits in 429s, including release/relocation smoke.
+   The known 120s aggregate validation budget remains exceeded; this repair
+   preserves correctness checks and does not claim a performance improvement.
+   Focused macOS run 38801463792 then failed OpenSSL chain verification in
+   under a minute. Reproducing with OpenSSL 1.1.1w isolated duplicate CA
+   `basicConstraints`: `req -addext` appended to the host configuration's
+   extensions. An explicit fixture request configuration removes that host
+   dependency. The previously failing case now passes with 1.1.1w locally;
+   final `make check` passed in 427s after this edit, including release smoke.
+   Focused hosted TLS run 38802319633 passed on macOS (33s) and Linux (43s);
+   standard Check 38802319458 also passed for the same revision. Full promotion
+   and public-artifact acceptance remain required.
    The owner subsequently selected weekly coverage reporting instead of a
    release gate. Full product and package validation remain required; source
    collection and published-report freshness no longer block this release.

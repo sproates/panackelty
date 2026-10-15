@@ -24,8 +24,8 @@ pass
 for fixture in cli_environment_files cli_commands cli_explanations cli_check_disasm stdlib; do
     case_name=runner-$fixture
     fixture_timeout=45
-    # Enclose both source and bytecode CLI runs, each with a 120-second bound.
-    case "$fixture" in cli_commands|cli_explanations) fixture_timeout=300 ;; esac
+    # Enclose two 120-second executions, a 60-second build and runner overhead.
+    case "$fixture" in cli_commands|cli_explanations) fixture_timeout=360 ;; esac
     capture 0 "$fixture_timeout" env PANACKELTY_STDLIB_VALUE=ambient-test ./panack run "$runner" --case "$fixture"
     contains "$work/stdout" "PASS case/$fixture/source"
     contains "$work/stdout" "PASS case/$fixture/bytecode"

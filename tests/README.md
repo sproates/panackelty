@@ -880,3 +880,16 @@ The compiler/unit routes include `runner/compiler_source_inventory_unit.panack`
 and `runner/compiler_source_inventory_cli.panack`: literal original-syntax
 expectations plus public command, identity, failure and bytecode-equivalence tests.
 See [source inventory](../docs/SOURCE_INVENTORY.md).
+
+### Portable dependency bundle completeness
+
+The browser-runtime bundle includes `http_transport.c` and `http_transport.h`
+because the VM execution layer references the transport owner even on portable
+hosts. Its `__wasi__` branch retains explicit capability rejection; it does not
+link native libcurl into that target. Bundle generation checks both files, and
+the independent browser consumer compiles the complete bundle as its integration
+check. The immutable alpha.13 dependency archive predates this packaging repair;
+consumers must pin the corrected source revision rather than replace that asset.
+
+The native header contract also syntax-checks the portable HTTP transport branch
+without curl, catching native-only declarations leaking into that branch.

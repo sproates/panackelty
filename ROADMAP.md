@@ -137,9 +137,14 @@ owner has now moved two bounded outcomes from Alpha.13 into this release:
 and [RM#153: Expand guarded types beyond numeric bounds](#rm-153) /
 [GI#435](https://github.com/sproates/panackelty/issues/435), initially scoped
 to a non-empty string guard. GI#173 is one selected workstream within GI#180;
-no other GI#180 workstream is selected for Alpha.14. Detailed guard semantics
-and acceptance remain for slice planning. This records release scope, not
-implementation progress or authorization to begin. The final release scope,
+no other GI#180 workstream is selected for Alpha.14. On 2026-10-15, the owner
+also selected [RM#64: Inference and diagnostics](#rm-64) /
+[GI#170](https://github.com/sproates/panackelty/issues/170) as a separate
+Alpha.14 investigation of current inference limits and diagnostic experience.
+Its existing assessment scope remains authoritative; this does not select an
+inference architecture or implementation. Detailed guard semantics and
+acceptance remain for slice planning. These selections record release scope,
+not implementation progress or authorization to begin. The final release scope,
 amount of work and date remain undecided. [RM#152](#rm-152) separately selects
 a bounded standard-library dependency assessment; it does not commit the release
 to a redesign or refactor. Alpha.13's plan and gates remain separate.
@@ -1834,9 +1839,11 @@ Source-coverage feasibility (#131), editor basics (#139) and invariant testing
 
 ### Additional ideas recorded on 2026-10-01
 
-Entries #164–#170 remain **Idea, unscheduled**. Entries #172–#175 are now
-**In progress (shared investigation)** within [programme #180](#compiler-and-runtime-understanding-programme),
-whose table above owns current progress. The summaries below retain their scope;
+Entries #164–#169 remain **Idea, unscheduled**. GI#170 is selected for Alpha.14
+as an investigation under RM#151; implementation remains unselected. Entries
+#172–#175 are **In progress (shared investigation)** within
+[programme #180](#compiler-and-runtime-understanding-programme), whose table
+above owns current progress. The summaries below retain their scope;
 issue detail defines acceptance. Preserve independently useful outcomes and
 justify shared evidence rather than requiring a large common framework.
 
@@ -4752,6 +4759,11 @@ commitment.
 <a id="rm-64"></a>
 
 **RM#64: Inference and diagnostics** · [GI#170: Inference and diagnostics](https://github.com/sproates/panackelty/issues/170).
+
+**Selected for Alpha.14 as an investigation.** Owner direction, 2026-10-15:
+assess current inference limits and the diagnostic experience under the existing
+scope below. This does not select an inference architecture, language change or
+implementation slice; recommend any implementation only after the assessment.
 
 - [x] Add source excerpts and carets to existing positioned compiler errors,
       preserving imported-module ownership and source snapshots; cover tabs,

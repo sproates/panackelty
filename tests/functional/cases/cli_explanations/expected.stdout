@@ -63,9 +63,12 @@ PASS accepted numeric parser argument cites checked types
 PASS unresolved quotient argument is explicitly unavailable
 PASS accepted quotient arguments cite checked types
 PASS accepted collection append item cites checked type
+PASS rejected collection receiver explains required shape
+PASS unavailable collection receiver explains missing shape
 PASS accepted map callback contract explains purity, input and result
 PASS rejected reduce callback explains result accumulator mismatch
 PASS rejected map callback explains effect requirement
+PASS rejected map callback explains required arity
 PASS unavailable map callback contract reports missing type
 PASS rejected collection append item explains mismatch
 PASS map method reports key and value checks
@@ -213,4 +216,4 @@ PASS qualified explanation selects left identity
 PASS qualified explanation selects right identity
 PASS ambiguous explanation selector rejected
 PASS wrong explanation identity rejected
-tests: 215, failures: 0
+tests: 218, failures: 0

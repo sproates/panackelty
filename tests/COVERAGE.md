@@ -805,6 +805,10 @@ result rule, and reduce's accumulator result type. Unit tests verify retained
 evidence and its absence in ordinary checking. Public CLI cases cover accepted,
 rejected and unavailable map/reduce callback contracts while asserting original
 diagnostics and exit status.
+Collection receiver checks report the actual type and required shape for Array,
+Map, Set and Map-or-Set operations. Unit and CLI cases verify accepted,
+rejected and unavailable receivers, including independent evidence for both
+`concat` operands and no evidence during ordinary checking.
 Filesystem I/O cases cover `fs_read` and `fs_write` input types, accepted and
 rejected sibling outcomes, unavailable values, unchanged diagnostics, and no
 evidence during ordinary checking.

@@ -833,13 +833,16 @@ pure render_type_check_evidence(
   call_arity: Bool = evidence.context == "direct call arity" ||
     evidence.context == "core call arity" || evidence.context == "indirect call arity"
   type_argument_arity: Bool = evidence.context == "type argument arity"
+  collection_receiver: Bool = evidence.context == "collection receiver"
   count_decision: Bool = call_arity || type_argument_arity
   status_label: Str = if call_arity { "checked call arity" } else {
     if type_argument_arity { "checked type argument arity" } else {
       if string_interpolation { "checked interpolation type" } else {
+        if collection_receiver { "checked collection receiver" } else {
         if void_value_requirement { "checked value requirement" } else {
           if match_payload_type { "checked match payload type" } else {
             if match_decision { "checked match decision" } else { "checked type requirement" }
+          }
           }
         }
       }
@@ -862,6 +865,7 @@ pure render_type_check_evidence(
     }
   }
   result: Str = if string_interpolation || void_value_requirement ||
+    collection_receiver ||
     evidence.context == "index position" ||
     evidence.context == "if condition" || evidence.context == "while condition" ||
     evidence.context == "match variant" || match_decision {
@@ -935,6 +939,9 @@ pure render_type_check_evidence(
           "\nreason: the checker deferred interpolation of a guarded local type"
         }
       } else {
+        if collection_receiver {
+          "\nreason: the receiver type was unavailable, so the checker could not determine whether it satisfies the collection requirement"
+        } else {
         if match_payload_type {
           "\nreason: the checker could not determine the matched enum type needed for payload substitution"
         } else {
@@ -943,6 +950,7 @@ pure render_type_check_evidence(
           } else {
             "\nreason: the checker did not determine a complete type decision"
           }
+        }
         }
       }
     }

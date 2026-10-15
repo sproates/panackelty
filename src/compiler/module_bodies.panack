@@ -1856,6 +1856,26 @@ pure body_check_existing_special_core_call(
     diagnostics = append(diagnostics, Diagnostic("call requires a callable", span.start))
   } else {
     if name == "$method_call" {
+    if context.retain_guard_conversions {
+      target_accepted: Option[Bool] = match children[0].type {
+        None() => None(),
+        Some(callable) => match callable.identity {
+          SignatureCallable(effect) => Some(true),
+          SignatureHole(owner, path, index) => None(),
+          SignatureParameter(owner, index) => None(),
+          SignatureCore(core_name) => Some(false),
+          SignatureNominal(identity) => Some(false)
+        }
+      }
+      type_checks = append(type_checks, BodyTypeCheckEvidence(
+        "indirect call target",
+        children[0].span,
+        children[0].type,
+        "callable type",
+        None(),
+        target_accepted
+      ))
+    }
     match children[0].type {
       None() => {
         deferred = append(deferred, span)
@@ -2123,28 +2143,31 @@ pure body_check_existing_special_core_call(
     if len(children) > 0 {
       match children[0].type {
         None() => {
-          type_checks = body_call_arity_evidence(
-            context, "indirect", span, None(), prior_index(len(children))
+          type_checks = concat(
+            type_checks,
+            body_call_arity_evidence(context, "indirect", span, None(), prior_index(len(children)))
           )
         },
         Some(callable) => match callable.identity {
           SignatureCallable(effect) => {
-            type_checks = body_call_arity_evidence(
+            type_checks = concat(type_checks, body_call_arity_evidence(
               context,
               "indirect",
               span,
               Some(prior_index(len(callable.arguments))),
               prior_index(len(children))
-            )
+            ))
           },
           SignatureHole(owner, path, index) => {
-            type_checks = body_call_arity_evidence(
-              context, "indirect", span, None(), prior_index(len(children))
+            type_checks = concat(
+              type_checks,
+              body_call_arity_evidence(context, "indirect", span, None(), prior_index(len(children)))
             )
           },
           SignatureParameter(owner, index) => {
-            type_checks = body_call_arity_evidence(
-              context, "indirect", span, None(), prior_index(len(children))
+            type_checks = concat(
+              type_checks,
+              body_call_arity_evidence(context, "indirect", span, None(), prior_index(len(children)))
             )
           },
           SignatureCore(core_name) => {},

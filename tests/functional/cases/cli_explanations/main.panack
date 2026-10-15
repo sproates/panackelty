@@ -130,13 +130,19 @@ main(): Void {
         ["checked call arity: rejected", "context: core call arity", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "len expects 1 arguments, got 0"))
       explain_write(source, "pure identity(value: Nat): Nat { value }; pure probe(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted indirect call arity reports exact argument count", ["explain", source, "--function", "probe"], 0,
-        ["checked call arity: accepted", "context: indirect call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count"], [], ""))
+        ["checked call arity: accepted", "context: indirect call arity", "argument counts: expected 1; found 1", "accepted the supplied argument count", "checked type requirement: accepted", "context: indirect call target", "actual type: PureFn[Nat,Nat]", "expected type: callable type"], [], ""))
       explain_write(source, "pure identity(value: Nat): Nat { value }; pure probe(): Nat { f: PureFn[Nat,Nat] = @identity; f.call() }\nmain(): Void {}\n")
       results = append(results, explain_run("rejected indirect call arity reports exact argument count", ["explain", source, "--function", "probe"], 1,
         ["checked call arity: rejected", "context: indirect call arity", "argument counts: expected 1; found 0", "rejected the supplied argument count"], [], "call expects 1 arguments, got 0"))
       explain_write(source, "pure probe(): Nat { f = missing; f.call(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("unresolved indirect call arity is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
-        ["checked call arity: unavailable", "context: indirect call arity", "callable type is unresolved", "found 1", "could not determine the expected argument count"], [], "unknown name missing"))
+        ["checked call arity: unavailable", "context: indirect call arity", "callable type is unresolved", "found 1", "could not determine the expected argument count", "checked type requirement: unavailable", "context: indirect call target", "expression: f", "actual type: unavailable", "expected type: callable type"], [], "unknown name missing"))
+      explain_write(source, "pure probe(): Nat { value: Nat = 1; value.call(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("rejected indirect call target explains non-callable type", ["explain", source, "--function", "probe"], 1,
+        ["checked type requirement: rejected", "context: indirect call target", "expression: value", "actual type: Nat", "expected type: callable type", "rejected this type for the requirement"], [], "call expects a callable, got Nat"))
+      explain_write(source, "pure probe[T](value: T): Nat { value.call(1) }\nmain(): Void {}\n")
+      results = append(results, explain_run("indirect call target type parameter is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
+        ["checked type requirement: unavailable", "context: indirect call target", "expression: value", "expected type: callable type", "did not determine a complete type decision"], [], "call expects a callable, got T"))
       explain_write(source, "pure identity(value: Nat): Nat { value }; pure probe(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted indirect call argument cites checked type", ["explain", source, "--function", "probe"], 0,
         ["call argument checks:", "indirect call argument 1: accepted", "expression: 1", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))

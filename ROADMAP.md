@@ -19,7 +19,7 @@ programme workstreams and milestones, website follow-ups and completed work.
 Repeated summaries link to the same identity. Checklists describe their parent
 item's scope; policy, review history and navigation sections are not work items.
 
-The initial allocation contains **105 identities**. **Next available: RM#154.**
+The initial allocation contains **105 identities**. **Next available: RM#155.**
 RM#136–RM#141 are already allocated to source-coverage stages on `next`;
 reserve those identities here to prevent reuse before promotion.
 Allocate the next unused number above the largest allocated number, updating this
@@ -170,7 +170,9 @@ to a redesign or refactor. On 2026-10-15, the owner also moved package
 management ([RM#44](#rm-44) / [GI#200](https://github.com/sproates/panackelty/issues/200))
 from Alpha.13 into Alpha.14. Its product model remains under discussion; this
 selection does not choose a distribution mechanism or automatically commit to
-implementation. Alpha.13's plan and gates remain separate.
+implementation. Alpha.13's plan and gates remain separate. On 2026-10-15, the
+owner also required faster code coverage in Alpha.14;
+[RM#154: Incremental coverage collection](#rm-154) records that outcome.
 
 <a id="rm-152"></a>
 
@@ -183,6 +185,43 @@ rebuilds, VM/runtime ABI coupling, and package versioning. Recommend whether an
 explicit compiler-facing library boundary would help app-facing standard-library
 work proceed independently. This is an assessment: any implementation or
 reorganization requires a later scope decision based on the findings.
+
+
+<a id="rm-154"></a>
+
+**RM#154: Incremental coverage collection — Alpha.14 requirement.**
+
+**Planned for Alpha.14 by owner direction, 2026-10-15.** Improve code-coverage
+collection speed, particularly repeated release checks after changes that do not
+alter the measured program. During Alpha.13 preparation, reporting-only repairs
+repeated expensive plan generation. Successful source-coverage
+[Check 38775373415](https://github.com/sproates/panackelty/actions/runs/38775373415)
+took 29m48s for 31 fresh sessions and 45 measured files. This is an observed hosted
+baseline, not a fixed performance target. Profile generation, execution,
+aggregation and publication separately before selecting further optimisations.
+
+The first implementation direction is incremental reuse of generated coverage
+plans, keyed by exact compiler/exporter and VM identities, transitive source
+inputs, format/schema and relevant settings. Validate cached plans and provenance
+before use; missing, corrupt, partial, untrusted or invalidated entries must
+rebuild safely. Keep every required test execution fresh. Reusing execution
+results is a separate design decision and is not selected by this requirement.
+
+Acceptance must demonstrate materially faster repeated collection with comparable
+cold/warm measurements, explain cache hits and invalidations, and cover changes
+to compiler, VM, exporter, dependencies and settings. Cached and freshly generated
+plans must produce equivalent inventories and coverage semantics. Preserve the
+full measured corpus, assertions, fresh session identities, explicit unmeasured
+and unavailable results, source provenance and release freshness checks. Raising
+timeouts alone does not satisfy the speed outcome; do not reduce test scope or
+weaken validation to meet it. Set a concrete improvement target from the profiling
+evidence during implementation planning rather than inventing a number now.
+
+This is a bounded follow-up to [RM#28: Incremental and modular builds](#rm-28) /
+[GI#106](https://github.com/sproates/panackelty/issues/106); the owner's accepted
+Alpha.13 workflow remains accepted. Initial effort is medium, provisional on cache
+trust and invalidation requirements. Implementation is not started by this roadmap
+addition, and it does not add a new gate to the ongoing Alpha.13 release.
 
 ### Else-if chains
 

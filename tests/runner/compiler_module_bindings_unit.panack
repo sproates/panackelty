@@ -1008,13 +1008,28 @@ pure body_test_error(source: Str): Str {
   if len(checked.diagnostics) == 0 { "ok" } else { checked.diagnostics[0].message }
 }
 pure body_test_graph(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule): CheckedModuleBodies {
+  body_test_graph_mode(modules, graph, entry, false)
+}
+pure body_test_graph_explained(modules: [LoadedModule], graph: ModuleBindingGraph, entry: LoadedModule): CheckedModuleBodies {
+  body_test_graph_mode(modules, graph, entry, true)
+}
+pure body_test_graph_mode(
+  modules: [LoadedModule],
+  graph: ModuleBindingGraph,
+  entry: LoadedModule,
+  retain_guard_conversions: Bool
+): CheckedModuleBodies {
   mut signatures: [ModuleSignature] = []
   mut diagnostics: [Diagnostic] = []
   for module in modules {
     checked: CheckedModuleSignatures = check_module_signatures(graph, modules, module)
     signatures = concat(signatures, checked.declarations); diagnostics = concat(diagnostics, checked.diagnostics)
   }
-  bodies: CheckedModuleBodies = check_module_bodies(graph, modules, signatures, entry)
+  bodies: CheckedModuleBodies = if retain_guard_conversions {
+    check_module_bodies_explained(graph, modules, signatures, entry, true)
+  } else {
+    check_module_bodies(graph, modules, signatures, entry)
+  }
   CheckedModuleBodies(bodies.functions, concat(diagnostics, bodies.diagnostics))
 }
 pure body_test_effects(source: Str, retain: Bool): CheckedModuleEffects {
@@ -3913,6 +3928,85 @@ pure network_core_body_tests(): [TestResult] {
     if len(checked.diagnostics) > 0 { checked.diagnostics[0].message } else { "TCP call body remained deferred or failed identity checking" }
   ))
 
+  transport_source: Str = "pub async request():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,false,bytes(),4096,1000) }"
+  transport_accepted: CheckedModuleBodies = body_test_module_mode(transport_source, true)
+  mut transport_checks: [BodyTypeCheckEvidence] = []
+  if len(transport_accepted.functions) == 1 {
+    transport_checks = body_type_check_evidence(transport_accepted.functions[0].body)
+  }
+  results = append(results, std_testing.expect(
+    "native HTTP transport arguments retain accepted type requirements",
+    len(transport_accepted.diagnostics) == 0 && len(transport_checks) == 8 &&
+      match body_type_check_for_context(transport_accepted.functions[0].body, "argument 1 to http_transport_exchange") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Str"), [])) &&
+          evidence.expected == "Str" && evidence.accepted == Some(true)
+      } && match body_type_check_for_context(transport_accepted.functions[0].body, "argument 6 to http_transport_exchange") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
+          evidence.expected == "Nat" && evidence.accepted == Some(true)
+      },
+    "accepted native HTTP transport argument evidence was incomplete"
+  ))
+
+  transport_rejected: CheckedModuleBodies = body_test_module_mode(
+    "pub async request():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,1,bytes(),4096,1000) }",
+    true
+  )
+  results = append(results, std_testing.expect(
+    "native HTTP transport retains rejected argument type",
+    len(transport_rejected.diagnostics) > 0 && len(transport_rejected.functions) == 1 &&
+      match body_type_check_for_context(transport_rejected.functions[0].body, "argument 3 to http_transport_exchange") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
+          evidence.expected == "Bool" && evidence.accepted == Some(false)
+      },
+    "rejected native HTTP transport argument evidence was missing"
+  ))
+
+  transport_unavailable: CheckedModuleBodies = body_test_module_mode(
+    "pub async request():Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,missing,bytes(),4096,1000) }",
+    true
+  )
+  results = append(results, std_testing.expect(
+    "native HTTP transport retains unavailable argument type",
+    len(transport_unavailable.diagnostics) > 0 && len(transport_unavailable.functions) == 1 &&
+      match body_type_check_for_context(transport_unavailable.functions[0].body, "argument 3 to http_transport_exchange") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() &&
+          evidence.expected == "Bool" && evidence.accepted == None()
+      },
+    "unavailable native HTTP transport argument evidence was missing"
+  ))
+
+  ordinary_transport: CheckedModuleBodies = body_test_module_mode(transport_source, false)
+  results = append(results, std_testing.expect(
+    "ordinary native HTTP transport checking retains no explanation evidence",
+    len(ordinary_transport.functions) == 1 &&
+      len(body_type_check_evidence(ordinary_transport.functions[0].body)) == 0,
+    "ordinary HTTP transport checking retained explanation evidence"
+  ))
+
+  explained_tcp: CheckedModuleBodies = body_test_graph_explained([app, tcp], graph, app)
+  results = append(results, std_testing.expect(
+    "native TCP server explains accepted callback and limits types",
+    len(explained_tcp.diagnostics) == 0 && len(explained_tcp.functions) == 4 &&
+      match body_type_check_for_context(explained_tcp.functions[1].body, "argument 3 to tcp_serve") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCallable(SignatureAsync()), [
+          SignatureType(SignatureCore("Bytes"), []),
+          SignatureType(SignatureCore("Result"), [
+            SignatureType(SignatureCore("Bytes"), []),
+            SignatureType(SignatureCore("Str"), [])
+          ])
+        ])) && evidence.accepted == Some(true)
+      } && match body_type_check_for_context(explained_tcp.functions[1].body, "argument 4 to tcp_serve") {
+        None() => false,
+        Some(evidence) => evidence.expected == "tcp.panack:TcpServerLimits" && evidence.accepted == Some(true)
+      },
+    "accepted native TCP server argument evidence was incomplete"
+  ))
+
   arity_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply) }"
   arity_app: LoadedModule = signature_test_module(namespace_identity("network_arity"), arity_source)
   arity_graph: ModuleBindingGraph = ModuleBindingGraph(
@@ -3943,6 +4037,36 @@ pure network_core_body_tests(): [TestResult] {
       type_checked.diagnostics[0].message == "argument 4 to tcp_serve is Nat, expected tcp.panack:TcpServerLimits" &&
       type_invalid,
     if len(type_checked.diagnostics) > 0 { type_checked.diagnostics[0].message } else { "wrong tcp_serve limits type was accepted" }
+  ))
+
+  type_explained: CheckedModuleBodies = body_test_graph_explained([type_app, tcp], type_graph, type_app)
+  results = append(results, std_testing.expect(
+    "native TCP server explains rejected limits type",
+    len(type_explained.functions) == 2 &&
+      match body_type_check_for_context(type_explained.functions[1].body, "argument 4 to tcp_serve") {
+        None() => false,
+        Some(evidence) => evidence.actual == Some(SignatureType(SignatureCore("Nat"), [])) &&
+          evidence.expected == "tcp.panack:TcpServerLimits" && evidence.accepted == Some(false)
+      },
+    "rejected native TCP server limits evidence was missing"
+  ))
+
+  unavailable_source: Str = "import stdlib/tcp::{TcpServerLimits}; async reply(request: Bytes): Result[Bytes,Str] { Ok(request) }; async bad(): Result[[Result[Unit,Str]],Str] { await tcp_serve(\"127.0.0.1\",9000,@reply,missing) }"
+  unavailable_app: LoadedModule = signature_test_module(namespace_identity("network_unavailable"), unavailable_source)
+  unavailable_graph: ModuleBindingGraph = ModuleBindingGraph(
+    [unavailable_app.bindings, tcp.bindings],
+    [ModuleImportEdge(unavailable_app.bindings.identity, 0, tcp.bindings.identity)]
+  )
+  unavailable_explained: CheckedModuleBodies = body_test_graph_explained([unavailable_app, tcp], unavailable_graph, unavailable_app)
+  results = append(results, std_testing.expect(
+    "native TCP server explains unavailable limits type",
+    len(unavailable_explained.functions) == 2 &&
+      match body_type_check_for_context(unavailable_explained.functions[1].body, "argument 4 to tcp_serve") {
+        None() => false,
+        Some(evidence) => evidence.actual == None() &&
+          evidence.expected == "tcp.panack:TcpServerLimits" && evidence.accepted == None()
+      },
+    "unavailable native TCP server limits evidence was missing"
   ))
   results
 }

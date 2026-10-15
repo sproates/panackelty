@@ -773,6 +773,10 @@ rejected and unavailable arity and accepted, rejected and unavailable argument
 compatibility. Callable targets cover accepted callable types, rejected
 non-callable types and unavailable unresolved/generic-parameter types. Ordinary
 checking retains no indirect call argument or target evidence.
+Native transport argument cases cover accepted, rejected and unavailable HTTP
+exchange requirements; TCP server cases verify accepted callback and server
+limits types plus rejected and unavailable limits values. Ordinary transport
+checking retains no type-requirement evidence.
 `len` argument cases cover accepted `Str`, `Bytes` and array inputs, rejected
 unsupported inputs, and unavailable input types; ordinary checking retains no
 new `len` requirement evidence.

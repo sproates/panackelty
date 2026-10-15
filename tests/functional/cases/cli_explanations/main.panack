@@ -143,6 +143,15 @@ main(): Void {
       explain_write(source, "pure probe[T](value: T): Nat { value.call(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("indirect call target type parameter is explicitly unavailable", ["explain", source, "--function", "probe"], 1,
         ["checked type requirement: unavailable", "context: indirect call target", "expression: value", "expected type: callable type", "did not determine a complete type decision"], [], "call expects a callable, got T"))
+      explain_write(source, "async request(): Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,false,bytes(),4096,1000) }; main(): Void {}\n")
+      results = append(results, explain_run("native HTTP transport explains accepted argument requirements", ["explain", source, "--function", "request"], 0,
+        ["checked type requirement: accepted", "context: argument 1 to http_transport_exchange", "actual type: Str", "expected type: Str", "context: argument 3 to http_transport_exchange", "actual type: Bool", "expected type: Bool", "context: argument 6 to http_transport_exchange", "actual type: Nat", "expected type: Nat"], [], ""))
+      explain_write(source, "async request(): Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,1,bytes(),4096,1000) }; main(): Void {}\n")
+      results = append(results, explain_run("native HTTP transport explains rejected argument requirement", ["explain", source, "--function", "request"], 1,
+        ["checked type requirement: rejected", "context: argument 3 to http_transport_exchange", "expression: 1", "actual type: Nat", "expected type: Bool", "rejected this type for the requirement"], [], "argument 3 to http_transport_exchange is Nat, expected Bool"))
+      explain_write(source, "async request(): Result[Bytes,Str] { await http_transport_exchange(\"localhost\",8080,missing,bytes(),4096,1000) }; main(): Void {}\n")
+      results = append(results, explain_run("native HTTP transport explains unavailable argument requirement", ["explain", source, "--function", "request"], 1,
+        ["checked type requirement: unavailable", "context: argument 3 to http_transport_exchange", "expression: missing", "actual type: unavailable", "expected type: Bool", "did not determine a complete type decision"], [], "unknown name missing"))
       explain_write(source, "pure identity(value: Nat): Nat { value }; pure probe(): Nat { f: PureFn[Nat,Nat] = @identity; f.call(1) }\nmain(): Void {}\n")
       results = append(results, explain_run("accepted indirect call argument cites checked type", ["explain", source, "--function", "probe"], 0,
         ["call argument checks:", "indirect call argument 1: accepted", "expression: 1", "actual type: Nat", "expected type: Nat", "compatible with the expected type"], [], ""))

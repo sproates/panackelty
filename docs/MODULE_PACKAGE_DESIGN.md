@@ -525,6 +525,14 @@ code. Existing host capability controls still apply.
 
 ## Dependency reproduction (P7)
 
+> **Historical implementation proposal; superseded for Alpha.13 by the owner
+> decision recorded in `ROADMAP.md` and GI#200.** The Git, lockfile, vendor,
+> integrity and offline requirements below are not an accepted P7 specification.
+> Alpha.13 covers discussion and refinement followed by an owner-reviewed
+> design document. Do not draft that document until the owner says the discussion
+> is ready to record. Remote package implementation may be deferred. Treat this
+> section and its acceptance matrix as historical input for that discussion.
+
 Keep local paths as the baseline. P7 is independently schedulable after P1/P3;
 remote retrieval is not required for the language/local-package release or
 first-client acceptance. P7 first adds a committed `panack.lock.json` containing exact graph

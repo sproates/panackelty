@@ -98,7 +98,10 @@ in the roadmap; it is not an alpha.13 completion percentage.
    `basicConstraints`: `req -addext` appended to the host configuration's
    extensions. An explicit fixture request configuration removes that host
    dependency. The previously failing case now passes with 1.1.1w locally;
-   final validation and hosted confirmation of this revision remain pending.
+   final `make check` passed in 427s after this edit, including release smoke.
+   Focused hosted TLS run 38802319633 passed on macOS (33s) and Linux (43s);
+   standard Check 38802319458 also passed for the same revision. Full promotion
+   and public-artifact acceptance remain required.
    The owner subsequently selected weekly coverage reporting instead of a
    release gate. Full product and package validation remain required; source
    collection and published-report freshness no longer block this release.

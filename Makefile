@@ -202,16 +202,21 @@ $(BUILD_DIR)/vm/http_client: tests/http_client.c
 	@mkdir -p "$(@D)"
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
 
+$(BUILD_DIR)/vm/static_http_client: tests/static_http_client.c
+	@mkdir -p "$(@D)"
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(VM_WARNINGS) $< -o $@ $(LDFLAGS) $(LDLIBS)
+
 $(BUILD_DIR)/vm/http_fixture: tests/http_fixture.c
 	@mkdir -p "$(@D)"
 	$(CC) $(CFLAGS) $(VM_WARNINGS) $< -o $@
 
-functional-impl: $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
+functional-impl: $(BUILD_DIR)/vm/static_http_client $(STAGE2_COMPILER) $(BUILD_DIR)/vm/tcp_server $(BUILD_DIR)/vm/tcp_client $(BUILD_DIR)/vm/http_client $(BUILD_DIR)/vm/http_fixture
 	@$(MAKE) --no-print-directory identity-root-audit
 	@PANACK_TCP_CLIENT="$(abspath $(BUILD_DIR)/vm/tcp_client)" $(PROFILE) functional/tcp-serve sh tests/tcp_serve.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/http-package sh tests/http_package.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/async-filesystem sh tests/async_filesystem.sh
 	@PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/continuous-service sh tests/continuous_service.sh
+	@PANACK_STATIC_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/static_http_client)" PANACK_HTTP_CLIENT="$(abspath $(BUILD_DIR)/vm/http_client)" $(PROFILE) functional/static-http sh tests/static_http.sh
 	@PANACK_BIN="$(abspath panack)" PANACK_HTTP_FIXTURE="$(abspath $(BUILD_DIR)/vm/http_fixture)" $(PROFILE) functional/http-client sh tests/http_client_package.sh
 	@PANACK_TCP_SERVER="$(abspath $(BUILD_DIR)/vm/tcp_server)" $(PROFILE) functional/tcp sh tests/tcp.sh
 	@PANACK_TEST_COMPILER="$(abspath $(STAGE2_COMPILER))" PANACK_TEST_NAMESPACE_EMISSION=1 $(PROFILE) functional/compiler-driver $(PROBE) tests/runner/compiler_driver.panack
@@ -409,19 +414,30 @@ bootstrap-seed-refresh:
 native-check: bootstrap-check
 	sh tests/native_conformance.sh
 
-install: native
+$(BUILD_DIR)/tools/http-server.bc: panack-vm $(SEED_COMPILER) tools/http-server/panack.json tools/http-server/src/main.panack $(wildcard packages/static_http/src/*.panack) packages/static_http/panack.json $(wildcard packages/http/src/*.panack) packages/http/panack.json $(wildcard src/stdlib/*.panack)
+	@mkdir -p "$(@D)"
+	./panack compile --project tools/http-server/panack.json -o "$@"
+
+install: native $(BUILD_DIR)/tools/http-server.bc
 	install -d "$(DESTDIR)$(PREFIX)/bin"
 	install -d "$(DESTDIR)$(PREFIX)/libexec/panackelty"
 	install -d "$(DESTDIR)$(PREFIX)/share/panackelty"
 	install -d "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib"
 	install -d "$(DESTDIR)$(PREFIX)/packages/http"
+	install -d "$(DESTDIR)$(PREFIX)/packages/static_http"
+	install -d "$(DESTDIR)$(PREFIX)/tools/http-server/src"
 	install -d "$(DESTDIR)$(PREFIX)/share/doc/panackelty"
 	install -m 755 panack "$(DESTDIR)$(PREFIX)/bin/panack"
+	install -m 755 tools/http-server/launch.sh "$(DESTDIR)$(PREFIX)/bin/panack-http-server"
 	install -m 755 panack-vm "$(DESTDIR)$(PREFIX)/libexec/panackelty/panack-vm"
 	install -m 644 VERSION "$(DESTDIR)$(PREFIX)/share/panackelty/VERSION"
 	install -m 644 $(SEED_COMPILER) "$(DESTDIR)$(PREFIX)/share/panackelty/compiler-v9.bc"
+	install -m 644 "$(BUILD_DIR)/tools/http-server.bc" "$(DESTDIR)$(PREFIX)/share/panackelty/http-server-v1.bc"
 	install -m 644 src/stdlib/*.panack "$(DESTDIR)$(PREFIX)/share/panackelty/stdlib/"
 	cp -R packages/http/. "$(DESTDIR)$(PREFIX)/packages/http/"
+	cp -R packages/static_http/. "$(DESTDIR)$(PREFIX)/packages/static_http/"
+	install -m 644 tools/http-server/panack.json tools/http-server/README.md "$(DESTDIR)$(PREFIX)/tools/http-server/"
+	install -m 644 tools/http-server/src/*.panack "$(DESTDIR)$(PREFIX)/tools/http-server/src/"
 	install -m 644 LICENSE CHANGELOG.md RELEASE_POLICY.md SECURITY.md SPEC.md "$(DESTDIR)$(PREFIX)/share/doc/panackelty/"
 
 package: native-check

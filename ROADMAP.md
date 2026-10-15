@@ -254,6 +254,7 @@ release; existing publication correctness defects retain their separate treatmen
 | --- | --- | --- |
 | Developer/build feedback · [RM#28: Incremental and modular builds](#rm-28) / [GI#106](https://github.com/sproates/panackelty/issues/106) | 2026-10-12 macOS arm64: clean-check median 608.81s at two workers; warm `check-compiler` median 114.44s at two workers and 105s at four; one fresh-cache probe 0.30s. PR #389 and same-tree post-merge Check took 8m11s and 10m14s; both passed. Earlier 120s/15s/75s/60s figures remain historical. A reused-tree `make check` for the diagnostics slice passed in 413s; this is not a matched performance comparison. | The [local/CI inventory](tests/VALIDATION_PROFILE.md#gi106-workflow-inventory) and [representative change-impact map](tests/VALIDATION_PROFILE.md#gi106-change-impact-map) are recorded. All three earlier `next` push failures followed green PR Checks on identical product trees. Paired jobs also used identical runner and base-image versions within each OS; Linux regions differed. This rules out image-version drift as an evident explanation, but the historical failures remain unexplained. PR #392's first hosted run exposed a test-ordering mistake: the checkpoint check ran in the compiler harness before the VM test binary was built. Moving it to the VM contract runner fixed the order; the corrected local VM suite and compiler harness passed. Corrected head `0609d09` passed all checks in [PR run #38224322156](https://github.com/sproates/panackelty/actions/runs/38224322156) (8m45s); merged as `6597c16`, whose [post-merge run #38225333320](https://github.com/sproates/panackelty/actions/runs/38225333320) passed (9m24s). That historical disposition is superseded by the owner-directed cadence change below. PR #394 kept all four compiler experiments on every PR in both OS lanes and skipped their exact-tree repeat on `push`; the [first post-merge run](https://github.com/sproates/panackelty/actions/runs/38228244756) confirmed they were skipped in both compiler lanes while the product gates passed. The PR run took 8m34 and the post-merge run 8m30, so this pair does not demonstrate a total wall-time improvement. It does remove measured experiment work from the repeated post-merge lanes without reducing product gates. PR #389 corrected the isolated measurement fixture and documented a direct single-probe command; PR #390 records paired CI evidence. Runtime/compiler behavior and required product coverage are unchanged. GI#106 remains open until the user explicitly says they are happy. |
 | Compiler/runtime/resources · [RM#56: Performance baselines](#rm-56) / [GI#141](https://github.com/sproates/panackelty/issues/141) | Prior profiles and source assessment exist; no maintained representative compile/run, startup, throughput/latency, memory or artifact-size baseline is accepted. No general numeric runtime budget is established. | Planned baseline; execution not started. Baseline delivery owner to be assigned when selected. Next: agree representative correctness-checked workloads, measurements, repeats and noise calibration before thresholds or optimisation. |
+| Website preview service · [RM#101](#rm-101) / [GI#162](https://github.com/sproates/panackelty/issues/162) | Local existing 52-file assembly matched byte-for-byte. Saved-bytecode startup 16–18 ms; small requests 7.0–7.9 ms versus Node 0.15–0.21 ms; largest 706,607-byte requests 11.1–12.9 ms versus 0.27–0.34 ms. Two observations per mode, no general throughput or memory-growth claim. | Material relative latency regression. Proposed acceptance for bounded development previews; installation compiles once to avoid 1.34s source startup. GI#162 delivery maintainer owns real website responsiveness acceptance and will revisit if it obstructs use. See [evidence and limits](docs/GI162_STATIC_HTTP_PLAN.md#performance-evidence-and-proposed-disposition). |
 | Website delivery · [RM#8: Website CI follow-ups](#rm-8) / [GI#187](https://github.com/sproates/panackelty-website/issues/3) | Existing website validation 120s / merge-to-live 180s targets remain as historically scoped; timing acceptance is incomplete. They are not native/runtime targets. | Deferred by user decision; website maintainer retains the record. No new trials or scheduling. Revisit on the existing user-request/correctness/staleness triggers; release preparation reviews the deferred record without automatically restarting it. |
 
 **GI#106 CI configuration route (PR #414):** workflow and explicitly listed CI
@@ -1751,14 +1752,16 @@ with website preview supplying its configuration. Reuse the existing HTTP packag
 and isolate necessary standard-library additions. Keep the existing website build.
 The [implementation proposal](docs/GI162_STATIC_HTTP_PLAN.md) records the design,
 verified prerequisites and delivery sequence. HEAD support is delivered by PR #495
-and asynchronous confined reads by PR #496. Continuous service lifecycle work is
-implemented on `feature/gi162-continuous-http-service`; focused lifecycle,
-console capability and closed-pipe checks pass, and final `make check` passes
-in 523 seconds. Lifecycle delivery is pending merge. The plan records the
-remaining delivery sequence. The generic tool
-and website adoption remain outstanding. The current Node-based preview workflow
-remains available; this checkpoint changes no production website behaviour or
-release claim.
+and asynchronous confined reads by PR #496. Continuous service lifecycle is
+merged in PR #497, with final `make check` passing in 523 seconds. The generic
+`packages/static_http` package and `tools/http-server` executable are implemented;
+focused source, bytecode and relocated-installation checks pass. Final `make check`
+passes in 413 seconds; package delivery remains pending. The installed command runs bytecode
+compiled during installation. Website adoption and final acceptance remain open;
+this intermediate slice does not close #162 or change production website behaviour.
+The [plan's performance evidence](docs/GI162_STATIC_HTTP_PLAN.md#performance-evidence-and-proposed-disposition)
+records a material latency regression against Node and its proposed bounded-preview
+disposition, owned by the delivery maintainer for review during website adoption.
 
 The finite TCP client/server stage is implemented on `main`: client PR #127,
 server contract PR #129 and server implementation PR #130. Both operations are included in the published alpha.11 native release and were
@@ -2052,6 +2055,14 @@ or automatic release-upgrade bot are included. Analytics and broader CI trials
 remain unscheduled/deferred in the website backlog.
 
 ### Website follow-up register
+
+- **GI#162 preview-tool adoption** — In progress, owned by the GI#162 delivery
+  maintainer. The generic package/tool is implemented on `next`; the website must
+  replace its local serving component with the installed command while preserving
+  assembly and provenance. Pin the merged implementation revision until a release
+  includes it; alpha.11 downloads do not. Verify actual assembled assets, readiness,
+  errors, shutdown, owned-directory cleanup and responsiveness before closing #162.
+  Production content and release-download claims are unchanged by this core slice.
 
 - <a id="rm-127"></a>**RM#127: Website release history** — Done
   (2026-10-04, PR #269). Added changelog-generated release history with dated

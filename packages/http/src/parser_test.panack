@@ -1,4 +1,4 @@
-import project/parser::{parse_request, parse_response}
+import project/parser::{parse_request, parse_request_for_methods, parse_response}
 import project/server::{serialize_response, serialize_head_response}
 import project/types::{Header, HttpError, HttpError.InvalidResponse, HttpError.LimitExceeded,
   HttpError.InvalidLimits, HttpError.ProtocolError, HttpError.UnsupportedMethod, HttpError.UnsupportedTransferEncoding,
@@ -198,6 +198,21 @@ main(): Unit {
   expect(match serialize_response(Response(204, [], text.encode_utf8("body"))) {
     Error(error) => error == InvalidResponse(),
     Ok(wire) => false
+  })
+  expect(match parse_request_for_methods(
+    text.encode_utf8("PUT /item HTTP/1.1\r\nHost: local\r\n\r\n"), false, 64, ["PUT"]
+  ) {
+    Error(error) => false,
+    Ok(parsed) => match parsed {
+      None() => false,
+      Some(request) => request.method == "PUT"
+    }
+  })
+  expect(match parse_request_for_methods(
+    text.encode_utf8("POST / HTTP/1.1\r\nHost: local\r\n\r\n"), false, 64, ["GET", "HEAD"]
+  ) {
+    Error(error) => error == UnsupportedMethod("POST"),
+    Ok(parsed) => false
   })
   ()
 }

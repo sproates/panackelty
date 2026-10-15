@@ -159,7 +159,16 @@ For services that remain available until stopped, the development toolchain adds
 SIGINT/SIGTERM draining. `stdlib/async_host` supplies arguments, bounded console
 output and exit for async command-line tools. See the
 [continuous service contract](SPEC.md#continuous-native-services-development-toolchain).
-The generic directory-serving tool is still in development under GI#162.
+The development toolchain includes a generic directory-serving tool:
+
+```sh
+./panack run --project tools/http-server/panack.json --root ./site --port 8000
+```
+
+`make install` also installs `panack-http-server`, compiled once during installation.
+It serves confined files with GET/HEAD, directory indexes and bounded asynchronous
+reads. See the [tool guide](tools/http-server/README.md) for preview headers,
+readiness, shutdown and limits. Published alpha.11 downloads do not include it.
 
 ## Start writing Panackelty
 

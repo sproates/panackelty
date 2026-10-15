@@ -1135,3 +1135,24 @@ invalid limits, readiness failure and exit status. Process waits have a five-sec
 failure bound. Existing finite HTTP interoperability remains in `http_package.sh`.
 The source inventory lists the new stdlib modules as unmeasured; these behavioural
 assertions do not claim source-execution coverage or a throughput benchmark.
+
+## Static directory service
+
+`tests/static_http.sh` runs path and configuration assertions, then complete source,
+saved-bytecode and relocated installed commands. The bounded C peer checks binary
+bodies, UTF-8/space/percent filenames, query-preserving redirects, HEAD lengths,
+MIME types, cache/noindex headers, GET/HEAD method policy, missing files, confinement,
+symlinks, FIFO rejection, oversized/framing-limit files and progress beside an idle
+client. The harness checks edit visibility, root replacement, empty roots, readiness,
+SIGINT/SIGTERM, invalid arguments/roots and occupied ports. Installation moves to a
+path containing spaces and executes from outside the checkout.
+
+`packages/http/src/parser_test.panack` covers configurable accepted methods while
+preserving the default policy. Existing HTTP interoperability exercises legacy
+callers. Static library configuration assertions reject reserved/injected headers,
+insufficient response budgets and invalid root types before binding.
+
+The [GI#162 plan](../docs/GI162_STATIC_HTTP_PLAN.md) records manual byte-for-byte
+checks of all 52 existing assembled website files and local latency observations.
+These do not replace acceptance of the website assembly under review. No new
+source-coverage baseline collection is part of this package delivery.
